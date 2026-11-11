@@ -1,12 +1,12 @@
 //! A tela do Nível de detalhe do anti-IES reflete somente o SQLite da
 //! instalação/cenário. A gravação depende de outra fatia, não há POST fictício.
 use crate::{Estado, Resposta, escapar, protocolo_sintetico};
-use iesei::colunas_detalhe::{self, Configuracao};
+use iesei::colunas_detalhe::{self, Coluna, Configuracao};
 use iesei::instalacao::Instalacao;
 use rusqlite::Connection;
 use std::fmt::Write as _;
 
-fn html(configuracao: &Configuracao) -> String {
+fn html(configuracao: &Configuracao, gravado: bool) -> String {
     let hash = protocolo_sintetico::INFRA_HASH;
     let mut pagina = format!(
         "<html><head><title>SEI - Configurar Detalhe</title></head><body>\
@@ -30,22 +30,64 @@ fn html(configuracao: &Configuracao) -> String {
         )
         .expect("String");
     }
-    pagina.push_str("</form></body></html>");
+    pagina.push_str("</form>");
+    if gravado {
+        pagina.push_str("<script>function inicializar(){if ('1'=='1'){window.parent.location='controlador.php?acao=procedimento_controlar';infraFecharJanelaModal();}}</script>");
+    }
+    pagina.push_str("</body></html>");
     pagina
 }
 
-/// Consulta uma observação; sem estado retorna 503, não uma tela vazia.
+/// Só aceita os controles publicados pela configuração; não infere
+/// opções ausentes nem permite duplicar campos no mesmo POST.
+fn campos_marcados(corpo: &str, configuracao: &Configuracao) -> Option<Vec<Coluna>> {
+    let (mut pagina, mut salvar) = (false, false);
+    let mut marcadas = Vec::new();
+    for par in corpo.split('&') {
+        let (nome, valor) = par.split_once('=')?;
+        match (nome, valor) {
+            ("hdnInfraTipoPagina", "2") if !pagina => pagina = true,
+            ("sbmSalvar", "Salvar") if !salvar => salvar = true,
+            _ => {
+                let coluna = configuracao
+                    .opcoes
+                    .iter()
+                    .find(|opcao| opcao.coluna.campo() == nome)?
+                    .coluna;
+                if valor != "on" || marcadas.contains(&coluna) {
+                    return None;
+                }
+                marcadas.push(coluna);
+            }
+        }
+    }
+    (pagina && salvar).then_some(marcadas)
+}
+
+/// GET projeta o SQLite; POST autorizado altera exatamente as marcas
+/// ofertadas e devolve sinal sintético de gravação (ainda exige GET do IES).
 pub(crate) fn responder(
     metodo: &str,
+    corpo: &str,
     banco: &Connection,
     instalacao: &Instalacao,
     cenario: &str,
 ) -> Resposta {
-    if metodo != "GET" {
+    if !matches!(metodo, "GET" | "POST") {
         return Resposta::nova(Estado::MetodoNaoPermitido);
     }
-    match colunas_detalhe::ler(banco, instalacao, cenario) {
-        Ok(Some(configuracao)) => Resposta::html(html(&configuracao)),
+    let configuracao = match colunas_detalhe::ler(banco, instalacao, cenario) {
+        Ok(Some(configuracao)) => configuracao,
+        Ok(None) | Err(_) => return Resposta::nova(Estado::DadosInsuficientes),
+    };
+    if metodo == "GET" {
+        return Resposta::html(html(&configuracao, false));
+    }
+    let Some(marcadas) = campos_marcados(corpo, &configuracao) else {
+        return Resposta::nova(Estado::RequisicaoInvalida);
+    };
+    match colunas_detalhe::definir(banco, instalacao, cenario, &marcadas) {
+        Ok(Some(atualizada)) => Resposta::html(html(&atualizada, true)),
         Ok(None) | Err(_) => Resposta::nova(Estado::DadosInsuficientes),
     }
 }
@@ -71,7 +113,7 @@ mod tests {
                 },
             ],
         };
-        let html = html(&config);
+        let html = html(&config, false);
         assert!(html.contains("name='chkSinAtribuicao' class='infraCheckbox' checked"));
         assert!(html.contains("name='chkSinAnotacao' class='infraCheckbox'>"));
         assert!(html.contains("id='frmAcessoExternoCancelar'"));
