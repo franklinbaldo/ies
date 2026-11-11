@@ -273,3 +273,43 @@ fn metadados_de_arquivo_privado_preservam_causa_de_ancestral_regular() {
     );
     assert_eq!(fs::read_to_string(url).unwrap(), "sentinela-sintetica");
 }
+
+#[cfg(unix)]
+#[test]
+fn setup_preserva_not_a_directory_no_arquivo_de_acesso_sem_escrever_configuracao() {
+    use super::{ArquivosDeAcesso, ErroGravacaoDaConfiguracao, salvar_arquivos_de_acesso};
+
+    let pasta = Pasta::nova();
+    let ancestral = pasta.0.join("ancestral-regular");
+    gravar(&ancestral, "SENTINELA FICTICIA");
+    let url = pasta.0.join("url");
+    gravar(&url, "URL FICTICIA");
+    let origem = pasta.0.join("origem");
+    gravar(&origem, "ORIGEM FICTICIA");
+    let arquivos = ArquivosDeAcesso {
+        url_controle: url,
+        cookie: ancestral.join("cookie"),
+        origem,
+    };
+    let destino = pasta.arquivo();
+    assert_eq!(
+        salvar_arquivos_de_acesso(&destino, &arquivos),
+        Err(ErroGravacaoDaConfiguracao::ArquivoPrivadoNaoLido(
+            std::io::ErrorKind::NotADirectory
+        ))
+    );
+    assert!(!destino.exists());
+    assert_eq!(
+        fs::read_to_string(&ancestral).unwrap(),
+        "SENTINELA FICTICIA"
+    );
+
+    let arquivos_ausentes = ArquivosDeAcesso {
+        cookie: pasta.0.join("cookie-ausente"),
+        ..arquivos
+    };
+    assert_eq!(
+        salvar_arquivos_de_acesso(&destino, &arquivos_ausentes),
+        Err(ErroGravacaoDaConfiguracao::CaminhoPrivadoAusenteOuNaoAbsoluto)
+    );
+}
