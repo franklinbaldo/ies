@@ -45,7 +45,7 @@ pub(crate) fn ler_propriedades(
         if let Some(tag) = campos.opcional(oculta)?
             && !valor(tag)?.is_empty()
         {
-            return Err(ErroPropriedades::ListaOcultaDasPropriedadesNaoObservada);
+            return Err(ErroPropriedades::ListaOcultaDasPropriedadesPreenchida);
         }
     }
     Ok(PropriedadesLidas {
@@ -150,17 +150,17 @@ fn marcada(
     }
 }
 
-fn tipo(campos: &Campos<'_>) -> Result<Option<String>, ErroPropriedades> {
+fn tipo(campos: &Campos<'_>) -> Result<String, ErroPropriedades> {
     let Some((valor_marcado, texto)) = marcada(campos, campos.unico("selTipoProcedimento")?)?
     else {
-        return Ok(None);
+        return Err(ErroPropriedades::TipoDoProcessoNaoMarcado);
     };
     if let Some(oculto) = campos.opcional("hdnIdTipoProcedimento")?
         && valor(oculto)? != valor_marcado
     {
         return Err(ErroPropriedades::TipoDoProcessoInconsistente);
     }
-    Ok(Some(texto))
+    Ok(texto)
 }
 
 fn assuntos(campos: &Campos<'_>) -> Result<Vec<Assunto>, ErroPropriedades> {
@@ -175,15 +175,12 @@ fn assuntos(campos: &Campos<'_>) -> Result<Vec<Assunto>, ErroPropriedades> {
                 && codigo.bytes().any(|b| b.is_ascii_digit())
                 && codigo.bytes().all(|b| b.is_ascii_digit() || b == b'.')
         });
-        lidos.push(match codigo {
-            Some((codigo, descricao)) => Assunto {
-                codigo: Some(codigo.to_owned()),
-                descricao: descricao.to_owned(),
-            },
-            None => Assunto {
-                codigo: None,
-                descricao: texto,
-            },
+        let Some((codigo, descricao)) = codigo else {
+            return Err(ErroPropriedades::CodigoDoAssuntoNaoInterpretado);
+        };
+        lidos.push(Assunto {
+            codigo: codigo.to_owned(),
+            descricao: descricao.to_owned(),
         });
     }
     Ok(lidos)
@@ -242,14 +239,14 @@ fn nivel_de_acesso(campos: &Campos<'_>) -> Result<NivelDeAcesso, ErroPropriedade
     }
 }
 
-/// `hdnDtaGeracao` na forma `dd/mm/aaaa`; ausente ou vazio, `None`.
-fn data_de_geracao(campos: &Campos<'_>) -> Result<Option<String>, ErroPropriedades> {
+/// `hdnDtaGeracao` na forma `dd/mm/aaaa`; ausente ou vazio é recusa.
+fn data_de_geracao(campos: &Campos<'_>) -> Result<String, ErroPropriedades> {
     let Some(tag) = campos.opcional("hdnDtaGeracao")? else {
-        return Ok(None);
+        return Err(ErroPropriedades::DataDeGeracaoAusente);
     };
     let data = valor(tag)?;
     if data.is_empty() {
-        return Ok(None);
+        return Err(ErroPropriedades::DataDeGeracaoAusente);
     }
     let forma = data.len() == 10
         && data.bytes().enumerate().all(|(i, b)| match i {
@@ -259,5 +256,5 @@ fn data_de_geracao(campos: &Campos<'_>) -> Result<Option<String>, ErroPropriedad
     if !forma {
         return Err(ErroPropriedades::DataDeGeracaoForaDaFormaObservada);
     }
-    Ok(Some(data))
+    Ok(data)
 }

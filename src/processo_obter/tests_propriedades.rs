@@ -33,7 +33,7 @@ fn guardado(amb: &Ambiente, acao: AcaoDoSei) -> Option<String> {
 fn lidas(r: &ProcessoAberto) -> &crate::propriedades_processo::PropriedadesLidas {
     match &r.propriedades {
         Propriedades::Lidas(lidas) => lidas,
-        outro => panic!("propriedades não lidas: {outro:?}"),
+        outro @ Propriedades::Omitidas => panic!("propriedades não lidas: {outro:?}"),
     }
 }
 
@@ -165,7 +165,7 @@ fn sem_alterar_na_barra_le_pela_consulta() {
 }
 
 #[test]
-fn barra_sem_o_link_publica_o_motivo_sem_requisicao() {
+fn barra_sem_o_link_recusa_sem_requisicao() {
     let amb = ambiente();
     let (r, pedidos) = rodar_props(
         &amb,
@@ -173,11 +173,9 @@ fn barra_sem_o_link_publica_o_motivo_sem_requisicao() {
         true,
         frio(arvore_de(ID, NUP), vec![]),
     );
-    let r = r.unwrap();
-    assert_eq!(r.propriedades, Propriedades::NaoPublicadasNaBarra);
     assert_eq!(
-        r.propriedades.motivo(),
-        Some("tela_de_propriedades_nao_publicada_na_barra")
+        r.unwrap_err(),
+        ErroProcessoObter::PropriedadesNaoPublicadasNaBarra
     );
     assert_eq!(pedidos, pedidos_frio(&[]));
 }
@@ -415,7 +413,10 @@ fn guardado_nao_e_usado_quando_a_barra_nao_publica_a_tela() {
         true,
         vec![ok(arvore_de(ID, NUP))],
     );
-    assert_eq!(r.unwrap().propriedades, Propriedades::NaoPublicadasNaBarra);
+    assert_eq!(
+        r.unwrap_err(),
+        ErroProcessoObter::PropriedadesNaoPublicadasNaBarra
+    );
     assert_eq!(pedidos, [get(&url_arvore(ID))]);
 }
 

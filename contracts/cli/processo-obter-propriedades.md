@@ -26,10 +26,9 @@ relativo, uma `acao`, `id_procedimento` igual ao da árvore, um
 `infra_hash` de 64 hex, chaves canônicas, resolvido contra a instalação.
 
 **Link não publicado.** Barra ausente, vazia ou sem nenhum dos dois links
-não derruba o comando: sai `"propriedades": null`, `"propriedades"` fica
-em `nao_lidos` e `"propriedades_nao_lidas_motivo":
-"tela_de_propriedades_nao_publicada_na_barra"`. Link presente mas
-inválido ou repetido é recusa tipada.
+faz o comando falhar com `PropriedadesNaoPublicadasNaBarra` (saída 1, sem
+GET, nada publicado como `null`). Só `--sem-propriedades` dispensa a
+leitura. Link presente mas inválido ou repetido é recusa tipada.
 
 ## A tela
 
@@ -41,14 +40,14 @@ nunca participa. Leitura pelo tokenizador de atributos e pela árvore do
 - **Identidade.** `hdnProtocoloFormatado` igual ao NUP pedido e
   `hdnIdProcedimento` igual ao id da árvore (comparação opaca, byte a
   byte); um de cada, dentro do único `form#frmProcedimentoCadastro`.
-- **`tipo`**: o texto da única `option` marcada de `selTipoProcedimento`
-  (nenhuma: `null`); `hdnIdTipoProcedimento`, se presente, tem de ser
-  igual ao `value` dela.
+- **`tipo`**: o texto da única `option` marcada de `selTipoProcedimento`;
+  nenhuma marcada (ou a `option` `null`) é `TipoDoProcessoNaoMarcado`;
+  `hdnIdTipoProcedimento`, se presente, tem de ser igual ao `value` dela.
 - **`especificacao`**: `value` de `txtDescricao`.
 - **`assuntos`**: cada `option` de `selAssuntos`, na ordem servida, com
   `value` decimal; o texto `<código> - <descrição>` vira
-  `{"codigo", "descricao"}` quando o código só tem dígitos e pontos,
-  senão `{"codigo": null, "descricao": <texto>}`.
+  `{"codigo", "descricao"}` quando o código só tem dígitos e pontos.
+  Texto sem código nesse formato é `CodigoDoAssuntoNaoInterpretado`.
 - **`interessados`**: o texto de cada `option` de
   `selInteressadosProcedimento`, na ordem servida (`[]` sem opção).
 - **`observacoes`**: o texto de `txaObservacoes`.
@@ -57,13 +56,15 @@ nunca participa. Leitura pelo tokenizador de atributos e pela árvore do
   (`optPublico`, `optRestrito`, `optSigiloso`).
 - **`hipotese_legal`**: o texto da única `option` marcada de
   `selHipoteseLegal` com `value` diferente de `null`; nenhuma: `null`.
+  É a única ausência de saída que vem do domínio, não de leitura: a
+  hipótese só se marca em nível restrito ou sigiloso (a confirmar pelo dono).
 - **`data_de_geracao`**: `hdnDtaGeracao` na forma `dd/mm/aaaa`; ausente
-  ou vazio: `null`.
+  ou vazio é `DataDeGeracaoAusente`.
 
 `hdnAssuntos` e `hdnInteressadosProcedimento` vêm **vazios** no HTML
 servido (o `infraLupaSelect` os preenche no navegador): a fonte é o
-`select`. Lista oculta servida não vazia nunca foi observada e é recusa
-(`ListaOcultaDasPropriedadesNaoObservada`), não palpite.
+`select`. Lista oculta servida não vazia é recusa
+(`ListaOcultaDasPropriedadesPreenchida`), não palpite.
 
 ## Índice local
 
@@ -83,22 +84,23 @@ transporte, sem nova tentativa.
 | 4a. linha do Controle | 5 | 4 | 4 | 3 |
 
 Nos outros caminhos, +1 sobre o [contrato dos andamentos](processo-obter-andamentos.md).
-Sem link na barra, as propriedades custam 0.
+Sem link na barra, o comando falha antes de qualquer GET das propriedades.
 
 ## Saída
 
 ```json
 "propriedades": {"tipo": "texto ou null", "especificacao": "texto",
   "interessados": ["texto"],
-  "assuntos": [{"codigo": "999.99 ou null", "descricao": "texto"}],
+  "assuntos": [{"codigo": "999.99", "descricao": "texto"}],
   "observacoes": "texto", "nivel_de_acesso": "publico",
-  "hipotese_legal": null, "data_de_geracao": "dd/mm/aaaa ou null",
+  "hipotese_legal": null, "data_de_geracao": "dd/mm/aaaa",
   "fonte": "procedimento_alterar"}
 ```
 
 Lidas, `"propriedades"` sai de `nao_lidos`. `--sem-propriedades`: nenhum
 pedido; a chave `propriedades` some, `"propriedades"` fica em
-`nao_lidos` e o motivo é `"omitidas_por_sem_propriedades"`. Interessados
+`nao_lidos` e o motivo é `"omitidas_por_sem_propriedades"`. Sem a flag,
+o objeto é sempre o lido, ou o comando falha. Interessados
 são nomes de pessoas e entidades: conteúdo pedido pelo usuário, publicado
 na saída e nunca em log. Ids de assunto e de contato não são publicados.
 
@@ -121,14 +123,18 @@ Tela: `html_das_propriedades_nao_interpretado`,
 `campo_das_propriedades_ausente`, `campo_das_propriedades_repetido`,
 `NumeroDasPropriedadesDiferenteDoSolicitado`,
 `IdDasPropriedadesDiferenteDoAberto`,
-`TipoDoProcessoInconsistente`, `opcoes_marcadas_repetidas`,
-`assunto_fora_da_forma_observada`,
+`TipoDoProcessoInconsistente`, `TipoDoProcessoNaoMarcado`,
+`opcoes_marcadas_repetidas`,
+`assunto_fora_da_forma_observada`, `CodigoDoAssuntoNaoInterpretado`,
 `interessado_fora_da_forma_observada`,
-`ListaOcultaDasPropriedadesNaoObservada`,
+`ListaOcultaDasPropriedadesPreenchida`,
 `NivelDeAcessoNaoMarcado`,
 `nivel_de_acesso_fora_da_forma_observada`,
-`data_de_geracao_fora_da_forma_observada`,
+`DataDeGeracaoAusente`, `data_de_geracao_fora_da_forma_observada`,
 `TextoDasPropriedadesNaoDecodificado`.
+
+Barra: `PropriedadesNaoPublicadasNaBarra` (sem `procedimento_alterar` nem
+`procedimento_consultar`).
 
 Login fora de palpite: `SessaoEncerrada`; 302 de outra
 forma: `redirecionamento_nao_reconhecido`; status HTTP de falha, o erro

@@ -70,7 +70,7 @@ fn guardado(amb: &Ambiente) -> Option<String> {
 fn nomes(r: &ProcessoAberto) -> Vec<&str> {
     match &r.marcadores {
         Marcadores::Lidos(lidos) => lidos.itens.iter().map(|m| m.nome.as_str()).collect(),
-        outro => panic!("marcadores não lidos: {outro:?}"),
+        outro @ Marcadores::Omitidos => panic!("marcadores não lidos: {outro:?}"),
     }
 }
 
@@ -178,7 +178,7 @@ fn combinacoes_com_sem_andamentos_e_sem_propriedades() {
 }
 
 #[test]
-fn barra_sem_o_link_publica_o_motivo_sem_requisicao() {
+fn barra_sem_o_link_recusa_sem_requisicao() {
     let amb = ambiente();
     let (r, pedidos) = rodar_marc(
         &amb,
@@ -186,11 +186,9 @@ fn barra_sem_o_link_publica_o_motivo_sem_requisicao() {
         SO_MARCADORES,
         frio(arvore_de(ID, NUP), vec![]),
     );
-    let r = r.unwrap();
-    assert_eq!(r.marcadores, Marcadores::NaoPublicadosNaBarra);
     assert_eq!(
-        r.marcadores.motivo(),
-        Some("tela_de_marcadores_nao_publicada_na_barra")
+        r.unwrap_err(),
+        ErroProcessoObter::MarcadoresNaoPublicadosNaBarra
     );
     assert_eq!(pedidos, pedidos_frio(&[]));
 }
@@ -246,11 +244,9 @@ fn tela_sem_tabela_nao_vira_lista_vazia() {
         SO_MARCADORES,
         frio(arvore_completa(ID), vec![ok(tela_com(NUP, ID, ""))]),
     );
-    let r = r.unwrap();
-    assert_eq!(r.marcadores, Marcadores::TabelaNaoPublicada);
     assert_eq!(
-        r.marcadores.motivo(),
-        Some("tabela_de_marcadores_nao_publicada_na_tela")
+        r.unwrap_err(),
+        ErroProcessoObter::TabelaDeMarcadoresNaoPublicadaNaTela
     );
     assert_eq!(guardado(&amb), Some(url_marcadores()));
 }
@@ -396,7 +392,10 @@ fn guardado_nao_e_usado_quando_a_barra_nao_publica_a_tela() {
         SO_MARCADORES,
         vec![ok(arvore_de(ID, NUP))],
     );
-    assert_eq!(r.unwrap().marcadores, Marcadores::NaoPublicadosNaBarra);
+    assert_eq!(
+        r.unwrap_err(),
+        ErroProcessoObter::MarcadoresNaoPublicadosNaBarra
+    );
     assert_eq!(pedidos, [get(&url_arvore(ID))]);
 }
 

@@ -14,7 +14,6 @@ pub(crate) use anexo::ler_anexo_publicado;
 #[derive(Debug, PartialEq, Eq)]
 pub(crate) enum PropriedadesDocumento {
     NaoPedidas,
-    NaoPublicadas,
     Lidas(PropriedadesLidas),
 }
 
@@ -245,7 +244,6 @@ pub(crate) fn ler_formulario(
 pub(crate) fn linha_humana(props: &PropriedadesDocumento) -> Option<String> {
     match props {
         PropriedadesDocumento::NaoPedidas => None,
-        PropriedadesDocumento::NaoPublicadas => Some("Cadastro não publicado.".to_owned()),
         PropriedadesDocumento::Lidas(p) => {
             let nivel = match &p.nivel_de_acesso {
                 Some(Nivel::Publico) => "público",

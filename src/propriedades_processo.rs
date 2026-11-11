@@ -76,21 +76,22 @@ impl NivelDeAcesso {
 /// Uma `option` de `selAssuntos`: `<código> - <descrição>`.
 #[derive(Clone, Debug, PartialEq, Eq)]
 pub(crate) struct Assunto {
-    pub(crate) codigo: Option<String>,
+    pub(crate) codigo: String,
     pub(crate) descricao: String,
 }
 
-/// O que o formulário publicou; `None` é "não observado".
+/// O que o formulário publicou. `hipotese_legal` é `None` quando nenhuma
+/// hipótese está marcada, o único campo cuja ausência é o domínio.
 #[derive(Clone, Debug, PartialEq, Eq)]
 pub(crate) struct PropriedadesLidas {
-    pub(crate) tipo: Option<String>,
+    pub(crate) tipo: String,
     pub(crate) especificacao: String,
     pub(crate) interessados: Vec<String>,
     pub(crate) assuntos: Vec<Assunto>,
     pub(crate) observacoes: String,
     pub(crate) nivel_de_acesso: NivelDeAcesso,
     pub(crate) hipotese_legal: Option<String>,
-    pub(crate) data_de_geracao: Option<String>,
+    pub(crate) data_de_geracao: String,
     pub(crate) fonte: FonteDasPropriedades,
 }
 
@@ -108,7 +109,12 @@ pub(crate) enum ErroPropriedades {
     NumeroDasPropriedadesDiferenteDoSolicitado,
     IdDasPropriedadesDiferenteDoAberto,
     TipoDoProcessoInconsistente,
-    ListaOcultaDasPropriedadesNaoObservada,
+    /// `hdnAssuntos` ou `hdnInteressadosProcedimento` com conteúdo: a lista
+    /// visível pode estar incompleta, então nada se afirma.
+    ListaOcultaDasPropriedadesPreenchida,
+    TipoDoProcessoNaoMarcado,
+    CodigoDoAssuntoNaoInterpretado,
+    DataDeGeracaoAusente,
     NivelDeAcessoNaoMarcado,
     TextoDasPropriedadesNaoDecodificado,
     AssuntoForaDaFormaObservada,

@@ -23,8 +23,10 @@ Confere ação, IDs de documento e processo, lê `frmDocumentoCadastro`
 com um único GET adicional (sem POST) e publica `propriedades` com
 `fonte` igual à ação observada, `tipo`, `descricao`,
 `nome_na_arvore`, `observacoes` e `nivel_de_acesso`.
-Sem qualquer link de cadastro: `propriedades: null`,
-`propriedades_motivo: nao_publicadas_na_barra` e nenhum GET extra.
+Sem qualquer link de cadastro com `--com-propriedades`: falha tipada
+`PropriedadesNaoPublicadasNaBarra` (saída 1, nenhum GET extra, nada
+publicado como `null`). Sem a flag, a chave `propriedades` não sai.
+Com `--anexo` e sem o cadastro do anexo: `ConteudoNaoPublicadoNaArvore`.
 Formulário ilegível ou identidade divergente são recusas tipadas.
 Não fabricar link de consulta nem tratar ausência de link como ausência
 do documento.
@@ -130,6 +132,7 @@ de identidade continuam erros. Sem GET adicional ou retry.
 | `ErroDocumentoObter::NumeroSeiRepetidoNaArvore` | dois `DOCUMENTO` com o número pedido |
 | `ErroDocumentoObter::DocumentoAusenteDaArvore` | o id não está na árvore, nem com as pastas abertas |
 | `ConteudoNaoPublicadoNaArvore` | `.src` vazio: a árvore não publica o conteúdo à sessão (visto com documento não assinado de outra unidade) |
+| `PropriedadesNaoPublicadasNaBarra` | `--com-propriedades` e a barra do documento não publica o cadastro (sem GET) |
 | `ErroDocumentoObter::DocumentoCancelado` | `.src` vazio num nó cancelado |
 | `ErroDocumentoObter::Conteudo(ErroConteudoNaArvore::{LinkDoConteudoAusenteNaArvore, LinkDoConteudoRepetidoNaArvore, LinkDoConteudoForaDaFormaObservada, EnderecoDoConteudoNaoReconhecido, EnderecoDoConteudoDeOutroDocumento})` | `.src` ausente, repetido, fora da forma ou de outro documento |
 | `ErroDocumentoObter::TituloDeOutroDocumento` | o HTML servido é de outro número SEI |

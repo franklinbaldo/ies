@@ -27,16 +27,18 @@ pub(super) fn ler<V: EnvioDoProcesso>(
             anexo: None,
         });
     }
+    // Sem link de cadastro na barra, ou sem anexo publicado: o pedido do
+    // usuário não se cumpre. O anexo é o conteúdo; as propriedades, o cadastro.
+    let conteudo_nao_publicado = || ErroDocumentoObter::ConteudoNaoPublicadoNaArvore {
+        requisicoes: rede.requisicoes.total_u8(),
+    };
     let Some(link) = propriedades_documento::ler_link(instalacao, arvore, documento, processo)
         .map_err(ErroDocumentoObter::Cadastro)?
     else {
-        return Ok(Cadastro {
-            propriedades: if pedir_propriedades {
-                PropriedadesDocumento::NaoPublicadas
-            } else {
-                PropriedadesDocumento::NaoPedidas
-            },
-            anexo: None,
+        return Err(if buscar_anexo {
+            conteudo_nao_publicado()
+        } else {
+            ErroDocumentoObter::PropriedadesNaoPublicadasNaBarra
         });
     };
     if buscar_anexo
@@ -46,10 +48,7 @@ pub(super) fn ler<V: EnvioDoProcesso>(
                 | crate::acao_do_sei::AcaoDoSei::DocumentoConsultarRecebido
         )
     {
-        return Ok(Cadastro {
-            propriedades: PropriedadesDocumento::NaoPublicadas,
-            anexo: None,
-        });
+        return Err(conteudo_nao_publicado());
     }
     let html = match rede.get(&link.url).map_err(ErroDocumentoObter::Processo)? {
         Lida::Html { html, .. } => html,

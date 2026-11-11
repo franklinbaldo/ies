@@ -213,13 +213,15 @@ processo, não documento. Com algum anexado, `nao_lidos` termina em
 (`{"numero", "id_procedimento"}` do pai, ou `null`) também saem sempre;
 o texto humano diz `Anexado ao processo <NUP> (id N): ies processo <NUP>`.
 
-As formas de `andamentos` (objeto, `null` com motivo, ausente) estão em
-[andamentos](processo-obter-andamentos.md); as de `propriedades`, em
-[propriedades](processo-obter-propriedades.md); as de `marcadores`, em
+`andamentos`, `propriedades` e `marcadores` saem sempre como objeto lido
+ou ausentes com `--sem-*` (motivo `omitidos_por_sem_*`); a barra que não
+publica uma leitura pedida faz o comando falhar. Detalhes em
+[andamentos](processo-obter-andamentos.md),
+[propriedades](processo-obter-propriedades.md) e
 [marcadores](processo-obter-marcadores.md); as de `aberto_em` e dos
 campos de natureza, em [situação](processo-obter-situacao.md).
 `nao_lidos` é, na ordem: `aberto_em` (se não lido), `andamentos` (se
-não lidos), `marcadores` (se não lidos), `propriedades` (se não lidas)
+omitidos), `marcadores` (se omitidos), `propriedades` (se omitidas)
 e `documentos_dos_anexados`.
 
 `documentos` segue a ordem dos nós; com pastas, só sai depois de cada

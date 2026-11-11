@@ -135,7 +135,7 @@ fn conferir_candidato<V: EnvioDoControle>(
     Ok(ProcessoConferido {
         id: candidato.id.clone(),
         nup: candidato.nup.clone(),
-        tipo: propriedades.tipo,
+        tipo: Some(propriedades.tipo),
         especificacao: Some(propriedades.especificacao),
         nivel: Some(propriedades.nivel_de_acesso.como_texto().to_owned()),
         interessados: propriedades.interessados,

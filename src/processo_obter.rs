@@ -198,8 +198,9 @@ impl ResolvidoPor {
 
 /// O processo aberto: árvore conferida, unidade publicada pela primeira
 /// tela que a mostrou (`None` no link da árvore: ela não a publica),
-/// passo, andamentos (`None` com `--sem-andamentos`) e requisições feitas
-/// (inclusive as dos palpites que falharam).
+/// passo, andamentos, propriedades e marcadores (cada um lido ou omitido
+/// por pedido do usuário) e requisições feitas (inclusive as dos palpites
+/// que falharam).
 #[derive(Debug, PartialEq, Eq)]
 pub(crate) struct ProcessoAberto {
     pub(crate) arvore: ArvoreLida,
@@ -211,15 +212,13 @@ pub(crate) struct ProcessoAberto {
     pub(crate) requisicoes: u8,
 }
 
-/// O que se sabe dos andamentos depois do comando.
+/// O que se sabe dos andamentos depois do comando: lidos, ou omitidos por
+/// `--sem-andamentos`. Link do histórico ausente na árvore é erro tipado.
 #[derive(Debug, PartialEq, Eq)]
 pub(crate) enum Andamentos {
     Lidos(AndamentosLidos),
     /// `--sem-andamentos`: nenhum pedido ao histórico.
     Omitidos,
-    /// A árvore não publicou o link em nenhuma das formas observadas
-    /// (visto em GO); não é recusa: a árvore já provou a identidade.
-    LinkNaoPublicadoNaArvore,
 }
 
 impl Andamentos {
@@ -227,64 +226,53 @@ impl Andamentos {
     pub(crate) fn lidos(&self) -> Option<&AndamentosLidos> {
         match self {
             Self::Lidos(lidos) => Some(lidos),
-            _ => None,
+            Self::Omitidos => None,
         }
     }
 
-    /// `andamentos_nao_lidos_motivo` publicado quando não foram lidos.
+    /// `andamentos_nao_lidos_motivo` publicado quando foram omitidos.
     pub(crate) fn motivo(&self) -> Option<&'static str> {
         match self {
             Self::Lidos(_) => None,
             Self::Omitidos => Some("omitidos_por_sem_andamentos"),
-            Self::LinkNaoPublicadoNaArvore => Some("link_do_historico_nao_publicado_na_arvore"),
         }
     }
 }
 
-/// O que se sabe das propriedades depois do comando.
+/// O que se sabe das propriedades depois do comando: lidas, ou omitidas
+/// por `--sem-propriedades`. Barra sem a tela é erro tipado.
 #[derive(Debug, PartialEq, Eq)]
 pub(crate) enum Propriedades {
     Lidas(PropriedadesLidas),
     /// `--sem-propriedades`: nenhum pedido à tela.
     Omitidas,
-    /// A barra do processo não publica `procedimento_alterar` nem
-    /// `procedimento_consultar`; não é recusa.
-    NaoPublicadasNaBarra,
 }
 
 impl Propriedades {
-    /// `propriedades_nao_lidas_motivo` publicado quando não foram lidas.
+    /// `propriedades_nao_lidas_motivo` publicado quando foram omitidas.
     pub(crate) fn motivo(&self) -> Option<&'static str> {
         match self {
             Self::Lidas(_) => None,
             Self::Omitidas => Some("omitidas_por_sem_propriedades"),
-            Self::NaoPublicadasNaBarra => Some("tela_de_propriedades_nao_publicada_na_barra"),
         }
     }
 }
 
-/// O que se sabe dos marcadores depois do comando (lidos: sempre lista).
+/// O que se sabe dos marcadores depois do comando: lidos (sempre lista),
+/// ou omitidos por `--sem-marcadores`.
 #[derive(Debug, PartialEq, Eq)]
 pub(crate) enum Marcadores {
     Lidos(MarcadoresLidos),
     /// `--sem-marcadores`: nenhum pedido à tela.
     Omitidos,
-    /// A barra do processo não publica `andamento_marcador_gerenciar`;
-    /// não é recusa.
-    NaoPublicadosNaBarra,
-    /// A tela é a deste processo, mas sem `table#tblMarcadores`: a forma
-    /// de zero marcadores não foi observada, então nada se afirma.
-    TabelaNaoPublicada,
 }
 
 impl Marcadores {
-    /// `marcadores_nao_lidos_motivo` publicado quando não foram lidos.
+    /// `marcadores_nao_lidos_motivo` publicado quando foram omitidos.
     pub(crate) fn motivo(&self) -> Option<&'static str> {
         match self {
             Self::Lidos(_) => None,
             Self::Omitidos => Some("omitidos_por_sem_marcadores"),
-            Self::NaoPublicadosNaBarra => Some("tela_de_marcadores_nao_publicada_na_barra"),
-            Self::TabelaNaoPublicada => Some("tabela_de_marcadores_nao_publicada_na_tela"),
         }
     }
 }
