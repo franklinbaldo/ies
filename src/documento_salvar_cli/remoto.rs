@@ -93,8 +93,7 @@ fn ler_par(
         )
         .map_err(ErroSalvarNoSei::Local)
         .and_then(|bytes| {
-            String::from_utf8(bytes)
-                .map_err(|erro| ErroSalvarNoSei::BaseNaoUtf8(erro.utf8_error()))
+            String::from_utf8(bytes).map_err(|erro| ErroSalvarNoSei::BaseNaoUtf8(erro.utf8_error()))
         })
     };
     Ok((
