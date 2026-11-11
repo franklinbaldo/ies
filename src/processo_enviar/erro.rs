@@ -83,6 +83,9 @@ pub(crate) enum ErroEnviar {
     NaoConfirmadoNaRemocaoDeAnotacoes {
         /// Unidades comprovadas pela árvore após envio; indisponível na limpeza pré-envio.
         depois: Option<Vec<String>>,
+        /// A razão concreta que impediu a leitura independente.
+        #[source]
+        causa: Box<ErroEnviar>,
     },
     /// A anotação da origem não foi lida antes de enviar.
     Anotacoes(#[from] super::anotacoes::ErroDasAnotacoes),
