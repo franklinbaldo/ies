@@ -28,8 +28,8 @@ use crate::transporte::{FalhaTransporte, RespostaWeb, ler_limitado, recusar_stat
 use crate::visao_do_controle::EnvioDoControle as _;
 use std::io::Read;
 use tela::{
-    DestinoConsultado, ErroDestinoDaConsulta, ErroTelaDeRelacionamentos, Relacionamento,
-    ler_destino, ler_linhas, url_complementar,
+    ErroDestinoDaConsulta, ErroTelaDeRelacionamentos, Relacionamento, ler_destino, ler_linhas,
+    url_complementar,
 };
 
 const CONSULTA: ConsultaAjax = ConsultaAjax {
