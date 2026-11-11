@@ -204,7 +204,7 @@ fn semear_documentos_iniciais(
     .take(if com_segundo { 2 } else { 1 })
     {
         documento_versoes::guardar(
-            &mut banco,
+            banco,
             CENARIO,
             &DocumentoSimulado {
                 instalacao: origem.clone(),
@@ -222,7 +222,6 @@ fn semear_documentos_iniciais(
         )
         .unwrap();
     }
-
 }
 
 pub(super) fn estado(com_segundo: bool, modo: EstadoExtra) -> (Connection, Instalacao) {
