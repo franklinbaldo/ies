@@ -370,7 +370,7 @@ fn humano(nup: &NumeroProcesso, aberto: &ProcessoAberto, sem_documentos: bool) -
                 );
             }
         }
-        outro => {
+        outro @ (Andamentos::Omitidos | Andamentos::LinkNaoPublicadoNaArvore) => {
             let _ = write!(
                 texto,
                 "\nAndamentos não lidos ({}).",

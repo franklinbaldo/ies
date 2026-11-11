@@ -7,6 +7,7 @@ use std::fs;
 use std::io::Read;
 use std::path::Path;
 
+pub(crate) use falha::FatoDaResposta;
 pub use falha::{FalhaTransporte, StatusHttpRecusado};
 
 #[path = "transporte/falha.rs"]

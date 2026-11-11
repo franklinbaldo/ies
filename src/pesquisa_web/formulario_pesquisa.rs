@@ -302,7 +302,37 @@ pub(crate) fn falha_do_envio(erro: ErroSubmissaoFormulario) -> ErroPesquisaProto
                 ErroRespostaDaPesquisa::RespostaDaPesquisaNaoReconhecida,
             )
         }
-        outro => ErroPesquisaProtocolo::Submissao(outro),
+        outro @ (ErroSubmissaoFormulario::EfeitoDaOperacaoNaoAvaliado
+        | ErroSubmissaoFormulario::UnidadeDaTelaDiferenteDaSolicitada
+        | ErroSubmissaoFormulario::FormulariosComMesmoIdentificadorNaTela
+        | ErroSubmissaoFormulario::MetodoDoFormularioDiferenteDePost
+        | ErroSubmissaoFormulario::EnctypeDoFormularioNaoUrlencoded
+        | ErroSubmissaoFormulario::AcceptCharsetPublicadoNoFormulario
+        | ErroSubmissaoFormulario::AcaoDoFormularioNaoEhUrlHttps
+        | ErroSubmissaoFormulario::AcaoDoFormularioForaDaInstalacao
+        | ErroSubmissaoFormulario::AcaoDoFormularioDiferenteDaOperacao
+        | ErroSubmissaoFormulario::AcaoDoFormularioSemInfraHashUnico
+        | ErroSubmissaoFormulario::EntidadeHtmlDesconhecidaNoAtributo { .. }
+        | ErroSubmissaoFormulario::CampoOcultoAusenteNoFormulario { .. }
+        | ErroSubmissaoFormulario::CampoOcultoRepetidoNoFormulario { .. }
+        | ErroSubmissaoFormulario::HdnAcaoPublicadoSemRegraDaOperacao
+        | ErroSubmissaoFormulario::CampoForaDaListaDaOperacao { .. }
+        | ErroSubmissaoFormulario::CampoNaoPublicadoPeloFormulario { .. }
+        | ErroSubmissaoFormulario::CampoInformadoMaisDeUmaVez { .. }
+        | ErroSubmissaoFormulario::CampoCriadoPeloScriptJaPublicado { .. }
+        | ErroSubmissaoFormulario::ValorNaoRepresentavelNaCodificacao { .. }
+        | ErroSubmissaoFormulario::TelaDeLoginRecebidaAposEnvio
+        | ErroSubmissaoFormulario::ValidacaoRecusadaPeloSei(_)
+        | ErroSubmissaoFormulario::AtributoHtml(_)
+        | ErroSubmissaoFormulario::Transporte(_)
+        | ErroSubmissaoFormulario::AcaoDoFormularioAusente
+        | ErroSubmissaoFormulario::BotaoDeEnvioAusenteNoFormulario
+        | ErroSubmissaoFormulario::BotoesDeEnvioRepetidosNoFormulario
+        | ErroSubmissaoFormulario::FormularioAusenteNaTela
+        | ErroSubmissaoFormulario::IdentificacaoDaUnidadeAusenteNaTela
+        | ErroSubmissaoFormulario::IdentificacoesDaUnidadeRepetidasNaTela) => {
+            ErroPesquisaProtocolo::Submissao(outro)
+        }
     }
 }
 

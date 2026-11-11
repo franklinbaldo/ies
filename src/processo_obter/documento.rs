@@ -283,7 +283,9 @@ fn pela_pesquisa<V: EnvioDoProcesso, F: FimDaLeitura>(
     let trabalho = redirecionado.trabalho.as_str();
     let (html, mime) = match rede.get(trabalho).map_err(processo)? {
         Lida::Html { html, mime } => (html, mime),
-        outra => return Err(ErroDocumentoObter::Processo(fora_do_html(outra))),
+        outra @ (Lida::Redirecionamento(_) | Lida::Login | Lida::Falha(_)) => {
+            return Err(ErroDocumentoObter::Processo(fora_do_html(outra)));
+        }
     };
     let (tela, id_procedimento) = ler_tela_do_documento(
         &contexto.instalacao,
@@ -295,7 +297,9 @@ fn pela_pesquisa<V: EnvioDoProcesso, F: FimDaLeitura>(
     contexto.aprender_pesquisa_rapida(trabalho, &html, &mime, &tela.unidade);
     let html = match rede.get(tela.arvore.as_str()).map_err(processo)? {
         Lida::Html { html, .. } => html,
-        outra => return Err(ErroDocumentoObter::Processo(fora_do_html(outra))),
+        outra @ (Lida::Redirecionamento(_) | Lida::Login | Lida::Falha(_)) => {
+            return Err(ErroDocumentoObter::Processo(fora_do_html(outra)));
+        }
     };
     let arvore_erro = |e| ErroDocumentoObter::Processo(ErroProcessoObter::Arvore(e));
     let nup = nup_declarado_na_arvore(&html)
@@ -455,6 +459,26 @@ fn sem_trabalho(erro: ErroProcessoObter) -> ErroDocumentoObter {
         ErroProcessoObter::PesquisaRapidaSemUrlDeTrabalho => {
             ErroDocumentoObter::PesquisaRapidaNaoAbriuODocumento
         }
-        outro => ErroDocumentoObter::Processo(outro),
+        outro @ (ErroProcessoObter::Transporte(_)
+        | ErroProcessoObter::Controle(_)
+        | ErroProcessoObter::EntradaPorIdRecusada
+        | ErroProcessoObter::SessaoEncerrada(_)
+        | ErroProcessoObter::RespostaDaEntradaPorIdNaoReconhecida
+        | ErroProcessoObter::RedirecionamentoNaoReconhecido
+        | ErroProcessoObter::Redirecionamento(_)
+        | ErroProcessoObter::LinkDoProcessoNoControleNaoReconhecido(_)
+        | ErroProcessoObter::CharsetDoControleNaoSuportado
+        | ErroProcessoObter::Formulario(_)
+        | ErroProcessoObter::ValidacaoDeAcesso(_)
+        | ErroProcessoObter::Tela(_)
+        | ErroProcessoObter::Arvore(_)
+        | ErroProcessoObter::LinkDoHistorico(_)
+        | ErroProcessoObter::Andamentos(_)
+        | ErroProcessoObter::FormularioDoHistorico(_)
+        | ErroProcessoObter::Propriedades(_)
+        | ErroProcessoObter::Marcadores(_)
+        | ErroProcessoObter::LinhaDoControleIlegivel
+        | ErroProcessoObter::LinksDoProcessoRepetidosNoControle
+        | ErroProcessoObter::ProcessoRepetidoNoControle) => ErroDocumentoObter::Processo(outro),
     }
 }

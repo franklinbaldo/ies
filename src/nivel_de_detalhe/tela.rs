@@ -78,7 +78,36 @@ pub(crate) fn ler_nivel_de_detalhe(html: &str) -> Result<NivelDeDetalhe, ErroNiv
                 E::FormulariosDoNivelDeDetalheRepetidos
             }
             ErroSubmissaoFormulario::AtributoHtml(falha) => E::AtributoHtml(falha),
-            _ => E::FormularioDoNivelDeDetalheAusente,
+            ErroSubmissaoFormulario::EfeitoDaOperacaoNaoAvaliado
+            | ErroSubmissaoFormulario::UnidadeDaTelaDiferenteDaSolicitada
+            | ErroSubmissaoFormulario::MetodoDoFormularioDiferenteDePost
+            | ErroSubmissaoFormulario::EnctypeDoFormularioNaoUrlencoded
+            | ErroSubmissaoFormulario::AcceptCharsetPublicadoNoFormulario
+            | ErroSubmissaoFormulario::AcaoDoFormularioNaoEhUrlHttps
+            | ErroSubmissaoFormulario::AcaoDoFormularioForaDaInstalacao
+            | ErroSubmissaoFormulario::AcaoDoFormularioDiferenteDaOperacao
+            | ErroSubmissaoFormulario::AcaoDoFormularioSemInfraHashUnico
+            | ErroSubmissaoFormulario::EntidadeHtmlDesconhecidaNoAtributo { .. }
+            | ErroSubmissaoFormulario::CampoOcultoAusenteNoFormulario { .. }
+            | ErroSubmissaoFormulario::CampoOcultoRepetidoNoFormulario { .. }
+            | ErroSubmissaoFormulario::HdnAcaoPublicadoSemRegraDaOperacao
+            | ErroSubmissaoFormulario::CampoForaDaListaDaOperacao { .. }
+            | ErroSubmissaoFormulario::CampoNaoPublicadoPeloFormulario { .. }
+            | ErroSubmissaoFormulario::CampoInformadoMaisDeUmaVez { .. }
+            | ErroSubmissaoFormulario::CampoCriadoPeloScriptJaPublicado { .. }
+            | ErroSubmissaoFormulario::ValorNaoRepresentavelNaCodificacao { .. }
+            | ErroSubmissaoFormulario::TelaDeLoginRecebidaAposEnvio
+            | ErroSubmissaoFormulario::MarcadorDeResultadoAusenteNaResposta
+            | ErroSubmissaoFormulario::ValidacaoRecusadaPeloSei(_)
+            | ErroSubmissaoFormulario::Transporte(_)
+            | ErroSubmissaoFormulario::AcaoDoFormularioAusente
+            | ErroSubmissaoFormulario::BotaoDeEnvioAusenteNoFormulario
+            | ErroSubmissaoFormulario::BotoesDeEnvioRepetidosNoFormulario
+            | ErroSubmissaoFormulario::FormularioAusenteNaTela
+            | ErroSubmissaoFormulario::IdentificacaoDaUnidadeAusenteNaTela
+            | ErroSubmissaoFormulario::IdentificacoesDaUnidadeRepetidasNaTela => {
+                E::FormularioDoNivelDeDetalheAusente
+            }
         })?;
     conferir_acao(form)?;
     let mut marcadas: HashMap<ColunaDoDetalhe, bool> = HashMap::new();

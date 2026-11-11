@@ -42,7 +42,9 @@ pub(crate) fn json_do_documento(d: &DocumentoObtido) -> serde_json::Map<String, 
     });
     let mut mapa = match valor {
         Value::Object(mapa) => mapa,
-        _ => serde_json::Map::new(),
+        Value::Null | Value::Bool(_) | Value::Number(_) | Value::String(_) | Value::Array(_) => {
+            serde_json::Map::new()
+        }
     };
     match &d.propriedades {
         PropriedadesDocumento::NaoPedidas => {}

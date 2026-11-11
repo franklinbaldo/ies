@@ -102,7 +102,7 @@ pub(super) fn confirmar<V: EnvioDoProcesso>(
         RespostaDoEnvio::Redirecionamento(r)
             if r.localizacao()
                 .is_some_and(|loc| aceite(loc, r.url_do_envio(), id_principal)) => {}
-        _ => {
+        RespostaDoEnvio::Html(_) | RespostaDoEnvio::Redirecionamento(_) => {
             return Err(FalhaAnexar::NaoConfirmado(
                 EtapaNaoComprovada::RespostaDoPost,
             ));

@@ -344,7 +344,8 @@ impl<V: EnvioDoProcesso> Rede<'_, V> {
                     .map(Some)
                     .map_err(ErroProcessoObter::Redirecionamento)
                 }
-                _ => Ok(None),
+                DestinoDoRedirecionamento::RecusaSemAssinatura
+                | DestinoDoRedirecionamento::Login => Ok(None),
             },
             Ok(RespostaDoEnvio::Html(_)) => Err(ErroProcessoObter::PesquisaRapidaSemUrlDeTrabalho),
             Err(ErroSubmissaoFormulario::TelaDeLoginRecebidaAposEnvio) => Ok(None),
@@ -413,7 +414,9 @@ impl<V: EnvioDoProcesso> Rede<'_, V> {
 pub(super) fn fora_de_palpite(localizacao: Option<&str>) -> ErroProcessoObter {
     match destino(localizacao) {
         DestinoDoRedirecionamento::Outro => ErroProcessoObter::RedirecionamentoNaoReconhecido,
-        _ => ErroProcessoObter::SessaoEncerrada(crate::erro_publico::SessaoEncerrada),
+        DestinoDoRedirecionamento::RecusaSemAssinatura | DestinoDoRedirecionamento::Login => {
+            ErroProcessoObter::SessaoEncerrada(crate::erro_publico::SessaoEncerrada)
+        }
     }
 }
 

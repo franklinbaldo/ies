@@ -327,7 +327,7 @@ fn ler_pagina(html: &str) -> Result<Pagina, ErroDetalhada> {
         .iter()
         .filter_map(|papel| match papel {
             colunas::PapelDaColuna::Configurada(coluna) => Some(*coluna),
-            _ => None,
+            colunas::PapelDaColuna::Processo | colunas::PapelDaColuna::SemRotulo => None,
         })
         .collect();
     let mut processos = Vec::new();

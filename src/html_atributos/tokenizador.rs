@@ -103,7 +103,12 @@ pub(crate) fn tokenizar_tag_de_abertura(
     }
     Err(match estado {
         Estado::ValorEntreAspas { .. } => ErroAtributoHtml::ValorEntreAspasSemFechamento,
-        _ => ErroAtributoHtml::FimDaTagDeAberturaAusente,
+        Estado::AntesDoNome
+        | Estado::Nome { .. }
+        | Estado::DepoisDoNome
+        | Estado::AntesDoValor
+        | Estado::ValorSemAspas { .. }
+        | Estado::DepoisDoValorEntreAspas => ErroAtributoHtml::FimDaTagDeAberturaAusente,
     })
 }
 

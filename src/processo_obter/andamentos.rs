@@ -179,7 +179,10 @@ fn ver_completo<V: EnvioDoProcesso>(
                 DestinoDoRedirecionamento::Outro => {
                     ErroProcessoObter::RedirecionamentoNaoReconhecido
                 }
-                _ => ErroProcessoObter::SessaoEncerrada(crate::erro_publico::SessaoEncerrada),
+                DestinoDoRedirecionamento::RecusaSemAssinatura
+                | DestinoDoRedirecionamento::Login => {
+                    ErroProcessoObter::SessaoEncerrada(crate::erro_publico::SessaoEncerrada)
+                }
             });
         }
         Err(ErroSubmissaoFormulario::TelaDeLoginRecebidaAposEnvio) => {

@@ -197,7 +197,9 @@ fn ordenar_campos<'c>(
 ) -> Result<Vec<(&'c str, &'c str)>, ErroSubmissaoFormulario> {
     let criado = match operacao.envio {
         EnvioDoFormulario::SubmitPorScriptComCampoCriado(campo) => Some(campo),
-        _ => None,
+        EnvioDoFormulario::BotaoDeEnvio(_)
+        | EnvioDoFormulario::SubmitPorScript
+        | EnvioDoFormulario::BotaoDesabilitadoPeloOnsubmit(_) => None,
     };
     for (i, (nome, _)) in campos.iter().enumerate() {
         let campo = (*nome).to_owned();
@@ -442,12 +444,7 @@ where
             url_do_envio,
         }));
     }
-    let html = decodificar_resposta(resposta).map_err(|falha| match falha {
-        FalhaTransporte::PaginaDeLoginRecebidaNoControle => {
-            ErroSubmissaoFormulario::TelaDeLoginRecebidaAposEnvio
-        }
-        outra => ErroSubmissaoFormulario::Transporte(outra),
-    })?;
+    let html = decodificar_resposta(resposta).map_err(ErroSubmissaoFormulario::da_resposta)?;
     // 200 com a validação da Infra: recusa do SEI, com ou sem marcador.
     if let Some(mensagem) = mensagem_de_validacao_da_infra(&html) {
         return Err(ErroSubmissaoFormulario::ValidacaoRecusadaPeloSei(mensagem));

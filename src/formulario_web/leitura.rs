@@ -341,7 +341,7 @@ pub(super) fn ler_controles(
                 });
             }
             Controle::Botao { .. } => botoes += 1,
-            _ => {}
+            Controle::Oculto { .. } | Controle::Usuario(_) | Controle::SelecaoMultipla(_) => {}
         }
         controles.push(controle);
     }

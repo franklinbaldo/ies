@@ -415,7 +415,10 @@ fn releitura_comprova<V: EnvioDoProcesso>(
                             && m.texto.as_deref().unwrap_or("") == texto.unwrap_or("")
                     }))
                 }
-                _ => None,
+                Marcadores::Lidos(_)
+                | Marcadores::Omitidos
+                | Marcadores::NaoPublicadosNaBarra
+                | Marcadores::TabelaNaoPublicada => None,
             }
         }
         _ => None,

@@ -163,7 +163,34 @@ fn submeter_envio<V: EnvioDoProcesso>(
         .map_err(|causa| erro_apos_limpeza(feito, causa))?;
     enviar(rede, sessao, submissao, &feito.id_procedimento).map_err(|erro| match erro {
         ErroEnviar::Formulario(causa) => erro_apos_limpeza(feito, causa),
-        outro => outro,
+        outro @ (ErroEnviar::Cookie(_)
+        | ErroEnviar::Abertura(_)
+        | ErroEnviar::UnidadeDaSessaoNaoPublicada
+        | ErroEnviar::SituacaoDoProcessoNaoLidaAntesDeEnviar { .. }
+        | ErroEnviar::ProcessoNaoAbertoNaUnidadeDaSessao { .. }
+        | ErroEnviar::UnidadeDaSessaoAusenteDaSituacao { .. }
+        | ErroEnviar::EnvioNaoPublicadoNaBarra { .. }
+        | ErroEnviar::Barra(_)
+        | ErroEnviar::TelaDaEscrita(_)
+        | ErroEnviar::TelaDaEscritaRedirecionada
+        | ErroEnviar::SessaoEncerrada(_)
+        | ErroEnviar::CharsetDaTelaNaoSuportado
+        | ErroEnviar::TelaDeEnvio(_)
+        | ErroEnviar::Consulta(_)
+        | ErroEnviar::RemocaoDeAnotacoesNaoOferecida
+        | ErroEnviar::RemocaoDeAnotacoesSemVerificacao
+        | ErroEnviar::AnotacoesNaoRemovidasAposEnvio { .. }
+        | ErroEnviar::AnotacaoNaoLimpaAntesDeEnviar
+        | ErroEnviar::NaoConfirmadoNaLimpezaDaAnotacao
+        | ErroEnviar::NaoConfirmadoNaRemocaoDeAnotacoes { .. }
+        | ErroEnviar::Anotacoes(_)
+        | ErroEnviar::DestinoNaoOferecidoPeloSei { .. }
+        | ErroEnviar::VariosDestinosComASigla { .. }
+        | ErroEnviar::ProcessoJaAbertoNoDestino { .. }
+        | ErroEnviar::FormularioAposLimpezaComprovada { .. }
+        | ErroEnviar::EnvioNaoAplicado { .. }
+        | ErroEnviar::SituacaoDaOrigemDiferenteDaPedidaAposEnvio { .. }
+        | ErroEnviar::NaoConfirmadoNoEnvio { .. }) => outro,
     })
 }
 

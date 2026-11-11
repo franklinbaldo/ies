@@ -417,14 +417,18 @@ fn com_aridade(argumentos: Vec<Literal>) -> Result<[Literal; ARGUMENTOS], ErroAr
 fn texto(literal: &Literal) -> Result<&str, ErroArvore> {
     match literal {
         Literal::Texto(texto) => Ok(texto),
-        _ => Err(ErroArvore::ArgumentoDeNoComTipoDiferenteDoObservado),
+        Literal::Nulo | Literal::Booleano(_) | Literal::Inteiro(_) => {
+            Err(ErroArvore::ArgumentoDeNoComTipoDiferenteDoObservado)
+        }
     }
 }
 
 fn texto_ou_nulo(literal: &Literal) -> Result<Option<&str>, ErroArvore> {
     match literal {
         Literal::Nulo => Ok(None),
-        outro => texto(outro).map(Some),
+        outro @ (Literal::Texto(_) | Literal::Booleano(_) | Literal::Inteiro(_)) => {
+            texto(outro).map(Some)
+        }
     }
 }
 

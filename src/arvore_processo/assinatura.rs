@@ -60,7 +60,15 @@ pub(crate) fn ler_assinatura_na_arvore(
         super::ErroBarraDoDocumento::BarrasRepetidasNaArvore => {
             ErroAssinaturaNaArvore::BarrasDoDocumentoRepetidasNaArvore
         }
-        _ => ErroAssinaturaNaArvore::BarraDoDocumentoForaDaFormaObservada,
+        super::ErroBarraDoDocumento::AtributoDeLinkDaBarra(_)
+        | super::ErroBarraDoDocumento::EnderecoDasVersoesDeOutroDocumento
+        | super::ErroBarraDoDocumento::BarraDaCienciaDoDocumentoForaDaForma
+        | super::ErroBarraDoDocumento::BarraDoDocumentoForaDaFormaObservada
+        | super::ErroBarraDoDocumento::BotoesDeCienciaDoDocumentoRepetidos
+        | super::ErroBarraDoDocumento::LinkDasVersoesNaoReconhecido
+        | super::ErroBarraDoDocumento::LinkDasVersoesRepetidoNaBarra => {
+            ErroAssinaturaNaArvore::BarraDoDocumentoForaDaFormaObservada
+        }
     })?;
     let acoes = match barra {
         Some(texto) => acoes_de_assinar(&texto)?,
