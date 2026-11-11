@@ -27,9 +27,9 @@ não é inferido a partir dos itens do detalhe. O detalhe apresenta
 `total_declarado`, `faixa_observada` e os `itens` da
 `tblProtocolosBlocos`. Os campos Processo e Anotações devem existir;
 Documento é exigido em blocos de assinatura. Para blocos internos e de
-reunião, o detalhe representa processos, com `documento:null` e
-`tipo:null` quando essas colunas não foram publicadas. Campo ausente
-observado como não disponível é null; não inferir documento a partir de
+reunião, o detalhe representa processos, sem as chaves `documento` e
+`tipo` quando essas colunas não foram publicadas (nunca `null`, #749);
+não inferir documento a partir de
 uma célula vazia.
 A coluna é selecionada por cabeçalho, não por índice fixo.
 

@@ -1,5 +1,5 @@
 //! RED/GREEN do JSON dos marcadores: **lista** com cada marcador (nunca
-//! texto concatenado), total declarado e faixa; `null` com motivo, ou
+//! texto concatenado), total declarado e faixa; chave ausente com motivo, ou
 //! ausente com `--sem-marcadores`; `nao_lidos` diz o que faltou.
 use super::tests::aberto;
 use super::*;
@@ -39,7 +39,7 @@ fn dois_marcadores_saem_como_lista_de_dois_objetos() {
     assert_eq!(
         valor["marcadores"],
         json!([
-            {"id": "501", "rotulo": "501#Revis\u{e3}o", "nome": "Revis\u{e3}o", "cor": "azul", "texto": null,
+            {"id": "501", "rotulo": "501#Revis\u{e3}o", "nome": "Revis\u{e3}o", "cor": "azul",
              "usuario": "pessoa1", "data_hora": "03/11/2026 10:15"},
             {"id": "502", "rotulo": "502#Pendente", "nome": "Pendente", "cor": "amarelo", "texto": "Texto sint\u{e9}tico",
              "usuario": "pessoa1", "data_hora": "03/11/2026 10:15"}

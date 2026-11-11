@@ -292,7 +292,7 @@ fn propriedades_consulta_apenas_o_cadastro_servido_sem_escrita() {
         PropriedadesDocumento::Lidas(p) => {
             assert_eq!(p.descricao, "Cadastro");
             assert_eq!(p.tipo, "Despacho");
-            assert_eq!(p.nivel_de_acesso, Some(Nivel::Publico));
+            assert_eq!(p.nivel_de_acesso, Nivel::Publico);
         }
         outra @ PropriedadesDocumento::NaoPedidas => {
             panic!("cadastro publicado deveria ser lido: {outra:?}")

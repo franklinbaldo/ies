@@ -64,7 +64,7 @@ uma tentativa, sem seguir redirect (3xx é recusa com o status):
 ## Saída
 
 O JSON de cada documento externo traz `fonte: "documento_download_anexo"`,
-`tipo: null` (o título do HTML recebido é do órgão de origem, não da
+sem a chave `tipo` (o título do HTML recebido é do órgão de origem, não da
 árvore) e `anexo`:
 
 | Campo | Conteúdo |
@@ -77,8 +77,8 @@ O JSON de cada documento externo traz `fonte: "documento_download_anexo"`,
 
 Sem `--saida`: `texto` só para tipos de texto (`text/plain` decodificado
 no charset declarado ou UTF-8 estrito, controles trocados por `�`;
-`text/html` pelo texto visível do corpo, como o interno); PDF sai com
-`texto: null` e só os metadados. Bytes binários nunca vão para a saída
+`text/html` pelo texto visível do corpo, como o interno); PDF sai sem a
+chave `texto` e só com os metadados. Bytes binários nunca vão para a saída
 padrão. Sem `--json`, a linha do documento, a linha do anexo e o texto
 (se houver).
 
@@ -88,7 +88,7 @@ caminho). O corpo é gravado em `DIR/.DOC.ext.parcial-PID` (0600, criado
 novo) durante a leitura e ligado ao nome final só depois de todos os
 documentos lidos, sem sobrescrever; qualquer falha remove o parcial. O
 JSON troca `texto` pelo objeto `arquivo` (`nome`, `bytes`, `sha256` do
-anexo, `gravado: true`, `motivo: null`), a mesma forma da foto do
+anexo, `gravado: true`; sem `motivo`), a mesma forma da foto do
 interno.
 
 O externo **não** segue a foto `DOC.vN.html` de #207

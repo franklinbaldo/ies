@@ -42,11 +42,12 @@ peças, comentário ou qualquer outra forma: forma não observada.
 ```json
 "aberto_em": [{"sigla": "Unidade1", "nome": "Unidade1",
                "atribuido_a": {"sigla": "aluno2", "nome": "aluno2"}},
-              {"sigla": "ACE", "nome": "Arquivo Central", "atribuido_a": null}]
+              {"sigla": "ACE", "nome": "Arquivo Central"}]
 ```
 
-`[]` só para a forma 3. Na forma 4 e fora das quatro, `"aberto_em": null`,
-`"aberto_em"` em `nao_lidos` e `aberto_em_nao_lido_motivo`:
+`[]` só para a forma 3. Na forma 4 a chave `"aberto_em"` sai, e `aberto_em_nao_lido_motivo` diz
+o motivo. Fora das quatro formas a leitura falha no `--json` (erro tipado);
+no texto humano, `Aberto em: não lido (motivo)`:
 
 | Motivo | Quando |
 | --- | --- |
@@ -55,23 +56,25 @@ peças, comentário ou qualquer outra forma: forma não observada.
 | `html_da_raiz_nao_publicado` | nenhuma linha `.html` para o nó `PROCESSO` |
 | `html_da_raiz_fora_da_forma_observada` | qualquer outro texto |
 
-Nunca é falha do comando: a árvore já provou a identidade. `aberto_em`
-e `sobrestado_em` saem **sempre** (também com `--sem-documentos`), em
-ordem de serviço. O campo `unidade` (a unidade da sessão publicada na
+A árvore já provou a identidade. `aberto_em` e `sobrestado_em` saem
+**sempre** (também com `--sem-documentos`), em ordem de serviço, e a chave
+sem valor não sai (nunca `null`). Leitura de `aberto_em` que falhou (não
+lido) é erro tipado do `--json` (#749): o comando sai com erro, sem publicar
+a chave. O campo `unidade` (a unidade da sessão publicada na
 tela) não muda.
 
 ## Onde o processo está sobrestado (`sobrestado_em`)
 
 Só na forma 4: lista com a unidade da âncora, `{"sigla", "nome"}`, lida
 como as de `aberto_em` (sem atribuição, que a frase não traz).
-Em qualquer outra forma, `"sobrestado_em": null`: **não observado**, não
+Em qualquer outra forma a chave `"sobrestado_em"` sai: **não observado**, não
 "não sobrestado"; não entra em `nao_lidos` (o que não foi lido é
 `aberto_em`, com o motivo). Sobrestamento com atribuição, em várias
 unidades ou com outra frase: fora da forma 4, `aberto_em` não lido com
 `html_da_raiz_fora_da_forma_observada`.
 
 ```json
-"aberto_em": null, "aberto_em_nao_lido_motivo": "raiz_publica_o_sobrestamento",
+"aberto_em_nao_lido_motivo": "raiz_publica_o_sobrestamento",
 "sobrestado_em": [{"sigla": "Unidade1", "nome": "Unidade1"}]
 ```
 
@@ -97,10 +100,10 @@ Em cada `DOCUMENTO` (do primeiro nível e de pastas; o
   (`IconeDeCancelamentoSemMotivoNaDica` ou `DicaDeCancelamentoSemIconeDeCancelado`):
   não há `null` nem "não observado".
 - `motivo_do_cancelamento`: com `cancelado: true`, o resto da dica depois
-  de `Documento Cancelado:`, sem espaços nas pontas; senão `null`.
+  de `Documento Cancelado:`, sem espaços nas pontas; senão a chave sai.
 
 - `dica`: a6 decodificada pelo leitor de literais (`\n` vira quebra de
-  linha), quando difere do rótulo (a5); igual ao rótulo, `null` (nada a
+  linha), quando difere do rótulo (a5); igual ao rótulo, a chave sai (nada a
   acrescentar). Nos e-mails traz `Data de Envio`, `De`, `Para` (ou `Para
   (com cópia oculta)`) e `Assunto`, uma linha cada; no cancelado, a frase
   `Documento Cancelado: <motivo>`. O IES não interpreta a dica: o texto
@@ -110,7 +113,7 @@ Em cada `DOCUMENTO` (do primeiro nível e de pastas; o
 
 ```json
 {"id_documento": "D", "rotulo": "Consulta Jurídica 8441007", "numero_sei": "8441007",
- "pasta": null, "icone": "documento_cancelado", "cancelado": true,
+ "icone": "documento_cancelado", "cancelado": true,
  "motivo_do_cancelamento": "erro", "dica": "Documento Cancelado: erro"}
 ```
 

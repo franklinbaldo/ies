@@ -30,7 +30,7 @@ canônicas, mesma instalação.
 
 **Link não publicado.** Barra ausente, vazia ou sem o link faz o comando
 falhar com `MarcadoresNaoPublicadosNaBarra` (saída 1, sem GET, nada
-publicado como `null`). Só `--sem-marcadores` dispensa a leitura. Link
+publicado). Só `--sem-marcadores` dispensa a leitura. Link
 presente mas inválido ou repetido é recusa tipada (só quando os
 marcadores são pedidos).
 
@@ -62,8 +62,8 @@ pelo tokenizador de atributos, sem regex e sem JavaScript:
     o `title` do ícone e o do checkbox, quando presentes, são iguais a ele.
   - `cor`: de `svg/marcador_<cor>.svg` (um `img`, `<cor>` em minúsculas
     ASCII e `_`).
-  - `texto`: o texto de `td#tdAndamentoMarcador<id>`; vazio é `null`.
-  - `usuario`: o texto de `a.ancoraSigla`; célula vazia é `null`. O nome
+  - `texto`: o texto de `td#tdAndamentoMarcador<id>`; vazio, a chave sai.
+  - `usuario`: o texto de `a.ancoraSigla`; célula vazia, a chave sai. O nome
     completo (`title`) não é publicado.
   - `data_hora`: `dd/mm/aaaa hh:mm`.
   - Ações: nunca lidas nem seguidas.
@@ -116,7 +116,7 @@ o [contrato das propriedades](processo-obter-propriedades.md).
 
 ```json
 "marcadores": [
-  {"id": "501", "rotulo": "501#texto", "nome": "texto", "cor": "azul", "texto": null,
+  {"id": "501", "rotulo": "501#texto", "nome": "texto", "cor": "azul",
    "usuario": "sigla", "data_hora": "dd/mm/aaaa hh:mm"},
   {"id": "502", "rotulo": "502#texto", "nome": "texto", "cor": "amarelo", "texto": "texto",
    "usuario": "sigla", "data_hora": "dd/mm/aaaa hh:mm"}],
