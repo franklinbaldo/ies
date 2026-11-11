@@ -80,10 +80,12 @@ struct ResultadoConclusao<'a> {
     aberto_em: &'a [String],
     alterado: bool,
     confirmado: bool,
+    #[serde(skip_serializing_if = "Option::is_none")]
     depois: Option<&'a [String]>,
     depois_esperado: Vec<String>,
     #[serde(skip_serializing_if = "Option::is_none")]
     falha_do_envio: Option<String>,
+    #[serde(skip_serializing_if = "Option::is_none")]
     forma: Option<&'static str>,
     id_procedimento: &'a str,
     nup: &'a str,

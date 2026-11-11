@@ -40,7 +40,7 @@ fn previa_publica_o_contrato_sem_url() {
         json!({"nup": "00001.000001/2026-01", "id_procedimento": "10", "unidade": "TESTE",
                "origem": "web", "confirmado": false, "alterado": false, "forma": "tela",
                "aberto_em": ["TESTE", "TESTE_1_1"], "depois_esperado": ["TESTE_1_1"],
-               "depois": null, "reconciliado_por_leitura": false, "requisicoes": 3})
+               "reconciliado_por_leitura": false, "requisicoes": 3})
     );
     let texto = humano(&previa());
     assert!(texto.ends_with("Requisições: 3"), "{texto}");

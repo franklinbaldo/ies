@@ -55,7 +55,6 @@ pub(crate) fn json_da_previa(feito: &ProcessoAtribuido) -> serde_json::Value {
         "nup": feito.nup,
         "id_procedimento": feito.id_procedimento,
         "unidade": feito.unidade,
-        "usuario_pedido": feito.usuario_pedido,
         "remover": feito.usuario_pedido.is_none(),
         "valor_da_opcao": feito.valor_da_opcao,
         "confirmado": confirmado,
@@ -66,6 +65,10 @@ pub(crate) fn json_da_previa(feito: &ProcessoAtribuido) -> serde_json::Value {
     // Sem atribuição, a chave é omitida: nunca texto vazio como sentinela.
     if let (Some(campos), Some(login)) = (valor.as_object_mut(), feito.usuario_atual.as_deref()) {
         campos.insert("usuario_atual".to_owned(), json!(login));
+    }
+    // Na remoção não há usuário pedido: a chave é omitida.
+    if let (Some(campos), Some(pedido)) = (valor.as_object_mut(), feito.usuario_pedido.as_deref()) {
+        campos.insert("usuario_pedido".to_owned(), json!(pedido));
     }
     valor
 }

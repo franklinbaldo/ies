@@ -23,8 +23,8 @@ fn previa_publica_o_contrato_sem_url() {
         json_de_sucesso(&previa()),
         json!({"nup": "00001.000001/2026-01", "id_procedimento": "10", "unidade": "TESTE",
                "origem": "web", "confirmado": false, "alterado": false,
-               "reabertura_oferecida": true, "forma": null, "aberto_em": ["TESTE_1_1"],
-               "depois": null, "reconciliado_por_leitura": false, "requisicoes": 3})
+               "reabertura_oferecida": true, "aberto_em": ["TESTE_1_1"],
+               "reconciliado_por_leitura": false, "requisicoes": 3})
     );
     let texto = humano(&previa());
     assert!(texto.contains("Aberto em: TESTE_1_1"), "{texto}");
@@ -76,7 +76,7 @@ fn saida_tipificada_serializa_direto_e_preserva_campos_opcionais() {
     let recebido: serde_json::Value = serde_json::from_slice(&bytes).unwrap();
     assert_eq!(recebido, json_de_sucesso(&previa));
     assert!(recebido.get("falha_do_envio").is_none());
-    assert!(recebido["forma"].is_null());
+    assert!(recebido.get("forma").is_none());
     assert!(!String::from_utf8(bytes).unwrap().contains("infra_hash"));
 }
 
