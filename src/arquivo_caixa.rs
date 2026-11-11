@@ -22,10 +22,7 @@ pub fn gravar(destino: &Path, valor: &Value) -> Result<usize, ErroArquivoCaixa> 
         return Err(ErroArquivoCaixa::DestinoSemNomeDeArquivo);
     }
     // Como antes da #211: nome sem diretório (pai vazio) é recusado.
-    if !destino
-        .parent()
-        .is_some_and(|pai| !pai.as_os_str().is_empty())
-    {
+    if !destino.parent().is_some_and(|pai| !pai.as_os_str().is_empty()) {
         return Err(ErroArquivoCaixa::DiretorioDeDestinoAusente);
     }
     let bytes =
