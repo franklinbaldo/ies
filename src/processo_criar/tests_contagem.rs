@@ -91,10 +91,7 @@ fn previa_sem_confirmar_expoe_a_mesma_contagem_que_o_transporte() {
 /// A captura de `procedimento_gerar.html` no Todos @323eb01 publica
 /// `maxlength=100` em `txtDescricao`. O limite vem da tela, não do IES.
 fn cadastro_com_maxlength(limite: &str) -> String {
-    cadastro().replace(
-        "name='txtDescricao' value=''",
-        &format!("name='txtDescricao' maxlength='{limite}' value=''"),
-    )
+    cadastro().replace("maxlength='250'", &format!("maxlength='{limite}'"))
 }
 
 #[test]

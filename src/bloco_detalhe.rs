@@ -19,6 +19,7 @@ pub(crate) struct BlocoDetalhado {
     /// O estado foi observado na lista que ofereceu o link do detalhe.
     pub(crate) estado: String,
     pub(crate) total_declarado: usize,
+    #[serde(skip_serializing_if = "Option::is_none")]
     pub(crate) faixa_observada: Option<Faixa>,
     pub(crate) itens: Vec<ItemDoBloco>,
 }

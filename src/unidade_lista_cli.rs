@@ -63,7 +63,7 @@ pub(crate) fn json_da_detalhada(leitura: &LeituraDetalhada, origem: &str) -> ser
     let mut lista = saida::lista_json(&saida::ListaObservada {
         unidade: Some(&leitura.unidade),
         origem,
-        total_declarado: Some(leitura.total_declarado),
+        total_declarado: leitura.total_declarado,
         faixa_observada: leitura.faixa_observada,
         processos: &leitura.processos,
     });
@@ -122,9 +122,10 @@ pub(crate) fn mostrar_caixa_detalhada(
 
 fn humano_da_detalhada(leitura: &LeituraDetalhada) -> String {
     use std::fmt::Write as _;
-    let faixa = leitura
-        .faixa_observada
-        .map_or_else(|| "nenhuma".to_owned(), |(i, f)| format!("{i} a {f}"));
+    let faixa = match leitura.faixa_observada {
+        crate::paginas::FaixaObservada::SemLinhas => "nenhuma".to_owned(),
+        crate::paginas::FaixaObservada::Lidas { inicio, fim } => format!("{inicio} a {fim}"),
+    };
     let mut texto = format!(
         "IES: visão detalhada da unidade {}: {} processo(s) observado(s); total declarado: {}; faixa observada: {faixa}.",
         leitura.unidade,

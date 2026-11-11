@@ -32,7 +32,7 @@ faz 3 GET (Controle → lista → detalhe), **zero POST**. O terceiro GET só
   `bloco_nao_encontrado_na_pagina` após dois GET, sem concluir ausência
   global. A CLI não percorre páginas para procurar N.
 - **Detalhe observado vazio:** apenas `total_declarado=0`, sem itens
-  e com `faixa_observada=null` quando a tabela/legenda vazias foram
+  e sem a chave `faixa_observada` quando a tabela/legenda vazias foram
   efetivamente observadas. **Detalhe não observado**, tabela ausente ou
   resposta incoerente não equivalem a vazio e são recusados.
 - **anti-IES/SQLite:** `sim_bloco_linha` publica a identidade e o

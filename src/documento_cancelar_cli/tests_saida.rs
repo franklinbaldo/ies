@@ -12,7 +12,7 @@ fn exemplo() -> DocumentoCancelado {
             nup: "00001.000001/2026-01".into(),
             tipo: "Processo público".into(),
         },
-        unidade: Some("TESTE".into()),
+        unidade: "TESTE".into(),
         motivo: "Motivo observado".into(),
         resultado: ResultadoDaVerificacao::Previa,
         requisicoes: 4,

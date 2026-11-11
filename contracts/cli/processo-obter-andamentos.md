@@ -32,11 +32,12 @@ juntas ou repetidas são `links_do_historico_repetidos_na_arvore`; um
 `link_do_historico_fora_da_forma_observada`.
 
 **Link não publicado.** Em GO, duas árvores não publicaram o link em
-nenhuma forma. Isso não derruba o comando: a árvore já provou a
-identidade. Sai `"andamentos": null`, `"andamentos"` continua em
-`nao_lidos` e `"andamentos_nao_lidos_motivo":
-"link_do_historico_nao_publicado_na_arvore"`. Link presente mas inválido
-ou repetido continua recusa tipada.
+nenhuma forma. Sem o link, o histórico não é lido: o comando falha com
+`LinkDoHistorico(LinkDoHistoricoAusenteNaArvore)` (saída 1, nada é
+publicado como `null`). Só `--sem-andamentos` dispensa a leitura, e
+então o JSON sai sem a chave `andamentos`, com
+`"andamentos_nao_lidos_motivo": "omitidos_por_sem_andamentos"`. Link
+presente mas inválido ou repetido também é recusa tipada.
 
 ## Visões e requisições
 
@@ -95,8 +96,9 @@ A legenda da tabela é `Lista de Andamentos (N registro):` ou
 `legenda_dos_andamentos_fora_da_forma_observada`, ausente é
 `legenda_dos_andamentos_ausente`. Linhas além de N são
 `AndamentosAlemDoTotalDeclarado`. Linhas aquém de N saem com
-`total_declarado: N` e `faixa_observada: {"inicio": 1, "fim": linhas}`:
-o IES nunca alega completude além do lido. Nenhum paginador foi visto
+`total_declarado: N` e `faixa_observada: {"inicio": 1, "fim": linhas}`;
+com zero linhas a chave `faixa_observada` é omitida. O IES nunca alega
+completude além do lido. Nenhum paginador foi visto
 até 75 linhas ao vivo (GO). No [replay do acervo](../../docs/validacao-replay/2026-11-04-processo-obter-acervo.md)
 (120 páginas, sete instalações, a maior com 57 linhas na UFRJ) a
 `divInfraAreaPaginacaoSuperior` vem sempre vazia e as linhas igualam N.
@@ -113,8 +115,9 @@ Históricos acima de 75 linhas: **NOT_RUN**.
 
 `tipo` é o nome da visão do SEI ("Ver histórico completo"), não uma
 alegação de completude. Itens na ordem servida, sem id inventado. O motivo
-fica numa chave irmã, e não dentro do objeto, para que `andamentos` seja
-sempre o objeto inteiro ou `null` ("não observado").
+fica numa chave irmã, e não dentro do objeto. Com `--sem-andamentos` a
+chave `andamentos` some; sem essa flag o objeto é sempre o lido, ou o
+comando falha.
 
 ## Efeitos
 
@@ -128,7 +131,8 @@ Link: `link_do_historico_fora_da_forma_observada`,
 `links_do_historico_repetidos_na_arvore`,
 `endereco_do_historico_nao_reconhecido`,
 `EnderecoDoHistoricoDeOutroProcesso`,
-`html_da_arvore_nao_interpretado`.
+`html_da_arvore_nao_interpretado`, e `LinkDoHistoricoAusenteNaArvore`
+(a árvore não publica o link do histórico; só com andamentos pedidos).
 
 Página: os do leitor do histórico, `src/historico.rs` (`titulo_ausente`,
 `NumeroDoHistoricoDiferenteDoSolicitado`, `historico_ausente`,

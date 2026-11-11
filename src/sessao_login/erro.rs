@@ -43,7 +43,12 @@ pub(crate) enum ErroLogin {
     CharsetDaTelaDeLoginNaoSuportado,
     CaptchaExigido,
     SegundoFatorExigido,
-    RegraDoOnsubmitDoLoginNaoObservada,
+    /// O `<form>` de login não tem o atributo `onsubmit`.
+    OnsubmitDoLoginAusente,
+    /// O `onsubmit` não é `return acaoLogin(N);` com `N` só de dígitos.
+    OnsubmitDoLoginForaDoFormato,
+    /// A página não grava o argumento do `acaoLogin` em `hdnAcao`.
+    ScriptDoLoginSemHdnAcao,
     Formulario(#[from] ErroSubmissaoFormulario),
     /// A tela de login voltou depois do POST: o SEI recusou a credencial.
     CredencialRecusada {
@@ -103,7 +108,9 @@ impl ErroLogin {
             | Self::CharsetDaTelaDeLoginNaoSuportado
             | Self::CaptchaExigido
             | Self::SegundoFatorExigido
-            | Self::RegraDoOnsubmitDoLoginNaoObservada
+            | Self::OnsubmitDoLoginAusente
+            | Self::OnsubmitDoLoginForaDoFormato
+            | Self::ScriptDoLoginSemHdnAcao
             | Self::CredencialRecusada { .. }
             | Self::ControleAposOLoginNaoReconhecido(_)
             | Self::CookieDaSessaoNaoRecebido

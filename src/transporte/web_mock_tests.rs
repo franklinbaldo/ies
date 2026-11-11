@@ -81,7 +81,7 @@ fn web_mock_um_get_resposta_validada_e_cobertura_inteira() {
     assert!(leitura.recebidos.completa(&leitura.caixa.recebidos));
     assert!(leitura.gerados.completa(&leitura.caixa.gerados));
     assert_eq!(leitura.caixa.recebidos.processos.len(), 20);
-    let saida = crate::saida::json(&leitura, "web-mock");
+    let saida = crate::saida::json(&leitura, "web-mock").unwrap();
     assert_eq!(saida[0]["processos"].as_array().unwrap().len(), 20);
     let json = serde_json::to_string(&saida).unwrap();
     assert!(!json.contains("infra_hash"));
@@ -176,7 +176,7 @@ fn web_mock_benchmark_p50_p95_inclui_transporte_parser_e_json() {
             assert!(leitura.recebidos.completa(&leitura.caixa.recebidos));
             assert!(leitura.gerados.completa(&leitura.caixa.gerados));
             let serializado =
-                serde_json::to_vec(&crate::saida::json(&leitura, "web-mock")).unwrap();
+                serde_json::to_vec(&crate::saida::json(&leitura, "web-mock").unwrap()).unwrap();
             assert_ne!(serializado.len(), 0);
             assert_eq!(leitura.caixa.recebidos.processos.len(), n);
             assert_eq!(chamadas.get(), 1);

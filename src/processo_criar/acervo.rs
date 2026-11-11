@@ -26,10 +26,18 @@ fn nome_da_ancora(html: &str) -> Result<Vec<String>, Resultado> {
         .map_err(|_| Resultado::Recusado("lista_de_tipos_html_invalido".to_owned()))?;
     let tabelas = nos_com_id(&dom, "tblTipoProcedimento")
         .map_err(|_| Resultado::Recusado("lista_de_tipos_html_invalido".to_owned()))?;
-    let [tabela] = tabelas.as_slice() else {
-        return Err(Resultado::NaoAplicavel(
-            "tabela_de_tipos_nao_observada".to_owned(),
-        ));
+    let tabela = match tabelas.as_slice() {
+        [] => {
+            return Err(Resultado::NaoAplicavel(
+                "tabela_de_tipos_ausente".to_owned(),
+            ));
+        }
+        [unica] => unica,
+        [_, _, ..] => {
+            return Err(Resultado::NaoAplicavel(
+                "tabela_de_tipos_repetida".to_owned(),
+            ));
+        }
     };
     let parser = dom.parser();
     let tag = tabela
@@ -162,14 +170,14 @@ fn replay(instalacao: &str, cassette: &Value) -> Vec<Registro> {
                 "lista de tipos",
                 match html_da_resposta(r.interacao) {
                     Ok(html) => ler_lista(&html),
-                    Err(_) => Resultado::NaoAplicavel("html_da_lista_nao_observado".to_owned()),
+                    Err(_) => Resultado::NaoAplicavel("html_da_lista_ilegivel".to_owned()),
                 },
             ),
             ("procedimento_gerar", "GET", 200) => (
                 "cadastro",
                 match html_da_resposta(r.interacao) {
                     Ok(html) => ler_cadastro(&html),
-                    Err(_) => Resultado::NaoAplicavel("html_do_cadastro_nao_observado".to_owned()),
+                    Err(_) => Resultado::NaoAplicavel("html_do_cadastro_ilegivel".to_owned()),
                 },
             ),
             ("hipotese_legal_select_nome_base_legal", _, 200) => {
@@ -183,7 +191,7 @@ fn replay(instalacao: &str, cassette: &Value) -> Vec<Registro> {
                 _,
             ) => (
                 "resposta sem leitura",
-                Resultado::NaoAplicavel("status_nao_observavel_por_leitor".to_owned()),
+                Resultado::NaoAplicavel("status_sem_leitor".to_owned()),
             ),
             _ => continue,
         };
@@ -291,7 +299,7 @@ mod tests {
     fn replay_reusa_leitores_de_lista_cadastro_e_hipotese() {
         // Cenário estrutural de Todos tests/test_processo_criar_escolher_tipo_010.py @323eb01.
         let tipo = "<a class='ancoraOpcao' href='controlador.php?acao=procedimento_gerar&amp;id_tipo_procedimento=12'>Ensaio</a>";
-        let cadastro = "<form id='frmProcedimentoCadastro'><input name='hdnIdTipoProcedimento' value='12'><input name='txtDescricao'><input name='rdoNivelAcesso' value='1' type='radio'><select name='selAssuntos'><option value='21'>Assunto</option></select><select name='selHipoteseLegal'><option value='31'>Base legal</option></select></form>";
+        let cadastro = "<form id='frmProcedimentoCadastro'><input name='hdnIdTipoProcedimento' value='12'><input name='txtDescricao' maxlength='250'><input name='rdoNivelAcesso' value='1' type='radio'><select name='selAssuntos'><option value='21'>Assunto</option></select><select name='selHipoteseLegal'><option value='31'>Base legal</option></select></form>";
         let json = json!({"interactions": [
             passo("procedimento_escolher_tipo", "GET", 200, "text/html", &lista(tipo)),
             passo("procedimento_gerar", "GET", 200, "text/html", cadastro),

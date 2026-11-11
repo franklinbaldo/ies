@@ -51,19 +51,26 @@ pub(crate) fn json_da_previa(feito: &ProcessoAtribuido) -> serde_json::Value {
         EstadoDaAtribuicao::Previa => (false, false),
         EstadoDaAtribuicao::AlteracaoConfirmada => (true, true),
     };
-    json!({
+    let mut valor = json!({
         "nup": feito.nup,
         "id_procedimento": feito.id_procedimento,
         "unidade": feito.unidade,
-        "usuario_atual": feito.usuario_atual,
-        "usuario_pedido": feito.usuario_pedido,
         "remover": feito.usuario_pedido.is_none(),
         "valor_da_opcao": feito.valor_da_opcao,
         "confirmado": confirmado,
         "alterado": alterado,
         "origem": "web",
         "requisicoes": feito.requisicoes
-    })
+    });
+    // Sem atribuição, a chave é omitida: nunca texto vazio como sentinela.
+    if let (Some(campos), Some(login)) = (valor.as_object_mut(), feito.usuario_atual.as_deref()) {
+        campos.insert("usuario_atual".to_owned(), json!(login));
+    }
+    // Na remoção não há usuário pedido: a chave é omitida.
+    if let (Some(campos), Some(pedido)) = (valor.as_object_mut(), feito.usuario_pedido.as_deref()) {
+        campos.insert("usuario_pedido".to_owned(), json!(pedido));
+    }
+    valor
 }
 
 /// O texto depende do mesmo estado tipado que os dois campos JSON.
@@ -78,11 +85,7 @@ pub(crate) fn texto_humano(feito: &ProcessoAtribuido) -> String {
         "{titulo}: processo {}, unidade {}.",
         feito.nup, feito.unidade
     )];
-    let atual = if feito.usuario_atual.is_empty() {
-        "nenhuma"
-    } else {
-        &feito.usuario_atual
-    };
+    let atual = feito.usuario_atual.as_deref().unwrap_or("nenhuma");
     if feito.estado == EstadoDaAtribuicao::Previa {
         linhas.push(format!("Atribuição atual: {atual}."));
         match &feito.usuario_pedido {

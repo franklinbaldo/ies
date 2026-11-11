@@ -294,7 +294,9 @@ fn propriedades_consulta_apenas_o_cadastro_servido_sem_escrita() {
             assert_eq!(p.tipo, "Despacho");
             assert_eq!(p.nivel_de_acesso, Some(Nivel::Publico));
         }
-        outra => panic!("cadastro publicado deveria ser lido: {outra:?}"),
+        outra @ PropriedadesDocumento::NaoPedidas => {
+            panic!("cadastro publicado deveria ser lido: {outra:?}")
+        }
     }
 }
 
@@ -357,17 +359,17 @@ fn propriedades_do_documento_fechado_consultam_formulario_publicado() {
             assert_eq!(p.fonte, AcaoDoSei::DocumentoConsultar);
             assert_eq!(p.descricao, "Consulta do fechado");
         }
-        outra => panic!("cadastro de consulta deveria ser lido: {outra:?}"),
+        outra @ PropriedadesDocumento::NaoPedidas => {
+            panic!("cadastro de consulta deveria ser lido: {outra:?}")
+        }
     }
 }
 
 #[test]
-fn propriedades_sem_link_publicado_nao_consultam_cadastro() {
+fn propriedades_sem_link_publicado_recusam_sem_cadastro() {
     // Dado um documento com conteúdo mas sem link documento_alterar na barra,
     // Quando executo ies documento DOC --com-propriedades,
-    // Então os metadados ficam null e não há GET adicional ao cadastro.
-    use crate::propriedades_documento::PropriedadesDocumento;
-
+    // Então o comando recusa com erro tipado e não há GET adicional ao cadastro.
     let amb = ambiente();
     let mut respostas = ate_a_arvore(arvore_com(&src_visualizar(ID_DOC)));
     respostas.push(ok(conteudo(DOC)));
@@ -385,7 +387,7 @@ fn propriedades_sem_link_publicado_nao_consultam_cadastro() {
         processo: None,
     };
     let mut roteiro = Roteiro::novo(respostas);
-    let resultado = obter_documento_com_propriedades(
+    let erro = obter_documento_com_propriedades(
         &sessao,
         &pedido,
         PedidoDeVersoes::default(),
@@ -393,9 +395,8 @@ fn propriedades_sem_link_publicado_nao_consultam_cadastro() {
         &mut roteiro,
         true,
     )
-    .unwrap();
-    assert_eq!(resultado.propriedades, PropriedadesDocumento::NaoPublicadas);
-    assert_eq!(resultado.requisicoes, 5);
+    .unwrap_err();
+    assert_eq!(erro, ErroDocumentoObter::PropriedadesNaoPublicadasNaBarra);
     assert_eq!(roteiro.pedidos.len(), 5);
     assert_eq!(roteiro.respostas_restantes(), 0);
 }

@@ -50,7 +50,8 @@ Nenhum URL assinado, cookie ou senha é publicado. O subcódigo
 
 A **prévia sem --confirmar** é leitura Web com contagem de requisições
 (até a abertura da tela de atribuição); devolve atual, solicitado e valor
-da opção, sem POST. Também deriva o payload pelo formulário servido
+da opção, sem POST. No JSON, `usuario_atual` traz o login atual; sem
+atribuição a chave é omitida (nunca `""` nem `null`). Também deriva o payload pelo formulário servido
 (botão Salvar, ocultos originais e `selAtribuicao` exato) e recusa método,
 charset ou codificação incompatíveis, sem escrever. ID numérico que aparece
 para dois logins diferentes é recusado: não há identidade unívoca.

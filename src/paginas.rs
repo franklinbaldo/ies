@@ -149,14 +149,12 @@ impl Grupo {
         tabela: &Tabela<Processo>,
         faixa: Option<Faixa>,
     ) -> Result<(), ErroCaixa> {
-        if let (Some(anterior), Some(atual)) = (self.total, tabela.total_declarado)
-            && anterior != atual
+        if let Some(anterior) = self.total
+            && anterior != tabela.total_declarado
         {
             return Err(ErroCaixa::TotaisDeclaradosDiferentesEntrePaginas { categoria });
         }
-        if self.total.is_none() {
-            self.total = tabela.total_declarado;
-        }
+        self.total = Some(tabela.total_declarado);
         let Some(faixa) = faixa else {
             if !self.faixas.is_empty() {
                 return Err(ErroCaixa::FaixaDesconhecida { categoria });
@@ -169,7 +167,7 @@ impl Grupo {
         if self.desconhecida {
             return Err(ErroCaixa::FaixaDesconhecida { categoria });
         }
-        if tabela.total_declarado != Some(faixa.total) {
+        if tabela.total_declarado != faixa.total {
             return Err(ErroCaixa::TotaisDeclaradosDiferentesEntrePaginas { categoria });
         }
         match self.faixas.get(&faixa.inicio) {
@@ -197,10 +195,14 @@ impl Grupo {
             intervalos.push((inicio, fim));
             proximo = fim.saturating_add(1);
         }
-        let tabela = Tabela::nova(categoria, self.total, processos)?;
+        let total = self
+            .total
+            .ok_or(ErroCaixa::TotalNaoDeclaradoNaLegenda { categoria })?;
+        let tabela = Tabela::nova(categoria, total, processos)?;
         Ok((
             tabela,
             Cobertura {
+                categoria,
                 intervalos,
                 confirmada: !self.desconhecida,
             },
@@ -208,9 +210,18 @@ impl Grupo {
     }
 }
 
+/// Posições de uma lista da caixa, como lidas. `SemLinhas` é o fato
+/// "a categoria tem zero registros", não a ausência de leitura.
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+pub enum FaixaObservada {
+    SemLinhas,
+    Lidas { inicio: usize, fim: usize },
+}
+
 /// Evidência de paginação transitória: nunca é guardada no domínio.
 #[derive(Debug)]
 pub struct Cobertura {
+    categoria: Categoria,
     intervalos: Vec<(usize, usize)>,
     confirmada: bool,
 }
@@ -223,9 +234,7 @@ impl Cobertura {
         if !self.confirmada {
             return false;
         }
-        let Some(total) = tabela.total_declarado else {
-            return false;
-        };
+        let total = tabela.total_declarado;
         if tabela.processos.len() != total {
             return false;
         }
@@ -245,15 +254,25 @@ impl Cobertura {
         proximo == total.saturating_add(1)
     }
 
-    /// Posições lidas (`inicio`, `fim`), contíguas; `None` sem linhas ou
-    /// sem faixa comprovada pela legenda.
-    pub fn faixa_observada(&self) -> Option<(usize, usize)> {
+    /// Posições lidas (`inicio`, `fim`), contíguas. Cobertura não confirmada
+    /// pela legenda é erro; zero linhas é `SemLinhas`.
+    pub fn faixa_observada(&self) -> Result<FaixaObservada, ErroCaixa> {
         if !self.confirmada {
-            return None;
+            return Err(ErroCaixa::LegendaSemFaixaComTotalDiferenteDasLinhas {
+                categoria: self.categoria,
+            });
         }
-        let inicio = self.intervalos.first()?.0;
-        let fim = self.intervalos.last()?.1;
-        (fim >= inicio).then_some((inicio, fim))
+        let (Some(primeiro), Some(ultimo)) = (self.intervalos.first(), self.intervalos.last())
+        else {
+            return Ok(FaixaObservada::SemLinhas);
+        };
+        if ultimo.1 < primeiro.0 {
+            return Ok(FaixaObservada::SemLinhas);
+        }
+        Ok(FaixaObservada::Lidas {
+            inicio: primeiro.0,
+            fim: ultimo.1,
+        })
     }
 }
 
@@ -300,12 +319,8 @@ pub(crate) fn faixa_na_pagina(
 /// legenda sem `registros`, ou sem intervalo e com total diferente das linhas.
 pub(crate) fn conferir_faixa_publicavel(
     categoria: Categoria,
-    tabela: &Tabela<Processo>,
     cobertura: &Cobertura,
 ) -> Result<(), ErroCaixa> {
-    if tabela.total_declarado.is_none() {
-        return Err(ErroCaixa::TotalNaoDeclaradoNaLegenda { categoria });
-    }
     if !cobertura.confirmada {
         return Err(ErroCaixa::LegendaSemFaixaComTotalDiferenteDasLinhas { categoria });
     }

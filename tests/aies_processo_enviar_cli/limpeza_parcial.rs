@@ -7,7 +7,18 @@ fn bdd_581_01_anotacao_removida_formulario_de_envio_invalido() {
     let mut enviar = args(true);
     enviar.retain(|arg| *arg != "--manter-aberto");
     enviar.push("--remover-anotacoes");
-    let consultar = ["--json", "processo", NUP];
+    // Releitura só de aberto_em: a fixture não publica o histórico, a
+    // consulta de propriedades nem a de marcadores na barra, e a leitura
+    // sem esses links agora recusa (não sai mais null). Este cenário afirma
+    // aberto_em e a anotação, não essas leituras.
+    let consultar = [
+        "--json",
+        "processo",
+        NUP,
+        "--sem-andamentos",
+        "--sem-propriedades",
+        "--sem-marcadores",
+    ];
     let (saidas, pedidos, depois) = executar_com_ensaio_local(
         &[&enviar, &consultar],
         false,
@@ -60,7 +71,18 @@ fn bdd_581_02_limpeza_comprovada_e_envio_recusado_nao_apagado_do_resultado() {
     let mut enviar = args(true);
     enviar.retain(|arg| *arg != "--manter-aberto");
     enviar.push("--remover-anotacoes");
-    let consultar = ["--json", "processo", NUP];
+    // Releitura só de aberto_em: a fixture não publica o histórico, a
+    // consulta de propriedades nem a de marcadores na barra, e a leitura
+    // sem esses links agora recusa (não sai mais null). Este cenário afirma
+    // aberto_em e a anotação, não essas leituras.
+    let consultar = [
+        "--json",
+        "processo",
+        NUP,
+        "--sem-andamentos",
+        "--sem-propriedades",
+        "--sem-marcadores",
+    ];
     let (saidas, pedidos, depois) = executar_com_ensaio_local(
         &[&enviar, &consultar],
         false,

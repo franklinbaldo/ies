@@ -51,8 +51,10 @@ fn detalhada_parcial_exporta_faixa_observada() {
     assert_eq!(valor[0]["unidade"], "PPI");
     assert_eq!(valor[0]["origem"], "web");
     assert_eq!(valor[0]["total_declarado"], 3);
-    assert_eq!(valor[0]["faixa_observada"]["inicio"], 1);
-    assert_eq!(valor[0]["faixa_observada"]["fim"], 1);
+    assert_eq!(
+        valor[0]["faixa_observada"],
+        serde_json::json!({"inicio": 1, "fim": 1})
+    );
     assert!(valor[0].get("visualizacao").is_none());
     assert!(valor[0].get("recebidos").is_none());
 }

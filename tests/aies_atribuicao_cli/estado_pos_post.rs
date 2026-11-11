@@ -39,7 +39,7 @@ fn previa_atribuir_reflete_remocao_aplicada_antes_por_post_local() {
     let (saida, eventos, _, atribuicao_final) = executar_apos_post_local(true, false, Some("null"));
     assert_eq!(saida.status.code(), Some(0));
     let json: serde_json::Value = serde_json::from_slice(&saida.stdout).unwrap();
-    assert_eq!(json["usuario_atual"], "");
+    assert!(json.get("usuario_atual").is_none());
     assert_eq!(json["usuario_pedido"], "aluno2");
     assert_eq!(json["confirmado"], false);
     assert_eq!(eventos.len(), 5);

@@ -167,15 +167,20 @@ fn atributo_decodificado(tag: &tl::HTMLTag<'_>, nome: &'static str) -> Option<St
 /// `onsubmit="return acaoLogin(N);"` com o script servido gravando o
 /// argumento em `hdnAcao`: o valor de `hdnAcao` é `N`.
 fn hdn_acao_do_onsubmit(form: &tl::HTMLTag<'_>, html: &str) -> Result<String, ErroLogin> {
-    let onsubmit = atributo_decodificado(form, "onsubmit").unwrap_or_default();
-    onsubmit
+    let bruto = valor_do_atributo(form, "onsubmit")
+        .map_err(ErroLogin::Atributo)?
+        .ok_or(ErroLogin::OnsubmitDoLoginAusente)?;
+    let onsubmit = decodificar_atributo(&bruto).ok_or(ErroLogin::OnsubmitDoLoginForaDoFormato)?;
+    let argumento = onsubmit
         .trim()
         .strip_prefix("return acaoLogin(")
         .and_then(|resto| resto.strip_suffix(");"))
-        .filter(|n| (1..=3).contains(&n.len()) && n.bytes().all(|b| b.is_ascii_digit()))
-        .filter(|_| html.contains(HDN_ACAO_PELO_ARGUMENTO))
-        .map(str::to_owned)
-        .ok_or(ErroLogin::RegraDoOnsubmitDoLoginNaoObservada)
+        .filter(|n| !n.is_empty() && n.bytes().all(|b| b.is_ascii_digit()))
+        .ok_or(ErroLogin::OnsubmitDoLoginForaDoFormato)?;
+    if !html.contains(HDN_ACAO_PELO_ARGUMENTO) {
+        return Err(ErroLogin::ScriptDoLoginSemHdnAcao);
+    }
+    Ok(argumento.to_owned())
 }
 
 /// Texto visível da opção: entidades decodificadas, espaços colapsados.

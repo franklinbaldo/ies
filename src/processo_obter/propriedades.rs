@@ -21,7 +21,7 @@ pub(super) fn ler<V: EnvioDoProcesso>(
     }
     let endereco = match &aberta.propriedades {
         Ok(Some(endereco)) => endereco,
-        Ok(None) => return Ok(Propriedades::NaoPublicadasNaBarra),
+        Ok(None) => return Err(ErroProcessoObter::PropriedadesNaoPublicadasNaBarra),
         Err(erro) => return Err(ErroProcessoObter::Propriedades(erro.clone())),
     };
     let id = aberta.arvore.processo.id.as_str();

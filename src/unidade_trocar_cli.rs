@@ -222,11 +222,16 @@ struct ResultadoTroca<'a> {
     alterado: bool,
     antes: &'a str,
     confirmado: bool,
+    #[serde(skip_serializing_if = "Option::is_none")]
     depois: Option<&'a str>,
+    #[serde(skip_serializing_if = "Option::is_none")]
     envio: Option<EnvioTrocaPublico<'a>>,
     escopo: &'static str,
+    #[serde(skip_serializing_if = "Option::is_none")]
     id_unidade: Option<&'a str>,
+    #[serde(skip_serializing_if = "Option::is_none")]
     links_descartados: Option<usize>,
+    #[serde(skip_serializing_if = "Option::is_none")]
     oferecidas: Option<Vec<UnidadePublica<'a>>>,
     pedida: &'a str,
     requisicoes: u32,
@@ -291,7 +296,7 @@ pub(crate) fn json_de_sucesso(troca: &Troca, descartados: Option<usize>, pedidos
         |campos| json!({"metodo": "POST", "acao": AcaoDoSei::InfraTrocarUnidade, "campos": campos}),
     );
     let ja_na_unidade = troca.escolhida.is_none();
-    json!({
+    let mut valor = json!({
         "antes": troca.antes,
         "pedida": troca.pedida,
         "id_unidade": troca.escolhida.as_ref().map(|u| u.id_unidade.clone()),
@@ -303,7 +308,12 @@ pub(crate) fn json_de_sucesso(troca: &Troca, descartados: Option<usize>, pedidos
         "envio": envio,
         "links_descartados": descartados,
         "requisicoes": pedidos,
-    })
+    });
+    // Sem valor, a chave é omitida: a saída não traz null.
+    if let Some(campos) = valor.as_object_mut() {
+        campos.retain(|_, v| !v.is_null());
+    }
+    valor
 }
 
 fn humano(troca: &Troca, pedidos: u32) -> String {

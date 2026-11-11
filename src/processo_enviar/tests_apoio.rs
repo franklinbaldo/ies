@@ -267,6 +267,7 @@ pub(crate) fn previa(aberto_em: &[&str], manter_aberto: bool) -> ProcessoEnviado
         unidade: UNIDADE.into(),
         manter_aberto,
         remocao: None,
+        anotacao_depois: None,
         destino: destino(),
         aberto_em: siglas(aberto_em),
         desfecho: DesfechoDoEnvio::Previa,

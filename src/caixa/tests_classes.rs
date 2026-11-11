@@ -143,8 +143,8 @@ fn pagina_de_dez_com_sigiloso_e_lida_mas_nao_cobre_os_totais() {
     );
     let leitura = juntar(&[html], Some("TESTE")).unwrap();
     assert_eq!(leitura.unidade.as_deref(), Some("TESTE"));
-    assert_eq!(leitura.caixa.recebidos.total_declarado, Some(131));
-    assert_eq!(leitura.caixa.gerados.total_declarado, Some(7990));
+    assert_eq!(leitura.caixa.recebidos.total_declarado, 131);
+    assert_eq!(leitura.caixa.gerados.total_declarado, 7990);
     assert_eq!(leitura.caixa.gerados.processos.len(), 10);
     assert!(leitura.caixa.gerados.processos[3].sigiloso);
     assert_eq!(leitura.caixa.gerados.processos[3].numero, "000000000000004");

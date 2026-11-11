@@ -31,7 +31,7 @@ O card Goiás `bloco-interno-ciclo-go` registra uma transição de faixa
 1–50 para 51–100 após POST de navegação, mas **não preserva o corpo
 original do POST**. Os pares derivados pela CLI são hipótese sintética,
 não equivalência externa demonstrada. No SQLite, página desconhecida
-não vira página vazia; `total_declarado=0`, `faixa_observada=null` e
+não vira página vazia; `total_declarado=0`, sem a chave `faixa_observada` e
 `itens=[]` só são publicados quando o vazio foi explicitamente registrado.
 
 **Três evidências distintas:** testes sintéticos CLI real ↔ anti-IES ↔
