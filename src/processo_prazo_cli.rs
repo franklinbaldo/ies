@@ -18,7 +18,7 @@ use crate::processo_prazo::{
 };
 use crate::visao_do_controle::{EnvioDoControle as _, EnvioHttps};
 use crate::{Cli, Domain, Processo, ProcessoAcao, processo_concluir_cli};
-use serde_json::{Value, json};
+use serde_json::json;
 
 mod exclusao;
 
@@ -151,35 +151,48 @@ fn publicar_previa(
         EstadoDoPrazo::Dias(dias) => json!({"tipo": "dias", "dias": dias}),
         EstadoDoPrazo::Concluido => json!({"tipo": "concluido"}),
     };
+    // `solicitado` só existe para `--ate` e `--dias`; sem valor, a chave sai.
     let solicitado = match pedido {
-        PedidoDePrazo::Ate(data) => json!({"ate": data}),
-        PedidoDePrazo::Dias(dias) => json!({"dias": dias}),
-        PedidoDePrazo::Ler | PedidoDePrazo::Excluir => Value::Null,
+        PedidoDePrazo::Ate(data) => Some(json!({"ate": data})),
+        PedidoDePrazo::Dias(dias) => Some(json!({"dias": dias})),
+        PedidoDePrazo::Ler | PedidoDePrazo::Excluir => None,
     };
     let campos: Vec<_> = campos_do_pedido(pedido)
         .into_iter()
         .map(|(nome, _)| nome)
         .collect();
-    let resultado = json!({
+    let mut resultado = json!({
         "nup": nup.as_str(),
         "id_procedimento": aberto.arvore.processo.id,
-        "unidade": aberto.unidade,
         "origem": "web",
         "atual": atual,
         "valor_do_checkbox_de_dias_uteis": tela.valor_dos_uteis,
-        "solicitado": solicitado,
         "campos_da_previa": campos,
         "confirmado": confirmado,
         "requisicoes": requisicoes,
     });
+    if let Some(objeto) = resultado.as_object_mut() {
+        if let Some(unidade) = &aberto.unidade {
+            objeto.insert("unidade".to_owned(), json!(unidade));
+        }
+        if let Some(solicitado) = &solicitado {
+            objeto.insert("solicitado".to_owned(), solicitado.clone());
+        }
+    }
     if cli.json {
         println!("{resultado}");
     } else {
         println!("Processo {} — prazo atual: {}", nup.as_str(), atual);
-        if confirmado {
-            println!("Prazo confirmado por releitura: {solicitado}.");
-        } else if !solicitado.is_null() {
-            println!("Prévia: {solicitado}. Confirmação disponível somente no simulador local.");
+        match (&solicitado, confirmado) {
+            (Some(solicitado), true) => {
+                println!("Prazo confirmado por releitura: {solicitado}.");
+            }
+            (Some(solicitado), false) => {
+                println!(
+                    "Prévia: {solicitado}. Confirmação disponível somente no simulador local."
+                );
+            }
+            (None, _) => {}
         }
         println!("Requisições: {requisicoes}");
     }

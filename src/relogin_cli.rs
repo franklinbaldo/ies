@@ -112,16 +112,14 @@ pub(crate) fn avisar(json_mode: bool, nota: Option<&NotaDoRelogin>) {
 
 /// `relogin` no objeto (ou em cada objeto do array da lista D).
 fn em_cada_objeto(valor: &mut Value, mut f: impl FnMut(&mut serde_json::Map<String, Value>)) {
-    match valor {
-        Value::Object(objeto) => f(objeto),
-        Value::Array(itens) => {
-            for item in itens {
-                if let Value::Object(objeto) = item {
-                    f(objeto);
-                }
+    if let Some(objeto) = valor.as_object_mut() {
+        f(objeto);
+    } else if let Some(itens) = valor.as_array_mut() {
+        for item in itens {
+            if let Some(objeto) = item.as_object_mut() {
+                f(objeto);
             }
         }
-        Value::Null | Value::Bool(_) | Value::Number(_) | Value::String(_) => {}
     }
 }
 

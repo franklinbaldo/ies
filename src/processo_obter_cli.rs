@@ -26,17 +26,23 @@ fn json_das_propriedades(lidas: &PropriedadesLidas) -> Value {
         .iter()
         .map(|a| json!({"codigo": a.codigo, "descricao": a.descricao}))
         .collect();
-    json!({
-        "tipo": lidas.tipo,
-        "especificacao": lidas.especificacao,
-        "interessados": lidas.interessados,
-        "assuntos": assuntos,
-        "observacoes": lidas.observacoes,
-        "nivel_de_acesso": lidas.nivel_de_acesso.como_texto(),
-        "hipotese_legal": lidas.hipotese_legal,
-        "data_de_geracao": lidas.data_de_geracao,
-        "fonte": lidas.fonte.acao().como_na_url(),
-    })
+    let mut objeto = serde_json::Map::new();
+    objeto.insert("tipo".to_owned(), json!(lidas.tipo));
+    objeto.insert("especificacao".to_owned(), json!(lidas.especificacao));
+    objeto.insert("interessados".to_owned(), json!(lidas.interessados));
+    objeto.insert("assuntos".to_owned(), Value::Array(assuntos));
+    objeto.insert("observacoes".to_owned(), json!(lidas.observacoes));
+    objeto.insert(
+        "nivel_de_acesso".to_owned(),
+        json!(lidas.nivel_de_acesso.como_texto()),
+    );
+    // Sem hipótese legal, a chave sai (não há `null`).
+    if let Some(hipotese) = &lidas.hipotese_legal {
+        objeto.insert("hipotese_legal".to_owned(), json!(hipotese));
+    }
+    objeto.insert("data_de_geracao".to_owned(), json!(lidas.data_de_geracao));
+    objeto.insert("fonte".to_owned(), json!(lidas.fonte.acao().como_na_url()));
+    Value::Object(objeto)
 }
 
 /// Os marcadores lidos (sempre lista), o total da legenda e a faixa lida.
@@ -45,15 +51,22 @@ fn inserir_marcadores(objeto: &mut serde_json::Map<String, Value>, lidos: &Marca
         .itens
         .iter()
         .map(|m| {
-            json!({
-                "id": m.id,
-                "rotulo": rotulo_do_marcador(&m.id, &m.nome),
-                "nome": m.nome,
-                "cor": m.cor,
-                "texto": m.texto,
-                "usuario": m.usuario,
-                "data_hora": m.data_hora,
-            })
+            let mut marcador = serde_json::Map::new();
+            marcador.insert("id".to_owned(), json!(m.id));
+            marcador.insert(
+                "rotulo".to_owned(),
+                json!(rotulo_do_marcador(&m.id, &m.nome)),
+            );
+            marcador.insert("nome".to_owned(), json!(m.nome));
+            marcador.insert("cor".to_owned(), json!(m.cor));
+            if let Some(texto) = &m.texto {
+                marcador.insert("texto".to_owned(), json!(texto));
+            }
+            if let Some(usuario) = &m.usuario {
+                marcador.insert("usuario".to_owned(), json!(usuario));
+            }
+            marcador.insert("data_hora".to_owned(), json!(m.data_hora));
+            Value::Object(marcador)
         })
         .collect();
     // Zero marcadores: a faixa lida não existe e a chave é omitida.
@@ -134,12 +147,18 @@ fn json_dos_andamentos(lidos: &AndamentosLidos) -> Value {
         .itens
         .iter()
         .map(|a| {
-            json!({
-                "ocorrido_em": a.ocorrido_em,
-                "unidade": a.unidade,
-                "usuario": a.usuario,
-                "descricao": a.descricao,
-            })
+            let mut andamento = serde_json::Map::new();
+            if let Some(ocorrido_em) = &a.ocorrido_em {
+                andamento.insert("ocorrido_em".to_owned(), json!(ocorrido_em));
+            }
+            if let Some(unidade) = &a.unidade {
+                andamento.insert("unidade".to_owned(), json!(unidade));
+            }
+            if let Some(usuario) = &a.usuario {
+                andamento.insert("usuario".to_owned(), json!(usuario));
+            }
+            andamento.insert("descricao".to_owned(), json!(a.descricao));
+            Value::Object(andamento)
         })
         .collect();
     let mut objeto = json!({
@@ -203,7 +222,7 @@ fn inserir_leituras(
 
 /// O JSON publicado; `anexados` sai sempre; `documentos` some com `--sem-documentos`,
 /// `andamentos` com `--sem-andamentos`, `propriedades` com `--sem-propriedades`
-/// e `marcadores` com `--sem-marcadores` (link não publicado: `null`).
+/// e `marcadores` com `--sem-marcadores` (link não publicado: chave ausente).
 pub(crate) fn json_do_processo(
     nup: &NumeroProcesso,
     aberto: &ProcessoAberto,
@@ -214,12 +233,15 @@ pub(crate) fn json_do_processo(
         "numero": nup.as_str(),
         "id_procedimento": processo.id,
         "tipo": processo.tipo,
-        "unidade": aberto.unidade,
         "resolvido_por": aberto.resolvido_por.como_texto(),
         "requisicoes": aberto.requisicoes,
     });
     let mut nao_lidos: Vec<&str> = Vec::new();
     if let Some(objeto) = valor.as_object_mut() {
+        // Sem unidade publicada pela árvore, a chave sai (não há `null`).
+        if let Some(unidade) = &aberto.unidade {
+            objeto.insert("unidade".to_owned(), json!(unidade));
+        }
         saida_da_arvore::inserir_aberto_em(objeto, &aberto.arvore.aberto_em, &mut nao_lidos);
         inserir_leituras(objeto, aberto, &mut nao_lidos);
         let anexados = &aberto.arvore.anexados;
@@ -234,13 +256,13 @@ pub(crate) fn json_do_processo(
         objeto.insert("anexados".to_owned(), Value::Array(anexados));
         let pai = aberto.arvore.anexado_a.as_ref();
         objeto.insert("anexado".to_owned(), json!(pai.is_some()));
-        objeto.insert(
-            "anexado_a".to_owned(),
-            pai.map_or(
-                Value::Null,
-                |p| json!({"numero": p.numero, "id_procedimento": p.id_procedimento}),
-            ),
-        );
+        // Processo não anexado: a chave `anexado_a` sai (não há `null`).
+        if let Some(p) = pai {
+            objeto.insert(
+                "anexado_a".to_owned(),
+                json!({"numero": p.numero, "id_procedimento": p.id_procedimento}),
+            );
+        }
     }
     if !sem_documentos && let Some(objeto) = valor.as_object_mut() {
         saida_da_arvore::inserir_documentos(objeto, &aberto.arvore);
@@ -250,14 +272,26 @@ pub(crate) fn json_do_processo(
                 .pastas
                 .iter()
                 .map(|p| {
-                    json!({
-                        "id": p.id,
-                        "rotulo": p.rotulo,
-                        "total": p.total_declarado,
-                        "verificacao": p.verificacao.map(VerificacaoDaPasta::como_texto),
-                        "conferidos_por_identidade": p.conferidos_por_identidade,
-                        "conferidos_por_contagem": p.conferidos_por_contagem,
-                    })
+                    let mut pasta = serde_json::Map::new();
+                    pasta.insert("id".to_owned(), json!(p.id));
+                    pasta.insert("rotulo".to_owned(), json!(p.rotulo));
+                    pasta.insert("total".to_owned(), json!(p.total_declarado));
+                    // Pasta sem regra de verificação: a chave sai (não há `null`).
+                    if let Some(verificacao) = p.verificacao {
+                        pasta.insert(
+                            "verificacao".to_owned(),
+                            json!(VerificacaoDaPasta::como_texto(verificacao)),
+                        );
+                    }
+                    pasta.insert(
+                        "conferidos_por_identidade".to_owned(),
+                        json!(p.conferidos_por_identidade),
+                    );
+                    pasta.insert(
+                        "conferidos_por_contagem".to_owned(),
+                        json!(p.conferidos_por_contagem),
+                    );
+                    Value::Object(pasta)
                 })
                 .collect()
         } else {
@@ -269,10 +303,13 @@ pub(crate) fn json_do_processo(
         } else {
             None
         };
-        objeto.insert(
-            "verificacao_das_pastas".to_owned(),
-            json!(verificacao.map(VerificacaoDaPasta::como_texto)),
-        );
+        // Sem pastas conferidas, a chave sai (não há `null`).
+        if let Some(verificacao) = verificacao {
+            objeto.insert(
+                "verificacao_das_pastas".to_owned(),
+                json!(verificacao.como_texto()),
+            );
+        }
         if verificacao.is_some_and(|v| v != VerificacaoDaPasta::PorIdentidade) {
             objeto.insert(
                 "verificacao_das_pastas_motivo".to_owned(),
@@ -417,6 +454,8 @@ fn obter(cli: &Cli, comando: &Processo, nup: &NumeroProcesso) -> anyhow::Result<
     .map_err(validacao_sem_credenciais)?;
     aberto.requisicoes = relogin_cli::somar(aberto.requisicoes, nota.as_ref());
     if cli.json {
+        // A leitura de `aberto_em` que falhou é erro: o JSON não publica a chave sem valor.
+        saida_da_arvore::exigir_aberto_em_lido(&aberto.arvore.aberto_em)?;
         let mut valor = json_do_processo(nup, &aberto, comando.sem_documentos);
         relogin_cli::anotar(&mut valor, nota.as_ref());
         println!("{}", serde_json::to_string_pretty(&valor)?);
