@@ -58,12 +58,11 @@ pub(super) fn listar_processos_da_unidade(
     Ok(())
 }
 
-/// A lista D: um array com **uma** lista `categoria: null` e `colunas_ausentes`.
+/// A lista D: um array com **uma** lista sem `categoria` e com `colunas_ausentes`.
 pub(crate) fn json_da_detalhada(leitura: &LeituraDetalhada, origem: &str) -> serde_json::Value {
     let mut lista = saida::lista_json(&saida::ListaObservada {
         unidade: Some(&leitura.unidade),
         origem,
-        categoria: None,
         total_declarado: Some(leitura.total_declarado),
         faixa_observada: leitura.faixa_observada,
         processos: &leitura.processos,
@@ -85,7 +84,7 @@ pub(crate) enum ErroSaidaDaCaixaDetalhada {
     Serializacao(#[from] serde_json::Error),
 }
 
-/// D é modo de exibição da sessão, não categoria: uma lista, `categoria: null`.
+/// D é modo de exibição da sessão, não categoria: uma lista, sem `categoria`.
 pub(crate) fn mostrar_caixa_detalhada(
     leitura: &LeituraDetalhada,
     origem: &str,

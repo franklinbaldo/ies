@@ -22,8 +22,23 @@ fn maxlength_e_o_publicado_e_nao_um_valor_universal() {
 }
 
 #[test]
-fn sem_maxlength_publicado_o_termo_nao_tem_limite_da_tela() {
-    assert!(derivar_termo(&observado(), &"1".repeat(51)).is_ok());
+fn sem_maxlength_publicado_o_termo_e_recusado_antes_do_post() {
+    let html = com_campo_do_termo(
+        "<input type='text' id='txtProtocoloPesquisa' name='txtProtocoloPesquisa' value=''>",
+    );
+    assert_eq!(
+        regra_do_termo(&html, "1"),
+        ErroRegraDoFormularioDePesquisa::MaxlengthDoTermoAusenteNaTela
+    );
+}
+
+#[test]
+fn campo_do_termo_ausente_e_recusado_antes_do_post() {
+    let html = com_campo_do_termo("");
+    assert_eq!(
+        regra_do_termo(&html, "1"),
+        ErroRegraDoFormularioDePesquisa::CampoDoTermoAusenteNaTela
+    );
 }
 
 #[test]

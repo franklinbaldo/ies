@@ -67,7 +67,10 @@ restauração de tela.
 | `ErroPrazo::OpcoesIncompativeis` | Combinação de opções mutuamente exclusivas |
 | `ErroPrazo::DataInvalida` | Data não existe |
 | `ErroPrazo::DiasInvalidos` | Contagem fora da faixa |
-| `ErroPrazo::TelaNaoObservada` | Formulário diferente da forma observada |
+| `ErroPrazo::FormularioDeOutroDestino` | O `action` do formulário não é `controle_prazo_definir` em `controlador.php` |
+| `ErroPrazo::IdDoProcessoAusenteNoFormulario` | O formulário não traz `hdnIdProcedimentos` |
+| `ErroPrazo::OpcoesDoPrazoAusentes` | O formulário não publica as opções `rdoPrazo` |
+| `ErroPrazo::PrazoAtualIlegivel` | A opção marcada ou os dias não formam um prazo |
 | `ErroPrazo::OutroProcesso` | Identidade distinta |
 | `ErroLinkPrazo::BarraNaoInterpretada` | Barra sem leitura segura |
 | `ErroLinkPrazo::LinksRepetidos` | Múltiplas ações de prazo |

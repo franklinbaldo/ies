@@ -19,8 +19,8 @@ fn documento(id: &str, numero: &str, tipo: &str) -> DocumentoNaArvore {
         numero_sei: Some(numero.to_owned()),
         pasta: None,
         natureza: NaturezaDoDocumento {
-            icone: None,
-            cancelamento: Cancelamento::NaoObservado,
+            icone: "documento_interno".into(),
+            cancelamento: Cancelamento::Ativo,
             dica: None,
         },
     }

@@ -49,16 +49,19 @@ fn conferir_upload(
     relativo: &str,
     processo: &str,
 ) -> Result<String, ErroIncluirExterno> {
-    let erro = || ErroIncluirExterno::EnderecoDeUploadNaoObservado;
-    let consulta = relativo.strip_prefix("controlador.php?").ok_or_else(erro)?;
+    let consulta = relativo
+        .strip_prefix("controlador.php?")
+        .ok_or(ErroIncluirExterno::EnderecoDeUploadRecusado)?;
     if relativo.len() > 8_192 || !relativo.bytes().all(|b| (33..=126).contains(&b)) {
-        return Err(erro());
+        return Err(ErroIncluirExterno::EnderecoDeUploadRecusado);
     }
     let mut acao = 0;
     let mut hash = 0;
     let mut processo_informado = false;
     for par in consulta.split('&') {
-        let (chave, valor) = par.split_once('=').ok_or_else(erro)?;
+        let (chave, valor) = par
+            .split_once('=')
+            .ok_or(ErroIncluirExterno::EnderecoDeUploadRecusado)?;
         conferir_chave_de_consulta(chave)
             .map_err(ErroIncluirExterno::ConsultaDoUploadForaDaForma)?;
         conferir_valor_de_consulta(valor)
@@ -71,12 +74,17 @@ fn conferir_upload(
             "id_procedimento" if valor == processo && !processo_informado => {
                 processo_informado = true;
             }
-            "acao" | "infra_hash" | "acao_ajax" | "id_procedimento" => return Err(erro()),
+            "id_procedimento" => {
+                return Err(ErroIncluirExterno::UploadParaOutroProcesso);
+            }
+            "acao" | "infra_hash" | "acao_ajax" => {
+                return Err(ErroIncluirExterno::EnderecoDeUploadRecusado);
+            }
             _ => {}
         }
     }
     if acao != 1 || hash != 1 {
-        return Err(erro());
+        return Err(ErroIncluirExterno::EnderecoDeUploadRecusado);
     }
     Ok(format!("{}/{relativo}", instalacao.url_base()))
 }
@@ -191,7 +199,7 @@ where
         }
     }
     let instalacao = Instalacao::interpretar(sessao.origem)
-        .ok_or(ErroIncluirExterno::EnderecoDeUploadNaoObservado)?;
+        .ok_or(ErroIncluirExterno::OrigemDaSessaoNaoInterpretada)?;
     let destino = conferir_upload(
         &instalacao,
         preparado.cadastro.plano.url_upload(),

@@ -424,7 +424,7 @@ mod tests_fluxo {
         assert_eq!(envio.urls.len(), 2);
         assert!(envio.telas.is_empty());
         assert_eq!(valor["requisicoes"], 2);
-        assert_eq!(valor["lista"]["itens"][0]["quantidade_itens"], Value::Null);
+        assert!(valor["lista"]["itens"][0].get("quantidade_itens").is_none());
         assert!(!valor.to_string().contains(HASH));
         assert!(!valor.to_string().contains("PHPSESSID"));
     }

@@ -51,14 +51,12 @@ fn replay(instalacao: &str, json: &Value) -> Vec<Registro> {
             ("GET", 200) => (
                 "formulário de atribuição",
                 match html_da_resposta(resposta.interacao) {
-                    Err(_) => Resultado::NaoAplicavel("html_nao_observado".to_owned()),
+                    Err(_) => Resultado::NaoAplicavel("html_ilegivel".to_owned()),
                     Ok(html) => {
                         let id = gravacao::id_procedimento(resposta.interacao)
                             .or_else(|| id_da_tela(&html));
                         match id {
-                            None => {
-                                Resultado::NaoAplicavel("id_do_processo_nao_observado".to_owned())
-                            }
+                            None => Resultado::NaoAplicavel("id_do_processo_ausente".to_owned()),
                             Some(id) => match super::ler_tela(&html, &id) {
                                 Ok(_) => Resultado::Lido,
                                 Err(erro) => Resultado::Recusado(format!("{erro:?}")),

@@ -35,6 +35,7 @@ pub(crate) fn unidade_do_controle(html: &str) -> Result<String, ErroCaixa> {
                 | ErroDetalhada::ContextoDiferente
                 | ErroDetalhada::ColunasDaLinhaDiferentes
                 | ErroDetalhada::ClassesDeEstadoDiferentesNoLink(_)
+                | ErroDetalhada::EstadoDoLinkDoProcessoAusente
                 | ErroDetalhada::TotalNaoDeclarado
                 | ErroDetalhada::FaixaSemIntervaloComPaginacao
                 | ErroDetalhada::FaixaDescontinua

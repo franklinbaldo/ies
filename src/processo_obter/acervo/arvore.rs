@@ -159,23 +159,12 @@ fn natureza(c: &Cassette<'_>, r: &Resposta<'_>, aberta: &ArvoreAberta) -> Regist
     };
     registro.contagens = vec![
         ("documentos", documentos.len() as u64),
-        ("sem_icone", conta(&|n| n.icone.is_none())),
-        (
-            "cancelado_nao_lido",
-            conta(&|n| n.cancelamento.cancelado().is_none()),
-        ),
-        (
-            "cancelados",
-            conta(&|n| n.cancelamento.cancelado() == Some(true)),
-        ),
+        ("cancelados", conta(&|n| n.cancelamento.cancelado())),
         ("com_dica", conta(&|n| n.dica.is_some())),
     ];
     for documento in documentos {
-        let icone = documento.natureza.icone.as_deref().unwrap_or("(não lido)");
+        let icone = documento.natureza.icone.as_str();
         registro.formas.push(format!("icone:{icone}"));
-    }
-    if registro.contagem("sem_icone") > 0 {
-        registro.resultado = Resultado::Recusado("icone_nao_lido".to_owned());
     }
     registro
 }

@@ -87,13 +87,15 @@ Em cada `DOCUMENTO` (do primeiro nível e de pastas; o
 
 - `icone`: o radical de a7 quando a7, a8 e a9 são o mesmo texto
   `svg/<radical>.svg`, com ou sem `?<decimal>`, e o radical só tem
-  minúsculas ASCII, dígitos e `_`. Senão, `null`. Valor **opaco**: o IES
+  minúsculas ASCII, dígitos e `_`. Senão, a leitura da árvore recusa
+  (`IconeDoDocumentoForaDaFormaObservada`). Valor **opaco**: o IES
   não traduz `documento_pdf` em "externo" nem `documento_email` em
   "e-mail" (ver a [observação](../../docs/como-o-sei-funciona/situacao-na-arvore.md)).
 - `cancelado`: `true` quando o `icone` é `documento_cancelado` **e** a
   dica (a6) começa por `Documento Cancelado:`; `false` quando nenhuma das
-  duas ocorre; `null` quando só uma ocorre ou o `icone` é `null` (não
-  observado: não se afirma nem se nega).
+  duas ocorre. Com uma só marca a árvore recusa
+  (`IconeDeCancelamentoSemMotivoNaDica` ou `DicaDeCancelamentoSemIconeDeCancelado`):
+  não há `null` nem "não observado".
 - `motivo_do_cancelamento`: com `cancelado: true`, o resto da dica depois
   de `Documento Cancelado:`, sem espaços nas pontas; senão `null`.
 
@@ -112,8 +114,7 @@ Em cada `DOCUMENTO` (do primeiro nível e de pastas; o
  "motivo_do_cancelamento": "erro", "dica": "Documento Cancelado: erro"}
 ```
 
-Texto humano: `[cancelado: <motivo>]` no fim da linha do documento, ou
-`[cancelamento não confirmado]` com `cancelado: null`. Fora do cancelado,
+Texto humano: `[cancelado: <motivo>]` no fim da linha do documento. Fora do cancelado,
 cada linha não vazia da dica sai abaixo do documento, recuada em quatro
 espaços.
 

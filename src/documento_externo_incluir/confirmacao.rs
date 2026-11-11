@@ -122,9 +122,7 @@ where
     // A árvore publica "documento_pdf" para PDFs externos (UnB/GO).
     // Número, rótulo e redirect não bastam para confirmar a inclusão externa:
     // documento interno concorrente ou natureza não observada são incertos.
-    if novo.natureza.icone.as_deref() != Some("documento_pdf")
-        || novo.natureza.cancelamento.cancelado() != Some(false)
-    {
+    if novo.natureza.icone != "documento_pdf" || novo.natureza.cancelamento.cancelado() {
         return Err(FalhaConfirmacao::NaoConfirmado);
     }
     let RespostaDoEnvio::Redirecionamento(redir) = resposta else {

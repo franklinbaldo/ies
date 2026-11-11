@@ -56,8 +56,8 @@ fn rotulo_com_numeracao_do_tipo_comprova_o_novo_documento() {
         numero_sei: Some(numero.into()),
         pasta: None,
         natureza: NaturezaDoDocumento {
-            icone: None,
-            cancelamento: Cancelamento::NaoObservado,
+            icone: "documento_interno".into(),
+            cancelamento: Cancelamento::Ativo,
             dica: None,
         },
     };

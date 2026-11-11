@@ -23,7 +23,7 @@ pub(crate) fn no_documento(i: usize, id: &str, pai: &str, numero: &str) -> Strin
 /// A natureza do `no_documento` sintético: ícone interno, não cancelado.
 pub(crate) fn interno() -> NaturezaDoDocumento {
     NaturezaDoDocumento {
-        icone: Some("documento_interno".into()),
+        icone: "documento_interno".into(),
         cancelamento: Cancelamento::Ativo,
         dica: Some(DICA_SINTETICA.into()),
     }

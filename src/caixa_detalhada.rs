@@ -19,9 +19,10 @@ use std::collections::HashSet;
 pub(crate) struct ProcessoDetalhado {
     pub(crate) id: IdProcedimento,
     pub(crate) numero: String,
-    pub(crate) visualizado: Option<bool>,
-    pub(crate) sigiloso: Option<bool>,
-    /// Categoria observada nas tabelas R do mesmo GET; `null` = não observada.
+    pub(crate) visualizado: bool,
+    pub(crate) sigiloso: bool,
+    /// Categoria das linhas, preenchida por `visao_do_controle` quando as
+    /// tabelas R do mesmo GET a mostraram; `null` = não observada.
     #[serde(serialize_with = "colunas::serializar_categoria")]
     pub(crate) categoria: Option<Categoria>,
     /// Colunas configuradas do cabeçalho, por chave estável.
@@ -61,6 +62,8 @@ pub(crate) enum ErroDetalhada {
     ContextoDiferente,
     ColunasDaLinhaDiferentes,
     ClassesDeEstadoDiferentesNoLink(crate::classe_link_processo::ClassesDeEstadoDiferentesNoLink),
+    /// O link do processo não publica nenhuma classe de estado (visualizado/sigiloso).
+    EstadoDoLinkDoProcessoAusente,
     TotalNaoDeclarado,
     FaixaSemIntervaloComPaginacao,
     FaixaDescontinua,
@@ -267,15 +270,16 @@ fn ler_linha(
         }
         let classe = atributo(link, "class")?.unwrap_or_default();
         let estado = crate::classe_link_processo::estado_do_link(&classe)
-            .map_err(ErroDetalhada::ClassesDeEstadoDiferentesNoLink)?;
+            .map_err(ErroDetalhada::ClassesDeEstadoDiferentesNoLink)?
+            .ok_or(ErroDetalhada::EstadoDoLinkDoProcessoAusente)?;
         let numero = NumeroProcesso::novo(&link.inner_text(parser))
             .map_err(ErroDetalhada::NumeroDoProcessoDetalhadoAusente)?;
         escolhido = Some((
             ProcessoDetalhado {
                 id: id.clone(),
                 numero: numero.as_str().to_owned(),
-                visualizado: estado.map(|e| e.visualizado),
-                sigiloso: estado.map(|e| e.sigiloso),
+                visualizado: estado.visualizado,
+                sigiloso: estado.sigiloso,
                 categoria: None,
                 colunas: ColunasDaLinha(configuradas.clone()),
             },

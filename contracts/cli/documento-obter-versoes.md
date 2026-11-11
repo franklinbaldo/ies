@@ -132,7 +132,7 @@ carrega a identidade inteira e o arquivo é a foto fiel da versão.
 | --- | --- |
 | `ErroVersao::VersaoDocumentoInvalida` | `--versao 0` (antes de qualquer rede) |
 | `ListaDeVersoesNaoPublicadaNaArvore` | `--versao N` e a barra do documento não publica a lista |
-| `VersaoNaoObservada` | N não está entre as linhas da lista |
+| `VersaoPedidaAusenteNoHistorico` | N não está entre as linhas da lista |
 | `VersaoServidaDiferenteDaPedida` | o rodapé da versão servida declara outra versão |
 | `ErroDocumentoObter::BarraDoDocumento(ErroBarraDoDocumento::{BarrasRepetidasNaArvore, BarraDoDocumentoForaDaFormaObservada, LinkDasVersoesRepetidoNaBarra, LinkDasVersoesNaoReconhecido, EnderecoDasVersoesDeOutroDocumento})` | barra repetida, fora da forma, link repetido, de outro documento ou processo |
 | `ErroVersao::HistoricoDocumentoAusente`, `ErroVersao::ListaIncompleta`, `ErroVersao::ColunasHistoricoInesperadas`, `ErroVersao::LinhaIncompleta`, `ErroVersao::LinkVersaoAusenteOuAmbiguo`, `ErroVersao::LinkInseguro`, `ErroVersao::DocumentoDivergente`, `ErroVersao::VersaoDocumentoDuplicada`, `ErroVersao::LegendasHistoricoVersoesRepetidas` | a lista servida fora da forma observada |
