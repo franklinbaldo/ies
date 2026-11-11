@@ -1,7 +1,7 @@
 //! Resolução de um número pelas listas de blocos publicadas.
 use super::{
-    EnvioDoControle, ErroBloco, FalhaLeitura, Leitura, Lido, ReferenciasDaSessao, TipoBloco,
-    bloco, bloco_detalhe, controle_reconhecido, ler_tela_via, transporte,
+    EnvioDoControle, ErroBloco, FalhaLeitura, Leitura, Lido, ReferenciasDaSessao, TipoBloco, bloco,
+    bloco_detalhe, controle_reconhecido, ler_tela_via, transporte,
 };
 
 /// Resolve um número pelas listas tipadas efetivamente publicadas, sem
