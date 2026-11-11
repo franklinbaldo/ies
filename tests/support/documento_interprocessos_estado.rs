@@ -47,6 +47,7 @@ pub(super) enum EstadoExtra {
     SemListaNaUnidade,
     CanceladoAntesDaLista,
     PdfNumeroDuplicado,
+    PastaPendente,
 }
 
 fn semear_numero_repetido(banco: &mut Connection, origem: &Instalacao) {
@@ -263,6 +264,22 @@ pub(super) fn estado(com_segundo: bool, modo: EstadoExtra) -> (Connection, Insta
         }
         EstadoExtra::NumeroRepetido => semear_numero_repetido(&mut banco, &origem),
         EstadoExtra::PdfNumeroDuplicado => semear_pdf_numero_repetido(&banco, &origem),
+        EstadoExtra::PastaPendente => {
+            // A árvore tem DOC_A visível e uma pasta cuja leitura é incompleta.
+            // DOC_B não pertence ao processo A; a ausência não está comprovada.
+            use iesei::pastas_incompletas::{self, PastaPendente};
+            pastas_incompletas::guardar(
+                &banco,
+                &origem,
+                CENARIO,
+                "7",
+                &PastaPendente {
+                    indice: 1,
+                    protocolo_declarado: "900".into(),
+                },
+            )
+            .unwrap();
+        },
     }
     (banco, origem)
 }
