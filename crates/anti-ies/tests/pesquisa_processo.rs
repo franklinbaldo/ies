@@ -41,7 +41,7 @@ fn pesquisa_do_nup_serve_a_tela_e_a_arvore_sem_criar_documentos() {
             },
         )
         .unwrap();
-        for _ in 0..5 {
+        for _ in 0..8 {
             let (mut fluxo, _) = escuta.accept().unwrap();
             atender_http(&mut fluxo, Some((&banco, &origem, "bdd-246"))).unwrap();
         }
@@ -77,6 +77,25 @@ fn pesquisa_do_nup_serve_a_tela_e_a_arvore_sem_criar_documentos() {
     );
     assert!(arvore.contains("Nos[0] = new infraArvoreNo"));
     assert!(!arvore.contains("Nos[1] = new infraArvoreNo"));
+    // A forma por id sem assinatura, medida na UnB, redireciona;
+    // o GET assinado é quem publica a tela. POST não vira navegação.
+    let entrada = "/sei/controlador.php?acao=procedimento_trabalhar&id_procedimento=10";
+    let resposta_entrada = requisitar(endereco, "GET", entrada, "");
+    assert!(resposta_entrada.starts_with("HTTP/1.1 302 Found"));
+    let assinado = format!(
+        "/sei/controlador.php?acao=procedimento_trabalhar&id_procedimento=10&infra_sistema=100000100&infra_unidade_atual=110000001&infra_hash={}",
+        "4".repeat(64)
+    );
+    assert!(
+        resposta_entrada.contains(&format!("Location: {}\\r\\n", &assinado[5..])),
+        "a entrada deve devolver a mesma identidade assinada: {resposta_entrada}"
+    );
+    let tela_assinada = requisitar(endereco, "GET", &assinado, "");
+    assert!(tela_assinada.starts_with("HTTP/1.1 200 OK"));
+    assert!(tela_assinada.contains("id='ifrArvore'"));
+    let metodo_recusado = requisitar(endereco, "POST", entrada, "");
+    assert!(metodo_recusado.starts_with("HTTP/1.1 405 Method Not Allowed"));
+
     let ausente = requisitar(
         endereco,
         "POST",
