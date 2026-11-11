@@ -279,7 +279,7 @@ pub(super) fn estado(com_segundo: bool, modo: EstadoExtra) -> (Connection, Insta
                 },
             )
             .unwrap();
-        },
+        }
     }
     (banco, origem)
 }
