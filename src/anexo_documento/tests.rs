@@ -482,7 +482,14 @@ fn erro_utf8_nao_expoe_corpo_ou_nome_original_em_debug_ou_display() {
     let sigilo = b"SIGILO_ANEXO_719_\xff";
     let vetor_privado = format!("{sigilo:?}");
     let erros = [
-        ler(resposta(&[("content-type", "text/plain")], sigilo)).unwrap_err(),
+        ler(resposta(
+            &[
+                ("content-type", "text/plain"),
+                ("content-disposition", "inline; filename=\"sigilo.txt\""),
+            ],
+            sigilo,
+        ))
+        .unwrap_err(),
         ler(pdf(&[(
             "content-disposition",
             "attachment; filename*=UTF-8''SIGILO_ANEXO_719_%FF",
