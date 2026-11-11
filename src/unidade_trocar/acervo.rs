@@ -202,7 +202,7 @@ fn replay_de_unidade_trocar_no_acervo() {
     assert!(
         leituras
             .iter()
-            .all(|(_, _, _, r)| !matches!(r, Resultado::Recusado(_))),
-        "leitor da troca recusou respostas originais: consulte a tabela do replay"
+            .all(|(_, _, _, r)| matches!(r, Resultado::Lido)),
+        "leitor da troca recusou ou ignorou resposta pertinente: consulte a tabela do replay"
     );
 }
