@@ -182,5 +182,7 @@ preexistentes têm seu conteúdo confrontado com hash completo.
 | Erro (stderr) | Fato |
 | --- | --- |
 | `FalhaCache::Diretorio` | caminho ou identidade do cache inválido |
-| `FalhaCache::Gravacao` | não foi possível gravar ou publicar cache privado |
+| `FalhaCache::Gravacao` | falha genérica de gravação do cache sem motivo de E/S disponível |
+| `FalhaCache::ArquivoDoCacheInacessivel(ErrorKind)` | consulta, leitura ou publicação por `hard_link` recusada pelo sistema, com categoria de E/S preservada |
+| `FalhaCache::GravacaoPrivadaFalhou(FalhaDaGravacao)` | criação ou confirmação privada recusada, mantendo a causa tipada |
 | `FalhaCache::ArquivoDivergente` | cópia existente diverge do conteúdo servido ou do SHA-256 integral |
