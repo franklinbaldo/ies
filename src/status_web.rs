@@ -95,10 +95,12 @@ pub(crate) fn mostrar(json_mode: bool, unidade_esperada: Option<&str>) -> anyhow
     let tela = transporte::envio_post::ler_tela_do_controle(&sessao)?;
     crate::colheita_do_controle::Colheita::das_referencias(&indice, &sessao)
         .colher(&tela.html, Some(&tela.mime));
-    let modelo = projetar_com_unidade(&tela.html, unidade_esperada)?;
+    let mut modelo = projetar_com_unidade(&tela.html, unidade_esperada)?;
     if json_mode {
+        crate::indice_local::anexar_avisos(&mut modelo, &indice);
         println!("{modelo}");
     } else {
+        crate::indice_local::avisar_no_texto(&indice);
         println!(
             "IES: Controle Web observado na unidade {}; autenticação não auditada.",
             modelo["unidade_exibida"].as_str().unwrap_or("desconhecida")

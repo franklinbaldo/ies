@@ -281,7 +281,7 @@ fn historico_de_outro_nup_pelo_link_da_arvore_e_recusa() {
 fn caminhos_2_e_3_somam_um_get_do_historico() {
     let amb = ambiente();
     let inst = instalacao();
-    amb.indice.registrar_processo(&inst, NUP, ID).unwrap();
+    amb.indice.registrar_processo(&inst, NUP, ID);
     let (r, pedidos) = rodar_com(
         &amb,
         None,

@@ -46,7 +46,7 @@ pub(crate) fn tentar_criar(cli: &Cli) -> Option<anyhow::Result<()>> {
         let resultado = resultado.map_err(|erro| {
             anyhow::Error::from(erro).context(TentativaDeCriacao { requisicoes })
         })?;
-        publicar_resultado(cli.json, &resultado);
+        publicar_resultado(cli.json, &resultado, indice);
         Ok(())
     }))
 }
@@ -91,13 +91,19 @@ fn resultado_json(resultado: &ResultadoCriacao) -> serde_json::Value {
     })
 }
 
-fn publicar_resultado(json_mode: bool, resultado: &ResultadoCriacao) {
+fn publicar_resultado(
+    json_mode: bool,
+    resultado: &ResultadoCriacao,
+    indice: &crate::indice_local::IndiceLocal,
+) {
     let numero_sei = match &resultado.estado {
         EstadoCriacao::Previa => None,
         EstadoCriacao::Criado { numero_sei } => Some(numero_sei.as_str()),
     };
     if json_mode {
-        println!("{}", resultado_json(resultado));
+        let mut valor = resultado_json(resultado);
+        crate::indice_local::anexar_avisos(&mut valor, indice);
+        println!("{valor}");
         return;
     }
     if let Some(numero_sei) = numero_sei {

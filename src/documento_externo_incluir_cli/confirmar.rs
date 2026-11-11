@@ -49,22 +49,21 @@ pub(super) fn executar(
         })?;
         {
             if cli.json {
-                println!(
-                    "{}",
-                    json!({
-                        "escopo": "confirmacao_web",
-                        "processo": processo.as_str(),
-                        "tipo_solicitado": tipo,
-                        "numero_sei": feito.numero_sei,
-                        "unidade": feito.unidade,
-                        "confirmado": true,
-                        "escrita_remota": true,
-                        "upload_tentado": true,
-                        "cadastro_tentado": true,
-                        "reconciliado_por_leitura": true,
-                        "requisicoes": requisicoes
-                    })
-                );
+                let mut valor = json!({
+                    "escopo": "confirmacao_web",
+                    "processo": processo.as_str(),
+                    "tipo_solicitado": tipo,
+                    "numero_sei": feito.numero_sei,
+                    "unidade": feito.unidade,
+                    "confirmado": true,
+                    "escrita_remota": true,
+                    "upload_tentado": true,
+                    "cadastro_tentado": true,
+                    "reconciliado_por_leitura": true,
+                    "requisicoes": requisicoes
+                });
+                crate::indice_local::anexar_avisos(&mut valor, indice);
+                println!("{valor}");
             } else {
                 println!(
                     "Documento externo {} incluído no processo {} (unidade {}), comprovado por releitura independente. Upload temporário: 1 tentativa; cadastro definitivo: 1 tentativa. Requisições: {}.",

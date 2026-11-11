@@ -114,28 +114,27 @@ pub(crate) fn tentar_incluir(cli: &Cli) -> Option<anyhow::Result<()>> {
                 &mut contagem,
             )?;
             if cli.json {
-                println!(
-                    "{}",
-                    json!({
-                        "escopo": "previa_web",
-                        "processo": processo.as_str(),
-                        "tipo_solicitado": tipo,
-                        "id_tipo": previa.id_tipo,
-                        "unidade": previa.unidade,
-                        "arquivo": {
-                            "nome": pdf.nome,
-                            "tamanho_bytes": pdf.tamanho_bytes,
-                            "sha256": pdf.sha256,
-                        },
-                        "limite_pdf_bytes": previa.limite_pdf_bytes,
-                        "campos_oferecidos": previa.campos_oferecidos,
-                        "cadastro_sei_observado": true,
-                        "previa_remota": true,
-                        "confirmado": false,
-                        "requisicoes": contagem.feitas(),
-                        "escrita_remota": false
-                    })
-                );
+                let mut valor = json!({
+                    "escopo": "previa_web",
+                    "processo": processo.as_str(),
+                    "tipo_solicitado": tipo,
+                    "id_tipo": previa.id_tipo,
+                    "unidade": previa.unidade,
+                    "arquivo": {
+                        "nome": pdf.nome,
+                        "tamanho_bytes": pdf.tamanho_bytes,
+                        "sha256": pdf.sha256,
+                    },
+                    "limite_pdf_bytes": previa.limite_pdf_bytes,
+                    "campos_oferecidos": previa.campos_oferecidos,
+                    "cadastro_sei_observado": true,
+                    "previa_remota": true,
+                    "confirmado": false,
+                    "requisicoes": contagem.feitas(),
+                    "escrita_remota": false
+                });
+                crate::indice_local::anexar_avisos(&mut valor, indice);
+                println!("{valor}");
             } else {
                 println!(
                     "Prévia Web: incluir PDF {} ({} bytes, SHA-256 {}) como {} no processo {} (unidade {}). Limite do SEI: {} bytes. Nenhum arquivo foi enviado e nenhum documento foi cadastrado.",

@@ -5,7 +5,7 @@ use crate::anexo_documento::LimiteDoAnexo;
 use crate::documento::NumeroDocumento;
 use crate::documento_versao_cli;
 use crate::foto_documento::{self, FotoGravada};
-use crate::indice_local::IndiceLocal;
+use crate::indice_local::{self, IndiceLocal};
 use crate::processo::NumeroProcesso;
 use crate::processo_obter::{
     DocumentoObtido, ErroDocumentoObter, PedidoDeVersoes, PedidoDoAnexo, PedidoDoDocumento,
@@ -140,9 +140,11 @@ fn obter(
         foto_documento::conferir_antes_da_rede(diretorio, numeros, versoes.versao)?;
     }
     let arquivos = configuracao::arquivos_de_acesso()?;
-    // Cada tentativa relê a sessão e o índice e recomeça do primeiro DOC.
+    let indice = IndiceLocal::da_configuracao(&arquivos);
+    // Cada tentativa relê a sessão e recomeça do primeiro DOC.
     let lido = relogin_cli::ler(
         &arquivos,
+        &indice,
         cli.unidade.as_deref(),
         FalhaDoDocumento::sessao_encerrada,
         || {
@@ -163,7 +165,6 @@ fn obter(
                 ))?
                 .host()
                 .to_owned();
-            let indice = IndiceLocal::da_configuracao(&arquivos);
             let lidos = lote::ler_lote(numeros, ocultar_inacessiveis, |numero| {
                 let pedido = PedidoDoDocumento {
                     numero,
@@ -189,7 +190,8 @@ fn obter(
     );
     match lido {
         Ok(((lidos, host), nota)) => {
-            publicar(cli.json, lidos, saida, nota.as_ref(), &host, versoes.cache)
+            let rodape = (nota.as_ref(), &indice);
+            publicar(cli.json, lidos, saida, rodape, &host, versoes.cache)
         }
         Err(falha) => Err(falha_da_leitura(falha)),
     }
@@ -368,11 +370,12 @@ fn apresentar_metadados(d: &DocumentoObtido) {
     }
 }
 
+/// `rodape`: a nota do relogin e o índice, cujos avisos vão na saída.
 fn publicar(
     json_mode: bool,
     lidos: lote::LoteLido,
     destino: Option<&Path>,
-    nota: Option<&NotaDoRelogin>,
+    (nota, indice): (Option<&NotaDoRelogin>, &IndiceLocal),
     host: &str,
     cache_ativo: bool,
 ) -> anyhow::Result<()> {
@@ -438,9 +441,11 @@ fn publicar(
             campos.insert("documentos_omitidos".to_owned(), json!(omitidos));
         }
         relogin_cli::anotar(&mut valor, nota);
+        indice_local::anexar_avisos(&mut valor, indice);
         println!("{}", serde_json::to_string_pretty(&valor)?);
     } else {
         relogin_cli::avisar(json_mode, nota);
+        indice_local::avisar_no_texto(indice);
         if omitidos > 0 {
             println!(
                 "IES: {omitidos} documento(s) sem conteúdo publicado omitido(s); total de {total} requisições."

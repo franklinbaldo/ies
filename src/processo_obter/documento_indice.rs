@@ -16,7 +16,9 @@ use super::fluxo::{abrir_processo, link_da_arvore, link_de_trabalho};
 use super::login::{DestinoDoRedirecionamento, destino};
 use super::{EnvioDoProcesso, ErroProcessoObter, ResolvidoPor, SessaoDoProcesso};
 use crate::arvore_processo::{ErroTelaDoProcesso, ler_tela_do_documento};
-use crate::indice_local::{DocumentoGuardado, url_da_entrada_por_id_com_documento};
+use crate::indice_local::{
+    AceiteDaEntrada, DocumentoGuardado, url_da_entrada_por_id_com_documento,
+};
 use crate::pesquisa_web::redirecionamento::{
     ErroRedirecionamentoDaPesquisa as Redir, OrigemDoTrabalho, conferir_trabalho,
 };
@@ -100,8 +102,8 @@ fn entrada_com_documento<V: EnvioDoProcesso>(
 ) -> Result<Option<Aberto>, ErroProcessoObter> {
     let (indice, instalacao) = (contexto.indice, &contexto.instalacao);
     let (id, documento) = (&guardado.id_procedimento, &guardado.id_documento);
-    let recusada = indice.entrada_por_id(instalacao) == Some(false)
-        || indice.entrada_por_id_com_documento(instalacao) == Some(false);
+    let recusada = indice.entrada_por_id(instalacao) == Some(AceiteDaEntrada::Recusada)
+        || indice.entrada_por_id_com_documento(instalacao) == Some(AceiteDaEntrada::Recusada);
     // Um passo anterior desmentiu o par NUP ↔ P: o palpite não vale mais.
     if recusada || indice.id_por_nup(instalacao, contexto.nup).as_ref() != Some(id) {
         return Ok(None);
@@ -197,10 +199,9 @@ mod tests {
         // Teste tecnico do BDD-60-05: leitura pelo indice com numeros duplicados.
         let amb = ambiente();
         let inst = instalacao();
-        amb.indice.registrar_processo(&inst, NUP, ID).unwrap();
+        amb.indice.registrar_processo(&inst, NUP, ID);
         amb.indice
-            .registrar_documentos(&inst, ID, &[("0000101", "99")])
-            .unwrap();
+            .registrar_documentos(&inst, ID, &[("0000101", "99")]);
         let geracao = geracao();
         amb.indice
             .registrar_link(

@@ -1,4 +1,5 @@
 //! CLI de acompanhamento: prévia e inclusão com POST único e releitura.
+use crate::indice_local::{self, IndiceLocal};
 use crate::processo_acompanhar::{Pedido, Previa, previa};
 use crate::processo_concluir_cli::com_sessao;
 use crate::visao_do_controle::EnvioHttps;
@@ -41,17 +42,15 @@ pub(crate) fn tentar_acompanhar(cli: &Cli) -> Option<anyhow::Result<()>> {
                 return Err(causa.into());
             }
             let plano = previa(sessao, &pedido, indice, &mut EnvioHttps)?;
-            publicar_previa(cli.json, &plano);
+            publicar_previa(cli.json, &plano, indice);
             Ok(())
         })
     })
 }
 
-fn publicar_previa(json_mode: bool, plano: &Previa) {
+fn publicar_previa(json_mode: bool, plano: &Previa, indice: &IndiceLocal) {
     if json_mode {
-        println!(
-            "{}",
-            json!({
+        let mut valor = json!({
                 "numero": plano.numero,
                 "unidade": plano.unidade,
                 "operacao": plano.operacao,
@@ -63,8 +62,9 @@ fn publicar_previa(json_mode: bool, plano: &Previa) {
                 "alterado": plano.estado.alterado(),
                 "origem": "web",
                 "requisicoes": plano.requisicoes,
-            })
-        );
+        });
+        indice_local::anexar_avisos(&mut valor, indice);
+        println!("{valor}");
     } else {
         println!(
             "{} — processo {} (unidade {})",

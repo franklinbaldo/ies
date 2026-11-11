@@ -39,29 +39,28 @@ pub(crate) fn tentar_anexar(cli: &Cli) -> Option<anyhow::Result<()>> {
             confirmar: *confirmar,
         };
         let preview = prever(sessao, &pedido, indice, &mut EnvioHttps)?;
-        publicar(cli.json, &preview);
+        publicar(cli.json, &preview, indice);
         Ok(())
     }))
 }
 
-fn publicar(json_mode: bool, previa: &Previa) {
+fn publicar(json_mode: bool, previa: &Previa, indice: &crate::indice_local::IndiceLocal) {
     let confirmado = previa.resultado == ResultadoAnexacao::Confirmada;
     if json_mode {
-        println!(
-            "{}",
-            json!({
-                "principal": previa.principal,
-                "id_principal": previa.id_principal,
-                "anexado": previa.anexado.nup,
-                "id_anexado": previa.anexado.id,
-                "tipo_anexado": previa.anexado.tipo,
-                "documentos_assinados": previa.assinaturas_em_dia,
-                "confirmado": confirmado,
-                "alterado": confirmado,
-                "origem": "web",
-                "requisicoes": previa.requisicoes,
-            })
-        );
+        let mut valor = json!({
+            "principal": previa.principal,
+            "id_principal": previa.id_principal,
+            "anexado": previa.anexado.nup,
+            "id_anexado": previa.anexado.id,
+            "tipo_anexado": previa.anexado.tipo,
+            "documentos_assinados": previa.assinaturas_em_dia,
+            "confirmado": confirmado,
+            "alterado": confirmado,
+            "origem": "web",
+            "requisicoes": previa.requisicoes,
+        });
+        crate::indice_local::anexar_avisos(&mut valor, indice);
+        println!("{valor}");
     } else {
         println!(
             "{}: anexar {} ao processo {} ({}). Requisições: {}.",
