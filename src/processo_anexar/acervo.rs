@@ -35,7 +35,7 @@ fn atributo_da_fonte(tag: &tl::HTMLTag<'_>, nome: &str) -> Option<String> {
     tag.attributes()
         .get(nome)
         .flatten()
-        .map(|valor| String::from_utf8_lossy(valor.as_ref()).into_owned())
+        .map(|valor| String::from_utf8_lossy(valor.as_bytes()).into_owned())
 }
 
 fn fatos_da_fonte(html: &str) -> FatosDoFormulario {
