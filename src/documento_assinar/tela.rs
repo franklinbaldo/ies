@@ -13,9 +13,9 @@ use super::erro::ErroTelaDeAssinatura;
 use crate::acao_do_sei::AcaoDoSei;
 use crate::formulario_web::{
     ConferenciaDaUnidade, EfeitoAvaliado, EnvioDoFormulario, EstadoDoProcesso,
-    OperacaoDeFormulario, ResultadoDoEnvio, decodificar_atributo, localizar_formulario,
+    OperacaoDeFormulario, ResultadoDoEnvio, localizar_formulario,
 };
-use crate::html_atributos::{atributo_presente, valor_do_atributo};
+use crate::html_atributos::{atributo_presente, valor_decodificado};
 
 pub(crate) const FORMULARIO_DE_ASSINATURA: &str = "frmAssinaturas";
 pub(crate) const FORMA_DE_AUTENTICACAO: &str = "hdnFormaAutenticacao";
@@ -101,7 +101,7 @@ pub(crate) fn conferir_tela_de_assinatura(
         {
             continue;
         }
-        let Some(nome) = valor(tag, "name")?.filter(|n| !n.is_empty()) else {
+        let Some(nome) = valor_decodificado(tag, "name")?.filter(|n| !n.is_empty()) else {
             continue;
         };
         let padrao = if elemento == "button" {
@@ -109,9 +109,9 @@ pub(crate) fn conferir_tela_de_assinatura(
         } else {
             "text"
         };
-        let tipo =
-            valor(tag, "type")?.map_or_else(|| padrao.to_owned(), |t| t.to_ascii_lowercase());
-        let servido = valor(tag, "value")?.unwrap_or_default();
+        let tipo = valor_decodificado(tag, "type")?
+            .map_or_else(|| padrao.to_owned(), |t| t.to_ascii_lowercase());
+        let servido = valor_decodificado(tag, "value")?.unwrap_or_default();
         match (elemento.as_str(), tipo.as_str(), nome.as_str()) {
             ("input", "hidden", DOCUMENTOS) => documentos = Some(servido),
             ("input", "hidden", ID_USUARIO) => id_usuario = Some(servido),
@@ -178,26 +178,11 @@ fn opcoes(
         .filter_map(tl::Node::as_tag)
         .filter(|t| t.name().as_utf8_str().eq_ignore_ascii_case("option"))
     {
-        let valor =
-            valor(tag, "value")?.ok_or(ErroTelaDeAssinatura::TelaDeAssinaturaNaoInterpretada)?;
+        let valor = valor_decodificado(tag, "value")?
+            .ok_or(ErroTelaDeAssinatura::TelaDeAssinaturaNaoInterpretada)?;
         lidas.push((valor, atributo_presente(tag, "selected")?));
     }
     Ok(lidas)
-}
-
-/// Valor do atributo com as entidades decodificadas.
-fn valor(
-    tag: &tl::HTMLTag<'_>,
-    nome: &'static str,
-) -> Result<Option<String>, ErroTelaDeAssinatura> {
-    match valor_do_atributo(tag, nome)
-        .map_err(ErroTelaDeAssinatura::TelaDeAssinaturaComAtributoIlegivel)?
-    {
-        Some(bruto) => decodificar_atributo(&bruto)
-            .map(Some)
-            .ok_or(ErroTelaDeAssinatura::TelaDeAssinaturaNaoInterpretada),
-        None => Ok(None),
-    }
 }
 
 /// A resposta aceita: `inicializar()` começa com `//se realizou

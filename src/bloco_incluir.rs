@@ -12,9 +12,9 @@ use crate::documento::NumeroDocumento;
 use crate::formulario_web::{
     ConferenciaDaUnidade, EfeitoAvaliado, EnvioDoFormulario, EstadoDoProcesso,
     OperacaoDeFormulario, RespostaDoEnvio, ResultadoDoEnvio, TelaServida, consulta_do_controlador,
-    decodificar_atributo, derivar_submissao, enviar_submissao_via,
+    derivar_submissao, enviar_submissao_via,
 };
-use crate::html_atributos::atributos;
+use crate::html_atributos::valor_decodificado;
 use crate::indice_local::IndiceLocal;
 use crate::instalacao::Instalacao;
 use crate::pagina_do_controle::codificacao_da_tela;
@@ -99,7 +99,7 @@ impl DesfechoDaInclusao {
 #[error("{self:?}")]
 pub(crate) enum ErroIncluir {
     /// O tokenizador de atributos recusou a tag.
-    Atributo(#[source] crate::html_atributos::ErroAtributoHtml),
+    Atributo(#[from] crate::html_atributos::ErroAtributoHtml),
     Abertura(#[from] ErroDocumentoObter),
     Barra(#[from] ErroBlocoNaBarra),
     /// A barra do documento não oferece "Incluir em Bloco de Assinatura".
@@ -130,15 +130,6 @@ pub(crate) enum ErroIncluir {
     TelaDeEscolherBlocoForaDaFormaObservada,
     /// O parser de HTML recusou a tela de escolha do bloco.
     HtmlDaEscolhaRecusadoPeloParser(#[source] tl::ParseError),
-}
-
-fn atributo(tag: &tl::HTMLTag<'_>, nome: &'static str) -> Result<Option<String>, ErroIncluir> {
-    let fora = || ErroIncluir::TelaDeEscolherBlocoForaDaFormaObservada;
-    let lidos = atributos(tag).map_err(ErroIncluir::Atributo)?;
-    match lidos.valor(nome).map_err(ErroIncluir::Atributo)? {
-        Some(bruto) => decodificar_atributo(bruto).map(Some).ok_or_else(fora),
-        None => Ok(None),
-    }
 }
 
 /// Lê o `frmBlocoEscolher`: um formulário, um `selBloco`.
@@ -173,7 +164,7 @@ pub(crate) fn ler_tela_de_escolha(html: &str) -> Result<TelaDeEscolha, ErroInclu
         let Some(opcao) = filho.as_tag().filter(|t| t.name() == "option") else {
             continue;
         };
-        let valor = atributo(opcao, "value")?.ok_or_else(fora)?;
+        let valor = valor_decodificado(opcao, "value")?.ok_or_else(fora)?;
         if valor == "null" {
             continue;
         }
@@ -184,7 +175,7 @@ pub(crate) fn ler_tela_de_escolha(html: &str) -> Result<TelaDeEscolha, ErroInclu
     }
     let mut documentos: Vec<DocumentoOferecido> = Vec::new();
     for caixa in tags("input") {
-        let Some(nome) = atributo(caixa, "name")? else {
+        let Some(nome) = valor_decodificado(caixa, "name")? else {
             continue;
         };
         let Some(indice) = nome.strip_prefix("chkDocumentosItem") else {
@@ -192,13 +183,13 @@ pub(crate) fn ler_tela_de_escolha(html: &str) -> Result<TelaDeEscolha, ErroInclu
         };
         if indice.is_empty()
             || !indice.bytes().all(|b| b.is_ascii_digit())
-            || atributo(caixa, "id")?.as_deref() != Some(nome.as_str())
-            || atributo(caixa, "type")?.as_deref() != Some("checkbox")
+            || valor_decodificado(caixa, "id")?.as_deref() != Some(nome.as_str())
+            || valor_decodificado(caixa, "type")?.as_deref() != Some("checkbox")
         {
             return Err(fora());
         }
-        let id = atributo(caixa, "value")?.ok_or_else(fora)?;
-        let numero = atributo(caixa, "title")?.ok_or_else(fora)?;
+        let id = valor_decodificado(caixa, "value")?.ok_or_else(fora)?;
+        let numero = valor_decodificado(caixa, "title")?.ok_or_else(fora)?;
         if id.is_empty() || !id.bytes().all(|b| b.is_ascii_digit()) || numero.is_empty() {
             return Err(fora());
         }

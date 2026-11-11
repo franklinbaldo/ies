@@ -5,9 +5,9 @@ use crate::acao_do_sei::AcaoDoSei;
 use crate::formulario_web::{
     ConferenciaDaUnidade, EfeitoAvaliado, EnvioDoFormulario, ErroSubmissaoFormulario,
     EstadoDoProcesso, OperacaoDeFormulario, ResultadoDoEnvio, SubmissaoDerivada, TelaServida,
-    decodificar_atributo, derivar_submissao, localizar_formulario,
+    derivar_submissao, localizar_formulario,
 };
-use crate::html_atributos::{atributo_presente, valor_do_atributo};
+use crate::html_atributos::{atributo_presente, valor_decodificado};
 use crate::instalacao::Instalacao;
 
 const FORMULARIO: &str = "frmAtividadeAtribuir";
@@ -59,13 +59,6 @@ pub(crate) enum ErroAtribuir {
     FormularioDaAtribuicaoNaoLocalizado(#[source] crate::formulario_web::ErroSubmissaoFormulario),
 }
 
-fn valor(tag: &tl::HTMLTag<'_>, nome: &'static str) -> Result<Option<String>, ErroAtribuir> {
-    valor_do_atributo(tag, nome)
-        .map_err(ErroAtribuir::Atributo)?
-        .map(|bruto| decodificar_atributo(&bruto).ok_or(ErroAtribuir::TelaDaAtribuicaoForaDaForma))
-        .transpose()
-}
-
 /// Confere a URL assinada servida sem a publicar nem fabricar outra.
 fn acao_do_formulario(action: &str, id: &str) -> bool {
     let Some(consulta) = action.strip_prefix("controlador.php?") else {
@@ -114,7 +107,8 @@ fn ler_opcoes(
         if atributo_presente(opcao, "disabled")? {
             return Err(ErroAtribuir::TelaDaAtribuicaoForaDaForma);
         }
-        let id_usuario = valor(opcao, "value")?.ok_or(ErroAtribuir::TelaDaAtribuicaoForaDaForma)?;
+        let id_usuario =
+            valor_decodificado(opcao, "value")?.ok_or(ErroAtribuir::TelaDaAtribuicaoForaDaForma)?;
         if id_usuario == SEM_ATRIBUICAO {
             if !atributo_presente(opcao, "selected")? {
                 return Err(ErroAtribuir::TelaDaAtribuicaoForaDaForma);
@@ -158,10 +152,10 @@ pub(crate) fn ler_tela(html: &str, id: &str) -> Result<TelaDaAtribuicao, ErroAtr
     let parser = dom.parser();
     let form = localizar_formulario(&dom, FORMULARIO)
         .map_err(ErroAtribuir::FormularioDaAtribuicaoNaoLocalizado)?;
-    if valor(form, "method")?.as_deref() != Some("post")
+    if valor_decodificado(form, "method")?.as_deref() != Some("post")
         || atributo_presente(form, "disabled")?
         || atributo_presente(form, "hidden")?
-        || !valor(form, "action")?
+        || !valor_decodificado(form, "action")?
             .as_deref()
             .is_some_and(|action| acao_do_formulario(action, id))
     {
@@ -181,15 +175,19 @@ pub(crate) fn ler_tela(html: &str, id: &str) -> Result<TelaDaAtribuicao, ErroAtr
         match elemento.as_str() {
             "input" => {
                 if atributo_presente(tag, "disabled")?
-                    || valor(tag, "type")?.as_deref() != Some("hidden")
+                    || valor_decodificado(tag, "type")?.as_deref() != Some("hidden")
                 {
                     return Err(ErroAtribuir::TelaDaAtribuicaoForaDaForma);
                 }
-                match valor(tag, "name")?.as_deref() {
-                    Some("hdnInfraTipoPagina") if valor(tag, "value")?.as_deref() == Some("2") => {
+                match valor_decodificado(tag, "name")?.as_deref() {
+                    Some("hdnInfraTipoPagina")
+                        if valor_decodificado(tag, "value")?.as_deref() == Some("2") =>
+                    {
                         pagina += 1;
                     }
-                    Some("hdnIdProtocolo") if valor(tag, "value")?.as_deref() == Some(id) => {
+                    Some("hdnIdProtocolo")
+                        if valor_decodificado(tag, "value")?.as_deref() == Some(id) =>
+                    {
                         protocolo += 1;
                     }
                     _ => return Err(ErroAtribuir::TelaDaAtribuicaoForaDaForma),
@@ -205,11 +203,11 @@ pub(crate) fn ler_tela(html: &str, id: &str) -> Result<TelaDaAtribuicao, ErroAtr
                     return Err(ErroAtribuir::TelaDaAtribuicaoForaDaForma);
                 }
                 match (
-                    valor(tag, "type")?.as_deref(),
-                    valor(tag, "name")?.as_deref(),
+                    valor_decodificado(tag, "type")?.as_deref(),
+                    valor_decodificado(tag, "name")?.as_deref(),
                 ) {
                     (Some("submit"), Some("sbmSalvar"))
-                        if valor(tag, "value")?.as_deref() == Some("Salvar") =>
+                        if valor_decodificado(tag, "value")?.as_deref() == Some("Salvar") =>
                     {
                         botao += 1;
                     }
@@ -218,8 +216,8 @@ pub(crate) fn ler_tela(html: &str, id: &str) -> Result<TelaDaAtribuicao, ErroAtr
                 }
             }
             "select" => {
-                if valor(tag, "id")?.as_deref() != Some(SELECAO)
-                    || valor(tag, "name")?.as_deref() != Some(SELECAO)
+                if valor_decodificado(tag, "id")?.as_deref() != Some(SELECAO)
+                    || valor_decodificado(tag, "name")?.as_deref() != Some(SELECAO)
                     || atributo_presente(tag, "multiple")?
                     || atributo_presente(tag, "disabled")?
                     || atributo_presente(tag, "hidden")?

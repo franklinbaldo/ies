@@ -82,7 +82,7 @@ pub(crate) enum TelaDosMarcadores {
 #[error("{self:?}")]
 pub(crate) enum ErroMarcadores {
     /// O tokenizador de atributos recusou a tag.
-    Atributo(#[source] crate::html_atributos::ErroAtributoHtml),
+    Atributo(#[from] crate::html_atributos::ErroAtributoHtml),
     Barra(#[from] crate::arvore_processo::ErroBarraDoProcesso),
     LinksDosMarcadoresRepetidosNaBarra,
     EnderecoDosMarcadoresNaoReconhecido,

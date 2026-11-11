@@ -2,8 +2,7 @@
 //! JavaScript servido em `unb`, `pen1`, `ufrj` e `go` (GET de
 //! `protocolo_pesquisar` das cassettes `processo-busca-*`). Nada de JS é
 //! executado ou interpretado aqui. Evidência: docs/decisoes/processo-buscar.md.
-use crate::formulario_web::decodificar_atributo;
-use crate::html_atributos::{ErroAtributoHtml, atributo_presente, valor_do_atributo};
+use crate::html_atributos::{ErroAtributoHtml, atributo_presente, valor_decodificado};
 
 #[derive(Clone, Debug, PartialEq, Eq, thiserror::Error)]
 #[error("{self:?}")]
@@ -36,7 +35,6 @@ pub(crate) enum ErroRegraDoFormularioDePesquisa {
     CaixaDeTipoDeDocumentoSemValorNaTela,
     CaixasDeTipoDeDocumentoRepetidasNaTela,
     CamposDoTermoRepetidosNaTela,
-    EntidadeHtmlDesconhecidaNaRegra,
     OpcaoDeDocumentosAusenteNaTela,
     OpcaoDeDocumentosSemValorNaTela,
     OpcaoDeOrgaoSelecionadaSemValorNaTela,
@@ -69,18 +67,6 @@ pub(crate) struct RegrasDaTela {
     pub(crate) maxlength_do_termo: u32,
 }
 
-fn atributo(
-    tag: &tl::HTMLTag<'_>,
-    nome: &'static str,
-) -> Result<Option<String>, ErroRegraDoFormularioDePesquisa> {
-    valor_do_atributo(tag, nome)?
-        .map(|bruto| {
-            decodificar_atributo(&bruto)
-                .ok_or(ErroRegraDoFormularioDePesquisa::EntidadeHtmlDesconhecidaNaRegra)
-        })
-        .transpose()
-}
-
 fn eh(tag: &tl::HTMLTag<'_>, elemento: &str) -> bool {
     tag.name().as_utf8_str().eq_ignore_ascii_case(elemento)
 }
@@ -109,7 +95,7 @@ fn opcao(
     };
     let mut achadas = Vec::new();
     for tag in tags.iter().filter(|t| eh(t, "input")) {
-        if atributo(tag, "id")?.as_deref() == Some(id) {
+        if valor_decodificado(tag, "id")?.as_deref() == Some(id) {
             achadas.push(*tag);
         }
     }
@@ -118,10 +104,10 @@ fn opcao(
         [radio] => *radio,
         _ => return Err(repetidas),
     };
-    if atributo(radio, "name")?.as_deref() != Some("rdoPesquisarEm") {
+    if valor_decodificado(radio, "name")?.as_deref() != Some("rdoPesquisarEm") {
         return Err(outro_nome);
     }
-    atributo(radio, "value")?.ok_or(sem_valor)
+    valor_decodificado(radio, "value")?.ok_or(sem_valor)
 }
 
 /// Caixas que `onSubmitForm()` lê por id com `D`: cada uma servida uma vez,
@@ -136,8 +122,8 @@ fn caixas_de_documento(
     for caixa in CAIXAS_DE_DOCUMENTO {
         let mut achadas = Vec::new();
         for tag in tags.iter().filter(|t| eh(t, "input")) {
-            let id = atributo(tag, "id")?;
-            let nome = atributo(tag, "name")?;
+            let id = valor_decodificado(tag, "id")?;
+            let nome = valor_decodificado(tag, "name")?;
             if id.as_deref() == Some(caixa) || nome.as_deref() == Some(caixa) {
                 achadas.push((*tag, id, nome));
             }
@@ -157,7 +143,7 @@ fn caixas_de_documento(
             return Err(ErroRegraDoFormularioDePesquisa::CaixaDeTipoDeDocumentoAusenteNaTela);
         }
         if atributo_presente(tag, "checked")? {
-            let valor = atributo(tag, "value")?
+            let valor = valor_decodificado(tag, "value")?
                 .ok_or(ErroRegraDoFormularioDePesquisa::CaixaDeTipoDeDocumentoSemValorNaTela)?;
             marcadas.push((caixa, valor));
         }
@@ -176,8 +162,8 @@ fn conferir_ocultos(
     em: PesquisarEm,
 ) -> Result<(), ErroRegraDoFormularioDePesquisa> {
     for tag in tags.iter().filter(|t| eh(t, "input")) {
-        let valor = || atributo(tag, "value").map(Option::unwrap_or_default);
-        match atributo(tag, "name")?.as_deref() {
+        let valor = || valor_decodificado(tag, "value").map(Option::unwrap_or_default);
+        match valor_decodificado(tag, "name")?.as_deref() {
             Some("hdnIdAssinante") if !valor()?.is_empty() => {
                 return Err(match em {
                     PesquisarEm::Processos => ErroRegraDoFormularioDePesquisa::AssinanteOcultoPreenchidoNaPesquisaEmProcessos,
@@ -205,7 +191,7 @@ fn orgaos_selecionados(
 ) -> Result<Vec<String>, ErroRegraDoFormularioDePesquisa> {
     let mut achados = Vec::new();
     for tag in tags.iter().filter(|t| eh(t, "select")) {
-        if atributo(tag, "name")?.as_deref() == Some("selOrgaoPesquisa[]") {
+        if valor_decodificado(tag, "name")?.as_deref() == Some("selOrgaoPesquisa[]") {
             achados.push(*tag);
         }
     }
@@ -252,7 +238,7 @@ fn orgaos_selecionados(
         }
         if atributo_presente(opcao, "selected")? {
             valores.push(
-                atributo(opcao, "value")?.ok_or(
+                valor_decodificado(opcao, "value")?.ok_or(
                     ErroRegraDoFormularioDePesquisa::OpcaoDeOrgaoSelecionadaSemValorNaTela,
                 )?,
             );
@@ -270,7 +256,7 @@ fn orgaos_selecionados(
 fn maxlength_do_termo(tags: &[&tl::HTMLTag<'_>]) -> Result<u32, ErroRegraDoFormularioDePesquisa> {
     let mut campos = Vec::new();
     for tag in tags.iter().filter(|t| eh(t, "input")) {
-        if atributo(tag, "name")?.as_deref() == Some("txtProtocoloPesquisa") {
+        if valor_decodificado(tag, "name")?.as_deref() == Some("txtProtocoloPesquisa") {
             campos.push(*tag);
         }
     }
@@ -279,7 +265,7 @@ fn maxlength_do_termo(tags: &[&tl::HTMLTag<'_>]) -> Result<u32, ErroRegraDoFormu
         [campo] => *campo,
         _ => return Err(ErroRegraDoFormularioDePesquisa::CamposDoTermoRepetidosNaTela),
     };
-    let Some(valor) = atributo(campo, "maxlength")? else {
+    let Some(valor) = valor_decodificado(campo, "maxlength")? else {
         return Err(ErroRegraDoFormularioDePesquisa::MaxlengthDoTermoAusenteNaTela);
     };
     if valor.is_empty() || !valor.bytes().all(|b| b.is_ascii_digit()) {
