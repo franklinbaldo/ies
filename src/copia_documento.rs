@@ -247,8 +247,7 @@ fn par(
         .numero()
         .checked_add(1)
         .ok_or(ErroCopia::VersaoEditadaAusente)?;
-    let editada =
-        VersaoDocumento::nova(seguinte).map_err(|_| ErroCopia::VersaoEditadaAusente)?;
+    let editada = VersaoDocumento::nova(seguinte).map_err(|_| ErroCopia::VersaoEditadaAusente)?;
     Ok((base, editada))
 }
 
