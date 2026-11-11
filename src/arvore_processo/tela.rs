@@ -1,6 +1,9 @@
 //! Tela `procedimento_trabalhar`: a unidade publicada (`#lnkInfraUnidade`)
 //! e o `src` assinado do único `iframe#ifrArvore`, conferido e resolvido.
 use crate::acao_do_sei::AcaoDoSei;
+use crate::consulta_do_controlador::{
+    ConsultaDoControlador, ErroChaveDaConsulta, ErroConsultaDoControlador,
+};
 use crate::html_atributos::{ErroAtributoHtml, nos_com_id, valor_do_atributo};
 use crate::instalacao::Instalacao;
 
@@ -47,6 +50,10 @@ pub(crate) enum ErroTelaDoProcesso {
     ArvoreAusenteNaTelaDoProcesso,
     ArvoresRepetidasNaTelaDoProcesso,
     EnderecoDaArvoreNaoReconhecido,
+    /// A consulta do `src` da árvore não se deixa ler em pares.
+    ConsultaDaArvoreIlegivel(#[source] ErroConsultaDoControlador),
+    /// O `src` da tela pesquisada não traz exatamente um `id_procedimento`.
+    IdDoProcessoNaArvore(#[source] ErroChaveDaConsulta),
     HtmlDaTelaDoProcessoNaoInterpretado,
     IdentificacaoDaUnidadeAusenteNaTelaDoProcesso,
     IdDeNoDaTela(#[source] ErroAtributoHtml),
@@ -80,28 +87,21 @@ pub(crate) fn ler_tela_do_documento(
     unidade: Option<&str>,
 ) -> Result<(TelaDoProcesso, String), ErroTelaDoProcesso> {
     let (publicada, src) = unidade_e_src(html, unidade)?;
-    let valores = |chave: &str| -> Vec<String> {
-        src.split_once('?')
-            .map_or("", |(_, consulta)| consulta)
-            .split('&')
-            .filter_map(|par| par.split_once('='))
-            .filter(|(nome, _)| *nome == chave)
-            .map(|(_, valor)| valor.to_owned())
-            .collect()
-    };
-    if valores("id_documento") != [id_documento] {
+    let consulta = ConsultaDoControlador::ler(src.split_once('?').map_or("", |(_, c)| c))
+        .map_err(ErroTelaDoProcesso::ConsultaDaArvoreIlegivel)?;
+    if consulta.valores("id_documento").collect::<Vec<_>>() != [id_documento] {
         return Err(ErroTelaDoProcesso::EnderecoDaArvoreDeOutroDocumento);
     }
-    let [id_procedimento] = valores("id_procedimento")
-        .try_into()
-        .map_err(|_| ErroTelaDoProcesso::EnderecoDaArvoreNaoReconhecido)?;
-    let arvore = conferir_endereco(instalacao, &src, &id_procedimento)?;
+    let id_procedimento = consulta
+        .unico("id_procedimento")
+        .map_err(ErroTelaDoProcesso::IdDoProcessoNaArvore)?;
+    let arvore = conferir_endereco(instalacao, &src, id_procedimento)?;
     Ok((
         TelaDoProcesso {
             unidade: publicada,
             arvore,
         },
-        id_procedimento,
+        id_procedimento.to_owned(),
     ))
 }
 

@@ -5,7 +5,7 @@
 use super::{DocumentoEncontrado, ErroDocumentoDaPesquisa};
 use crate::html_atributos::{
     atributos, nos_por_elemento_e_classe, nos_por_elemento_e_classe_em_todas_as_ocorrencias,
-    valor_do_atributo,
+    valor_decodificado, valor_do_atributo,
 };
 use crate::pesquisa_web::documento_da_linha::{documento_do_processo, documento_visualizado};
 use crate::pesquisa_web::{ErroResultadoPesquisa, validar_href_de_processo};
@@ -41,17 +41,7 @@ fn anexo_baixado(href: &str) -> bool {
     let Some(consulta) = href.strip_prefix("controlador.php?") else {
         return false;
     };
-    let campos: Vec<&str> = consulta
-        .split('&')
-        .enumerate()
-        .map(|(i, c)| {
-            if i == 0 {
-                c
-            } else {
-                c.strip_prefix("amp;").unwrap_or(c)
-            }
-        })
-        .collect();
+    let campos: Vec<&str> = consulta.split('&').collect();
     let valores = |prefixo: &str| -> Vec<&str> {
         campos
             .iter()
@@ -76,7 +66,7 @@ fn celula<'a>(
 }
 
 fn href(link: &Tag<'_>) -> Result<String, ErroDocumentoDaPesquisa> {
-    valor_do_atributo(link, "href")
+    valor_decodificado(link, "href")
         .map_err(ErroDocumentoDaPesquisa::AtributoHtml)?
         .ok_or(ErroDocumentoDaPesquisa::LinkDaLinhaDeDocumentoNaoReconhecido)
 }
@@ -109,7 +99,7 @@ fn arvore_da_linha(
             ));
         }
     };
-    if valor_do_atributo(arvore, "href")
+    if valor_decodificado(arvore, "href")
         .map_err(ErroDocumentoDaPesquisa::AtributoHtml)?
         .as_deref()
         != Some(href_do_processo)

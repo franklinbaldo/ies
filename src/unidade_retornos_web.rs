@@ -1,10 +1,12 @@
 //! Navegacao somente GET na tela Retorno Programado publicada pelo Controle.
 //! Oraculo: Todos `retorno_programado.py` @323eb01, cassette unidade-listar-retornos-unb.
-use crate::consulta_do_controlador::ConsultaDoControlador;
+use crate::consulta_do_controlador::{
+    ConsultaDoControlador, ErroChaveDaConsulta, ErroConsultaDoControlador,
+};
 use crate::formulario_web::decodificar_atributo;
 use crate::html_atributos::valor_do_atributo;
 use crate::instalacao::Instalacao;
-use crate::transporte::{self, FalhaTransporte};
+use crate::transporte::FalhaTransporte;
 use crate::unidade_retornos::{self, ErroRetornos, Retorno};
 use crate::url_observada::{UrlHttps, pasta};
 use std::collections::HashSet;
@@ -26,6 +28,8 @@ pub(crate) enum ErroLeituraRetornos {
     UnidadeDiferenteDaSolicitada,
     /// O parser de HTML recusou a tela do calendário dos retornos.
     HtmlDoCalendarioNaoInterpretado(#[source] tl::ParseError),
+    ConsultaDoLinkIlegivel(#[source] ErroConsultaDoControlador),
+    ChaveDoLinkIlegivel(#[source] ErroChaveDaConsulta),
 }
 
 impl ErroLeituraRetornos {
@@ -44,6 +48,8 @@ impl ErroLeituraRetornos {
             | Self::MesDaCliInvalido
             | Self::Atributo(_)
             | Self::UnidadeDiferenteDaSolicitada
+            | Self::ConsultaDoLinkIlegivel(_)
+            | Self::ChaveDoLinkIlegivel(_)
             | Self::HtmlDoCalendarioNaoInterpretado(_) => false,
         }
     }
@@ -156,27 +162,36 @@ fn conferir_link(
     let consulta = alvo
         .consulta
         .ok_or(ErroLeituraRetornos::LinkDeRetornosForaDaInstalacao)?;
+    let leitura = ConsultaDoControlador::ler(consulta).map_err(|erro| match erro {
+        ErroConsultaDoControlador::RecusadaPeloTransporte(falha) => {
+            ErroLeituraRetornos::Transporte(falha)
+        }
+        outro @ ErroConsultaDoControlador::ParSemIgual => {
+            ErroLeituraRetornos::ConsultaDoLinkIlegivel(outro)
+        }
+    })?;
+    let acao = leitura
+        .unico("acao")
+        .map_err(ErroLeituraRetornos::ChaveDoLinkIlegivel)?;
+    let hash = leitura
+        .unico("infra_hash")
+        .map_err(ErroLeituraRetornos::ChaveDoLinkIlegivel)?;
+    if acao != "retorno_programado_listar"
+        || leitura.valores("acao_ajax").next().is_some()
+        || hash.len() != 64
+        || !hash.bytes().all(|b| b.is_ascii_hexdigit())
+    {
+        return Err(nao);
+    }
+    // Nome repetido recusa; o leitor aceita.
     let mut vistos = HashSet::new();
     let mut pares = Vec::new();
     for par in consulta.split('&') {
-        let (k, v) = par
-            .split_once('=')
-            .ok_or(ErroLeituraRetornos::LinkDeRetornosForaDaInstalacao)?;
-        transporte::conferir_chave_de_consulta(k).map_err(ErroLeituraRetornos::Transporte)?;
-        transporte::conferir_valor_de_consulta(v).map_err(ErroLeituraRetornos::Transporte)?;
-        if !vistos.insert(k) || k == "acao_ajax" {
+        let (k, v) = par.split_once('=').unwrap_or((par, ""));
+        if !vistos.insert(k) {
             return Err(nao);
         }
         pares.push((k.to_owned(), v.to_owned()));
-    }
-    if !pares
-        .iter()
-        .any(|(k, v)| k == "acao" && v == "retorno_programado_listar")
-        || !pares.iter().any(|(k, v)| {
-            k == "infra_hash" && v.len() == 64 && v.bytes().all(|b| b.is_ascii_hexdigit())
-        })
-    {
-        return Err(nao);
     }
     Ok(Link { url, pares })
 }

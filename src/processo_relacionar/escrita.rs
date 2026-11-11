@@ -49,6 +49,18 @@ pub(super) fn action_do_processo(url: &str, id: &str) -> bool {
     ConsultaDoControlador::ler(query).is_ok_and(|query| query.unico("id_procedimento") == Ok(id))
 }
 
+/// O `id_procedimento` da tela de origem: uma vez só na consulta da URL servida.
+fn id_da_origem(url: &str) -> Result<&str, FalhaRelacionar> {
+    let Some((_, consulta)) = url.split_once('?') else {
+        return Err(FalhaRelacionar::IdDaOrigemNaActionAusente);
+    };
+    let consulta =
+        ConsultaDoControlador::ler(consulta).map_err(FalhaRelacionar::ConsultaDaOrigemIlegivel)?;
+    consulta
+        .unico("id_procedimento")
+        .map_err(FalhaRelacionar::IdDaOrigemIlegivel)
+}
+
 /// O 302 de aceite volta à tela; resultado=1 e ação únicos.
 pub(super) fn aceite_da_remocao(localizacao: &str, url_post: &str, id: &str) -> bool {
     let Some(query) = consulta_do_controlador(localizacao, url_post) else {
@@ -81,16 +93,7 @@ pub(super) fn remover<V: EnvioDoProcesso>(
     let url_exclusao = tela::url_exclusao(servida.html)
         .ok_or(FalhaRelacionar::AcaoExcluirRelacionamentoNaoDeclarada)?;
     // A action deve pertencer ao mesmo processo de origem, não a outro.
-    let id_origem = servida
-        .url
-        .split('?')
-        .nth(1)
-        .and_then(|query| {
-            query
-                .split('&')
-                .find_map(|par| par.strip_prefix("id_procedimento="))
-        })
-        .ok_or(FalhaRelacionar::IdDaOrigemNaActionAusente)?;
+    let id_origem = id_da_origem(servida.url)?;
     if !action_do_processo(&url_exclusao, id_origem) {
         return Err(FalhaRelacionar::ActionDeRemocaoDeOutroProcesso);
     }
@@ -176,16 +179,7 @@ pub(super) fn adicionar<V: EnvioDoProcesso>(
         ],
     )
     .map_err(FalhaRelacionar::ConsultaDerivacao)?;
-    let id_origem = servida
-        .url
-        .split('?')
-        .nth(1)
-        .and_then(|query| {
-            query
-                .split('&')
-                .find_map(|par| par.strip_prefix("id_procedimento="))
-        })
-        .ok_or(FalhaRelacionar::IdDaOrigemNaActionAusente)?;
+    let id_origem = id_da_origem(servida.url)?;
     let mut enviou = false;
     let resultado = enviar_submissao_via(submissao, sessao.cookie, |post, c| {
         enviou = true;
@@ -230,6 +224,34 @@ pub(super) fn adicionar<V: EnvioDoProcesso>(
 #[cfg(test)]
 mod tests {
     use super::*;
+    #[test]
+    fn origem_repetida_ou_com_par_sem_igual_recusa_com_a_causa() {
+        assert!(matches!(
+            id_da_origem(
+                "https://h/sei/controlador.php?acao=x&id_procedimento=1&id_procedimento=2"
+            ),
+            Err(FalhaRelacionar::IdDaOrigemIlegivel(
+                crate::consulta_do_controlador::ErroChaveDaConsulta::Repetida {
+                    chave: "id_procedimento"
+                }
+            ))
+        ));
+        assert!(matches!(
+            id_da_origem("https://h/sei/controlador.php?acao=x&lixo&id_procedimento=1"),
+            Err(FalhaRelacionar::ConsultaDaOrigemIlegivel(
+                crate::consulta_do_controlador::ErroConsultaDoControlador::ParSemIgual
+            ))
+        ));
+        assert!(matches!(
+            id_da_origem("https://h/sei/controlador.php"),
+            Err(FalhaRelacionar::IdDaOrigemNaActionAusente)
+        ));
+        assert_eq!(
+            id_da_origem("https://h/sei/controlador.php?acao=x&id_procedimento=1").ok(),
+            Some("1")
+        );
+    }
+
     #[test]
     fn aceite_precisa_da_acao_e_resultado_uma_vez() {
         let url = "https://sei.exemplo.gov.br/sei/controlador.php?acao=procedimento_excluir_relacionamento";

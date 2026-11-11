@@ -118,3 +118,33 @@ fn arvore_vazia_com_validacao_de_acesso_e_erro_proprio() {
         Err(super::ErroTelaDoProcesso::EnderecoDaArvoreNaoReconhecido)
     ));
 }
+
+fn ler_documento(src: &str) -> Result<(TelaDoProcesso, String), super::ErroTelaDoProcesso> {
+    super::ler_tela_do_documento(
+        &instalacao(),
+        &tela_do_processo("U", &[src.to_owned()]),
+        "21",
+        None,
+    )
+}
+
+#[test]
+fn tela_do_documento_com_consulta_ilegivel_ou_chave_repetida_tem_a_causa() {
+    let valido = src_da_arvore("10").replace("id_documento=&", "id_documento=21&");
+    assert!(ler_documento(&valido).is_ok());
+    assert_eq!(
+        ler_documento(&valido.replace("&infra_sistema", "&lixo&infra_sistema")).map(|_| ()),
+        Err(super::ErroTelaDoProcesso::ConsultaDaArvoreIlegivel(
+            crate::consulta_do_controlador::ErroConsultaDoControlador::ParSemIgual
+        ))
+    );
+    assert_eq!(
+        ler_documento(&valido.replace("&infra_sistema", "&id_procedimento=11&infra_sistema"))
+            .map(|_| ()),
+        Err(super::ErroTelaDoProcesso::IdDoProcessoNaArvore(
+            crate::consulta_do_controlador::ErroChaveDaConsulta::Repetida {
+                chave: "id_procedimento"
+            }
+        ))
+    );
+}

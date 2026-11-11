@@ -15,6 +15,10 @@ pub(crate) enum ErroArvore {
     EnderecoDoDestinoMovidoRecusado(#[source] crate::arvore_processo::endereco::EnderecoRecusado),
     LinhaDoDestinoMovidoIlegivel(#[source] Box<ErroArvore>),
     EnderecoDeAbrirPastasRecusado(#[source] crate::arvore_processo::endereco::EnderecoRecusado),
+    /// A consulta do link de abrir pastas não se deixa ler em pares.
+    ConsultaDeAbrirPastasIlegivel(
+        #[source] crate::consulta_do_controlador::ErroConsultaDoControlador,
+    ),
     BarraDeNoIlegivel(#[source] Box<ErroArvore>),
     SrcDeNoIlegivel(#[source] Box<ErroArvore>),
     HtmlDoNoDoProcessoIlegivel(#[source] Box<ErroArvore>),
@@ -74,6 +78,8 @@ pub(crate) enum ErroArvore {
     ProtocolosDaPastaForaDaFormaObservada,
     ProtocolosDeclaradosParaPastaAusente,
     SrcDeNoForaDaFormaObservada,
+    /// A consulta do link do pai não se deixa ler em pares.
+    ConsultaDoVinculoIlegivel(#[source] crate::consulta_do_controlador::ErroConsultaDoControlador),
     VinculoDeAnexacaoForaDaFormaObservada,
     VinculosDeAnexacaoRepetidos,
 }

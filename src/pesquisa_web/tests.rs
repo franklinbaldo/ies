@@ -34,7 +34,9 @@ fn link_para_outra_acao_nao_vira_processo() {
     let html = RESULTADO.replace("acao=procedimento_trabalhar", "acao=documento_imprimir_web");
     assert_eq!(
         ler_resultados(&html),
-        Err(ErroResultadoPesquisa::LinkDePesquisaNaoAbreProcesso)
+        Err(ErroResultadoPesquisa::AcaoDoLinkNaoLida(
+            crate::consulta_do_controlador::ErroChaveDaConsulta::AcaoDesconhecida
+        ))
     );
 }
 
@@ -55,7 +57,9 @@ fn recusa_duas_acoes_no_mesmo_link_antes_de_projetar_nup() {
     );
     assert_eq!(
         ler_resultados(&html),
-        Err(ErroResultadoPesquisa::LinkDePesquisaNaoAbreProcesso)
+        Err(ErroResultadoPesquisa::AcaoDoLinkNaoLida(
+            crate::consulta_do_controlador::ErroChaveDaConsulta::Repetida { chave: "acao" }
+        ))
     );
 }
 
@@ -128,7 +132,11 @@ fn chave_amp_acao_no_primeiro_parametro_nao_e_acao_valida() {
     );
     assert_eq!(
         ler_resultados(&html),
-        Err(ErroResultadoPesquisa::LinkDePesquisaNaoAbreProcesso)
+        Err(ErroResultadoPesquisa::ConsultaDoLinkIlegivel(
+            crate::consulta_do_controlador::ErroConsultaDoControlador::RecusadaPeloTransporte(
+                crate::transporte::FalhaTransporte::ChaveDeConsultaNaoCanonica
+            )
+        ))
     );
 }
 
@@ -210,7 +218,11 @@ fn chaves_que_o_php_pode_normalizar_nao_alteram_identidade_silenciosamente() {
         );
         assert_eq!(
             ler_resultados(&html),
-            Err(ErroResultadoPesquisa::LinkDePesquisaComChaveNaoCanonica),
+            Err(ErroResultadoPesquisa::ConsultaDoLinkIlegivel(
+                crate::consulta_do_controlador::ErroConsultaDoControlador::RecusadaPeloTransporte(
+                    crate::transporte::FalhaTransporte::ChaveDeConsultaNaoCanonica
+                )
+            )),
             "chave alternativa nao pode mudar a acao ou o ID: {extra}"
         );
     }
@@ -223,7 +235,9 @@ fn parametro_acao_sem_igual_nao_pode_sobrescrever_acao_valida() {
     let html = RESULTADO.replace("&amp;id_procedimento=7", "&amp;id_procedimento=7&amp;acao");
     assert_eq!(
         ler_resultados(&html),
-        Err(ErroResultadoPesquisa::LinkDePesquisaComAcaoSemIgual)
+        Err(ErroResultadoPesquisa::ConsultaDoLinkIlegivel(
+            crate::consulta_do_controlador::ErroConsultaDoControlador::ParSemIgual
+        ))
     );
 }
 
@@ -235,7 +249,9 @@ fn parametro_id_sem_igual_nao_pode_sobrescrever_identificador_valido() {
     );
     assert_eq!(
         ler_resultados(&html),
-        Err(ErroResultadoPesquisa::LinkDePesquisaComIdentificadorSemIgual)
+        Err(ErroResultadoPesquisa::ConsultaDoLinkIlegivel(
+            crate::consulta_do_controlador::ErroConsultaDoControlador::ParSemIgual
+        ))
     );
 }
 
@@ -243,7 +259,7 @@ fn parametro_id_sem_igual_nao_pode_sobrescrever_identificador_valido() {
 fn parametros_adicionais_com_nomes_canonicos_preservam_resultado() {
     let html = RESULTADO.replace(
         "&amp;id_procedimento=7",
-        "&amp;id_procedimento=7&amp;infra_hash=exemplo&amp;id-contexto=8",
+        "&amp;id_procedimento=7&amp;infra_hash=exemplo&amp;id_contexto=8",
     );
     assert_eq!(ler_resultados(&html).unwrap().len(), 1);
 }

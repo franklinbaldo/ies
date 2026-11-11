@@ -1,8 +1,12 @@
 //! Projeção tipada de processos nas respostas HTML de pesquisa do SEI Web.
 //! Parser puro: não executa links nem presume permissão/resultado live.
 use crate::acao_do_sei::AcaoDoSei;
+use crate::consulta_do_controlador::{
+    ConsultaDoControlador, ErroChaveDaConsulta, ErroConsultaDoControlador, menciona_acao,
+};
 use crate::html_atributos::{
-    nos_por_elemento_e_classe, nos_por_elemento_e_classe_em_todas_as_ocorrencias, valor_do_atributo,
+    nos_por_elemento_e_classe, nos_por_elemento_e_classe_em_todas_as_ocorrencias,
+    valor_decodificado,
 };
 use crate::processo::{NumeroProcesso, NumeroProcessoInvalido};
 use serde::Serialize;
@@ -24,9 +28,10 @@ pub enum ErroResultadoPesquisa {
     LinkDaArvoreComHrefDiferenteDoLinkDoProcesso,
     LinkDePesquisaNaoAbreProcesso,
     LinkDePesquisaSemIdentificadorDoProcesso,
-    LinkDePesquisaComChaveNaoCanonica,
-    LinkDePesquisaComAcaoSemIgual,
-    LinkDePesquisaComIdentificadorSemIgual,
+    /// A consulta do link de pesquisa não se deixa ler em pares.
+    ConsultaDoLinkIlegivel(#[source] ErroConsultaDoControlador),
+    /// A `acao` do link de pesquisa não é única nem conhecida.
+    AcaoDoLinkNaoLida(#[source] ErroChaveDaConsulta),
     LinkDePesquisaComIdentificadorDoProcessoNaoDecimal,
     NumeroDePesquisa(#[from] NumeroProcessoInvalido),
     /// `a.protocoloNormal` de `documento_visualizar` na linha cujo link do
@@ -47,84 +52,35 @@ pub enum ErroResultadoPesquisa {
     TabelasDePesquisaRepetidas,
 }
 
-// O controlador PHP decodifica nomes de query e normaliza pontos/espacos
-// para '_'. %5F, '.' ou '+' podem sobrescrever acao/id_procedimento.
-// Os nomes devem ser literais ASCII, inclusive os parametros auxiliares.
-fn validar_nomes_dos_parametros(campos: &[&str]) -> Result<(), ErroResultadoPesquisa> {
-    for campo in campos {
-        // Para o controlador PHP, `acao` e `id_procedimento` sem `=`
-        // são campos vazios e podem substituir os valores anteriores.
-        // Não deixar uma chave obrigatória sem valor parecer parâmetro auxiliar.
-        let chave = if let Some((nome, _)) = campo.split_once('=') {
-            nome
-        } else {
-            match *campo {
-                "acao" => return Err(ErroResultadoPesquisa::LinkDePesquisaComAcaoSemIgual),
-                "id_procedimento" => {
-                    return Err(ErroResultadoPesquisa::LinkDePesquisaComIdentificadorSemIgual);
-                }
-                _ => campo,
-            }
-        };
-        if chave.is_empty()
-            || !chave
-                .bytes()
-                .all(|byte| byte.is_ascii_alphanumeric() || byte == b'_' || byte == b'-')
-        {
-            return Err(ErroResultadoPesquisa::LinkDePesquisaComChaveNaoCanonica);
-        }
-    }
-    Ok(())
-}
-
 /// Confere a ação e a identidade de um href Web sem realizar a navegação.
+/// `href` chega com as entidades resolvidas (`valor_decodificado`).
 fn validar_href_de_processo(href: &str) -> Result<&str, ErroResultadoPesquisa> {
     // Não aceitar múltiplos parâmetros de ação: proxies/servidores podem
     // escolher o primeiro ou o último, tornando o destino indeterminado.
-    // tl preserva entidades HTML em atributos de algumas versões do SEI.
     let query = href
         .strip_prefix("controlador.php?")
         .ok_or(ErroResultadoPesquisa::LinkDePesquisaNaoAbreProcesso)?;
-    // Somente após um separador & o prefixo amp; pode ser sobra de
-    // &amp; no HTML. No primeiro campo, amp;acao é outra chave, não acao.
-    let campos: Vec<_> = query
-        .split('&')
-        .enumerate()
-        .map(|(indice, campo)| {
-            if indice == 0 {
-                campo
-            } else {
-                campo.strip_prefix("amp;").unwrap_or(campo)
-            }
-        })
-        .collect();
-    let acoes: Vec<_> = campos
-        .iter()
-        .filter_map(|campo| campo.strip_prefix("acao="))
-        .collect();
-    if acoes != [AcaoDoSei::ProcedimentoTrabalhar.como_na_url()] {
+    let pares =
+        ConsultaDoControlador::ler(query).map_err(ErroResultadoPesquisa::ConsultaDoLinkIlegivel)?;
+    let acao = pares
+        .acao()
+        .map_err(ErroResultadoPesquisa::AcaoDoLinkNaoLida)?;
+    if acao != AcaoDoSei::ProcedimentoTrabalhar {
         return Err(ErroResultadoPesquisa::LinkDePesquisaNaoAbreProcesso);
     }
-    validar_nomes_dos_parametros(&campos)?;
     // Um link de trabalho sem ID interno não endereça um processo.
     // Dois IDs tornam o destino dependente da interpretação do servidor.
     // O identificador é validado somente para uso local e não é serializado.
-    let mut ids = campos
-        .iter()
-        .filter_map(|campo| campo.strip_prefix("id_procedimento="));
-    let primeiro_id = ids
-        .next()
-        .ok_or(ErroResultadoPesquisa::LinkDePesquisaSemIdentificadorDoProcesso)?;
-    if ids.next().is_some() {
-        return Err(ErroResultadoPesquisa::LinkDePesquisaComIdentificadoresRepetidos);
+    match pares
+        .valores("id_procedimento")
+        .collect::<Vec<_>>()
+        .as_slice()
+    {
+        [] | [""] => Err(ErroResultadoPesquisa::LinkDePesquisaSemIdentificadorDoProcesso),
+        [id] if id.bytes().all(|byte| byte.is_ascii_digit()) => Ok(*id),
+        [_] => Err(ErroResultadoPesquisa::LinkDePesquisaComIdentificadorDoProcessoNaoDecimal),
+        _ => Err(ErroResultadoPesquisa::LinkDePesquisaComIdentificadoresRepetidos),
     }
-    if primeiro_id.is_empty() {
-        return Err(ErroResultadoPesquisa::LinkDePesquisaSemIdentificadorDoProcesso);
-    }
-    if !primeiro_id.bytes().all(|byte| byte.is_ascii_digit()) {
-        return Err(ErroResultadoPesquisa::LinkDePesquisaComIdentificadorDoProcessoNaoDecimal);
-    }
-    Ok(primeiro_id)
 }
 
 /// A `UnB` 4.0.9 publica, antes do número, um `a.arvore` (ícone da árvore)
@@ -150,7 +106,7 @@ fn contar_arvore_da_linha(
         .get(dom.parser())
         .and_then(tl::Node::as_tag)
         .ok_or(ErroResultadoPesquisa::HtmlDePesquisaNaoInterpretado)?;
-    if valor_do_atributo(tag, "href")
+    if valor_decodificado(tag, "href")
         .map_err(ErroResultadoPesquisa::Atributo)?
         .as_deref()
         != Some(href_do_processo)
@@ -212,7 +168,7 @@ pub fn ler_resultados(html: &str) -> Result<Vec<ResultadoPesquisa>, ErroResultad
             .get(parser)
             .and_then(tl::Node::as_tag)
             .ok_or(ErroResultadoPesquisa::LinhaDePesquisaSemLinkDoProcesso)?;
-        let href = valor_do_atributo(link, "href")
+        let href = valor_decodificado(link, "href")
             .map_err(ErroResultadoPesquisa::Atributo)?
             .ok_or(ErroResultadoPesquisa::LinkDePesquisaNaoAbreProcesso)?;
         let primeiro_id = validar_href_de_processo(&href)?;
@@ -270,16 +226,9 @@ fn links_de_trabalho(
         let Some(tag) = no.get(parser).and_then(tl::Node::as_tag) else {
             continue;
         };
-        let abre_processo = valor_do_atributo(tag, "href")
+        let abre_processo = valor_decodificado(tag, "href")
             .map_err(ErroResultadoPesquisa::Atributo)?
-            .is_some_and(|href| {
-                href.strip_prefix("controlador.php?").is_some_and(|query| {
-                    query.split('&').enumerate().any(|(indice, campo)| {
-                        campo == "acao=procedimento_trabalhar"
-                            || (indice > 0 && campo == "amp;acao=procedimento_trabalhar")
-                    })
-                })
-            });
+            .is_some_and(|href| menciona_acao(&href, AcaoDoSei::ProcedimentoTrabalhar));
         links_de_trabalho += usize::from(abre_processo);
     }
     Ok(links_de_trabalho)

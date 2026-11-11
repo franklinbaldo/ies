@@ -85,17 +85,53 @@ pub(super) fn retorno_da_criacao(
     let consulta = crate::url_observada::UrlHttps::interpretar(&url)
         .and_then(|p| p.consulta)
         .ok_or(ErroCriar::NaoConfirmado)?;
-    let mut ids = consulta
-        .split('&')
-        .filter(|par| par.split_once('=').map_or(*par, |(nome, _)| nome) == "id_procedimento");
-    let primeiro = ids.next().ok_or(ErroCriar::NaoConfirmado)?;
-    if ids.next().is_some() {
+    let consulta =
+        ConsultaDoControlador::ler(consulta).map_err(ErroCriar::ConsultaDoRetornoIlegivel)?;
+    let primeiro = consulta
+        .unico("id_procedimento")
+        .map_err(ErroCriar::IdDoRetornoIlegivel)?;
+    if primeiro.is_empty() || !primeiro.bytes().all(|b| b.is_ascii_digit()) {
         return Err(ErroCriar::NaoConfirmado);
     }
-    let id = primeiro
-        .strip_prefix("id_procedimento=")
-        .filter(|id| !id.is_empty() && id.bytes().all(|b| b.is_ascii_digit()))
-        .ok_or(ErroCriar::NaoConfirmado)?
-        .to_owned();
+    let id = primeiro.to_owned();
     Ok((url, id))
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use crate::consulta_do_controlador::ErroChaveDaConsulta;
+
+    const ENVIO: &str = "https://sei.exemplo.test/sei/controlador.php?acao=procedimento_gerar";
+
+    fn retorno(localizacao: &str) -> Result<(String, String), ErroCriar> {
+        let instalacao = Instalacao::interpretar("https://sei.exemplo.test/sei").unwrap();
+        retorno_da_criacao(&instalacao, localizacao, ENVIO)
+    }
+
+    #[test]
+    fn id_do_retorno_repetido_tem_a_causa_da_chave() {
+        assert_eq!(
+            retorno(
+                "controlador.php?acao=procedimento_trabalhar&id_procedimento=12&id_procedimento=13"
+            ),
+            Err(ErroCriar::IdDoRetornoIlegivel(
+                ErroChaveDaConsulta::Repetida {
+                    chave: "id_procedimento"
+                }
+            ))
+        );
+    }
+
+    #[test]
+    fn id_do_retorno_ausente_tem_a_causa_da_chave() {
+        assert_eq!(
+            retorno("controlador.php?acao=procedimento_trabalhar"),
+            Err(ErroCriar::IdDoRetornoIlegivel(
+                ErroChaveDaConsulta::Ausente {
+                    chave: "id_procedimento"
+                }
+            ))
+        );
+    }
 }

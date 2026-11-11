@@ -5,6 +5,7 @@
 //! pelo `tl`; sem regex e sem JavaScript.
 use super::{ErroMarcadores, MarcadorDoProcesso, MarcadoresLidos, TelaDosMarcadores};
 use crate::acao_do_sei::AcaoDoSei;
+use crate::consulta_do_controlador::ConsultaDoControlador;
 use crate::formulario_web::decodificar_atributo;
 use crate::html_atributos::{atributos, nos_com_id, nos_com_id_em, valor_decodificado};
 use crate::nivel_de_detalhe::texto_colapsado;
@@ -119,16 +120,18 @@ fn conferir_identidade(dom: &tl::VDom<'_>, nup: &str, id: &str) -> Result<(), Er
     let consulta = action
         .strip_prefix("controlador.php?")
         .ok_or(ErroMarcadores::TelaDosMarcadoresAusente)?;
-    let valores = |chave: &str| -> Vec<&str> {
-        consulta
-            .split('&')
-            .filter_map(|par| par.strip_prefix(chave)?.strip_prefix('='))
-            .collect()
-    };
-    if valores("acao") != [AcaoDoSei::AndamentoMarcadorGerenciar.como_na_url()] {
+    let pares = ConsultaDoControlador::ler(consulta)
+        .map_err(ErroMarcadores::ConsultaDoFormularioIlegivel)?;
+    let acao = pares
+        .acao()
+        .map_err(ErroMarcadores::AcaoDoFormularioNaoLida)?;
+    if acao != AcaoDoSei::AndamentoMarcadorGerenciar {
         return Err(ErroMarcadores::TelaDosMarcadoresAusente);
     }
-    if valores("id_procedimento") != [id] {
+    let id_observado = pares
+        .unico("id_procedimento")
+        .map_err(ErroMarcadores::IdDoFormularioNaoLido)?;
+    if id_observado != id {
         return Err(ErroMarcadores::IdDosMarcadoresDiferenteDoAberto);
     }
     Ok(())

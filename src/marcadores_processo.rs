@@ -88,6 +88,14 @@ pub(crate) enum ErroMarcadores {
     EnderecoDosMarcadoresNaoReconhecido,
     EnderecoDosMarcadoresDeOutroProcesso,
     TelaDosMarcadoresAusente,
+    /// A `action` do formulário de marcadores não se deixa ler em pares.
+    ConsultaDoFormularioIlegivel(
+        #[source] crate::consulta_do_controlador::ErroConsultaDoControlador,
+    ),
+    /// A `acao` do formulário de marcadores não é única nem conhecida.
+    AcaoDoFormularioNaoLida(#[source] crate::consulta_do_controlador::ErroChaveDaConsulta),
+    /// O `id_procedimento` do formulário não é único.
+    IdDoFormularioNaoLido(#[source] crate::consulta_do_controlador::ErroChaveDaConsulta),
     NumeroDosMarcadoresDiferenteDoSolicitado,
     IdDosMarcadoresDiferenteDoAberto,
     MarcadoresAlemDoTotalDeclarado,

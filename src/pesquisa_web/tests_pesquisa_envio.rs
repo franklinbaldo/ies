@@ -160,7 +160,9 @@ fn tabela_com_marcador_mas_linha_invalida_e_erro_de_resultado() {
     assert_eq!(
         r.unwrap_err(),
         ErroPesquisaProtocolo::Resposta(ErroRespostaDaPesquisa::Resultado(
-            ErroResultadoPesquisa::LinkDePesquisaNaoAbreProcesso
+            ErroResultadoPesquisa::AcaoDoLinkNaoLida(
+                crate::consulta_do_controlador::ErroChaveDaConsulta::AcaoDesconhecida
+            )
         ))
     );
 }

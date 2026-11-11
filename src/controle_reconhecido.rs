@@ -56,6 +56,8 @@ pub(crate) fn unidade_do_controle(html: &str) -> Result<String, ErroCaixa> {
                 | ErroDetalhada::ControleDaPaginaNaoInterpretado(_)
                 | ErroDetalhada::AtributoDaDetalhadaIlegivel(_)
                 | ErroDetalhada::IdentificadorDetalhadoInvalido(_)
+                | ErroDetalhada::ConsultaDoMarcadorIlegivel(_)
+                | ErroDetalhada::ChaveDoMarcadorDetalhado(_)
                 | ErroDetalhada::IdentificadorDetalhadoRepetido
                 | ErroDetalhada::ItensNaoPrevistosNaCelulaDetalhada
                 | ErroDetalhada::LegendaDetalhadaAusente

@@ -4,14 +4,13 @@ use super::envio::{EnvioDoControle, Sessao, TelaAtual};
 use super::passos::{contexto, trocar, unidade_da_tela};
 use super::{ErroVisaoDoControle, Visao};
 use crate::acao_do_sei::AcaoDoSei;
+use crate::consulta_do_controlador::{ConsultaDoControlador, ErroConsultaDoControlador};
 use crate::formulario_web::decodificar_atributo;
 use crate::html_atributos::{nos_com_id, valor_do_atributo};
 use crate::instalacao::Instalacao;
 use crate::nivel_de_detalhe::{NivelDeDetalhe, ler_nivel_de_detalhe};
+use crate::transporte::decodificar_resposta;
 use crate::transporte::sessao::CookieDaSessao;
-use crate::transporte::{
-    conferir_chave_de_consulta, conferir_valor_de_consulta, decodificar_resposta,
-};
 
 /// Unidade exibida e as 12 opções do catálogo com `disponivel` e `marcada`.
 /// Orçamento: D: 1 GET + 1 GET; R: 1 GET + POST D + GET.
@@ -103,23 +102,25 @@ pub(super) fn link_do_nivel_de_detalhe(
     if !relativo.bytes().all(|b| (33..=126).contains(&b)) || relativo.contains(['#', '\\', '\'']) {
         return Err(invalido);
     }
-    let (mut acoes, mut hashes) = (0, 0);
-    for par in consulta.split('&') {
-        let (nome, valor) = par.split_once('=').ok_or_else(|| invalido.clone())?;
-        conferir_chave_de_consulta(nome)
-            .map_err(super::ErroVisaoDoControle::ConsultaDoNivelRecusadaPeloTransporte)?;
-        conferir_valor_de_consulta(valor)
-            .map_err(super::ErroVisaoDoControle::ConsultaDoNivelRecusadaPeloTransporte)?;
-        match nome {
-            "acao" if valor == AcaoDoSei::ProcedimentoConfigurarDetalhe.como_na_url() => acoes += 1,
-            "infra_hash" if valor.len() == 64 && valor.bytes().all(|b| b.is_ascii_hexdigit()) => {
-                hashes += 1;
-            }
-            "acao" | "infra_hash" | "acao_ajax" => return Err(invalido),
-            _ => {}
+    let leitura = ConsultaDoControlador::ler(consulta).map_err(|erro| match erro {
+        ErroConsultaDoControlador::RecusadaPeloTransporte(falha) => {
+            super::ErroVisaoDoControle::ConsultaDoNivelRecusadaPeloTransporte(falha)
         }
-    }
-    if acoes != 1 || hashes != 1 {
+        outro @ ErroConsultaDoControlador::ParSemIgual => {
+            super::ErroVisaoDoControle::ConsultaDoNivelIlegivel(outro)
+        }
+    })?;
+    let acao = leitura
+        .acao()
+        .map_err(super::ErroVisaoDoControle::ChaveDoNivelIlegivel)?;
+    let hash = leitura
+        .unico("infra_hash")
+        .map_err(super::ErroVisaoDoControle::ChaveDoNivelIlegivel)?;
+    if acao != AcaoDoSei::ProcedimentoConfigurarDetalhe
+        || leitura.valores("acao_ajax").next().is_some()
+        || hash.len() != 64
+        || !hash.bytes().all(|b| b.is_ascii_hexdigit())
+    {
         return Err(invalido);
     }
     let base = tela.url.split('?').next().unwrap_or_default();

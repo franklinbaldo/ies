@@ -22,6 +22,10 @@ pub(crate) enum ErroRedirecionamentoDaPesquisa {
     ParametroNaoCanonicoNaLocalizacaoDoRedirecionamento,
     /// Chave ou valor de consulta recusado pelo transporte.
     ParametroDeConsultaRecusadoNoRedirecionamento(#[source] FalhaTransporte),
+    /// Um trecho da URL do envio não tem `=`.
+    ParametroNaoCanonicoNaUrlDoEnvio,
+    /// Chave ou valor da URL do envio recusado pelo transporte.
+    ParametroDeConsultaRecusadoNaUrlDoEnvio(#[source] FalhaTransporte),
     RedirecionamentoParaAcaoDiferenteDeProcedimentoTrabalhar,
     AcaoDeOrigemAusenteNoRedirecionamento,
     AcaoDeOrigemRepetidaNoRedirecionamento,
@@ -194,24 +198,25 @@ fn parametros(consulta: &str) -> Result<ConsultaDoControlador<'_>, ErroRedirecio
     })
 }
 
-fn valores<'a>(parametros: &[(&str, &'a str)], nome: &str) -> Vec<&'a str> {
-    parametros
-        .iter()
-        .filter(|(n, _)| *n == nome)
-        .map(|(_, v)| *v)
-        .collect()
-}
-
-fn parametros_do_envio(url_do_envio: &str) -> Vec<(&str, &str)> {
+fn parametros_do_envio(
+    url_do_envio: &str,
+) -> Result<ConsultaDoControlador<'_>, ErroRedirecionamentoDaPesquisa> {
     let consulta = partir_https(url_do_envio).map_or("", |(_, _, consulta)| consulta);
-    consulta
-        .split('&')
-        .filter_map(|i| i.split_once('='))
-        .collect()
+    ConsultaDoControlador::ler(consulta).map_err(|erro| match erro {
+        ErroConsultaDoControlador::RecusadaPeloTransporte(falha) => {
+            ErroRedirecionamentoDaPesquisa::ParametroDeConsultaRecusadoNaUrlDoEnvio(falha)
+        }
+        ErroConsultaDoControlador::ParSemIgual => {
+            ErroRedirecionamentoDaPesquisa::ParametroNaoCanonicoNaUrlDoEnvio
+        }
+    })
 }
 
 fn unidade_do_envio(url_do_envio: &str) -> Result<String, ErroRedirecionamentoDaPesquisa> {
-    match valores(&parametros_do_envio(url_do_envio), "infra_unidade_atual").as_slice() {
+    let unidades = parametros_do_envio(url_do_envio)?
+        .valores("infra_unidade_atual")
+        .collect::<Vec<_>>();
+    match unidades.as_slice() {
         [] => Err(ErroRedirecionamentoDaPesquisa::UnidadeAtualAusenteNaUrlDoEnvio),
         [unidade] => Ok((*unidade).to_owned()),
         _ => Err(ErroRedirecionamentoDaPesquisa::UnidadeAtualRepetidaNaUrlDoEnvio),
@@ -225,7 +230,10 @@ fn decimal(valor: &str) -> bool {
 /// O POST observado é o `action` assinado do formulário, que traz
 /// `infra_sistema`; sem ele não há com o que comparar: falha fechada.
 fn sistema_do_envio(url_do_envio: &str) -> Result<String, ErroRedirecionamentoDaPesquisa> {
-    match valores(&parametros_do_envio(url_do_envio), "infra_sistema").as_slice() {
+    let sistemas = parametros_do_envio(url_do_envio)?
+        .valores("infra_sistema")
+        .collect::<Vec<_>>();
+    match sistemas.as_slice() {
         [] => Err(ErroRedirecionamentoDaPesquisa::InfraSistemaAusenteNaUrlDoEnvio),
         [sistema] if decimal(sistema) => Ok((*sistema).to_owned()),
         [_] => Err(ErroRedirecionamentoDaPesquisa::InfraSistemaNaoDecimalNaUrlDoEnvio),

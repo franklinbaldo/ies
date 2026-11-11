@@ -9,6 +9,7 @@ use super::endereco::conferir_endereco_relativo;
 use super::literais::{Literal, indice_do_html, ler_declaracao, ler_html};
 use super::{EnderecoDaArvore, ErroArvore, VinculoDeAnexacao};
 use crate::acao_do_sei::AcaoDoSei;
+use crate::consulta_do_controlador::ConsultaDoControlador;
 use crate::html_atributos::atributos;
 use crate::instalacao::Instalacao;
 
@@ -100,12 +101,9 @@ fn conferir(
     id: &str,
 ) -> Result<VinculoDeAnexacao, ErroArvore> {
     let fora = || ErroArvore::VinculoDeAnexacaoForaDaFormaObservada;
-    let valores = |nome: &str| -> Vec<&str> {
-        pares(href)
-            .filter(|(chave, _)| *chave == nome)
-            .map(|(_, valor)| valor)
-            .collect()
-    };
+    let consulta = ConsultaDoControlador::ler(href.split_once('?').map_or("", |(_, c)| c))
+        .map_err(ErroArvore::ConsultaDoVinculoIlegivel)?;
+    let valores = |nome: &str| -> Vec<&str> { consulta.valores(nome).collect() };
     let (anexados, pais) = (valores(CHAVE_DO_ANEXADO), valores("id_procedimento"));
     let ([anexado], [pai]) = (anexados.as_slice(), pais.as_slice()) else {
         return Err(fora());

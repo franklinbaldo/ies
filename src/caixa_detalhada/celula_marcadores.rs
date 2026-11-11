@@ -3,6 +3,7 @@
 //! árvore do `tl` e pelo tokenizador de atributos, sem regex nem JavaScript.
 use super::ErroDetalhada;
 use crate::acao_do_sei::AcaoDoSei;
+use crate::consulta_do_controlador::ConsultaDoControlador;
 use crate::formulario_web::decodificar_atributo;
 use crate::html_atributos::valor_decodificado;
 use crate::marcadores_processo::rotulo_do_marcador;
@@ -58,16 +59,15 @@ fn id_do_href(href: &str, id_procedimento: &str) -> Result<Option<String>, ErroD
         None => (href, None),
     };
     let query = endereco.strip_prefix("controlador.php?").ok_or(FORA)?;
-    let campos: Vec<_> = query.split('&').collect();
-    let valores = |chave: &str| -> Vec<&str> {
-        campos
-            .iter()
-            .filter_map(|c| c.strip_prefix(chave)?.strip_prefix('='))
-            .collect()
-    };
-    if valores("acao") != [AcaoDoSei::AndamentoMarcadorGerenciar.como_na_url()]
-        || valores("id_procedimento") != [id_procedimento]
-    {
+    let consulta =
+        ConsultaDoControlador::ler(query).map_err(ErroDetalhada::ConsultaDoMarcadorIlegivel)?;
+    let acao = consulta
+        .unico("acao")
+        .map_err(ErroDetalhada::ChaveDoMarcadorDetalhado)?;
+    let id_lido = consulta
+        .unico("id_procedimento")
+        .map_err(ErroDetalhada::ChaveDoMarcadorDetalhado)?;
+    if acao != AcaoDoSei::AndamentoMarcadorGerenciar.como_na_url() || id_lido != id_procedimento {
         return Err(FORA);
     }
     let Some(fragmento) = fragmento else {

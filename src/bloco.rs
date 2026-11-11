@@ -1,11 +1,12 @@
 //! Leitores puros de blocos do SEI: tabela por cabeçalho, sem JS nem escrita.
 //! Oráculo de cenários: Todos `src/todos/sei/blocos_lista.py` @323eb01.
 use crate::acao_do_sei::AcaoDoSei;
-use crate::consulta_do_controlador::menciona_acao;
+use crate::consulta_do_controlador::{
+    ConsultaDoControlador, ErroChaveDaConsulta, ErroConsultaDoControlador, menciona_acao,
+};
 use crate::formulario_web::decodificar_atributo;
 use crate::html_atributos::{nos_com_id, valor_do_atributo};
 use crate::instalacao::Instalacao;
-use crate::transporte::{conferir_chave_de_consulta, conferir_valor_de_consulta};
 use serde::Serialize;
 use std::collections::HashSet;
 
@@ -46,8 +47,10 @@ pub(crate) enum ErroBloco {
     TotalDaLegendaIlegivel(#[source] std::num::ParseIntError),
     InicioDaFaixaIlegivel(#[source] std::num::ParseIntError),
     FimDaFaixaIlegivel(#[source] std::num::ParseIntError),
-    ChaveDeConsultaRecusada(#[source] crate::transporte::FalhaTransporte),
-    ValorDeConsultaRecusado(#[source] crate::transporte::FalhaTransporte),
+    /// A consulta do link de bloco não se deixa ler em pares.
+    ConsultaDoLinkDeBloco(#[source] ErroConsultaDoControlador),
+    /// `acao`, `infra_hash` do link de bloco ausentes ou repetidos.
+    ChaveDoLinkDeBloco(#[source] ErroChaveDaConsulta),
     LegendaDeBlocosInvalida,
     LinhaDeBlocoForaDaForma,
     LinkDeBlocosAusente,
@@ -340,22 +343,24 @@ pub(crate) fn resolver_link(
     if !href.bytes().all(|b| (33..=126).contains(&b)) || href.contains(['#', '\\', '\'']) {
         return Err(nao());
     }
-    let (mut acoes, mut hashes, mut ids) = (0, 0, 0);
-    for par in consulta.split('&') {
-        let (chave, valor) = par.split_once('=').ok_or_else(nao)?;
-        conferir_chave_de_consulta(chave).map_err(ErroBloco::ChaveDeConsultaRecusada)?;
-        conferir_valor_de_consulta(valor).map_err(ErroBloco::ValorDeConsultaRecusado)?;
-        match chave {
-            "acao" if valor == acao.como_na_url() => acoes += 1,
-            "infra_hash" if valor.len() == 64 && valor.bytes().all(|b| b.is_ascii_hexdigit()) => {
-                hashes += 1;
-            }
-            "id_bloco" if numero == Some(valor) => ids += 1,
-            "acao" | "infra_hash" | "id_bloco" | "acao_ajax" => return Err(nao()),
-            _ => {}
-        }
-    }
-    if acoes != 1 || hashes != 1 || (numero.is_some() && ids != 1) || (numero.is_none() && ids != 0)
+    let consulta =
+        ConsultaDoControlador::ler(consulta).map_err(ErroBloco::ConsultaDoLinkDeBloco)?;
+    let acao_lida = consulta
+        .unico("acao")
+        .map_err(ErroBloco::ChaveDoLinkDeBloco)?;
+    let hash = consulta
+        .unico("infra_hash")
+        .map_err(ErroBloco::ChaveDoLinkDeBloco)?;
+    let ids: Vec<&str> = consulta.valores("id_bloco").collect();
+    let id_conferido = match numero {
+        Some(n) => ids == [n],
+        None => ids.is_empty(),
+    };
+    if acao_lida != acao.como_na_url()
+        || hash.len() != 64
+        || !hash.bytes().all(|b| b.is_ascii_hexdigit())
+        || consulta.valores("acao_ajax").next().is_some()
+        || !id_conferido
     {
         return Err(nao());
     }
@@ -501,7 +506,11 @@ mod tests {
                 AcaoDoSei::BlocoInternoListar,
                 None
             ),
-            Err(ErroBloco::LinkDeBlocosNaoReconhecido)
+            Err(ErroBloco::ChaveDoLinkDeBloco(
+                crate::consulta_do_controlador::ErroChaveDaConsulta::Repetida {
+                    chave: "infra_hash"
+                }
+            ))
         );
         assert_eq!(
             resolver_link(
@@ -511,6 +520,42 @@ mod tests {
                 AcaoDoSei::BlocoInternoListar,
                 None
             ),
+            Err(ErroBloco::LinkDeBlocosNaoReconhecido)
+        );
+    }
+
+    #[test]
+    fn link_de_bloco_com_chave_repetida_ou_par_sem_igual_tem_a_causa() {
+        let instalacao = Instalacao::interpretar("https://sei.exemplo.gov.br/sei").unwrap();
+        let base = "https://sei.exemplo.gov.br/sei/controlador.php?acao=procedimento_controlar";
+        let link = |consulta: String| {
+            let href = format!("controlador.php?{consulta}");
+            resolver_link(
+                &instalacao,
+                base,
+                &href,
+                AcaoDoSei::BlocoInternoListar,
+                None,
+            )
+        };
+        assert_eq!(
+            link(format!(
+                "acao=bloco_interno_listar&acao=bloco_interno_listar&infra_hash={HASH}"
+            )),
+            Err(ErroBloco::ChaveDoLinkDeBloco(
+                ErroChaveDaConsulta::Repetida { chave: "acao" }
+            ))
+        );
+        assert_eq!(
+            link(format!("acao=bloco_interno_listar&lixo&infra_hash={HASH}")),
+            Err(ErroBloco::ConsultaDoLinkDeBloco(
+                ErroConsultaDoControlador::ParSemIgual
+            ))
+        );
+        assert_eq!(
+            link(format!(
+                "acao=bloco_interno_listar&infra_hash={HASH}&id_bloco=5"
+            )),
             Err(ErroBloco::LinkDeBlocosNaoReconhecido)
         );
     }

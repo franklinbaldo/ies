@@ -2,6 +2,9 @@
 //! O núcleo não faz rede, não avalia JavaScript e não publica URLs assinadas.
 //! Caso de testes: `Todos` `tests/test_ciclo_prazo_010.py` @323eb01.
 use crate::acao_do_sei::AcaoDoSei;
+use crate::consulta_do_controlador::{
+    ConsultaDoControlador, ErroChaveDaConsulta, ErroConsultaDoControlador,
+};
 
 #[derive(Clone, Debug, PartialEq, Eq)]
 pub(crate) enum PedidoDePrazo {
@@ -23,6 +26,10 @@ pub(crate) enum ErroPrazo {
     DiasNaoCabemEmU16(#[source] std::num::TryFromIntError),
     /// O `action` do formulário não é `controle_prazo_definir` em `controlador.php`.
     FormularioDeOutroDestino,
+    /// A consulta do `action` não se lê em pares `chave=valor`.
+    ConsultaDoDestinoIlegivel(#[source] ErroConsultaDoControlador),
+    /// O `action` não tem exatamente um `acao` aceito nem um `id_procedimento`.
+    ChaveDoDestinoIlegivel(#[source] ErroChaveDaConsulta),
     /// O formulário não publica as opções `rdoPrazo`: não há estado a ler.
     OpcoesDoPrazoAusentes,
     /// A opção marcada ou o valor de dias não formam um prazo.
@@ -130,23 +137,22 @@ fn conferir_destino(form: &tl::HTMLTag<'_>, id_procedimento: &str) -> Result<(),
     let (caminho, consulta) = action
         .split_once('?')
         .ok_or(ErroPrazo::FormularioDeOutroDestino)?;
-    let valores = |chave: &str| {
-        consulta
-            .split('&')
-            .filter_map(|par| par.split_once('='))
-            .filter(|(nome, _)| *nome == chave)
-            .map(|(_, valor)| valor)
-            .collect::<Vec<_>>()
-    };
-    if !caminho.ends_with("controlador.php")
-        || valores("acao") != [AcaoDoSei::ControlePrazoDefinir.como_na_url()]
-    {
+    if !caminho.ends_with("controlador.php") {
         return Err(ErroPrazo::FormularioDeOutroDestino);
     }
-    match valores("id_procedimento").as_slice() {
-        [id] if *id == id_procedimento => Ok(()),
-        _ => Err(ErroPrazo::OutroProcesso),
+    let consulta =
+        ConsultaDoControlador::ler(consulta).map_err(ErroPrazo::ConsultaDoDestinoIlegivel)?;
+    let acao = consulta.acao().map_err(ErroPrazo::ChaveDoDestinoIlegivel)?;
+    if acao != AcaoDoSei::ControlePrazoDefinir {
+        return Err(ErroPrazo::FormularioDeOutroDestino);
     }
+    let id = consulta
+        .unico("id_procedimento")
+        .map_err(ErroPrazo::ChaveDoDestinoIlegivel)?;
+    if id != id_procedimento {
+        return Err(ErroPrazo::OutroProcesso);
+    }
+    Ok(())
 }
 
 /// O estado lido das opções publicadas; sem as opções, não há o que ler.
@@ -274,6 +280,37 @@ pub(crate) fn campos_do_pedido(pedido: &PedidoDePrazo) -> Vec<(&'static str, Str
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    #[test]
+    fn destino_com_par_sem_igual_ou_id_repetido_recusa_com_a_causa() {
+        let html = |action: &str| {
+            format!("<form id='frmControlePrazoCadastro' action='{action}' method='post'></form>")
+        };
+        assert_eq!(
+            ler_tela(
+                &html(
+                    "controlador.php?acao=controle_prazo_definir&amp;lixo&amp;id_procedimento=12"
+                ),
+                "12"
+            ),
+            Err(ErroPrazo::ConsultaDoDestinoIlegivel(
+                ErroConsultaDoControlador::ParSemIgual
+            ))
+        );
+        assert_eq!(
+            ler_tela(
+                &html(
+                    "controlador.php?acao=controle_prazo_definir&amp;id_procedimento=12&amp;id_procedimento=12"
+                ),
+                "12"
+            ),
+            Err(ErroPrazo::ChaveDoDestinoIlegivel(
+                ErroChaveDaConsulta::Repetida {
+                    chave: "id_procedimento"
+                }
+            ))
+        );
+    }
 
     #[test]
     fn dias_viram_data_certa_na_releitura_da_unb() {

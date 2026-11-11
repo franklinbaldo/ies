@@ -4,25 +4,13 @@
 //! `a.protocoloNormal` de `documento_visualizar` com o mesmo `id_documento`.
 //! Só essa forma é aceita; o documento não é publicado.
 use super::ErroResultadoPesquisa;
-use crate::html_atributos::valor_do_atributo;
+use crate::html_atributos::valor_decodificado;
 
-/// Campos da consulta de um `href` `controlador.php?`, com a sobra `amp;`
-/// de `&amp;` removida depois de um separador (como na leitura do processo).
+/// Campos da consulta de um `href` `controlador.php?` já decodificado
+/// (`valor_decodificado`): o `&amp;` do HTML chega como `&`.
 fn campos(href: &str) -> Option<Vec<&str>> {
     let consulta = href.strip_prefix("controlador.php?")?;
-    Some(
-        consulta
-            .split('&')
-            .enumerate()
-            .map(|(i, campo)| {
-                if i == 0 {
-                    campo
-                } else {
-                    campo.strip_prefix("amp;").unwrap_or(campo)
-                }
-            })
-            .collect(),
-    )
+    Some(consulta.split('&').collect())
 }
 
 /// O único valor de `nome`, decimal e não vazio.
@@ -65,7 +53,7 @@ pub(super) fn separar(
     let mut documentos = Vec::new();
     for no in links {
         let href = match no.get(parser).and_then(tl::Node::as_tag) {
-            Some(link) => valor_do_atributo(link, "href")
+            Some(link) => valor_decodificado(link, "href")
                 .map_err(ErroResultadoPesquisa::HrefDoLinkDaLinhaIlegivel)?,
             None => None,
         };
