@@ -76,23 +76,11 @@ fn post_derivado_pelo_primitivo_na_ordem_do_documento() {
     }
 }
 
-#[test]
-#[allow(clippy::too_many_lines)] // Uma tabela de casos.
-fn recusas_da_tela_antes_de_qualquer_post() {
-    let base = tela_de_envio(Versao::V41, ID);
-    let trocar = |de: &str, para: &str| {
-        assert!(base.contains(de), "{de}");
-        base.replacen(de, para, 1)
-    };
-    let ausente = conferir_tela_de_envio(&trocar("frmAtividadeListar", "frmOutro"), ID);
-    assert!(
-        matches!(
-            ausente,
-            Err(super::erro::ErroTelaDeEnvio::FormularioDeEnvioAusente(_))
-        ),
-        "{ausente:?}"
-    );
-    let casos = [
+/// Alterações sintéticas da tela, separadas da verificação de recusa.
+fn casos_de_recusa(
+    trocar: impl Fn(&str, &str) -> String,
+) -> [(String, super::erro::ErroTelaDeEnvio); 12] {
+    [
         (
             trocar(
                 "name=\"hdnIdProtocolos\" value=\"10\"",
@@ -174,8 +162,25 @@ fn recusas_da_tela_antes_de_qualquer_post() {
             trocar("+'&unidade_atual=0';", "+'&unidade_atual=1';"),
             super::erro::ErroTelaDeEnvio::ConsultaDoAutocompletarForaDaFormaObservada,
         ),
-    ];
-    for (html, erro) in casos {
+    ]
+}
+
+#[test]
+fn recusas_da_tela_antes_de_qualquer_post() {
+    let base = tela_de_envio(Versao::V41, ID);
+    let trocar = |de: &str, para: &str| {
+        assert!(base.contains(de), "{de}");
+        base.replacen(de, para, 1)
+    };
+    let ausente = conferir_tela_de_envio(&trocar("frmAtividadeListar", "frmOutro"), ID);
+    assert!(
+        matches!(
+            ausente,
+            Err(super::erro::ErroTelaDeEnvio::FormularioDeEnvioAusente(_))
+        ),
+        "{ausente:?}"
+    );
+    for (html, erro) in casos_de_recusa(&trocar) {
         assert_eq!(
             conferir_tela_de_envio(&html, ID),
             Err(erro.clone()),
