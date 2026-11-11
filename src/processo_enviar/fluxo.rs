@@ -324,7 +324,9 @@ fn escolher_metodo(
     if tela.remover_anotacoes_oferecida {
         return Ok(MetodoRemocao::CheckboxNoEnvio);
     }
-    if super::anotacoes::salvar_oferecido(&lida.html) {
+    if super::anotacoes::salvar_oferecido(&lida.html)
+        .map_err(super::anotacoes::ErroDasAnotacoes::from)?
+    {
         return Ok(MetodoRemocao::LimparAnotacao);
     }
     Err(if pedido.confirmar {

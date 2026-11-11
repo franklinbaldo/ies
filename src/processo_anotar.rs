@@ -114,7 +114,7 @@ pub(crate) fn executar<V: EnvioDoProcesso>(
         if !remover && !anotacao_antes.trim().is_empty() {
             return Err(ErroAnotar::AnotacaoJaPresente);
         }
-        if !crate::processo_enviar::salvar_oferecido(&html) {
+        if !crate::processo_enviar::salvar_oferecido(&html)? {
             return Err(ErroAnotar::SalvarNaoOferecido);
         }
         let instalacao =

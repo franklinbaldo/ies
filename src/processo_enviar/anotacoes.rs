@@ -47,26 +47,30 @@ pub(crate) const REGISTRAR_ANOTACAO: OperacaoDeFormulario = OperacaoDeFormulario
 };
 
 /// Sem o botão de salvar a tela não oferece edição, apenas leitura.
-pub(crate) fn salvar_oferecido(html: &str) -> bool {
-    let Ok(dom) = tl::parse(html, tl::ParserOptions::default()) else {
-        return false;
-    };
-    let Ok(form) = crate::formulario_web::localizar_formulario(&dom, "frmAnotacaoCadastro") else {
-        return false;
-    };
-    form.children()
+pub(crate) fn salvar_oferecido(html: &str) -> Result<bool, ErroLeituraDaAnotacao> {
+    let dom = tl::parse(html, tl::ParserOptions::default())
+        .map_err(ErroLeituraDaAnotacao::ParseDaTelaDeAnotacoesFalhou)?;
+    let form = crate::formulario_web::localizar_formulario(&dom, "frmAnotacaoCadastro")
+        .map_err(ErroLeituraDaAnotacao::FormularioDeAnotacoesAusente)?;
+    for tag in form
+        .children()
         .all(dom.parser())
         .iter()
         .filter_map(tl::Node::as_tag)
-        .any(|tag| {
-            tag.name().as_utf8_str().eq_ignore_ascii_case("button")
-                && crate::html_atributos::valor_do_atributo(tag, "name")
-                    .ok()
-                    .flatten()
-                    .as_deref()
-                    == Some("sbmRegistrarAnotacao")
-                && !crate::html_atributos::atributo_presente(tag, "disabled").unwrap_or(true)
-        })
+    {
+        if !tag.name().as_utf8_str().eq_ignore_ascii_case("button") {
+            continue;
+        }
+        let nome = crate::html_atributos::valor_do_atributo(tag, "name")
+            .map_err(ErroLeituraDaAnotacao::TelaDeAnotacoesComAtributoIlegivel)?;
+        if nome.as_deref() == Some("sbmRegistrarAnotacao")
+            && !crate::html_atributos::atributo_presente(tag, "disabled")
+                .map_err(ErroLeituraDaAnotacao::TelaDeAnotacoesComAtributoIlegivel)?
+        {
+            return Ok(true);
+        }
+    }
+    Ok(false)
 }
 
 pub(crate) fn texto_anotacao(html: &str, id: &str) -> Result<String, ErroLeituraDaAnotacao> {
