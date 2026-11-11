@@ -215,7 +215,7 @@ fn bdd_previa_remover_anotacoes_exige_checkbox_e_nao_escreve() {
                 super::enviar_processo(sessao, &pedido, indice, rede)
             },
         );
-        assert!(resultado.unwrap().remover_anotacoes);
+        assert!(resultado.unwrap().remover_anotacoes());
         assert_eq!(pedidos, pedidos_da_previa(versao));
     }
 }

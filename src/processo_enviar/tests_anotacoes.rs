@@ -57,7 +57,7 @@ fn bdd_previa_remocao_observa_anotacao_sem_escrever() {
     // então a prévia registra a presença e só faz GET de leitura.
     let (resultado, pedidos) = previa_com_anotacao("Minha anotação", ID);
     let feito = resultado.expect("a anotação foi lida");
-    assert_eq!(feito.anotacao_antes, Some(true));
+    assert_eq!(feito.anotacao_antes(), Some(true));
     assert_eq!(feito.requisicoes, 6);
     let mut esperado = pedidos_da_abertura();
     esperado.push(get(&url_da_tela()));
@@ -133,9 +133,9 @@ fn bdd_sem_checkbox_mas_com_anotacao_planeja_edicao_na_previa() {
         enviar_processo(sessao, &pedido, indice, rede)
     });
     let feito = resultado.expect("a edicao da anotacao foi oferecida");
-    assert_eq!(feito.anotacao_antes, Some(true));
+    assert_eq!(feito.anotacao_antes(), Some(true));
     assert_eq!(
-        feito.metodo_remocao,
+        feito.metodo_remocao(),
         Some(super::MetodoRemocao::LimparAnotacao)
     );
     assert_eq!(feito.requisicoes, 6);
@@ -186,9 +186,9 @@ fn bdd_confirmar_checkbox_verifica_anotacao_apos_tramitar() {
         )
     });
     let feito = resultado.expect("o envio e a remoção foram relidos");
-    assert!(feito.alterado);
-    assert_eq!(feito.anotacao_antes, Some(true));
-    assert_eq!(feito.anotacao_depois, Some(false));
+    assert!(feito.alterado());
+    assert_eq!(feito.anotacao_antes(), Some(true));
+    assert_eq!(feito.anotacao_depois(), Some(false));
     assert_eq!(feito.requisicoes, 9);
     let mut esperados = pedidos_da_abertura();
     esperados.push(get(&url_da_tela()));

@@ -3,7 +3,9 @@
 //! e do 4.1/5.0 — UFRJ, PEN2, GO, PEN3, PEN4 —, resposta XML do autocomplete,
 //! barra com o link de enviar) sobre o roteiro de `processo concluir`.
 //! Hosts, hashes, ids e siglas inventados.
-use super::{Destino, ErroEnviar, PedidoDoEnvio, ProcessoEnviado, enviar_processo};
+use super::{
+    DesfechoDoEnvio, Destino, ErroEnviar, PedidoDoEnvio, ProcessoEnviado, enviar_processo,
+};
 use crate::arvore_processo::tests_concluir::absoluta;
 use crate::processo_concluir::tests_apoio::*;
 use crate::propriedades_processo::tests_apoio::acao_da_barra;
@@ -263,17 +265,11 @@ pub(crate) fn previa(aberto_em: &[&str], manter_aberto: bool) -> ProcessoEnviado
         nup: NUP.into(),
         id_procedimento: ID.into(),
         unidade: UNIDADE.into(),
-        confirmado: false,
-        alterado: false,
         manter_aberto,
-        remover_anotacoes: false,
-        anotacao_antes: None,
-        anotacao_depois: None,
-        metodo_remocao: None,
+        remocao: None,
         destino: destino(),
         aberto_em: siglas(aberto_em),
-        depois: None,
-        reconciliado_por: None,
+        desfecho: DesfechoDoEnvio::Previa,
         requisicoes: 5,
     }
 }

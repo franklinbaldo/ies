@@ -12,7 +12,9 @@ use super::tela::{
     AUTOCOMPLETAR_UNIDADE, ENVIAR_PROCESSO, TelaDeEnvio, campos_da_consulta_no_orgao,
     campos_do_envio, conferir_tela_de_envio, redirecionamento_esperado,
 };
-use super::{Destino, MetodoRemocao, PedidoDoEnvio, ProcessoEnviado};
+use super::{
+    DesfechoDoEnvio, Destino, MetodoRemocao, PedidoDoEnvio, ProcessoEnviado, RemocaoDaAnotacao,
+};
 use crate::formulario_web::{
     CodificacaoDaTela, ErroSubmissaoFormulario, RespostaDoEnvio, SubmissaoDerivada, TelaServida,
     derivar_consulta_ajax, derivar_submissao, enviar_submissao_via,
@@ -88,47 +90,36 @@ pub(crate) fn enviar_processo<V: EnvioDoProcesso>(
     if aberto_em.contains(&destino.sigla) {
         return Err(ErroEnviar::ProcessoJaAbertoNoDestino { aberto_em });
     }
-    let mut feito = ProcessoEnviado {
+    let feito = ProcessoEnviado {
         nup: pedido.nup.as_str().to_owned(),
         id_procedimento: id,
         unidade,
-        confirmado: pedido.confirmar,
-        alterado: false,
         manter_aberto: pedido.manter_aberto,
-        remover_anotacoes: pedido.remover_anotacoes,
-        anotacao_antes,
-        anotacao_depois: None,
-        metodo_remocao,
+        remocao: metodo_remocao.map(|metodo| RemocaoDaAnotacao {
+            metodo,
+            antes: anotacao_antes,
+            depois: None,
+        }),
         destino,
         aberto_em,
-        depois: None,
-        reconciliado_por: None,
+        desfecho: DesfechoDoEnvio::Previa,
         requisicoes: rede.feitas(),
     };
     if !pedido.confirmar {
         return Ok(feito);
     }
-    // BDD-333-03/04: grava anotação vazia somente se havia texto.
-    // Cada POST é único e a releitura precisa comprovar a limpeza antes do envio.
-    if metodo_remocao == Some(MetodoRemocao::LimparAnotacao)
-        && let (Some(link), Some(lida)) = (link_anotacao.as_deref(), anotacao_lida.as_ref())
-    {
-        if lida.presente {
-            limpar_anotacao(
-                &mut rede,
-                sessao,
-                &instalacao,
-                &cookie,
-                link,
-                lida,
-                &feito.id_procedimento,
-            )?;
-        }
-        feito.anotacao_depois = Some(false);
-    }
+    let feito = limpar_se_publicada(
+        &mut rede,
+        sessao,
+        &instalacao,
+        &cookie,
+        link_anotacao.as_deref(),
+        anotacao_lida.as_ref(),
+        feito,
+    )?;
     let falha = submeter_envio(&mut rede, sessao, &instalacao, &tela, pedido, &feito)?;
     let verificacao = verificar(sessao, &leitura(false), indice, &mut rede);
-    let mut feito = conciliar_efeitos(
+    let feito = conciliar_efeitos(
         &mut rede,
         &cookie,
         link_anotacao.as_deref(),
@@ -136,8 +127,41 @@ pub(crate) fn enviar_processo<V: EnvioDoProcesso>(
         falha,
         verificacao,
     )?;
-    feito.requisicoes = rede.feitas();
-    Ok(feito)
+    Ok(ProcessoEnviado {
+        requisicoes: rede.feitas(),
+        ..feito
+    })
+}
+
+/// BDD-333-03/04: grava anotação vazia somente se havia texto. Cada POST é
+/// único e a releitura precisa comprovar a limpeza antes do envio.
+fn limpar_se_publicada<V: EnvioDoProcesso>(
+    rede: &mut Contador<'_, V>,
+    sessao: &SessaoDoProcesso<'_>,
+    instalacao: &Instalacao,
+    cookie: &str,
+    link: Option<&str>,
+    lida: Option<&AnotacaoLida>,
+    feito: ProcessoEnviado,
+) -> Result<ProcessoEnviado, ErroEnviar> {
+    if feito.metodo_remocao() != Some(MetodoRemocao::LimparAnotacao) {
+        return Ok(feito);
+    }
+    let (Some(link), Some(lida)) = (link, lida) else {
+        return Ok(feito);
+    };
+    if lida.presente {
+        limpar_anotacao(
+            rede,
+            sessao,
+            instalacao,
+            cookie,
+            link,
+            lida,
+            &feito.id_procedimento,
+        )?;
+    }
+    Ok(feito.com_anotacao_depois(false))
 }
 
 /// Monta e tenta a tramitação depois da limpeza independente. Se a
@@ -154,7 +178,7 @@ fn submeter_envio<V: EnvioDoProcesso>(
         &tela.conferida,
         &feito.destino,
         pedido.manter_aberto,
-        feito.metodo_remocao == Some(MetodoRemocao::CheckboxNoEnvio),
+        feito.metodo_remocao() == Some(MetodoRemocao::CheckboxNoEnvio),
     );
     let pares: Vec<(&str, &str)> = campos.iter().map(|(n, v)| (*n, v.as_str())).collect();
     let servida = TelaServida {
@@ -200,10 +224,15 @@ fn submeter_envio<V: EnvioDoProcesso>(
 /// Só o formulário de envio falhou: um POST de limpeza anterior já foi
 /// comprovado por GET. Preserva a causa tipada e as unidades observadas.
 fn erro_apos_limpeza(feito: &ProcessoEnviado, causa: ErroSubmissaoFormulario) -> ErroEnviar {
-    if feito.metodo_remocao == Some(MetodoRemocao::LimparAnotacao)
-        && feito.anotacao_antes == Some(true)
-        && feito.anotacao_depois == Some(false)
-    {
+    let limpeza_comprovada = matches!(
+        feito.remocao,
+        Some(RemocaoDaAnotacao {
+            metodo: MetodoRemocao::LimparAnotacao,
+            antes: Some(true),
+            depois: Some(false),
+        })
+    );
+    if limpeza_comprovada {
         ErroEnviar::FormularioAposLimpezaComprovada {
             aberto_em: feito.aberto_em.clone(),
             causa,
@@ -219,11 +248,11 @@ fn conciliar_efeitos<V: EnvioDoProcesso>(
     rede: &mut Contador<'_, V>,
     cookie: &str,
     link_anotacao: Option<&str>,
-    mut feito: ProcessoEnviado,
+    feito: ProcessoEnviado,
     falha: Option<FalhaDoEnvio>,
     verificacao: VerificacaoPorLeitura,
 ) -> Result<ProcessoEnviado, ErroEnviar> {
-    let observacao = if feito.metodo_remocao == Some(MetodoRemocao::CheckboxNoEnvio) {
+    let observacao = if feito.metodo_remocao() == Some(MetodoRemocao::CheckboxNoEnvio) {
         let link = link_anotacao.ok_or(ErroEnviar::RemocaoDeAnotacoesSemVerificacao)?;
         Some(observar_anotacao_depois(
             rede,
@@ -235,27 +264,22 @@ fn conciliar_efeitos<V: EnvioDoProcesso>(
         None
     };
     // Preservar o que a anotação mostrou mesmo se a árvore ficar ilegível.
-    if let Some(Ok(presente)) = &observacao {
-        feito.anotacao_depois = Some(*presente);
-    }
+    let feito = if let Some(Ok(presente)) = &observacao {
+        feito.com_anotacao_depois(*presente)
+    } else {
+        feito
+    };
     let feito = conciliar(feito, falha, verificacao)?;
-    if let Some(observada) = observacao {
-        match observada {
-            Ok(false) => {}
-            Ok(true) => {
-                return Err(ErroEnviar::AnotacoesNaoRemovidasAposEnvio {
-                    depois: feito.depois,
-                });
-            }
-            Err(causa) => {
-                return Err(ErroEnviar::NaoConfirmadoNaRemocaoDeAnotacoes {
-                    depois: feito.depois,
-                    causa: Box::new(causa),
-                });
-            }
-        }
+    match observacao {
+        None | Some(Ok(false)) => Ok(feito),
+        Some(Ok(true)) => Err(ErroEnviar::AnotacoesNaoRemovidasAposEnvio {
+            depois: feito.depois().map(<[String]>::to_vec),
+        }),
+        Some(Err(causa)) => Err(ErroEnviar::NaoConfirmadoNaRemocaoDeAnotacoes {
+            depois: feito.depois().map(<[String]>::to_vec),
+            causa: Box::new(causa),
+        }),
     }
-    Ok(feito)
 }
 
 /// A barra só autoriza a escrita quando a situação lista a unidade da sessão.
@@ -463,14 +487,15 @@ fn enviar<V: EnvioDoProcesso>(
 
 /// Tabela de reconciliação do contrato.
 fn conciliar(
-    mut feito: ProcessoEnviado,
+    feito: ProcessoEnviado,
     falha: Option<FalhaDoEnvio>,
     verificacao: VerificacaoPorLeitura,
 ) -> Result<ProcessoEnviado, ErroEnviar> {
+    let anotacao_depois = feito.anotacao_depois();
     let VerificacaoPorLeitura::Lida(depois) = verificacao else {
         return Err(ErroEnviar::NaoConfirmadoNoEnvio {
             aberto_em: feito.aberto_em,
-            anotacao_depois: feito.anotacao_depois,
+            anotacao_depois,
             falha_do_envio: falha,
             verificacao: Box::new(verificacao),
         });
@@ -479,7 +504,7 @@ fn conciliar(
         return Err(ErroEnviar::EnvioNaoAplicado {
             aberto_em: feito.aberto_em,
             depois,
-            anotacao_depois: feito.anotacao_depois,
+            anotacao_depois,
             falha_do_envio: falha,
         });
     }
@@ -487,12 +512,9 @@ fn conciliar(
         return Err(ErroEnviar::SituacaoDaOrigemDiferenteDaPedidaAposEnvio {
             aberto_em: feito.aberto_em,
             depois,
-            anotacao_depois: feito.anotacao_depois,
+            anotacao_depois,
             falha_do_envio: falha,
         });
     }
-    feito.alterado = true;
-    feito.depois = Some(depois);
-    feito.reconciliado_por = falha;
-    Ok(feito)
+    Ok(feito.enviado(depois, falha))
 }
