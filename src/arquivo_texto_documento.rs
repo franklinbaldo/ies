@@ -25,7 +25,7 @@ fn traduzir(falha: crate::arquivo_privado::FalhaDaGravacao) -> ErroArquivoTexto 
         FalhaDaGravacao::DiretorioGravavelPorOutros => ErroArquivoTexto::EscritaFalhou,
         FalhaDaGravacao::DestinoNaoEhArquivoRegular
         | FalhaDaGravacao::AcimaDoLimite
-        | FalhaDaGravacao::CriacaoFalhou
+        | FalhaDaGravacao::CriacaoFalhou(_)
         | FalhaDaGravacao::CriacaoDoDiretorioFalhou(_)
         | FalhaDaGravacao::CriacaoDoTemporarioFalhou(_)
         | FalhaDaGravacao::NomesDeTemporarioEsgotados
