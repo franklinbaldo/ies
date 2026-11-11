@@ -400,7 +400,9 @@ fn conferir(
         serde_json::Value::Null
     };
     if matches!(caso, Caso::AtribuirSemCatalogo) {
-        falha(saida, "Recusada");
+        // O emulador não serve o cadastro (503): a falha de transporte sobe
+        // com a causa, sem POST (#749).
+        falha(saida, "Status");
         assert!(!pedidos.iter().any(|pedido| pedido.starts_with("POST ")));
         assert_eq!(persistido.total_declarado, 0);
         assert_eq!(releitura.status.code(), Some(0));

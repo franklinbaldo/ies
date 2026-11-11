@@ -178,14 +178,8 @@ fn preparar_submissao<V: EnvioDoProcesso>(
     let (html, mime) = match obter_tela(rede, &cookie, link) {
         Ok(tela) => tela,
         Err(FalhaDaTela::Transporte(erro)) => return Err(erro.into()),
-        Err(FalhaDaTela::Redirecionada) => {
-            return Err(recusa(
-                ErroMarcar::TelaDaRemocaoRedirecionada,
-                rede.feitas(),
-            ));
-        }
-        Err(FalhaDaTela::SessaoEncerrada(_)) => {
-            return Err(recusa(ErroMarcar::SessaoEncerradaNaRemocao, rede.feitas()));
+        Err(FalhaDaTela::Redirecionada | FalhaDaTela::SessaoEncerrada(_)) => {
+            return Err(recusa(ErroMarcar::TelaDaRemocaoNaoLida, rede.feitas()));
         }
     };
     let acao =

@@ -78,22 +78,9 @@ pub(crate) enum ErroAndamentos {
     CharsetDoHistoricoNaoSuportado,
     /// A função `verHistorico` servida não aparece literalmente na página.
     RegraDeVerHistoricoAusenteNaPagina,
-    /// Nenhuma âncora `ancTipoHistorico` na página servida.
-    AncoraDeVerHistoricoAusente,
-    /// Mais de uma âncora `ancTipoHistorico` na página servida.
-    AncoraDeVerHistoricoRepetida,
-    /// A âncora `ancTipoHistorico` não é um elemento `a`.
-    AncoraDeVerHistoricoNaoEhLink,
-    /// A âncora `ancTipoHistorico` não publica `onclick`.
-    OnclickDeVerHistoricoAusente,
-    /// O `onclick` da âncora não decodifica como texto.
-    OnclickDeVerHistoricoIlegivel,
-    /// O `onclick` da âncora aponta para uma visão que não é a completa.
-    OnclickDeVerHistoricoParaOutraVisao,
     VisaoDoHistoricoDiferenteDaPedida,
     LegendaDosAndamentosAusente,
     LegendaDosAndamentosForaDaFormaObservada,
-    RegraDeVerHistoricoNaoInterpretada(#[source] tl::ParseError),
     TabelaDoHistoricoNaoInterpretada(#[source] tl::ParseError),
     NumeroDeRegistrosIlegivel(#[source] std::num::ParseIntError),
     FormularioDoTipoNaoLocalizado(#[source] crate::formulario_web::ErroSubmissaoFormulario),

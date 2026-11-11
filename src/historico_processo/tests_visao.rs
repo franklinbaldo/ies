@@ -15,7 +15,7 @@ fn regra_servida_na_visao_resumida_e_aceita() {
 }
 
 #[test]
-fn regra_alterada_ou_link_para_outra_visao_e_recusa() {
+fn regra_alterada_e_recusa() {
     let html = pagina_do_historico(NUP, "10", 'R', 2, 2);
     let casos = [
         (
@@ -35,18 +35,6 @@ fn regra_alterada_ou_link_para_outra_visao_e_recusa() {
                 "infraSubmit();",
             ),
             super::ErroAndamentos::RegraDeVerHistoricoAusenteNaPagina,
-        ),
-        (
-            html.replace("verHistorico('P');", "verHistorico('X');"),
-            super::ErroAndamentos::OnclickDeVerHistoricoParaOutraVisao,
-        ),
-        (
-            html.replace("id=\"ancTipoHistorico\" ", ""),
-            super::ErroAndamentos::AncoraDeVerHistoricoAusente,
-        ),
-        (
-            pagina_do_historico(NUP, "10", 'P', 2, 2),
-            super::ErroAndamentos::OnclickDeVerHistoricoParaOutraVisao,
         ),
     ];
     for (trocado, esperado) in casos {

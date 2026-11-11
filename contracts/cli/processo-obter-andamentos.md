@@ -49,13 +49,10 @@ ou repetido continua recusa tipada.
   `verHistorico('P')`: as três linhas servidas da função
   (`function verHistorico(valor){`,
   `document.getElementById('hdnTipoHistorico').value = valor;`,
-  `document.getElementById('frmProcedimentoHistorico').submit();`) e o
-  único `a#ancTipoHistorico` com `onclick="verHistorico('P');"` são
-  conferidos literalmente antes de derivar
-  (`RegraDeVerHistoricoAusenteNaPagina`; a âncora é conferida por
-  `AncoraDeVerHistoricoAusente`, `AncoraDeVerHistoricoRepetida`,
-  `AncoraDeVerHistoricoNaoEhLink`, `OnclickDeVerHistoricoAusente`,
-  `OnclickDeVerHistoricoIlegivel` e `OnclickDeVerHistoricoParaOutraVisao`).
+  `document.getElementById('frmProcedimentoHistorico').submit();`) são
+  conferidas literalmente antes de derivar (`RegraDeVerHistoricoAusenteNaPagina`):
+  são o que o POST emula sem executar JS. A âncora `a#ancTipoHistorico` não é
+  conferida; a visão servida depois do POST é (`VisaoDoHistoricoDiferenteDaPedida`).
   O POST vai para o `action`
   assinado com os ocultos como servidos, só `hdnTipoHistorico=P`
   reescrito, sem botão (`btnAtualizarAndamento`, escrita, é `type=button`
@@ -141,8 +138,8 @@ Página: os do leitor do histórico, `src/historico.rs` (`titulo_ausente`,
 `AndamentosAlemDoTotalDeclarado`, `TipoDoHistoricoNaoPublicado`,
 `CharsetDoHistoricoNaoSuportado`.
 
-Visão completa: `RegraDeVerHistoricoAusenteNaPagina`, as `AncoraDeVerHistorico*` e
-`OnclickDeVerHistorico*` acima, `VisaoDoHistoricoDiferenteDaPedida` e os do primitivo de formulário.
+Visão completa: `RegraDeVerHistoricoAusenteNaPagina`,
+`VisaoDoHistoricoDiferenteDaPedida` e os do primitivo de formulário.
 Login (200 ou 302) fora de palpite é `SessaoEncerrada`;
 status HTTP de falha (503 do gateway visto em GO) sai com o erro de
 transporte e `status_http`, sem retry.

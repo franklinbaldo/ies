@@ -35,13 +35,14 @@ publica URL assinada, cookie ou `infra_hash`.
   Falta de formulário comprovado recusa sem POST.
 - Se está ausente e o pedido é atribuir, consulta o formulário
   `andamento_marcador_cadastrar` oferecido pela unidade. Somente quando
-  esse formulário publica exatamente uma opção `id#nome`, a ação assinada
-  pertence ao mesmo processo e os controles de submissão estão presentes,
+  esse formulário oferece o id pedido com o nome pedido (`option[value=id]` em
+  `selMarcador`) e o destino do cadastro é a ação assinada do mesmo processo,
   apresenta a **prévia de atribuição** com `alterado: false` e **zero POST**.
-  Se não há catálogo ou a opção não confere, recusa com o erro do ponto de
-  falha (`SelectDeMarcadoresAusenteOuRepetido`, `OpcaoDoMarcadorNaoOferecida`,
-  `OpcaoDoMarcadorRepetida`, `NomeDoMarcadorDiferenteDoCatalogo`,
-  `BotaoAdicionarAusente`, `BotaoAdicionarRepetido`, entre outros da tabela).
+  A forma dos controles fica com a derivação do formulário. Se a opção não é
+  oferecida ou tem outro nome, ou o destino não é o do processo, recusa com o
+  erro do ponto de falha (`OpcaoDoMarcadorNaoOferecida`,
+  `NomeDoMarcadorDiferenteDoCatalogo`, `DestinoDoCadastroAusente`,
+  `EnderecoDoCadastroDeOutroProcesso`, entre outros da tabela).
   Um marcador aplicado em outro processo **não** substitui o catálogo da unidade.
 
 A prévia não reivindica uma escrita. A confirmação de **atribuição** exige
@@ -97,11 +98,12 @@ a confirmação depende da resposta causal e da releitura independente.
 | `NomeDoMarcadorComControle` | Caracteres de controle no nome |
 | `ListaDeMarcadoresParcial` | Linhas observadas diferentes do total declarado |
 | `RotuloDiferenteDoMarcadorLido` | Mesmo id observado com nome diferente |
-| `ErroMarcar::SelectDeMarcadoresAusenteOuRepetido` | Atribuição ausente sem `selMarcador` único na unidade |
-| `ErroMarcar::OpcaoDoMarcadorNaoOferecida` | Atribuição ausente com o id fora do catálogo da unidade |
-| `ErroMarcar::OpcaoDoMarcadorRepetida` | Id repetido no catálogo da unidade |
+| `ErroMarcar::OpcaoDoMarcadorNaoOferecida` | Atribuição ausente com o id fora do catálogo (`selMarcador`) da unidade |
 | `ErroMarcar::NomeDoMarcadorDiferenteDoCatalogo` | Id do catálogo com nome diferente do pedido |
-| `ErroMarcar::BotaoAdicionarAusente` / `BotaoAdicionarRepetido` | Cadastro sem o botão `btnAdicionar`, ou com mais de um |
+| `ErroMarcar::DestinoDoCadastroAusente` | O botão `btnAdicionar` (ou o 302) não publica o destino do cadastro |
+| `ErroMarcar::EnderecoDoCadastroNaoReconhecido` / `EnderecoDoCadastroDeOutroProcesso` | Destino do cadastro fora da ação assinada deste processo |
+| `ErroMarcar::FormularioDeCadastroNaoLido` / `TelaDaRemocaoNaoLida` | Tela de cadastro ou de gerenciamento redirecionada ou com sessão encerrada |
+| `ErroMarcar::AcaoDeRemocaoAusente` / `AcaoDeRemocaoAmbigua` | O handler `acaoRemover` não publica uma única ação para o marcador |
 | `ErroMarcar::LinkDeMarcadoresNaoPublicado` | Barra sem o link de gerenciar marcadores |
 | `ErroMarcar::ReleituraDeOutroProcessoOuUnidade` | Releitura do processo com outro id ou outra unidade |
 | `RemocaoSemFormularioObservado` | Remoção sem ação/controles observados no formulário servido |
@@ -122,8 +124,9 @@ Leitura/decisão (1): erros específicos da abertura do processo, além de
 `ErroMarcar::UnidadeDaSessaoNaoPublicada`,
 `ListaDeMarcadoresParcial`,
 `RotuloDiferenteDoMarcadorLido`,
-o catálogo da atribuição (`SelectDeMarcadoresAusenteOuRepetido`,
-`OpcaoDoMarcadorNaoOferecida` e as demais da tabela) e
+o catálogo e o destino da atribuição (`OpcaoDoMarcadorNaoOferecida`,
+`NomeDoMarcadorDiferenteDoCatalogo`, `DestinoDoCadastroAusente` e as demais
+da tabela) e
 `RemocaoSemFormularioObservado`.
 
 O `status_http` e a mensagem saneada do SEI são preservados pela

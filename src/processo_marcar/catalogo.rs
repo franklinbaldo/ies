@@ -41,36 +41,27 @@ const ADICIONAR: OperacaoDeFormulario = OperacaoDeFormulario {
     },
 };
 
-/// Extrai link do botão efetivamente servido, sem executar JavaScript.
-/// O link retornado só é usado depois da validação de ação, processo e assinatura.
+/// Extrai o link do botão `btnAdicionar` servido, sem executar JavaScript.
+/// O link só vale depois de `conferir_endereco_relativo` (ação, processo e
+/// assinatura); a forma do botão não é conferida aqui.
 fn link_de_adicionar(html: &str) -> Result<String, ErroMarcar> {
     let dom = tl::parse(html, tl::ParserOptions::default())
-        .map_err(|_| ErroMarcar::PaginaDoCadastroIlegivel)?;
-    let botoes = dom
-        .query_selector("button")
-        .ok_or(ErroMarcar::CadastroDoMarcadorForaDaForma)?;
-    let mut links = Vec::new();
-    for tag in botoes.filter_map(|h| h.get(dom.parser()).and_then(tl::Node::as_tag)) {
-        let id =
-            valor_do_atributo(tag, "id").map_err(|_| ErroMarcar::CadastroDoMarcadorForaDaForma)?;
-        if id.as_deref() != Some("btnAdicionar") {
-            continue;
-        }
-        let onclick = valor_do_atributo(tag, "onclick")
-            .map_err(|_| ErroMarcar::CadastroDoMarcadorForaDaForma)?
-            .ok_or(ErroMarcar::CadastroDoMarcadorForaDaForma)?;
-        let relativo = onclick
-            .strip_prefix("location.href='")
-            .and_then(|resto| resto.strip_suffix('\''))
-            .ok_or(ErroMarcar::CadastroDoMarcadorForaDaForma)?;
-        links
-            .push(decodificar_atributo(relativo).ok_or(ErroMarcar::CadastroDoMarcadorForaDaForma)?);
-    }
-    match links.as_slice() {
-        [] => Err(ErroMarcar::BotaoAdicionarAusente),
-        [link] => Ok(link.clone()),
-        [_, ..] => Err(ErroMarcar::BotaoAdicionarRepetido),
-    }
+        .map_err(|_| ErroMarcar::DestinoDoCadastroAusente)?;
+    dom.query_selector("button")
+        .into_iter()
+        .flatten()
+        .filter_map(|h| h.get(dom.parser()).and_then(tl::Node::as_tag))
+        .filter(|tag| {
+            valor_do_atributo(tag, "id").is_ok_and(|id| id.as_deref() == Some("btnAdicionar"))
+        })
+        .find_map(|tag| {
+            let onclick = valor_do_atributo(tag, "onclick").ok()??;
+            let relativo = onclick
+                .strip_prefix("location.href='")?
+                .strip_suffix('\'')?;
+            decodificar_atributo(relativo)
+        })
+        .ok_or(ErroMarcar::DestinoDoCadastroAusente)
 }
 
 fn destino_cadastro<V: EnvioDoProcesso>(
@@ -82,12 +73,9 @@ fn destino_cadastro<V: EnvioDoProcesso>(
 ) -> anyhow::Result<String> {
     let resposta = rede.get_sem_seguir(link, cookie)?;
     let destino = if resposta.resposta.status_code == 302 {
-        let redir = resposta.localizacao.ok_or_else(|| {
-            recusa(
-                ErroMarcar::RedirecionamentoDoCadastroSemDestino,
-                rede.feitas(),
-            )
-        })?;
+        let redir = resposta
+            .localizacao
+            .ok_or_else(|| recusa(ErroMarcar::DestinoDoCadastroAusente, rede.feitas()))?;
         let prefixo = format!("{}/", instalacao.url_base());
         redir.strip_prefix(&prefixo).unwrap_or(&redir).to_owned()
     } else {
@@ -104,50 +92,39 @@ fn destino_cadastro<V: EnvioDoProcesso>(
 }
 
 /// A identidade do catálogo vem de option[value=id] no select da unidade,
-/// não do marcador aplicado ao processo nem de uma lista sem origem.
+/// não do marcador aplicado ao processo nem de uma lista sem origem: o id
+/// escrito precisa estar oferecido com o nome pedido.
 fn rotulo_oferecido(html: &str, rotulo: &Rotulo) -> Result<(), ErroMarcar> {
     let dom = tl::parse(html, tl::ParserOptions::default())
-        .map_err(|_| ErroMarcar::PaginaDoCadastroIlegivel)?;
+        .map_err(|_| ErroMarcar::OpcaoDoMarcadorNaoOferecida)?;
     let parser = dom.parser();
-    let mut selects = Vec::new();
-    for tag in dom
+    let nomes: Vec<String> = dom
         .query_selector("select")
-        .ok_or(ErroMarcar::CadastroDoMarcadorForaDaForma)?
+        .into_iter()
+        .flatten()
         .filter_map(|h| h.get(parser).and_then(tl::Node::as_tag))
-    {
-        let id =
-            valor_do_atributo(tag, "id").map_err(|_| ErroMarcar::CadastroDoMarcadorForaDaForma)?;
-        if id.as_deref() == Some("selMarcador") {
-            selects.push(tag);
-        }
-    }
-    let [select] = selects.as_slice() else {
-        return Err(ErroMarcar::SelectDeMarcadoresAusenteOuRepetido);
-    };
-    let mut encontrados = 0;
-    for tag in select
-        .children()
-        .all(parser)
-        .iter()
+        .filter(|tag| {
+            valor_do_atributo(tag, "id").is_ok_and(|id| id.as_deref() == Some("selMarcador"))
+        })
+        .flat_map(|select| select.children().all(parser).iter())
         .filter_map(tl::Node::as_tag)
         .filter(|tag| tag.name().as_utf8_str() == "option")
+        .filter(|tag| {
+            valor_do_atributo(tag, "value")
+                .is_ok_and(|id| id.as_deref() == Some(rotulo.id.as_str()))
+        })
+        .map(|tag| tag.inner_text(parser).to_string())
+        .collect();
+    if nomes.is_empty() {
+        return Err(ErroMarcar::OpcaoDoMarcadorNaoOferecida);
+    }
+    if nomes
+        .iter()
+        .any(|nome| decodificar_atributo(nome).as_deref() != Some(rotulo.nome.as_str()))
     {
-        let id = valor_do_atributo(tag, "value")
-            .map_err(|_| ErroMarcar::CadastroDoMarcadorForaDaForma)?
-            .ok_or(ErroMarcar::OpcaoDoMarcadorSemValor)?;
-        if id == rotulo.id {
-            encontrados += 1;
-            let nome = tag.inner_text(parser).to_string();
-            if decodificar_atributo(&nome).as_deref() != Some(rotulo.nome.as_str()) {
-                return Err(ErroMarcar::NomeDoMarcadorDiferenteDoCatalogo);
-            }
-        }
+        return Err(ErroMarcar::NomeDoMarcadorDiferenteDoCatalogo);
     }
-    match encontrados {
-        1 => Ok(()),
-        0 => Err(ErroMarcar::OpcaoDoMarcadorNaoOferecida),
-        _ => Err(ErroMarcar::OpcaoDoMarcadorRepetida),
-    }
+    Ok(())
 }
 
 fn submissao_cadastro<V: EnvioDoProcesso>(

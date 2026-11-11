@@ -41,16 +41,8 @@ pub(crate) enum ErroMarcar {
     UnidadeDaSessaoNaoPublicada,
     /// A releitura abriu outro processo ou outra unidade.
     ReleituraDeOutroProcessoOuUnidade,
-    /// O cadastro do marcador redirecionou sem informar destino.
-    RedirecionamentoDoCadastroSemDestino,
-    /// A página do cadastro do marcador não pôde ser interpretada.
-    PaginaDoCadastroIlegivel,
-    /// O cadastro do marcador não publica o atributo ou o `onclick` esperado.
-    CadastroDoMarcadorForaDaForma,
-    /// Nenhum botão `btnAdicionar` na página do cadastro.
-    BotaoAdicionarAusente,
-    /// Mais de um botão `btnAdicionar` na página do cadastro.
-    BotaoAdicionarRepetido,
+    /// O botão `btnAdicionar` (ou o redirecionamento) não publica o destino do cadastro.
+    DestinoDoCadastroAusente,
     /// O endereço do cadastro não é um endereço reconhecido da instalação.
     EnderecoDoCadastroNaoReconhecido,
     /// O endereço do cadastro pertence a outro processo.
@@ -59,14 +51,8 @@ pub(crate) enum ErroMarcar {
     FormularioDeCadastroNaoLido,
     /// O MIME da tela não tem codificação suportada.
     CharsetDoFormularioNaoSuportado,
-    /// A página da unidade não publica exatamente um `selMarcador`.
-    SelectDeMarcadoresAusenteOuRepetido,
-    /// Uma opção do catálogo não publica o atributo `value`.
-    OpcaoDoMarcadorSemValor,
     /// O id do marcador não está no catálogo da unidade.
     OpcaoDoMarcadorNaoOferecida,
-    /// O id do marcador aparece mais de uma vez no catálogo.
-    OpcaoDoMarcadorRepetida,
     /// O id existe no catálogo, mas o nome publicado é outro.
     NomeDoMarcadorDiferenteDoCatalogo,
     /// A barra da árvore não publicou o link de gerenciar marcadores.
@@ -79,10 +65,8 @@ pub(crate) enum ErroMarcar {
     AcaoDeRemocaoAusente,
     /// A página de gerenciamento publica mais de uma ação de remoção.
     AcaoDeRemocaoAmbigua,
-    /// A tela de gerenciamento foi redirecionada para outra tela.
-    TelaDaRemocaoRedirecionada,
-    /// A sessão encerrou antes de a tela de gerenciamento ser servida.
-    SessaoEncerradaNaRemocao,
+    /// A tela de gerenciamento não foi servida (redirecionada ou sessão encerrada).
+    TelaDaRemocaoNaoLida,
 }
 
 /// Por que a releitura independente não provou o efeito do POST.
