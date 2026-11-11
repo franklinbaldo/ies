@@ -6,19 +6,18 @@ description: "Contrato de trabalho vertical, banco derivado efêmero e compatibi
 
 # Ciclo fechado IES ↔ anti-IES
 
-**Cassette-first, não cassette-gated.** Comece pelo BDD e procure as
+**Cassette-first, não cassette-gated.** Comece pela operação contratada da CLI e procure as
 cassettes já registradas; observações verificadas são a entrada preferida
 para modelar o estado inicial do anti-IES. **Não exija** cassette/REA/live
 para codificar, testar ou integrar: quando houver lacunas, use hipótese e
-fixture mínima. Testes sintéticos produzem evidência de funcionamento,
-não de fidelidade ao SEI.
+fixture mínima. Testes sintéticos auxiliam a modelar transições não capturadas, mas não substituem E2E alimentado por cassettes disponíveis. Não criar novos BDDs, steps ou arquivos Gherkin.
 O anti-IES não deve simplesmente devolver HTML gravado.
 O objetivo é um **sistema funcional, com estado coerente entre operações**.
 A reconstrução do comportamento Web e das transições segue o
 [guia de engenharia reversa com REA](rea-engenharia-reversa.md):
 captura comprovada ≠ hipótese; reproduzir estados e efeitos, não páginas isoladas.
 
-1. **BDD → busca de observações:** procure o comando em
+1. **Operação CLI → busca de observações:** procure o comando em
    [docs/cassettes.md](../cassettes.md), `cassettes/` e
    `contracts/evidencias/`; leia os cards pertinentes ANTES da fixture.
 2. **Obter/validar:** confira ZIP e membro JSON por hash. Se o sandbox
@@ -43,7 +42,7 @@ centenas de fixtures geradas pelo próprio servidor.
 
 ## Desenvolvimento duplo e três provas independentes
 
-**Regra para cada BDD de comportamento SEI da CLI:** IES e anti-IES
+**Regra para cada operação de comportamento SEI da CLI:** IES e anti-IES
 evoluem na **mesma fatia/PR**. O IES executa o comando real; o anti-IES
 oferece o comportamento correspondente com estado SQLite efêmero e tipos
 `iesei`. A mesma operação deve alterar/consultar a mesma identidade e
@@ -53,11 +52,13 @@ sem necessidade. Correções puramente locais podem reutilizar o simulador
 existente, mas devem exercitar a compatibilidade que afetarem.
 
 Cada capacidade mantém **três resultados distintos**, sempre associados
-ao BDD da CLI, ao SHA e à evidência efetivamente executada:
+ao comando e contrato da CLI, ao SHA e à evidência executada:
 
-1. **IES ↔ anti-IES — compatibilidade sintética.** Executar a **CLI
+1. **IES ↔ anti-IES — E2E funcional.** Executar a **CLI
    real** contra o servidor anti-IES (HTTP/TLS em loopback), com o mesmo
-   SQLite compartilhado durante a sequência. Verificar saída, arquivos,
+   SQLite compartilhado durante a sequência. Semear primeiro a partir
+   das observações originais que existirem; nunca substituir uma
+   cassette acessível por páginas inventadas. Verificar saída, arquivos,
    estados antes/depois, recusas e causalidade por expectativa independente
    do renderizador: prévia sem mutação, uma confirmação quando aplicável,
    releitura independente e nenhum retry. Testar também uma operação
@@ -73,7 +74,7 @@ ao BDD da CLI, ao SHA e à evidência efetivamente executada:
    confrontar também a resposta e a transição de estado/releitura.
    Uma cassette de uma instalação não valida todas as versões do SEI.
 3. **IES e anti-IES ↔ SEI de treinamento — validação externa.**
-   Executar o mesmo BDD **somente em instalação autorizada**, com
+   Executar a mesma operação **somente em instalação autorizada**, com
    versão/unidade identificadas; comparar o resultado real com o
    contrato e com a hipótese do anti-IES. Leitura/GET pode ter efeito.
    Escrita exige prévia → `--confirmar` uma vez → releitura
@@ -97,7 +98,7 @@ O nível 3 acontece quando houver ambiente autorizado e acessível;
 `NOT_RUN` não é fracasso sintético, nem PASS real. Não criar novo gate,
 pipeline ou modo CLI só para mostrar esses estados.
 
-**Registro mínimo na PR/issue**, sem relatório cerimonial: `BDD` +
+**Registro mínimo na PR/issue**, sem relatório cerimonial: `comando/contrato` +
 `IES↔anti-IES: PASS/FAIL/NOT_RUN (teste/CI)` +
 `ambos↔cassette: PASS/FAIL/NOT_RUN (card/hash/replay)` +
 `treinamento: PASS/FAIL/NOT_RUN (instalação/relatório)`.
@@ -156,7 +157,7 @@ nem bancos derivados.
 ## Trabalho simultâneo e aceite
 
 **Responsabilidade transversal de toda a equipe, não um agente novo:**
-a cada comando/BDD assumido, o implementador inicia também a vertical
+a cada operação assumida, o implementador inicia também a vertical
 anti-IES. **Não esperar por cassette, REA ou "evidência suficiente".**
 Fazer o modelo funcionar com testes e hipóteses que possam mudar.
 Não delegar o servidor a uma fila separada: quem altera o parser pode alterar
@@ -164,7 +165,7 @@ os tipos `iesei`, a migração SQL, a renderização e o teste diferencial
 no **mesmo PR**. 🦅 revisa a correspondência à cassette e a ausência de
 resultados fictícios; 🦫 favorece tipos precisos e esquema coeso; 🦡
 remove duplicações **após** equivalência e desbloqueia integrações;
-🐘 prioriza cenários CLI e coordena reservas. Os demais implementadores
+🐘 prioriza operações contratadas e coordena a fila. Os demais implementadores
 seguem suas áreas — UX, processos, Web e documentos — e não disputam um
 mesmo arquivo ativo.
 
@@ -176,13 +177,13 @@ comparação externa ainda não realizada. Não criar novo gate ou pipeline.
 
 Um agente pode corrigir o parser do IES, acrescentar `struct`/`enum`,
 nova migração SQL, renderização do anti-IES e o teste de CLI **na mesma
-PR**, desde que sejam partes necessárias de **uma única fatia observável**
+PR**, desde que sejam partes necessárias de **uma única fatia E2E observável**
 e o ciclo feche. Isso prevalece sobre a divisão por prefixos nessa
 vertical; respeitar reservas e branches de outros donos, coordenando
 arquivos compartilhados. Não criar uma PR por camada, não introduzir
 framework, outra suíte de CI ou testes repetidos.
 
-A PR informa BDD, hipótese, testes, schema/tipos, ciclo
+A PR informa comando/contrato, cassette, hipótese residual, testes, schema/tipos, ciclo
 `IES → SQLite → anti-IES → IES`, status do CI e riscos. Card e hashes
 somente quando disponíveis. **PASS nos testes é evidência suficiente
 para continuar implementação e integrar a fatia com gates verdes.**
