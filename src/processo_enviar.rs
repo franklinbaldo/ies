@@ -17,6 +17,8 @@ mod acervo_busca;
 #[cfg(test)]
 mod tests_anotacoes;
 #[cfg(test)]
+mod tests_causa_releitura;
+#[cfg(test)]
 mod tests_anti_ies;
 #[cfg(test)]
 pub(crate) mod tests_apoio;
