@@ -477,6 +477,9 @@ fn sem_trabalho(erro: ErroProcessoObter) -> ErroDocumentoObter {
         | ErroProcessoObter::FormularioDoHistorico(_)
         | ErroProcessoObter::Propriedades(_)
         | ErroProcessoObter::Marcadores(_)
+        | ErroProcessoObter::PropriedadesNaoPublicadasNaBarra
+        | ErroProcessoObter::MarcadoresNaoPublicadosNaBarra
+        | ErroProcessoObter::TabelaDeMarcadoresNaoPublicadaNaTela
         | ErroProcessoObter::LinhaDoControleIlegivel
         | ErroProcessoObter::LinksDoProcessoRepetidosNoControle
         | ErroProcessoObter::ProcessoRepetidoNoControle) => ErroDocumentoObter::Processo(outro),

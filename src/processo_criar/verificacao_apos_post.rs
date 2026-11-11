@@ -35,7 +35,7 @@ pub(super) fn verificar<V: EnvioDoControle>(
     let propriedades =
         crate::propriedades_processo::ler_propriedades(&pagina.html, &nup, id, endereco.fonte)
             .map_err(ErroCriar::Propriedades)?;
-    if propriedades.tipo.as_deref() != Some(feito.tipo.as_str())
+    if propriedades.tipo != feito.tipo
         || propriedades.especificacao != pedido.especificacao
         || propriedades.nivel_de_acesso.como_texto() != pedido.nivel
         || !super::reconciliacao::desfechos::interessados_conferem(

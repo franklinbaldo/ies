@@ -33,12 +33,15 @@ Abertura do documento, pelo `--processo` a frio: 3 GET. Prévia: +1 GET da tela 
 
 ## Saída
 
-Prévia e sucesso: `numero`, `id_documento`, `processo` (`nup`, `id`), `unidade`, `motivo`, `origem:"web"`, `confirmado`, `alterado`, `requisicoes`, `reconciliado_por_leitura`. Em falha: saída 1, stdout vazio e `Error: <ErroCancelar::…>` em stderr; o status HTTP e a mensagem saneada vêm em `Transporte(Status(..))` quando observados, e depois do POST os erros carregam `falha_do_envio` e `verificacao`, que é `Lida`, `LeituraFalhou` ou `DocumentoDiferenteNaReleitura` (a releitura abriu outro documento; a escrita não é atribuída ao pedido). Nenhum cookie, URL assinada ou `infra_hash` aparece.
+Sem unidade publicada (nem pela árvore nem por `--unidade`), a escrita não
+é montada: falha com `UnidadeNaoPublicada`, saída 1, nada enviado.
+Prévia e sucesso: `numero`, `id_documento`, `processo` (`nup`, `id`), `unidade` (sempre texto), `motivo`, `origem:"web"`, `confirmado`, `alterado`, `requisicoes`, `reconciliado_por_leitura`. Em falha: saída 1, stdout vazio e `Error: <ErroCancelar::…>` em stderr; o status HTTP e a mensagem saneada vêm em `Transporte(Status(..))` quando observados, e depois do POST os erros carregam `falha_do_envio` e `verificacao`, que é `Lida`, `LeituraFalhou` ou `DocumentoDiferenteNaReleitura` (a releitura abriu outro documento; a escrita não é atribuída ao pedido). Nenhum cookie, URL assinada ou `infra_hash` aparece.
 
 ## Subcódigos específicos
 
 | Erro (stderr) | Fato |
 | --- | --- |
+| `ErroCancelar::UnidadeNaoPublicada` | Nenhuma unidade publicada para a escrita; nada é enviado |
 | `ErroLinkCancelar::BarraForaDaForma` | Recusa tipada na leitura, validação, envio ou verificação conforme o estágio |
 | `ErroLinkCancelar::LinksRepetidos` | Recusa tipada na leitura, validação, envio ou verificação conforme o estágio |
 | `ErroLinkCancelar::EnderecoNaoReconhecido` | Recusa tipada na leitura, validação, envio ou verificação conforme o estágio |

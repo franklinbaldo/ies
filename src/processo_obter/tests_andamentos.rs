@@ -178,7 +178,7 @@ fn sem_andamentos_aceita_arvore_sem_o_link() {
 }
 
 #[test]
-fn arvore_sem_o_link_publica_o_motivo_sem_falhar() {
+fn arvore_sem_o_link_recusa_com_erro_tipado() {
     let amb = ambiente();
     let (r, pedidos) = rodar_com(
         &amb,
@@ -186,13 +186,10 @@ fn arvore_sem_o_link_publica_o_motivo_sem_falhar() {
         PedidoDeAndamentos::Completos,
         caminho_4a(arvore_de(ID, NUP), vec![]),
     );
-    let r = r.unwrap();
-    assert_eq!(r.andamentos, Andamentos::LinkNaoPublicadoNaArvore);
     assert_eq!(
-        r.andamentos.motivo(),
-        Some("link_do_historico_nao_publicado_na_arvore")
+        r.unwrap_err(),
+        ErroProcessoObter::LinkDoHistorico(ErroLinkDoHistorico::LinkDoHistoricoAusenteNaArvore)
     );
-    assert_eq!(r.requisicoes, 3);
     assert_eq!(pedidos.len(), 3);
 }
 

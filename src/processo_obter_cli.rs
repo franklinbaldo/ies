@@ -68,11 +68,9 @@ fn inserir_marcadores(objeto: &mut serde_json::Map<String, Value>, lidos: &Marca
 /// Linhas do texto humano dos marcadores: uma por marcador.
 fn humano_dos_marcadores(marcadores: &Marcadores, texto: &mut String) {
     let Marcadores::Lidos(lidos) = marcadores else {
-        let _ = write!(
-            texto,
-            "\nMarcadores não lidos ({}).",
-            marcadores.motivo().unwrap_or_default()
-        );
+        if let Some(motivo) = marcadores.motivo() {
+            let _ = write!(texto, "\nMarcadores não lidos ({motivo}).");
+        }
         return;
     };
     let _ = write!(
@@ -98,37 +96,25 @@ fn humano_dos_marcadores(marcadores: &Marcadores, texto: &mut String) {
 /// Linhas do texto humano das propriedades.
 fn humano_das_propriedades(propriedades: &Propriedades, texto: &mut String) {
     let Propriedades::Lidas(lidas) = propriedades else {
-        let _ = write!(
-            texto,
-            "\nPropriedades não lidas ({}).",
-            propriedades.motivo().unwrap_or_default()
-        );
+        if let Some(motivo) = propriedades.motivo() {
+            let _ = write!(texto, "\nPropriedades não lidas ({motivo}).");
+        }
         return;
     };
     let _ = write!(
         texto,
         "\nPropriedades ({}): tipo {}, nível {}, gerado em {}.",
         lidas.fonte.acao().como_na_url(),
-        lidas.tipo.as_deref().unwrap_or("não observado"),
+        lidas.tipo,
         lidas.nivel_de_acesso.como_texto(),
-        lidas
-            .data_de_geracao
-            .as_deref()
-            .unwrap_or("data não observada"),
+        lidas.data_de_geracao,
     );
     if let Some(hipotese) = &lidas.hipotese_legal {
         let _ = write!(texto, "\nHipótese legal: {hipotese}");
     }
     let _ = write!(texto, "\nEspecificação: {}", lidas.especificacao);
     for a in &lidas.assuntos {
-        match &a.codigo {
-            Some(codigo) => {
-                let _ = write!(texto, "\n- assunto {codigo} - {}", a.descricao);
-            }
-            None => {
-                let _ = write!(texto, "\n- assunto {}", a.descricao);
-            }
-        }
+        let _ = write!(texto, "\n- assunto {} - {}", a.codigo, a.descricao);
     }
     for interessado in &lidas.interessados {
         let _ = write!(texto, "\n- interessado {interessado}");
@@ -169,21 +155,19 @@ fn verificacao_das_pastas(pastas: &[PastaNaArvore]) -> Option<VerificacaoDaPasta
         .find(|v| regras.contains(v))
 }
 
-/// Andamentos, marcadores e propriedades: valor, `null` com motivo ou
-/// ausente (omitidos); `nao_lidos` em ordem alfabética (depois de
-/// `aberto_em`).
+/// Andamentos, marcadores e propriedades: o valor lido, ou só o motivo
+/// quando o usuário os omitiu (`--sem-*`); `nao_lidos` em ordem alfabética
+/// (depois de `aberto_em`). Leitura que falha não chega aqui.
 fn inserir_leituras(
     objeto: &mut serde_json::Map<String, Value>,
     aberto: &ProcessoAberto,
     nao_lidos: &mut Vec<&str>,
 ) {
-    let andamentos = match &aberto.andamentos {
-        Andamentos::Lidos(lidos) => Some(json_dos_andamentos(lidos)),
-        Andamentos::LinkNaoPublicadoNaArvore => Some(Value::Null),
-        Andamentos::Omitidos => None,
-    };
-    if let Some(valor) = andamentos {
-        objeto.insert("andamentos".to_owned(), valor);
+    match &aberto.andamentos {
+        Andamentos::Lidos(lidos) => {
+            objeto.insert("andamentos".to_owned(), json_dos_andamentos(lidos));
+        }
+        Andamentos::Omitidos => {}
     }
     if let Some(motivo) = aberto.andamentos.motivo() {
         nao_lidos.push("andamentos");
@@ -191,22 +175,17 @@ fn inserir_leituras(
     }
     match &aberto.marcadores {
         Marcadores::Lidos(lidos) => inserir_marcadores(objeto, lidos),
-        Marcadores::NaoPublicadosNaBarra | Marcadores::TabelaNaoPublicada => {
-            objeto.insert("marcadores".to_owned(), Value::Null);
-        }
         Marcadores::Omitidos => {}
     }
     if let Some(motivo) = aberto.marcadores.motivo() {
         nao_lidos.push("marcadores");
         objeto.insert("marcadores_nao_lidos_motivo".to_owned(), json!(motivo));
     }
-    let propriedades = match &aberto.propriedades {
-        Propriedades::Lidas(lidas) => Some(json_das_propriedades(lidas)),
-        Propriedades::NaoPublicadasNaBarra => Some(Value::Null),
-        Propriedades::Omitidas => None,
-    };
-    if let Some(valor) = propriedades {
-        objeto.insert("propriedades".to_owned(), valor);
+    match &aberto.propriedades {
+        Propriedades::Lidas(lidas) => {
+            objeto.insert("propriedades".to_owned(), json_das_propriedades(lidas));
+        }
+        Propriedades::Omitidas => {}
     }
     if let Some(motivo) = aberto.propriedades.motivo() {
         nao_lidos.push("propriedades");
@@ -370,12 +349,10 @@ fn humano(nup: &NumeroProcesso, aberto: &ProcessoAberto, sem_documentos: bool) -
                 );
             }
         }
-        outro @ (Andamentos::Omitidos | Andamentos::LinkNaoPublicadoNaArvore) => {
-            let _ = write!(
-                texto,
-                "\nAndamentos não lidos ({}).",
-                outro.motivo().unwrap_or_default()
-            );
+        Andamentos::Omitidos => {
+            if let Some(motivo) = aberto.andamentos.motivo() {
+                let _ = write!(texto, "\nAndamentos não lidos ({motivo}).");
+            }
         }
     }
     humano_das_propriedades(&aberto.propriedades, &mut texto);

@@ -27,17 +27,17 @@ fn le_os_campos_da_forma_observada() {
     assert_eq!(
         lidas,
         PropriedadesLidas {
-            tipo: Some("Tipo Sintetico: Teste".into()),
+            tipo: "Tipo Sintetico: Teste".into(),
             especificacao: "Especificação sintética & teste".into(),
             interessados: vec!["Pessoa Sintetica A".into(), "Entidade Sintetica B".into()],
             assuntos: vec![Assunto {
-                codigo: Some("000.01".into()),
+                codigo: "000.01".into(),
                 descricao: "Assunto sintético um".into(),
             }],
             observacoes: "Observação sintética".into(),
             nivel_de_acesso: NivelDeAcesso::Publico,
             hipotese_legal: None,
-            data_de_geracao: Some("01/02/2026".into()),
+            data_de_geracao: "01/02/2026".into(),
             fonte: FonteDasPropriedades::Alterar,
         }
     );
@@ -144,12 +144,15 @@ fn formulario_ausente_ou_repetido() {
 }
 
 #[test]
-fn tipo_sem_marcacao_e_nulo_e_id_oculto_diferente_e_recusa() {
+fn tipo_sem_marcacao_id_oculto_diferente_e_opcoes_repetidas_recusam() {
     let sem = trocar(
         "<option value=\"100000002\" selected=\"selected\">",
         "<option value=\"100000002\">",
     );
-    assert_eq!(ler(&sem).unwrap().tipo, None);
+    assert_eq!(
+        ler(&sem),
+        Err(super::ErroPropriedades::TipoDoProcessoNaoMarcado)
+    );
     let outro = trocar(
         "id=\"hdnIdTipoProcedimento\" name=\"hdnIdTipoProcedimento\" value=\"100000002\"",
         "id=\"hdnIdTipoProcedimento\" name=\"hdnIdTipoProcedimento\" value=\"100000003\"",
@@ -169,14 +172,11 @@ fn tipo_sem_marcacao_e_nulo_e_id_oculto_diferente_e_recusa() {
 }
 
 #[test]
-fn assunto_sem_codigo_publica_so_a_descricao() {
+fn assunto_sem_codigo_e_recusa() {
     let html = trocar("000.01 - Assunto sint\u{e9}tico um", "Assunto sem codigo");
     assert_eq!(
-        ler(&html).unwrap().assuntos,
-        [Assunto {
-            codigo: None,
-            descricao: "Assunto sem codigo".into()
-        }]
+        ler(&html),
+        Err(super::ErroPropriedades::CodigoDoAssuntoNaoInterpretado)
     );
 }
 
@@ -210,7 +210,7 @@ fn interessado_sem_texto_e_recusa_e_sem_opcoes_e_lista_vazia() {
 }
 
 #[test]
-fn lista_oculta_preenchida_nunca_observada_e_recusa() {
+fn lista_oculta_preenchida_e_recusa() {
     for campo in ["hdnAssuntos", "hdnInteressadosProcedimento"] {
         let html = trocar(
             &format!("id=\"{campo}\" name=\"{campo}\" value=\"\""),
@@ -218,7 +218,7 @@ fn lista_oculta_preenchida_nunca_observada_e_recusa() {
         );
         assert_eq!(
             ler(&html),
-            Err(super::ErroPropriedades::ListaOcultaDasPropriedadesNaoObservada),
+            Err(super::ErroPropriedades::ListaOcultaDasPropriedadesPreenchida),
             "{campo}"
         );
     }
@@ -256,9 +256,20 @@ fn nivel_de_acesso_nao_marcado_ou_fora_da_forma() {
 }
 
 #[test]
-fn data_de_geracao_vazia_e_nula_e_fora_da_forma_e_recusa() {
+fn data_de_geracao_ausente_vazia_ou_fora_da_forma_e_recusa() {
     let vazia = trocar("value=\"01/02/2026\"", "value=\"\"");
-    assert_eq!(ler(&vazia).unwrap().data_de_geracao, None);
+    assert_eq!(
+        ler(&vazia),
+        Err(super::ErroPropriedades::DataDeGeracaoAusente)
+    );
+    let ausente = trocar(
+        "id=\"hdnDtaGeracao\" name=\"hdnDtaGeracao\" value=\"01/02/2026\"",
+        "id=\"hdnOutra\" name=\"hdnOutra\" value=\"01/02/2026\"",
+    );
+    assert_eq!(
+        ler(&ausente),
+        Err(super::ErroPropriedades::DataDeGeracaoAusente)
+    );
     let fora = trocar("value=\"01/02/2026\"", "value=\"2026-02-01\"");
     assert_eq!(
         ler(&fora),
