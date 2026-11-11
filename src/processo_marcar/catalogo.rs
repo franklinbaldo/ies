@@ -45,7 +45,7 @@ const ADICIONAR: OperacaoDeFormulario = OperacaoDeFormulario {
 /// Extrai o link do botão `btnAdicionar` servido, sem executar JavaScript.
 /// O link só vale depois de `conferir_endereco_relativo` (ação, processo e
 /// assinatura); a forma do botão não é conferida aqui.
-fn link_de_adicionar(html: &str) -> Result<String, ErroMarcar> {
+pub(super) fn link_de_adicionar(html: &str) -> Result<String, ErroMarcar> {
     let dom = tl::parse(html, tl::ParserOptions::default())
         .map_err(|_| ErroMarcar::DestinoDoCadastroAusente)?;
     dom.query_selector("button")
@@ -95,7 +95,7 @@ fn destino_cadastro<V: EnvioDoProcesso>(
 /// A identidade do catálogo vem de option[value=id] no select da unidade,
 /// não do marcador aplicado ao processo nem de uma lista sem origem: o id
 /// escrito precisa estar oferecido com o nome pedido.
-fn rotulo_oferecido(html: &str, rotulo: &Rotulo) -> Result<(), ErroMarcar> {
+pub(super) fn rotulo_oferecido(html: &str, rotulo: &Rotulo) -> Result<(), ErroMarcar> {
     let dom = tl::parse(html, tl::ParserOptions::default())
         .map_err(|_| ErroMarcar::OpcaoDoMarcadorNaoOferecida)?;
     let parser = dom.parser();
@@ -345,7 +345,7 @@ fn finalizar_atribuicao<V: EnvioDoProcesso>(
     Ok(())
 }
 
-fn aceite_da_atribuicao(redir: &Redirecionamento302, id: &str) -> bool {
+pub(super) fn aceite_da_atribuicao(redir: &Redirecionamento302, id: &str) -> bool {
     let Some(consulta) = redir
         .localizacao()
         .and_then(|url| consulta_do_controlador(url, redir.url_do_envio()))
