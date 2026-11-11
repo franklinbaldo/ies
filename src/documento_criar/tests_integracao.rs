@@ -85,7 +85,7 @@ fn arvore_verificadora(novos: usize) -> String {
 fn executar(
     confirmar: bool,
     extra: Vec<a::Resposta>,
-) -> (Result<ResultadoCriacao, ErroPreviaCriacao>, Vec<a::Pedido>) {
+) -> (Result<ResultadoCriacao, ErroDocumentoCriar>, Vec<a::Pedido>) {
     let amb = a::ambiente();
     let mut respostas = a::abertura(arvore_inicial());
     respostas.push(a::ok(lista_de_tipos()));
@@ -212,7 +212,12 @@ fn dado_redirect_arvore_com_id_alheio_quando_confirmo_entao_nao_confirmado() {
             a::ok(arvore_verificadora(1)),
         ],
     );
-    assert!(matches!(resultado, Err(ErroPreviaCriacao::NaoConfirmado)));
+    assert!(matches!(
+        resultado,
+        Err(ErroDocumentoCriar::Confirmacao(
+            ErroConfirmacaoDaCriacao::NaoConfirmado
+        ))
+    ));
     let mut esperados = pedidos_antes_da_escrita();
     esperados.push(pedido_criador());
     esperados.push(a::get(&a::url_arvore()));
@@ -236,7 +241,7 @@ fn dois_documentos_apos_post_sao_incerteza_sem_retry() {
 
 fn executar_com_cadastro_sintetico(
     html_cadastro: String,
-) -> (Result<ResultadoCriacao, ErroPreviaCriacao>, Vec<a::Pedido>) {
+) -> (Result<ResultadoCriacao, ErroDocumentoCriar>, Vec<a::Pedido>) {
     let ambiente = a::ambiente();
     let mut respostas = a::abertura(arvore_inicial());
     respostas.push(a::ok(lista_de_tipos()));
@@ -368,7 +373,12 @@ fn incerteza_conserva_contagem_da_rede_externa() {
             let resultado = executar_criacao(sessao, &pedido, indice, &mut contagem, true);
             (resultado, contagem.feitas())
         });
-    assert!(matches!(resultado, Err(ErroPreviaCriacao::NaoConfirmado)));
+    assert!(matches!(
+        resultado,
+        Err(ErroDocumentoCriar::Confirmacao(
+            ErroConfirmacaoDaCriacao::NaoConfirmado
+        ))
+    ));
     assert_eq!(
         requisicoes, 7,
         "inclui releitura mesmo após resposta inconclusiva"
