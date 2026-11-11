@@ -116,21 +116,62 @@ fn arvore(
         if estado.escrita.as_deref() == Some(d.as_str()) {
             estado.escrita = None;
             let t = &estado.tela[&d];
-            let antes = estado.antes.get(&d).cloned().unwrap_or_default();
-            let classe = match lida.assinantes.as_slice() {
-                [a] if antes.is_empty()
-                    && a.nome == t.assinante
-                    && Some(&a.cargo) == t.cargo_da_tela.as_ref() =>
+            let classe = match (estado.antes.get(&d), lida.assinantes.as_slice()) {
+                (_, []) => "sem caneta depois".to_owned(),
+                (Some(antes), [a])
+                    if antes.is_empty()
+                        && a.nome == t.assinante
+                        && Some(&a.cargo) == t.cargo_da_tela.as_ref() =>
                 {
                     "verificada (caneta do assinante com o cargo)".to_owned()
                 }
-                [] => "sem caneta depois".to_owned(),
+                (None, _) => "caneta anterior não observada".to_owned(),
                 _ => "caneta diferente da esperada".to_owned(),
             };
             somar(contagem, "verificação", classe, nome);
         } else {
             estado.antes.insert(d, lida.assinantes);
         }
+    }
+}
+
+#[test]
+fn replay_nao_confunde_antes_ausente_com_antes_sem_caneta() {
+    use super::tests_apoio::{
+        CARGO, ID, ID_DOC, ORIGEM, arvore_do_documento, caneta_da_sessao, tela_padrao,
+    };
+    let instalacao = Instalacao::interpretar(ORIGEM).unwrap();
+    let tela = conferir_tela_de_assinatura(&tela_padrao(), ID_DOC).unwrap();
+    let depois = arvore_do_documento('S', &[caneta_da_sessao(CARGO)]);
+
+    // Hipótese sintética: uma captura pode mostrar o POST e a caneta
+    // posterior sem ter observado a árvore imediatamente anterior.
+    for (antes_observado, esperado) in [
+        (false, "caneta anterior não observada"),
+        (true, "verificada (caneta do assinante com o cargo)"),
+    ] {
+        let mut estado = Estado::default();
+        estado.tela.insert(ID_DOC.to_owned(), tela.clone());
+        estado.escrita = Some(ID_DOC.to_owned());
+        if antes_observado {
+            estado.antes.insert(ID_DOC.to_owned(), Vec::new());
+        }
+        let mut contagem = Contagem::new();
+        arvore(
+            &mut contagem,
+            &mut estado,
+            &instalacao,
+            &depois,
+            ID,
+            "sintetica",
+        );
+        assert_eq!(
+            contagem
+                .get(&("verificação", esperado.to_owned()))
+                .and_then(|por_instalacao| por_instalacao.get("sintetica")),
+            Some(&1),
+            "ausência da observação anterior não prova ausência de caneta"
+        );
     }
 }
 
