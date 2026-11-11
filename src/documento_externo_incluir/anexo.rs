@@ -3,10 +3,11 @@
 
 use super::recibo::ReciboUpload;
 
-#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, thiserror::Error)]
+#[error("{self:?}")]
 pub(crate) enum FalhaAnexo {
     /// O tokenizador de atributos recusou a tag.
-    Atributo(crate::html_atributos::ErroAtributoHtml),
+    Atributo(#[source] crate::html_atributos::ErroAtributoHtml),
     FormaNaoObservada,
     LinhaInvalida,
     ReciboIncompativel,

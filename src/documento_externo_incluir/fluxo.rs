@@ -1,11 +1,19 @@
 //! Prévia Web do documento externo PDF (#332): lê lista e cadastro recarregado.
 //! A única escrita de documento segue desabilitada até upload + cadastro + releitura.
+use super::FalhaPdf;
+use super::cadastro::FalhaCadastroExterno;
+use super::confirmacao::FalhaConfirmacao;
+use super::escolha::ErroEscolhaExterna;
+use super::fluxo_confirmar::CampoExigidoDoCadastro;
 use super::{
     PdfLocal,
     cadastro::{CadastroExterno, observar_cadastro},
     confirmacao::FotoProcesso,
     escolha::{EscolhaExterna, escolher_externo, identificar_tipo},
 };
+use crate::arvore_processo::ErroLinkIncluirDocumento;
+use crate::arvore_processo::MotivoAbertoEm;
+use crate::arvore_processo::endereco::EnderecoRecusado;
 use crate::arvore_processo::endereco::conferir_endereco_com_identidade_repetida;
 use crate::formulario_web::{
     CodificacaoDaTela, ConferenciaDaUnidade, EfeitoAvaliado, EnvioDoFormulario,
@@ -23,7 +31,7 @@ use crate::processo_concluir::escrita::{
 use crate::processo_obter::{
     EnvioDoProcesso, ErroProcessoObter, SessaoDoProcesso, abrir_para_escrever,
 };
-use crate::transporte::{FalhaTransporte, StatusHttpRecusado};
+use crate::transporte::FalhaTransporte;
 use crate::visao_do_controle::EnvioDoControle as _;
 
 const ESCOLHER_EXTERNO: OperacaoDeFormulario = OperacaoDeFormulario {
@@ -72,61 +80,40 @@ pub(crate) struct CadastroPreparado {
     pub(crate) foto_antes: FotoProcesso,
 }
 
+/// Erro de `ies documento incluir-externo`: cada variante é o fato que a
+/// navegação até o cadastro, ou a sequência de upload, detectou.
 #[derive(Debug, thiserror::Error)]
 #[error("{self:?}")]
-pub(crate) enum ErroPreviaExterna {
+pub(crate) enum ErroIncluirExterno {
     /// O cookie privado da sessão não pôde ser lido.
-    Cookie(CookieIlegivel),
-    Abertura(ErroProcessoObter),
-    Transporte(FalhaTransporte),
+    Cookie(#[from] CookieIlegivel),
+    Abertura(#[from] ErroProcessoObter),
+    Transporte(#[from] FalhaTransporte),
+    Tela(#[from] FalhaDaTela),
     UnidadeNaoPublicada,
+    AbertoEmNaoLido(MotivoAbertoEm),
     ProcessoNaoAbertoNaUnidade,
+    LinkDeIncluirDocumento(#[from] ErroLinkIncluirDocumento),
     LinkNaoPublicado,
-    LinkNaoConferido,
-    TelaRedirecionada,
-    SessaoEncerrada,
-    EscolhaNaoConferida,
-    TipoNaoOferecido,
+    EscolhaNaoConferida(#[source] ErroEscolhaExterna),
+    EscolhaSemRedirecionamento,
+    RedirecionamentoSemLocalizacao,
+    DestinoDoExternoRecusado(EnderecoRecusado),
+    TipoNaoOferecido(#[source] ErroEscolhaExterna),
+    RecargaDoTipoSemHtml,
     TipoNaoRecarregado,
-    CadastroNaoConferido,
-    Formulario(ErroSubmissaoFormulario),
+    CadastroNaoConferido(#[source] FalhaCadastroExterno),
+    Formulario(#[from] ErroSubmissaoFormulario),
     CodificacaoNaoPublicada,
+    Pdf(#[from] FalhaPdf),
+    EnderecoDeUploadNaoObservado,
+    CampoDoCadastroNaoOferecido(CampoExigidoDoCadastro),
+    Confirmacao(#[from] FalhaConfirmacao),
 }
-impl ErroPreviaExterna {
-    pub(crate) fn causa(&self) -> &'static str {
-        match self {
-            Self::Abertura(_) => "abertura_do_processo",
-            Self::Transporte(_) | Self::Cookie(_) => "transporte",
-            Self::UnidadeNaoPublicada => "unidade_nao_publicada",
-            Self::ProcessoNaoAbertoNaUnidade => "processo_fora_da_unidade",
-            Self::LinkNaoPublicado => "incluir_documento_nao_oferecido",
-            Self::LinkNaoConferido => "link_externo_nao_conferido",
-            Self::TelaRedirecionada => "tela_redirecionada",
-            Self::SessaoEncerrada => "sessao_encerrada",
-            Self::EscolhaNaoConferida => "escolha_externa_nao_observada",
-            Self::TipoNaoOferecido => "tipo_externo_nao_oferecido",
-            Self::TipoNaoRecarregado => "tipo_externo_nao_recarregado",
-            Self::CadastroNaoConferido => "cadastro_externo_nao_conferido",
-            Self::Formulario(_) => "formulario_externo_nao_submetido",
-            Self::CodificacaoNaoPublicada => "codificacao_nao_publicada",
-        }
-    }
-    pub(crate) fn status_http(&self) -> Option<&StatusHttpRecusado> {
-        match self {
-            Self::Abertura(e) => e.status_http(),
-            Self::Transporte(e) => e.status_http(),
-            Self::Formulario(e) => e.status_http(),
-            _ => None,
-        }
-    }
-}
-fn da_tela(erro: FalhaDaTela) -> ErroPreviaExterna {
-    match erro {
-        FalhaDaTela::Transporte(e) => ErroPreviaExterna::Transporte(e),
-        FalhaDaTela::Redirecionada => ErroPreviaExterna::TelaRedirecionada,
-        FalhaDaTela::SessaoEncerrada(crate::erro_publico::SessaoEncerrada) => {
-            ErroPreviaExterna::SessaoEncerrada
-        }
+
+impl ErroIncluirExterno {
+    pub(crate) fn temporario_possivel(&self) -> bool {
+        matches!(self, Self::Confirmacao(e) if e.temporario_possivel())
     }
 }
 
@@ -134,7 +121,7 @@ fn conferir_destino(
     instalacao: &Instalacao,
     location: &str,
     id_procedimento: &str,
-) -> Result<String, ErroPreviaExterna> {
+) -> Result<String, ErroIncluirExterno> {
     let base = format!("{}/", instalacao.url_base());
     let relativo = location.strip_prefix(&base).unwrap_or(location);
     // SEI 4.0.9 (UnB) repete id_procedimento no link Externo da lista.
@@ -144,7 +131,7 @@ fn conferir_destino(
         "documento_receber",
         id_procedimento,
     )
-    .map_err(|_| ErroPreviaExterna::LinkNaoConferido)
+    .map_err(ErroIncluirExterno::DestinoDoExternoRecusado)
 }
 
 /// Lê a árvore, escolhe Externo, recarrega o tipo e confere o cadastro do PDF.
@@ -157,7 +144,7 @@ pub(crate) fn executar_previa<V: EnvioDoProcesso>(
     pdf: &PdfLocal,
     indice: &IndiceLocal,
     envio: &mut V,
-) -> Result<PreviaExterna, ErroPreviaExterna> {
+) -> Result<PreviaExterna, ErroIncluirExterno> {
     preparar_previa(sessao, nup, unidade_pedida, tipo, pdf, indice, envio)
         .map(|preparo| preparo.previa)
 }
@@ -171,40 +158,33 @@ pub(crate) fn preparar_previa<V: EnvioDoProcesso>(
     pdf: &PdfLocal,
     indice: &IndiceLocal,
     envio: &mut V,
-) -> Result<CadastroPreparado, ErroPreviaExterna> {
-    let instalacao = Instalacao::interpretar(sessao.origem).ok_or(
-        ErroPreviaExterna::Transporte(FalhaTransporte::OrigemNaoAutorizada),
-    )?;
+) -> Result<CadastroPreparado, ErroIncluirExterno> {
+    let instalacao =
+        Instalacao::interpretar(sessao.origem).ok_or(FalhaTransporte::OrigemNaoAutorizada)?;
     let mut rede = Contador::novo(envio);
     let (aberto, acoes) = abrir_para_escrever(
         sessao,
         &leitura(nup, unidade_pedida, true),
         indice,
         &mut rede,
-    )
-    .map_err(ErroPreviaExterna::Abertura)?;
+    )?;
     let unidade = aberto
         .unidade
-        .ok_or(ErroPreviaExterna::UnidadeNaoPublicada)?;
-    let abertas = siglas_abertas(&aberto.arvore.aberto_em)
-        .map_err(|_| ErroPreviaExterna::ProcessoNaoAbertoNaUnidade)?;
+        .ok_or(ErroIncluirExterno::UnidadeNaoPublicada)?;
+    let abertas =
+        siglas_abertas(&aberto.arvore.aberto_em).map_err(ErroIncluirExterno::AbertoEmNaoLido)?;
     if !abertas.contains(&unidade) {
-        return Err(ErroPreviaExterna::ProcessoNaoAbertoNaUnidade);
+        return Err(ErroIncluirExterno::ProcessoNaoAbertoNaUnidade);
     }
-    let link = acoes
-        .incluir
-        .map_err(|_| ErroPreviaExterna::LinkNaoConferido)?
-        .ok_or(ErroPreviaExterna::LinkNaoPublicado)?;
+    let link = acoes.incluir?.ok_or(ErroIncluirExterno::LinkNaoPublicado)?;
     let cookie = ler_cookie(sessao)?;
-    let (lista, mime_lista) = obter_tela(&mut rede, &cookie, link.as_str()).map_err(da_tela)?;
+    let (lista, mime_lista) = obter_tela(&mut rede, &cookie, link.as_str())?;
     let id_procedimento = &aberto.arvore.processo.id;
-    let destino = match escolher_externo(&lista)
-        .map_err(|_| ErroPreviaExterna::EscolhaNaoConferida)?
-    {
+    let destino = match escolher_externo(&lista).map_err(ErroIncluirExterno::EscolhaNaoConferida)? {
         EscolhaExterna::Url(relativo) => conferir_destino(&instalacao, &relativo, id_procedimento)?,
         EscolhaExterna::Formulario => {
             let codificacao = codificacao_da_tela(&mime_lista)
-                .ok_or(ErroPreviaExterna::CodificacaoNaoPublicada)?;
+                .ok_or(ErroIncluirExterno::CodificacaoNaoPublicada)?;
             let servida = TelaServida {
                 url: link.as_str(),
                 html: &lista,
@@ -216,29 +196,27 @@ pub(crate) fn preparar_previa<V: EnvioDoProcesso>(
                 &servida,
                 &unidade,
                 &[("hdnIdSerie", "-1")],
-            )
-            .map_err(ErroPreviaExterna::Formulario)?;
+            )?;
             let resposta = enviar_submissao_via(submissao, sessao.cookie, |post, cookie| {
                 rede.post(post, cookie)
-            })
-            .map_err(ErroPreviaExterna::Formulario)?;
+            })?;
             let RespostaDoEnvio::Redirecionamento(redirecionado) = resposta else {
-                return Err(ErroPreviaExterna::EscolhaNaoConferida);
+                return Err(ErroIncluirExterno::EscolhaSemRedirecionamento);
             };
             conferir_destino(
                 &instalacao,
                 redirecionado
                     .localizacao()
-                    .ok_or(ErroPreviaExterna::LinkNaoConferido)?,
+                    .ok_or(ErroIncluirExterno::RedirecionamentoSemLocalizacao)?,
                 id_procedimento,
             )?
         }
     };
-    let (cadastro, mime_cadastro) = obter_tela(&mut rede, &cookie, &destino).map_err(da_tela)?;
+    let (cadastro, mime_cadastro) = obter_tela(&mut rede, &cookie, &destino)?;
     let id_tipo =
-        identificar_tipo(&cadastro, tipo).map_err(|_| ErroPreviaExterna::TipoNaoOferecido)?;
+        identificar_tipo(&cadastro, tipo).map_err(ErroIncluirExterno::TipoNaoOferecido)?;
     let codificacao =
-        codificacao_da_tela(&mime_cadastro).ok_or(ErroPreviaExterna::CodificacaoNaoPublicada)?;
+        codificacao_da_tela(&mime_cadastro).ok_or(ErroIncluirExterno::CodificacaoNaoPublicada)?;
     let servida = TelaServida {
         url: &destino,
         html: &cadastro,
@@ -253,19 +231,17 @@ pub(crate) fn preparar_previa<V: EnvioDoProcesso>(
             ("selSerie", id_tipo.as_str()),
             ("hdnIdSerie", id_tipo.as_str()),
         ],
-    )
-    .map_err(ErroPreviaExterna::Formulario)?;
+    )?;
     let resposta = enviar_submissao_via(submissao, sessao.cookie, |post, cookie| {
         rede.post(post, cookie)
-    })
-    .map_err(ErroPreviaExterna::Formulario)?;
+    })?;
     let RespostaDoEnvio::Html(recarregado) = resposta else {
-        return Err(ErroPreviaExterna::TipoNaoRecarregado);
+        return Err(ErroIncluirExterno::RecargaDoTipoSemHtml);
     };
     let observado = observar_cadastro(&recarregado, tipo, pdf.tamanho_bytes)
-        .map_err(|_| ErroPreviaExterna::CadastroNaoConferido)?;
+        .map_err(ErroIncluirExterno::CadastroNaoConferido)?;
     if observado.id_tipo != id_tipo {
-        return Err(ErroPreviaExterna::TipoNaoRecarregado);
+        return Err(ErroIncluirExterno::TipoNaoRecarregado);
     }
     let foto_antes = FotoProcesso::da_arvore(&aberto.arvore);
     let previa = PreviaExterna {
@@ -287,9 +263,3 @@ pub(crate) fn preparar_previa<V: EnvioDoProcesso>(
 #[cfg(test)]
 #[path = "tests_fluxo.rs"]
 mod tests;
-
-impl From<CookieIlegivel> for ErroPreviaExterna {
-    fn from(erro: CookieIlegivel) -> Self {
-        Self::Cookie(erro)
-    }
-}

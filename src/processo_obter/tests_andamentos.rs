@@ -226,10 +226,13 @@ fn historico_que_responde_503_falha_com_o_erro_de_transporte_sem_retry() {
     );
     let erro = r.unwrap_err();
     assert!(
-        matches!(erro, super::ErroProcessoObter::Transporte(_)),
+        matches!(
+            &erro,
+            super::ErroProcessoObter::Transporte(transporte)
+                if transporte.status_http().map(|s| s.status) == Some(503)
+        ),
         "{erro:?}"
     );
-    assert_eq!(erro.status_http().map(|s| s.status), Some(503));
     assert_eq!(pedidos.len(), 4);
 }
 
