@@ -52,8 +52,12 @@ ser enviado, independentemente da observação.
   e faz GET novo do gerenciador: só há confirmação quando exatamente a
   identidade solicitada desapareceu e todas as outras foram preservadas.
   Grupo solicitado já ausente é no-op sem POST. Resposta/estado incerto
-  produz saída **1**, sem retry. Redirecionamento 302 após excluir a
-  última linha não comprova lista vazia sozinho e permanece incerto.
+  produz saída **1**, sem retry. Falha de transporte/decodificação na
+  releitura posterior ao POST mantém o efeito incerto e a causa tipada
+  `ReleituraDaRetiradaFalhou`. Uma lista ilegível propaga seu erro de
+  leitura; divergência de estado permanece `AcompanhamentoNaoConfirmado`.
+  Redirecionamento 302 após excluir a última linha não comprova lista
+  vazia sozinho e permanece incerto.
   A comprovação aqui é sintética (CLI ↔ anti-IES ↔ SQLite); confrontos
   semânticos independentes com cassettes e treinamento/live são pendentes.
 - **Orçamento:** na bancada sintética sem índice quente, a inclusão
@@ -89,6 +93,7 @@ A coluna é o que aparece no stderr: o erro tipado, com o tipo que o declara.
 | Erro (stderr) | Condição |
 | --- | --- |
 | `ErroAcompanhar::AcompanhamentoNaoConfirmado` | A releitura não demonstrou a alteração exata; incerto |
+| `ErroAcompanhar::ReleituraDaRetiradaFalhou(FalhaTransporte)` | Falha de transporte/decodificação na releitura após POST; escrita incerta |
 | `ErroAcompanhar::LinkNaoPublicado` | A barra do processo não oferece Acompanhamento Especial |
 | `ErroAcompanhar::EscolhaDeAcompanhamentoAmbigua` | Mais de uma linha satisfaz a escolha de remoção |
 | `ErroAcompanhar::Barra(ErroAcompanharNaBarra::Barra(ErroBarraDoProcesso::BarraDoProcessoForaDaFormaObservada))` | Barra fora do formato observado |
