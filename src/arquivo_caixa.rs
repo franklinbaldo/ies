@@ -8,7 +8,7 @@ pub enum ErroArquivoCaixa {
     DestinoSemNomeDeArquivo,
     DiretorioDeDestinoAusente,
     DestinoJaExiste,
-    EscritaDeArquivoFalhou,
+    EscritaDeArquivoFalhou(#[source] crate::arquivo_privado::FalhaDaGravacao),
     /// O valor não pôde ser serializado como JSON antes da gravação.
     SerializacaoDoJsonFalhou(#[source] serde_json::Error),
 }
@@ -22,7 +22,10 @@ pub fn gravar(destino: &Path, valor: &Value) -> Result<usize, ErroArquivoCaixa> 
         return Err(ErroArquivoCaixa::DestinoSemNomeDeArquivo);
     }
     // Como antes da #211: nome sem diretório (pai vazio) é recusado.
-    if !destino.parent().is_some_and(Path::is_dir) {
+    if destino
+        .parent()
+        .is_none_or(|pai| pai.as_os_str().is_empty())
+    {
         return Err(ErroArquivoCaixa::DiretorioDeDestinoAusente);
     }
     let bytes =
@@ -34,23 +37,25 @@ pub fn gravar(destino: &Path, valor: &Value) -> Result<usize, ErroArquivoCaixa> 
     )
     .map_err(|falha| match falha {
         FalhaDaGravacao::SemNomeDeArquivo => ErroArquivoCaixa::DestinoSemNomeDeArquivo,
-        FalhaDaGravacao::DiretorioAusente
-        | FalhaDaGravacao::DiretorioNaoConsultado(_)
-        | FalhaDaGravacao::NivelDoCaminhoNaoEhDiretorio
-        | FalhaDaGravacao::NivelDoCaminhoIlegivel(_) => ErroArquivoCaixa::DiretorioDeDestinoAusente,
+        FalhaDaGravacao::DiretorioAusente | FalhaDaGravacao::NivelDoCaminhoNaoEhDiretorio => {
+            ErroArquivoCaixa::DiretorioDeDestinoAusente
+        }
         FalhaDaGravacao::DestinoJaExiste => ErroArquivoCaixa::DestinoJaExiste,
-        // Diretório do usuário: a peça não confere o modo.
         #[cfg(unix)]
-        FalhaDaGravacao::DiretorioGravavelPorOutros => ErroArquivoCaixa::EscritaDeArquivoFalhou,
-        FalhaDaGravacao::DestinoNaoEhArquivoRegular
-        | FalhaDaGravacao::AcimaDoLimite
-        | FalhaDaGravacao::CriacaoFalhou(_)
+        FalhaDaGravacao::DiretorioGravavelPorOutros => {
+            ErroArquivoCaixa::EscritaDeArquivoFalhou(falha)
+        }
+        FalhaDaGravacao::DiretorioNaoConsultado(_)
+        | FalhaDaGravacao::NivelDoCaminhoIlegivel(_)
         | FalhaDaGravacao::CriacaoDoDiretorioFalhou(_)
         | FalhaDaGravacao::CriacaoDoTemporarioFalhou(_)
-        | FalhaDaGravacao::NomesDeTemporarioEsgotados
-        | FalhaDaGravacao::EscritaFalhou
         | FalhaDaGravacao::ErroDeIoNaEscrita(_)
-        | FalhaDaGravacao::ConfirmacaoFalhou(_) => ErroArquivoCaixa::EscritaDeArquivoFalhou,
+        | FalhaDaGravacao::NomesDeTemporarioEsgotados
+        | FalhaDaGravacao::DestinoNaoEhArquivoRegular
+        | FalhaDaGravacao::AcimaDoLimite
+        | FalhaDaGravacao::CriacaoFalhou(_)
+        | FalhaDaGravacao::EscritaFalhou
+        | FalhaDaGravacao::ConfirmacaoFalhou(_) => ErroArquivoCaixa::EscritaDeArquivoFalhou(falha),
     })?;
     Ok(bytes.len())
 }
@@ -106,6 +111,32 @@ mod tests {
         ));
         fs::remove_dir_all(dir).unwrap();
     }
+    #[cfg(unix)]
+    #[test]
+    fn exportacao_preserva_causa_quando_ancestral_e_arquivo() {
+        let dir = pasta();
+        let ancestral = dir.join("regular");
+        fs::write(&ancestral, b"SENTINELA").unwrap();
+        let erro = gravar(
+            &ancestral.join("sub").join("caixa.json"),
+            &serde_json::json!({"codigo": 1}),
+        )
+        .unwrap_err();
+        let causa = std::error::Error::source(&erro)
+            .and_then(|erro| erro.downcast_ref::<crate::arquivo_privado::FalhaDaGravacao>());
+        assert_eq!(
+            causa,
+            Some(
+                &crate::arquivo_privado::FalhaDaGravacao::DiretorioNaoConsultado(
+                    std::io::ErrorKind::NotADirectory
+                )
+            )
+        );
+        assert_eq!(fs::read(&ancestral).unwrap(), b"SENTINELA");
+        assert_eq!(fs::read_dir(&dir).unwrap().count(), 1);
+        fs::remove_dir_all(dir).unwrap();
+    }
+
     #[cfg(unix)]
     #[test]
     fn nao_segue_link_simbolico_no_destino() {
