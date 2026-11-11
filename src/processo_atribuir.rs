@@ -46,7 +46,7 @@ pub(crate) struct TelaDaAtribuicao {
 #[error("{self:?}")]
 pub(crate) enum ErroAtribuir {
     /// O tokenizador de atributos recusou a tag.
-    Atributo(#[source] crate::html_atributos::ErroAtributoHtml),
+    Atributo(#[from] crate::html_atributos::ErroAtributoHtml),
     UsuarioNaoAtribuivel,
     UsuarioAmbiguo,
     AtribuicaoJaAplicada,
@@ -64,9 +64,6 @@ fn valor(tag: &tl::HTMLTag<'_>, nome: &'static str) -> Result<Option<String>, Er
         .map_err(ErroAtribuir::Atributo)?
         .map(|bruto| decodificar_atributo(&bruto).ok_or(ErroAtribuir::TelaDaAtribuicaoForaDaForma))
         .transpose()
-}
-fn presente(tag: &tl::HTMLTag<'_>, nome: &str) -> Result<bool, ErroAtribuir> {
-    atributo_presente(tag, nome).map_err(ErroAtribuir::Atributo)
 }
 
 /// Confere a URL assinada servida sem a publicar nem fabricar outra.
@@ -114,18 +111,18 @@ fn ler_opcoes(
         if opcao.name().as_utf8_str().as_ref() != "option" {
             return Err(ErroAtribuir::TelaDaAtribuicaoForaDaForma);
         }
-        if presente(opcao, "disabled")? {
+        if atributo_presente(opcao, "disabled")? {
             return Err(ErroAtribuir::TelaDaAtribuicaoForaDaForma);
         }
         let id_usuario = valor(opcao, "value")?.ok_or(ErroAtribuir::TelaDaAtribuicaoForaDaForma)?;
         if id_usuario == SEM_ATRIBUICAO {
-            if !presente(opcao, "selected")? {
+            if !atributo_presente(opcao, "selected")? {
                 return Err(ErroAtribuir::TelaDaAtribuicaoForaDaForma);
             }
             item_nulo += 1;
             continue;
         }
-        if presente(opcao, "selected")?
+        if atributo_presente(opcao, "selected")?
             || id_usuario.is_empty()
             || !id_usuario.bytes().all(|b| b.is_ascii_digit())
         {
@@ -162,8 +159,8 @@ pub(crate) fn ler_tela(html: &str, id: &str) -> Result<TelaDaAtribuicao, ErroAtr
     let form = localizar_formulario(&dom, FORMULARIO)
         .map_err(ErroAtribuir::FormularioDaAtribuicaoNaoLocalizado)?;
     if valor(form, "method")?.as_deref() != Some("post")
-        || presente(form, "disabled")?
-        || presente(form, "hidden")?
+        || atributo_presente(form, "disabled")?
+        || atributo_presente(form, "hidden")?
         || !valor(form, "action")?
             .as_deref()
             .is_some_and(|action| acao_do_formulario(action, id))
@@ -183,7 +180,9 @@ pub(crate) fn ler_tela(html: &str, id: &str) -> Result<TelaDaAtribuicao, ErroAtr
         let elemento = tag.name().as_utf8_str().to_ascii_lowercase();
         match elemento.as_str() {
             "input" => {
-                if presente(tag, "disabled")? || valor(tag, "type")?.as_deref() != Some("hidden") {
+                if atributo_presente(tag, "disabled")?
+                    || valor(tag, "type")?.as_deref() != Some("hidden")
+                {
                     return Err(ErroAtribuir::TelaDaAtribuicaoForaDaForma);
                 }
                 match valor(tag, "name")?.as_deref() {
@@ -197,11 +196,11 @@ pub(crate) fn ler_tela(html: &str, id: &str) -> Result<TelaDaAtribuicao, ErroAtr
                 }
             }
             "button" => {
-                if presente(tag, "disabled")?
-                    || presente(tag, "hidden")?
-                    || presente(tag, "formaction")?
-                    || presente(tag, "formmethod")?
-                    || presente(tag, "formenctype")?
+                if atributo_presente(tag, "disabled")?
+                    || atributo_presente(tag, "hidden")?
+                    || atributo_presente(tag, "formaction")?
+                    || atributo_presente(tag, "formmethod")?
+                    || atributo_presente(tag, "formenctype")?
                 {
                     return Err(ErroAtribuir::TelaDaAtribuicaoForaDaForma);
                 }
@@ -221,9 +220,9 @@ pub(crate) fn ler_tela(html: &str, id: &str) -> Result<TelaDaAtribuicao, ErroAtr
             "select" => {
                 if valor(tag, "id")?.as_deref() != Some(SELECAO)
                     || valor(tag, "name")?.as_deref() != Some(SELECAO)
-                    || presente(tag, "multiple")?
-                    || presente(tag, "disabled")?
-                    || presente(tag, "hidden")?
+                    || atributo_presente(tag, "multiple")?
+                    || atributo_presente(tag, "disabled")?
+                    || atributo_presente(tag, "hidden")?
                 {
                     return Err(ErroAtribuir::TelaDaAtribuicaoForaDaForma);
                 }
@@ -232,7 +231,7 @@ pub(crate) fn ler_tela(html: &str, id: &str) -> Result<TelaDaAtribuicao, ErroAtr
                 usuarios.extend(lidos);
                 item_nulo += nulos;
             }
-            "fieldset" if presente(tag, "disabled")? => {
+            "fieldset" if atributo_presente(tag, "disabled")? => {
                 // Controles dentro do fieldset não estão acionáveis no DOM.
                 return Err(ErroAtribuir::TelaDaAtribuicaoForaDaForma);
             }

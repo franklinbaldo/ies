@@ -97,7 +97,7 @@ pub(crate) fn conferir_tela_de_assinatura(
         if !matches!(
             elemento.as_str(),
             "input" | "button" | "select" | "textarea"
-        ) || presente(tag, "disabled")?
+        ) || atributo_presente(tag, "disabled")?
         {
             continue;
         }
@@ -180,13 +180,9 @@ fn opcoes(
     {
         let valor =
             valor(tag, "value")?.ok_or(ErroTelaDeAssinatura::TelaDeAssinaturaNaoInterpretada)?;
-        lidas.push((valor, presente(tag, "selected")?));
+        lidas.push((valor, atributo_presente(tag, "selected")?));
     }
     Ok(lidas)
-}
-
-fn presente(tag: &tl::HTMLTag<'_>, nome: &str) -> Result<bool, ErroTelaDeAssinatura> {
-    atributo_presente(tag, nome).map_err(ErroTelaDeAssinatura::TelaDeAssinaturaComAtributoIlegivel)
 }
 
 /// Valor do atributo com as entidades decodificadas.

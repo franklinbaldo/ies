@@ -81,10 +81,6 @@ fn atributo(
         .transpose()
 }
 
-fn presente(tag: &tl::HTMLTag<'_>, nome: &str) -> Result<bool, ErroRegraDoFormularioDePesquisa> {
-    atributo_presente(tag, nome).map_err(ErroRegraDoFormularioDePesquisa::AtributoHtml)
-}
-
 fn eh(tag: &tl::HTMLTag<'_>, elemento: &str) -> bool {
     tag.name().as_utf8_str().eq_ignore_ascii_case(elemento)
 }
@@ -160,7 +156,7 @@ fn caixas_de_documento(
         if id.as_deref() != Some(caixa) || nome.as_deref() != Some(caixa) {
             return Err(ErroRegraDoFormularioDePesquisa::CaixaDeTipoDeDocumentoAusenteNaTela);
         }
-        if presente(tag, "checked")? {
+        if atributo_presente(tag, "checked")? {
             let valor = atributo(tag, "value")?
                 .ok_or(ErroRegraDoFormularioDePesquisa::CaixaDeTipoDeDocumentoSemValorNaTela)?;
             marcadas.push((caixa, valor));
@@ -222,7 +218,7 @@ fn orgaos_selecionados(
             return Err(ErroRegraDoFormularioDePesquisa::SeletoresDeOrgaoDePesquisaRepetidosNaTela);
         }
     };
-    if !presente(select, "multiple")? {
+    if !atributo_presente(select, "multiple")? {
         return Err(ErroRegraDoFormularioDePesquisa::SeletorDeOrgaoDePesquisaSemMultiplaEscolha);
     }
     let descendentes: Vec<_> = select
@@ -235,7 +231,7 @@ fn orgaos_selecionados(
     // disabled`, não é serializada mesmo se servida com `selected`.
     let mut desabilitadas: Vec<*const tl::HTMLTag<'_>> = Vec::new();
     for grupo in descendentes.iter().filter(|t| eh(t, "optgroup")) {
-        if presente(grupo, "disabled")? {
+        if atributo_presente(grupo, "disabled")? {
             desabilitadas.extend(
                 grupo
                     .children()
@@ -249,12 +245,12 @@ fn orgaos_selecionados(
     let mut valores = Vec::new();
     for opcao in descendentes {
         if !eh(opcao, "option")
-            || presente(opcao, "disabled")?
+            || atributo_presente(opcao, "disabled")?
             || desabilitadas.contains(&std::ptr::from_ref(opcao))
         {
             continue;
         }
-        if presente(opcao, "selected")? {
+        if atributo_presente(opcao, "selected")? {
             valores.push(
                 atributo(opcao, "value")?.ok_or(
                     ErroRegraDoFormularioDePesquisa::OpcaoDeOrgaoSelecionadaSemValorNaTela,

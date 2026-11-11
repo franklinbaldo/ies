@@ -9,14 +9,6 @@ pub(super) use crate::url_observada::UrlHttps;
 use crate::url_observada::{pasta, tem_esquema};
 use std::collections::HashSet;
 
-/// Valor bruto lido da fonte da tag (não do mapa do `tl`, defeituoso).
-fn atributo(
-    tag: &tl::HTMLTag<'_>,
-    nome: &'static str,
-) -> Result<Option<String>, ErroSubmissaoFormulario> {
-    valor_do_atributo(tag, nome).map_err(ErroSubmissaoFormulario::AtributoHtml)
-}
-
 /// Exatamente um `<form>` com o `id` ou `name` da operação.
 pub(crate) fn localizar_formulario<'d>(
     dom: &'d tl::VDom<'d>,
@@ -31,7 +23,7 @@ pub(crate) fn localizar_formulario<'d>(
         .filter_map(|n| n.get(parser).and_then(tl::Node::as_tag))
     {
         for chave in ["id", "name"] {
-            if atributo(form, chave)?.is_some_and(|v| v == identificador) {
+            if valor_do_atributo(form, chave)?.is_some_and(|v| v == identificador) {
                 achados.push(form);
                 break;
             }
@@ -47,15 +39,15 @@ pub(crate) fn localizar_formulario<'d>(
 pub(super) fn conferir_metodo_e_codificacao(
     form: &tl::HTMLTag<'_>,
 ) -> Result<(), ErroSubmissaoFormulario> {
-    if !atributo(form, "method")?.is_some_and(|m| m.eq_ignore_ascii_case("post")) {
+    if !valor_do_atributo(form, "method")?.is_some_and(|m| m.eq_ignore_ascii_case("post")) {
         return Err(ErroSubmissaoFormulario::MetodoDoFormularioDiferenteDePost);
     }
-    if atributo(form, "enctype")?
+    if valor_do_atributo(form, "enctype")?
         .is_some_and(|v| !v.eq_ignore_ascii_case("application/x-www-form-urlencoded"))
     {
         return Err(ErroSubmissaoFormulario::EnctypeDoFormularioNaoUrlencoded);
     }
-    if atributo(form, "accept-charset")?.is_some() {
+    if valor_do_atributo(form, "accept-charset")?.is_some() {
         return Err(ErroSubmissaoFormulario::AcceptCharsetPublicadoNoFormulario);
     }
     Ok(())
@@ -155,8 +147,8 @@ fn resolver_referencia(
     form: &tl::HTMLTag<'_>,
     servida: &UrlHttps<'_>,
 ) -> Result<String, ErroSubmissaoFormulario> {
-    let bruto =
-        atributo(form, "action")?.ok_or(ErroSubmissaoFormulario::AcaoDoFormularioAusente)?;
+    let bruto = valor_do_atributo(form, "action")?
+        .ok_or(ErroSubmissaoFormulario::AcaoDoFormularioAusente)?;
     let decodificado = decodificar_atributo(&bruto).ok_or_else(|| {
         ErroSubmissaoFormulario::EntidadeHtmlDesconhecidaNoAtributo {
             campo: "action".to_owned(),
@@ -250,7 +242,7 @@ fn valor_decodificado(
     tag: &tl::HTMLTag<'_>,
     nome: &str,
 ) -> Result<String, ErroSubmissaoFormulario> {
-    decodificar_atributo(&atributo(tag, "value")?.unwrap_or_default()).ok_or_else(|| {
+    decodificar_atributo(&valor_do_atributo(tag, "value")?.unwrap_or_default()).ok_or_else(|| {
         ErroSubmissaoFormulario::EntidadeHtmlDesconhecidaNoAtributo {
             campo: nome.to_owned(),
         }
@@ -269,7 +261,7 @@ fn classificar(
     {
         return Ok(None);
     }
-    let Some(bruto) = atributo(tag, "name")?.filter(|n| !n.is_empty()) else {
+    let Some(bruto) = valor_do_atributo(tag, "name")?.filter(|n| !n.is_empty()) else {
         return Ok(None);
     };
     let nome = decodificar_atributo(&bruto).ok_or_else(|| {
@@ -286,7 +278,8 @@ fn classificar(
     } else {
         "text"
     };
-    let tipo = atributo(tag, "type")?.map_or_else(|| padrao.to_owned(), |t| t.to_ascii_lowercase());
+    let tipo = valor_do_atributo(tag, "type")?
+        .map_or_else(|| padrao.to_owned(), |t| t.to_ascii_lowercase());
     Ok(match (elemento.as_str(), tipo.as_str()) {
         ("input", "hidden") => {
             let valor = valor_decodificado(tag, &nome)?;

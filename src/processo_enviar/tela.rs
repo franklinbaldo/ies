@@ -144,7 +144,7 @@ pub(crate) fn conferir_tela_de_envio(html: &str, id: &str) -> Result<TelaDeEnvio
         if elemento == "option" {
             let valor = decodificado(tag, "value")?
                 .ok_or(ErroTelaDeEnvio::CampoNaoPrevistoNaTelaDeEnvio)?;
-            let marcada = presente(tag, "selected")?;
+            let marcada = atributo_presente(tag, "selected")?;
             match selecao.as_deref() {
                 Some(ORGAO) => {
                     orgao_primeira.get_or_insert_with(|| valor.clone());
@@ -166,7 +166,7 @@ pub(crate) fn conferir_tela_de_envio(html: &str, id: &str) -> Result<TelaDeEnvio
             continue;
         }
         selecao = None;
-        if presente(tag, "disabled")? {
+        if atributo_presente(tag, "disabled")? {
             continue;
         }
         let Some(nome) = decodificado(tag, "name")?.filter(|n| !n.is_empty()) else {
@@ -179,7 +179,7 @@ pub(crate) fn conferir_tela_de_envio(html: &str, id: &str) -> Result<TelaDeEnvio
         };
         let tipo = decodificado(tag, "type")?
             .map_or_else(|| padrao.to_owned(), |t| t.to_ascii_lowercase());
-        let marcado = presente(tag, "checked")?;
+        let marcado = atributo_presente(tag, "checked")?;
         let servido = decodificado(tag, "value")?.unwrap_or_default();
         match (elemento.as_str(), tipo.as_str(), nome.as_str()) {
             ("input", "hidden", "hdnIdProtocolos") if servido != id => {
@@ -267,10 +267,6 @@ fn rotulo(opcao: &tl::HTMLTag<'_>, parser: &tl::Parser<'_>) -> String {
         .split_whitespace()
         .collect::<Vec<_>>()
         .join(" ")
-}
-
-fn presente(tag: &tl::HTMLTag<'_>, nome: &str) -> Result<bool, ErroTelaDeEnvio> {
-    atributo_presente(tag, nome).map_err(ErroTelaDeEnvio::TelaDeEnvioComAtributoIlegivel)
 }
 
 fn decodificado(

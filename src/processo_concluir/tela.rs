@@ -72,17 +72,17 @@ pub(crate) fn conferir_tela_de_conclusao(html: &str, id: &str) -> Result<(), Err
     {
         let elemento = tag.name().as_utf8_str().to_ascii_lowercase();
         if elemento == "option" {
-            preenchida |= presente(tag, "selected")?;
+            preenchida |= atributo_presente(tag, "selected")?;
             continue;
         }
         if !matches!(
             elemento.as_str(),
             "input" | "button" | "select" | "textarea"
-        ) || presente(tag, "disabled")?
+        ) || atributo_presente(tag, "disabled")?
         {
             continue;
         }
-        let Some(nome) = valor(tag, "name")?.filter(|n| !n.is_empty()) else {
+        let Some(nome) = valor_do_atributo(tag, "name")?.filter(|n| !n.is_empty()) else {
             continue;
         };
         let padrao = if elemento == "button" {
@@ -90,10 +90,10 @@ pub(crate) fn conferir_tela_de_conclusao(html: &str, id: &str) -> Result<(), Err
         } else {
             "text"
         };
-        let tipo =
-            valor(tag, "type")?.map_or_else(|| padrao.to_owned(), |t| t.to_ascii_lowercase());
-        let marcado = presente(tag, "checked")?;
-        let servido = valor(tag, "value")?.unwrap_or_default();
+        let tipo = valor_do_atributo(tag, "type")?
+            .map_or_else(|| padrao.to_owned(), |t| t.to_ascii_lowercase());
+        let marcado = atributo_presente(tag, "checked")?;
+        let servido = valor_do_atributo(tag, "value")?.unwrap_or_default();
         match (elemento.as_str(), tipo.as_str(), nome.as_str()) {
             ("input", "hidden", "hdnIdProtocolos") if servido != id => {
                 return Err(ErroTelaDeConclusao::TelaDeConclusaoDeOutroProcesso);
@@ -122,14 +122,6 @@ pub(crate) fn conferir_tela_de_conclusao(html: &str, id: &str) -> Result<(), Err
         return Err(ErroTelaDeConclusao::TelaDeConclusaoComReaberturaPreenchida);
     }
     Ok(())
-}
-
-fn presente(tag: &tl::HTMLTag<'_>, nome: &str) -> Result<bool, ErroTelaDeConclusao> {
-    atributo_presente(tag, nome).map_err(ErroTelaDeConclusao::TelaDeConclusaoComAtributoIlegivel)
-}
-
-fn valor(tag: &tl::HTMLTag<'_>, nome: &'static str) -> Result<Option<String>, ErroTelaDeConclusao> {
-    valor_do_atributo(tag, nome).map_err(ErroTelaDeConclusao::TelaDeConclusaoComAtributoIlegivel)
 }
 
 /// O 302 do POST é o esperado: `controlador.php?acao=arvore_visualizar`

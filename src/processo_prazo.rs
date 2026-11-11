@@ -15,7 +15,7 @@ pub(crate) enum PedidoDePrazo {
 #[error("{self:?}")]
 pub(crate) enum ErroPrazo {
     /// O tokenizador de atributos recusou a tag.
-    Atributo(#[source] crate::html_atributos::ErroAtributoHtml),
+    Atributo(#[from] crate::html_atributos::ErroAtributoHtml),
     OpcoesIncompativeis,
     DataInvalida,
     DiasInvalidos,
@@ -108,10 +108,6 @@ fn data_valida(valor: &str) -> bool {
     data(valor).is_some()
 }
 
-fn atributo(tag: &tl::HTMLTag<'_>, nome: &'static str) -> Result<Option<String>, ErroPrazo> {
-    crate::html_atributos::valor_do_atributo(tag, nome).map_err(ErroPrazo::Atributo)
-}
-
 /// Lê a tela do prazo. Só o que protege a escrita é conferido: o `action`
 /// aponta para `controle_prazo_definir` deste processo e
 /// `hdnIdProcedimentos` é o dele. A forma dos controles fica com a
@@ -128,7 +124,7 @@ pub(crate) fn ler_tela(html: &str, id_procedimento: &str) -> Result<TelaDoPrazo,
 /// O `action` do formulário é `controlador.php?acao=controle_prazo_definir`
 /// com o `id_procedimento` pedido; outro destino recusa antes de qualquer escrita.
 fn conferir_destino(form: &tl::HTMLTag<'_>, id_procedimento: &str) -> Result<(), ErroPrazo> {
-    let action = atributo(form, "action")?
+    let action = crate::html_atributos::valor_do_atributo(form, "action")?
         .and_then(|bruto| crate::formulario_web::decodificar_atributo(&bruto))
         .ok_or(ErroPrazo::FormularioDeOutroDestino)?;
     let (caminho, consulta) = action
@@ -195,10 +191,10 @@ fn ler_controles_da_tela(
         .iter()
         .filter_map(tl::Node::as_tag)
     {
-        let Some(nome) = atributo(tag, "name")? else {
+        let Some(nome) = crate::html_atributos::valor_do_atributo(tag, "name")? else {
             continue;
         };
-        let valor = atributo(tag, "value")?;
+        let valor = crate::html_atributos::valor_do_atributo(tag, "value")?;
         match nome.as_str() {
             "rdoPrazo" => {
                 opcoes_publicadas = true;
