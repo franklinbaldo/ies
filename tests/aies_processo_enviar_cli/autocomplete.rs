@@ -20,7 +20,10 @@ fn autocomplete_com_id_repetido_preserva_causa_e_nao_envia_processo() {
         "causa precisa no stderr: {stderr}"
     );
     assert_eq!(
-        pedidos.iter().filter(|p| *p == "POST unidade_auto_completar_envio_processo").count(),
+        pedidos
+            .iter()
+            .filter(|p| *p == "POST unidade_auto_completar_envio_processo")
+            .count(),
         1,
         "a consulta foi feita uma vez: {pedidos:?}"
     );
