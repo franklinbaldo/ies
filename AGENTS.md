@@ -38,6 +38,13 @@ auxiliar, não critério autossuficiente de paridade. Novos testes de
 comportamento SEI priorizam cassettes; testes locais de tipos, parser,
 formatação e lógica permanecem válidos quando necessários.
 
+**Aceite para toda a equipe:** o GitHub Actions deve executar o replay
+pertinente no head final de cada PR, e não apenas inspecionar hashes.
+`inspecionar-cassettes.yml` é só inspeção, não prova de paridade.
+🦅 confere o confronto independente IES/anti-IES com as respostas originais;
+🐘 e 🦡 só integram após CI e replay aplicável verdes. Nenhum agente usa
+Jatobá nesse fluxo. Não há meta de contagem de requisições.
+
 **Prioridade atual:** identificar e eliminar antipatterns reais, conforme
 [issue-mãe #716](https://github.com/franklinbaldo/ies/issues/716)
 e [roadmap #56](https://github.com/franklinbaldo/ies/issues/56).
@@ -98,7 +105,7 @@ Estas regras são a fonte única dos prompts curtos das automações.
 3. **E2E obrigatório para comportamento Web afetado:** CLI Rust real,
    respostas de cassette original quando disponíveis, anti-IES e SQLite
    compartilhado para transições, verificação independente de saída/estado,
-   negativas relevantes e contagem de POST. **Não apenas parser isolado**.
+   negativas relevantes, efeitos persistidos e ausência de repetição insegura. **Não apenas parser isolado**.
    Hipótese sintética é permitida para transição não capturada, mas seu
    resultado é explicitamente separado do confronto com a fonte original.
 4. **Implementadores 🦊 🦉 🐢 🐙 🦫:** assumem issue livre de maior prioridade,
@@ -107,8 +114,11 @@ Estas regras são a fonte única dos prompts curtos das automações.
    (cassette, resultado, CI), `CONTINUAR` (lacuna contratada).
 5. **Revisão e integração:** 🦅 verifica diff, regressão real, cassettes,
    comportamento do usuário, escopo e ausência de invenção. 🐘/🦡 integram
-   com gates verdes no head sincronizado. Preservar testes ainda úteis;
-   remover testes mortos ou redundantes fundamentadamente.
+   somente após o GitHub Actions executar no head final da PR os replays
+   de cassettes originais aplicáveis e os gates oficiais verdes. O CI
+   completo ocorre no aceite da PR, não a cada commit WIP; se o head
+   mudar, revalidar. A inspeção de hashes sozinha não é replay.
+   Preservar testes ainda úteis; remover redundâncias fundamentadamente.
 6. **Anti-IES:** a mesma PR vertical modifica tipos, rota e SQL versionado
    quando o comportamento exigir; o simulador é estado funcional, não
    coleção de HTML congelado.
@@ -187,9 +197,10 @@ Procedimentos específicos: [🦅 Gavião](team/gaviao.md) e
    respostas gravadas quando disponíveis; registre a falha. Para estados
    não capturados, use hipótese e fixture mínima sem alegar paridade.
 4. **GREEN.** Implementação mínima, refatoração e gates.
-5. **Validar ao vivo.** Depois do E2E e confronto independente, em treinamento, com orçamento de requests
-   declarado; registre PASS/FAIL/NOT_RUN no
-   [relatório live](docs/validacao-live/). Sem execução não há PASS:
+5. **Validar ao vivo.** Depois do E2E e confronto independente, somente
+   em treinamento autorizado, com orçamento de requisições declarado
+   (não métrica de paridade), prévia, POST mutador único, sem retry e
+   releitura independente; registre PASS/FAIL/NOT_RUN no [relatório live](docs/validacao-live/). Sem execução não há PASS:
    `NOT_RUN` com o bloqueio explícito.
 
 O que falta implementar e em que ordem está na
@@ -204,8 +215,11 @@ O que falta implementar e em que ordem está na
   Preservar sempre os limites invioláveis.
 - **Web.** REST e SOAP **não são prioridade**; nenhum comando depende
   deles ([ADR 0001](docs/arquitetura/0001-rotas-por-evidencia.md)).
-- **Mínimo de requests.** Reaproveitar a sessão (`ies login` só reloga
-  se ela venceu); `--pagina N` em vez de percorrer páginas; nunca retry.
+- **Sem contagem fixa para paridade.** Comparar comportamento e estado,
+  não quantidades iguais de GETs entre instalações. Preservar o orçamento
+  operacional contratado, no máximo um POST mutador por confirmação
+  e nenhum retry. Reaproveitar a sessão (`ies login` só reloga
+  se venceu); usar `--pagina N` em vez de percorrer páginas.
   Reusar URLs assinadas já vistas na mesma sessão e a identidade durável
   do [índice local](docs/arquitetura/0003-indice-local.md).
   **Não restaurar a tela** (visão, página, colunas): vários agentes na
@@ -278,6 +292,8 @@ O que falta implementar e em que ordem está na
   os dos outros você lê. Peça compartilhada exige mudança mínima na
   sua PR e explicação, sem tocar em branch alheio.
 - `xtask` só tem verificadores de infraestrutura, sem dependências.
+- PR integra na `main` **por squash**: um commit por PR, com a mensagem
+  do fato. RED, `style:` e pedidos de inspeção ficam na PR (#776).
 - Antes de qualquer PR:
   `uvx --from prek==0.5.7 prek run --hook-stage pre-push --all-files`
   (o [CI completo](.github/workflows/ci.yml) reproduz os mesmos gates
