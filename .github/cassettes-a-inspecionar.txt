@@ -1,2 +1,0 @@
-# Inspecao temporaria somente leitura, retirar antes do merge
-cassettes/unb/unidade-troca-e-volta-unb--c834c505aee4.md
