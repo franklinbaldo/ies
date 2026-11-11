@@ -1,4 +1,4 @@
-use super::{ConsultaDoControlador, ErroChaveDaConsulta, ErroConsultaDoControlador};
+use super::{ConsultaDoControlador, ErroChaveDaConsulta, ErroConsultaDoControlador, menciona_acao};
 use crate::acao_do_sei::AcaoDoSei;
 use crate::transporte::FalhaTransporte;
 
@@ -65,4 +65,23 @@ fn consulta_vazia_nao_tem_pares() {
         ConsultaDoControlador::ler("acao=x&&id=1").err(),
         Some(ErroConsultaDoControlador::ParSemIgual)
     );
+}
+
+#[test]
+fn menciona_acao_seleciona_sem_conferir_o_resto() {
+    let casos = [
+        ("controlador.php?acao=arvore_visualizar&id=1", true),
+        ("controlador.php?acao=outra&acao=arvore_visualizar", true),
+        ("controlador.php?solto&acao=arvore_visualizar", true),
+        ("controlador.php?acao=arvore_visualizar_x", false),
+        ("controlador.php?xacao=arvore_visualizar", false),
+        ("acao=arvore_visualizar", false),
+    ];
+    for (href, esperado) in casos {
+        assert_eq!(
+            menciona_acao(href, AcaoDoSei::ArvoreVisualizar),
+            esperado,
+            "{href}"
+        );
+    }
 }

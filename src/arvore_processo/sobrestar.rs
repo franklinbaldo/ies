@@ -1,9 +1,10 @@
 //! Ações de sobrestar e retomar publicadas na barra do nó PROCESSO (#269).
 //! Só URLs servidas, com ID e `infra_hash` únicos; nunca executar JavaScript.
-use super::barra_do_processo::{acao_do_href, ancoras_da_barra};
+use super::barra_do_processo::ancoras_da_barra;
 use super::concluir::{EnderecoDeEscrita, tela_do_no_da_raiz};
 use super::endereco::{EnderecoRecusado, conferir_endereco_relativo};
 use crate::acao_do_sei::AcaoDoSei;
+use crate::consulta_do_controlador::menciona_acao;
 use crate::instalacao::Instalacao;
 
 const ONCLICK_RETOMAR: &str = "removerSobrestamentoProcesso();";
@@ -28,7 +29,7 @@ pub(crate) fn ler_sobrestar_da_barra(
     let links: Vec<&str> = ancoras
         .iter()
         .filter_map(|a| a.href.as_deref())
-        .filter(|href| acao_do_href(href) == Some(AcaoDoSei::ProcedimentoSobrestar))
+        .filter(|href| menciona_acao(href, AcaoDoSei::ProcedimentoSobrestar))
         .collect();
     match links.as_slice() {
         [] => Ok(None),

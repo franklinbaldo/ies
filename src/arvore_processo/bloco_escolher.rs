@@ -7,6 +7,7 @@ use super::barra_do_documento::{ErroBarraDoDocumento, barra_do_no};
 use super::concluir::EnderecoDeEscrita;
 use super::endereco::{EnderecoRecusado, conferir_endereco_relativo_por};
 use crate::acao_do_sei::AcaoDoSei;
+use crate::consulta_do_controlador::menciona_acao;
 use crate::formulario_web::decodificar_atributo;
 use crate::html_atributos::atributos;
 use crate::instalacao::Instalacao;
@@ -49,7 +50,7 @@ pub(crate) fn ler_bloco_escolher_da_barra(
             continue;
         };
         let href = decodificar_atributo(bruto).ok_or_else(fora)?;
-        if acao_do_href(&href) == Some(AcaoDoSei::BlocoEscolher) {
+        if menciona_acao(&href, AcaoDoSei::BlocoEscolher) {
             links.push(href);
         }
     }
@@ -79,13 +80,4 @@ pub(crate) fn ler_bloco_escolher_da_barra(
     )
     .map(|url| Some(EnderecoDeEscrita::novo(url)))
     .map_err(recusa)
-}
-
-/// O primeiro `acao=` da consulta (a conferência recusa dois).
-fn acao_do_href(href: &str) -> Option<AcaoDoSei> {
-    let (_, consulta) = href.split_once('?')?;
-    consulta
-        .split('&')
-        .find_map(|par| par.strip_prefix("acao="))
-        .and_then(AcaoDoSei::ler)
 }

@@ -80,6 +80,20 @@ impl<'a> ConsultaDoControlador<'a> {
     }
 }
 
+/// Seleção de candidato, tolerante de propósito: a consulta de `href` (o
+/// texto depois do `?`) tem algum par `acao=` com o valor de `acao`? Não
+/// confere o resto da consulta; quem seleciona por aqui confere o candidato
+/// escolhido depois, de forma estrita (`conferir_endereco_relativo` ou
+/// `ConsultaDoControlador::ler`), para que um link malformado seja recusado
+/// e não descartado como ausente.
+pub(crate) fn menciona_acao(href: &str, acao: AcaoDoSei) -> bool {
+    href.split_once('?').is_some_and(|(_, consulta)| {
+        consulta
+            .split('&')
+            .any(|par| par.strip_prefix("acao=") == Some(acao.como_na_url()))
+    })
+}
+
 #[cfg(test)]
 #[path = "tests_consulta_do_controlador.rs"]
 mod tests;
