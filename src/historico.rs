@@ -4,7 +4,7 @@ use crate::html_atributos::nos_com_id;
 use crate::processo::{Andamento, DetalheProcesso, NumeroProcesso};
 
 /// Condições específicas do parser, independentes de mensagens.
-#[derive(Debug, Clone, Copy, PartialEq, Eq, thiserror::Error)]
+#[derive(Debug, Clone, PartialEq, Eq, thiserror::Error)]
 #[error("{self:?}")]
 pub(crate) enum ErroHistorico {
     NumeroDoHistoricoDiferenteDoSolicitado,
@@ -12,9 +12,10 @@ pub(crate) enum ErroHistorico {
     CabecalhosHtmlDoHistoricoRepetidos,
     HistoricoAusente,
     HistoricoInvalido,
-    HtmlDoHistoricoInvalido,
+    HtmlDoHistoricoInvalido(#[source] tl::ParseError),
     LinhaInvalida,
-    NumeroDoHistoricoInvalido,
+    NumeroDoHistoricoInvalido(#[source] crate::processo::NumeroProcessoInvalido),
+    AtributoDoHistoricoIlegivel(#[source] crate::html_atributos::ErroAtributoHtml),
     TabelasDoHistoricoRepetidas,
     TituloAusente,
     TituloInvalido,
@@ -67,22 +68,21 @@ fn titulo_do_historico(
 #[cfg(test)]
 pub fn numero_do_historico(html: &str) -> Result<String, ErroHistorico> {
     let dom = tl::parse(html, tl::ParserOptions::default())
-        .map_err(|_| ErroHistorico::HtmlDoHistoricoInvalido)?;
+        .map_err(ErroHistorico::HtmlDoHistoricoInvalido)?;
     let parser = dom.parser();
     let titulo = titulo_do_historico(&dom, parser)?;
     let (_, protocolo) = titulo
         .split_once("Histórico do Processo ")
         .ok_or(ErroHistorico::TituloInvalido)?;
     let numero =
-        NumeroProcesso::novo(protocolo).map_err(|_| ErroHistorico::NumeroDoHistoricoInvalido)?;
+        NumeroProcesso::novo(protocolo).map_err(ErroHistorico::NumeroDoHistoricoInvalido)?;
     Ok(numero.as_str().to_owned())
 }
 
 pub fn ler_historico(html: &str, numero: &str) -> Result<DetalheProcesso, ErroHistorico> {
-    let numero =
-        NumeroProcesso::novo(numero).map_err(|_| ErroHistorico::NumeroDoHistoricoInvalido)?;
+    let numero = NumeroProcesso::novo(numero).map_err(ErroHistorico::NumeroDoHistoricoInvalido)?;
     let dom = tl::parse(html, tl::ParserOptions::default())
-        .map_err(|_| ErroHistorico::HtmlDoHistoricoInvalido)?;
+        .map_err(ErroHistorico::HtmlDoHistoricoInvalido)?;
     let parser = dom.parser();
     let titulo = titulo_do_historico(&dom, parser)?;
     // O protocolo é opaco. Não fragmentar por pontuação nem remover zeros.
@@ -94,7 +94,7 @@ pub fn ler_historico(html: &str, numero: &str) -> Result<DetalheProcesso, ErroHi
     }
     // O primeiro ID não é suficiente: tabelas duplicadas podem ocultar andamentos.
     let candidatas =
-        nos_com_id(&dom, "tblHistorico").map_err(|_| ErroHistorico::HtmlDoHistoricoInvalido)?;
+        nos_com_id(&dom, "tblHistorico").map_err(ErroHistorico::AtributoDoHistoricoIlegivel)?;
     let primeira = match candidatas.as_slice() {
         [] => return Err(ErroHistorico::HistoricoAusente),
         [primeira] => *primeira,

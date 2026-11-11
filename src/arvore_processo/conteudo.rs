@@ -39,7 +39,7 @@ impl EnderecoDoConteudo {
             id,
         )
         .map(Self)
-        .map_err(|_| ErroConteudoNaArvore::LinkAnexoCadastroInvalido)
+        .map_err(ErroConteudoNaArvore::LinkAnexoCadastroRecusado)
     }
 }
 
@@ -64,6 +64,8 @@ pub(crate) enum ConteudoNaArvore {
 #[derive(Clone, Copy, Debug, PartialEq, Eq, thiserror::Error)]
 #[error("{self:?}")]
 pub(crate) enum ErroConteudoNaArvore {
+    LinkAnexoCadastroRecusado(#[source] crate::arvore_processo::endereco::EnderecoRecusado),
+    EnderecoDoConteudoRecusado(#[source] crate::arvore_processo::endereco::EnderecoRecusado),
     EnderecoDoConteudoDeOutroDocumento,
     DocumentoAusenteDaArvore,
     EnderecoDoConteudoNaoReconhecido,
@@ -126,7 +128,7 @@ pub(crate) fn ler_conteudo_na_arvore(
                 id_anexo,
             )
             .map(|url| ConteudoNaArvore::DownloadDeAnexo(EnderecoDoConteudo(url)))
-            .map_err(|_| ErroConteudoNaArvore::EnderecoDoConteudoNaoReconhecido)
+            .map_err(ErroConteudoNaArvore::EnderecoDoConteudoRecusado)
         }
         Some(AcaoDoSei::DocumentoVisualizar) => conferir_endereco_relativo_por(
             instalacao,

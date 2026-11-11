@@ -28,7 +28,7 @@ pub(crate) struct ReabrirNaBarra {
 }
 
 /// Recusas da leitura da ação de reabrir na barra do processo.
-#[derive(Clone, Copy, Debug, PartialEq, Eq, thiserror::Error)]
+#[derive(Clone, Debug, PartialEq, Eq, thiserror::Error)]
 #[error("{self:?}")]
 pub(crate) enum ErroReabrirNaBarra {
     Barra(#[from] crate::arvore_processo::ErroBarraDoProcesso),

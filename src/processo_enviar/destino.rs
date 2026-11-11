@@ -49,7 +49,7 @@ pub(crate) fn ler_resposta_da_consulta<R: std::io::Read>(
 /// Os itens de um `<itens>` único; cada `<item>` com `id` e `descricao`.
 pub(crate) fn itens_do_autocompletar(xml: &str) -> Result<Vec<(String, String)>, FalhaDaConsulta> {
     let dom = tl::parse(xml, tl::ParserOptions::default())
-        .map_err(|_| FalhaDaConsulta::RespostaDoAutocompletarForaDaFormaObservada)?;
+        .map_err(FalhaDaConsulta::ParseDaRespostaDoAutocompletarFalhou)?;
     let parser = dom.parser();
     let contar = |seletor: &str| dom.query_selector(seletor).map_or(0, Iterator::count);
     if contar("itens") != 1 || contar("erro") != 0 {

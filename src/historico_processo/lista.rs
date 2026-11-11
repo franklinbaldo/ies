@@ -52,24 +52,26 @@ fn legenda(dom: &tl::VDom<'_>) -> Result<u64, ErroAndamentos> {
         [texto] => texto,
         _ => return Err(ErroAndamentos::LegendaDosAndamentosForaDaFormaObservada),
     };
-    let fora = ErroAndamentos::LegendaDosAndamentosForaDaFormaObservada;
-    let resto = texto.strip_prefix("Lista de Andamentos (").ok_or(fora)?;
+    let fora = || ErroAndamentos::LegendaDosAndamentosForaDaFormaObservada;
+    let resto = texto
+        .strip_prefix("Lista de Andamentos (")
+        .ok_or_else(fora)?;
     let numero = resto
         .strip_suffix(" registros):")
         .or_else(|| resto.strip_suffix(" registro):"))
-        .ok_or(fora)?;
+        .ok_or_else(fora)?;
     if numero.is_empty() || !numero.bytes().all(|b| b.is_ascii_digit()) {
-        return Err(fora);
+        return Err(fora());
     }
-    numero.parse().map_err(|_| fora)
+    numero.parse().map_err(|_| fora())
 }
 
 /// O único `hdnTipoHistorico` do formulário: `R` ou `P`.
 fn tipo_servido(dom: &tl::VDom<'_>) -> Result<TipoDoHistorico, ErroAndamentos> {
-    let ausente = ErroAndamentos::TipoDoHistoricoNaoPublicado;
+    let ausente = || ErroAndamentos::TipoDoHistoricoNaoPublicado;
     let parser = dom.parser();
-    let form =
-        localizar_formulario(dom, super::VER_HISTORICO_COMPLETO.formulario).map_err(|_| ausente)?;
+    let form = localizar_formulario(dom, super::VER_HISTORICO_COMPLETO.formulario)
+        .map_err(|_| ausente())?;
     let mut valores = Vec::new();
     for tag in form
         .children()
@@ -84,12 +86,12 @@ fn tipo_servido(dom: &tl::VDom<'_>) -> Result<TipoDoHistorico, ErroAndamentos> {
             == Some(super::CAMPO_TIPO)
         {
             let bruto = valor_do_atributo(tag, "value").map_err(ErroAndamentos::Atributo)?;
-            valores.push(decodificar_atributo(&bruto.unwrap_or_default()).ok_or(ausente)?);
+            valores.push(decodificar_atributo(&bruto.unwrap_or_default()).ok_or_else(ausente)?);
         }
     }
     match valores.as_slice() {
         [v] if v == "R" => Ok(TipoDoHistorico::Resumido),
         [v] if v == "P" => Ok(TipoDoHistorico::Completo),
-        _ => Err(ausente),
+        _ => Err(ausente()),
     }
 }

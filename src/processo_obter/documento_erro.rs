@@ -32,6 +32,12 @@ pub(crate) enum ErroDocumentoObter {
     TituloDeOutroDocumento,
     /// O corpo do HTML servido.
     Corpo(#[from] ErroCorpoDocumento),
+    /// O link da versão não tem a forma observada.
+    LinkDaVersaoRecusado(#[source] crate::arvore_processo::endereco::EnderecoRecusado),
+    /// O `id_documento` pedido não é um número SEI válido.
+    NumeroSeiDaArvoreIlegivel(#[source] crate::documento::NumeroDocumentoInvalido),
+    /// A raiz do cache de documentos não pôde ser resolvida.
+    RaizDoCacheIlegivel(#[source] crate::cache_documento::FalhaCache),
     /// A barra do `DOCUMENTO` fora da forma observada (Refs #88).
     BarraDoDocumento(#[from] ErroBarraDoDocumento),
     /// `--versao N` e a barra do documento não publica a lista de versões
@@ -75,7 +81,10 @@ impl ErroDocumentoObter {
             | Self::NumeroSeiAusenteDaArvoreDoProcesso
             | Self::NumeroSeiRepetidoNaArvore
             | Self::DocumentoAusenteDaArvore
-            | Self::BarraDoDocumentoForaDaFormaObservada => false,
+            | Self::BarraDoDocumentoForaDaFormaObservada
+            | Self::LinkDaVersaoRecusado(_)
+            | Self::NumeroSeiDaArvoreIlegivel(_)
+            | Self::RaizDoCacheIlegivel(_) => false,
         }
     }
 }

@@ -46,7 +46,7 @@ pub(super) fn ler<V: EnvioDoProcesso>(
     let endereco = match &aberta.marcadores {
         Ok(Some(endereco)) => endereco,
         Ok(None) => return Ok(Marcadores::NaoPublicadosNaBarra),
-        Err(erro) => return Err(ErroProcessoObter::Marcadores(*erro)),
+        Err(erro) => return Err(ErroProcessoObter::Marcadores(erro.clone())),
     };
     let id = aberta.arvore.processo.id.as_str();
     let guardada = if guardado_primeiro {

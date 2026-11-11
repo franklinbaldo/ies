@@ -56,11 +56,11 @@ pub(crate) fn ler_link_das_propriedades(
 }
 
 /// Recusas da leitura do link de anotações na barra do processo.
-#[derive(Clone, Copy, Debug, PartialEq, Eq, thiserror::Error)]
+#[derive(Clone, Debug, PartialEq, Eq, thiserror::Error)]
 #[error("{self:?}")]
 pub(crate) enum ErroLinkDasAnotacoes {
-    BarraDeAnotacoesNaoInterpretada,
-    EnderecoDeAnotacoesNaoReconhecido,
+    BarraDeAnotacoesIlegivel(#[source] super::ErroBarraDoProcesso),
+    EnderecoDeAnotacoesRecusado(#[source] crate::arvore_processo::endereco::EnderecoRecusado),
     LinksDeAnotacoesRepetidos,
 }
 
@@ -71,8 +71,7 @@ pub(crate) fn ler_link_das_anotacoes(
     html: &str,
     id: &str,
 ) -> Result<Option<String>, ErroLinkDasAnotacoes> {
-    let hrefs =
-        hrefs_da_barra(html).map_err(|_| ErroLinkDasAnotacoes::BarraDeAnotacoesNaoInterpretada)?;
+    let hrefs = hrefs_da_barra(html).map_err(ErroLinkDasAnotacoes::BarraDeAnotacoesIlegivel)?;
     let candidatos: Vec<_> = hrefs
         .iter()
         .filter(|href| acao_do_href(href) == Some(AcaoDoSei::AnotacaoRegistrar))
@@ -81,16 +80,16 @@ pub(crate) fn ler_link_das_anotacoes(
         [] => Ok(None),
         [href] => conferir_endereco_relativo(instalacao, href, AcaoDoSei::AnotacaoRegistrar, id)
             .map(Some)
-            .map_err(|_| ErroLinkDasAnotacoes::EnderecoDeAnotacoesNaoReconhecido),
+            .map_err(ErroLinkDasAnotacoes::EnderecoDeAnotacoesRecusado),
         _ => Err(ErroLinkDasAnotacoes::LinksDeAnotacoesRepetidos),
     }
 }
 
 /// Recusas do link de controle de prazo; URLs assinadas nunca aparecem no erro.
-#[derive(Clone, Copy, Debug, PartialEq, Eq, thiserror::Error)]
+#[derive(Clone, Debug, PartialEq, Eq, thiserror::Error)]
 #[error("{self:?}")]
 pub(crate) enum ErroLinkPrazo {
-    BarraNaoInterpretada,
+    BarraDoPrazoIlegivel(#[source] super::ErroBarraDoProcesso),
     LinksRepetidos,
     EnderecoNaoReconhecido,
     EnderecoDeOutroProcesso,
@@ -102,7 +101,7 @@ pub(crate) fn ler_link_do_prazo(
     html: &str,
     id: &str,
 ) -> Result<Option<String>, ErroLinkPrazo> {
-    let hrefs = hrefs_da_barra(html).map_err(|_| ErroLinkPrazo::BarraNaoInterpretada)?;
+    let hrefs = hrefs_da_barra(html).map_err(ErroLinkPrazo::BarraDoPrazoIlegivel)?;
     let candidatos: Vec<_> = hrefs
         .iter()
         .filter(|href| acao_do_href(href) == Some(AcaoDoSei::ControlePrazoDefinir))
@@ -176,9 +175,12 @@ pub(crate) fn ler_link_dos_comentarios(
 }
 
 /// A barra do nó `PROCESSO` (`Nos[0].acoes`) como o leitor a encontrou.
-#[derive(Clone, Copy, Debug, PartialEq, Eq, thiserror::Error)]
+#[derive(Clone, Debug, PartialEq, Eq, thiserror::Error)]
 #[error("{self:?}")]
 pub(crate) enum ErroBarraDoProcesso {
+    ParseDaBarraDoProcessoFalhou(#[source] tl::ParseError),
+    DeclaracaoDaBarraIlegivel(#[source] super::ErroArvore),
+    LinhaDaBarraIlegivel(#[source] super::ErroArvore),
     /// O tokenizador de atributos recusou a tag.
     Atributo(#[source] crate::html_atributos::ErroAtributoHtml),
     BarraDoProcessoForaDaFormaObservada,
@@ -207,7 +209,7 @@ pub(super) fn ancoras_da_barra(html: &str) -> Result<Vec<AncoraDaBarra>, ErroBar
         return Ok(Vec::new());
     };
     let dom = tl::parse(&texto, tl::ParserOptions::default())
-        .map_err(|_| ErroBarraDoProcesso::BarraDoProcessoForaDaFormaObservada)?;
+        .map_err(ErroBarraDoProcesso::ParseDaBarraDoProcessoFalhou)?;
     let parser = dom.parser();
     let mut ancoras = Vec::new();
     for no in dom.query_selector("a").into_iter().flatten() {
@@ -243,8 +245,8 @@ pub(super) fn acao_do_href(href: &str) -> Option<AcaoDoSei> {
 fn barra_da_raiz(html: &str) -> Result<Option<String>, ErroBarraDoProcesso> {
     let mut raiz = None;
     for linha in html.split('\n') {
-        if let Some((i, argumentos)) = ler_declaracao(linha)
-            .map_err(|_| ErroBarraDoProcesso::BarraDoProcessoForaDaFormaObservada)?
+        if let Some((i, argumentos)) =
+            ler_declaracao(linha).map_err(ErroBarraDoProcesso::DeclaracaoDaBarraIlegivel)?
             && argumentos.first() == Some(&Literal::Texto("PROCESSO".into()))
         {
             raiz = Some(i);
@@ -259,8 +261,8 @@ fn barra_da_raiz(html: &str) -> Result<Option<String>, ErroBarraDoProcesso> {
         if indice_da_barra(linha) != Some(raiz) {
             continue;
         }
-        let Some((_, lido)) = ler_barra(linha)
-            .map_err(|_| ErroBarraDoProcesso::BarraDoProcessoForaDaFormaObservada)?
+        let Some((_, lido)) =
+            ler_barra(linha).map_err(ErroBarraDoProcesso::LinhaDaBarraIlegivel)?
         else {
             return Err(ErroBarraDoProcesso::BarraDoProcessoForaDaFormaObservada);
         };
@@ -286,7 +288,7 @@ impl std::fmt::Debug for EnderecoDoIncluirDocumento {
     }
 }
 
-#[derive(Clone, Copy, Debug, PartialEq, Eq, thiserror::Error)]
+#[derive(Clone, Debug, PartialEq, Eq, thiserror::Error)]
 #[error("{self:?}")]
 pub(crate) enum ErroLinkIncluirDocumento {
     Barra(#[from] crate::arvore_processo::ErroBarraDoProcesso),

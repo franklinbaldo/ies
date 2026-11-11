@@ -15,11 +15,16 @@ use super::literais::{Literal, ler_chamada};
 use crate::acao_do_sei::AcaoDoSei;
 use crate::instalacao::Instalacao;
 
-#[derive(Clone, Copy, Debug, PartialEq, Eq, thiserror::Error)]
+#[derive(Clone, Debug, PartialEq, Eq, thiserror::Error)]
 #[error("{self:?}")]
 pub(crate) enum ErroCienciaNaArvore {
     /// O tokenizador de atributos recusou a tag.
     Atributo(#[source] crate::html_atributos::ErroAtributoHtml),
+    ParseDoHtmlDaCienciaFalhou(#[source] tl::ParseError),
+    EnderecoDaCienciaDoDocumentoRecusado(
+        #[source] crate::arvore_processo::endereco::EnderecoRecusado,
+    ),
+    EnderecoDaListaDeCienciasRecusado(#[source] crate::arvore_processo::endereco::EnderecoRecusado),
     Barra(#[from] crate::arvore_processo::ErroBarraDoProcesso),
     CienciaRepetidaNaBarra,
     TelaDeCienciaNaoPublicada,
@@ -31,8 +36,6 @@ pub(crate) enum ErroCienciaNaArvore {
     ListaDeCienciasForaDaForma,
     EnderecoDaListaDeCienciasNaoReconhecido,
     EnderecoDaCienciaDeOutroProcesso,
-    EnderecoDaCienciaDoDocumentoNaoReconhecido,
-    EnderecoDaListaDeCienciasDoDocumentoNaoReconhecido,
     FuncaoDeCienciaDoDocumentoForaDaForma,
     LinkDeCienciaDoDocumentoAusente,
     LinkDeCienciaDoDocumentoForaDaForma,
@@ -134,8 +137,9 @@ pub(crate) fn ciencia_do_documento_na_barra(
     let Some(barra) = super::barra_do_documento::barra_do_no(html, id_documento)? else {
         return Ok(false);
     };
-    let fora = super::ErroBarraDoDocumento::BarraDaCienciaDoDocumentoForaDaForma;
-    let dom = tl::parse(&barra, tl::ParserOptions::default()).map_err(|_| fora)?;
+    let fora = || super::ErroBarraDoDocumento::BarraDaCienciaDoDocumentoForaDaForma;
+    let dom = tl::parse(&barra, tl::ParserOptions::default())
+        .map_err(super::ErroBarraDoDocumento::ParseDaBarraDaCienciaFalhou)?;
     let mut total = 0;
     for no in dom.query_selector("a").into_iter().flatten() {
         let Some(tag) = no.get(dom.parser()).and_then(tl::Node::as_tag) else {
@@ -146,7 +150,7 @@ pub(crate) fn ciencia_do_documento_na_barra(
             .valor("onclick")
             .map_err(super::ErroBarraDoDocumento::AtributoDeLinkDaBarra)?
         {
-            let onclick = crate::formulario_web::decodificar_atributo(onclick).ok_or(fora)?;
+            let onclick = crate::formulario_web::decodificar_atributo(onclick).ok_or_else(fora)?;
             if onclick == "cienciaDocumento();" {
                 total += 1;
             }
@@ -186,7 +190,7 @@ pub(crate) fn url_da_ciencia_do_documento(
         return Err(ErroCienciaNaArvore::ScriptDaCienciaDoDocumentoForaDaForma);
     }
     let dom = tl::parse(html, tl::ParserOptions::default())
-        .map_err(|_| ErroCienciaNaArvore::ScriptDaCienciaDoDocumentoForaDaForma)?;
+        .map_err(ErroCienciaNaArvore::ParseDoHtmlDaCienciaFalhou)?;
     let mut urls = Vec::<String>::new();
     for no in dom.query_selector("script").into_iter().flatten() {
         let Some(tag) = no.get(dom.parser()).and_then(tl::Node::as_tag) else {
@@ -227,7 +231,7 @@ pub(crate) fn url_da_ciencia_do_documento(
         "id_documento",
         id_documento,
     )
-    .map_err(|_| ErroCienciaNaArvore::EnderecoDaCienciaDoDocumentoNaoReconhecido)?;
+    .map_err(ErroCienciaNaArvore::EnderecoDaCienciaDoDocumentoRecusado)?;
     // Se a instalação também publicou id_procedimento, ele tem de ser único
     // e corresponder ao processo; a ausência é a forma observada na UnB.
     let consulta = url.split_once('?').map_or("", |(_, q)| q);
@@ -293,7 +297,7 @@ pub(crate) fn lista_do_documento(
             chave,
             id,
         )
-        .map_err(|_| ErroCienciaNaArvore::EnderecoDaListaDeCienciasDoDocumentoNaoReconhecido)
+        .map_err(ErroCienciaNaArvore::EnderecoDaListaDeCienciasRecusado)
     };
     por("id_procedimento", id_procedimento)?;
     por("id_documento", id_documento).map(|u| Some(EnderecoDeEscrita::novo(u)))

@@ -29,16 +29,16 @@ pub(super) fn ler_declaracao(linha: &str) -> Result<Option<(usize, Vec<Literal>)
     if !linha.contains(CONSTRUTOR) {
         return Ok(None);
     }
-    let fora = ErroArvore::DeclaracaoDeNoForaDaFormaObservada;
-    let (indice, resto) = indice_entre(linha, "Nos[").ok_or(fora)?;
+    let fora = || ErroArvore::DeclaracaoDeNoForaDaFormaObservada;
+    let (indice, resto) = indice_entre(linha, "Nos[").ok_or_else(fora)?;
     if let Some(resto) = resto.strip_prefix(HTML_ANTES) {
         let (Literal::Texto(_), depois) = ler_literal(resto)? else {
-            return Err(fora);
+            return Err(fora());
         };
-        let declaracao = depois.strip_prefix(';').ok_or(fora)?;
+        let declaracao = depois.strip_prefix(';').ok_or_else(fora)?;
         let (seguinte, argumentos) = ler_no(declaracao)?;
         if seguinte != indice + 1 {
-            return Err(fora);
+            return Err(fora());
         }
         return Ok(Some((seguinte, argumentos)));
     }
@@ -47,12 +47,12 @@ pub(super) fn ler_declaracao(linha: &str) -> Result<Option<(usize, Vec<Literal>)
 
 /// `Nos[i] = new infraArvoreNo(…);` exata, sem nada antes nem depois.
 fn ler_no(linha: &str) -> Result<(usize, Vec<Literal>), ErroArvore> {
-    let fora = ErroArvore::DeclaracaoDeNoForaDaFormaObservada;
-    let (indice, resto) = indice_entre(linha, "Nos[").ok_or(fora)?;
-    let resto = resto.strip_prefix(ABERTURA).ok_or(fora)?;
+    let fora = || ErroArvore::DeclaracaoDeNoForaDaFormaObservada;
+    let (indice, resto) = indice_entre(linha, "Nos[").ok_or_else(fora)?;
+    let resto = resto.strip_prefix(ABERTURA).ok_or_else(fora)?;
     let (argumentos, depois) = ler_argumentos(resto)?;
     if depois != ";" {
-        return Err(fora);
+        return Err(fora());
     }
     Ok((indice, argumentos))
 }
@@ -94,10 +94,10 @@ pub(super) fn ler_barra(linha: &str) -> Result<Option<(usize, String)>, ErroArvo
     let Some(resto) = resto.strip_prefix(BARRA) else {
         return Ok(None);
     };
-    let fora = ErroArvore::BarraDeNoForaDaFormaObservada;
-    match ler_literal(resto).map_err(|_| fora)? {
+    let fora = || ErroArvore::BarraDeNoForaDaFormaObservada;
+    match ler_literal(resto).map_err(|e| ErroArvore::BarraDeNoIlegivel(Box::new(e)))? {
         (Literal::Texto(texto), ";") => Ok(Some((indice, texto))),
-        _ => Err(fora),
+        _ => Err(fora()),
     }
 }
 
@@ -118,10 +118,10 @@ pub(super) fn ler_src(linha: &str) -> Result<Option<(usize, String)>, ErroArvore
     let Some(resto) = resto.strip_prefix(SRC) else {
         return Ok(None);
     };
-    let fora = ErroArvore::SrcDeNoForaDaFormaObservada;
-    match ler_literal(resto).map_err(|_| fora)? {
+    let fora = || ErroArvore::SrcDeNoForaDaFormaObservada;
+    match ler_literal(resto).map_err(|e| ErroArvore::SrcDeNoIlegivel(Box::new(e)))? {
         (Literal::Texto(texto), ";") => Ok(Some((indice, texto))),
-        _ => Err(fora),
+        _ => Err(fora()),
     }
 }
 
@@ -143,12 +143,12 @@ pub(super) fn ler_html(linha: &str) -> Result<Option<(usize, String)>, ErroArvor
     let Some(resto) = resto.strip_prefix(HTML_ANTES) else {
         return Ok(None);
     };
-    let fora = ErroArvore::HtmlDoNoDoProcessoForaDaFormaObservada;
-    match ler_literal(resto).map_err(|_| fora)? {
+    let fora = || ErroArvore::HtmlDoNoDoProcessoForaDaFormaObservada;
+    match ler_literal(resto).map_err(|e| ErroArvore::HtmlDoNoDoProcessoIlegivel(Box::new(e)))? {
         (Literal::Texto(texto), depois) if depois == ";" || depois.starts_with(";Nos[") => {
             Ok(Some((indice, texto)))
         }
-        _ => Err(fora),
+        _ => Err(fora()),
     }
 }
 
@@ -160,12 +160,12 @@ pub(super) fn ler_protocolos(linha: &str) -> Result<Option<(usize, String)>, Err
     if !linha.starts_with("Pastas[") || !linha.contains(PROTOCOLOS) {
         return Ok(None);
     }
-    let fora = ErroArvore::ProtocolosDaPastaForaDaFormaObservada;
-    let (indice, resto) = indice_entre(linha, "Pastas[").ok_or(fora)?;
-    let resto = resto.strip_prefix(PROTOCOLOS).ok_or(fora)?;
-    match ler_literal(resto).map_err(|_| fora)? {
+    let fora = || ErroArvore::ProtocolosDaPastaForaDaFormaObservada;
+    let (indice, resto) = indice_entre(linha, "Pastas[").ok_or_else(fora)?;
+    let resto = resto.strip_prefix(PROTOCOLOS).ok_or_else(fora)?;
+    match ler_literal(resto).map_err(|e| ErroArvore::ProtocolosDaPastaIlegiveis(Box::new(e)))? {
         (Literal::Texto(texto), ";") => Ok(Some((indice, texto))),
-        _ => Err(fora),
+        _ => Err(fora()),
     }
 }
 

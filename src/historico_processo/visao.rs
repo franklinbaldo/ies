@@ -44,31 +44,31 @@ const REGRA_DE_VER_HISTORICO: [&str; 3] = [
 
 /// Confere, literalmente, a função servida e o único link para a visão `P`.
 pub(crate) fn conferir_regra_de_ver_historico(html: &str) -> Result<(), super::ErroAndamentos> {
-    let fora = super::ErroAndamentos::RegraDeVerHistoricoNaoObservada;
+    let fora = || super::ErroAndamentos::RegraDeVerHistoricoNaoObservada;
     let linhas: Vec<&str> = html.lines().map(str::trim).collect();
     if !REGRA_DE_VER_HISTORICO
         .iter()
         .all(|regra| linhas.contains(regra))
     {
-        return Err(fora);
+        return Err(fora());
     }
-    let dom = tl::parse(html, tl::ParserOptions::default()).map_err(|_| fora)?;
+    let dom = tl::parse(html, tl::ParserOptions::default()).map_err(|_| fora())?;
     let parser = dom.parser();
-    let links = nos_com_id(&dom, "ancTipoHistorico").map_err(|_| fora)?;
+    let links = nos_com_id(&dom, "ancTipoHistorico").map_err(|_| fora())?;
     let [link] = links.as_slice() else {
-        return Err(fora);
+        return Err(fora());
     };
     let link = link
         .get(parser)
         .and_then(tl::Node::as_tag)
         .filter(|t| t.name().as_utf8_str().eq_ignore_ascii_case("a"))
-        .ok_or(fora)?;
+        .ok_or_else(fora)?;
     let onclick = valor_do_atributo(link, "onclick")
         .map_err(super::ErroAndamentos::Atributo)?
         .and_then(|bruto| decodificar_atributo(&bruto))
-        .ok_or(fora)?;
+        .ok_or_else(fora)?;
     if onclick != "verHistorico('P');" {
-        return Err(fora);
+        return Err(fora());
     }
     Ok(())
 }

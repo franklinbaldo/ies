@@ -203,7 +203,7 @@ fn ler_versao<V: EnvioDoProcesso>(
         AcaoDoSei::DocumentoVisualizar,
         no.id_procedimento,
     )
-    .map_err(|_| ErroDocumentoObter::Versoes(ErroVersao::LinkInseguro))?;
+    .map_err(ErroDocumentoObter::LinkDaVersaoRecusado)?;
     let (tipo, texto, html) = ler_pagina(rede, &url, no.numero)?;
     // Um link assinado no corpo impede persistencia em cache, nao a
     // leitura da versao. A foto explicita continua recusada em fotografar.
@@ -248,8 +248,8 @@ fn ler_lista<V: EnvioDoProcesso>(
             return Err(ErroDocumentoObter::Processo(fora_do_html(outra)));
         }
     };
-    let numero = NumeroDocumento::novo(no.numero)
-        .map_err(|_| ErroDocumentoObter::NumeroSeiDaArvoreDiferenteDoPedido)?;
+    let numero =
+        NumeroDocumento::novo(no.numero).map_err(ErroDocumentoObter::NumeroSeiDaArvoreIlegivel)?;
     interpretar_historico(&html, &numero, no.id_documento, None)
         .map_err(ErroDocumentoObter::Versoes)
 }
