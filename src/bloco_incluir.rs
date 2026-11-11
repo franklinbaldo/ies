@@ -87,6 +87,8 @@ pub(crate) enum ErroIncluir {
     SelecaoDeBlocoAusente,
     SelecoesDeBlocoRepetidas,
     TelaDeEscolherBlocoForaDaFormaObservada,
+    /// O parser de HTML recusou a tela de escolha do bloco.
+    HtmlDaEscolhaRecusadoPeloParser(#[source] tl::ParseError),
 }
 
 fn atributo(tag: &tl::HTMLTag<'_>, nome: &'static str) -> Result<Option<String>, ErroIncluir> {
@@ -101,7 +103,8 @@ fn atributo(tag: &tl::HTMLTag<'_>, nome: &'static str) -> Result<Option<String>,
 /// Lê o `frmBlocoEscolher`: um formulário, um `selBloco`.
 pub(crate) fn ler_tela_de_escolha(html: &str) -> Result<TelaDeEscolha, ErroIncluir> {
     let fora = || ErroIncluir::TelaDeEscolherBlocoForaDaFormaObservada;
-    let dom = tl::parse(html, tl::ParserOptions::default()).map_err(|_| fora())?;
+    let dom = tl::parse(html, tl::ParserOptions::default())
+        .map_err(ErroIncluir::HtmlDaEscolhaRecusadoPeloParser)?;
     let parser = dom.parser();
     let tags = |seletor: &str| -> Vec<&tl::HTMLTag<'_>> {
         dom.query_selector(seletor)

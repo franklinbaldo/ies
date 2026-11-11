@@ -20,11 +20,16 @@ pub(crate) use erro::{ErroCancelar, FalhaDoCancelamento};
 pub(crate) use fluxo::ResultadoDaVerificacao;
 pub(crate) use fluxo::{DocumentoCancelado, PedidoDoCancelamento, cancelar_documento};
 
-#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+#[derive(Clone, Debug, PartialEq, Eq, thiserror::Error)]
+#[error("{self:?}")]
 pub(crate) enum ErroLinkCancelar {
     /// O tokenizador de atributos recusou a tag.
     Atributo(crate::html_atributos::ErroAtributoHtml),
     BarraForaDaForma,
+    /// A barra do documento não pôde ser lida do HTML da tela.
+    BarraDoDocumentoIlegivel(#[source] crate::arvore_processo::ErroBarraDoDocumento),
+    /// O parser de HTML recusou a barra do documento.
+    BarraRecusadaPeloParser(#[source] tl::ParseError),
     LinksRepetidos,
     EnderecoNaoReconhecido,
     EnderecoDeOutroDocumento,
@@ -52,12 +57,12 @@ pub(crate) fn ler_link_cancelar(
     processo: &str,
 ) -> Result<Option<LinkDeCancelamento>, ErroLinkCancelar> {
     let Some(barra) =
-        barra_do_no(html, documento).map_err(|_| ErroLinkCancelar::BarraForaDaForma)?
+        barra_do_no(html, documento).map_err(ErroLinkCancelar::BarraDoDocumentoIlegivel)?
     else {
         return Ok(None);
     };
     let dom = tl::parse(&barra, tl::ParserOptions::default())
-        .map_err(|_| ErroLinkCancelar::BarraForaDaForma)?;
+        .map_err(ErroLinkCancelar::BarraRecusadaPeloParser)?;
     let parser = dom.parser();
     let mut links = Vec::new();
     for no in dom.query_selector("a").into_iter().flatten() {

@@ -179,12 +179,10 @@ fn texto_plano_no_charset_declarado_sem_controles() {
     assert_eq!(a.mime, "text/plain");
     assert_eq!(a.texto.as_deref(), Some("Ofício\nlinha\u{fffd}[31m\tfim"));
     let utf8_invalido = ler(resposta(&[("content-type", "text/plain")], b"Of\xedcio"));
-    assert_eq!(
+    assert!(matches!(
         utf8_invalido,
-        Err(ErroAnexo::Transporte(
-            FalhaTransporte::CorpoNaoDecodificavelNoCharsetDeclarado
-        ))
-    );
+        Err(ErroAnexo::CorpoNaoUtf8NoCharsetDeclarado(_))
+    ));
 }
 
 #[test]

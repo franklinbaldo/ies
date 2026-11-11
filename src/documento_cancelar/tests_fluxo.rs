@@ -199,7 +199,10 @@ fn formulario_assinado_de_outro_documento_recusa_antes_do_post() {
     let mut respostas = abertura(arvore_ativa());
     respostas.push(ok(tela("99")));
     let (resultado, pedidos) = executar(true, respostas);
-    assert_eq!(resultado, Err(ErroCancelar::FormularioDeOutroDocumento));
+    assert!(matches!(
+        resultado,
+        Err(ErroCancelar::EnderecoDoDocumentoRecusado(_))
+    ));
     assert_eq!(pedidos, pedidos_previa());
 }
 

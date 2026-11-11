@@ -57,10 +57,10 @@ pub(crate) const CAMPOS_DO_ENVIO: [(&str, &str); 3] =
 /// reabertura programada preenchido.
 pub(crate) fn conferir_tela_de_conclusao(html: &str, id: &str) -> Result<(), ErroTelaDeConclusao> {
     let dom = tl::parse(html, tl::ParserOptions::default())
-        .map_err(|_| ErroTelaDeConclusao::TelaDeConclusaoNaoInterpretada)?;
+        .map_err(ErroTelaDeConclusao::TelaDeConclusaoNaoInterpretada)?;
     let parser = dom.parser();
     let form = localizar_formulario(&dom, FORMULARIO_DE_CONCLUSAO)
-        .map_err(|_| ErroTelaDeConclusao::FormularioDeConclusaoAusente)?;
+        .map_err(ErroTelaDeConclusao::FormularioDeConclusaoAusente)?;
     let mut somente_marcado = false;
     let mut outra_marcada = false;
     let mut preenchida = false;
