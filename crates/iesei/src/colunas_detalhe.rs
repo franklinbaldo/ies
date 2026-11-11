@@ -208,6 +208,50 @@ pub fn ler(
     Ok(unidade.map(|unidade| Configuracao { unidade, opcoes }))
 }
 
+/// Aplica um conjunto tipado de colunas oferecidas no cenário observado.
+/// A atualização é atômica; a verificação da CLI ocorre por GET posterior,
+/// nunca pela mera confirmação deste método.
+///
+/// # Errors
+/// Recusa colunas repetidas ou não oferecidas, ausência de observação e falhas SQL.
+pub fn aplicar_marcas(
+    banco: &Connection,
+    instalacao: &Instalacao,
+    cenario: &str,
+    marcadas: &[Coluna],
+) -> Result<Configuracao, Erro> {
+    let mut configuracao = ler(banco, instalacao, cenario)?.ok_or(Erro::DadoInvalido)?;
+    let mut vistas = std::collections::HashSet::new();
+    if !marcadas.iter().all(|coluna| {
+        vistas.insert(*coluna)
+            && configuracao
+                .opcoes
+                .iter()
+                .any(|opcao| opcao.coluna == *coluna)
+    }) {
+        return Err(Erro::DadoInvalido);
+    }
+    let tx = banco.unchecked_transaction()?;
+    for opcao in &mut configuracao.opcoes {
+        let marcada = marcadas.contains(&opcao.coluna);
+        if opcao.marcada != marcada {
+            tx.execute(
+                "UPDATE colunas_detalhe SET marcada=?1
+                 WHERE origem=?2 AND cenario=?3 AND coluna=?4",
+                params![
+                    marcada,
+                    instalacao.url_base(),
+                    cenario,
+                    opcao.coluna.chave()
+                ],
+            )?;
+            opcao.marcada = marcada;
+        }
+    }
+    tx.commit()?;
+    Ok(configuracao)
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
