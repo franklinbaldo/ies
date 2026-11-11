@@ -174,8 +174,10 @@ fn executar(
         valor["origem"] = json!(origem);
         valor["requisicoes"] = json!(requisicoes);
         valor["persistida_no_indice"] = json!(persistida);
+        crate::indice_local::anexar_avisos(&mut valor, &indice);
         println!("{valor}");
     } else {
+        crate::indice_local::avisar_no_texto(&indice);
         println!(
             "Unidades: {} (origem: {}, leitura: {}, requisições: {})",
             lista.total, origem, lista.lida_em, requisicoes

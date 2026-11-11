@@ -267,7 +267,7 @@ fn login_ou_503_na_tela_falham_sem_retry() {
 /// Índice quente: árvore, histórico e (se pedido) propriedades guardados.
 fn quente(amb: &Ambiente, propriedades_guardadas: Option<&str>) {
     let (inst, g) = (instalacao(), geracao());
-    amb.indice.registrar_processo(&inst, NUP, ID).unwrap();
+    amb.indice.registrar_processo(&inst, NUP, ID);
     let mut links = vec![
         (AcaoDoSei::ProcedimentoVisualizar, url_arvore(ID)),
         (AcaoDoSei::ProcedimentoConsultarHistorico, url_historico(ID)),

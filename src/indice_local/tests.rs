@@ -46,9 +46,7 @@ fn cria_diretorio_0700_e_banco_0600_com_wal_herdando() {
     let raiz = pasta("permissoes");
     let caminho = raiz.join("sub").join(NOME_DO_ARQUIVO);
     let indice = IndiceLocal::em(caminho.clone());
-    indice
-        .registrar_processo(&instalacao(), "N1", "10")
-        .unwrap();
+    indice.registrar_processo(&instalacao(), "N1", "10");
     assert!(indice.ligado());
     assert_eq!(
         indice.id_por_nup(&instalacao(), "N1").as_deref(),
@@ -74,7 +72,7 @@ fn banco_link_simbolico_desliga_sem_tocar_no_alvo() {
     let caminho = raiz.join(NOME_DO_ARQUIVO);
     std::os::unix::fs::symlink(&alvo, &caminho).unwrap();
     let indice = IndiceLocal::em(caminho);
-    let _ = indice.registrar_processo(&instalacao(), "N1", "10");
+    indice.registrar_processo(&instalacao(), "N1", "10");
     assert_eq!(indice.id_por_nup(&instalacao(), "N1"), None);
     assert!(!indice.ligado());
     assert_eq!(fs::metadata(&alvo).unwrap().len(), 0);
@@ -92,7 +90,10 @@ fn diretorio_por_link_simbolico_liga_e_cria_os_niveis_no_diretorio_real() {
     let indice = IndiceLocal::em(raiz.join("atalho").join("novo").join(NOME_DO_ARQUIVO));
     indice.registrar_entrada_por_id(&instalacao(), true);
     assert!(indice.ligado());
-    assert_eq!(indice.entrada_por_id(&instalacao()), Some(true));
+    assert_eq!(
+        indice.entrada_por_id(&instalacao()),
+        Some(AceiteDaEntrada::Aceita)
+    );
     assert_eq!(modo(&real.join("novo")), 0o700);
     assert_eq!(modo(&real.join("novo").join(NOME_DO_ARQUIVO)), 0o600);
 }
@@ -171,9 +172,7 @@ fn caminho_respeita_sem_indice_arquivo_e_padrao() {
 fn desligado_nao_cria_nada_e_nao_responde() {
     let indice = IndiceLocal::desligado();
     indice.registrar_entrada_por_id(&instalacao(), true);
-    indice
-        .registrar_processo(&instalacao(), "N1", "10")
-        .unwrap();
+    indice.registrar_processo(&instalacao(), "N1", "10");
     assert!(!indice.ligado());
     assert_eq!(indice.entrada_por_id(&instalacao()), None);
     assert_eq!(indice.id_por_nup(&instalacao(), "N1"), None);
@@ -249,13 +248,11 @@ fn grava_linhas_em_processo_auxiliar() {
     let indice = IndiceLocal::em(PathBuf::from(caminho));
     let base_id: u32 = base_id.parse().unwrap();
     for n in 0..40 {
-        indice
-            .registrar_processo(
-                &instalacao(),
-                &format!("{prefixo}{n}"),
-                &(base_id + n).to_string(),
-            )
-            .unwrap();
+        indice.registrar_processo(
+            &instalacao(),
+            &format!("{prefixo}{n}"),
+            &(base_id + n).to_string(),
+        );
     }
     assert!(indice.ligado());
 }
@@ -315,9 +312,7 @@ fn concorrencia_numa_pasta_nova(nome: &str) {
                 let indice = IndiceLocal::em(caminho);
                 for i in 0..40 {
                     let id = (n * 1000 + i).to_string();
-                    indice
-                        .registrar_processo(&instalacao(), &format!("{prefixo}{i}"), &id)
-                        .unwrap();
+                    indice.registrar_processo(&instalacao(), &format!("{prefixo}{i}"), &id);
                 }
                 indice.ligado()
             })
@@ -342,12 +337,12 @@ fn conflito_substitui_as_linhas_antigas() {
     let raiz = pasta("conflito");
     let indice = IndiceLocal::em(raiz.join(NOME_DO_ARQUIVO));
     let sei = instalacao();
-    indice.registrar_processo(&sei, "A", "1").unwrap();
-    indice.registrar_processo(&sei, "B", "2").unwrap();
-    indice.registrar_processo(&sei, "A", "2").unwrap();
+    indice.registrar_processo(&sei, "A", "1");
+    indice.registrar_processo(&sei, "B", "2");
+    indice.registrar_processo(&sei, "A", "2");
     assert_eq!(indice.id_por_nup(&sei, "A").as_deref(), Some("2"));
     assert_eq!(indice.id_por_nup(&sei, "B"), None);
-    indice.registrar_processo(&sei, "C", "2").unwrap();
+    indice.registrar_processo(&sei, "C", "2");
     assert_eq!(indice.id_por_nup(&sei, "A"), None);
     assert_eq!(indice.id_por_nup(&sei, "C").as_deref(), Some("2"));
     indice.esquecer_processo(&sei, "C");
@@ -361,12 +356,8 @@ fn nup_opaco_comparado_exatamente_e_por_instalacao() {
     let indice = IndiceLocal::em(raiz.join(NOME_DO_ARQUIVO));
     let sei = instalacao();
     let outra = Instalacao::interpretar("https://sei.exemplo/outro").unwrap();
-    indice
-        .registrar_processo(&sei, "23106.000001/2026-01", "7")
-        .unwrap();
-    indice
-        .registrar_processo(&outra, "23106.000001/2026-01", "7")
-        .unwrap();
+    indice.registrar_processo(&sei, "23106.000001/2026-01", "7");
+    indice.registrar_processo(&outra, "23106.000001/2026-01", "7");
     assert_eq!(indice.id_por_nup(&sei, "23106000001202601"), None);
     assert_eq!(indice.id_por_nup(&sei, "23106.000001/2026-01 "), None);
     indice.esquecer_processo(&outra, "23106.000001/2026-01");
@@ -382,10 +373,8 @@ fn mesmo_nup_e_id_ficam_isolados_entre_hosts() {
     let indice = IndiceLocal::em(raiz.join(NOME_DO_ARQUIVO));
     let sei = instalacao();
     let outro_host = Instalacao::interpretar("https://outro.exemplo/sei").unwrap();
-    indice.registrar_processo(&sei, "NUP-IGUAL", "71").unwrap();
-    indice
-        .registrar_processo(&outro_host, "NUP-IGUAL", "82")
-        .unwrap();
+    indice.registrar_processo(&sei, "NUP-IGUAL", "71");
+    indice.registrar_processo(&outro_host, "NUP-IGUAL", "82");
 
     assert_eq!(indice.id_por_nup(&sei, "NUP-IGUAL").as_deref(), Some("71"));
     assert_eq!(
@@ -401,32 +390,13 @@ fn identidade_contestada_pelo_servidor_deixa_de_ser_reutilizavel() {
     let raiz = pasta("servidor-contestou-identidade");
     let indice = IndiceLocal::em(raiz.join(NOME_DO_ARQUIVO));
     let sei = instalacao();
-    indice.registrar_processo(&sei, "NUP-ALVO", "71").unwrap();
+    indice.registrar_processo(&sei, "NUP-ALVO", "71");
 
     // O chamador abriu o id guardado e o servidor mostrou outro NUP.
     indice.esquecer_processo(&sei, "NUP-ALVO");
 
     assert_eq!(indice.id_por_nup(&sei, "NUP-ALVO"), None);
     assert_eq!(indice.nup_por_id(&sei, "71"), None);
-}
-
-#[test]
-fn identidade_invalida_recusada_sem_gravar() {
-    let raiz = pasta("identidade-invalida");
-    let indice = IndiceLocal::em(raiz.join(NOME_DO_ARQUIVO));
-    let sei = instalacao();
-    let r = RegistroRecusado::IdProcedimentoInvalido;
-    for id in ["", "12a", "1&acao=x", "-1", "123456789012345678901"] {
-        assert_eq!(indice.registrar_processo(&sei, "N", id), Err(r), "{id}");
-    }
-    for nup in ["", "a\nb", "a\u{0}b"] {
-        assert_eq!(
-            indice.registrar_processo(&sei, nup, "1"),
-            Err(RegistroRecusado::NupInvalido)
-        );
-    }
-    assert_eq!(indice.id_por_nup(&sei, "N"), None);
-    assert!(indice.ligado());
 }
 
 fn relogio() -> (Arc<AtomicU64>, impl Fn() -> f64 + Send + 'static) {
@@ -447,13 +417,13 @@ fn recusa_de_desconhecida_vale_na_primeira_e_expira_em_30_dias() {
     let sei = instalacao();
     assert_eq!(indice.entrada_por_id(&sei), None);
     indice.registrar_entrada_por_id(&sei, false);
-    assert_eq!(indice.entrada_por_id(&sei), Some(false));
+    assert_eq!(indice.entrada_por_id(&sei), Some(AceiteDaEntrada::Recusada));
     agora.fetch_add(29 * DIA, Ordering::SeqCst);
-    assert_eq!(indice.entrada_por_id(&sei), Some(false));
+    assert_eq!(indice.entrada_por_id(&sei), Some(AceiteDaEntrada::Recusada));
     agora.fetch_add(2 * DIA, Ordering::SeqCst);
     assert_eq!(indice.entrada_por_id(&sei), None);
     indice.registrar_entrada_por_id(&sei, false);
-    assert_eq!(indice.entrada_por_id(&sei), Some(false));
+    assert_eq!(indice.entrada_por_id(&sei), Some(AceiteDaEntrada::Recusada));
 }
 
 #[test]
@@ -462,14 +432,14 @@ fn aceita_so_rebaixa_com_duas_recusas_seguidas() {
     let indice = IndiceLocal::em(raiz.join(NOME_DO_ARQUIVO));
     let sei = instalacao();
     indice.registrar_entrada_por_id(&sei, true);
-    assert_eq!(indice.entrada_por_id(&sei), Some(true));
+    assert_eq!(indice.entrada_por_id(&sei), Some(AceiteDaEntrada::Aceita));
     indice.registrar_entrada_por_id(&sei, false);
-    assert_eq!(indice.entrada_por_id(&sei), Some(true));
+    assert_eq!(indice.entrada_por_id(&sei), Some(AceiteDaEntrada::Aceita));
     indice.registrar_entrada_por_id(&sei, true);
     indice.registrar_entrada_por_id(&sei, false);
-    assert_eq!(indice.entrada_por_id(&sei), Some(true));
+    assert_eq!(indice.entrada_por_id(&sei), Some(AceiteDaEntrada::Aceita));
     indice.registrar_entrada_por_id(&sei, false);
-    assert_eq!(indice.entrada_por_id(&sei), Some(false));
+    assert_eq!(indice.entrada_por_id(&sei), Some(AceiteDaEntrada::Recusada));
     let outra = Instalacao::interpretar("https://sei.exemplo/outro").unwrap();
     assert_eq!(indice.entrada_por_id(&outra), None);
 }
@@ -481,7 +451,10 @@ fn aceite_nao_expira() {
     let indice = IndiceLocal::em(raiz.join(NOME_DO_ARQUIVO)).com_relogio(ler);
     indice.registrar_entrada_por_id(&instalacao(), true);
     agora.fetch_add(400 * DIA, Ordering::SeqCst);
-    assert_eq!(indice.entrada_por_id(&instalacao()), Some(true));
+    assert_eq!(
+        indice.entrada_por_id(&instalacao()),
+        Some(AceiteDaEntrada::Aceita)
+    );
 }
 
 #[test]

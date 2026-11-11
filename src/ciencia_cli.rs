@@ -2,6 +2,7 @@
 //! A prévia não dispara o GET que grava a ciência; o resultado não contém
 //! URL, cookie, assinatura ou hash.
 use crate::ciencia::{CienciaDoProcesso, PedidoDaCiencia, ciencia_no_processo};
+use crate::indice_local::{self, IndiceLocal};
 use crate::processo_concluir_cli::com_sessao;
 use crate::visao_do_controle::EnvioHttps;
 use crate::{Cli, Domain, Processo, ProcessoAcao};
@@ -22,7 +23,7 @@ pub(crate) fn tentar_ciente(cli: &Cli) -> Option<anyhow::Result<()>> {
             confirmar: *confirmar,
         };
         let feito = ciencia_no_processo(sessao, &pedido, indice, &mut EnvioHttps)?;
-        publicar_sucesso(cli.json, &feito);
+        publicar_sucesso(cli.json, &feito, indice);
         Ok(())
     }))
 }
@@ -41,9 +42,11 @@ fn json_de_sucesso(feito: &CienciaDoProcesso) -> Value {
     })
 }
 
-fn publicar_sucesso(json_mode: bool, feito: &CienciaDoProcesso) {
+fn publicar_sucesso(json_mode: bool, feito: &CienciaDoProcesso, indice: &IndiceLocal) {
     if json_mode {
-        println!("{}", json_de_sucesso(feito));
+        let mut valor = json_de_sucesso(feito);
+        indice_local::anexar_avisos(&mut valor, indice);
+        println!("{valor}");
     } else if feito.verificado {
         println!(
             "Ciência no processo {} verificada na lista (atividade {}). Requisições: {}.",

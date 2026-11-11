@@ -110,10 +110,8 @@ fn primeira_leitura(amb: &Ambiente) {
 
 fn semear(amb: &Ambiente, documentos: &[(&str, &str)]) {
     let inst = instalacao();
-    amb.indice.registrar_processo(&inst, NUP, ID).unwrap();
-    amb.indice
-        .registrar_documentos(&inst, ID, documentos)
-        .unwrap();
+    amb.indice.registrar_processo(&inst, NUP, ID);
+    amb.indice.registrar_documentos(&inst, ID, documentos);
 }
 
 fn linha(numero: &str, processo: &str, documento: &str) -> [String; 4] {
@@ -229,7 +227,10 @@ fn entrada_por_id_com_documento_em_quatro_e_aceite_registrado() {
     assert_eq!(d.resolvido_por, ResolvidoPor::IndiceEntradaDocumento);
     assert_eq!(d.requisicoes, 4);
     let inst = instalacao();
-    assert_eq!(amb.indice.entrada_por_id_com_documento(&inst), Some(true));
+    assert_eq!(
+        amb.indice.entrada_por_id_com_documento(&inst),
+        Some(crate::indice_local::AceiteDaEntrada::Aceita)
+    );
     assert!(!format!("{d:?}").contains(&hash('8')));
 }
 
@@ -244,7 +245,10 @@ fn recusa_da_entrada_com_documento_para_e_a_proxima_vai_pela_pesquisa() {
     );
     assert_eq!(pedidos, [get(&url_entrada_doc(ID, ID_DOC))]);
     let inst = instalacao();
-    assert_eq!(amb.indice.entrada_por_id_com_documento(&inst), Some(false));
+    assert_eq!(
+        amb.indice.entrada_por_id_com_documento(&inst),
+        Some(crate::indice_local::AceiteDaEntrada::Recusada)
+    );
     // Recusada a forma com documento, nenhuma outra URL é montada.
     let (r, pedidos) = rodar_doc(
         &amb,
@@ -291,8 +295,7 @@ fn indice_desmentido_pela_arvore_e_esquecido_e_cai_na_pesquisa() {
     primeira_leitura(&amb);
     // O índice diz que `0000103` é do processo `ID`; a árvore não o tem.
     amb.indice
-        .registrar_documentos(&instalacao(), ID, &[("0000103", "23")])
-        .unwrap();
+        .registrar_documentos(&instalacao(), ID, &[("0000103", "23")]);
     let arvore_guardada = absoluta(&src_da_arvore_do_documento(ID, ID_DOC));
     let (_r, pedidos) = rodar_doc(
         &amb,
@@ -324,8 +327,7 @@ fn servidor_vence_documento_noutro_id_na_arvore_e_reaprendido() {
     let amb = ambiente();
     primeira_leitura(&amb);
     amb.indice
-        .registrar_documentos(&instalacao(), ID, &[(DOC2, "29")])
-        .unwrap();
+        .registrar_documentos(&instalacao(), ID, &[(DOC2, "29")]);
     let (r, pedidos) = rodar_doc(
         &amb,
         DOC2,
@@ -485,8 +487,7 @@ fn bdd_60_05_numero_ambiguo_recusa_sem_contaminar_indice() {
     guardar_arvore(&amb);
     // Um palpite anterior não pode sobreviver à observação ambígua.
     amb.indice
-        .registrar_documentos(&instalacao(), ID, &[(DOC, "99")])
-        .unwrap();
+        .registrar_documentos(&instalacao(), ID, &[(DOC, "99")]);
     let dois_ids_para_doc = arvore(&[
         no_processo(0, ID, NUP),
         no_documento(1, ID_DOC, ID, DOC),

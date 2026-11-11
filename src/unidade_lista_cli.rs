@@ -3,7 +3,7 @@
 //! fica na D (contracts/cli/unidade-listar-processos-visao-detalhada.md).
 use crate::caixa_detalhada::LeituraDetalhada;
 use crate::colheita_do_controle::{Colheita, EnvioColhendo};
-use crate::indice_local::IndiceLocal;
+use crate::indice_local::{self, IndiceLocal};
 use crate::relogin_cli::{self, NotaDoRelogin};
 use crate::transporte::envio_post::ler_tela_do_controle;
 use crate::transporte::sessao::ReferenciasDaSessao;
@@ -19,14 +19,15 @@ pub(super) fn listar_processos_da_unidade(
     pagina: Option<usize>,
 ) -> anyhow::Result<()> {
     let arquivos = configuracao::arquivos_de_acesso()?;
+    let indice = IndiceLocal::da_configuracao(&arquivos);
     // Cada tentativa relê a sessão num retrato coerente (#222) e colhe na
     // geração dele.
     let (leitura, nota) = relogin_cli::ler(
         &arquivos,
+        &indice,
         unidade,
         ErroVisaoDoControle::sessao_encerrada,
         || {
-            let indice = IndiceLocal::da_configuracao(&arquivos);
             let sessao = ReferenciasDaSessao::ler(
                 &arquivos.url_controle,
                 &arquivos.origem,
@@ -54,7 +55,8 @@ pub(super) fn listar_processos_da_unidade(
         },
     )
     .map_err(relogin_cli::subir)?;
-    mostrar_caixa_detalhada(&leitura, "web", json_mode, destino, nota.as_ref())?;
+    let rodape = (nota.as_ref(), &indice);
+    mostrar_caixa_detalhada(&leitura, "web", json_mode, destino, rodape)?;
     Ok(())
 }
 
@@ -90,7 +92,7 @@ pub(crate) fn mostrar_caixa_detalhada(
     origem: &str,
     json_mode: bool,
     destino: Option<&Path>,
-    nota: Option<&NotaDoRelogin>,
+    (nota, indice): (Option<&NotaDoRelogin>, &IndiceLocal),
 ) -> Result<(), ErroSaidaDaCaixaDetalhada> {
     let mut saida = json_da_detalhada(leitura, origem);
     if let Some(caminho) = destino {
@@ -103,18 +105,22 @@ pub(crate) fn mostrar_caixa_detalhada(
                 "escopo": "caixa_detalhada_verificada"
             });
             relogin_cli::anotar_com_total(&mut valor, nota);
+            indice_local::anexar_avisos(&mut valor, indice);
             println!("{valor}");
         } else {
             relogin_cli::avisar(json_mode, nota);
+            indice_local::avisar_no_texto(indice);
             println!("IES: caixa detalhada verificada gravada em arquivo privado.");
         }
         return Ok(());
     }
     if json_mode {
         relogin_cli::anotar_com_total(&mut saida, nota);
+        indice_local::anexar_avisos(&mut saida, indice);
         println!("{}", serde_json::to_string_pretty(&saida)?);
     } else {
         relogin_cli::avisar(json_mode, nota);
+        indice_local::avisar_no_texto(indice);
         println!("{}", humano_da_detalhada(leitura));
     }
     Ok(())

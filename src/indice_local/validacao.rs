@@ -6,8 +6,10 @@ use crate::transporte::{conferir_chave_de_consulta, conferir_valor_de_consulta};
 use std::fmt;
 
 /// Entrada recusada antes de tocar no banco. Sem dados: nunca carrega a URL,
-/// o hash, a geração ou o NUP. O chamador pode ignorá-la e seguir.
-#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+/// o hash, a geração ou o NUP. O índice a guarda nos avisos da saída
+/// (`FalhaDoIndice::RegistroRecusado`) e o comando segue.
+#[derive(Clone, Copy, Debug, PartialEq, Eq, serde::Serialize)]
+#[serde(rename_all = "snake_case")]
 pub(crate) enum RegistroRecusado {
     NupInvalido,
     NumeroSeiInvalido,

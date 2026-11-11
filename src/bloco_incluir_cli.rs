@@ -6,7 +6,7 @@ use crate::bloco::TipoBloco;
 use crate::bloco_cli::{Leitura, ler_bloco_por_numero_via};
 use crate::bloco_incluir::{PedidoDaInclusao, PreviaDocumental, prever_documento};
 use crate::documento::NumeroDocumento;
-use crate::indice_local::IndiceLocal;
+use crate::indice_local::{self, IndiceLocal};
 use crate::processo::NumeroProcesso;
 use crate::processo_concluir::escrita::{Contador, leitura};
 use crate::processo_obter::SessaoDoProcesso;
@@ -51,6 +51,7 @@ pub(crate) fn executar(
         origem: referencias.origem(),
         cookie: referencias.cookie(),
     };
+    let indice = IndiceLocal::da_configuracao(&arquivos);
     let previa = prever_documento(
         &sessao,
         &referencias,
@@ -60,18 +61,16 @@ pub(crate) fn executar(
             documento,
             confirmar,
         },
-        &IndiceLocal::da_configuracao(&arquivos),
+        &indice,
         &mut EnvioHttps,
     )?;
-    publicar(cli.json, &previa);
+    publicar(cli.json, &previa, &indice);
     Ok(())
 }
 
-fn publicar(json_mode: bool, previa: &PreviaDocumental) {
+fn publicar(json_mode: bool, previa: &PreviaDocumental, indice: &IndiceLocal) {
     if json_mode {
-        println!(
-            "{}",
-            json!({
+        let mut valor = json!({
                 "bloco": previa.bloco,
                 "tipo_bloco": "assinatura",
                 "alvo": {"documento": previa.documento},
@@ -81,9 +80,13 @@ fn publicar(json_mode: bool, previa: &PreviaDocumental) {
                 "presente_depois": previa.desfecho.presente_depois(),
                 "origem": "web",
                 "requisicoes": previa.requisicoes,
-            })
-        );
-    } else if previa.desfecho.alterado() {
+        });
+        indice_local::anexar_avisos(&mut valor, indice);
+        println!("{valor}");
+        return;
+    }
+    indice_local::avisar_no_texto(indice);
+    if previa.desfecho.alterado() {
         println!(
             "Documento {} incluído e conferido no bloco de assinatura {}. Requisições: {}",
             previa.documento, previa.bloco, previa.requisicoes
@@ -136,10 +139,11 @@ fn prever_processo(cli: &Cli, bloco: &str, nup_bruto: &str) -> anyhow::Result<()
     if !matches!(detalhe.tipo, TipoBloco::Interno | TipoBloco::Reuniao) {
         return Err(ErroPreviaProcessual::TipoInadequado.into());
     }
+    let indice = IndiceLocal::da_configuracao(&arquivos);
     let aberto = obter_processo(
         &sessao,
         &leitura(&nup, cli.unidade.as_deref(), false),
-        &IndiceLocal::da_configuracao(&arquivos),
+        &indice,
         &mut rede,
     )?;
     if aberto.arvore.processo.nup != nup.as_str() {
@@ -153,21 +157,23 @@ fn prever_processo(cli: &Cli, bloco: &str, nup_bruto: &str) -> anyhow::Result<()
         return Err(ErroPreviaProcessual::PertencimentoNaoComprovado.into());
     }
     if cli.json {
-        println!(
-            "{}",
-            json!({
-                "bloco": bloco,
-                "tipo_bloco": detalhe.tipo.rotulo(),
-                "alvo": {"processo": nup.as_str()},
-                "confirmado": false,
-                "alterado": false,
-                "presente_antes": presente,
-                "presente_depois": presente,
-                "origem": "web",
-                "requisicoes": rede.feitas(),
-            })
-        );
-    } else if presente {
+        let mut valor = json!({
+            "bloco": bloco,
+            "tipo_bloco": detalhe.tipo.rotulo(),
+            "alvo": {"processo": nup.as_str()},
+            "confirmado": false,
+            "alterado": false,
+            "presente_antes": presente,
+            "presente_depois": presente,
+            "origem": "web",
+            "requisicoes": rede.feitas(),
+        });
+        indice_local::anexar_avisos(&mut valor, &indice);
+        println!("{valor}");
+        return Ok(());
+    }
+    indice_local::avisar_no_texto(&indice);
+    if presente {
         println!(
             "Processo {} já está no bloco {} ({}); nenhuma inclusão necessária. Requisições: {}",
             nup.as_str(),

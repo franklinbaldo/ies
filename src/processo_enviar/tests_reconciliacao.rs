@@ -55,7 +55,7 @@ fn confirmar_envia_uma_vez_e_verifica() {
 fn indice_aquecido_nao_autoriza_envio_sem_situacao_remota() {
     let amb = ambiente();
     let inst = crate::instalacao::Instalacao::interpretar(ORIGEM).unwrap();
-    amb.indice.registrar_processo(&inst, NUP, ID).unwrap();
+    amb.indice.registrar_processo(&inst, NUP, ID);
     amb.indice.registrar_entrada_por_id(&inst, false);
     let roteiro = respostas(
         Versao::V41,

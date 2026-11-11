@@ -3,6 +3,7 @@
 //! no máximo um POST (`pagina_web`). Na visão D, troca para R e fica nela.
 mod pagina_web;
 
+use crate::indice_local::{self, IndiceLocal};
 use crate::paginas::Leitura;
 use crate::relogin_cli::{self, NotaDoRelogin};
 use crate::{arquivo_caixa, configuracao, paginas};
@@ -69,7 +70,7 @@ pub(crate) fn publicar_lista(
     categoria: CategoriaLista,
     json_mode: bool,
     destino: Option<&Path>,
-    nota: Option<&NotaDoRelogin>,
+    (nota, indice): (Option<&NotaDoRelogin>, &IndiceLocal),
 ) -> anyhow::Result<()> {
     let leitura = paginas::juntar(&[html.to_owned()], unidade)?;
     let mut modelo = selecionar(&leitura, categoria, "web")?;
@@ -84,18 +85,22 @@ pub(crate) fn publicar_lista(
                 "categoria":categoria.rotulo()
             });
             relogin_cli::anotar_com_total(&mut valor, nota);
+            indice_local::anexar_avisos(&mut valor, indice);
             println!("{valor}");
         } else {
             relogin_cli::avisar(json_mode, nota);
+            indice_local::avisar_no_texto(indice);
             println!("IES: categoria verificada gravada em arquivo privado ({bytes} bytes).");
         }
         return Ok(());
     }
     if json_mode {
         relogin_cli::anotar_com_total(&mut modelo, nota);
+        indice_local::anexar_avisos(&mut modelo, indice);
         println!("{}", serde_json::to_string_pretty(&modelo)?);
     } else {
         relogin_cli::avisar(json_mode, nota);
+        indice_local::avisar_no_texto(indice);
         let quantidade = modelo["processos"].as_array().map_or(0, Vec::len);
         println!(
             "IES: {}: {quantidade} processo(s) observado(s); total declarado: {}; faixa observada: {}.",
@@ -120,15 +125,18 @@ pub(crate) fn listar_categoria(
     pagina: Option<usize>,
 ) -> anyhow::Result<()> {
     let arquivos = configuracao::arquivos_de_acesso()?;
+    let indice = IndiceLocal::da_configuracao(&arquivos);
     // Cada tentativa relê a sessão e colhe na geração gravada agora.
     let (html, nota) = relogin_cli::ler(
         &arquivos,
+        &indice,
         unidade,
         pagina_web::ErroPaginaWeb::sessao_encerrada,
-        || pagina_web::obter(&arquivos, unidade, categoria.categoria(), pagina),
+        || pagina_web::obter(&arquivos, &indice, unidade, categoria.categoria(), pagina),
     )
     .map_err(relogin_cli::subir)?;
-    publicar_lista(&html, unidade, categoria, json_mode, destino, nota.as_ref())
+    let rodape = (nota.as_ref(), &indice);
+    publicar_lista(&html, unidade, categoria, json_mode, destino, rodape)
 }
 
 #[cfg(test)]
@@ -274,7 +282,9 @@ mod tests {
                 .unwrap()
                 .as_nanos()
         ));
-        let codigo = publicar_lista(html, unidade, categoria, true, Some(&caminho), None);
+        let indice = IndiceLocal::desligado();
+        let rodape = (None, &indice);
+        let codigo = publicar_lista(html, unidade, categoria, true, Some(&caminho), rodape);
         let valor = std::fs::read(&caminho)
             .ok()
             .map(|bytes| serde_json::from_slice(&bytes).unwrap());

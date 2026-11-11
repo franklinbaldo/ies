@@ -119,7 +119,7 @@ fn confirmar_pela_tela_um_post_e_verificacao_pela_arvore() {
 fn indice_com_identidade_quente_nao_confirma_conclusao_sem_releitura_remota() {
     let amb = ambiente();
     let inst = crate::instalacao::Instalacao::interpretar(ORIGEM).unwrap();
-    amb.indice.registrar_processo(&inst, NUP, ID).unwrap();
+    amb.indice.registrar_processo(&inst, NUP, ID);
     amb.indice.registrar_entrada_por_id(&inst, false);
     let respostas = com(
         abertura(arvore(&[UNIDADE], &tela())),
