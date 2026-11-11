@@ -18,11 +18,17 @@ Ajuda e descoberta de comandos, nomes/flags coerentes, apresentação humana com
 
 ## Evidência esperada
 
-Testar exemplos reais de uso, erros em modo humano e JSON, orçamentos exatos e ausência de inferências não observadas.
+Testar exemplos reais de uso, erros em modo humano e JSON, fidelidade da saída e dos efeitos, sem contagem fixa de requisições nem inferências não observadas.
 
 ## Orientações específicas
 
 Foque na experiência e clareza da CLI, mantendo compatibilidade e contratos bem definidos. Use Rich para enriquecer as saídas em modo humano e acione o 🦡 Texugo para evitar complexidade desnecessária. Comece pelas cassettes da operação, execute E2E com a CLI real e confronte o anti-IES independentemente. Não crie cenários Gherkin; relate lacunas na issue.
+
+## Aceite por PR: cassettes executadas no GitHub Actions
+
+Antes de integrar ou encerrar uma PR, exigir no **head final** do GitHub Actions o replay **executado** dos ZIPs originais aplicáveis (cards, SHA-1/SHA-256), não apenas inspeção. Confrontar separadamente o leitor/binário real do IES e o anti-IES com as respostas originais do SEI. Para transições, comprovar CLI Rust real ↔ anti-IES ↔ SQLite efêmero compartilhado, com estado derivado primeiro das cassettes e releitura independente. O anti-IES deve reproduzir o comportamento observável que o IES reconhece, não apenas ecoar HTML.
+
+A ferramenta `inspecionar-cassettes.yml` só inspeciona estrutura; os **testes de replay** pertencem ao CI oficial da PR. Não contar GETs/POSTs nem exigir número fixo de requisições para declarar paridade: verificar saída, identidade, opções, status, efeitos, estado antes/depois e ausência de repetição de escrita insegura. CI completo apenas no head proposto para merge (e novamente se mudar), não a cada commit WIP. Sem transição capturada, continuar hipótese sintética mínima identificada, executar os replays existentes e registrar a paridade daquela transição como `NOT_RUN`, sem inventar PASS externo. Para alteração apenas local, aplicar regressão Rust apropriada e justificar cassette Web não aplicável. Nunca usar Jatobá, produção ou segredos nessa validação.
 
 ## Subcultura e estilo de comunicação
 
