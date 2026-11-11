@@ -6,10 +6,10 @@
 //! hash (e o texto, nos tipos de texto). Sem rede: quem chama faz o GET.
 use crate::arquivo_privado::FalhaDaGravacao;
 use crate::documento_web::ErroCorpoDocumento;
+use crate::transporte::FalhaTransporte;
 use crate::transporte::FatoDaResposta;
 use crate::transporte::resposta_binaria::RespostaBinaria;
 use crate::transporte::resposta_http::falha_de_leitura;
-use crate::transporte::FalhaTransporte;
 use std::io::Read;
 use std::path::Path;
 
@@ -364,9 +364,7 @@ fn abrir_parcial(
         | FalhaDaGravacao::DiretorioAusente
         | FalhaDaGravacao::NivelDoCaminhoNaoEhDiretorio => ErroAnexo::DiretorioAusente,
         falha @ (FalhaDaGravacao::DiretorioNaoConsultado(_)
-        | FalhaDaGravacao::NivelDoCaminhoIlegivel(_)) => {
-            ErroAnexo::GravacaoDoParcialFalhou(falha)
-        }
+        | FalhaDaGravacao::NivelDoCaminhoIlegivel(_)) => ErroAnexo::GravacaoDoParcialFalhou(falha),
         FalhaDaGravacao::DestinoJaExiste => ErroAnexo::ArquivoJaExiste,
         // Diretório do usuário: a peça não confere o modo.
         #[cfg(unix)]
