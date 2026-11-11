@@ -28,7 +28,7 @@ const ANEXAR: OperacaoDeFormulario = OperacaoDeFormulario {
     },
 };
 
-fn aceite(localizacao: &str, url_post: &str, principal: &str) -> bool {
+pub(crate) fn aceite(localizacao: &str, url_post: &str, principal: &str) -> bool {
     let Some(query) = consulta_do_controlador(localizacao, url_post) else {
         return false;
     };
