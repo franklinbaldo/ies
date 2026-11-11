@@ -145,7 +145,7 @@ fn entrada_por_id_sem_assinatura_redireciona_sem_mutar_processo() {
         "4".repeat(64)
     );
     assert!(
-        sem_hash.contains(&format!("Location: {}\\r\\n", &assinado[5..])),
+        sem_hash.contains(&format!("Location: {}\r\n", &assinado[5..])),
         "a entrada conserva o id no destino assinado: {sem_hash}"
     );
     let tela = requisitar(endereco, "GET", &assinado, "");
