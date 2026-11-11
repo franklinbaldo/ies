@@ -15,10 +15,13 @@ pub(crate) struct MarcadorDaCelula {
     pub(crate) nome: String,
     pub(crate) cor: String,
     /// Texto do tooltip; `None` quando vazio ou sem `onmouseover`.
+    #[serde(skip_serializing_if = "Option::is_none")]
     pub(crate) texto: Option<String>,
     /// `<n>` de `#ID-<n>`; `None` sem fragmento.
+    #[serde(skip_serializing_if = "Option::is_none")]
     pub(crate) id: Option<String>,
     /// `<id>#<nome>`; `None` sem id (o nome sozinho seria ambíguo).
+    #[serde(skip_serializing_if = "Option::is_none")]
     pub(crate) rotulo: Option<String>,
 }
 

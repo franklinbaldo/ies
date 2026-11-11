@@ -62,13 +62,13 @@ fn com_andamentos(total: u64) -> ProcessoAberto {
         total_declarado: total,
         itens: vec![
             Andamento {
-                ocorrido_em: Some("01/01/2026 10:00".into()),
+                ocorrido_em: "01/01/2026 10:00".into(),
                 unidade: Some("U1".into()),
                 usuario: Some("p1".into()),
                 descricao: "Processo sintetico gerado".into(),
             },
             Andamento {
-                ocorrido_em: Some("02/01/2026 10:00".into()),
+                ocorrido_em: "02/01/2026 10:00".into(),
                 unidade: Some("U2".into()),
                 usuario: None,
                 descricao: "Andamento sintetico".into(),

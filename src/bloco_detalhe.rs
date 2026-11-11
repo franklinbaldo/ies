@@ -8,7 +8,9 @@ use serde::Serialize;
 pub(crate) struct ItemDoBloco {
     pub(crate) processo: String,
     /// Para blocos internos/de reunião, o item é um processo, não documento.
+    #[serde(skip_serializing_if = "Option::is_none")]
     pub(crate) documento: Option<String>,
+    #[serde(skip_serializing_if = "Option::is_none")]
     pub(crate) tipo: Option<String>,
     pub(crate) anotacoes: String,
 }

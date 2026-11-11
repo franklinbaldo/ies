@@ -31,6 +31,16 @@ class SemNull(unittest.TestCase):
         })
         self.assertEqual(violacoes(raiz), [])
 
+    def test_recusa_option_serializado_sem_omissao(self):
+        texto = (
+            "#[derive(Debug, serde::Serialize)]\nstruct S {\n    a: Option<u8>,\n"
+            "    #[serde(skip_serializing_if = \"Option::is_none\")]\n    b: Option<u8>,\n    c: u8,\n}\n"
+            "#[derive(Debug)]\nstruct T {\n    d: Option<u8>,\n}\n"
+        )
+        achados = violacoes(self.raiz({"a.rs": texto}))
+        self.assertEqual(len(achados), 1)
+        self.assertIn(": a", achados[0])
+
     def test_producao_corta_no_modulo_de_teste(self):
         self.assertEqual(producao("a\n#[cfg(test)]\nmod t {}\n"), "a\n")
 

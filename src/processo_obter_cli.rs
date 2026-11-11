@@ -148,9 +148,7 @@ fn json_dos_andamentos(lidos: &AndamentosLidos) -> Value {
         .iter()
         .map(|a| {
             let mut andamento = serde_json::Map::new();
-            if let Some(ocorrido_em) = &a.ocorrido_em {
-                andamento.insert("ocorrido_em".to_owned(), json!(ocorrido_em));
-            }
+            andamento.insert("ocorrido_em".to_owned(), json!(a.ocorrido_em));
             if let Some(unidade) = &a.unidade {
                 andamento.insert("unidade".to_owned(), json!(unidade));
             }
@@ -388,7 +386,7 @@ fn humano(nup: &NumeroProcesso, aberto: &ProcessoAberto, sem_documentos: bool) -
                 let _ = write!(
                     texto,
                     "\n- {} {}: {}",
-                    a.ocorrido_em.as_deref().unwrap_or("?"),
+                    a.ocorrido_em,
                     a.unidade.as_deref().unwrap_or("?"),
                     a.descricao
                 );
@@ -453,9 +451,9 @@ fn obter(cli: &Cli, comando: &Processo, nup: &NumeroProcesso) -> anyhow::Result<
     )
     .map_err(validacao_sem_credenciais)?;
     aberto.requisicoes = relogin_cli::somar(aberto.requisicoes, nota.as_ref());
+    // A leitura de `aberto_em` que falhou é erro nos dois modos de saída.
+    saida_da_arvore::exigir_aberto_em_lido(&aberto.arvore.aberto_em)?;
     if cli.json {
-        // A leitura de `aberto_em` que falhou é erro: o JSON não publica a chave sem valor.
-        saida_da_arvore::exigir_aberto_em_lido(&aberto.arvore.aberto_em)?;
         let mut valor = json_do_processo(nup, &aberto, comando.sem_documentos);
         relogin_cli::anotar(&mut valor, nota.as_ref());
         println!("{}", serde_json::to_string_pretty(&valor)?);
