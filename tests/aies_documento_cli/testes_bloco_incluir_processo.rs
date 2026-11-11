@@ -1,6 +1,6 @@
 //! BDD-381-04: prévia processual e releitura independente pela CLI real.
 //! Hipótese mínima sobre a cassette PEN1 (41 interações). O confronto
-//! semântico original e o ensaio em treinamento permanecem NOT_RUN.
+//! semântico original e o ensaio em treinamento permanecem `NOT_RUN`.
 use super::testes_ciencia_processo::executar_ciencia_processo;
 use super::*;
 use iesei::bloco_detalhe::{self, Detalhe, Item};
@@ -108,9 +108,17 @@ fn bdd_381_04_previa_sem_inclusao_e_releitura_do_bloco_interno() {
     assert_eq!(valor["alterado"], false);
     assert!(valor["presente_depois"].is_null());
     assert_eq!(valor["requisicoes"], pedidos.len());
+    // A pesquisa rápida usa POST de leitura; a prévia proíbe POST mutador.
     assert!(
-        pedidos.iter().all(|p| p.starts_with("GET ")),
-        "prévia deve ser sem POST: {pedidos:?}",
+        pedidos
+            .iter()
+            .all(|p| p.starts_with("GET ") || p == "POST protocolo_pesquisa_rapida"),
+        "prévia não pode escrever no SEI: {pedidos:?}",
+    );
+    assert_eq!(
+        pedidos.iter().filter(|p| p.starts_with("POST ")).count(),
+        1,
+        "apenas o POST da pesquisa de leitura é esperado",
     );
     let (leitura, depois) = executar_ciencia_processo(&pasta, &["--json", "bloco", BLOCO_INTERNO]);
     assert_eq!(
