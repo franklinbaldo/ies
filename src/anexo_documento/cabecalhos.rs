@@ -49,7 +49,7 @@ pub(crate) enum ErroDisposicao {
     /// O par hexadecimal não cabe num byte.
     ByteDoPercentualNaoRepresentavel(#[source] std::num::TryFromIntError),
     CharsetDoNomeEstendidoNaoAceito,
-    NomeEstendidoUtf8Invalido(#[source] std::string::FromUtf8Error),
+    NomeEstendidoUtf8Invalido(#[source] std::str::Utf8Error),
 }
 
 /// Disposição e nome original saneado.
@@ -167,7 +167,8 @@ fn estendido_rfc5987(valor: &str) -> Result<String, ErroDisposicao> {
         }
     }
     match charset.to_ascii_lowercase().as_str() {
-        "utf-8" => String::from_utf8(bytes).map_err(ErroDisposicao::NomeEstendidoUtf8Invalido),
+        "utf-8" => String::from_utf8(bytes)
+            .map_err(|erro| ErroDisposicao::NomeEstendidoUtf8Invalido(erro.utf8_error())),
         "iso-8859-1" => Ok(bytes.into_iter().map(char::from).collect()),
         _ => Err(ErroDisposicao::CharsetDoNomeEstendidoNaoAceito),
     }
