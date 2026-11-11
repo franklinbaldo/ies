@@ -124,7 +124,7 @@ fn salvar_previa_offline_sem_indice_nem_configuracao() {
     assert_eq!(previa["base_verificada"], false);
     assert_eq!(previa["escrita_remota"], false);
     assert_eq!(value["confirmado"], false);
-    assert!(value["assinaturas_remotas"].is_null());
+    assert!(value.get("assinaturas_remotas").is_none());
     assert!(
         value["aviso_assinaturas"]
             .as_str()

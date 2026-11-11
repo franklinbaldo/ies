@@ -63,8 +63,8 @@ os demais caminhos, como na [leitura Web](documento-obter-web.md).
 | `--saida DIR` sem rodapé e sem a lista | G + 1 | recusa `ListaDeVersoesNaoPublicadaNaArvore`, nada gravado |
 | `--versao N` (com ou sem `--saida`) | G + 2 | a lista e o `documento_visualizar` da linha N; o conteúdo atual **não** é pedido |
 
-Decisão de custo (proprietário, 04/11/2026): `versao_atual` é `null`
-salvo quando pedida (`--versao`) ou já servida na tela lida. O rodapé é
+Decisão de custo (proprietário, 04/11/2026): `versao_atual` sai só
+quando pedida (`--versao`) ou já servida na tela lida. O rodapé é
 servido na tela do conteúdo, então sai sem GET a mais; a lista (1 GET)
 só é pedida por `--versao N` ou pela foto quando falta o rodapé.
 
@@ -73,15 +73,15 @@ só é pedida por `--versao N` ou pela foto quando falta o rodapé.
 Cada documento do JSON da leitura Web ganha:
 
 - `versao`: a versão do texto publicado (N de `--versao N` ou a do
-  rodapé), senão `null`;
+  rodapé); sem a chave quando não há;
 - `versao_atual`: a maior versão da lista, quando lida, ou a do rodapé
-  do conteúdo atual; senão `null`;
-- `versao_atual_motivo`: `null` quando publicada; senão
+  do conteúdo atual; sem a chave quando não se sabe;
+- `versao_atual_motivo`: só quando `versao_atual` não sai; vale
   `nao_servida_no_conteudo` (sem rodapé, lista não pedida);
 - com `--saida`, `arquivo` (no lugar de `texto`, como na leitura Web):
-  `{"nome": "DOC.vN.html", "bytes": B, "sha256": "…", "gravado": true,
-  "motivo": null}`, ou `"gravado": false, "motivo": "igual"` quando a
-  foto já existia com o mesmo SHA-256.
+  `{"nome": "DOC.vN.html", "bytes": B, "sha256": "…", "gravado": true}`,
+  ou `"gravado": false, "motivo": "igual"` quando a foto já existia com o
+  mesmo SHA-256.
 
 Sem `--saida`, `texto` é o da versão lida. Nunca URL, `infra_hash`,
 cookie ou HTML no terminal. Os campos `copia` e `copia_motivo` de #88
@@ -149,8 +149,8 @@ carrega a identidade inteira e o arquivo é a foto fiel da versão.
 O externo (`.src` `documento_download_anexo`) é lido pelo
 [GET binário](documento-obter-externo.md) (fatia 3 do #60). O arquivo
 não serve rodapé e não há versão para o nome: sem `--versao`,
-`versao: null`, `versao_atual: null` com `nao_servida_no_conteudo`; a
-barra não é lida. Com `--saida`, grava o arquivo original `DOC.ext` como
+sem a chave `versao`; sem `versao_atual`, com `versao_atual_motivo:
+nao_servida_no_conteudo`; a barra não é lida. Com `--saida`, grava o arquivo original `DOC.ext` como
 antes (sem sobrescrever, [externo](documento-obter-externo.md)), não uma
 foto. Com `--versao N`, a barra do nó (0 GET) é lida antes
 do anexo: sem a lista (o observado) é `ListaDeVersoesNaoPublicadaNaArvore`,
