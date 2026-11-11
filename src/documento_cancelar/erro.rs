@@ -71,9 +71,8 @@ mod testes_cadeia_de_causas {
 
     #[test]
     fn erros_de_cancelamento_retêm_as_causas_tipadas() {
-        let atributo = crate::html_atributos::ErroAtributoHtml::AtributoRepetidoNaTag {
-            atributo: "href",
-        };
+        let atributo =
+            crate::html_atributos::ErroAtributoHtml::AtributoRepetidoNaTag { atributo: "href" };
         let exemplos = [
             ErroCancelar::Cookie(CookieIlegivel::Arquivo(FalhaTransporte::Rede)),
             ErroCancelar::Abertura(ErroDocumentoObter::Processo(
