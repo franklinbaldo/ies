@@ -10,10 +10,8 @@ fn setup_recusa_ancestral_regular_sem_expor_caminho_ou_bytes() {
         .duration_since(UNIX_EPOCH)
         .unwrap()
         .as_nanos();
-    let pasta = std::env::temp_dir().join(format!(
-        "ies-setup-causa-{}-{nonce}",
-        std::process::id()
-    ));
+    let pasta =
+        std::env::temp_dir().join(format!("ies-setup-causa-{}-{nonce}", std::process::id()));
     fs::create_dir(&pasta).unwrap();
     let arquivo = |nome: &str, bytes: &str| {
         let caminho = pasta.join(nome);
@@ -42,12 +40,18 @@ fn setup_recusa_ancestral_regular_sem_expor_caminho_ou_bytes() {
         .unwrap();
     assert_eq!(output.status.code(), Some(1), "{output:?}");
     let erro = String::from_utf8_lossy(&output.stderr);
-    assert!(erro.contains("ArquivoPrivadoNaoLido(NotADirectory)"), "{erro}");
+    assert!(
+        erro.contains("ArquivoPrivadoNaoLido(NotADirectory)"),
+        "{erro}"
+    );
     for privado in [&cookie, &ancestral, &destino] {
         assert!(!erro.contains(privado.to_string_lossy().as_ref()));
     }
     assert!(!erro.contains("SENTINELA DE TESTE"));
     assert!(!destino.exists());
-    assert_eq!(fs::read_to_string(&ancestral).unwrap(), "SENTINELA DE TESTE");
+    assert_eq!(
+        fs::read_to_string(&ancestral).unwrap(),
+        "SENTINELA DE TESTE"
+    );
     fs::remove_dir_all(pasta).unwrap();
 }
