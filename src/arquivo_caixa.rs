@@ -108,6 +108,30 @@ mod tests {
     }
     #[cfg(unix)]
     #[test]
+    fn exportacao_preserva_causa_quando_ancestral_e_arquivo() {
+        let dir = pasta();
+        let ancestral = dir.join("regular");
+        fs::write(&ancestral, b"SENTINELA").unwrap();
+        let erro = gravar(
+            &ancestral.join("caixa.json"),
+            &serde_json::json!({"codigo": 1}),
+        )
+        .unwrap_err();
+        let causa = std::error::Error::source(&erro)
+            .and_then(|erro| erro.downcast_ref::<crate::arquivo_privado::FalhaDaGravacao>());
+        assert_eq!(
+            causa,
+            Some(&crate::arquivo_privado::FalhaDaGravacao::DiretorioNaoConsultado(
+                std::io::ErrorKind::NotADirectory
+            ))
+        );
+        assert_eq!(fs::read(&ancestral).unwrap(), b"SENTINELA");
+        assert_eq!(fs::read_dir(&dir).unwrap().count(), 1);
+        fs::remove_dir_all(dir).unwrap();
+    }
+
+    #[cfg(unix)]
+    #[test]
     fn nao_segue_link_simbolico_no_destino() {
         use std::os::unix::fs::symlink;
         let dir = pasta();
