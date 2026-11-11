@@ -170,3 +170,32 @@ where
     }
     Ok(numero)
 }
+
+#[cfg(test)]
+mod testes_causas {
+    use super::*;
+    use std::error::Error as _;
+
+    #[test]
+    fn falhas_pos_escrita_preservam_causa_no_error_source() {
+        let envio = ErroConfirmacaoDaCriacao::NaoConfirmadoNoEnvio(
+            ErroSubmissaoFormulario::Transporte(FalhaTransporte::Rede),
+        );
+        assert!(matches!(
+            envio
+                .source()
+                .and_then(|fonte| fonte.downcast_ref::<ErroSubmissaoFormulario>()),
+            Some(ErroSubmissaoFormulario::Transporte(FalhaTransporte::Rede))
+        ));
+
+        let releitura = ErroConfirmacaoDaCriacao::NaoConfirmadoNaReleitura(
+            ErroProcessoObter::Transporte(FalhaTransporte::Rede),
+        );
+        assert!(matches!(
+            releitura
+                .source()
+                .and_then(|fonte| fonte.downcast_ref::<ErroProcessoObter>()),
+            Some(ErroProcessoObter::Transporte(FalhaTransporte::Rede))
+        ));
+    }
+}
