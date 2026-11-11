@@ -136,9 +136,12 @@ pub(crate) fn executar_previa<V: EnvioDoProcesso>(
         Instalacao::interpretar(sessao.origem).ok_or(ErroProcessoAtribuir::OrigemNaoAutorizada)?;
     let (valor, submissao) = preparar_submissao(
         &instalacao,
-        link.as_str(),
-        &html,
-        &mime,
+        &crate::formulario_web::TelaServida {
+            url: link.as_str(),
+            html: &html,
+            codificacao: crate::pagina_do_controle::codificacao_da_tela(&mime)
+                .ok_or(ErroAtribuir::CharsetDaTelaNaoSuportado)?,
+        },
         &aberto.arvore.processo.id,
         unidade,
         pedido.usuario,
