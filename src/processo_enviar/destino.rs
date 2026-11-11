@@ -64,9 +64,7 @@ pub(crate) fn itens_do_autocompletar(xml: &str) -> Result<Vec<(String, String)>,
             .and_then(tl::Node::as_tag)
             .ok_or(FalhaDaConsulta::RespostaDoAutocompletarForaDaFormaObservada)?;
         let lido = |nome: &'static str| {
-            valor_do_atributo(tag, nome)
-                .ok()
-                .flatten()
+            valor_do_atributo(tag, nome)?
                 .and_then(|bruto| decodificar_atributo(&bruto))
                 .filter(|valor| !valor.trim().is_empty())
                 .ok_or(FalhaDaConsulta::RespostaDoAutocompletarForaDaFormaObservada)
