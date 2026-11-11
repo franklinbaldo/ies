@@ -279,8 +279,8 @@ fn bdd_sem_checkbox_recusa_antes_da_consulta_autocomplete() {
 
 #[test]
 fn botao_de_anotacao_com_name_repetido_preserva_causa_sem_escrever() {
-    use crate::html_atributos::ErroAtributoHtml;
     use super::anotacoes::{ErroDasAnotacoes, ErroLeituraDaAnotacao};
+    use crate::html_atributos::ErroAtributoHtml;
 
     let link = super::tests_anotacoes::link_anotacao();
     let acoes = vec![pelo_envio(ID), acao_da_barra(&link)];
@@ -313,11 +313,13 @@ fn botao_de_anotacao_com_name_repetido_preserva_causa_sem_escrever() {
     assert!(
         matches!(
             resultado,
-            Err(ErroEnviar::Anotacoes(ErroDasAnotacoes::LeituraDasAnotacoes(
-                ErroLeituraDaAnotacao::TelaDeAnotacoesComAtributoIlegivel(
-                    ErroAtributoHtml::AtributoRepetidoNaTag { atributo: "name" }
+            Err(ErroEnviar::Anotacoes(
+                ErroDasAnotacoes::LeituraDasAnotacoes(
+                    ErroLeituraDaAnotacao::TelaDeAnotacoesComAtributoIlegivel(
+                        ErroAtributoHtml::AtributoRepetidoNaTag { atributo: "name" }
+                    )
                 )
-            )))
+            ))
         ),
         "{resultado:?}"
     );
