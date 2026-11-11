@@ -69,7 +69,7 @@ ser enviado, independentemente da observação.
   [relatório](../../docs/validacao-live/2026-11-05-processo-acompanhar.md).
 
 Os erros (o stderr traz o nome do erro):
-`ErroPrevia::LinkNaoPublicado`,
+`ErroAcompanhar::LinkNaoPublicado`,
 `ErroAcompanhar::CadastroDeOutroProcesso`,
 `ErroAcompanhar::GruposNaoPublicados`,
 `ErroAcompanhar::GrupoNaoOferecido`,
@@ -89,10 +89,10 @@ A coluna é o que aparece no stderr: o erro tipado, com o tipo que o declara.
 | Erro (stderr) | Condição |
 | --- | --- |
 | `ErroAcompanhar::AcompanhamentoNaoConfirmado` | A releitura não demonstrou a alteração exata; incerto |
-| `ErroPrevia::LinkNaoPublicado` | A barra do processo não oferece Acompanhamento Especial |
+| `ErroAcompanhar::LinkNaoPublicado` | A barra do processo não oferece Acompanhamento Especial |
 | `ErroAcompanhar::EscolhaDeAcompanhamentoAmbigua` | Mais de uma linha satisfaz a escolha de remoção |
-| `ErroAcompanharNaBarra::Barra(ErroBarraDoProcesso::BarraDoProcessoForaDaFormaObservada)` | Barra fora do formato observado |
-| `ErroAcompanharNaBarra::Barra(ErroBarraDoProcesso::BarrasDoProcessoRepetidasNaArvore)` | A árvore publica mais de uma barra para a raiz |
+| `ErroAcompanhar::Barra(ErroAcompanharNaBarra::Barra(ErroBarraDoProcesso::BarraDoProcessoForaDaFormaObservada))` | Barra fora do formato observado |
+| `ErroAcompanhar::Barra(ErroAcompanharNaBarra::Barra(ErroBarraDoProcesso::BarrasDoProcessoRepetidasNaArvore))` | A árvore publica mais de uma barra para a raiz |
 | `ErroAcompanhar::CadastroDeOutroProcesso` | Identidade do processo divergente no cadastro |
 | `ErroAcompanhar::CadastroNaoPublicado` | Formulário de cadastro ausente |
 | `ErroAcompanhar::ColunasDeAcompanhamentosInvalidas` | Cabeçalho da lista incompleto ou repetido |
@@ -104,15 +104,15 @@ A coluna é o que aparece no stderr: o erro tipado, com o tipo que o declara.
 | `ErroAcompanhar::HtmlDeAcompanhamentoInvalido` | HTML ilegível ou acima do limite |
 | `ErroAcompanhar::IdDeAcompanhamentoRepetido` | A tabela repete a identidade de uma linha |
 | `ErroAcompanhar::LinhaDeAcompanhamentoInvalida` | Colunas ou checkbox de uma linha fora da forma |
-| `ErroAcompanharNaBarra::LinkDeOutroProcesso` | Link assinado da barra indica outro processo |
-| `ErroAcompanharNaBarra::LinkDeAcompanhamentoNaoReconhecido` | Link da barra não segue a forma permitida |
-| `ErroAcompanharNaBarra::LinksDeAcompanhamentoRepetidos` | Mais de um link de acompanhamento na barra |
+| `ErroAcompanhar::Barra(ErroAcompanharNaBarra::LinkDeOutroProcesso)` | Link assinado da barra indica outro processo |
+| `ErroAcompanhar::Barra(ErroAcompanharNaBarra::LinkDeAcompanhamentoNaoReconhecido)` | Link da barra não segue a forma permitida |
+| `ErroAcompanhar::Barra(ErroAcompanharNaBarra::LinksDeAcompanhamentoRepetidos)` | Mais de um link de acompanhamento na barra |
 | `ErroAcompanhar::ListaNaoPublicada` | Não existe tabela comprovando a lista |
 | `ErroAcompanhar::ListasDeAcompanhamentosRepetidas` | Mais de uma tabela de acompanhamento |
 | `ErroAcompanhar::OpcoesDeGrupoDeAcompanhamentoInvalidas` | Option sem valor válido |
-| `ErroPrevia::OrigemNaoAutorizada` | Origem da sessão inválida |
-| `ErroPrevia::PedidoDeAcompanhamentoInvalido` | Combinação de opções inválida |
+| `ErroAcompanhar::OrigemNaoAutorizada` | Origem da sessão inválida |
+| `ErroAcompanhar::PedidoDeAcompanhamentoInvalido` | Combinação de opções inválida |
 | `ErroAcompanhar::NenhumAcompanhamento` | Não há linha a selecionar para remoção |
-| `ErroPrevia::RedirecionamentoDeAcompanhamentoInesperado` | Redirect não comprovado para o cadastro da mesma origem |
-| `ErroPrevia::TelaDeAcompanhamentoInesperada` | Formato ou controle da tela divergente |
-| `ErroPrevia::UnidadeNaoPublicada` | Unidade da tela não está publicada |
+| `ErroAcompanhar::RedirecionamentoDeAcompanhamentoInesperado` | Redirect não comprovado para o cadastro da mesma origem |
+| `ErroAcompanhar::TelaDeAcompanhamentoInesperada` | Formato ou controle da tela divergente |
+| `ErroAcompanhar::UnidadeNaoPublicada` | Unidade da tela não está publicada |
