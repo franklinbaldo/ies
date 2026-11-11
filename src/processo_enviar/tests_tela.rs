@@ -180,7 +180,7 @@ fn recusas_da_tela_antes_de_qualquer_post() {
         ),
         "{ausente:?}"
     );
-    for (html, erro) in casos_de_recusa(&trocar) {
+    for (html, erro) in casos_de_recusa(trocar) {
         assert_eq!(
             conferir_tela_de_envio(&html, ID),
             Err(erro.clone()),
