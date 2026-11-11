@@ -5,7 +5,7 @@ requires = ["maturin>=1.16,<2"]
 build-backend = "maturin"
 
 [project]
-name = "ies-sei"
+name = "ies-cli"
 version = "0.1.0"
 description = "CLI Rust para operar o SEI pela interface Web"
 requires-python = ">=3.9"
@@ -16,5 +16,9 @@ Repository = "https://github.com/franklinbaldo/ies"
 
 [tool.maturin]
 bindings = "bin"
-targets = [{ name = "ies", kind = "bin" }]
+targets = [
+  { name = "ies", kind = "bin" },
+  { name = "sei", kind = "bin" },
+  { name = "ies-cli", kind = "bin" },
+]
 locked = true
