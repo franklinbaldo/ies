@@ -45,7 +45,7 @@ A ausencia tambem pode ser demonstrada por uma area que publique
 literalmente `Nenhum registro encontrado.`; nunca se inventam linhas.
 Mes sem retornos so devolve zero se a area da tabela publicar
 `Nenhum registro encontrado.` Uma tabela paginada nao suportada
-e recusada com `PaginadorDosRetornosVisivel`, nunca
+e recusada com `ListaDeRetornosComMaisDeUmaPagina`, nunca
 publicada como lista completa. Nada e inferido sobre dados nao
 presentes.
 
@@ -74,7 +74,7 @@ Erros tipados: `ErroLeituraRetornos::MesDaCliInvalido`,
 `MesDosRetornosInacessivel`,
 `TelaDeRetornosDesconhecida`,
 `ListaDeRetornosIncompleta`,
-`PaginadorDosRetornosVisivel`,
+`ListaDeRetornosComMaisDeUmaPagina`,
 `UnidadeDiferenteDaSolicitada`. Falhas de transporte preservam
 a mensagem e o status HTTP, sem exibir cookie nem URL assinada.
 
@@ -102,5 +102,5 @@ isso nao equivale a validacao live de GO/PEN3.
 | `MesDosRetornosInacessivel` | Mês não alcançável em até 24 passos publicados |
 | `TelaDeRetornosDesconhecida` | Tabelas, cabeçalhos ou mês vazio sem forma reconhecida |
 | `ListaDeRetornosIncompleta` | Total declarado em legenda não corresponde às linhas |
-| `PaginadorDosRetornosVisivel` | Paginador visível na tela: a lista tem mais páginas que as lidas, sem derivação segura |
+| `ListaDeRetornosComMaisDeUmaPagina` | Paginador visível na tela: a lista tem mais páginas que as lidas, sem derivação segura |
 | `UnidadeDiferenteDaSolicitada` | Controle comprovou unidade diferente de --unidade |
