@@ -146,16 +146,15 @@ fn preparar(
         "https://sei.exemplo.gov.br/sei/controlador.php?acao=procedimento_atribuicao_cadastrar&id_procedimento={ID}&infra_hash={}",
         "b".repeat(64)
     );
-    super::preparar_submissao(
-        &instalacao,
-        &url,
-        HTML,
-        "text/html; charset=iso-8859-1",
-        ID,
-        "UNIDADE TESTE",
-        login,
-        atual,
-    )
+    let servida = crate::formulario_web::TelaServida {
+        url: &url,
+        html: HTML,
+        codificacao: crate::pagina_do_controle::codificacao_da_tela(
+            "text/html; charset=iso-8859-1",
+        )
+        .unwrap(),
+    };
+    super::preparar_submissao(&instalacao, &servida, ID, "UNIDADE TESTE", login, atual)
 }
 
 // Caso de Todos tests/test_ciclo_atribuir_010.py @323eb01 (payload do navegador).
@@ -214,9 +213,14 @@ fn derivacao_recusa_formulario_com_encoding_alheio_sem_enviar() {
     assert!(matches!(
         super::preparar_submissao(
             &instalacao,
-            &url,
-            &html,
-            "text/html; charset=iso-8859-1",
+            &crate::formulario_web::TelaServida {
+                url: &url,
+                html: &html,
+                codificacao: crate::pagina_do_controle::codificacao_da_tela(
+                    "text/html; charset=iso-8859-1",
+                )
+                .unwrap(),
+            },
             ID,
             "UNIDADE TESTE",
             Some("aluno2"),
