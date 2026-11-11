@@ -62,12 +62,14 @@ fn erro_da_releitura_de_anotacao_preserva_causa_sem_segundo_post() {
             )
         });
         let erro = resultado.expect_err("anotação não comprovada não pode ser sucesso");
-        let causa = std::error::Error::source(&erro)
-            .expect("releitura pós-escrita precisa preservar sua causa tipada");
-        let causa_tipada = causa
-            .downcast_ref::<super::ErroEnviar>()
-            .expect("a causa deve continuar sendo ErroEnviar tipado");
-        assert_eq!(causa_tipada, &causa_esperada);
+        assert!(
+            std::error::Error::source(&erro).is_some(),
+            "releitura pós-escrita precisa preservar sua fonte"
+        );
+        let super::ErroEnviar::NaoConfirmadoNaRemocaoDeAnotacoes { causa, .. } = erro else {
+            panic!("a releitura deve falhar sem confirmação e preservar a causa");
+        };
+        assert_eq!(*causa, causa_esperada);
         assert_eq!(pedidos.len(), 9);
         assert_eq!(
             pedidos
