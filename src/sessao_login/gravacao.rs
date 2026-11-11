@@ -246,8 +246,7 @@ pub(crate) fn gravar(
 ) -> Result<u64, ErroLogin> {
     let geracao_caminho = caminho_ao_lado(&arquivos.url_controle, ".geracao");
     let anterior = ler_marcador(arquivos)
-        .ok()
-        .flatten()
+        .map_err(ErroLogin::MarcadorDaSessaoIlegivel)?
         .map_or(0, |m| m.geracao);
     let marcador = Marcador {
         geracao: anterior + 1,

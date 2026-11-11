@@ -238,11 +238,21 @@ fn orgao_ausente_ou_com_duas_opcoes_iguais_nao_envia_credencial() {
 }
 
 #[test]
-fn regras_de_formulario_nao_observadas_sao_recusadas() {
+fn regras_de_formulario_de_login_recusadas_por_fato() {
     let sem_regra = tela_acessar().replace("return acaoLogin(2);", "return validar();");
     assert_eq!(
         erro_com(vec![r302(LOGIN_SIP, &[]), r200(&sem_regra, &[])]).0,
-        ErroLogin::RegraDoOnsubmitDoLoginNaoObservada
+        ErroLogin::OnsubmitDoLoginForaDoFormato
+    );
+    let sem_onsubmit = tela_acessar().replace(" onsubmit=\"return acaoLogin(2);\"", "");
+    assert_eq!(
+        erro_com(vec![r302(LOGIN_SIP, &[]), r200(&sem_onsubmit, &[])]).0,
+        ErroLogin::OnsubmitDoLoginAusente
+    );
+    let sem_hdn = tela_acessar().replace("document.getElementById('hdnAcao').value = acao;", "");
+    assert_eq!(
+        erro_com(vec![r302(LOGIN_SIP, &[]), r200(&sem_hdn, &[])]).0,
+        ErroLogin::ScriptDoLoginSemHdnAcao
     );
     let sem_desabilitar =
         tela_sbm().replace("document.getElementById('sbmAcessar').disabled = true;", "");

@@ -31,7 +31,7 @@ fn bdd_333_03_previa_de_remocao_nao_muta_o_processo_ou_a_anotacao() {
 }
 
 #[test]
-fn bdd_333_05_remocao_nao_observada_recusa_sem_post_de_escrita() {
+fn bdd_333_05_remocao_nao_oferecida_recusa_sem_post_de_escrita() {
     let mut previa = args(false);
     // Comando literal BDD-333-05: sem --manter-aberto.
     previa.retain(|arg| *arg != "--manter-aberto");

@@ -38,7 +38,7 @@ pub(super) fn lista(versao_41: bool) -> String {
 
 pub(super) fn cadastro() -> String {
     format!(
-        "<form id='frmProcedimentoCadastro' method='post' action='controlador.php?acao=procedimento_gerar&infra_hash={HASH}'>         <input type='hidden' name='hdnIdTipoProcedimento' value='12'>         <input type='hidden' name='hdnFlagProcedimentoCadastro' value='0'>         <input type='hidden' name='hdnAssuntos' value=''>         <input type='text' name='txtDescricao' value=''>         <input type='radio' name='rdoNivelAcesso' value='0' checked>         <input type='radio' name='rdoNivelAcesso' value='1'>         <select name='selAssuntos'><option value='21'>Assunto de Ensaio</option></select>         <select name='selHipoteseLegal'><option value='31'>Base Legal Teste</option></select>         </form>"
+        "<form id='frmProcedimentoCadastro' method='post' action='controlador.php?acao=procedimento_gerar&infra_hash={HASH}'>         <input type='hidden' name='hdnIdTipoProcedimento' value='12'>         <input type='hidden' name='hdnFlagProcedimentoCadastro' value='0'>         <input type='hidden' name='hdnAssuntos' value=''>         <input type='text' name='txtDescricao' maxlength='250' value=''>         <input type='radio' name='rdoNivelAcesso' value='0' checked>         <input type='radio' name='rdoNivelAcesso' value='1'>         <select name='selAssuntos'><option value='21'>Assunto de Ensaio</option></select>         <select name='selHipoteseLegal'><option value='31'>Base Legal Teste</option></select>         </form>"
     )
 }
 

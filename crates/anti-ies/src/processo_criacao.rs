@@ -66,7 +66,7 @@ fn cadastro(tipo: &TipoDeProcesso) -> Resposta {
          <input type='hidden' name='hdnIdTipoProcedimento' value='{}'>\
          <input type='hidden' name='hdnFlagProcedimentoCadastro' value='0'>\
          <input type='hidden' name='hdnAssuntos' value=''>\
-         <input type='text' name='txtDescricao' value=''>\
+         <input type='text' name='txtDescricao' maxlength='250' value=''>\
          <input type='radio' name='rdoNivelAcesso' value='0' checked>\
          <input type='radio' name='rdoNivelAcesso' value='1'>\
          <select name='selAssuntos'><option value='{}'>{}</option></select>\

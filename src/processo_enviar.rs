@@ -78,15 +78,14 @@ pub(crate) enum MetodoRemocao {
 }
 
 /// A remoção da anotação só existe quando foi pedida: o método publicado e
-/// o que as leituras viram. `antes` e `depois` None significam não observada.
+/// a presença lida antes de qualquer escrita. A presença depois da escrita
+/// fica em `ProcessoEnviado::anotacao_depois`, pois a prévia não escreve.
 #[derive(Clone, Debug, PartialEq, Eq)]
 pub(crate) struct RemocaoDaAnotacao {
     pub(crate) metodo: MetodoRemocao,
-    /// Presença da anotação da unidade de origem, quando a tela a publicou.
-    /// None significa não observada, nunca ausência.
-    pub(crate) antes: Option<bool>,
-    /// Presença comprovada por um GET independente, após a limpeza ou o envio.
-    pub(crate) depois: Option<bool>,
+    /// Presença da anotação da unidade de origem, lida por GET independente
+    /// antes da escrita. Sem a tela de anotações não há remoção a conferir.
+    pub(crate) antes: bool,
 }
 
 /// O desfecho do envio: prévia sem POST, ou tramitado e conferido por leitura.
@@ -112,6 +111,8 @@ pub(crate) struct ProcessoEnviado {
     pub(crate) unidade: String,
     pub(crate) manter_aberto: bool,
     pub(crate) remocao: Option<RemocaoDaAnotacao>,
+    /// Presença relida por GET após a escrita. Ausente só na prévia.
+    pub(crate) anotacao_depois: Option<bool>,
     pub(crate) destino: Destino,
     /// Siglas de `aberto_em` antes.
     pub(crate) aberto_em: Vec<String>,
@@ -168,21 +169,21 @@ impl ProcessoEnviado {
     }
 
     pub(crate) fn anotacao_antes(&self) -> Option<bool> {
-        self.remocao.as_ref().and_then(|remocao| remocao.antes)
+        self.remocao.as_ref().map(|remocao| remocao.antes)
     }
 
     pub(crate) fn anotacao_depois(&self) -> Option<bool> {
-        self.remocao.as_ref().and_then(|remocao| remocao.depois)
+        self.anotacao_depois
     }
 
     /// Registra a presença da anotação observada por um GET. Sem remoção
     /// pedida não há o que registrar.
     pub(crate) fn com_anotacao_depois(self, presente: bool) -> Self {
-        let remocao = self.remocao.map(|remocao| RemocaoDaAnotacao {
-            depois: Some(presente),
-            ..remocao
-        });
-        Self { remocao, ..self }
+        let anotacao_depois = self.remocao.as_ref().map(|_| presente);
+        Self {
+            anotacao_depois,
+            ..self
+        }
     }
 
     /// O envio conferido: a leitura de verificação e a falha da resposta.

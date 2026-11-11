@@ -132,14 +132,15 @@ fn conferir_candidato<V: EnvioDoControle>(
         endereco.fonte,
     )
     .map_err(ErroCriar::Propriedades)?;
-    Ok(ProcessoConferido {
-        id: candidato.id.clone(),
-        nup: candidato.nup.clone(),
-        tipo: propriedades.tipo,
-        especificacao: Some(propriedades.especificacao),
-        nivel: Some(propriedades.nivel_de_acesso.como_texto().to_owned()),
-        interessados: propriedades.interessados,
-    })
+    ProcessoConferido::novo(
+        &candidato.id,
+        &candidato.nup,
+        propriedades.tipo,
+        propriedades.especificacao,
+        propriedades.nivel_de_acesso.como_texto().to_owned(),
+        propriedades.interessados,
+    )
+    .map_err(ErroCriar::Conferencia)
 }
 
 /// Um GET do Controle e três GET por candidato (tela, árvore, propriedades).
@@ -191,9 +192,9 @@ pub(super) fn reconciliar<V: EnvioDoControle>(
                 candidato,
                 requisicoes,
             )?;
-            if conferido.tipo.as_deref() == Some(feito.tipo.as_str())
-                && conferido.especificacao.as_deref() == Some(especificacao)
-                && conferido.nivel.as_deref() == Some(feito.nivel.as_str())
+            if conferido.tipo == feito.tipo
+                && conferido.especificacao == especificacao
+                && conferido.nivel == feito.nivel
                 && reconciliacao::desfechos::interessados_conferem(
                     &feito.interessados,
                     &conferido.interessados,

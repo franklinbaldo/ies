@@ -21,13 +21,9 @@ pub(crate) fn humano(feito: &ProcessoEnviado) -> String {
                 "Remover anotações: limpar formulário de anotação antes do envio".to_owned()
             }
         });
-        let observada = match remocao.antes {
-            Some(true) => "sim",
-            Some(false) => "não",
-            None => "não observada",
-        };
+        let observada = if remocao.antes { "sim" } else { "não" };
         linhas.push(format!("Anotação na origem, antes do envio: {observada}"));
-        if let Some(false) = remocao.depois {
+        if let Some(false) = feito.anotacao_depois() {
             linhas.push("Anotação na origem, após o envio: removida (releitura)".to_owned());
         }
     }
