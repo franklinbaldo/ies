@@ -13,7 +13,7 @@ use native_tls::TlsAcceptor;
 use rusqlite::Connection;
 #[path = "support/falha.rs"]
 mod falha_cli;
-use falha_cli::falha;
+use falha_cli::{falha, falha_por};
 use std::io::{Read, Write};
 use std::net::{Shutdown, TcpListener, TcpStream};
 use std::num::NonZeroU32;
@@ -161,7 +161,7 @@ fn cli(pasta: &Pasta, arquivos: [&std::path::Path; 4], proxy: u16, args: &[&str]
         .unwrap()
 }
 
-#[derive(Clone, Copy)]
+#[derive(Clone, Copy, PartialEq, Eq)]
 enum Modo {
     Aceite,
     PdfAposAnexacao,
@@ -369,7 +369,7 @@ fn conferir_resultados(
 ) {
     let erro_esperado = match modo {
         Modo::RespostaIncerta => Some("NaoConfirmado"),
-        Modo::JaAnexado => Some("Estrutura"),
+        Modo::JaAnexado => Some("Recusada"),
         Modo::PreviaSemObservacao => Some("ConsultaResposta"),
         Modo::Aceite
         | Modo::PdfAposAnexacao
@@ -377,7 +377,9 @@ fn conferir_resultados(
         | Modo::PreviaPendencia
         | Modo::PreviaAssinada => None,
     };
-    if let Some(erro) = erro_esperado {
+    if modo == Modo::JaAnexado {
+        falha_por(saida, "Recusada", "ProcessoJaAnexado");
+    } else if let Some(erro) = erro_esperado {
         falha(saida, erro);
     } else {
         assert_eq!(

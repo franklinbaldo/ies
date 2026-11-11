@@ -104,18 +104,16 @@ pub(super) fn remover<V: EnvioDoProcesso>(
     let alvo = relacionados_antes
         .iter()
         .find(|relacao| relacao.id == id_alvo)
-        .ok_or(FalhaRelacionar::Estrutura(
-            "destino_a_remover_sem_identificador",
-        ))?;
-    let codificacao = codificacao_da_tela(mime).ok_or(FalhaRelacionar::Estrutura(
-        "charset_da_tela_de_relacionamentos_nao_suportado",
-    ))?;
+        .ok_or(FalhaRelacionar::DestinoARemoverSemIdentificador)?;
+    let codificacao = codificacao_da_tela(mime)
+        .ok_or(FalhaRelacionar::CharsetDaTelaDeRelacionamentosNaoSuportado)?;
     let servida = TelaServida {
         url: link,
         html,
         codificacao,
     };
-    let url_exclusao = tela::url_exclusao(html).map_err(FalhaRelacionar::Estrutura)?;
+    let url_exclusao =
+        tela::url_exclusao(html).ok_or(FalhaRelacionar::AcaoExcluirRelacionamentoNaoDeclarada)?;
     // A action deve pertencer ao mesmo processo de origem, não a outro.
     let id_origem = link
         .split('?')
@@ -125,11 +123,9 @@ pub(super) fn remover<V: EnvioDoProcesso>(
                 .split('&')
                 .find_map(|par| par.strip_prefix("id_procedimento="))
         })
-        .ok_or(FalhaRelacionar::Estrutura("id_da_origem_na_action_ausente"))?;
+        .ok_or(FalhaRelacionar::IdDaOrigemNaActionAusente)?;
     if !action_do_processo(&url_exclusao, id_origem) {
-        return Err(FalhaRelacionar::Estrutura(
-            "action_de_remocao_de_outro_processo",
-        ));
+        return Err(FalhaRelacionar::ActionDeRemocaoDeOutroProcesso);
     }
     let submissao = derivar_submissao_com_action(
         &REMOVER,
@@ -200,9 +196,8 @@ pub(super) fn adicionar<V: EnvioDoProcesso>(
     relacionados_antes: &[tela::Relacionamento],
     rede: &mut Contador<'_, V>,
 ) -> Result<(), FalhaRelacionar> {
-    let codificacao = codificacao_da_tela(mime).ok_or(FalhaRelacionar::Estrutura(
-        "charset_da_tela_de_relacionamentos_nao_suportado",
-    ))?;
+    let codificacao = codificacao_da_tela(mime)
+        .ok_or(FalhaRelacionar::CharsetDaTelaDeRelacionamentosNaoSuportado)?;
     let servida = TelaServida {
         url: link,
         html,
@@ -228,7 +223,7 @@ pub(super) fn adicionar<V: EnvioDoProcesso>(
                 .split('&')
                 .find_map(|par| par.strip_prefix("id_procedimento="))
         })
-        .ok_or(FalhaRelacionar::Estrutura("id_da_origem_na_action_ausente"))?;
+        .ok_or(FalhaRelacionar::IdDaOrigemNaActionAusente)?;
     let mut enviou = false;
     let resultado = enviar_submissao_via(submissao, sessao.cookie, |post, c| {
         enviou = true;
