@@ -137,7 +137,7 @@ impl ArquivoParcial {
             | FalhaDaGravacao::DiretorioNaoConsultado(_)
             | FalhaDaGravacao::DestinoNaoEhArquivoRegular
             | FalhaDaGravacao::AcimaDoLimite
-            | FalhaDaGravacao::CriacaoFalhou
+            | FalhaDaGravacao::CriacaoFalhou(_)
             | FalhaDaGravacao::EscritaFalhou
             | FalhaDaGravacao::ErroDeIoNaEscrita(_)
             | FalhaDaGravacao::NivelDoCaminhoNaoEhDiretorio
@@ -219,7 +219,7 @@ fn erro_ao_escrever(falha: FalhaDaGravacao) -> ErroAnexo {
         | FalhaDaGravacao::DiretorioNaoConsultado(_)
         | FalhaDaGravacao::DestinoJaExiste
         | FalhaDaGravacao::DestinoNaoEhArquivoRegular
-        | FalhaDaGravacao::CriacaoFalhou
+        | FalhaDaGravacao::CriacaoFalhou(_)
         | FalhaDaGravacao::EscritaFalhou
         | FalhaDaGravacao::ErroDeIoNaEscrita(_)
         | FalhaDaGravacao::NivelDoCaminhoNaoEhDiretorio
@@ -473,7 +473,7 @@ fn abrir_parcial(
         FalhaDaGravacao::DiretorioGravavelPorOutros => ErroAnexo::EscritaFalhou,
         FalhaDaGravacao::DestinoNaoEhArquivoRegular
         | FalhaDaGravacao::AcimaDoLimite
-        | FalhaDaGravacao::CriacaoFalhou
+        | FalhaDaGravacao::CriacaoFalhou(_)
         | FalhaDaGravacao::CriacaoDoDiretorioFalhou(_)
         | FalhaDaGravacao::CriacaoDoTemporarioFalhou(_)
         | FalhaDaGravacao::NomesDeTemporarioEsgotados
