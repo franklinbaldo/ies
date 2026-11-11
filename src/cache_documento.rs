@@ -137,10 +137,10 @@ pub(crate) fn gravar_em(
                 Err(arquivo_privado::FalhaDaGravacao::DestinoJaExiste) => {
                     conferir_existente(&destino, bytes)?;
                 }
-                Err(_) => return Err(FalhaCache::Gravacao),
+                Err(falha) => return Err(FalhaCache::GravacaoPrivadaFalhou(falha)),
             }
         }
-        Err(_) => return Err(FalhaCache::Gravacao),
+        Err(erro) => return Err(FalhaCache::ArquivoDoCacheInacessivel(erro.kind())),
     }
     Ok(destino)
 }
@@ -400,6 +400,42 @@ mod tests {
             Err(FalhaCache::ArquivoDivergente),
             "a edição local não pode ser sobrescrita"
         );
+        fs::remove_dir_all(raiz).unwrap();
+    }
+
+    // Contraprova da #719: a consulta do caminho falhou no SO, não foi
+    // uma recusa genérica da gravação. Não grava nem acessa o SEI.
+    #[cfg(unix)]
+    #[test]
+    fn consulta_do_cache_preserva_not_a_directory() {
+        let raiz =
+            std::env::temp_dir().join(format!("ies-cache-causa-diretorio-{}", std::process::id()));
+        fs::write(&raiz, b"arquivo, nao diretorio").unwrap();
+        let causa = gravar_em(&raiz, "sei.exemplo", "001", None, "html", b"teste").unwrap_err();
+        assert_eq!(
+            causa,
+            FalhaCache::ArquivoDoCacheInacessivel(std::io::ErrorKind::NotADirectory)
+        );
+        assert_eq!(fs::read(&raiz).unwrap(), b"arquivo, nao diretorio");
+        fs::remove_file(raiz).unwrap();
+    }
+
+    // O erro tipado da gravação privada já existe; o cache não deve
+    // substituí-lo por `Gravacao` quando o diretório é inseguro.
+    #[cfg(unix)]
+    #[test]
+    fn cache_preserva_causa_da_gravacao_privada() {
+        use std::os::unix::fs::PermissionsExt;
+        let raiz =
+            std::env::temp_dir().join(format!("ies-cache-causa-permissoes-{}", std::process::id()));
+        fs::create_dir(&raiz).unwrap();
+        fs::set_permissions(&raiz, fs::Permissions::from_mode(0o770)).unwrap();
+        let causa = gravar_em(&raiz, "sei.exemplo", "001", None, "html", b"teste").unwrap_err();
+        assert_eq!(
+            causa,
+            FalhaCache::GravacaoPrivadaFalhou(FalhaDaGravacao::DiretorioGravavelPorOutros)
+        );
+        fs::set_permissions(&raiz, fs::Permissions::from_mode(0o700)).unwrap();
         fs::remove_dir_all(raiz).unwrap();
     }
 
