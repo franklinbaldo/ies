@@ -117,6 +117,8 @@ pub(crate) enum ErroPropriedades {
     DataDeGeracaoForaDaFormaObservada,
     FormulariosDasPropriedadesRepetidos,
     HtmlDasPropriedadesNaoInterpretado,
+    /// O parser HTML recusou a tela das propriedades.
+    HtmlDasPropriedadesRecusadoPeloParser(#[source] tl::ParseError),
     InteressadoForaDaFormaObservada,
     NivelDeAcessoForaDaFormaObservada,
     OpcoesMarcadasRepetidas,

@@ -72,6 +72,10 @@ pub(crate) enum FalhaRelacionar {
     ConsultaNaoXml,
     /// O POST pode ter sido enviado; causa preservada quando disponível.
     NaoConfirmado(Option<ErroSubmissaoFormulario>),
+    /// A releitura da tela de relacionamentos falhou após o POST.
+    NaoConfirmadoNaReleitura(#[source] crate::processo_concluir::escrita::FalhaDaTela),
+    /// A tela relida após o POST não tem a forma observada.
+    NaoConfirmadoNaTelaDeRelacionamentos(#[source] ErroTelaDeRelacionamentos),
 }
 pub(crate) struct Pedido<'a> {
     pub(crate) nup: &'a NumeroProcesso,

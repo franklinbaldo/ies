@@ -20,10 +20,11 @@ pub(crate) fn ler_propriedades(
     fonte: FonteDasPropriedades,
 ) -> Result<PropriedadesLidas, ErroPropriedades> {
     let ilegivel = || ErroPropriedades::HtmlDasPropriedadesNaoInterpretado;
-    let dom = tl::parse(html, tl::ParserOptions::default()).map_err(|_| ilegivel())?;
+    let dom = tl::parse(html, tl::ParserOptions::default())
+        .map_err(ErroPropriedades::HtmlDasPropriedadesRecusadoPeloParser)?;
     let parser = dom.parser();
     let formulario = match nos_com_id(&dom, FORMULARIO)
-        .map_err(|_| ilegivel())?
+        .map_err(ErroPropriedades::Atributo)?
         .as_slice()
     {
         [] => return Err(ErroPropriedades::FormularioDasPropriedadesAusente),
@@ -67,8 +68,8 @@ struct Campos<'p> {
 
 impl<'p> Campos<'p> {
     fn opcional(&self, id: &str) -> Result<Option<Tag<'p>>, ErroPropriedades> {
-        let nos = nos_com_id_em(self.formulario, self.parser, id)
-            .map_err(|_| ErroPropriedades::HtmlDasPropriedadesNaoInterpretado)?;
+        let nos =
+            nos_com_id_em(self.formulario, self.parser, id).map_err(ErroPropriedades::Atributo)?;
         match nos.as_slice() {
             [] => Ok(None),
             [unico] => unico
