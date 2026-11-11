@@ -5,40 +5,16 @@ use super::{
     Acompanhamento, ErroAcompanhar, acompanhamentos_da_lista, alvo_para_deixar, conferir_inclusao,
     escolher_grupo, grupos_do_cadastro,
 };
-use crate::arvore_processo::ErroAcompanharNaBarra;
 use crate::formulario_web::{
     RespostaDoEnvio, SubmissaoDerivada, decodificar_atributo, enviar_submissao_via,
 };
 use crate::indice_local::IndiceLocal;
 use crate::instalacao::Instalacao;
 use crate::processo::NumeroProcesso;
-use crate::processo_concluir::escrita::CookieIlegivel;
 use crate::processo_concluir::escrita::{Contador, leitura, ler_cookie};
-use crate::processo_obter::{
-    EnvioDoProcesso, ErroProcessoObter, SessaoDoProcesso, abrir_para_escrever,
-};
-use crate::transporte::{FalhaTransporte, decodificar_resposta};
+use crate::processo_obter::{EnvioDoProcesso, SessaoDoProcesso, abrir_para_escrever};
+use crate::transporte::decodificar_resposta;
 use crate::visao_do_controle::EnvioDoControle as _;
-#[derive(Debug, thiserror::Error)]
-#[error("{self:?}")]
-pub(crate) enum ErroPrevia {
-    /// O tokenizador de atributos recusou a tag.
-    Atributo(#[source] crate::html_atributos::ErroAtributoHtml),
-    /// O cookie privado da sessão não pôde ser lido.
-    Cookie(#[from] CookieIlegivel),
-    Abertura(#[from] ErroProcessoObter),
-    OrigemNaoAutorizada,
-    UnidadeNaoPublicada,
-    LinkNaoPublicado,
-    Barra(#[from] ErroAcompanharNaBarra),
-    Transporte(#[from] FalhaTransporte),
-    Estrutura(#[from] ErroAcompanhar),
-    Formulario(#[from] crate::formulario_web::ErroSubmissaoFormulario),
-    NaoConfirmado,
-    PedidoDeAcompanhamentoInvalido,
-    RedirecionamentoDeAcompanhamentoInesperado,
-    TelaDeAcompanhamentoInesperada,
-}
 
 pub(crate) struct Pedido<'a> {
     pub(crate) nup: &'a NumeroProcesso,
@@ -89,10 +65,14 @@ impl EstadoDoAcompanhamento {
     }
 }
 
-fn url_do_cadastro(instalacao: &Instalacao, ref_url: &str, id: &str) -> Result<String, ErroPrevia> {
+fn url_do_cadastro(
+    instalacao: &Instalacao,
+    ref_url: &str,
+    id: &str,
+) -> Result<String, ErroAcompanhar> {
     use crate::arvore_processo::conferir_endereco_relativo;
     conferir_endereco_relativo(instalacao, ref_url, "acompanhamento_cadastrar", id)
-        .map_err(|_| ErroPrevia::RedirecionamentoDeAcompanhamentoInesperado)
+        .map_err(|_| ErroAcompanhar::RedirecionamentoDeAcompanhamentoInesperado)
 }
 
 fn redirecionamento_do_gerenciar(
@@ -100,42 +80,46 @@ fn redirecionamento_do_gerenciar(
     loc: Option<&str>,
     origem: &str,
     id: &str,
-) -> Result<String, ErroPrevia> {
+) -> Result<String, ErroAcompanhar> {
     let consulta = loc
         .and_then(|v| crate::formulario_web::consulta_do_controlador(v, origem))
-        .ok_or(ErroPrevia::RedirecionamentoDeAcompanhamentoInesperado)?;
+        .ok_or(ErroAcompanhar::RedirecionamentoDeAcompanhamentoInesperado)?;
     url_do_cadastro(instalacao, &format!("controlador.php?{consulta}"), id)
 }
 
 /// Apenas `btnAdicionar` da lista pode abrir um cadastro adicional.
-fn adicionar_da_lista(instalacao: &Instalacao, html: &str, id: &str) -> Result<String, ErroPrevia> {
+fn adicionar_da_lista(
+    instalacao: &Instalacao,
+    html: &str,
+    id: &str,
+) -> Result<String, ErroAcompanhar> {
     let dom = tl::parse(html, tl::ParserOptions::default())
-        .map_err(|_| ErroPrevia::TelaDeAcompanhamentoInesperada)?;
+        .map_err(|_| ErroAcompanhar::TelaDeAcompanhamentoInesperada)?;
     let mut urls = Vec::new();
     for no in dom.query_selector("button").into_iter().flatten() {
         let tag = no
             .get(dom.parser())
             .and_then(tl::Node::as_tag)
-            .ok_or(ErroPrevia::TelaDeAcompanhamentoInesperada)?;
-        let identificador =
-            crate::html_atributos::valor_do_atributo(tag, "id").map_err(ErroPrevia::Atributo)?;
+            .ok_or(ErroAcompanhar::TelaDeAcompanhamentoInesperada)?;
+        let identificador = crate::html_atributos::valor_do_atributo(tag, "id")
+            .map_err(ErroAcompanhar::Atributo)?;
         if identificador.as_deref() != Some("btnAdicionar") {
             continue;
         }
         let onclick = crate::html_atributos::valor_do_atributo(tag, "onclick")
-            .map_err(ErroPrevia::Atributo)?
-            .ok_or(ErroPrevia::TelaDeAcompanhamentoInesperada)?;
+            .map_err(ErroAcompanhar::Atributo)?
+            .ok_or(ErroAcompanhar::TelaDeAcompanhamentoInesperada)?;
         let onclick =
-            decodificar_atributo(&onclick).ok_or(ErroPrevia::TelaDeAcompanhamentoInesperada)?;
+            decodificar_atributo(&onclick).ok_or(ErroAcompanhar::TelaDeAcompanhamentoInesperada)?;
         let url = onclick
             .strip_prefix("location.href='")
             .and_then(|v| v.strip_suffix("';").or_else(|| v.strip_suffix("'")))
-            .ok_or(ErroPrevia::TelaDeAcompanhamentoInesperada)?;
+            .ok_or(ErroAcompanhar::TelaDeAcompanhamentoInesperada)?;
         urls.push(url_do_cadastro(instalacao, url, id)?);
     }
     match urls.as_slice() {
         [url] => Ok(url.to_owned()),
-        _ => Err(ErroPrevia::TelaDeAcompanhamentoInesperada),
+        _ => Err(ErroAcompanhar::TelaDeAcompanhamentoInesperada),
     }
 }
 
@@ -144,10 +128,10 @@ fn html_da_tela<V: EnvioDoProcesso>(
     rede: &mut Contador<'_, V>,
     cookie: &str,
     url: &str,
-) -> Result<(String, String), ErroPrevia> {
+) -> Result<(String, String), ErroAcompanhar> {
     let resposta = rede.get_sem_seguir(url, cookie)?;
     if resposta.resposta.status_code == 302 {
-        return Err(ErroPrevia::RedirecionamentoDeAcompanhamentoInesperado);
+        return Err(ErroAcompanhar::RedirecionamentoDeAcompanhamentoInesperado);
     }
     let mime = resposta.resposta.mime.clone();
     let html = decodificar_resposta(resposta.resposta)?;
@@ -161,10 +145,10 @@ fn selecionar_previa(
     grupos: Option<&[super::GrupoOferecido]>,
     pedido: &Pedido<'_>,
     requisicoes: u8,
-) -> Result<Previa, ErroPrevia> {
+) -> Result<Previa, ErroAcompanhar> {
     if pedido.deixar {
         if pedido.observacao.is_some() {
-            return Err(ErroPrevia::PedidoDeAcompanhamentoInvalido);
+            return Err(ErroAcompanhar::PedidoDeAcompanhamentoInvalido);
         }
         let alvo = if antes.is_empty()
             || pedido
@@ -190,7 +174,7 @@ fn selecionar_previa(
             requisicoes,
         });
     }
-    let grupos = grupos.ok_or(ErroPrevia::TelaDeAcompanhamentoInesperada)?;
+    let grupos = grupos.ok_or(ErroAcompanhar::TelaDeAcompanhamentoInesperada)?;
     let selecionado = escolher_grupo(grupos, pedido.grupo)?;
     Ok(Previa {
         numero: numero.to_owned(),
@@ -222,7 +206,7 @@ fn ler_estado_gerenciador<V: EnvioDoProcesso>(
     id: &str,
     unidade: &str,
     pedido: &Pedido<'_>,
-) -> Result<LeituraDoGerenciador, ErroPrevia> {
+) -> Result<LeituraDoGerenciador, ErroAcompanhar> {
     let res = rede.get_sem_seguir(link, cookie)?;
     let mut exclusao = None;
     let (antes, url_cadastro) = if res.resposta.status_code == 302 {
@@ -240,7 +224,7 @@ fn ler_estado_gerenciador<V: EnvioDoProcesso>(
                 let alvo = alvo_para_deixar(&antes, pedido.grupo)?;
                 let destino = super::exclusao::destino_oferecido(instalacao, &html, id, &alvo.id)?;
                 let codificacao = crate::pagina_do_controle::codificacao_da_tela(&mime)
-                    .ok_or(ErroPrevia::TelaDeAcompanhamentoInesperada)?;
+                    .ok_or(ErroAcompanhar::TelaDeAcompanhamentoInesperada)?;
                 let tela = crate::formulario_web::TelaServida {
                     url: link,
                     html: &html,
@@ -271,12 +255,12 @@ pub(crate) fn previa<V: EnvioDoProcesso>(
     pedido: &Pedido<'_>,
     indice: &IndiceLocal,
     envio: &mut V,
-) -> Result<Previa, ErroPrevia> {
+) -> Result<Previa, ErroAcompanhar> {
     if pedido.deixar && pedido.observacao.is_some() {
-        return Err(ErroPrevia::PedidoDeAcompanhamentoInvalido);
+        return Err(ErroAcompanhar::PedidoDeAcompanhamentoInvalido);
     }
     let instalacao =
-        Instalacao::interpretar(sessao.origem).ok_or(ErroPrevia::OrigemNaoAutorizada)?;
+        Instalacao::interpretar(sessao.origem).ok_or(ErroAcompanhar::OrigemNaoAutorizada)?;
     let mut rede = Contador::novo(envio);
     let (aberto, acoes) = abrir_para_escrever(
         sessao,
@@ -284,9 +268,9 @@ pub(crate) fn previa<V: EnvioDoProcesso>(
         indice,
         &mut rede,
     )?;
-    let unidade = aberto.unidade.ok_or(ErroPrevia::UnidadeNaoPublicada)?;
+    let unidade = aberto.unidade.ok_or(ErroAcompanhar::UnidadeNaoPublicada)?;
     let id = aberto.arvore.processo.id;
-    let link = acoes.acompanhar?.ok_or(ErroPrevia::LinkNaoPublicado)?;
+    let link = acoes.acompanhar?.ok_or(ErroAcompanhar::LinkNaoPublicado)?;
     let cookie = ler_cookie(sessao)?;
     let LeituraDoGerenciador {
         antes,
@@ -305,10 +289,10 @@ pub(crate) fn previa<V: EnvioDoProcesso>(
     let grupos = if pedido.deixar {
         None
     } else {
-        let url = url_cadastro.ok_or(ErroPrevia::TelaDeAcompanhamentoInesperada)?;
+        let url = url_cadastro.ok_or(ErroAcompanhar::TelaDeAcompanhamentoInesperada)?;
         let (html, mime) = html_da_tela(&mut rede, &cookie, &url)?;
         let codificacao = crate::pagina_do_controle::codificacao_da_tela(&mime)
-            .ok_or(ErroPrevia::TelaDeAcompanhamentoInesperada)?;
+            .ok_or(ErroAcompanhar::TelaDeAcompanhamentoInesperada)?;
         // A prévia só é considerada válida se a submissão exata também
         // puder ser derivada, sem escrever e sem construir URL artificial.
         let tela = crate::formulario_web::TelaServida {
@@ -345,7 +329,7 @@ pub(crate) fn previa<V: EnvioDoProcesso>(
         return Ok(plano);
     }
     if pedido.deixar {
-        let submissao = exclusao.ok_or(ErroPrevia::TelaDeAcompanhamentoInesperada)?;
+        let submissao = exclusao.ok_or(ErroAcompanhar::TelaDeAcompanhamentoInesperada)?;
         return confirmar_remocao(
             &mut rede,
             sessao,
@@ -358,7 +342,7 @@ pub(crate) fn previa<V: EnvioDoProcesso>(
             submissao,
         );
     }
-    let submissao = submissao.ok_or(ErroPrevia::TelaDeAcompanhamentoInesperada)?;
+    let submissao = submissao.ok_or(ErroAcompanhar::TelaDeAcompanhamentoInesperada)?;
     confirmar_inclusao(
         &mut rede,
         sessao,
@@ -380,17 +364,17 @@ fn confirmar_inclusao<V: EnvioDoProcesso>(
     antes: &[Acompanhamento],
     mut plano: Previa,
     submissao: SubmissaoDerivada,
-) -> Result<Previa, ErroPrevia> {
+) -> Result<Previa, ErroAcompanhar> {
     let mut enviado = false;
     let resposta = enviar_submissao_via(submissao, sessao.cookie, |formulario, cookie| {
         enviado = true;
         rede.post(formulario, cookie)
     });
     if !enviado {
-        return Err(ErroPrevia::Formulario(
+        return Err(ErroAcompanhar::Formulario(
             resposta
                 .err()
-                .ok_or(ErroPrevia::TelaDeAcompanhamentoInesperada)?,
+                .ok_or(ErroAcompanhar::TelaDeAcompanhamentoInesperada)?,
         ));
     }
     // O 302 é dado, nunca seguido; só a lista relida pode provar efeito.
@@ -408,7 +392,7 @@ fn confirmar_inclusao<V: EnvioDoProcesso>(
         conferir_inclusao(antes, linhas, &plano.grupo, &plano.observacao).is_ok()
     });
     if !verificado {
-        return Err(ErroPrevia::NaoConfirmado);
+        return Err(ErroAcompanhar::AcompanhamentoNaoConfirmado);
     }
     // Somente depois da prova exata podemos publicar o ID observado.
     let novo = depois
@@ -420,7 +404,7 @@ fn confirmar_inclusao<V: EnvioDoProcesso>(
                     && linha.observacao == plano.observacao
             })
         })
-        .ok_or(ErroPrevia::NaoConfirmado)?;
+        .ok_or(ErroAcompanhar::AcompanhamentoNaoConfirmado)?;
     plano.id_de_remocao = Some(novo.id.clone());
     plano.estado = EstadoDoAcompanhamento::Incluido;
     plano.requisicoes = rede.feitas();
