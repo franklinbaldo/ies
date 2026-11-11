@@ -83,87 +83,11 @@ fn total_da_legenda(legenda: &str) -> Option<usize> {
     numero.parse().ok()
 }
 
-/// A resposta da lupa deve ser uma página de dados identificada pelo formulário,
-/// pela tabela, pelo cabeçalho, pelo total e pelo paginador.
-#[allow(clippy::too_many_lines)]
-pub(crate) fn ler_pagina(html: &str) -> Result<PaginaDaLupa, ErroLupa> {
-    let dom =
-        tl::parse(html, tl::ParserOptions::default()).map_err(ErroLupa::HtmlNaoInterpretado)?;
-    let parser = dom.parser();
-    let form = crate::formulario_web::localizar_formulario(&dom, "frmUnidadeLista")
-        .map_err(ErroLupa::FormularioAusente)?;
-    let pagina: usize = campo_unico(form, parser, "hdnInfraPaginaAtual")?
-        .parse()
-        .map_err(ErroLupa::NumeroDaPaginaIlegivel)?;
-    let seletores: Vec<_> = tags(form, parser, "select")
-        .into_iter()
-        .filter(|s| {
-            atributo(s, "name").ok().flatten().as_deref() == Some("selInfraPaginacaoSuperior")
-        })
-        .collect();
-    let paginas = match seletores.as_slice() {
-        [] => 1,
-        [seletor] => {
-            // A lupa GO publica índices 0..N-1 nos valores das opções.
-            // Contar opções sem conferir seus índices permitiria tratar
-            // páginas saltadas ou duplicadas como um snapshot completo.
-            let opcoes = tags(seletor, parser, "option");
-            if opcoes.is_empty() {
-                return Err(ErroLupa::PaginaInvalida);
-            }
-            for (indice, opcao) in opcoes.iter().enumerate() {
-                let valor = atributo(opcao, "value")?.ok_or(ErroLupa::PaginaInvalida)?;
-                if valor.parse::<usize>().ok() != Some(indice) {
-                    return Err(ErroLupa::PaginaInvalida);
-                }
-            }
-            opcoes.len()
-        }
-        _ => return Err(ErroLupa::PaginaInvalida),
-    };
-    let tabelas = tags(form, parser, "table");
-    let mut candidatas: Vec<_> = Vec::new();
-    let mut existe_tabela_infra = false;
-    for tabela in tabelas {
-        let classe = atributo(tabela, "class")?.unwrap_or_default();
-        if !classe.split_whitespace().any(|c| c == "infraTable") {
-            continue;
-        }
-        existe_tabela_infra = true;
-        let legendas = tags(tabela, parser, "caption");
-        if let [legenda] = legendas.as_slice()
-            && texto_da_tag(legenda, parser).starts_with("Lista de Unidades (")
-        {
-            candidatas.push(tabela);
-        }
-    }
-    let tabela = match candidatas.as_slice() {
-        [tabela] => *tabela,
-        [] if !existe_tabela_infra
-            && pagina == 0
-            && paginas == 1
-            && texto_da_tag(form, parser).ends_with("Nenhum registro encontrado.") =>
-        {
-            // GO, cassette unidade-listar-destinos-go, POST passo 12:
-            // a lupa mantém o formulário, mas omite infraTable e declara
-            // a ausência de resultados. Não confundir com uma tabela quebrada.
-            return Ok(PaginaDaLupa {
-                unidades: Vec::new(),
-                total: 0,
-                pagina,
-                paginas,
-            });
-        }
-        _ => return Err(ErroLupa::TabelaForaDaForma),
-    };
-    let legenda = tags(tabela, parser, "caption")
-        .first()
-        .map(|legenda| texto_da_tag(legenda, parser))
-        .ok_or(ErroLupa::TabelaForaDaForma)?;
-    let total = total_da_legenda(&legenda).ok_or(ErroLupa::TotalAusente)?;
-    if pagina >= paginas {
-        return Err(ErroLupa::PaginaInvalida);
-    }
+fn ler_unidades(
+    tabela: &tl::HTMLTag<'_>,
+    parser: &tl::Parser<'_>,
+    total: usize,
+) -> Result<Vec<UnidadeGuardada>, ErroLupa> {
     let trs = tags(tabela, parser, "tr");
     let mut indices: Option<(usize, usize, usize, usize)> = None;
     let mut unidades = Vec::new();
@@ -248,6 +172,90 @@ pub(crate) fn ler_pagina(html: &str) -> Result<PaginaDaLupa, ErroLupa> {
     if unidades.len() > total {
         return Err(ErroLupa::PaginasDivergentes);
     }
+    Ok(unidades)
+}
+
+/// A resposta da lupa deve ser uma página de dados identificada pelo formulário,
+/// pela tabela, pelo cabeçalho, pelo total e pelo paginador.
+pub(crate) fn ler_pagina(html: &str) -> Result<PaginaDaLupa, ErroLupa> {
+    let dom =
+        tl::parse(html, tl::ParserOptions::default()).map_err(ErroLupa::HtmlNaoInterpretado)?;
+    let parser = dom.parser();
+    let form = crate::formulario_web::localizar_formulario(&dom, "frmUnidadeLista")
+        .map_err(ErroLupa::FormularioAusente)?;
+    let pagina: usize = campo_unico(form, parser, "hdnInfraPaginaAtual")?
+        .parse()
+        .map_err(ErroLupa::NumeroDaPaginaIlegivel)?;
+    let seletores: Vec<_> = tags(form, parser, "select")
+        .into_iter()
+        .filter(|s| {
+            atributo(s, "name").ok().flatten().as_deref() == Some("selInfraPaginacaoSuperior")
+        })
+        .collect();
+    let paginas = match seletores.as_slice() {
+        [] => 1,
+        [seletor] => {
+            // A lupa GO publica índices 0..N-1 nos valores das opções.
+            // Contar opções sem conferir seus índices permitiria tratar
+            // páginas saltadas ou duplicadas como um snapshot completo.
+            let opcoes = tags(seletor, parser, "option");
+            if opcoes.is_empty() {
+                return Err(ErroLupa::PaginaInvalida);
+            }
+            for (indice, opcao) in opcoes.iter().enumerate() {
+                let valor = atributo(opcao, "value")?.ok_or(ErroLupa::PaginaInvalida)?;
+                if valor.parse::<usize>().ok() != Some(indice) {
+                    return Err(ErroLupa::PaginaInvalida);
+                }
+            }
+            opcoes.len()
+        }
+        _ => return Err(ErroLupa::PaginaInvalida),
+    };
+    let tabelas = tags(form, parser, "table");
+    let mut candidatas: Vec<_> = Vec::new();
+    let mut existe_tabela_infra = false;
+    for tabela in tabelas {
+        let classe = atributo(tabela, "class")?.unwrap_or_default();
+        if !classe.split_whitespace().any(|c| c == "infraTable") {
+            continue;
+        }
+        existe_tabela_infra = true;
+        let legendas = tags(tabela, parser, "caption");
+        if let [legenda] = legendas.as_slice()
+            && texto_da_tag(legenda, parser).starts_with("Lista de Unidades (")
+        {
+            candidatas.push(tabela);
+        }
+    }
+    let tabela = match candidatas.as_slice() {
+        [tabela] => *tabela,
+        [] if !existe_tabela_infra
+            && pagina == 0
+            && paginas == 1
+            && texto_da_tag(form, parser).ends_with("Nenhum registro encontrado.") =>
+        {
+            // GO, cassette unidade-listar-destinos-go, POST passo 12:
+            // a lupa mantém o formulário, mas omite infraTable e declara
+            // a ausência de resultados. Não confundir com uma tabela quebrada.
+            return Ok(PaginaDaLupa {
+                unidades: Vec::new(),
+                total: 0,
+                pagina,
+                paginas,
+            });
+        }
+        _ => return Err(ErroLupa::TabelaForaDaForma),
+    };
+    let legenda = tags(tabela, parser, "caption")
+        .first()
+        .map(|legenda| texto_da_tag(legenda, parser))
+        .ok_or(ErroLupa::TabelaForaDaForma)?;
+    let total = total_da_legenda(&legenda).ok_or(ErroLupa::TotalAusente)?;
+    if pagina >= paginas {
+        return Err(ErroLupa::PaginaInvalida);
+    }
+    let unidades = ler_unidades(tabela, parser, total)?;
     Ok(PaginaDaLupa {
         unidades,
         total,

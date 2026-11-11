@@ -290,7 +290,8 @@ pub enum ErroArquivoPrivado {
     Vazio(ArquivoPrivado),
     #[cfg(unix)]
     PermissoesInseguras(ArquivoPrivado),
-    MetadadosNaoLidos(ArquivoPrivado),
+    /// A consulta de metadados falhou; conserva papel e motivo do sistema.
+    MetadadosNaoLidos(ArquivoPrivado, std::io::ErrorKind),
 }
 
 /// Consulta apenas metadados: não lê conteúdo, credenciais nem acessa o SEI.
@@ -307,7 +308,7 @@ pub fn verificar_arquivos_privados(arquivos: &ArquivosDeAcesso) -> Result<(), Er
             if erro.kind() == std::io::ErrorKind::NotFound {
                 ErroArquivoPrivado::Ausente(tipo)
             } else {
-                ErroArquivoPrivado::MetadadosNaoLidos(tipo)
+                ErroArquivoPrivado::MetadadosNaoLidos(tipo, erro.kind())
             }
         })?;
         if info.file_type().is_symlink() {

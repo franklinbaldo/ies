@@ -194,3 +194,20 @@ fn caminho_relativo_nao_e_interpretado_a_partir_do_diretorio_atual() {
     falha(&output, "CaminhoNaoAbsoluto");
     fs::remove_dir_all(dir).unwrap();
 }
+
+#[cfg(unix)]
+#[test]
+fn status_recusa_ancestral_regular_sem_expor_caminho_ou_conteudo() {
+    let dir = pasta_teste();
+    let url = arquivo(&dir, "url");
+    let origem = arquivo(&dir, "origem");
+    let cookie = url.join("cookie-privado");
+    let output = executar(&url, &cookie, &origem, true);
+    assert_eq!(output.status.code(), Some(1), "{output:?}");
+    let diagnostico = String::from_utf8_lossy(&output.stderr);
+    assert!(!diagnostico.contains("cookie-privado"));
+    assert!(!diagnostico.contains(url.to_string_lossy().as_ref()));
+    assert!(!diagnostico.contains("DADO FICTICIO"));
+    assert_eq!(fs::read_to_string(&url).unwrap(), "DADO FICTICIO");
+    fs::remove_dir_all(dir).unwrap();
+}
