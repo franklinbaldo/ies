@@ -84,7 +84,7 @@ fn tela_de_conclusao(
         codificacao: CodificacaoDaTela::Iso88591,
     };
     // A unidade não é conferida: a janela não publica `lnkInfraUnidade`.
-    match derivar_submissao(&CONCLUIR_PROCESSO, inst, &tela, "", &CAMPOS_DO_ENVIO) {
+    match derivar_submissao(&CONCLUIR_PROCESSO, inst, &tela, None, &CAMPOS_DO_ENVIO) {
         Ok(s) if s.nomes_dos_campos().len() == 7 => "conferida e derivada (7 campos)".into(),
         Ok(s) => format!("derivada com {} campos", s.nomes_dos_campos().len()),
         Err(erro) => format!("`{erro:?}`"),

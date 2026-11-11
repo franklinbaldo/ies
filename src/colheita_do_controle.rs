@@ -217,7 +217,7 @@ fn action_da_pesquisa_rapida(alvo: &Alvo<'_>, html: &str, mime: &str) -> Option<
         &PESQUISA_RAPIDA,
         &alvo.instalacao,
         &tela,
-        &unidade,
+        Some(unidade.as_str()),
         &[(CAMPO_DA_PESQUISA_RAPIDA, "")],
     )
     .ok()

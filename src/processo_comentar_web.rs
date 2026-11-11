@@ -290,7 +290,7 @@ pub(crate) fn prever<V: EnvioDoProcesso>(
         &COMENTAR,
         &instalacao,
         &tela,
-        aberto.unidade.as_deref().unwrap_or(""),
+        aberto.unidade.as_deref(),
         &[("txaDescricao", texto)],
     )
     .map_err(ErroComentar::Formulario)?;

@@ -69,7 +69,7 @@ fn tela(
         (CARGO, cargo.as_str()),
         (SENHA, "senha-sintetica"),
     ];
-    let classe = match derivar_submissao(&ASSINAR_DOCUMENTO, inst, &servida, "", &campos) {
+    let classe = match derivar_submissao(&ASSINAR_DOCUMENTO, inst, &servida, None, &campos) {
         Ok(s) => format!(
             "conferida e derivada ({} campos)",
             s.nomes_dos_campos().len()

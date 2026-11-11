@@ -35,7 +35,7 @@ fn derivar(
         &CADASTRAR,
         &instalacao,
         &tela,
-        "UNIDADE TESTE",
+        Some("UNIDADE TESTE"),
         &[
             ("hdnFlagDocumentoCadastro", "2"),
             ("rdoNivelAcesso", "0"),
@@ -81,7 +81,7 @@ fn derivar_escolha(
         &ESCOLHER_TIPO,
         &instalacao,
         &tela,
-        "UNIDADE TESTE",
+        Some("UNIDADE TESTE"),
         &[("hdnIdSerie", "291")],
     )
 }
@@ -131,7 +131,7 @@ fn exibir_todos_deriva_um_unico_post_de_filtro_e_nao_de_criacao() {
         &FILTRAR_TIPOS,
         &instalacao,
         &servida,
-        "UNIDADE TESTE",
+        Some("UNIDADE TESTE"),
         &[("hdnFiltroSerie", "T")],
     )
     .unwrap();

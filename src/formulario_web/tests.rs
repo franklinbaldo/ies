@@ -82,7 +82,7 @@ fn derivar_html(
         &OPERACAO,
         &instalacao(),
         &tela_iso(&url, html),
-        "UNIDADE TESTE",
+        Some("UNIDADE TESTE"),
         campos,
     )
 }
@@ -225,7 +225,7 @@ fn unidade_da_tela_precisa_ser_a_solicitada() {
         &OPERACAO,
         &instalacao(),
         &tela_iso(&url, &html),
-        "OUTRA",
+        Some("OUTRA"),
         &[],
     );
     assert_eq!(
@@ -414,7 +414,14 @@ fn valor_utf8_usa_bytes_utf8_quando_a_tela_declara_utf8() {
         codificacao: CodificacaoDaTela::Utf8,
     };
     let campos = [("txtProtocoloPesquisa", "ação 🚀")];
-    let s = derivar_submissao(&OPERACAO, &instalacao(), &tela, "UNIDADE TESTE", &campos).unwrap();
+    let s = derivar_submissao(
+        &OPERACAO,
+        &instalacao(),
+        &tela,
+        Some("UNIDADE TESTE"),
+        &campos,
+    )
+    .unwrap();
     let corpo = String::from_utf8(s.corpo().to_vec()).unwrap();
     assert!(
         corpo.contains("txtProtocoloPesquisa=a%C3%A7%C3%A3o+%F0%9F%9A%80&"),
@@ -447,7 +454,7 @@ fn efeito_nao_avaliado_recusa_antes_de_ler_a_tela() {
         &op,
         &instalacao(),
         &tela_iso(&url, ""),
-        "UNIDADE TESTE",
+        Some("UNIDADE TESTE"),
         &[],
     );
     assert_eq!(
@@ -474,7 +481,7 @@ fn efeitos_avaliados_sao_aceitos_e_preservados() {
             &op,
             &instalacao(),
             &tela_iso(&url, &html),
-            "UNIDADE TESTE",
+            Some("UNIDADE TESTE"),
             &[],
         );
         assert_eq!(s.unwrap().efeito(), efeito);
@@ -491,7 +498,7 @@ fn tela_fora_da_instalacao_ou_url_invalida_e_recusada() {
         &OPERACAO,
         &instalacao(),
         &tela_iso(&outra, &html),
-        "UNIDADE TESTE",
+        Some("UNIDADE TESTE"),
         &[],
     );
     assert_eq!(
@@ -503,7 +510,7 @@ fn tela_fora_da_instalacao_ou_url_invalida_e_recusada() {
         &OPERACAO,
         &instalacao(),
         &tela_iso(invalida, &html),
-        "UNIDADE TESTE",
+        Some("UNIDADE TESTE"),
         &[],
     );
     assert_eq!(
