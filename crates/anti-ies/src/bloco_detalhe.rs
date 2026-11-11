@@ -74,9 +74,8 @@ pub(crate) fn responder(
     // lista completa comprovar o número, sem adivinhar assinatura.
     let mut tipo_encontrado = None;
     for tipo in [Tipo::Assinatura, Tipo::Interno, Tipo::Reuniao] {
-        let pagina = match blocos::ler(banco, instalacao, cenario, tipo) {
-            Ok(pagina) => pagina,
-            Err(_) => return Resposta::nova(Estado::DadosInsuficientes),
+        let Ok(pagina) = blocos::ler(banco, instalacao, cenario, tipo) else {
+            return Resposta::nova(Estado::DadosInsuficientes);
         };
         let Some(pagina) = pagina else {
             continue;
