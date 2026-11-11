@@ -11,6 +11,22 @@ pública é o [contrato da CLI](contracts/cli.md). O
 [Todos](https://github.com/franklinbaldo/todos) é **oráculo de
 comportamento**, não arquitetura a portar.
 
+## Prioridade vigente do proprietário: eliminar antipatterns
+
+Desde 10/11/2026, **identificar, demonstrar e remover antipatterns reais**
+tem prioridade sobre novas capacidades e hardening preventivo. A fila é
+coordenada pela [issue-mãe #716](https://github.com/franklinbaldo/ies/issues/716)
+e suas sub-issues #717–#723; a ordem atual consta do [roadmap #56](https://github.com/franklinbaldo/ies/issues/56).
+
+Fazer ablações pequenas com contraprova, testes e redução real de
+complexidade. Não trocar cada problema por novos wrappers, enums ou
+estruturas de `Causa`; tipos são instrumentos, não entregas por si só.
+Triar caso a caso: `Option` legitimamente não observado, defaults de
+fatiamento e exceções de plataforma não são erros. Respeitar os BDDs
+públicos existentes, as três provas independentes, a ausência de retry
+e todos os limites de segurança. Fatias já em curso continuam sujeitas
+ao CI e à integração normal, mas não abrem nova frente prioritária.
+
 ## Equipe de agentes e avatares
 
 O emoji é o avatar da rotina. Cada ficha em `team/` usa OKF `TeamMember`.
@@ -77,9 +93,9 @@ Estas regras são a **fonte única** dos prompts curtos das automações.
 5. **Revisão e integração:** 🦅 avalia a PR contra o BDD prévio;
    🐘/🦡 integram com gates verdes. Preservar testes existentes;
    `--confirmar` grava em treinamento, sem trava de ensaio.
-6. **Capacidades primeiro:** implementar o caminho mais simples para
-   o comportamento contratado, sem hardening especulativo, sem romper
-   limites invioláveis nem gates.
+6. **Prioridade da fila:** seguir a ablação de antipatterns vigente acima;
+   nas capacidades já em curso, implementar o caminho contratado mais simples,
+   sem hardening especulativo, sem romper limites invioláveis nem gates.
 7. **Backlog:** qualquer agente pode relatar lacunas/bugs/sugestões,
    mas não redigir BDD próprio para implementá-los. 🐘 especifica os
    cenários a partir do contrato e roadmap; 🐘/🦡 ordenam prioridades.
@@ -177,11 +193,11 @@ O que falta implementar e em que ordem está na
 
 ## Princípios de design
 
-- **Capacidades primeiro, hardening depois.** A implementação inicial de cada
-  capacidade deve ser a mais simples e direta possível, sem defesas preventivas
-  ou barreiras hipotéticas. Preocupações com segurança só começam quando todas
-  as capacidades estiverem implementadas; só aí será iniciado o hardening de
-  segurança.
+- **Simplicidade sem hardening especulativo.** Quando uma capacidade já
+  contratada estiver em implementação, usar o caminho mais simples e direto,
+  sem defesas preventivas nem barreiras hipotéticas. A priorização de novas
+  capacidades é subordinada à ablação de antipatterns vigente acima.
+  Preservar sempre os limites invioláveis.
 - **Web.** REST e SOAP **não são prioridade**; nenhum comando depende
   deles ([ADR 0001](docs/arquitetura/0001-rotas-por-evidencia.md)).
 - **Mínimo de requests.** Reaproveitar a sessão (`ies login` só reloga
