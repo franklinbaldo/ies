@@ -86,7 +86,7 @@ fn faixa_da_tabela(
     linhas: usize,
 ) -> Result<Option<Faixa>, ErroCaixa> {
     let dom = tl::parse(html, tl::ParserOptions::default())
-        .map_err(|_| ErroCaixa::HtmlDaCaixaInvalido)?;
+        .map_err(ErroCaixa::HtmlDaCaixaRecusadoPeloParser)?;
     let parser = dom.parser();
     let tabela = match nos_com_id(&dom, id)
         .map_err(ErroCaixa::AtributoDaCaixaIlegivel)?
