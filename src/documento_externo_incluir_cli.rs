@@ -32,7 +32,44 @@ pub(crate) fn tipo_externo(tipo: &str) -> Result<String, FalhaTipoExterno> {
     Ok(tipo.to_owned())
 }
 
-#[allow(clippy::too_many_lines)] // Entrada sequencial: inspeção, prévia e recusa de escrita preservadas.
+/// Apresentação da inspeção local: não sugere que o SEI foi consultado.
+fn apresentar_inspecao_local(
+    cli: &Cli,
+    processo: &crate::processo::NumeroProcesso,
+    tipo: &str,
+    pdf: &crate::documento_externo_incluir::PdfLocal,
+) {
+    if cli.json {
+        println!(
+            "{}",
+            json!({
+                "escopo": "inspecao_local",
+                "processo": processo.as_str(),
+                "tipo_solicitado": tipo,
+                "arquivo": {
+                    "nome": pdf.nome,
+                    "tamanho_bytes": pdf.tamanho_bytes,
+                    "sha256": pdf.sha256,
+                },
+                "cadastro_sei_observado": false,
+                "previa_remota": false,
+                "confirmado": false,
+                "requisicoes": 0,
+                "escrita_remota": false
+            })
+        );
+    } else {
+        println!(
+            "IES: arquivo local {} ({} bytes, SHA-256 {}) inspecionado para {}. Tipo solicitado: {}. Nenhuma tela do SEI foi consultada; não é prévia remota e nenhuma escrita está habilitada.",
+            pdf.nome,
+            pdf.tamanho_bytes,
+            pdf.sha256,
+            processo.as_str(),
+            tipo
+        );
+    }
+}
+
 pub(crate) fn tentar_incluir(cli: &Cli) -> Option<anyhow::Result<()>> {
     let Domain::Documento(Documento {
         acao:
@@ -123,34 +160,6 @@ pub(crate) fn tentar_incluir(cli: &Cli) -> Option<anyhow::Result<()>> {
             Ok(())
         }));
     }
-    if cli.json {
-        println!(
-            "{}",
-            json!({
-                "escopo": "inspecao_local",
-                "processo": processo.as_str(),
-                "tipo_solicitado": tipo,
-                "arquivo": {
-                    "nome": pdf.nome,
-                    "tamanho_bytes": pdf.tamanho_bytes,
-                    "sha256": pdf.sha256,
-                },
-                "cadastro_sei_observado": false,
-                "previa_remota": false,
-                "confirmado": false,
-                "requisicoes": 0,
-                "escrita_remota": false
-            })
-        );
-    } else {
-        println!(
-            "IES: arquivo local {} ({} bytes, SHA-256 {}) inspecionado para {}. Tipo solicitado: {}. Nenhuma tela do SEI foi consultada; não é prévia remota e nenhuma escrita está habilitada.",
-            pdf.nome,
-            pdf.tamanho_bytes,
-            pdf.sha256,
-            processo.as_str(),
-            tipo
-        );
-    }
+    apresentar_inspecao_local(cli, &processo, tipo, &pdf);
     Some(Ok(()))
 }
