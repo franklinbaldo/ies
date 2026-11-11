@@ -1,7 +1,9 @@
 //! Link de "Iniciar Processo" publicado pelo Controle da sessão.
 //! Não inferir URL, não executar JS e não seguir redirecionamento.
 use crate::acao_do_sei::AcaoDoSei;
-use crate::consulta_do_controlador::{ConsultaDoControlador, ErroConsultaDoControlador};
+use crate::consulta_do_controlador::{
+    ConsultaDoControlador, ErroConsultaDoControlador, menciona_acao,
+};
 use crate::formulario_web::decodificar_atributo;
 use crate::html_atributos::valor_do_atributo;
 use crate::instalacao::Instalacao;
@@ -46,12 +48,7 @@ pub(crate) fn link_de_iniciar(
             }
             None => continue,
         };
-        let aponta = href.split_once('?').is_some_and(|(_, consulta)| {
-            consulta.split('&').any(|par| {
-                par.strip_prefix("acao=").and_then(AcaoDoSei::ler)
-                    == Some(AcaoDoSei::ProcedimentoEscolherTipo)
-            })
-        });
+        let aponta = menciona_acao(&href, AcaoDoSei::ProcedimentoEscolherTipo);
         if aponta {
             candidatos.push(href);
         }

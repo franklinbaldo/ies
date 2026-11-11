@@ -4,10 +4,11 @@
 //! instalações gravadas: `<a href="controlador.php?acao=procedimento_enviar
 //! &acao_origem=arvore_visualizar&…&id_procedimento=ID&arvore=1&…&infra_hash=…">`,
 //! o link da tela "Enviar Processo". Sem regex e sem JavaScript executado.
-use super::barra_do_processo::{acao_do_href, ancoras_da_barra};
+use super::barra_do_processo::ancoras_da_barra;
 use super::concluir::EnderecoDeEscrita;
 use super::endereco::{EnderecoRecusado, conferir_endereco_relativo};
 use crate::acao_do_sei::AcaoDoSei;
+use crate::consulta_do_controlador::menciona_acao;
 use crate::instalacao::Instalacao;
 
 /// Recusas da leitura da barra (só pesam quando se pede para enviar).
@@ -31,7 +32,7 @@ pub(crate) fn ler_enviar_da_barra(
     let links: Vec<&str> = ancoras
         .iter()
         .filter_map(|a| a.href.as_deref())
-        .filter(|href| acao_do_href(href) == Some(AcaoDoSei::ProcedimentoEnviar))
+        .filter(|href| menciona_acao(href, AcaoDoSei::ProcedimentoEnviar))
         .collect();
     match links.as_slice() {
         [] => Ok(None),

@@ -4,6 +4,7 @@ use crate::acao_do_sei::AcaoDoSei;
 use crate::arvore_processo::conferir_endereco_relativo;
 use crate::arvore_processo::endereco::EnderecoRecusado;
 use crate::consulta_do_controlador::ConsultaDoControlador;
+use crate::consulta_do_controlador::menciona_acao;
 use crate::formulario_web::{
     ConferenciaDaUnidade, EfeitoAvaliado, EnvioDoFormulario, ErroSubmissaoFormulario,
     EstadoDoProcesso, OperacaoDeFormulario, RespostaDoEnvio, ResultadoDoEnvio, TelaServida,
@@ -111,8 +112,7 @@ pub(crate) struct Previa {
 
 /// Verdadeiro se a URL é a ação `comentario_cadastrar` (campo exato da consulta).
 fn e_link_do_cadastro(url: &str) -> bool {
-    url.split(['?', '&'])
-        .any(|campo| campo == "acao=comentario_cadastrar")
+    menciona_acao(url, AcaoDoSei::ComentarioCadastrar)
 }
 
 /// O `onclick` que o SEI publica no botão Novo: exatamente `location.href='<url>'`.

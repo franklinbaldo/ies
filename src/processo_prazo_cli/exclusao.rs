@@ -2,6 +2,7 @@
 //! O unico POST e reservado ao anti-IES de teste; release recusa antes da rede.
 use super::*;
 use crate::acao_do_sei::AcaoDoSei;
+use crate::consulta_do_controlador::menciona_acao;
 use crate::formulario_web::derivar_submissao_com_action;
 use crate::url_observada::UrlHttps;
 
@@ -68,10 +69,7 @@ pub(super) fn link_da_lista(html: &str, origem: &str) -> Result<String, ErroLink
         let Some(href) = crate::formulario_web::decodificar_atributo(&bruto) else {
             continue;
         };
-        if !href
-            .split(['?', '&'])
-            .any(|parte| parte == "acao=controle_prazo_listar")
-        {
+        if !menciona_acao(&href, crate::acao_do_sei::AcaoDoSei::ControlePrazoListar) {
             continue;
         }
         if href.starts_with('/') || href.contains("://") || href.contains("..") {

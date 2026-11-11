@@ -58,6 +58,7 @@ acoes_do_sei! {
         ComentarioListar => "comentario_listar",
         ControlePrazoDefinir => "controle_prazo_definir",
         ControlePrazoExcluir => "controle_prazo_excluir",
+        ControlePrazoListar => "controle_prazo_listar",
         DocumentoAlterar => "documento_alterar",
         DocumentoAlterarRecebido => "documento_alterar_recebido",
         DocumentoAssinar => "documento_assinar",
