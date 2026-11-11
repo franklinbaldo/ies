@@ -2,18 +2,20 @@
 //! cassettes que gravaram `comentario_listar` ou `comentario_cadastrar`, as
 //! respostas passam pelos **mesmos leitores** do comando, offline: a lista
 //! (`ler_tela`), o link de Novo Comentário publicado nela
-//! (`link_do_cadastro`), o 302 da lista vazia, o formulário de cadastro
+//! (`link_do_cadastro`), o 302 da lista vazia para o cadastro do mesmo
+//! processo (`conferir_endereco_relativo`), o formulário de cadastro
 //! (`ler_tela`), o 302 do POST (`id_do_aceite`) e a lista relida depois de
-//! um aceite (`conferir_efeito`). Só contagens e formas, nunca URL, cookie,
-//! hash ou corpo. `#[ignore]`: lê os ZIPs do cache local (`IES_ACERVO_CACHE`).
+//! um aceite. Só contagens e formas, nunca URL, cookie, hash ou corpo.
+//! `#[ignore]`: lê os ZIPs do cache local (`IES_ACERVO_CACHE`).
 //!
-//! O corpo do POST não é gravado no acervo: a releitura confere a identidade
-//! do comentário aceito (id único) com o texto que a própria lista traz.
+//! O corpo do POST não é gravado no acervo: a releitura confere só que o id
+//! aceito aparece exatamente uma vez. O conteúdo do efeito fica `NOT_RUN`.
 use super::{id_do_aceite, link_do_cadastro};
+use crate::acao_do_sei::AcaoDoSei;
+use crate::arvore_processo::endereco::conferir_endereco_relativo;
 use crate::cassette::acervo::{INSTALACOES, gravacao, percorrer, publicar};
 use crate::cassette::html_da_resposta;
 use crate::instalacao::Instalacao;
-use crate::processo_comentar::conferir_efeito;
 use crate::processo_comentarios::{ComentariosLidos, TelaDosComentarios, ler_tela};
 use std::collections::BTreeMap;
 use std::fmt::Write as _;
@@ -22,10 +24,10 @@ type Contagem = BTreeMap<(&'static str, String), BTreeMap<String, u64>>;
 
 const LISTA: &str = "1. lista de comentários (`ler_tela`)";
 const LINK: &str = "2. link de Novo Comentário na lista (`link_do_cadastro`)";
-const VAZIA: &str = "3. 302 da lista vazia (`obter_tela`)";
+const VAZIA: &str = "3. 302 da lista vazia (`conferir_endereco_relativo`)";
 const CADASTRO: &str = "4. formulário de cadastro (`ler_tela`)";
 const ESCRITA: &str = "5. resposta do POST `comentario_cadastrar` (`id_do_aceite`)";
-const RELEITURA: &str = "6. lista relida após o 302 aceito (`conferir_efeito`)";
+const RELEITURA: &str = "6. lista relida após o 302 aceito (id do aceito)";
 
 /// As classes que a gravação comprova; qualquer outra é um achado.
 fn esperada(leitor: &str, classe: &str) -> bool {
@@ -35,7 +37,7 @@ fn esperada(leitor: &str, classe: &str) -> bool {
         VAZIA => classe == "302 de lista vazia",
         CADASTRO => classe == "lido (sem comentários)",
         ESCRITA => classe == "302 aceito",
-        RELEITURA => classe == "contém o aceito, id único",
+        RELEITURA => classe == "id do aceito uma vez (conteúdo NOT_RUN)",
         _ => false,
     }
 }
@@ -51,13 +53,29 @@ fn html_servido(interacao: &serde_json::Value) -> Result<String, String> {
     html_da_resposta(interacao).map_err(|erro| format!("HTML ilegível: `{erro}`"))
 }
 
+/// Sem o corpo do POST no acervo, só a identidade é verificável: o id aceito
+/// aparece exatamente uma vez na lista relida.
 fn releitura(lidos: &ComentariosLidos, aceito: &str) -> String {
-    let Some(item) = lidos.itens.iter().find(|item| item.id == aceito) else {
-        return "ausente na releitura".to_owned();
+    match lidos.itens.iter().filter(|item| item.id == aceito).count() {
+        0 => "ausente na releitura".to_owned(),
+        1 => "id do aceito uma vez (conteúdo NOT_RUN)".to_owned(),
+        n => format!("id do aceito {n} vezes"),
+    }
+}
+
+/// O 302 de `comentario_listar` só é lista vazia se leva ao cadastro
+/// assinado do mesmo processo, como na produção.
+fn lista_vazia(json: &serde_json::Value, interacao: &serde_json::Value, id: &str) -> String {
+    let (Some(instalacao), Some(local)) =
+        (gravacao::instalacao(json), gravacao::localizacao(interacao))
+    else {
+        return "302 sem Location".to_owned();
     };
-    match conferir_efeito(lidos, aceito, &item.texto) {
-        Ok(()) => "contém o aceito, id único".to_owned(),
-        Err(falha) => format!("`{falha:?}`"),
+    let base = format!("{}/", instalacao.url_base());
+    let relativo = local.strip_prefix(base.as_str()).unwrap_or(local);
+    match conferir_endereco_relativo(&instalacao, relativo, AcaoDoSei::ComentarioCadastrar, id) {
+        Ok(_) => "302 de lista vazia".to_owned(),
+        Err(recusa) => format!("302 fora da forma: `{recusa:?}`"),
     }
 }
 
@@ -151,7 +169,7 @@ fn replay(json: &serde_json::Value) -> Vec<(&'static str, String)> {
                 leituras.extend(estado.lista(r.interacao, &id, &instalacao));
             }
             ("comentario_listar", "GET", 302) => {
-                leituras.push((VAZIA, "302 de lista vazia".to_owned()));
+                leituras.push((VAZIA, lista_vazia(json, r.interacao, &id)));
             }
             ("comentario_cadastrar", "GET", 200) => leituras.push(Estado::cadastro(r.interacao)),
             ("comentario_cadastrar", "POST", 302) => leituras.push(estado.escrita(json, &r, &id)),
