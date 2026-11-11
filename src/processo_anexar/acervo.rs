@@ -32,10 +32,32 @@ struct FatosDoFormulario {
 }
 
 fn atributo_da_fonte(tag: &tl::HTMLTag<'_>, nome: &str) -> Option<String> {
-    tag.attributes()
-        .get(nome)
-        .flatten()
-        .map(|valor| String::from_utf8_lossy(valor.as_bytes()).into_owned())
+    // Leitura crua e restrita do atributo na fonte, sem usar o leitor do IES.
+    // O DOM localiza as tags; os bytes da tag oferecem o oráculo separado.
+    let fonte = std::str::from_utf8(tag.raw().as_bytes()).expect("tag UTF-8 na fonte");
+    for (posicao, _) in fonte.match_indices(nome) {
+        if posicao == 0 || !fonte.as_bytes()[posicao - 1].is_ascii_whitespace() {
+            continue;
+        }
+        let Some(restante) = fonte[posicao + nome.len()..]
+            .trim_start()
+            .strip_prefix('=')
+        else {
+            continue;
+        };
+        let restante = restante.trim_start();
+        let valor = if let Some(texto) = restante.strip_prefix('"') {
+            texto.split('"').next()
+        } else if let Some(texto) = restante.strip_prefix('\'') {
+            texto.split('\'').next()
+        } else {
+            restante.split(|c: char| c.is_ascii_whitespace() || c == '>' || c == '/').next()
+        };
+        if let Some(valor) = valor {
+            return Some(valor.to_owned());
+        }
+    }
+    None
 }
 
 fn fatos_da_fonte(html: &str) -> FatosDoFormulario {
