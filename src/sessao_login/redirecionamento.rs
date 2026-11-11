@@ -74,8 +74,7 @@ pub(crate) fn sufixo_da_mesma_origem<'a>(
     host: &str,
     http: bool,
 ) -> Result<&'a str, ErroDeOrigem> {
-    let fim = resto.find(['/', '?']).unwrap_or(resto.len());
-    let autoridade = &resto[..fim];
+    let (autoridade, sufixo) = resto.split_at(resto.find(['/', '?']).unwrap_or(resto.len()));
     let autoridade = if http {
         autoridade.strip_suffix(":80").unwrap_or(autoridade)
     } else {
@@ -87,7 +86,7 @@ pub(crate) fn sufixo_da_mesma_origem<'a>(
     if !autoridade.eq_ignore_ascii_case(host) {
         return Err(ErroDeOrigem::OutroHost);
     }
-    Ok(&resto[fim..])
+    Ok(sufixo)
 }
 
 pub(crate) fn esquema_http(referencia: &str) -> bool {

@@ -1,5 +1,6 @@
 //! #259: registro Web de andamento, com prévia e verificação independente.
 //! Casos: Todos src/todos/andamento.py @323eb01.
+use crate::acao_do_sei::AcaoDoSei;
 use crate::arvore_processo::ErroAndamentoNaBarra;
 use crate::formulario_web::{
     ConferenciaDaUnidade, EfeitoAvaliado, EnvioDoFormulario, ErroSubmissaoFormulario,
@@ -20,15 +21,13 @@ use crate::processo_obter::{
 };
 use crate::visao_do_controle::EnvioDoControle as _;
 
-const ACAO: &str = "procedimento_atualizar_andamento";
-const HISTORICO: &str = "procedimento_consultar_historico";
 const FORM: &str = "frmAtividadeListar";
 const TEXTO: &str = "txaDescricao";
 const BOTAO: &str = "sbmSalvar";
 const OCULTOS: [&str; 2] = ["hdnIdAtividade", "hdnIdProtocolo"];
 
 const REGISTRAR: OperacaoDeFormulario = OperacaoDeFormulario {
-    acao: ACAO,
+    acao: AcaoDoSei::ProcedimentoAtualizarAndamento,
     formulario: FORM,
     envio: EnvioDoFormulario::BotaoDeEnvio(BOTAO),
     campos_ocultos_exigidos: &OCULTOS,
@@ -103,10 +102,10 @@ pub(crate) fn conferir_formulario(html: &str, id: &str) -> Result<(), ErroTela> 
             _ => return Err(ErroTela::CampoInesperado),
         }
     }
-    if protocolo.len() != 1 || atividade != 1 || descricao != 1 || salvar != 1 {
+    let ([protocolo], 1, 1, 1) = (protocolo.as_slice(), atividade, descricao, salvar) else {
         return Err(ErroTela::ControleAusenteOuDuplicado);
-    }
-    if protocolo[0] != id {
+    };
+    if protocolo != id {
         return Err(ErroTela::ProtocoloDiferente);
     }
     Ok(())
@@ -138,16 +137,16 @@ pub(crate) fn inserido_uma_vez(
     depois: &AndamentosLidos,
     texto: &str,
 ) -> bool {
+    let Some((novo, cauda)) = depois.itens.split_first() else {
+        return false;
+    };
     if antes.tipo != depois.tipo
         || depois.total_declarado != antes.total_declarado.saturating_add(1)
-        || depois.itens.is_empty()
-        || normalizar(&depois.itens[0].descricao) != normalizar(texto)
+        || normalizar(&novo.descricao) != normalizar(texto)
     {
         return false;
     }
-    let cauda = &depois.itens[1..];
-    let comum = cauda.len().min(antes.itens.len());
-    cauda[..comum] == antes.itens[..comum]
+    cauda.iter().zip(&antes.itens).all(|(a, b)| a == b)
 }
 fn localizacao_esperada(local: Option<&str>, origem: &str, id: &str) -> bool {
     let Some(consulta) = local.and_then(|l| consulta_do_controlador(l, origem)) else {
@@ -161,7 +160,8 @@ fn localizacao_esperada(local: Option<&str>, origem: &str, id: &str) -> bool {
             .map(|(_, v)| v)
             .collect()
     };
-    valores("acao") == [HISTORICO] && valores("id_procedimento") == [id]
+    valores("acao") == [AcaoDoSei::ProcedimentoConsultarHistorico.como_na_url()]
+        && valores("id_procedimento") == [id]
 }
 pub(crate) struct Resultado {
     pub(crate) numero: String,

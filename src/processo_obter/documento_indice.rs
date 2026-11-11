@@ -182,6 +182,7 @@ fn entrada_com_documento<V: EnvioDoProcesso>(
 
 #[cfg(test)]
 mod tests {
+    use crate::acao_do_sei::AcaoDoSei;
     use crate::arvore_processo::tests::{NUP, arvore, no_documento, no_processo};
     use crate::documento::NumeroDocumento;
 
@@ -204,7 +205,7 @@ mod tests {
         amb.indice
             .registrar_link(
                 &inst,
-                chave(&geracao, "procedimento_visualizar", ID),
+                chave(&geracao, AcaoDoSei::ProcedimentoVisualizar, ID),
                 &url_arvore(ID),
             )
             .unwrap();

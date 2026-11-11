@@ -9,15 +9,14 @@
 //! 600,450);` + `}`; 4.1 e 5.0: `var linkAssinarDocumento = 'URL';`).
 //! Sem regex e sem JavaScript executado: só essas formas exatas.
 use super::barra_do_documento::barra_do_no;
-use super::concluir::{ACAO_DA_TELA_DO_NO, EnderecoDeEscrita};
+use super::concluir::EnderecoDeEscrita;
 use super::endereco::{EnderecoRecusado, conferir_endereco_relativo_por};
 use super::literais::{Literal, ler_chamada, ler_declaracao};
+use crate::acao_do_sei::AcaoDoSei;
 use crate::formulario_web::decodificar_atributo;
 use crate::html_atributos::atributos;
 use crate::instalacao::Instalacao;
 
-/// A `acao` da tela "Assinatura de Documento".
-pub(crate) const ACAO_DE_ASSINAR: &str = "documento_assinar";
 const ONCLICK: &str = "assinarDocumento();";
 const CANETA: &str = "infraArvoreAcao(\"ASSINATURA\"";
 const DICA: &str = "Assinado por:\n";
@@ -61,7 +60,15 @@ pub(crate) fn ler_assinatura_na_arvore(
         super::ErroBarraDoDocumento::BarrasRepetidasNaArvore => {
             ErroAssinaturaNaArvore::BarrasDoDocumentoRepetidasNaArvore
         }
-        _ => ErroAssinaturaNaArvore::BarraDoDocumentoForaDaFormaObservada,
+        super::ErroBarraDoDocumento::AtributoDeLinkDaBarra(_)
+        | super::ErroBarraDoDocumento::EnderecoDasVersoesDeOutroDocumento
+        | super::ErroBarraDoDocumento::BarraDaCienciaDoDocumentoForaDaForma
+        | super::ErroBarraDoDocumento::BarraDoDocumentoForaDaFormaObservada
+        | super::ErroBarraDoDocumento::BotoesDeCienciaDoDocumentoRepetidos
+        | super::ErroBarraDoDocumento::LinkDasVersoesNaoReconhecido
+        | super::ErroBarraDoDocumento::LinkDasVersoesRepetidoNaBarra => {
+            ErroAssinaturaNaArvore::BarraDoDocumentoForaDaFormaObservada
+        }
     })?;
     let acoes = match barra {
         Some(texto) => acoes_de_assinar(&texto)?,
@@ -180,7 +187,8 @@ pub(crate) fn tela_do_documento(
         return None;
     };
     let por = |chave, id| {
-        conferir_endereco_relativo_por(instalacao, href, ACAO_DA_TELA_DO_NO, chave, id).ok()
+        conferir_endereco_relativo_por(instalacao, href, AcaoDoSei::ArvoreVisualizar, chave, id)
+            .ok()
     };
     por("id_procedimento", id_procedimento)?;
     por("id_documento", id_documento).map(EnderecoDeEscrita::novo)
@@ -242,7 +250,7 @@ pub(crate) fn ler_link_de_assinar(
     conferir_endereco_relativo_por(
         instalacao,
         url,
-        ACAO_DE_ASSINAR,
+        AcaoDoSei::DocumentoAssinar,
         "id_procedimento",
         id_procedimento,
     )
@@ -250,7 +258,7 @@ pub(crate) fn ler_link_de_assinar(
     conferir_endereco_relativo_por(
         instalacao,
         url,
-        ACAO_DE_ASSINAR,
+        AcaoDoSei::DocumentoAssinar,
         "id_documento",
         id_documento,
     )

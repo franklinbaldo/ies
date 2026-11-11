@@ -69,7 +69,18 @@ pub(super) fn ler<V: EnvioDoProcesso>(
             ))
         }
         ErroAnexo::Transporte(falha) => transporte(falha),
-        outro => super::erro::ErroDocumentoObter::Anexo(outro),
+        outro @ (ErroAnexo::SemTipoDeConteudo
+        | ErroAnexo::TipoNaoPermitido
+        | ErroAnexo::CabecalhoRepetido
+        | ErroAnexo::DisposicaoForaDaFormaObservada(_)
+        | ErroAnexo::AcimaDoLimite
+        | ErroAnexo::Vazio
+        | ErroAnexo::ConteudoComLinkAssinado
+        | ErroAnexo::RecusadoPeloSei(_)
+        | ErroAnexo::Corpo(_)
+        | ErroAnexo::DiretorioAusente
+        | ErroAnexo::ArquivoJaExiste
+        | ErroAnexo::EscritaFalhou) => super::erro::ErroDocumentoObter::Anexo(outro),
     })?;
     Ok((
         String::new(),

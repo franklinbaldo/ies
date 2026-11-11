@@ -2,6 +2,7 @@
 //! da `UnB` 4.0.9). Lista sempre; nomes nunca concatenados. Leitura pela
 //! árvore do `tl` e pelo tokenizador de atributos, sem regex nem JavaScript.
 use super::ErroDetalhada;
+use crate::acao_do_sei::AcaoDoSei;
 use crate::formulario_web::decodificar_atributo;
 use crate::html_atributos::atributos;
 use crate::marcadores_processo::rotulo_do_marcador;
@@ -72,7 +73,7 @@ fn id_do_href(href: &str, id_procedimento: &str) -> Result<Option<String>, ErroD
             .filter_map(|c| c.strip_prefix(chave)?.strip_prefix('='))
             .collect()
     };
-    if valores("acao") != ["andamento_marcador_gerenciar"]
+    if valores("acao") != [AcaoDoSei::AndamentoMarcadorGerenciar.como_na_url()]
         || valores("id_procedimento") != [id_procedimento]
     {
         return Err(FORA);
@@ -95,10 +96,10 @@ fn texto_do_tooltip(onmouseover: &str) -> Result<String, ErroDetalhada> {
         .ok_or(FORA)?;
     let mut texto = String::new();
     let mut caracteres = resto.char_indices();
-    while let Some((posicao, caractere)) = caracteres.next() {
+    while let Some((_, caractere)) = caracteres.next() {
         match caractere {
             '\'' => {
-                return if &resto[posicao + 1..] == ");" {
+                return if caracteres.as_str() == ");" {
                     Ok(texto)
                 } else {
                     Err(FORA)

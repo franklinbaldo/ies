@@ -2,6 +2,7 @@
 //! Navegação: Controle → `grupo_unidade_listar` → Novo → cadastro
 //! → `unidade_selecionar_envio_processo` → GET lupa + POST por página.
 use super::{ErroLupa, PaginaDaLupa, ler_pagina, reunir_paginas};
+use crate::acao_do_sei::AcaoDoSei;
 use crate::formulario_web::{RespostaDoPost, SubmissaoDerivada};
 use crate::indice_local::UnidadeGuardada;
 use crate::instalacao::Instalacao;
@@ -83,7 +84,7 @@ fn obter<T: TransporteLupa>(
 
 /// Confere parâmetros da URL servida sem aceitar aliases ou duplicatas.
 /// A validação estrita do Controle não serve para as outras ações da lupa.
-fn url_publicada_autorizada(url: &str, origem: &str, acao: &str) -> bool {
+fn url_publicada_autorizada(url: &str, origem: &str, acao: AcaoDoSei) -> bool {
     let Some(partes) = crate::url_observada::UrlHttps::interpretar(url) else {
         return false;
     };
@@ -107,7 +108,7 @@ fn url_publicada_autorizada(url: &str, origem: &str, acao: &str) -> bool {
             return false;
         }
         match chave {
-            "acao" if !acao_encontrada && valor == acao => acao_encontrada = true,
+            "acao" if !acao_encontrada && valor == acao.como_na_url() => acao_encontrada = true,
             "infra_hash"
                 if !hash_encontrado
                     && valor.len() == 64
@@ -125,11 +126,11 @@ fn url_publicada_autorizada(url: &str, origem: &str, acao: &str) -> bool {
 fn validar_url_de_leitura(url: &str, origem: &str) -> Result<(), FalhaDaLupa> {
     if validar_origem(url, origem).is_ok()
         || [
-            "grupo_unidade_listar",
-            "grupo_unidade_cadastrar",
-            "unidade_selecionar_envio_processo",
+            AcaoDoSei::GrupoUnidadeListar,
+            AcaoDoSei::GrupoUnidadeCadastrar,
+            AcaoDoSei::UnidadeSelecionarEnvioProcesso,
         ]
-        .iter()
+        .into_iter()
         .any(|acao| url_publicada_autorizada(url, origem, acao))
     {
         Ok(())
@@ -194,7 +195,9 @@ fn literais_do_script(script: &str) -> Vec<String> {
             }
         }
         if let Some(fim) = fim {
-            let literal = &script[inicio..fim];
+            let Some(literal) = script.get(inicio..fim) else {
+                continue;
+            };
             if !literal.contains('\\') && literal.contains("controlador.php?") {
                 urls.push(literal.to_owned());
             }
@@ -205,7 +208,7 @@ fn literais_do_script(script: &str) -> Vec<String> {
 
 /// URL publicada em controle da tela; na lupa GO, também em literal
 /// estático de script da tela de cadastro, sem executar JavaScript.
-pub(super) fn candidatos(html: &str, acao: &str) -> Result<Vec<String>, FalhaDaLupa> {
+pub(super) fn candidatos(html: &str, acao: AcaoDoSei) -> Result<Vec<String>, FalhaDaLupa> {
     let dom = tl::parse(html, tl::ParserOptions::default())
         .map_err(|_| FalhaDaLupa::Tela(ErroLupa::HtmlInesperado))?;
     let parser = dom.parser();
@@ -218,12 +221,12 @@ pub(super) fn candidatos(html: &str, acao: &str) -> Result<Vec<String>, FalhaDaL
             urls.extend(candidatos_do_controle(tag)?);
         }
     }
-    if acao == "unidade_selecionar_envio_processo" {
+    if acao == AcaoDoSei::UnidadeSelecionarEnvioProcesso {
         for no in dom.query_selector("script").into_iter().flatten() {
             let Some(tag) = no.get(parser).and_then(tl::Node::as_tag) else {
                 continue;
             };
-            let chave_da_acao = format!("acao={acao}");
+            let chave_da_acao = format!("acao={}", acao.como_na_url());
             urls.extend(
                 literais_do_script(tag.raw().as_utf8_str().as_ref())
                     .into_iter()
@@ -239,7 +242,7 @@ fn destino_de_candidatos(
     candidatos: Vec<String>,
     url_da_tela: &str,
     origem: &str,
-    acao: &str,
+    acao: AcaoDoSei,
 ) -> Result<String, FalhaDaLupa> {
     let mut aceitos = std::collections::HashSet::new();
     for relativo in candidatos {
@@ -273,7 +276,7 @@ pub(super) fn destino(
     html: &str,
     url_da_tela: &str,
     origem: &str,
-    acao: &str,
+    acao: AcaoDoSei,
 ) -> Result<String, FalhaDaLupa> {
     destino_de_candidatos(candidatos(html, acao)?, url_da_tela, origem, acao)
 }
@@ -302,7 +305,7 @@ fn botao_novo(html: &str, url: &str, origem: &str) -> Result<String, FalhaDaLupa
             candidatos_do_controle(tag)?,
             url,
             origem,
-            "grupo_unidade_cadastrar",
+            AcaoDoSei::GrupoUnidadeCadastrar,
         ) {
             Ok(candidato) => candidato,
             Err(_) if duplicados => return Err(FalhaDaLupa::LinkAmbiguo),
@@ -343,7 +346,12 @@ pub(crate) fn ler_integral_com_contador<T: TransporteLupa>(
 ) -> Result<ListaWeb, FalhaDaLupa> {
     let instalacao = Instalacao::interpretar(origem).ok_or(FalhaDaLupa::LinkForaDaInstalacao)?;
     let (controle, _) = obter(transporte, url_controle, cookie, origem, requisicoes)?;
-    let lista = destino(&controle, url_controle, origem, "grupo_unidade_listar")?;
+    let lista = destino(
+        &controle,
+        url_controle,
+        origem,
+        AcaoDoSei::GrupoUnidadeListar,
+    )?;
     let (lista_html, _) = obter(transporte, &lista, cookie, origem, requisicoes)?;
     let novo = botao_novo(&lista_html, &lista, origem)?;
     let (cadastro, _) = obter(transporte, &novo, cookie, origem, requisicoes)?;
@@ -351,7 +359,7 @@ pub(crate) fn ler_integral_com_contador<T: TransporteLupa>(
         &cadastro,
         &novo,
         origem,
-        "unidade_selecionar_envio_processo",
+        AcaoDoSei::UnidadeSelecionarEnvioProcesso,
     )?;
     let (mut html, mut mime) = obter(transporte, &url_lupa, cookie, origem, requisicoes)?;
     let mut url = url_lupa;

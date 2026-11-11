@@ -30,8 +30,10 @@ fn id_valido(id: &str) -> bool {
 fn valida(observacao: &Observacao) -> bool {
     observacao.itens.iter().enumerate().all(|(i, atual)| {
         id_valido(&atual.id)
-            && !observacao.itens[..i]
+            && !observacao
+                .itens
                 .iter()
+                .take(i)
                 .any(|anterior| anterior.id == atual.id)
     })
 }

@@ -1,13 +1,13 @@
 //! Leitura da tela `procedimento_configurar_detalhe` (GET, somente leitura).
 //! Nada é salvo: `sbmSalvar` não é enviado por este módulo.
 use super::{ColunaDoDetalhe, NivelDeDetalhe, OpcaoDoDetalhe};
+use crate::acao_do_sei::AcaoDoSei;
 use crate::formulario_web::{ErroSubmissaoFormulario, decodificar_atributo, localizar_formulario};
 use crate::html_atributos::{ErroAtributoHtml, atributo_presente, valor_do_atributo};
 use std::collections::HashMap;
 
 /// Formulário observado (o `id` é o publicado pelo SEI, apesar do nome).
 pub(crate) const FORMULARIO_DO_NIVEL_DE_DETALHE: &str = "frmAcessoExternoCancelar";
-pub(crate) const ACAO_DO_NIVEL_DE_DETALHE: &str = "procedimento_configurar_detalhe";
 
 /// um erro por fato verificável da tela de configuração.
 #[derive(Clone, Copy, Debug, PartialEq, Eq, thiserror::Error)]
@@ -58,7 +58,7 @@ fn conferir_acao(form: &tl::HTMLTag<'_>) -> Result<(), E> {
         .split('&')
         .filter_map(|par| par.strip_prefix("acao="))
         .collect();
-    if acoes == [ACAO_DO_NIVEL_DE_DETALHE] {
+    if acoes == [AcaoDoSei::ProcedimentoConfigurarDetalhe.como_na_url()] {
         Ok(())
     } else {
         Err(diferente)
@@ -78,7 +78,36 @@ pub(crate) fn ler_nivel_de_detalhe(html: &str) -> Result<NivelDeDetalhe, ErroNiv
                 E::FormulariosDoNivelDeDetalheRepetidos
             }
             ErroSubmissaoFormulario::AtributoHtml(falha) => E::AtributoHtml(falha),
-            _ => E::FormularioDoNivelDeDetalheAusente,
+            ErroSubmissaoFormulario::EfeitoDaOperacaoNaoAvaliado
+            | ErroSubmissaoFormulario::UnidadeDaTelaDiferenteDaSolicitada
+            | ErroSubmissaoFormulario::MetodoDoFormularioDiferenteDePost
+            | ErroSubmissaoFormulario::EnctypeDoFormularioNaoUrlencoded
+            | ErroSubmissaoFormulario::AcceptCharsetPublicadoNoFormulario
+            | ErroSubmissaoFormulario::AcaoDoFormularioNaoEhUrlHttps
+            | ErroSubmissaoFormulario::AcaoDoFormularioForaDaInstalacao
+            | ErroSubmissaoFormulario::AcaoDoFormularioDiferenteDaOperacao
+            | ErroSubmissaoFormulario::AcaoDoFormularioSemInfraHashUnico
+            | ErroSubmissaoFormulario::EntidadeHtmlDesconhecidaNoAtributo { .. }
+            | ErroSubmissaoFormulario::CampoOcultoAusenteNoFormulario { .. }
+            | ErroSubmissaoFormulario::CampoOcultoRepetidoNoFormulario { .. }
+            | ErroSubmissaoFormulario::HdnAcaoPublicadoSemRegraDaOperacao
+            | ErroSubmissaoFormulario::CampoForaDaListaDaOperacao { .. }
+            | ErroSubmissaoFormulario::CampoNaoPublicadoPeloFormulario { .. }
+            | ErroSubmissaoFormulario::CampoInformadoMaisDeUmaVez { .. }
+            | ErroSubmissaoFormulario::CampoCriadoPeloScriptJaPublicado { .. }
+            | ErroSubmissaoFormulario::ValorNaoRepresentavelNaCodificacao { .. }
+            | ErroSubmissaoFormulario::TelaDeLoginRecebidaAposEnvio
+            | ErroSubmissaoFormulario::MarcadorDeResultadoAusenteNaResposta
+            | ErroSubmissaoFormulario::ValidacaoRecusadaPeloSei(_)
+            | ErroSubmissaoFormulario::Transporte(_)
+            | ErroSubmissaoFormulario::AcaoDoFormularioAusente
+            | ErroSubmissaoFormulario::BotaoDeEnvioAusenteNoFormulario
+            | ErroSubmissaoFormulario::BotoesDeEnvioRepetidosNoFormulario
+            | ErroSubmissaoFormulario::FormularioAusenteNaTela
+            | ErroSubmissaoFormulario::IdentificacaoDaUnidadeAusenteNaTela
+            | ErroSubmissaoFormulario::IdentificacoesDaUnidadeRepetidasNaTela => {
+                E::FormularioDoNivelDeDetalheAusente
+            }
         })?;
     conferir_acao(form)?;
     let mut marcadas: HashMap<ColunaDoDetalhe, bool> = HashMap::new();

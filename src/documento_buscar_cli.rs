@@ -161,9 +161,8 @@ fn buscar(
 ) -> anyhow::Result<()> {
     // O formato das datas e o termo já foram conferidos pelo clap.
     if let (Some(de), Some(ate)) = (filtros.de, filtros.ate) {
-        let inicio = format!("{}{}{}", &de[6..10], &de[3..5], &de[0..2]);
-        let fim = format!("{}{}{}", &ate[6..10], &ate[3..5], &ate[0..2]);
-        if inicio > fim {
+        let ano_mes_dia = crate::pesquisa_web::filtros::ano_mes_dia;
+        if ano_mes_dia(de) > ano_mes_dia(ate) {
             crate::uso_invalido::recusar(crate::uso_invalido::UsoInvalido::PeriodoInvertido);
         }
     }

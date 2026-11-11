@@ -28,7 +28,7 @@ fn valido(itens: &[Opcao]) -> bool {
                 .cor
                 .bytes()
                 .all(|b| b.is_ascii_lowercase() || b == b'_')
-            || itens[..i].iter().any(|outro| outro.id == item.id)
+            || itens.iter().take(i).any(|outro| outro.id == item.id)
         {
             return false;
         }

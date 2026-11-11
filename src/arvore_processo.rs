@@ -79,8 +79,8 @@ pub(crate) use andamento::{ErroAndamentoNaBarra, ler_andamento_da_barra};
 use anexados::{AnexadoLido, conferir_anexados, ler_anexado};
 pub(crate) use anexar::{ErroAnexarNaBarra, ler_anexar_da_barra};
 pub(crate) use assinatura::{
-    ACAO_DE_ASSINAR, Assinante, ErroAssinaturaNaArvore, ErroLinkDeAssinar,
-    ler_assinatura_na_arvore, ler_link_de_assinar, tela_do_documento,
+    Assinante, ErroAssinaturaNaArvore, ErroLinkDeAssinar, ler_assinatura_na_arvore,
+    ler_link_de_assinar, tela_do_documento,
 };
 pub(crate) use atribuir::{ErroAtribuirNaBarra, ler_atribuir_da_barra};
 pub(crate) use barra_do_documento::barra_do_no;
@@ -103,14 +103,14 @@ pub(crate) use ciencia::{
     lista_do_processo, url_da_ciencia, url_da_ciencia_do_documento,
 };
 pub(crate) use concluir::{
-    ACAO_DE_CONCLUIR, ConcluirNaBarra, EnderecoDeEscrita, ErroConcluirNaBarra,
-    ErroFuncaoDeConcluir, ler_concluir_da_barra, ler_funcao_de_concluir,
+    ConcluirNaBarra, EnderecoDeEscrita, ErroConcluirNaBarra, ErroFuncaoDeConcluir,
+    ler_concluir_da_barra, ler_funcao_de_concluir,
 };
 pub(crate) use conteudo::{
     ConteudoNaArvore, EnderecoDoConteudo, ErroConteudoNaArvore, ler_conteudo_na_arvore,
 };
 pub(crate) use endereco::conferir_endereco_relativo;
-pub(crate) use enviar::{ACAO_DE_ENVIAR, ErroEnviarNaBarra, ler_enviar_da_barra};
+pub(crate) use enviar::{ErroEnviarNaBarra, ler_enviar_da_barra};
 pub(crate) use erro::ErroArvore;
 use literais::{Literal, ler_barra, ler_declaracao, ler_protocolos};
 pub(crate) use movidos::ler_destinos_dos_movidos;
@@ -298,6 +298,38 @@ fn filtrar_movidos(incluidos: bool, movidos: Vec<DocumentoMovido>) -> Vec<Docume
     if incluidos { movidos } else { Vec::new() }
 }
 
+/// A barra de um documento de pasta (`Nos[i].acoes = ...`). `true` se a
+/// linha era essa barra e já foi aplicada ao documento.
+fn aplicar_barra_de_pasta(
+    linha: &str,
+    de_pasta: &std::collections::HashMap<usize, usize>,
+    documentos: &mut [DocumentoLido],
+) -> Result<bool, ErroArvore> {
+    // A concatenação vazia não muda a barra já lida do documento.
+    if let Some(i) = literais::concatenacao_vazia_da_barra(linha) {
+        if let Some(&posicao) = de_pasta.get(&i)
+            && documentos
+                .get(posicao)
+                .is_none_or(|documento| documento.barra == Barra::NaoLida)
+        {
+            return Err(ErroArvore::BarraDeNoForaDaFormaObservada);
+        }
+        return Ok(true);
+    }
+    let Some(posicao) = literais::indice_da_barra(linha).and_then(|i| de_pasta.get(&i)) else {
+        return Ok(false);
+    };
+    let Some((_, barra)) = ler_barra(linha)? else {
+        return Err(ErroArvore::BarraDeNoForaDaFormaObservada);
+    };
+    let documento = documentos
+        .get_mut(*posicao)
+        .ok_or(ErroArvore::BarraDeNoForaDaFormaObservada)?;
+    documento.barra =
+        pastas::identidade_da_barra(&barra)?.map_or(Barra::SemIdentidade, Barra::Identidade);
+    Ok(true)
+}
+
 pub(crate) fn ler_arvore_com_modo(
     html: &str,
     nup_pedido: &str,
@@ -318,23 +350,7 @@ pub(crate) fn ler_arvore_com_modo(
             protocolos.push(declarados);
             continue;
         }
-        // A concatenação vazia não muda a barra já lida do documento.
-        if let Some(i) = literais::concatenacao_vazia_da_barra(linha) {
-            if let Some(&posicao) = de_pasta.get(&i)
-                && documentos[posicao].barra == Barra::NaoLida
-            {
-                return Err(ErroArvore::BarraDeNoForaDaFormaObservada);
-            }
-            continue;
-        }
-        if let Some(i) = literais::indice_da_barra(linha)
-            && let Some(&posicao) = de_pasta.get(&i)
-        {
-            let Some((_, barra)) = ler_barra(linha)? else {
-                return Err(ErroArvore::BarraDeNoForaDaFormaObservada);
-            };
-            documentos[posicao].barra = pastas::identidade_da_barra(&barra)?
-                .map_or(Barra::SemIdentidade, Barra::Identidade);
+        if aplicar_barra_de_pasta(linha, &de_pasta, &mut documentos)? {
             continue;
         }
         let Some((indice, argumentos)) = ler_declaracao(linha)? else {
@@ -417,14 +433,18 @@ fn com_aridade(argumentos: Vec<Literal>) -> Result<[Literal; ARGUMENTOS], ErroAr
 fn texto(literal: &Literal) -> Result<&str, ErroArvore> {
     match literal {
         Literal::Texto(texto) => Ok(texto),
-        _ => Err(ErroArvore::ArgumentoDeNoComTipoDiferenteDoObservado),
+        Literal::Nulo | Literal::Booleano(_) | Literal::Inteiro(_) => {
+            Err(ErroArvore::ArgumentoDeNoComTipoDiferenteDoObservado)
+        }
     }
 }
 
 fn texto_ou_nulo(literal: &Literal) -> Result<Option<&str>, ErroArvore> {
     match literal {
         Literal::Nulo => Ok(None),
-        outro => texto(outro).map(Some),
+        outro @ (Literal::Texto(_) | Literal::Booleano(_) | Literal::Inteiro(_)) => {
+            texto(outro).map(Some)
+        }
     }
 }
 

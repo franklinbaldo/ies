@@ -21,8 +21,11 @@ pub(crate) fn total_da_legenda(texto: &str) -> Option<usize> {
     let palavras: Vec<&str> = texto.split_whitespace().collect();
     palavras
         .windows(2)
-        .find(|par| par[1].starts_with("registro"))
-        .and_then(|par| par[0].trim_start_matches('(').parse::<usize>().ok())
+        .find_map(|par| match par {
+            [numero, palavra] if palavra.starts_with("registro") => Some(*numero),
+            _ => None,
+        })
+        .and_then(|numero| numero.trim_start_matches('(').parse::<usize>().ok())
 }
 
 /// Uma linha do Controle (visão R ou D) com o `href` do link do número

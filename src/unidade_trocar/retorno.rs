@@ -6,6 +6,7 @@
 //! `http://`). Os espaços literais do `msg` saem como `%20` (a serialização
 //! do navegador); a URL devolvida é sempre `https://`.
 use super::tela::conferir_consulta;
+use crate::acao_do_sei::AcaoDoSei;
 use crate::formulario_web::consulta_do_controlador;
 
 /// URL HTTPS a pedir para `localizacao`, recebida na resposta de
@@ -21,7 +22,7 @@ pub(crate) fn url_do_salto(
     if !serializada.bytes().all(|b| (33..=126).contains(&b)) || serializada.contains(['#', '\\']) {
         return Err(super::FalhaDepoisDoEnvio::LocalizacaoForaDaFormaObservada);
     }
-    let unidade = conferir_consulta(consulta, "procedimento_controlar", hash_do_salto)
+    let unidade = conferir_consulta(consulta, AcaoDoSei::ProcedimentoControlar, hash_do_salto)
         .map_err(|_| super::FalhaDepoisDoEnvio::LocalizacaoForaDaFormaObservada)?
         .ok_or(super::FalhaDepoisDoEnvio::LocalizacaoForaDaFormaObservada)?;
     if unidade != id_unidade {

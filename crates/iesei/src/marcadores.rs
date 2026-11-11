@@ -41,8 +41,10 @@ fn valido(observacao: &Observacao) -> bool {
                 .bytes()
                 .all(|b| b.is_ascii_lowercase() || b == b'_')
             || marcador.data_hora.is_empty()
-            || observacao.itens[..i]
+            || observacao
+                .itens
                 .iter()
+                .take(i)
                 .any(|outro| outro.id == marcador.id)
         {
             return false;

@@ -1,6 +1,7 @@
 //! Leitura estrita do `<form>` servido: localização, `action` e controles.
 use super::codificacao::decodificar_atributo;
 use super::{EnvioDoFormulario, ErroSubmissaoFormulario, OperacaoDeFormulario};
+use crate::acao_do_sei::AcaoDoSei;
 use crate::html_atributos::{atributo_presente, valor_do_atributo};
 use crate::instalacao::Instalacao;
 use crate::transporte::{FalhaTransporte, conferir_chave_de_consulta, conferir_valor_de_consulta};
@@ -72,7 +73,7 @@ pub(super) fn resolver_action(
     let alvo = UrlHttps::interpretar(&absoluta)
         .ok_or(ErroSubmissaoFormulario::AcaoDoFormularioForaDaInstalacao)?;
     if !(instalacao.autoriza_controlador(alvo.host, alvo.caminho)
-        || (operacao.acao == "editor_salvar"
+        || (operacao.acao == AcaoDoSei::EditorSalvar
             && instalacao.autoriza_editor_processar(alvo.host, alvo.caminho)))
     {
         return Err(ErroSubmissaoFormulario::AcaoDoFormularioForaDaInstalacao);
@@ -103,7 +104,7 @@ pub(super) fn resolver_action_declarada(
     let alvo = UrlHttps::interpretar(&absoluta)
         .ok_or(ErroSubmissaoFormulario::AcaoDoFormularioForaDaInstalacao)?;
     if !(instalacao.autoriza_controlador(alvo.host, alvo.caminho)
-        || (operacao.acao == "editor_salvar"
+        || (operacao.acao == AcaoDoSei::EditorSalvar
             && instalacao.autoriza_editor_processar(alvo.host, alvo.caminho)))
     {
         return Err(ErroSubmissaoFormulario::AcaoDoFormularioForaDaInstalacao);
@@ -183,7 +184,10 @@ fn resolver_referencia(
     Ok(absoluta)
 }
 
-pub(super) fn conferir_consulta(consulta: &str, acao: &str) -> Result<(), ErroSubmissaoFormulario> {
+pub(super) fn conferir_consulta(
+    consulta: &str,
+    acao: AcaoDoSei,
+) -> Result<(), ErroSubmissaoFormulario> {
     let (mut acoes, mut acoes_iguais, mut hashes) = (0, 0, 0);
     for item in consulta.split('&').filter(|item| !item.is_empty()) {
         let (nome, valor) = item
@@ -196,7 +200,7 @@ pub(super) fn conferir_consulta(consulta: &str, acao: &str) -> Result<(), ErroSu
         match nome {
             "acao" => {
                 acoes += 1;
-                acoes_iguais += usize::from(valor == acao);
+                acoes_iguais += usize::from(AcaoDoSei::ler(valor) == Some(acao));
             }
             "infra_hash" => {
                 if valor.len() != 64 || !valor.bytes().all(|b| b.is_ascii_hexdigit()) {
@@ -337,7 +341,7 @@ pub(super) fn ler_controles(
                 });
             }
             Controle::Botao { .. } => botoes += 1,
-            _ => {}
+            Controle::Oculto { .. } | Controle::Usuario(_) | Controle::SelecaoMultipla(_) => {}
         }
         controles.push(controle);
     }

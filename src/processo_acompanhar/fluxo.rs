@@ -5,6 +5,7 @@ use super::{
     Acompanhamento, ErroAcompanhar, acompanhamentos_da_lista, alvo_para_deixar, conferir_inclusao,
     escolher_grupo, grupos_do_cadastro,
 };
+use crate::acao_do_sei::AcaoDoSei;
 use crate::formulario_web::{
     RespostaDoEnvio, SubmissaoDerivada, decodificar_atributo, enviar_submissao_via,
 };
@@ -71,7 +72,7 @@ fn url_do_cadastro(
     id: &str,
 ) -> Result<String, ErroAcompanhar> {
     use crate::arvore_processo::conferir_endereco_relativo;
-    conferir_endereco_relativo(instalacao, ref_url, "acompanhamento_cadastrar", id)
+    conferir_endereco_relativo(instalacao, ref_url, AcaoDoSei::AcompanhamentoCadastrar, id)
         .map_err(|_| ErroAcompanhar::RedirecionamentoDeAcompanhamentoInesperado)
 }
 

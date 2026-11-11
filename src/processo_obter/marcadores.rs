@@ -7,12 +7,9 @@
 //! tocada.
 use super::abertura::{ArvoreAberta, Contexto, Lida, Rede, fora_de_palpite};
 use super::{EnvioDoProcesso, ErroProcessoObter, Marcadores};
+use crate::acao_do_sei::AcaoDoSei;
 use crate::arvore_processo::endereco::conferir_endereco_relativo;
-use crate::marcadores_processo::{ACAO, MarcadoresLidos, TelaDosMarcadores, ler_marcadores};
-
-/// O formulário de adicionar marcador, destino do 302 da tela de marcadores
-/// quando o processo não tem nenhum (`UnB` 4.0.9, 04/11/2026).
-const ACAO_ADICIONAR: &str = "andamento_marcador_cadastrar";
+use crate::marcadores_processo::{MarcadoresLidos, TelaDosMarcadores, ler_marcadores};
 
 /// 302 para `andamento_marcador_cadastrar` assinado do mesmo processo:
 /// a tela não tem o que listar. Nunca é seguido.
@@ -20,7 +17,13 @@ fn sem_marcadores(contexto: &Contexto<'_>, local: Option<&str>, id: &str) -> boo
     let Some(local) = local else { return false };
     let base = format!("{}/", contexto.instalacao.url_base());
     let relativo = local.strip_prefix(base.as_str()).unwrap_or(local);
-    conferir_endereco_relativo(&contexto.instalacao, relativo, ACAO_ADICIONAR, id).is_ok()
+    conferir_endereco_relativo(
+        &contexto.instalacao,
+        relativo,
+        AcaoDoSei::AndamentoMarcadorCadastrar,
+        id,
+    )
+    .is_ok()
 }
 
 fn vazia() -> TelaDosMarcadores {
@@ -57,7 +60,7 @@ pub(super) fn ler<V: EnvioDoProcesso>(
         let url = endereco.as_str();
         (url.to_owned(), pelo_link_da_barra(contexto, rede, url, id)?)
     };
-    contexto.aprender_link(ACAO, id, &url);
+    contexto.aprender_link(AcaoDoSei::AndamentoMarcadorGerenciar, id, &url);
     Ok(match tela {
         TelaDosMarcadores::Lidos(lidos) => Marcadores::Lidos(lidos),
         TelaDosMarcadores::SemTabela => Marcadores::TabelaNaoPublicada,
@@ -72,7 +75,7 @@ fn pelo_guardado<V: EnvioDoProcesso>(
     id: &str,
 ) -> Result<Option<(String, TelaDosMarcadores)>, ErroProcessoObter> {
     let Some(link) = contexto
-        .chave(ACAO, id)
+        .chave(AcaoDoSei::AndamentoMarcadorGerenciar, id)
         .and_then(|chave| contexto.indice.link(&contexto.instalacao, chave))
     else {
         return Ok(None);
@@ -82,7 +85,7 @@ fn pelo_guardado<V: EnvioDoProcesso>(
         Lida::Html { html, .. } => match ler_marcadores(&html, contexto.nup, id) {
             Ok(tela) => Ok(Some((url, tela))),
             Err(erro) if erro.link_envelhecido() => {
-                contexto.esquecer_link(ACAO, id);
+                contexto.esquecer_link(AcaoDoSei::AndamentoMarcadorGerenciar, id);
                 Ok(None)
             }
             Err(erro) => Err(ErroProcessoObter::Marcadores(erro)),
@@ -91,7 +94,7 @@ fn pelo_guardado<V: EnvioDoProcesso>(
             Ok(Some((url, vazia())))
         }
         Lida::Login | Lida::Redirecionamento(_) => {
-            contexto.esquecer_link(ACAO, id);
+            contexto.esquecer_link(AcaoDoSei::AndamentoMarcadorGerenciar, id);
             Ok(None)
         }
         Lida::Falha(falha) => Err(ErroProcessoObter::Transporte(falha)),

@@ -2,9 +2,10 @@
 //! HTML sintético modelado no `frmProcedimentoControlar` servido.
 use super::tests::{instalacao, tela_iso};
 use super::*;
+use crate::acao_do_sei::AcaoDoSei;
 
 const OPERACAO_POR_SCRIPT: OperacaoDeFormulario = OperacaoDeFormulario {
-    acao: "procedimento_controlar",
+    acao: AcaoDoSei::ProcedimentoControlar,
     formulario: "frmProcedimentoControlar",
     envio: EnvioDoFormulario::SubmitPorScript,
     campos_ocultos_exigidos: &["hdnAPaginaAtual"],

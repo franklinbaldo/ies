@@ -12,6 +12,7 @@ use super::concluir::{
 };
 use super::endereco::{EnderecoRecusado, conferir_endereco_relativo};
 use super::literais::{Literal, ler_chamada};
+use crate::acao_do_sei::AcaoDoSei;
 use crate::instalacao::Instalacao;
 
 #[derive(Clone, Copy, Debug, PartialEq, Eq, thiserror::Error)]
@@ -96,7 +97,7 @@ pub(crate) fn lista_do_processo(
         [url] => url,
         _ => return Err(ErroCienciaNaArvore::ListaDeCienciasRepetidaNaArvore),
     };
-    conferir_endereco_relativo(instalacao, url, "protocolo_ciencia_listar", id)
+    conferir_endereco_relativo(instalacao, url, AcaoDoSei::ProtocoloCienciaListar, id)
         .map(|url| Some(EnderecoDeEscrita::novo(url)))
         .map_err(|_: EnderecoRecusado| ErroCienciaNaArvore::EnderecoDaListaDeCienciasNaoReconhecido)
 }
@@ -118,7 +119,7 @@ pub(crate) fn url_da_ciencia(
         ([url], []) | ([], [url]) => *url,
         _ => return Err(ErroCienciaNaArvore::FuncoesDeCienciaRepetidas),
     };
-    conferir_endereco_relativo(instalacao, url, "procedimento_ciencia", id)
+    conferir_endereco_relativo(instalacao, url, AcaoDoSei::ProcedimentoCiencia, id)
         .map(EnderecoDeEscrita::novo)
         .map_err(|_: EnderecoRecusado| ErroCienciaNaArvore::EnderecoDaCienciaNaoReconhecido)
 }
@@ -222,7 +223,7 @@ pub(crate) fn url_da_ciencia_do_documento(
     let absoluta = super::endereco::conferir_endereco_relativo_por(
         instalacao,
         url,
-        "documento_ciencia",
+        AcaoDoSei::DocumentoCiencia,
         "id_documento",
         id_documento,
     )
@@ -288,7 +289,7 @@ pub(crate) fn lista_do_documento(
         super::endereco::conferir_endereco_relativo_por(
             instalacao,
             url,
-            "protocolo_ciencia_listar",
+            AcaoDoSei::ProtocoloCienciaListar,
             chave,
             id,
         )

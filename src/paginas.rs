@@ -16,7 +16,20 @@ struct Faixa {
     explicita: bool,
 }
 
-fn faixa_da_legenda(legenda: &str, linhas: usize) -> Result<Option<Faixa>, ()> {
+/// A legenda declara total ou faixa fora da forma observada.
+#[derive(Clone, Copy, Debug, PartialEq, Eq, thiserror::Error)]
+#[error("{self:?}")]
+pub enum ErroFaixaDaLegenda {
+    TotalIlegivel,
+    FaixaSemSeparador,
+    InicioIlegivel,
+    FimIlegivel,
+    /// Início zero, início depois do fim, fim acima do total ou tamanho
+    /// diferente das linhas servidas.
+    FaixaIncoerenteComAsLinhas,
+}
+
+fn faixa_da_legenda(legenda: &str, linhas: usize) -> Result<Option<Faixa>, ErroFaixaDaLegenda> {
     let normalizada = legenda
         .replace("&nbsp;", " ")
         .replace("&#160;", " ")
@@ -30,17 +43,22 @@ fn faixa_da_legenda(legenda: &str, linhas: usize) -> Result<Option<Faixa>, ()> {
         .split_whitespace()
         .last()
         .and_then(|x| x.trim_start_matches('(').parse::<usize>().ok())
-        .ok_or(())?;
+        .ok_or(ErroFaixaDaLegenda::TotalIlegivel)?;
     if let Some(resto) = depois.strip_prefix(" - ") {
-        let (inicio, fim) = resto.split_once(" a ").ok_or(())?;
-        let inicio = inicio.trim().parse::<usize>().map_err(|_| ())?;
+        let (inicio, fim) = resto
+            .split_once(" a ")
+            .ok_or(ErroFaixaDaLegenda::FaixaSemSeparador)?;
+        let inicio = inicio
+            .trim()
+            .parse::<usize>()
+            .map_err(|_| ErroFaixaDaLegenda::InicioIlegivel)?;
         let fim = fim
             .trim()
             .trim_end_matches(|c: char| !c.is_ascii_digit())
             .parse::<usize>()
-            .map_err(|_| ())?;
+            .map_err(|_| ErroFaixaDaLegenda::FimIlegivel)?;
         if inicio == 0 || inicio > fim || fim > total || fim - inicio + 1 != linhas {
-            return Err(());
+            return Err(ErroFaixaDaLegenda::FaixaIncoerenteComAsLinhas);
         }
         Ok(Some(Faixa {
             total,
@@ -105,7 +123,8 @@ fn faixa_da_tabela(
         .and_then(tl::Node::as_tag)
         .ok_or(ErroCaixa::LegendaAusente { categoria })?
         .inner_text(parser);
-    faixa_da_legenda(&legenda, linhas).map_err(|()| ErroCaixa::FaixaInvalida { categoria })
+    faixa_da_legenda(&legenda, linhas)
+        .map_err(|motivo| ErroCaixa::FaixaInvalida { categoria, motivo })
 }
 
 #[derive(Debug)]
@@ -301,14 +320,14 @@ pub struct Leitura {
 }
 
 pub fn juntar(paginas: &[String], unidade_esperada: Option<&str>) -> Result<Leitura, ErroCaixa> {
-    if paginas.is_empty() {
+    let Some(primeira) = paginas.first() else {
         return Err(ErroCaixa::SemPaginas);
-    }
+    };
     if paginas.len() > 200 || paginas.iter().map(String::len).sum::<usize>() > 48_000_000 {
         return Err(ErroCaixa::LimitePaginas);
     }
-    let contexto_inicial = contexto_da_pagina(&paginas[0])?;
-    if contexto_inicial.eh_resumida() && controles_de_paginacao(&paginas[0])? {
+    let contexto_inicial = contexto_da_pagina(primeira)?;
+    if contexto_inicial.eh_resumida() && controles_de_paginacao(primeira)? {
         return Err(ErroCaixa::VisaoResumidaComPaginacao);
     }
     for html in paginas {

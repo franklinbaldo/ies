@@ -6,6 +6,7 @@
 //! referenciam capturas `UnB` (4.0), UFRJ (4.1) e PEN3 (5.0).
 //! O GET de ciência é ESCRITA e não pode ser feito durante a prévia.
 //! Nenhum JavaScript é executado, e nenhuma URL assinada é publicada.
+use crate::acao_do_sei::AcaoDoSei;
 
 mod documento;
 mod fluxo;
@@ -67,6 +68,11 @@ fn separador_vazio(byte: u8) -> bool {
 
 fn chamada_na_forma_do_aceite(script: &str, niveis: &[Option<usize>], posicao: usize) -> bool {
     let bytes = script.as_bytes();
+    // O byte e a profundidade do lexer na posição `i`; fora do script, nada.
+    let em = |i: usize| bytes.get(i).copied().zip(niveis.get(i).copied());
+    let ativo_e = |i: usize, teste: fn(u8) -> bool| {
+        em(i).is_some_and(|(byte, nivel)| nivel.is_some() && teste(byte))
+    };
     let Some(nivel) = niveis.get(posicao).copied().flatten() else {
         return false;
     };
@@ -76,34 +82,35 @@ fn chamada_na_forma_do_aceite(script: &str, niveis: &[Option<usize>], posicao: u
     // O texto imediatamente anterior não pode ser uma condição, atribuição,
     // retorno ou outra expressão que contenha a chamada. Comentários e
     // literais são ignorados pelo lexer; não se interpreta JavaScript.
+    let fim_de_comando = |byte: u8| matches!(byte, b';' | b'{' | b'}');
+    let visivel = |byte: u8| !byte.is_ascii_whitespace();
     let inicio_comando = (0..posicao)
         .rev()
-        .find(|&i| niveis[i].is_some() && matches!(bytes[i], b';' | b'{' | b'}'))
+        .find(|&i| ativo_e(i, fim_de_comando))
         .map_or(0, |i| i + 1);
-    if (inicio_comando..posicao).any(|i| niveis[i].is_some() && !bytes[i].is_ascii_whitespace()) {
+    if (inicio_comando..posicao).any(|i| ativo_e(i, visivel)) {
         return false;
     }
     if nivel == 0 {
         // Chamada direta só prova recarga quando é a primeira instrução
         // executável do script: um throw anterior pode torná-la inalcançável.
-        return (0..posicao).all(|i| niveis[i] != Some(0) || separador_vazio(bytes[i]));
+        return (0..posicao)
+            .all(|i| em(i).is_some_and(|(byte, nivel)| nivel != Some(0) || separador_vazio(byte)));
     }
 
     // Profundidade 1 só é aceita no corpo direto da função de inicialização
     // publicada pelo SEI, e nunca em um if, callback ou função arbitrária.
-    let Some(abertura) = (0..posicao)
-        .rev()
-        .find(|&i| bytes[i] == b'{' && niveis[i] == Some(0))
-    else {
+    let Some(abertura) = (0..posicao).rev().find(|&i| em(i) == Some((b'{', Some(0)))) else {
         return false;
     };
     let inicio_declaracao = (0..abertura)
         .rev()
-        .find(|&i| niveis[i].is_some() && matches!(bytes[i], b';' | b'{' | b'}'))
+        .find(|&i| ativo_e(i, fim_de_comando))
         .map_or(0, |i| i + 1);
     let assinatura: Vec<u8> = (inicio_declaracao..abertura)
-        .filter(|&i| niveis[i].is_some() && !bytes[i].is_ascii_whitespace())
-        .map(|i| bytes[i])
+        .filter_map(em)
+        .filter(|&(byte, nivel)| nivel.is_some() && visivel(byte))
+        .map(|(byte, _)| byte)
         .collect();
     // O corpo observado começa com a recarga. Não interpretar fluxo JS:
     // return, throw, condicionais ou qualquer outra instrução anterior
@@ -122,7 +129,9 @@ fn so_chamadas_simples(script: &str, inicio: usize, fim: usize) -> bool {
     ];
     // Sem comentários; literais ficam, mas não decidem o fluxo.
     let mut ativo = String::new();
-    let mut resto = &script[inicio..fim];
+    let Some(mut resto) = script.get(inicio..fim) else {
+        return false;
+    };
     while !resto.is_empty() {
         if let Some(depois) = resto.strip_prefix("//") {
             resto = depois.split_once('\n').map_or("", |(_, r)| r);
@@ -158,25 +167,24 @@ fn literais_de_atualizar_arvore(script: &str) -> Vec<&str> {
         return Vec::new();
     };
     let mut achados = Vec::new();
-    let mut cursor = 0;
-    while let Some(indice) = script[cursor..].find(CHAMADA) {
-        let posicao = cursor + indice;
-        cursor = posicao + CHAMADA.len();
+    for (posicao, _) in script.match_indices(CHAMADA) {
         if !chamada_na_forma_do_aceite(script, &niveis, posicao) {
             continue;
         }
-        let argumento = script[cursor..].trim_start();
-        let aspas = match argumento.as_bytes().first() {
-            Some(b'\'') => '\'',
-            Some(b'"') => '"',
-            _ => continue,
-        };
-        let resto = &argumento[1..];
-        let Some(fim) = resto.find(aspas) else {
+        let (_, depois) = script.split_at(posicao);
+        let Some(argumento) = depois.strip_prefix(CHAMADA).map(str::trim_start) else {
             continue;
         };
-        let literal = &resto[..fim];
-        let depois_do_literal = resto[fim + 1..].trim_start();
+        let Some((aspas, resto)) = ['\'', '"']
+            .into_iter()
+            .find_map(|aspas| argumento.strip_prefix(aspas).map(|resto| (aspas, resto)))
+        else {
+            continue;
+        };
+        let Some((literal, depois_do_literal)) = resto.split_once(aspas) else {
+            continue;
+        };
+        let depois_do_literal = depois_do_literal.trim_start();
         // Só a chamada literal com um argumento foi observada no aceite.
         // Um segundo argumento pode lançar erro ANTES de executar a função.
         if !literal.contains('\\') && depois_do_literal.starts_with(')') {
@@ -205,7 +213,8 @@ fn atividade_do_endereco(url: &str, alvo: AlvoDaCiencia<'_>) -> Option<String> {
             Some(id_documento),
         ),
     };
-    if parametro_unico(consulta, "acao") != Some("procedimento_visualizar")
+    if parametro_unico(consulta, "acao").and_then(AcaoDoSei::ler)
+        != Some(AcaoDoSei::ProcedimentoVisualizar)
         || parametro_unico(consulta, "id_procedimento") != Some(id_procedimento)
         || parametro_unico(consulta, marca) != Some("1")
         || id_documento.is_some_and(|doc| parametro_unico(consulta, "id_documento") != Some(doc))

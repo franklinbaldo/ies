@@ -110,7 +110,7 @@ da pessoa); o nome final nunca é seguido.
 | `ErroAnexo::SemTipoDeConteudo` | resposta 200 sem `Content-Type` |
 | `ErroAnexo::TipoNaoPermitido` | tipo principal fora da lista observada |
 | `ErroAnexo::CabecalhoRepetido` | `Content-Type`, `Content-Length` ou `Content-Disposition` mais de uma vez |
-| `ErroAnexo::DisposicaoForaDaFormaObservada` | `Content-Disposition` sem `inline`/`attachment` ou com nome repetido ou ilegível |
+| `ErroAnexo::DisposicaoForaDaFormaObservada(ErroDisposicao::…)` | `Content-Disposition` sem `inline`/`attachment` ou com nome repetido ou ilegível |
 | `ErroAnexo::AcimaDoLimite` | declarado ou lido acima do limite |
 | `ErroAnexo::Vazio` | corpo sem bytes |
 | `ErroAnexo::RecusadoPeloSei` | HTML com o contêiner de exceção do SEI |

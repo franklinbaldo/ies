@@ -23,9 +23,6 @@ pub(crate) use link::{EnderecoDoHistorico, ler_link_do_historico};
 pub(crate) use lista::ler_andamentos;
 pub(crate) use visao::{CAMPO_TIPO, VER_HISTORICO_COMPLETO, conferir_regra_de_ver_historico};
 
-/// `acao` do link guardado no índice local (objeto = id do processo).
-pub(crate) const ACAO_DO_HISTORICO: &str = "procedimento_consultar_historico";
-
 /// Visão servida, lida de `hdnTipoHistorico` (`R` ou `P`).
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub(crate) enum TipoDoHistorico {

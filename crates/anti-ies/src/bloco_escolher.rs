@@ -76,9 +76,11 @@ pub(crate) fn responder(
             .collect::<Vec<_>>()
             .join(",");
         if !linhas.iter().any(|b| b.numero == numero)
-            || marcados.len() != 1
-            || marcados[0].0.id_documento != documento.id_documento
-            || marcados[0].1 != documento.id_documento
+            || !matches!(
+                marcados.as_slice(),
+                [(marcado, valor)] if marcado.id_documento == documento.id_documento
+                    && *valor == documento.id_documento
+            )
             || selecionados != documento.id_documento
             || botao != "Incluir"
             || campo("hdnDocumentosItens").as_deref() != Some(todos.as_str())
@@ -136,7 +138,9 @@ fn tela_de_escolha(
             valor = escapar(&d.id_documento),
         ).expect("escrever em String");
     }
-    let primeiro = escapar(&documentos[0].id_documento);
+    let Some(primeiro) = documentos.first().map(|d| escapar(&d.id_documento)) else {
+        return Resposta::nova(Estado::DadosInsuficientes);
+    };
     Resposta::html(format!(
         r#"<html><body>
 <form id="frmBlocoEscolher" method="post" action="controlador.php?acao=bloco_escolher&acao_origem=bloco_escolher&arvore=1&id_procedimento={p}&id_documento={id}&infra_sistema=100000100&infra_unidade_atual=110000001&infra_hash={HASH}">

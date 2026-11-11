@@ -10,7 +10,7 @@ use crate::visao_do_controle::EnvioDoControle;
 
 const PREFIXO: &str = "objAjaxHipoteseLegal = new infraAjaxMontarSelect('selHipoteseLegal','";
 const CONSULTA: ConsultaAjax = ConsultaAjax {
-    acao_ajax: "hipotese_legal_select_nome_base_legal",
+    acao_ajax: crate::acao_do_sei::AcaoAjaxDoSei::HipoteseLegalSelectNomeBaseLegal,
     campos: &[
         "primeiroItemValor",
         "primeiroItemDescricao",
@@ -178,7 +178,10 @@ pub(crate) fn opcao_unica(xml: &str) -> Result<String, ErroHipotese> {
             Err(ErroHipotese::OpcaoNaoUnica)
         }
         _ if opcoes.iter().enumerate().any(|(indice, (id, _))| {
-            opcoes[..indice].iter().any(|(anterior, _)| anterior == id)
+            opcoes
+                .iter()
+                .take(indice)
+                .any(|(anterior, _)| anterior == id)
         }) =>
         {
             Err(ErroHipotese::OpcaoNaoUnica)
@@ -208,7 +211,11 @@ pub(crate) fn opcao_selecionada(xml: &str, escolha: Option<&str>) -> Result<Stri
         return Err(ErroHipotese::resposta_nao_reconhecida());
     }
     for (indice, (id_lido, _)) in opcoes.iter().enumerate() {
-        if opcoes[..indice].iter().any(|(outro, _)| outro == id_lido) {
+        if opcoes
+            .iter()
+            .take(indice)
+            .any(|(outro, _)| outro == id_lido)
+        {
             return Err(ErroHipotese::OpcaoNaoUnica);
         }
     }

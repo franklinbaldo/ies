@@ -9,6 +9,7 @@ mod envio;
 mod plano;
 mod regras;
 
+use crate::acao_do_sei::AcaoDoSei;
 use crate::dominio::Categoria;
 use crate::erro_web::ErroCaixa;
 use crate::formulario_web::{
@@ -30,7 +31,7 @@ pub(crate) use regras::{ErroControleDoFormulario, campos_do_usuario};
 
 /// O servidor lembra a página de cada tabela na sessão.
 pub(crate) const OBTER_PAGINA_DO_CONTROLE: OperacaoDeFormulario = OperacaoDeFormulario {
-    acao: "procedimento_controlar",
+    acao: AcaoDoSei::ProcedimentoControlar,
     formulario: "frmProcedimentoControlar",
     envio: EnvioDoFormulario::SubmitPorScript,
     campos_ocultos_exigidos: &[

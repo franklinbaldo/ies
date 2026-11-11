@@ -1,6 +1,7 @@
 //! Leitor da tela de atribuição por HTML servido, sem executar JS.
 // Evidência: UnB 4.0.9, GO e Todos tests/test_ciclo_atribuir_010.py @323eb01.
 //! O select não informa a atribuição atual: a árvore do processo é a fonte.
+use crate::acao_do_sei::AcaoDoSei;
 use crate::formulario_web::{
     ConferenciaDaUnidade, EfeitoAvaliado, EnvioDoFormulario, ErroSubmissaoFormulario,
     EstadoDoProcesso, OperacaoDeFormulario, ResultadoDoEnvio, SubmissaoDerivada, TelaServida,
@@ -11,14 +12,13 @@ use crate::instalacao::Instalacao;
 use crate::pagina_do_controle::codificacao_da_tela;
 
 const FORMULARIO: &str = "frmAtividadeAtribuir";
-const ACAO: &str = "procedimento_atribuicao_cadastrar";
 const SELECAO: &str = "selAtribuicao";
 const SEM_ATRIBUICAO: &str = "null";
 
 /// O POST da atribuição é derivado da tela, não fabricado pelo comando.
 /// A própria operação só poderá enviá-lo depois de garantir a releitura.
 pub(crate) const ATRIBUIR_PROCESSO: OperacaoDeFormulario = OperacaoDeFormulario {
-    acao: ACAO,
+    acao: AcaoDoSei::ProcedimentoAtribuicaoCadastrar,
     formulario: FORMULARIO,
     envio: EnvioDoFormulario::BotaoDeEnvio("sbmSalvar"),
     campos_ocultos_exigidos: &["hdnInfraTipoPagina", "hdnIdProtocolo"],
@@ -80,7 +80,9 @@ fn acao_do_formulario(action: &str, id: &str) -> bool {
             return false;
         };
         match nome {
-            "acao" if valor == ACAO => acao += 1,
+            "acao" if AcaoDoSei::ler(valor) == Some(AcaoDoSei::ProcedimentoAtribuicaoCadastrar) => {
+                acao += 1;
+            }
             "id_procedimento" if valor == id => protocolo += 1,
             "infra_hash" if valor.len() == 64 && valor.bytes().all(|b| b.is_ascii_hexdigit()) => {
                 hash += 1;

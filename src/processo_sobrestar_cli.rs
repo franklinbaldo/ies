@@ -8,28 +8,31 @@ use crate::{Cli, Domain, Processo, ProcessoAcao};
 use serde_json::json;
 
 pub(crate) fn tentar_operar(cli: &Cli) -> Option<anyhow::Result<()>> {
-    match &cli.command {
-        Domain::Processo(Processo {
-            acao:
-                Some(ProcessoAcao::Sobrestar {
-                    numero,
-                    motivo,
-                    confirmar,
-                }),
-            ..
-        }) => Some(operar(
+    // Despacho: só as duas ações deste módulo; qualquer outro comando é de outro.
+    let Domain::Processo(Processo {
+        acao: Some(acao), ..
+    }) = &cli.command
+    else {
+        return None;
+    };
+    if let ProcessoAcao::Sobrestar {
+        numero,
+        motivo,
+        confirmar,
+    } = acao
+    {
+        return Some(operar(
             cli,
             numero,
             Some(motivo),
             *confirmar,
             Acao::Sobrestar,
-        )),
-        Domain::Processo(Processo {
-            acao: Some(ProcessoAcao::Retomar { numero, confirmar }),
-            ..
-        }) => Some(operar(cli, numero, None, *confirmar, Acao::Retomar)),
-        _ => None,
+        ));
     }
+    if let ProcessoAcao::Retomar { numero, confirmar } = acao {
+        return Some(operar(cli, numero, None, *confirmar, Acao::Retomar));
+    }
+    None
 }
 
 fn operar(

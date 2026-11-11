@@ -224,8 +224,16 @@ fn visao_r_grava_so_as_linhas_conferidas_e_os_links_do_menu() {
     assert_eq!(
         links,
         [
-            link(ACAO_DO_TRABALHO, "10", &trabalho("10", 'c')),
-            link(ACAO_DO_TRABALHO, "11", &trabalho("11", 'd')),
+            link(
+                AcaoDoSei::ProcedimentoTrabalhar.como_na_url(),
+                "10",
+                &trabalho("10", 'c')
+            ),
+            link(
+                AcaoDoSei::ProcedimentoTrabalhar.como_na_url(),
+                "11",
+                &trabalho("11", 'd')
+            ),
             rapida,
             pesquisa,
         ]
@@ -254,8 +262,16 @@ fn visao_d_grava_as_linhas_conferidas() {
     assert_eq!(
         links,
         [
-            link(ACAO_DO_TRABALHO, "30", &trabalho("30", 'f')),
-            link(ACAO_DO_TRABALHO, "33", &trabalho("33", 'f')),
+            link(
+                AcaoDoSei::ProcedimentoTrabalhar.como_na_url(),
+                "30",
+                &trabalho("30", 'f')
+            ),
+            link(
+                AcaoDoSei::ProcedimentoTrabalhar.como_na_url(),
+                "33",
+                &trabalho("33", 'f')
+            ),
             rapida,
             pesquisa,
         ]
@@ -275,7 +291,14 @@ fn id_em_duas_linhas_pula_as_duas() {
     colher(&indice, &html, Some(MIME));
     let (processos, links) = indice.conteudo();
     assert_eq!(processos, [processo("NUP-Z", "41")]);
-    assert_eq!(links[0], link(ACAO_DO_TRABALHO, "41", &trabalho("41", 'c')));
+    assert_eq!(
+        links[0],
+        link(
+            AcaoDoSei::ProcedimentoTrabalhar.como_na_url(),
+            "41",
+            &trabalho("41", 'c')
+        )
+    );
     assert_eq!(links.len(), 3);
 }
 
@@ -300,7 +323,13 @@ fn sem_mime_a_pesquisa_rapida_nao_e_colhida() {
     colher(&indice, &html, None);
     let (_, links) = indice.conteudo();
     let acoes: Vec<_> = links.iter().map(|l| l[3].as_str()).collect();
-    assert_eq!(acoes, [ACAO_DO_TRABALHO, ACAO_DA_PESQUISA]);
+    assert_eq!(
+        acoes,
+        [
+            AcaoDoSei::ProcedimentoTrabalhar.como_na_url(),
+            AcaoDoSei::ProtocoloPesquisar.como_na_url()
+        ]
+    );
 }
 
 #[test]

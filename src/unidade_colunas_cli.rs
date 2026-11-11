@@ -48,10 +48,7 @@ pub(crate) fn mostrar_colunas(unidade: Option<&str>, json_mode: bool) -> anyhow:
     if json_mode {
         let mut valor = json!({"unidade": rotulo, "origem": "web", "opcoes": nivel.json()});
         relogin_cli::anotar_com_total(&mut valor, nota.as_ref());
-        println!(
-            "{}",
-            serde_json::to_string_pretty(&valor).expect("JSON serializável")
-        );
+        println!("{}", serde_json::to_string_pretty(&valor)?);
     } else {
         relogin_cli::avisar(json_mode, nota.as_ref());
         println!("IES: Nível de detalhe da unidade {rotulo}:");

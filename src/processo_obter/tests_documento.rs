@@ -5,6 +5,7 @@
 //! SINTÉTICAS com a forma das cassettes `documento-numero-e-busca-*`.
 use super::tests_apoio::*;
 use super::*;
+use crate::acao_do_sei::AcaoDoSei;
 use crate::arvore_processo::tests::{NUP, arvore, no_documento, no_processo};
 use crate::arvore_processo::tests_conteudo::{
     HASH_CONTEUDO, com_src, src_da_arvore_do_documento, src_visualizar,
@@ -117,11 +118,11 @@ fn conteudo_pelo_controle_em_cinco_requisicoes_e_aprende_o_caminho() {
             .map(|u| u.url().to_owned())
     };
     assert_eq!(
-        link("procedimento_visualizar", ID),
+        link(AcaoDoSei::ProcedimentoVisualizar, ID),
         Some(absoluta(&src_da_arvore_do_documento(ID, ID_DOC)))
     );
     assert_eq!(
-        link("protocolo_pesquisa_rapida", ""),
+        link(AcaoDoSei::ProtocoloPesquisaRapida, ""),
         Some(absoluta(&action_rapida()))
     );
 }
@@ -353,7 +354,7 @@ fn propriedades_do_documento_fechado_consultam_formulario_publicado() {
     assert_eq!(roteiro.respostas_restantes(), 0);
     match lido.propriedades {
         PropriedadesDocumento::Lidas(p) => {
-            assert_eq!(p.fonte, "documento_consultar");
+            assert_eq!(p.fonte, AcaoDoSei::DocumentoConsultar);
             assert_eq!(p.descricao, "Consulta do fechado");
         }
         outra => panic!("cadastro de consulta deveria ser lido: {outra:?}"),

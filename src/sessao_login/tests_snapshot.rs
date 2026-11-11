@@ -7,6 +7,7 @@
 use super::gravacao;
 use super::tests_apoio::*;
 use super::tests_colheita::controle_com_linha;
+use crate::acao_do_sei::AcaoDoSei;
 use crate::colheita_do_controle::Colheita;
 use crate::indice_local::{ChaveDoLink, IndiceLocal};
 use crate::instalacao::Instalacao;
@@ -168,7 +169,7 @@ fn colheita_da_leitura_registra_sob_a_geracao_do_cookie_lido() {
     let chave = |geracao| ChaveDoLink {
         geracao_sessao: geracao,
         unidade: "110000849",
-        acao: "procedimento_trabalhar",
+        acao: AcaoDoSei::ProcedimentoTrabalhar,
         alvo: "77",
     };
     let a = super::geracao_da_sessao(COOKIE_A);

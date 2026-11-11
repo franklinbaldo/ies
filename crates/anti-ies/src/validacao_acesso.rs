@@ -42,11 +42,10 @@ pub(crate) fn responder(
     // Um campo de senha nao vazio, sem outros campos ou ambiguidade.
     // O valor nao e guardado, comparado com senha real ou exibido.
     let campos: Vec<_> = corpo.split('&').collect();
-    if campos.len() != 1
-        || campos[0]
-            .strip_prefix("txtSenha=")
-            .is_none_or(str::is_empty)
-    {
+    if !matches!(
+        campos.as_slice(),
+        [campo] if campo.strip_prefix("txtSenha=").is_some_and(|senha| !senha.is_empty())
+    ) {
         return Resposta::nova(Estado::RequisicaoInvalida);
     }
     if situacao == Validacao::Recusada {

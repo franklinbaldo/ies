@@ -1,5 +1,6 @@
 //! Paginação da lista de blocos internos por formulário observado, sem JS.
 use super::FalhaLeitura;
+use crate::acao_do_sei::AcaoDoSei;
 use crate::bloco::{self, ErroBloco, ListaComLinks, TipoBloco};
 use crate::formulario_web::{
     CodificacaoDaTela, ConferenciaDaUnidade, EfeitoAvaliado, EnvioDoFormulario, EstadoDeSessao,
@@ -15,7 +16,7 @@ use crate::visao_do_controle::EnvioDoControle;
 /// O corpo do POST original nao foi preservado, logo a derivacao segue
 /// estritamente os controles que a resposta HTML publicou.
 pub(super) const PAGINAR_BLOCOS: OperacaoDeFormulario = OperacaoDeFormulario {
-    acao: "bloco_interno_listar",
+    acao: AcaoDoSei::BlocoInternoListar,
     formulario: "frmBlocoLista",
     envio: EnvioDoFormulario::SubmitPorScript,
     campos_ocultos_exigidos: &["hdnInfraPaginaAtual", "hdnInfraTipoPagina"],

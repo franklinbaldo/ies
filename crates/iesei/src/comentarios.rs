@@ -62,7 +62,7 @@ fn valida(foto: &Observacao) -> bool {
             || item.unidade.is_empty()
             || item.usuario.is_empty()
             || item.protocolo.is_some() != item.tipo.is_some()
-            || foto.itens[..i].iter().any(|outro| outro.id == item.id)
+            || foto.itens.iter().take(i).any(|outro| outro.id == item.id)
         {
             return false;
         }

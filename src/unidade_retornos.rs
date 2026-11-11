@@ -153,26 +153,28 @@ fn ler_tabela(
         if celulas.len() != titulos.len() {
             return Err(ErroRetornos::TelaDeRetornosDesconhecida);
         }
-        let valor = |pos: usize| texto(celulas[pos], parser);
-        let numero = valor(processo);
-        let origem = valor(unidade);
-        let programada = valor(data);
+        let valor = |pos: usize| {
+            celulas
+                .get(pos)
+                .map(|celula| texto(celula, parser))
+                .ok_or(ErroRetornos::TelaDeRetornosDesconhecida)
+        };
+        let numero = valor(processo)?;
+        let origem = valor(unidade)?;
+        let programada = valor(data)?;
         if numero.is_empty() || origem.is_empty() || !data_valida(&programada) {
             return Err(ErroRetornos::TelaDeRetornosDesconhecida);
         }
-        let opcional = |pos: Option<usize>| {
-            pos.and_then(|p| {
-                let v = valor(p);
-                (!v.is_empty()).then_some(v)
-            })
+        let opcional = |pos: Option<usize>| -> Result<Option<String>, ErroRetornos> {
+            Ok(pos.map(valor).transpose()?.filter(|v| !v.is_empty()))
         };
         lista.push(Retorno {
             situacao,
             numero,
             unidade: origem,
             data_programada: programada,
-            retornado_em: opcional(retorno),
-            prazo_restante: opcional(prazo),
+            retornado_em: opcional(retorno)?,
+            prazo_restante: opcional(prazo)?,
         });
     }
     if lista.len() != declarado {

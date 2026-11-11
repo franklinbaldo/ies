@@ -163,7 +163,34 @@ fn submeter_envio<V: EnvioDoProcesso>(
         .map_err(|causa| erro_apos_limpeza(feito, causa))?;
     enviar(rede, sessao, submissao, &feito.id_procedimento).map_err(|erro| match erro {
         ErroEnviar::Formulario(causa) => erro_apos_limpeza(feito, causa),
-        outro => outro,
+        outro @ (ErroEnviar::Cookie(_)
+        | ErroEnviar::Abertura(_)
+        | ErroEnviar::UnidadeDaSessaoNaoPublicada
+        | ErroEnviar::SituacaoDoProcessoNaoLidaAntesDeEnviar { .. }
+        | ErroEnviar::ProcessoNaoAbertoNaUnidadeDaSessao { .. }
+        | ErroEnviar::UnidadeDaSessaoAusenteDaSituacao { .. }
+        | ErroEnviar::EnvioNaoPublicadoNaBarra { .. }
+        | ErroEnviar::Barra(_)
+        | ErroEnviar::TelaDaEscrita(_)
+        | ErroEnviar::TelaDaEscritaRedirecionada
+        | ErroEnviar::SessaoEncerrada(_)
+        | ErroEnviar::CharsetDaTelaNaoSuportado
+        | ErroEnviar::TelaDeEnvio(_)
+        | ErroEnviar::Consulta(_)
+        | ErroEnviar::RemocaoDeAnotacoesNaoOferecida
+        | ErroEnviar::RemocaoDeAnotacoesSemVerificacao
+        | ErroEnviar::AnotacoesNaoRemovidasAposEnvio { .. }
+        | ErroEnviar::AnotacaoNaoLimpaAntesDeEnviar
+        | ErroEnviar::NaoConfirmadoNaLimpezaDaAnotacao(_)
+        | ErroEnviar::NaoConfirmadoNaRemocaoDeAnotacoes { .. }
+        | ErroEnviar::Anotacoes(_)
+        | ErroEnviar::DestinoNaoOferecidoPeloSei { .. }
+        | ErroEnviar::VariosDestinosComASigla { .. }
+        | ErroEnviar::ProcessoJaAbertoNoDestino { .. }
+        | ErroEnviar::FormularioAposLimpezaComprovada { .. }
+        | ErroEnviar::EnvioNaoAplicado { .. }
+        | ErroEnviar::SituacaoDaOrigemDiferenteDaPedidaAposEnvio { .. }
+        | ErroEnviar::NaoConfirmadoNoEnvio { .. }) => outro,
     })
 }
 
@@ -333,10 +360,8 @@ fn limpar_anotacao<V: EnvioDoProcesso>(
         saiu = true;
         rede.post(s, c)
     });
-    if !saiu {
-        return Err(ErroEnviar::Formulario(
-            resposta.expect_err("sem POST só falha na derivação"),
-        ));
+    if !saiu && let Err(erro) = resposta {
+        return Err(ErroEnviar::Formulario(erro));
     }
     // Mesmo erro de transporte pós-POST não autoriza retry. A leitura decide.
     match conferir_anotacao_depois(rede, cookie, link, id, None) {
@@ -344,7 +369,9 @@ fn limpar_anotacao<V: EnvioDoProcesso>(
         Err(ErroEnviar::AnotacoesNaoRemovidasAposEnvio { .. }) => {
             Err(ErroEnviar::AnotacaoNaoLimpaAntesDeEnviar)
         }
-        Err(_) => Err(ErroEnviar::NaoConfirmadoNaLimpezaDaAnotacao),
+        Err(releitura) => Err(ErroEnviar::NaoConfirmadoNaLimpezaDaAnotacao(Box::new(
+            releitura,
+        ))),
     }
 }
 

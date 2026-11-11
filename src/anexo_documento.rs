@@ -4,7 +4,9 @@
 //! na lista observada, `Content-Disposition`, limite) e o corpo é lido em
 //! blocos, com SHA-256, para um parcial 0600 em `--saida` ou só para o
 //! hash (e o texto, nos tipos de texto). Sem rede: quem chama faz o GET.
+use crate::arquivo_privado::FalhaDaGravacao;
 use crate::documento_web::ErroCorpoDocumento;
+use crate::transporte::FatoDaResposta;
 use crate::transporte::resposta_binaria::RespostaBinaria;
 use crate::transporte::resposta_http::falha_de_leitura;
 use crate::transporte::{FalhaTransporte, RespostaWeb, recusar_status};
@@ -127,8 +129,20 @@ impl ArquivoParcial {
     /// o destino existe) e remove o parcial.
     pub(crate) fn concluir(self) -> Result<(), ErroAnexo> {
         self.parcial.confirmar().map_err(|falha| match falha {
-            crate::arquivo_privado::FalhaDaGravacao::DestinoJaExiste => ErroAnexo::ArquivoJaExiste,
-            _ => ErroAnexo::EscritaFalhou,
+            FalhaDaGravacao::DestinoJaExiste => ErroAnexo::ArquivoJaExiste,
+            FalhaDaGravacao::SemNomeDeArquivo
+            | FalhaDaGravacao::DiretorioAusente
+            | FalhaDaGravacao::DiretorioGravavelPorOutros
+            | FalhaDaGravacao::DestinoNaoEhArquivoRegular
+            | FalhaDaGravacao::AcimaDoLimite
+            | FalhaDaGravacao::CriacaoFalhou
+            | FalhaDaGravacao::EscritaFalhou
+            | FalhaDaGravacao::NivelDoCaminhoNaoEhDiretorio
+            | FalhaDaGravacao::NivelDoCaminhoIlegivel(_)
+            | FalhaDaGravacao::CriacaoDoDiretorioFalhou(_)
+            | FalhaDaGravacao::CriacaoDoTemporarioFalhou(_)
+            | FalhaDaGravacao::NomesDeTemporarioEsgotados
+            | FalhaDaGravacao::ConfirmacaoFalhou => ErroAnexo::EscritaFalhou,
         })
     }
 }
@@ -143,7 +157,7 @@ pub(crate) enum ErroAnexo {
     SemTipoDeConteudo,
     TipoNaoPermitido,
     CabecalhoRepetido,
-    DisposicaoForaDaFormaObservada,
+    DisposicaoForaDaFormaObservada(#[source] cabecalhos::ErroDisposicao),
     AcimaDoLimite,
     Vazio,
     ConteudoComLinkAssinado,
@@ -167,7 +181,7 @@ impl ErroAnexo {
             Self::SemTipoDeConteudo
             | Self::TipoNaoPermitido
             | Self::CabecalhoRepetido
-            | Self::DisposicaoForaDaFormaObservada
+            | Self::DisposicaoForaDaFormaObservada(_)
             | Self::AcimaDoLimite
             | Self::Vazio
             | Self::ConteudoComLinkAssinado
@@ -176,6 +190,38 @@ impl ErroAnexo {
             | Self::DiretorioAusente
             | Self::ArquivoJaExiste
             | Self::EscritaFalhou => false,
+        }
+    }
+}
+
+/// A falha de leitura do corpo do anexo: a resposta excessiva é o limite do
+/// anexo; as demais seguem como falha de transporte.
+/// A falha ao acrescentar bytes ao parcial: só o limite tem fato próprio.
+fn erro_ao_escrever(falha: FalhaDaGravacao) -> ErroAnexo {
+    match falha {
+        FalhaDaGravacao::AcimaDoLimite => ErroAnexo::AcimaDoLimite,
+        FalhaDaGravacao::SemNomeDeArquivo
+        | FalhaDaGravacao::DiretorioAusente
+        | FalhaDaGravacao::DiretorioGravavelPorOutros
+        | FalhaDaGravacao::DestinoJaExiste
+        | FalhaDaGravacao::DestinoNaoEhArquivoRegular
+        | FalhaDaGravacao::CriacaoFalhou
+        | FalhaDaGravacao::EscritaFalhou
+        | FalhaDaGravacao::NivelDoCaminhoNaoEhDiretorio
+        | FalhaDaGravacao::NivelDoCaminhoIlegivel(_)
+        | FalhaDaGravacao::CriacaoDoDiretorioFalhou(_)
+        | FalhaDaGravacao::CriacaoDoTemporarioFalhou(_)
+        | FalhaDaGravacao::NomesDeTemporarioEsgotados
+        | FalhaDaGravacao::ConfirmacaoFalhou => ErroAnexo::EscritaFalhou,
+    }
+}
+
+fn erro_de_leitura(erro: &std::io::Error) -> ErroAnexo {
+    let falha = falha_de_leitura(erro);
+    match falha.fato_da_resposta() {
+        FatoDaResposta::CorpoAcimaDoLimite => ErroAnexo::AcimaDoLimite,
+        FatoDaResposta::TelaDeLoginNoLugarDaResposta | FatoDaResposta::NenhumAlemDoTransporte => {
+            ErroAnexo::Transporte(falha)
         }
     }
 }
@@ -225,31 +271,24 @@ pub(crate) fn ler_anexo<R: Read>(
             Ok(lido) => lido,
             Err(erro) if erro.kind() == std::io::ErrorKind::Interrupted => continue,
             Err(erro) => {
-                return Err(match falha_de_leitura(&erro) {
-                    FalhaTransporte::RespostaExcessiva => ErroAnexo::AcimaDoLimite,
-                    falha => ErroAnexo::Transporte(falha),
-                });
+                return Err(erro_de_leitura(&erro));
             }
         };
-        tamanho += lido as u64;
+        tamanho = u64::try_from(lido)
+            .ok()
+            .and_then(|lido| tamanho.checked_add(lido))
+            .ok_or(ErroAnexo::AcimaDoLimite)?;
         if tamanho > conferido.limite {
             return Err(ErroAnexo::AcimaDoLimite);
         }
-        conferir_token(&bloco[..lido], &mut token_lido)?;
-        hasher.update(&bloco[..lido]);
+        let (lidos, _) = bloco.split_at(lido.min(bloco.len()));
+        conferir_token(lidos, &mut token_lido)?;
+        hasher.update(lidos);
         if let Some(aberto) = &mut arquivo {
-            aberto
-                .parcial
-                .escrever(&bloco[..lido])
-                .map_err(|falha| match falha {
-                    crate::arquivo_privado::FalhaDaGravacao::AcimaDoLimite => {
-                        ErroAnexo::AcimaDoLimite
-                    }
-                    _ => ErroAnexo::EscritaFalhou,
-                })?;
+            aberto.parcial.escrever(lidos).map_err(erro_ao_escrever)?;
         }
         if texto {
-            guardado.extend_from_slice(&bloco[..lido]);
+            guardado.extend_from_slice(lidos);
         }
     }
     if tamanho == 0 {
@@ -289,10 +328,10 @@ pub(crate) fn ler_anexo<R: Read>(
 fn conferir_token(bytes: &[u8], lidos: &mut usize) -> Result<(), ErroAnexo> {
     const TOKEN: &[u8] = b"infra_hash";
     for &byte in bytes {
-        if byte == TOKEN[*lidos] {
+        if TOKEN.get(*lidos) == Some(&byte) {
             *lidos += 1;
         } else {
-            *lidos = usize::from(byte == TOKEN[0]);
+            *lidos = usize::from(TOKEN.first() == Some(&byte));
         }
         if *lidos == TOKEN.len() {
             return Err(ErroAnexo::ConteudoComLinkAssinado);
@@ -366,13 +405,14 @@ fn conferir<R: Read>(
     let (disposicao, nome_original) = match disposicao {
         Some(valor) => {
             let (d, nome) = cabecalhos::ler_disposicao(valor)
-                .map_err(|()| ErroAnexo::DisposicaoForaDaFormaObservada)?;
+                .map_err(ErroAnexo::DisposicaoForaDaFormaObservada)?;
             (Some(d), nome)
         }
         None => (None, None),
     };
     let limite = if cabecalhos::e_texto(&mime) {
-        limite.bytes().min(crate::MAX_HTML_BYTES as u64)
+        u64::try_from(crate::MAX_HTML_BYTES)
+            .map_or(limite.bytes(), |maximo| limite.bytes().min(maximo))
     } else {
         limite.bytes()
     };
@@ -407,15 +447,19 @@ fn abrir_parcial(
         return Err(ErroAnexo::DiretorioAusente);
     }
     let parcial = Parcial::abrir(&dir.join(&nome), politica).map_err(|falha| match falha {
-        FalhaDaGravacao::SemNomeDeArquivo | FalhaDaGravacao::DiretorioAusente => {
-            ErroAnexo::DiretorioAusente
-        }
+        FalhaDaGravacao::SemNomeDeArquivo
+        | FalhaDaGravacao::DiretorioAusente
+        | FalhaDaGravacao::NivelDoCaminhoNaoEhDiretorio
+        | FalhaDaGravacao::NivelDoCaminhoIlegivel(_) => ErroAnexo::DiretorioAusente,
         FalhaDaGravacao::DestinoJaExiste => ErroAnexo::ArquivoJaExiste,
         // Diretório do usuário: a peça não confere o modo.
         FalhaDaGravacao::DiretorioGravavelPorOutros
         | FalhaDaGravacao::DestinoNaoEhArquivoRegular
         | FalhaDaGravacao::AcimaDoLimite
         | FalhaDaGravacao::CriacaoFalhou
+        | FalhaDaGravacao::CriacaoDoDiretorioFalhou(_)
+        | FalhaDaGravacao::CriacaoDoTemporarioFalhou(_)
+        | FalhaDaGravacao::NomesDeTemporarioEsgotados
         | FalhaDaGravacao::EscritaFalhou
         | FalhaDaGravacao::ConfirmacaoFalhou => ErroAnexo::EscritaFalhou,
     })?;

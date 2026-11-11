@@ -2,6 +2,7 @@
 //! Prévia não modifica processo e confirmação só será permitida após aceite causal.
 use super::{Decisao, ErroMarcar, FalhaDaMarcacao, Operacao, Rotulo, decidir, recusa};
 use crate::Cli;
+use crate::acao_do_sei::AcaoDoSei;
 use crate::arvore_processo::endereco::conferir_endereco_relativo;
 use crate::formulario_web::{
     ConferenciaDaUnidade, EfeitoAvaliado, EnvioDoFormulario, EstadoDoProcesso,
@@ -23,7 +24,7 @@ use crate::visao_do_controle::EnvioDoControle as _;
 use serde_json::json;
 
 const ADICIONAR: OperacaoDeFormulario = OperacaoDeFormulario {
-    acao: "andamento_marcador_cadastrar",
+    acao: AcaoDoSei::AndamentoMarcadorCadastrar,
     formulario: "frmAndamentoMarcadorCadastro",
     envio: EnvioDoFormulario::BotaoDeEnvio("sbmSalvar"),
     campos_ocultos_exigidos: &["hdnInfraTipoPagina", "hdnIdMarcador", "hdnIdProtocolo"],
@@ -354,8 +355,8 @@ fn aceite_da_atribuicao(redir: &Redirecionamento302, id: &str) -> bool {
             return false;
         }
     }
-    acao == Some("andamento_marcador_gerenciar")
-        && origem == Some("andamento_marcador_cadastrar")
+    acao.and_then(AcaoDoSei::ler) == Some(AcaoDoSei::AndamentoMarcadorGerenciar)
+        && origem.and_then(AcaoDoSei::ler) == Some(AcaoDoSei::AndamentoMarcadorCadastrar)
         && procedimento == Some(id)
 }
 
@@ -414,7 +415,10 @@ fn releitura_comprova<V: EnvioDoProcesso>(
                             && m.texto.as_deref().unwrap_or("") == texto.unwrap_or("")
                     }))
                 }
-                _ => None,
+                Marcadores::Lidos(_)
+                | Marcadores::Omitidos
+                | Marcadores::NaoPublicadosNaBarra
+                | Marcadores::TabelaNaoPublicada => None,
             }
         }
         _ => None,

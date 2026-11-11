@@ -52,7 +52,8 @@ pub(crate) fn nome(versao: Option<u32>, hash: &str) -> String {
 
 pub(crate) fn nome_ext(versao: Option<u32>, hash: &str, extensao: &str) -> String {
     let prefixo = versao.map_or_else(|| "x".to_owned(), |n| format!("v{n}"));
-    format!("{prefixo}-{}.{}", &hash[..hash.len().min(16)], extensao)
+    let curto: String = hash.chars().take(16).collect();
+    format!("{prefixo}-{curto}.{extensao}")
 }
 
 pub(crate) fn caminho_em(
@@ -177,7 +178,7 @@ fn hash_de_arquivo(caminho: &Path) -> Result<String, FalhaCache> {
         if lidos == 0 {
             break;
         }
-        sha.update(&buffer[..lidos]);
+        sha.update(buffer.split_at(lidos.min(buffer.len())).0);
     }
     Ok(hex::encode(sha.finalize()))
 }
@@ -236,7 +237,7 @@ pub(crate) fn copiar_para_saida(
             break;
         }
         parcial
-            .escrever(&buffer[..lidos])
+            .escrever(buffer.split_at(lidos.min(buffer.len())).0)
             .map_err(|_| FalhaCache::Gravacao)?;
     }
     match parcial.confirmar() {

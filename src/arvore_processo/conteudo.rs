@@ -8,10 +8,8 @@
 //! publicado pela árvore**: o IES nunca monta um (ADR 0003).
 use super::endereco::{EnderecoRecusado, conferir_endereco_relativo_por};
 use super::literais::{Literal, indice_do_src, ler_declaracao, ler_src};
+use crate::acao_do_sei::AcaoDoSei;
 use crate::instalacao::Instalacao;
-
-const VISUALIZAR: &str = "documento_visualizar";
-const DOWNLOAD: &str = "documento_download_anexo";
 
 /// URL absoluta do conteúdo, assinada: `Debug` redigido, sem `Display`.
 #[derive(Clone, PartialEq, Eq)]
@@ -28,12 +26,20 @@ impl EnderecoDoConteudo {
         href: &str,
         id: &str,
     ) -> Result<Self, ErroConteudoNaArvore> {
-        if acao_unica(href) != Some(DOWNLOAD) || id_anexo_unico(href) != Some(id) {
+        if acao_unica(href) != Some(AcaoDoSei::DocumentoDownloadAnexo)
+            || id_anexo_unico(href) != Some(id)
+        {
             return Err(ErroConteudoNaArvore::LinkAnexoCadastroInvalido);
         }
-        conferir_endereco_relativo_por(inst, href, DOWNLOAD, "id_anexo", id)
-            .map(Self)
-            .map_err(|_| ErroConteudoNaArvore::LinkAnexoCadastroInvalido)
+        conferir_endereco_relativo_por(
+            inst,
+            href,
+            AcaoDoSei::DocumentoDownloadAnexo,
+            "id_anexo",
+            id,
+        )
+        .map(Self)
+        .map_err(|_| ErroConteudoNaArvore::LinkAnexoCadastroInvalido)
     }
 }
 
@@ -107,19 +113,25 @@ pub(crate) fn ler_conteudo_na_arvore(
         return Ok(ConteudoNaArvore::Vazio);
     }
     match acao_unica(src) {
-        Some(DOWNLOAD) => {
+        Some(AcaoDoSei::DocumentoDownloadAnexo) => {
             // O link não traz `id_documento`: o id conferido é o `id_anexo`
             // único e decimal do próprio link; a ligação é o nó (Refs #60).
             let id_anexo = id_anexo_unico(src)
                 .ok_or(ErroConteudoNaArvore::EnderecoDoConteudoNaoReconhecido)?;
-            conferir_endereco_relativo_por(instalacao, src, DOWNLOAD, "id_anexo", id_anexo)
-                .map(|url| ConteudoNaArvore::DownloadDeAnexo(EnderecoDoConteudo(url)))
-                .map_err(|_| ErroConteudoNaArvore::EnderecoDoConteudoNaoReconhecido)
+            conferir_endereco_relativo_por(
+                instalacao,
+                src,
+                AcaoDoSei::DocumentoDownloadAnexo,
+                "id_anexo",
+                id_anexo,
+            )
+            .map(|url| ConteudoNaArvore::DownloadDeAnexo(EnderecoDoConteudo(url)))
+            .map_err(|_| ErroConteudoNaArvore::EnderecoDoConteudoNaoReconhecido)
         }
-        Some(VISUALIZAR) => conferir_endereco_relativo_por(
+        Some(AcaoDoSei::DocumentoVisualizar) => conferir_endereco_relativo_por(
             instalacao,
             src,
-            VISUALIZAR,
+            AcaoDoSei::DocumentoVisualizar,
             "id_documento",
             id_documento,
         )
@@ -147,11 +159,15 @@ fn id_anexo_unico(src: &str) -> Option<&str> {
 }
 
 /// A `acao` única de `controlador.php?…`, sem conferir o resto.
-fn acao_unica(src: &str) -> Option<&str> {
+fn acao_unica(src: &str) -> Option<AcaoDoSei> {
     let consulta = src.strip_prefix("controlador.php?")?;
     let mut acoes = consulta
         .split('&')
         .filter_map(|par| par.strip_prefix("acao="));
     let acao = acoes.next()?;
-    acoes.next().is_none().then_some(acao)
+    acoes
+        .next()
+        .is_none()
+        .then_some(acao)
+        .and_then(AcaoDoSei::ler)
 }

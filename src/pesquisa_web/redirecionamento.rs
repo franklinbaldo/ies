@@ -114,7 +114,10 @@ impl OrigemDoTrabalho<'_> {
         match self {
             Self::PesquisaRapida => "id_protocolo",
             Self::PesquisaRapidaDocumento => "id_documento",
-            _ => "id_procedimento",
+            Self::Pesquisa
+            | Self::EntradaPorId { .. }
+            | Self::EntradaPorIdComDocumento { .. }
+            | Self::Controle { .. } => "id_procedimento",
         }
     }
 }

@@ -18,7 +18,39 @@ pub(crate) fn projetar(html: &str) -> Result<Value, FalhaControleWeb> {
             ErroCaixa::IdentificacaoDaUnidadeAusenteNoControle => {
                 FalhaControleWeb::IdentidadeUnidadeNaoObservada
             }
-            outro => FalhaControleWeb::ControleNaoReconhecido(outro),
+            outro @ (ErroCaixa::TabelaAusente { .. }
+            | ErroCaixa::TabelasDaCategoriaRepetidas { .. }
+            | ErroCaixa::TabelaInvalida { .. }
+            | ErroCaixa::LegendaAusente { .. }
+            | ErroCaixa::LegendasDaTabelaRepetidas { .. }
+            | ErroCaixa::IdInvalido
+            | ErroCaixa::IdRepetido { .. }
+            | ErroCaixa::NumeroInvalido { .. }
+            | ErroCaixa::MaisDeUmNumeroNaLinhaDoProcesso { .. }
+            | ErroCaixa::LinkDoProcessoNaoIdentificadoNaLinha { .. }
+            | ErroCaixa::ClassesDeEstadoDiferentesNoLinkDoProcesso { .. }
+            | ErroCaixa::TotalExcedido { .. }
+            | ErroCaixa::TotaisDeclaradosDiferentesEntrePaginas { .. }
+            | ErroCaixa::FaixaInvalida { .. }
+            | ErroCaixa::FaixaDesconhecida { .. }
+            | ErroCaixa::FaixaAlterada { .. }
+            | ErroCaixa::FaixaDescontinua { .. }
+            | ErroCaixa::TotalNaoDeclaradoNaLegenda { .. }
+            | ErroCaixa::LegendaSemFaixaComTotalDiferenteDasLinhas { .. }
+            | ErroCaixa::PaginadorDaTabelaSemFaixaNaLegenda { .. }
+            | ErroCaixa::LimitePaginas
+            | ErroCaixa::VisaoResumidaComPaginacao
+            | ErroCaixa::FiltroDeMarcadorAtivoNoControle
+            | ErroCaixa::ContextoNaoVerificavel
+            | ErroCaixa::ContextoDaPaginaDiferenteDoAnterior
+            | ErroCaixa::SemPaginas
+            | ErroCaixa::HashesDeCriteriosGeradosRepetidosNoControle
+            | ErroCaixa::HashesDeCriteriosRecebidosRepetidosNoControle
+            | ErroCaixa::HtmlDaCaixaInvalido
+            | ErroCaixa::AtributoDaCaixaIlegivel(_)
+            | ErroCaixa::IdentificacoesDaUnidadeRepetidasNoControle
+            | ErroCaixa::TiposDeVisualizacaoRepetidosNoControle
+            | ErroCaixa::UnidadeInesperada) => FalhaControleWeb::ControleNaoReconhecido(outro),
         })?;
     Ok(json!({
         "controle_web": "observado",
@@ -29,6 +61,10 @@ pub(crate) fn projetar(html: &str) -> Result<Value, FalhaControleWeb> {
 }
 
 /// Shim de conferência: o comportamento será guiado por testes do contrato.
+#[expect(
+    clippy::indexing_slicing,
+    reason = "serde_json::Value: leitura ausente dá Null e a escrita é em objeto json! local; projeção de saída a substituir em #733"
+)]
 fn projetar_com_unidade(
     html: &str,
     unidade_esperada: Option<&str>,
@@ -42,6 +78,10 @@ fn projetar_com_unidade(
 }
 
 /// Somente com pedido explícito: um GET da sessão já configurada, sem novo login.
+#[expect(
+    clippy::indexing_slicing,
+    reason = "serde_json::Value: leitura ausente dá Null e a escrita é em objeto json! local; projeção de saída a substituir em #733"
+)]
 pub(crate) fn mostrar(json_mode: bool, unidade_esperada: Option<&str>) -> anyhow::Result<()> {
     let arquivos = configuracao::arquivos_de_acesso()?;
     let indice = crate::indice_local::IndiceLocal::da_configuracao(&arquivos);

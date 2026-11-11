@@ -32,13 +32,18 @@ pub fn gravar(destino: &Path, valor: &Value) -> Result<usize, ErroArquivoCaixa> 
     )
     .map_err(|falha| match falha {
         FalhaDaGravacao::SemNomeDeArquivo => ErroArquivoCaixa::DestinoSemNomeDeArquivo,
-        FalhaDaGravacao::DiretorioAusente => ErroArquivoCaixa::DiretorioDeDestinoAusente,
+        FalhaDaGravacao::DiretorioAusente
+        | FalhaDaGravacao::NivelDoCaminhoNaoEhDiretorio
+        | FalhaDaGravacao::NivelDoCaminhoIlegivel(_) => ErroArquivoCaixa::DiretorioDeDestinoAusente,
         FalhaDaGravacao::DestinoJaExiste => ErroArquivoCaixa::DestinoJaExiste,
         // Diretório do usuário: a peça não confere o modo.
         FalhaDaGravacao::DiretorioGravavelPorOutros
         | FalhaDaGravacao::DestinoNaoEhArquivoRegular
         | FalhaDaGravacao::AcimaDoLimite
         | FalhaDaGravacao::CriacaoFalhou
+        | FalhaDaGravacao::CriacaoDoDiretorioFalhou(_)
+        | FalhaDaGravacao::CriacaoDoTemporarioFalhou(_)
+        | FalhaDaGravacao::NomesDeTemporarioEsgotados
         | FalhaDaGravacao::EscritaFalhou
         | FalhaDaGravacao::ConfirmacaoFalhou => ErroArquivoCaixa::EscritaDeArquivoFalhou,
     })?;

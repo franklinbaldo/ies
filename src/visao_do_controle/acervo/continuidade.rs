@@ -59,8 +59,9 @@ pub(super) fn pares(paginas: &[PaginaLida]) -> Vec<Par<'_>> {
     let mut saida = Vec::new();
     for (i, b) in paginas.iter().enumerate() {
         let Some((bi, bf)) = b.faixa else { continue };
-        let Some(a) = paginas[..i]
+        let Some(a) = paginas
             .iter()
+            .take(i)
             .rev()
             .find(|a| a.faixa.is_some() && a.lista == b.lista && a.card == b.card)
         else {

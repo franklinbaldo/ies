@@ -2,6 +2,7 @@
 //! Não executa o JavaScript do SEI nem monta URL assinada.
 //! Issue #245: o POST de escolher tipo na 4.1/5.0 abre cadastro;
 //! não é a escrita de criação de processo.
+use crate::acao_do_sei::AcaoDoSei;
 use crate::html_atributos::{atributo_presente, nos_com_id, valor_do_atributo};
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, thiserror::Error)]
@@ -51,7 +52,7 @@ fn link_do_cadastro(href: &str) -> Option<String> {
     let mut acao = 0;
     let mut id = 0;
     for (chave, valor) in query.split('&').filter_map(|par| par.split_once('=')) {
-        if chave == "acao" && valor == "procedimento_gerar" {
+        if chave == "acao" && AcaoDoSei::ler(valor) == Some(AcaoDoSei::ProcedimentoGerar) {
             acao += 1;
         }
         if chave == "id_tipo_procedimento"

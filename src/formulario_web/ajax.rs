@@ -9,13 +9,14 @@ use super::{
     EfeitoAvaliado, ErroSubmissaoFormulario, ResultadoDoEnvio, SubmissaoDerivada, TelaServida,
     codificar_corpo,
 };
+use crate::acao_do_sei::{AcaoAjaxDoSei, AcaoDaSubmissao};
 use crate::instalacao::Instalacao;
 use crate::transporte::{FalhaTransporte, conferir_chave_de_consulta, conferir_valor_de_consulta};
 
 /// A consulta declarada pela operação (sem catálogo central).
 #[derive(Debug)]
 pub(crate) struct ConsultaAjax {
-    pub(crate) acao_ajax: &'static str,
+    pub(crate) acao_ajax: AcaoAjaxDoSei,
     pub(crate) campos: &'static [&'static str],
     pub(crate) efeito: EfeitoAvaliado,
 }
@@ -65,7 +66,7 @@ pub(crate) fn derivar_consulta_ajax(
         if !consulta.campos.contains(nome) {
             return Err(ErroSubmissaoFormulario::CampoForaDaListaDaOperacao { campo });
         }
-        if campos[..i].iter().any(|(anterior, _)| anterior == nome) {
+        if campos.iter().take(i).any(|(anterior, _)| anterior == nome) {
             return Err(ErroSubmissaoFormulario::CampoInformadoMaisDeUmaVez { campo });
         }
     }
@@ -74,7 +75,7 @@ pub(crate) fn derivar_consulta_ajax(
         url: absoluta.clone(),
         host: alvo.host.to_owned(),
         caminho: alvo.caminho.to_owned(),
-        acao: consulta.acao_ajax,
+        acao: AcaoDaSubmissao::Ajax(consulta.acao_ajax),
         referer: tela.url.to_owned(),
         nomes: campos.iter().map(|(n, _)| (*n).to_owned()).collect(),
         corpo: corpo.into_bytes(),
@@ -85,7 +86,10 @@ pub(crate) fn derivar_consulta_ajax(
 
 /// Uma `acao_ajax` igual à da consulta, um `infra_hash` de 64 hex, nenhuma
 /// `acao`; chaves e valores canônicos.
-fn conferir_consulta_ajax(consulta: &str, acao_ajax: &str) -> Result<(), ErroSubmissaoFormulario> {
+fn conferir_consulta_ajax(
+    consulta: &str,
+    acao_ajax: AcaoAjaxDoSei,
+) -> Result<(), ErroSubmissaoFormulario> {
     let (mut acoes, mut hashes) = (0, 0);
     for item in consulta.split('&').filter(|item| !item.is_empty()) {
         let (nome, valor) = item
@@ -96,7 +100,7 @@ fn conferir_consulta_ajax(consulta: &str, acao_ajax: &str) -> Result<(), ErroSub
         conferir_chave_de_consulta(nome)?;
         conferir_valor_de_consulta(valor)?;
         match nome {
-            "acao_ajax" if valor == acao_ajax => acoes += 1,
+            "acao_ajax" if AcaoAjaxDoSei::ler(valor) == Some(acao_ajax) => acoes += 1,
             "acao_ajax" | "acao" => {
                 return Err(ErroSubmissaoFormulario::AcaoDoFormularioDiferenteDaOperacao);
             }

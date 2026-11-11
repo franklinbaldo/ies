@@ -24,22 +24,24 @@ pub(crate) fn data_da_cli(data: &str) -> Result<String, DataForaDoCalendario> {
     }
 }
 
+/// `(ano, mes, dia)` de uma data DD/MM/AAAA só com dígitos ASCII; a tupla
+/// ordena como o calendário. Não confere o calendário: ver `data_valida`.
+pub(crate) fn ano_mes_dia(data: &str) -> Option<(u32, u32, u32)> {
+    let (dia, resto) = data.split_once('/')?;
+    let (mes, ano) = resto.split_once('/')?;
+    let numero = |texto: &str, digitos: usize| {
+        (texto.len() == digitos && texto.bytes().all(|b| b.is_ascii_digit()))
+            .then(|| texto.parse::<u32>().ok())
+            .flatten()
+    };
+    Some((numero(ano, 4)?, numero(mes, 2)?, numero(dia, 2)?))
+}
+
 /// Datas DD/MM/AAAA, sem normalização silenciosa e sem dependências novas.
 pub(crate) fn data_valida(data: &str) -> bool {
-    let b = data.as_bytes();
-    if b.len() != 10
-        || b[2] != b'/'
-        || b[5] != b'/'
-        || !b
-            .iter()
-            .enumerate()
-            .all(|(i, c)| i == 2 || i == 5 || c.is_ascii_digit())
-    {
+    let Some((ano, mes, dia)) = ano_mes_dia(data) else {
         return false;
-    }
-    let dia: u32 = data[0..2].parse().unwrap_or(0);
-    let mes: u32 = data[3..5].parse().unwrap_or(0);
-    let ano: u32 = data[6..10].parse().unwrap_or(0);
+    };
     let bissexto = ano.is_multiple_of(4) && (!ano.is_multiple_of(100) || ano.is_multiple_of(400));
     let limite = match mes {
         1 | 3 | 5 | 7 | 8 | 10 | 12 => 31,

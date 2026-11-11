@@ -1,11 +1,13 @@
 //! GET HTTPS da caixa; cookies só seguem para a origem explicitamente autorizada.
 //! Sem login, redirects ou tentativa de outro backend; os POSTs são os de
 //! `envio_post`. Todo pedido passa pelo `cliente_https` único (com proxy).
+use crate::acao_do_sei::AcaoDoSei;
 use crate::instalacao::Instalacao;
 use std::fs;
 use std::io::Read;
 use std::path::Path;
 
+pub(crate) use falha::FatoDaResposta;
 pub use falha::{FalhaTransporte, StatusHttpRecusado};
 
 #[path = "transporte/falha.rs"]
@@ -44,7 +46,9 @@ fn validar_url(url: &str) -> Result<(&str, &str), FalhaTransporte> {
         conferir_chave_de_consulta(nome)?;
         conferir_valor_de_consulta(valor)?;
         match nome {
-            "acao" if valor == "procedimento_controlar" => actions += 1,
+            "acao" if AcaoDoSei::ler(valor) == Some(AcaoDoSei::ProcedimentoControlar) => {
+                actions += 1;
+            }
             // 192: o Controle a que a troca de unidade redireciona (#205).
             "infra_hash"
                 if matches!(valor.len(), 64 | 192)
@@ -158,7 +162,7 @@ pub fn verificar_sessao_local_de_arquivos(
 pub(crate) fn ler_limitado<R: Read>(leitor: R, limite: usize) -> Result<Vec<u8>, FalhaTransporte> {
     let mut bytes = Vec::new();
     leitor
-        .take(limite as u64 + 1)
+        .take(u64::try_from(limite).map_or(u64::MAX, |limite| limite.saturating_add(1)))
         .read_to_end(&mut bytes)
         .map_err(|erro| resposta_http::falha_de_leitura(&erro))?;
     if bytes.len() > limite {

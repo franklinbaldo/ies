@@ -302,8 +302,8 @@ pub(crate) fn decodificar_formulario(texto: &str) -> Option<String> {
     let bytes = texto.as_bytes();
     let mut saida = Vec::with_capacity(bytes.len());
     let mut posicao = 0;
-    while posicao < bytes.len() {
-        match bytes[posicao] {
+    while let Some(&byte) = bytes.get(posicao) {
+        match byte {
             b'+' => saida.push(b' '),
             b'%' => {
                 let alto = (char::from(*bytes.get(posicao + 1)?)).to_digit(16)?;

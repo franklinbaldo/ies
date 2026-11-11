@@ -2,6 +2,7 @@
 //! O GET de gerenciamento não autoriza POST sem handler, hidden e ação assinada.
 use super::{Decisao, ErroMarcar, FalhaDaMarcacao, Operacao, Rotulo, decidir, recusa};
 use crate::Cli;
+use crate::acao_do_sei::AcaoDoSei;
 use crate::formulario_web::{
     ConferenciaDaUnidade, EfeitoAvaliado, EnvioDoFormulario, EstadoDoProcesso,
     OperacaoDeFormulario, Redirecionamento302, RespostaDoEnvio, ResultadoDoEnvio, TelaServida,
@@ -20,7 +21,7 @@ use crate::visao_do_controle::EnvioDoControle as _;
 use serde_json::json;
 
 const REMOVER: OperacaoDeFormulario = OperacaoDeFormulario {
-    acao: "andamento_marcador_remover",
+    acao: AcaoDoSei::AndamentoMarcadorRemover,
     formulario: "frmGerenciarMarcador",
     envio: EnvioDoFormulario::SubmitPorScript,
     campos_ocultos_exigidos: &[
@@ -76,8 +77,8 @@ fn aceite_da_remocao(redir: &Redirecionamento302, id: &str) -> bool {
             return false;
         }
     }
-    acao == Some("andamento_marcador_gerenciar")
-        && origem == Some("andamento_marcador_remover")
+    acao.and_then(AcaoDoSei::ler) == Some(AcaoDoSei::AndamentoMarcadorGerenciar)
+        && origem.and_then(AcaoDoSei::ler) == Some(AcaoDoSei::AndamentoMarcadorRemover)
         && procedimento == Some(id)
 }
 
@@ -273,7 +274,10 @@ pub(crate) fn confirmar_retirada<V: EnvioDoProcesso>(
                 Marcadores::Lidos(lidos) if lidos.itens.len() == lidos.total_declarado => {
                     Some(!lidos.itens.iter().any(|m| m.id == rotulo.id))
                 }
-                _ => None,
+                Marcadores::Lidos(_)
+                | Marcadores::Omitidos
+                | Marcadores::NaoPublicadosNaBarra
+                | Marcadores::TabelaNaoPublicada => None,
             }
         }
         _ => None,

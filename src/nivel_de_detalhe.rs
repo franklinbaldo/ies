@@ -23,9 +23,7 @@ pub(crate) use salvar::{
     SALVAR_NIVEL_DE_DETALHE, SinalDoSalvar, campos_do_envio, conferir_controles_do_formulario,
     sinal_do_salvar,
 };
-pub(crate) use tela::{
-    ACAO_DO_NIVEL_DE_DETALHE, ErroNivelDeDetalhe, ler_nivel_de_detalhe, texto_colapsado,
-};
+pub(crate) use tela::{ErroNivelDeDetalhe, ler_nivel_de_detalhe, texto_colapsado};
 
 /// Como a coluna aparece no cabeçalho da tabela D.
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
