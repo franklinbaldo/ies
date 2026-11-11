@@ -134,16 +134,18 @@ impl ArquivoParcial {
             FalhaDaGravacao::DiretorioGravavelPorOutros => ErroAnexo::EscritaFalhou,
             FalhaDaGravacao::SemNomeDeArquivo
             | FalhaDaGravacao::DiretorioAusente
+            | FalhaDaGravacao::DiretorioNaoConsultado(_)
             | FalhaDaGravacao::DestinoNaoEhArquivoRegular
             | FalhaDaGravacao::AcimaDoLimite
             | FalhaDaGravacao::CriacaoFalhou
             | FalhaDaGravacao::EscritaFalhou
+            | FalhaDaGravacao::ErroDeIoNaEscrita(_)
             | FalhaDaGravacao::NivelDoCaminhoNaoEhDiretorio
             | FalhaDaGravacao::NivelDoCaminhoIlegivel(_)
             | FalhaDaGravacao::CriacaoDoDiretorioFalhou(_)
             | FalhaDaGravacao::CriacaoDoTemporarioFalhou(_)
             | FalhaDaGravacao::NomesDeTemporarioEsgotados
-            | FalhaDaGravacao::ConfirmacaoFalhou => ErroAnexo::EscritaFalhou,
+            | FalhaDaGravacao::ConfirmacaoFalhou(_) => ErroAnexo::EscritaFalhou,
         })
     }
 }
@@ -214,16 +216,18 @@ fn erro_ao_escrever(falha: FalhaDaGravacao) -> ErroAnexo {
         FalhaDaGravacao::DiretorioGravavelPorOutros => ErroAnexo::EscritaFalhou,
         FalhaDaGravacao::SemNomeDeArquivo
         | FalhaDaGravacao::DiretorioAusente
+        | FalhaDaGravacao::DiretorioNaoConsultado(_)
         | FalhaDaGravacao::DestinoJaExiste
         | FalhaDaGravacao::DestinoNaoEhArquivoRegular
         | FalhaDaGravacao::CriacaoFalhou
         | FalhaDaGravacao::EscritaFalhou
+        | FalhaDaGravacao::ErroDeIoNaEscrita(_)
         | FalhaDaGravacao::NivelDoCaminhoNaoEhDiretorio
         | FalhaDaGravacao::NivelDoCaminhoIlegivel(_)
         | FalhaDaGravacao::CriacaoDoDiretorioFalhou(_)
         | FalhaDaGravacao::CriacaoDoTemporarioFalhou(_)
         | FalhaDaGravacao::NomesDeTemporarioEsgotados
-        | FalhaDaGravacao::ConfirmacaoFalhou => ErroAnexo::EscritaFalhou,
+        | FalhaDaGravacao::ConfirmacaoFalhou(_) => ErroAnexo::EscritaFalhou,
     }
 }
 
@@ -460,6 +464,7 @@ fn abrir_parcial(
     let parcial = Parcial::abrir(&dir.join(&nome), politica).map_err(|falha| match falha {
         FalhaDaGravacao::SemNomeDeArquivo
         | FalhaDaGravacao::DiretorioAusente
+        | FalhaDaGravacao::DiretorioNaoConsultado(_)
         | FalhaDaGravacao::NivelDoCaminhoNaoEhDiretorio
         | FalhaDaGravacao::NivelDoCaminhoIlegivel(_) => ErroAnexo::DiretorioAusente,
         FalhaDaGravacao::DestinoJaExiste => ErroAnexo::ArquivoJaExiste,
@@ -473,7 +478,8 @@ fn abrir_parcial(
         | FalhaDaGravacao::CriacaoDoTemporarioFalhou(_)
         | FalhaDaGravacao::NomesDeTemporarioEsgotados
         | FalhaDaGravacao::EscritaFalhou
-        | FalhaDaGravacao::ConfirmacaoFalhou => ErroAnexo::EscritaFalhou,
+        | FalhaDaGravacao::ErroDeIoNaEscrita(_)
+        | FalhaDaGravacao::ConfirmacaoFalhou(_) => ErroAnexo::EscritaFalhou,
     })?;
     Ok(ArquivoParcial { parcial, nome })
 }

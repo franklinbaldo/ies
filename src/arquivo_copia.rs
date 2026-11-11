@@ -10,7 +10,13 @@ const LIMITE_COPIA: u64 = 8_000_000;
 pub(crate) fn ler_regular(alvo: &Path, ausente: ErroCopia) -> Result<Vec<u8>, ErroCopia> {
     // A observação do caminho só determina o erro legível. A decisão
     // de segurança deve usar o mesmo descritor que vai fornecer os bytes.
-    let observado = fs::symlink_metadata(alvo).map_err(|_| ausente)?;
+    let observado = fs::symlink_metadata(alvo).map_err(|erro| {
+        if erro.kind() == std::io::ErrorKind::NotFound {
+            ausente
+        } else {
+            ErroCopia::ConsultaDaFotoFalhou(erro.kind())
+        }
+    })?;
     if observado.file_type().is_symlink() {
         return Err(ErroCopia::LinkSimbolico);
     }
@@ -33,10 +39,12 @@ pub(crate) fn ler_regular(alvo: &Path, ausente: ErroCopia) -> Result<Vec<u8>, Er
         } else if erro.kind() == std::io::ErrorKind::NotFound {
             ausente
         } else {
-            ErroCopia::LeituraFalhou
+            ErroCopia::LeituraDoArquivoFalhou(erro.kind())
         }
     })?;
-    let dados = arquivo.metadata().map_err(|_| ErroCopia::LeituraFalhou)?;
+    let dados = arquivo
+        .metadata()
+        .map_err(|erro| ErroCopia::LeituraDoArquivoFalhou(erro.kind()))?;
     if !dados.is_file() || dados.len() > LIMITE_COPIA {
         return Err(ErroCopia::DestinoInseguro);
     }
@@ -52,7 +60,7 @@ pub(crate) fn ler_regular(alvo: &Path, ausente: ErroCopia) -> Result<Vec<u8>, Er
     arquivo
         .take(LIMITE_COPIA + 1)
         .read_to_end(&mut bytes)
-        .map_err(|_| ErroCopia::LeituraFalhou)?;
+        .map_err(|erro| ErroCopia::LeituraDoArquivoFalhou(erro.kind()))?;
     if bytes.len() > 8_000_000 {
         return Err(ErroCopia::DestinoInseguro);
     }

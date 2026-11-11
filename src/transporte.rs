@@ -81,7 +81,7 @@ pub(crate) fn arquivo_privado(path: &Path, limite: u64) -> Result<String, FalhaT
     // A checagem do caminho fornece erros específicos; a decisão de
     // segurança usa o descritor aberto, não metadados sujeitos a TOCTOU.
     let observado = fs::symlink_metadata(path)
-        .map_err(|_| FalhaTransporte::ArquivoPrivadoAusenteOuInacessivel)?;
+        .map_err(|erro| FalhaTransporte::ArquivoPrivadoAusenteOuInacessivel(erro.kind()))?;
     if observado.file_type().is_symlink() {
         return Err(FalhaTransporte::ArquivoPrivadoLinkSimbolico);
     }
@@ -102,12 +102,12 @@ pub(crate) fn arquivo_privado(path: &Path, limite: u64) -> Result<String, FalhaT
         if cfg!(target_os = "linux") && erro.raw_os_error() == Some(40) {
             FalhaTransporte::ArquivoPrivadoLinkSimbolico
         } else {
-            FalhaTransporte::ArquivoPrivadoNaoPodeSerLido
+            FalhaTransporte::ArquivoPrivadoNaoPodeSerLido(erro.kind())
         }
     })?;
     let metadata = arquivo
         .metadata()
-        .map_err(|_| FalhaTransporte::ArquivoPrivadoNaoPodeSerLido)?;
+        .map_err(|erro| FalhaTransporte::ArquivoPrivadoNaoPodeSerLido(erro.kind()))?;
     if !metadata.is_file() {
         return Err(FalhaTransporte::CaminhoDeArquivoNaoEhArquivo);
     }
@@ -128,14 +128,15 @@ pub(crate) fn arquivo_privado(path: &Path, limite: u64) -> Result<String, FalhaT
     arquivo
         .take(limite + 1)
         .read_to_end(&mut bytes)
-        .map_err(|_| FalhaTransporte::ArquivoPrivadoNaoPodeSerLido)?;
+        .map_err(|erro| FalhaTransporte::ArquivoPrivadoNaoPodeSerLido(erro.kind()))?;
     if u64::try_from(bytes.len()).is_ok_and(|tamanho| tamanho > limite) {
         return Err(FalhaTransporte::ArquivoPrivadoAcimaDoLimite);
     }
     if bytes.is_empty() {
         return Err(FalhaTransporte::ArquivoPrivadoVazio);
     }
-    String::from_utf8(bytes).map_err(|_| FalhaTransporte::ArquivoPrivadoNaoPodeSerLido)
+    String::from_utf8(bytes)
+        .map_err(|erro| FalhaTransporte::ArquivoPrivadoNaoUtf8(erro.utf8_error()))
 }
 
 pub(crate) fn validar_cookie(cookie: &str) -> Result<(), FalhaTransporte> {
