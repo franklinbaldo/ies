@@ -87,7 +87,7 @@ fn pesquisa_do_nup_serve_a_tela_e_a_arvore_sem_criar_documentos() {
         "4".repeat(64)
     );
     assert!(
-        resposta_entrada.contains(&format!("Location: {}\\r\\n", &assinado[5..])),
+        resposta_entrada.contains(&format!("Location: {}\r\n", &assinado[5..])),
         "a entrada deve devolver a mesma identidade assinada: {resposta_entrada}"
     );
     let tela_assinada = requisitar(endereco, "GET", &assinado, "");
