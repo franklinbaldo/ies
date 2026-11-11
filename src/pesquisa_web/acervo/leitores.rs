@@ -226,8 +226,7 @@ fn envio(c: &Cassette<'_>, r: &Resposta<'_>, estado: &mut Estado) -> Vec<Registr
         }
     };
     if opcao == Opcao::Indeterminada {
-        let motivo =
-            Resultado::NaoAplicavel("opcao_pesquisar_em_nao_observada_na_resposta".to_owned());
+        let motivo = Resultado::NaoAplicavel("opcao_pesquisar_em_ausente_na_resposta".to_owned());
         return vec![c.registro(Leitor::Envio, r.passo, motivo)];
     }
     match interpretado.resposta {

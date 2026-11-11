@@ -103,7 +103,7 @@ fn sem_resultado_e_processo_unico_nao_tem_pagina_2() {
 }
 
 #[test]
-fn sem_as_linhas_literais_de_navegar_a_regra_nao_e_observada() {
+fn sem_as_linhas_literais_de_navegar_a_regra_e_recusada() {
     let (resposta, html) = lista(1, 10, "1.234");
     for trecho in [
         "document.getElementById('hdnInicio').value = inicio;",
@@ -112,7 +112,7 @@ fn sem_as_linhas_literais_de_navegar_a_regra_nao_e_observada() {
         let alterado = html.replace(trecho, "outra();");
         assert_eq!(
             planejar(&alterado, &resposta, 2),
-            Err(ErroPaginacaoDaPesquisa::RegraDeNavegacaoDaPesquisaNaoObservada),
+            Err(ErroPaginacaoDaPesquisa::RegraDeNavegacaoAusenteNoHtml),
             "{trecho}"
         );
     }

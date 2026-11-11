@@ -122,7 +122,7 @@ pub(crate) mod testes {
             rotulo: "Despacho 0011519".into(),
             tipo: "Despacho".into(),
             natureza: NaturezaDoDocumento {
-                icone: Some("documento_interno".into()),
+                icone: "documento_interno".into(),
                 cancelamento: Cancelamento::Ativo,
                 dica: None,
             },

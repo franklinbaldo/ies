@@ -15,44 +15,44 @@ pub(crate) fn faixa_json(faixa: Option<(usize, usize)>) -> Value {
     )
 }
 
-/// Os dados observados de uma lista da caixa.
+/// Os dados observados de uma lista da caixa. A categoria não está aqui: só
+/// as listas de `recebidos`/`gerados` a têm; a visão detalhada não tem.
 pub(crate) struct ListaObservada<'a, P: Serialize> {
     pub(crate) unidade: Option<&'a str>,
     pub(crate) origem: &'a str,
-    /// `None` (JSON `null`) na lista única da visão detalhada.
-    pub(crate) categoria: Option<&'a str>,
     pub(crate) total_declarado: Option<usize>,
     pub(crate) faixa_observada: Option<(usize, usize)>,
     pub(crate) processos: &'a [P],
 }
 
-/// Forma única de toda lista da caixa
-/// (contracts/cli/unidade-recebidos-gerados.md).
+/// Forma comum de toda lista da caixa (contracts/cli/unidade-recebidos-gerados.md).
 pub(crate) fn lista_json<P: Serialize>(lista: &ListaObservada<'_, P>) -> Value {
     json!({
         "unidade": lista.unidade,
         "origem": lista.origem,
-        "categoria": lista.categoria,
         "total_declarado": lista.total_declarado,
         "faixa_observada": faixa_json(lista.faixa_observada),
         "processos": lista.processos,
     })
 }
 
-/// A lista de uma categoria da visão resumida.
+/// A lista de uma categoria da visão resumida, com `categoria` dada pela leitura.
 pub(crate) fn lista_da_categoria(leitura: &Leitura, categoria: Categoria, origem: &str) -> Value {
     let (tabela, cobertura) = match categoria {
         Categoria::Recebidos => (&leitura.caixa.recebidos, &leitura.recebidos),
         Categoria::Gerados => (&leitura.caixa.gerados, &leitura.gerados),
     };
-    lista_json(&ListaObservada {
+    let mut lista = lista_json(&ListaObservada {
         unidade: leitura.unidade.as_deref(),
         origem,
-        categoria: Some(categoria.rotulo()),
         total_declarado: tabela.total_declarado,
         faixa_observada: cobertura.faixa_observada(),
         processos: &tabela.processos,
-    })
+    });
+    if let Some(objeto) = lista.as_object_mut() {
+        objeto.insert("categoria".to_owned(), json!(categoria.rotulo()));
+    }
+    lista
 }
 
 /// A caixa resumida: o array `[recebidos, gerados]`, nessa ordem. Só os

@@ -233,9 +233,8 @@ fn derivar_com(
     let regras = ler_regras_da_tela(form, dom.parser(), em)?;
     // O navegador conta `maxlength` em unidades UTF-16; termo maior não
     // seria digitável na tela servida e não sai em POST.
-    if let Some(maxlength) = regras.maxlength_do_termo
-        && usize::try_from(maxlength).is_ok_and(|maximo| protocolo.encode_utf16().count() > maximo)
-    {
+    let maxlength = regras.maxlength_do_termo;
+    if usize::try_from(maxlength).is_ok_and(|maximo| protocolo.encode_utf16().count() > maximo) {
         return Err(ErroPesquisaProtocolo::RegraDoFormulario(
             ErroRegraDoFormularioDePesquisa::TermoAcimaDoMaxlengthDaTela { maxlength },
         ));

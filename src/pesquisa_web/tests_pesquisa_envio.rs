@@ -21,7 +21,7 @@ fn formulario() -> String {
          <form id='frmPesquisaProtocolo' method='post' \
          action='controlador.php?acao=protocolo_pesquisar&amp;acao_origem=protocolo_pesquisar&amp;infra_sistema=1&amp;infra_unidade_atual=5&amp;infra_hash={HASH_FORM}'>\
          <input type='hidden' name='hdnInfraTipoPagina' value='1'>\
-         <input type='text' name='txtProtocoloPesquisa' value=''>\
+         <input type='text' name='txtProtocoloPesquisa' maxlength='50' value=''>\
          <button type='submit' name='sbmPesquisar' value='Pesquisar'>Pesquisar</button>\
          <input type='hidden' name='hdnInicio' value='0'></form></html>"
     )

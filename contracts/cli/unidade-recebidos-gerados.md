@@ -32,7 +32,8 @@ Toda saída JSON de caixa publica listas com a mesma forma, a mesma que
                 "visualizado": true, "sigiloso": false}]}
 ```
 
-- `categoria`: `recebidos` ou `gerados`; na visão detalhada, `null`.
+- `categoria`: `recebidos` ou `gerados` nas listas da visão resumida; a
+  visão detalhada não tem o campo na lista.
   A visão detalhada (`hdnTipoVisualizacao=D`) é um **modo de exibição**
   da sessão, não uma categoria do SEI: sua tabela única mistura as duas
   listas sem indicar a categoria de cada linha, e o IES não a infere.
@@ -42,14 +43,14 @@ Toda saída JSON de caixa publica listas com a mesma forma, a mesma que
   não eco de `--unidade`); `origem`: `web`, `web_com_paginas_privadas` ou,
   nos testes da caixa resumida, a instalação da cassette.
 - Cada processo: `id`, `numero` (opaco), `visualizado`, `sigiloso`. Na
-  visão detalhada os dois últimos são `null` quando a classe do link não
-  é reconhecida.
+  visão detalhada os dois últimos são sempre booleanos; um link sem classe
+  de estado reconhecida recusa a leitura (`EstadoDoLinkDoProcessoAusente`).
 
 ## Comandos
 
 | Comando | Saída | Requisições |
 | --- | --- | --- |
-| `ies unidade listar-processos [--pagina N]` | **array** `[lista D]`, `categoria: null` ([visão detalhada](unidade-listar-processos-visao-detalhada.md)) | 1 GET + 0 a 2 POST |
+| `ies unidade listar-processos [--pagina N]` | **array** `[lista D]`, sem `categoria` na lista ([visão detalhada](unidade-listar-processos-visao-detalhada.md)) | 1 GET + 0 a 2 POST |
 | `ies unidade recebidos` | **uma** lista, `categoria: "recebidos"` | 1 GET (sessão na D: + 1 POST R) |
 | `ies unidade gerados` | **uma** lista, `categoria: "gerados"` | 1 GET (sessão na D: + 1 POST R) |
 | `ies unidade recebidos\|gerados --pagina N` | uma lista, faixa da página N | 1 GET + 0 ou 1 POST (sessão na D: + 1 POST R) |

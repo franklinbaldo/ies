@@ -30,15 +30,15 @@ fn tela_servida_identifica_usuarios_e_valores_do_select() {
 fn login_exato_nao_se_confunde_com_prefixo_ou_nome() {
     let tela = ler_tela(HTML, ID).unwrap();
     assert_eq!(
-        planejar(&tela, Some("aluno2"), Some("aluno20")),
+        planejar(&tela, Some("aluno2"), "aluno20"),
         Ok("100000035".into())
     );
     assert_eq!(
-        planejar(&tela, Some("aluno"), Some("aluno20")),
+        planejar(&tela, Some("aluno"), "aluno20"),
         Err(ErroAtribuir::UsuarioNaoAtribuivel)
     );
     assert_eq!(
-        planejar(&tela, Some("Rodrigo de Freitas Nogueira"), Some("aluno2")),
+        planejar(&tela, Some("Rodrigo de Freitas Nogueira"), "aluno2"),
         Err(ErroAtribuir::UsuarioNaoAtribuivel)
     );
 }
@@ -47,23 +47,20 @@ fn login_exato_nao_se_confunde_com_prefixo_ou_nome() {
 #[test]
 fn remover_escolhe_item_nulo_sem_escrita_desnecessaria() {
     let tela = ler_tela(HTML, ID).unwrap();
-    assert_eq!(planejar(&tela, None, Some("aluno2")), Ok("null".into()));
+    assert_eq!(planejar(&tela, None, "aluno2"), Ok("null".into()));
     assert_eq!(
-        planejar(&tela, None, Some("")),
+        planejar(&tela, None, ""),
         Err(ErroAtribuir::AtribuicaoJaAplicada)
     );
 }
 
-// Não converter falta de observação em ausência de atribuição.
+// A situação é obrigatória: sem ela não há planejamento. A recusa de
+// situação não observada fica em `fluxo` (`UnidadeNaoPublicadaNaArvore` etc.).
 #[test]
-fn estado_nao_observado_falha_fechado() {
+fn situacao_ja_aplicada_nao_escreve() {
     let tela = ler_tela(HTML, ID).unwrap();
     assert_eq!(
-        planejar(&tela, Some("aluno2"), None),
-        Err(ErroAtribuir::SituacaoNaoObservada)
-    );
-    assert_eq!(
-        planejar(&tela, Some("aluno2"), Some("aluno2")),
+        planejar(&tela, Some("aluno2"), "aluno2"),
         Err(ErroAtribuir::AtribuicaoJaAplicada)
     );
 }
@@ -88,7 +85,7 @@ fn opcoes_repetidas_geram_ambiguidade_sem_escolher_a_primeira() {
     let html = HTML.replace("<option value=\"100000035\">aluno2 - aluno2</option>", "<option value=\"100000035\">aluno2 - aluno2</option><option value=\"100000077\">aluno2 - Outro Nome</option>");
     let tela = ler_tela(&html, ID).unwrap();
     assert_eq!(
-        planejar(&tela, Some("aluno2"), Some("aluno20")),
+        planejar(&tela, Some("aluno2"), "aluno20"),
         Err(ErroAtribuir::UsuarioAmbiguo)
     );
 }
@@ -138,7 +135,7 @@ fn mesmo_id_publicado_para_logins_distintos_e_recusado() {
 /// O payload é derivado da tela sintética observada, sem requisição.
 fn preparar(
     login: Option<&str>,
-    atual: Option<&str>,
+    atual: &str,
 ) -> Result<(String, crate::formulario_web::SubmissaoDerivada), ErroAtribuir> {
     let instalacao =
         crate::instalacao::Instalacao::interpretar("https://sei.exemplo.gov.br/sei").unwrap();
@@ -161,7 +158,7 @@ fn preparar(
 // Caso de Todos tests/test_ciclo_atribuir_010.py @323eb01 (payload do navegador).
 #[test]
 fn post_de_atribuicao_usa_campos_na_ordem_da_tela_e_login_exato() {
-    let (valor, post) = preparar(Some("aluno2"), Some("aluno20")).unwrap();
+    let (valor, post) = preparar(Some("aluno2"), "aluno20").unwrap();
     assert_eq!(valor, "100000035");
     assert_eq!(
         post.nomes_dos_campos(),
@@ -188,7 +185,7 @@ fn post_de_atribuicao_usa_campos_na_ordem_da_tela_e_login_exato() {
 
 #[test]
 fn post_de_remocao_usa_opcao_null_e_mesma_forma() {
-    let (valor, post) = preparar(None, Some("aluno2")).unwrap();
+    let (valor, post) = preparar(None, "aluno2").unwrap();
     assert_eq!(valor, "null");
     assert_eq!(
         post.corpo(),
@@ -220,7 +217,7 @@ fn derivacao_recusa_formulario_com_encoding_alheio_sem_enviar() {
             ID,
             "UNIDADE TESTE",
             Some("aluno2"),
-            Some("aluno20"),
+            "aluno20",
         ),
         Err(ErroAtribuir::Formulario(
             crate::formulario_web::ErroSubmissaoFormulario::EnctypeDoFormularioNaoUrlencoded

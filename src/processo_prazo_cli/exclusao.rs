@@ -31,10 +31,28 @@ struct ExclusaoPreparada {
     unidade: String,
 }
 
+/// Por que o link da lista de prazos do Controle não foi aceito.
+#[derive(Debug, thiserror::Error)]
+#[error("{self:?}")]
+pub(crate) enum ErroLinkDaLista {
+    /// O HTML do Controle não pôde ser interpretado.
+    ControleIlegivel,
+    /// A origem da sessão não é uma instalação reconhecida.
+    OrigemNaoInterpretada,
+    /// Nenhum link do Controle aponta para `controle_prazo_listar`.
+    LinkDaListaAusente,
+    /// Mais de um link do Controle aponta para a lista de prazos.
+    LinkDaListaRepetido,
+    /// O link da lista está fora da forma segura (caminho, host ou hash).
+    LinkDaListaForaDaForma,
+}
+
 /// Lê o href realmente publicado na pagina do Controle, sem fabricar token.
-fn link_da_lista(html: &str, origem: &str) -> Option<String> {
-    let dom = tl::parse(html, tl::ParserOptions::default()).ok()?;
-    let instalacao = Instalacao::interpretar(origem)?;
+fn link_da_lista(html: &str, origem: &str) -> Result<String, ErroLinkDaLista> {
+    let dom = tl::parse(html, tl::ParserOptions::default())
+        .map_err(|_| ErroLinkDaLista::ControleIlegivel)?;
+    let instalacao =
+        Instalacao::interpretar(origem).ok_or(ErroLinkDaLista::OrigemNaoInterpretada)?;
     let mut encontrados = Vec::new();
     for ancora in dom
         .query_selector("a")
@@ -43,8 +61,7 @@ fn link_da_lista(html: &str, origem: &str) -> Option<String> {
         .filter_map(|n| n.get(dom.parser()).and_then(tl::Node::as_tag))
     {
         let Some(bruto) = crate::html_atributos::valor_do_atributo(ancora, "href")
-            .ok()
-            .flatten()
+            .map_err(|_| ErroLinkDaLista::ControleIlegivel)?
         else {
             continue;
         };
@@ -58,27 +75,33 @@ fn link_da_lista(html: &str, origem: &str) -> Option<String> {
             continue;
         }
         if href.starts_with('/') || href.contains("://") || href.contains("..") {
-            return None;
+            return Err(ErroLinkDaLista::LinkDaListaForaDaForma);
         }
         let url = format!("{origem}/{href}");
-        let alvo = UrlHttps::interpretar(&url)?;
+        let alvo = UrlHttps::interpretar(&url).ok_or(ErroLinkDaLista::LinkDaListaForaDaForma)?;
         if !instalacao.autoriza_controlador(alvo.host, alvo.caminho) {
-            return None;
+            return Err(ErroLinkDaLista::LinkDaListaForaDaForma);
         }
-        let consulta = alvo.consulta?;
+        let consulta = alvo
+            .consulta
+            .ok_or(ErroLinkDaLista::LinkDaListaForaDaForma)?;
         let hashes: Vec<_> = consulta
             .split('&')
             .filter_map(|parte| parte.strip_prefix("infra_hash="))
             .collect();
         let [hash] = hashes.as_slice() else {
-            return None;
+            return Err(ErroLinkDaLista::LinkDaListaForaDaForma);
         };
         if hash.len() != 64 || !hash.bytes().all(|byte| byte.is_ascii_hexdigit()) {
-            return None;
+            return Err(ErroLinkDaLista::LinkDaListaForaDaForma);
         }
         encontrados.push(url);
     }
-    (encontrados.len() == 1).then(|| encontrados.remove(0))
+    match encontrados.as_slice() {
+        [] => Err(ErroLinkDaLista::LinkDaListaAusente),
+        [link] => Ok(link.clone()),
+        [_, ..] => Err(ErroLinkDaLista::LinkDaListaRepetido),
+    }
 }
 
 /// A lista de prazos fora da forma observada.
@@ -145,26 +168,51 @@ fn id_na_lista(html: &str, nup: &str) -> Result<Option<String>, ErroListaDePrazo
 /// processo-prazo-excluir-unb, interacao 13; live de 10/11/2026):
 /// `controlador.php?acao=controle_prazo_excluir&acao_origem=…&infra_hash=…`.
 /// Exige uma unica URL distinta, terminada por `infra_hash` de 64 hex.
-fn action_de_exclusao(html: &str) -> Option<String> {
+fn action_de_exclusao(html: &str) -> Result<String, ErroAcaoDeExclusao> {
     let prefixo = "controlador.php?acao=controle_prazo_excluir";
     let mut encontradas: Vec<&str> = Vec::new();
     for (inicio, _) in html.match_indices(prefixo) {
         let (_, resto) = html.split_at(inicio);
-        let fim = resto.find(['\'', '"', ' ', '<', '>', '\n'])?;
+        let fim = resto
+            .find(['\'', '"', ' ', '<', '>', '\n'])
+            .ok_or(ErroAcaoDeExclusao::ForaDaForma)?;
         let (url, _) = resto.split_at(fim);
         if !encontradas.contains(&url) {
             encontradas.push(url);
         }
     }
-    let [url] = encontradas.as_slice() else {
-        return None;
+    let url = match encontradas.as_slice() {
+        [] => return Err(ErroAcaoDeExclusao::NaoPublicada),
+        [url] => *url,
+        [_, ..] => return Err(ErroAcaoDeExclusao::Repetida),
     };
-    let consulta = url.strip_prefix(prefixo)?;
+    let consulta = url
+        .strip_prefix(prefixo)
+        .ok_or(ErroAcaoDeExclusao::ForaDaForma)?;
     if !(consulta.is_empty() || consulta.starts_with('&')) {
-        return None;
+        return Err(ErroAcaoDeExclusao::ForaDaForma);
     }
-    let hash = url.rsplit_once("&infra_hash=")?.1;
-    (hash.len() == 64 && hash.bytes().all(|b| b.is_ascii_hexdigit())).then(|| (*url).to_owned())
+    let hash = url
+        .rsplit_once("&infra_hash=")
+        .ok_or(ErroAcaoDeExclusao::ForaDaForma)?
+        .1;
+    if hash.len() == 64 && hash.bytes().all(|b| b.is_ascii_hexdigit()) {
+        Ok(url.to_owned())
+    } else {
+        Err(ErroAcaoDeExclusao::ForaDaForma)
+    }
+}
+
+/// Por que a ação de exclusão publicada pela lista não pôde ser derivada.
+#[derive(Debug, PartialEq, Eq, thiserror::Error)]
+#[error("{self:?}")]
+pub(crate) enum ErroAcaoDeExclusao {
+    /// A lista não publica nenhuma ação de exclusão do controle de prazo.
+    NaoPublicada,
+    /// A lista publica mais de uma ação distinta de exclusão.
+    Repetida,
+    /// A ação publicada não tem a consulta ou o `infra_hash` da forma observada.
+    ForaDaForma,
 }
 
 fn escrever_e_verificar<V: EnvioDoProcesso>(
@@ -179,7 +227,7 @@ fn escrever_e_verificar<V: EnvioDoProcesso>(
     let codificacao =
         codificacao_da_tela(&dados.mime).ok_or(FalhaDoPrazo::ConfirmacaoSemFormularioSeguro)?;
     let url_declarada =
-        action_de_exclusao(&dados.html_lista).ok_or(FalhaDoPrazo::AcaoDeExclusaoNaoPublicada)?;
+        action_de_exclusao(&dados.html_lista).map_err(FalhaDoPrazo::AcaoDeExclusao)?;
     let servida = TelaServida {
         url: &dados.link_lista,
         html: &dados.html_lista,
@@ -230,7 +278,10 @@ fn escrever_e_verificar<V: EnvioDoProcesso>(
     // usar o link novo da barra, como a leitura de `ies processo prazo`.
     let (_, acoes) = abrir_para_escrever(sessao, pedido, indice, rede)
         .map_err(FalhaDoPrazo::ProcessoRelidoNaoAbriu)?;
-    let Ok(Some(link_novo)) = acoes.prazo else {
+    let Some(link_novo) = acoes
+        .prazo
+        .map_err(FalhaDoPrazo::LinkDePrazoRelidoIlegivel)?
+    else {
         return Err(FalhaDoPrazo::NaoConfirmado(None));
     };
     let (formulario, _) =
@@ -287,19 +338,23 @@ pub(super) fn executar(
     let mut rede = Contador::novo(&mut envio);
     let leitura = leitura(nup, cli.unidade.as_deref(), true);
     let (aberto, acoes) = abrir_para_escrever(sessao, &leitura, indice, &mut rede)?;
-    let Ok(Some(_)) = acoes.prazo else {
+    if acoes.prazo?.is_none() {
         return Err(FalhaDoPrazo::LeituraIndependenteNaoOferecida.into());
-    };
+    }
     let cookie = ler_cookie(sessao)?;
     let (controle, _) = obter_tela(&mut rede, &cookie, sessao.url_do_controle)?;
     let link_lista =
-        link_da_lista(&controle, sessao.origem).ok_or(FalhaDoPrazo::ListaDePrazosNaoPublicada)?;
+        link_da_lista(&controle, sessao.origem).map_err(FalhaDoPrazo::LinkDaListaDePrazos)?;
     let (html_lista, mime) = obter_tela(&mut rede, &cookie, &link_lista)?;
     let id_controle = match id_na_lista(&html_lista, nup.as_str()) {
         Ok(Some(id)) => id,
         Ok(None) => return Err(FalhaDoPrazo::ProcessoForaDaListaDePrazos.into()),
         Err(erro) => return Err(FalhaDoPrazo::ListaDePrazos(erro).into()),
     };
+    let unidade = aberto
+        .unidade
+        .clone()
+        .ok_or(FalhaDoPrazo::UnidadeDaSessaoNaoPublicada)?;
     let preparada = ExclusaoPreparada {
         link_lista,
         html_lista,
@@ -307,7 +362,7 @@ pub(super) fn executar(
         id_controle,
         id_procedimento: aberto.arvore.processo.id.clone(),
         nup: nup.as_str().to_owned(),
-        unidade: aberto.unidade.clone().unwrap_or_default(),
+        unidade,
     };
     if confirmar {
         escrever_e_verificar(sessao, (&leitura, indice), &preparada, &mut rede, &cookie)?;
@@ -318,7 +373,7 @@ pub(super) fn executar(
 
 #[cfg(test)]
 mod tests {
-    use super::action_de_exclusao;
+    use super::{ErroAcaoDeExclusao, action_de_exclusao};
 
     fn hash() -> String {
         "a".repeat(64)
@@ -332,7 +387,7 @@ mod tests {
         );
         // A lista repete a mesma URL (duas ocorrências idênticas no script).
         let html = format!("<script>var a='{url}';\nvar b=\"{url}\";</script>");
-        assert_eq!(action_de_exclusao(&html), Some(url));
+        assert_eq!(action_de_exclusao(&html), Ok(url));
     }
 
     #[test]
@@ -341,21 +396,27 @@ mod tests {
             "controlador.php?acao=controle_prazo_excluir&infra_hash={}",
             hash()
         );
-        assert_eq!(
-            action_de_exclusao(&format!("'{curta}'")),
-            Some(curta.clone())
-        );
+        assert_eq!(action_de_exclusao(&format!("'{curta}'")), Ok(curta.clone()));
         let outra = format!(
             "controlador.php?acao=controle_prazo_excluir&acao_origem=x&infra_hash={}",
             "b".repeat(64)
         );
-        assert_eq!(action_de_exclusao(&format!("'{curta}' '{outra}'")), None);
+        assert_eq!(
+            action_de_exclusao(&format!("'{curta}' '{outra}'")),
+            Err(ErroAcaoDeExclusao::Repetida)
+        );
         let sem_hash = "'controlador.php?acao=controle_prazo_excluir&acao_origem=x'";
-        assert_eq!(action_de_exclusao(sem_hash), None);
+        assert_eq!(
+            action_de_exclusao(sem_hash),
+            Err(ErroAcaoDeExclusao::ForaDaForma)
+        );
         let colada = format!(
             "'controlador.php?acao=controle_prazo_excluirX&infra_hash={}'",
             hash()
         );
-        assert_eq!(action_de_exclusao(&colada), None);
+        assert_eq!(
+            action_de_exclusao(&colada),
+            Err(ErroAcaoDeExclusao::ForaDaForma)
+        );
     }
 }

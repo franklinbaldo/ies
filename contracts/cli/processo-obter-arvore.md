@@ -268,6 +268,14 @@ Tela: `arvore_ausente_na_tela_do_processo`,
 `IdentidadeDoProcessoDiferenteDaPedida`,
 `IdDoProcessoNaArvoreDiferenteDoAberto`.
 
+Natureza do `DOCUMENTO` (a6 a a9): `IconeDoDocumentoForaDaFormaObservada`
+quando a7, a8 e a9 não são o mesmo `svg/<radical>.svg` observado;
+`IconeDeCancelamentoSemMotivoNaDica` quando o ícone é `documento_cancelado`
+sem a dica `Documento Cancelado: <motivo>`; e
+`DicaDeCancelamentoSemIconeDeCancelado` quando a dica traz o cancelamento
+com outro ícone. Ícone e cancelamento não têm estado "não observado": a
+árvore inteira é recusada.
+
 Anexados: `processo_anexado_fora_da_forma_observada`,
 `nup_do_no_do_processo_anexado_inconsistente`,
 `processo_anexado_com_pai_diferente_do_processo`,

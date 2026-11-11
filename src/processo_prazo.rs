@@ -21,7 +21,14 @@ pub(crate) enum ErroPrazo {
     DiasInvalidos,
     /// O valor de dias não cabe no tipo do pedido; guarda a conversão recusada.
     DiasNaoCabemEmU16(#[source] std::num::TryFromIntError),
-    TelaNaoObservada,
+    /// O `action` do formulário não é `controle_prazo_definir` em `controlador.php`.
+    FormularioDeOutroDestino,
+    /// O formulário não publica as opções `rdoPrazo`: não há estado a ler.
+    OpcoesDoPrazoAusentes,
+    /// A opção marcada ou o valor de dias não formam um prazo.
+    PrazoAtualIlegivel,
+    /// O formulário não traz `hdnIdProcedimentos`: o processo não é conferido.
+    IdDoProcessoAusenteNoFormulario,
     /// O tokenizador HTML recusou a tela do controle de prazo.
     TelaNaoInterpretada(#[source] tl::ParseError),
     /// O formulário de cadastro do prazo não foi localizado de forma única.
@@ -105,30 +112,28 @@ fn atributo(tag: &tl::HTMLTag<'_>, nome: &'static str) -> Result<Option<String>,
     crate::html_atributos::valor_do_atributo(tag, nome).map_err(ErroPrazo::Atributo)
 }
 
-fn presente(tag: &tl::HTMLTag<'_>, nome: &str) -> Result<bool, ErroPrazo> {
-    crate::html_atributos::atributo_presente(tag, nome).map_err(ErroPrazo::Atributo)
-}
-
+/// Lê a tela do prazo. Só o que protege a escrita é conferido: o `action`
+/// aponta para `controle_prazo_definir` deste processo e
+/// `hdnIdProcedimentos` é o dele. A forma dos controles fica com a
+/// derivação do formulário.
 pub(crate) fn ler_tela(html: &str, id_procedimento: &str) -> Result<TelaDoPrazo, ErroPrazo> {
-    if html.len() > crate::MAX_HTML_BYTES {
-        return Err(ErroPrazo::TelaNaoObservada);
-    }
     let dom =
         tl::parse(html, tl::ParserOptions::default()).map_err(ErroPrazo::TelaNaoInterpretada)?;
     let form = crate::formulario_web::localizar_formulario(&dom, "frmControlePrazoCadastro")
         .map_err(ErroPrazo::FormularioDoPrazoAusente)?;
-    if atributo(form, "method")?.as_deref() != Some("post")
-        || atributo(form, "enctype")?.is_some_and(|v| v != "application/x-www-form-urlencoded")
-    {
-        return Err(ErroPrazo::TelaNaoObservada);
-    }
-    let action = atributo(form, "action")?.ok_or(ErroPrazo::TelaNaoObservada)?;
-    let action =
-        crate::formulario_web::decodificar_atributo(&action).ok_or(ErroPrazo::TelaNaoObservada)?;
-    let (caminho, consulta) = action.split_once('?').ok_or(ErroPrazo::TelaNaoObservada)?;
-    if !caminho.ends_with("controlador.php") {
-        return Err(ErroPrazo::TelaNaoObservada);
-    }
+    conferir_destino(form, id_procedimento)?;
+    ler_controles_da_tela(form, &dom, id_procedimento)
+}
+
+/// O `action` do formulário é `controlador.php?acao=controle_prazo_definir`
+/// com o `id_procedimento` pedido; outro destino recusa antes de qualquer escrita.
+fn conferir_destino(form: &tl::HTMLTag<'_>, id_procedimento: &str) -> Result<(), ErroPrazo> {
+    let action = atributo(form, "action")?
+        .and_then(|bruto| crate::formulario_web::decodificar_atributo(&bruto))
+        .ok_or(ErroPrazo::FormularioDeOutroDestino)?;
+    let (caminho, consulta) = action
+        .split_once('?')
+        .ok_or(ErroPrazo::FormularioDeOutroDestino)?;
     let valores = |chave: &str| {
         consulta
             .split('&')
@@ -137,42 +142,27 @@ pub(crate) fn ler_tela(html: &str, id_procedimento: &str) -> Result<TelaDoPrazo,
             .map(|(_, valor)| valor)
             .collect::<Vec<_>>()
     };
-    if valores("acao") != [AcaoDoSei::ControlePrazoDefinir.como_na_url()] {
-        return Err(ErroPrazo::TelaNaoObservada);
+    if !caminho.ends_with("controlador.php")
+        || valores("acao") != [AcaoDoSei::ControlePrazoDefinir.como_na_url()]
+    {
+        return Err(ErroPrazo::FormularioDeOutroDestino);
     }
     match valores("id_procedimento").as_slice() {
-        [id] if *id == id_procedimento => {}
-        [_] => return Err(ErroPrazo::OutroProcesso),
-        _ => return Err(ErroPrazo::TelaNaoObservada),
+        [id] if *id == id_procedimento => Ok(()),
+        _ => Err(ErroPrazo::OutroProcesso),
     }
-
-    ler_controles_da_tela(form, &dom, id_procedimento)
 }
 
-/// As duas opções de rádio e os campos que a tela observada sempre publica.
-fn controles_completos(
-    radios: &std::collections::HashSet<String>,
-    vistos: &std::collections::HashSet<String>,
-) -> bool {
-    radios.contains("1")
-        && radios.contains("2")
-        && [
-            "hdnInfraTipoPagina",
-            "hdnIdControlePrazo",
-            "txtPrazo",
-            "txtDias",
-            "chkSinDiasUteis",
-        ]
-        .iter()
-        .all(|nome| vistos.contains(*nome))
-}
-
-/// Interpreta o valor observado do formulário sem inventar uma data para dias.
+/// O estado lido das opções publicadas; sem as opções, não há o que ler.
 fn estado_dos_controles(
+    opcoes_publicadas: bool,
     marcada: Option<&str>,
     data: String,
     dias: &str,
 ) -> Result<EstadoDoPrazo, ErroPrazo> {
+    if !opcoes_publicadas {
+        return Err(ErroPrazo::OpcoesDoPrazoAusentes);
+    }
     match marcada {
         Some("1") if data_valida(&data) => Ok(EstadoDoPrazo::Data(data)),
         Some("2") => dias
@@ -180,26 +170,24 @@ fn estado_dos_controles(
             .ok()
             .filter(|n| (1..=999).contains(n))
             .map(EstadoDoPrazo::Dias)
-            .ok_or(ErroPrazo::TelaNaoObservada),
+            .ok_or(ErroPrazo::PrazoAtualIlegivel),
         Some("3") => Ok(EstadoDoPrazo::Concluido),
         None => Ok(EstadoDoPrazo::SemPrazo),
-        _ => Err(ErroPrazo::TelaNaoObservada),
+        Some(_) => Err(ErroPrazo::PrazoAtualIlegivel),
     }
 }
 
-/// Confere os nomes e tipos publicados na tela antes de derivar qualquer escrita.
+/// Os valores atuais publicados no formulário e o id do processo.
 fn ler_controles_da_tela(
     form: &tl::HTMLTag<'_>,
     dom: &tl::VDom<'_>,
     id_procedimento: &str,
 ) -> Result<TelaDoPrazo, ErroPrazo> {
-    let mut vistos = std::collections::HashSet::new();
-    let mut radios = std::collections::HashSet::new();
+    let mut opcoes_publicadas = false;
     let mut marcada: Option<String> = None;
     let mut data = String::new();
     let mut dias = String::new();
-    let mut valor_dos_uteis = String::new();
-    let mut botoes = 0u8;
+    let mut valor_dos_uteis = "on".to_owned();
     let mut id_conferido = false;
     for tag in form
         .children()
@@ -207,78 +195,39 @@ fn ler_controles_da_tela(
         .iter()
         .filter_map(tl::Node::as_tag)
     {
-        let elemento = tag.name().as_utf8_str().to_ascii_lowercase();
-        if !matches!(elemento.as_str(), "input" | "button") {
-            continue;
-        }
         let Some(nome) = atributo(tag, "name")? else {
             continue;
         };
-        if presente(tag, "disabled")? {
-            return Err(ErroPrazo::TelaNaoObservada);
-        }
-        let tipo = atributo(tag, "type")?.unwrap_or_else(|| {
-            if elemento == "button" {
-                "submit"
-            } else {
-                "text"
-            }
-            .to_owned()
-        });
-        let tipo = tipo.to_ascii_lowercase();
         let valor = atributo(tag, "value")?;
-        if nome == "rdoPrazo" {
-            if elemento != "input" || tipo != "radio" {
-                return Err(ErroPrazo::TelaNaoObservada);
+        match nome.as_str() {
+            "rdoPrazo" => {
+                opcoes_publicadas = true;
+                if crate::html_atributos::atributo_presente(tag, "checked")
+                    .map_err(ErroPrazo::Atributo)?
+                {
+                    marcada = valor;
+                }
             }
-            let v = valor.ok_or(ErroPrazo::TelaNaoObservada)?;
-            if !matches!(v.as_str(), "1" | "2" | "3") || !radios.insert(v.clone()) {
-                return Err(ErroPrazo::TelaNaoObservada);
-            }
-            if presente(tag, "checked")? && marcada.replace(v).is_some() {
-                return Err(ErroPrazo::TelaNaoObservada);
-            }
-            continue;
-        }
-        if !vistos.insert(nome.clone()) {
-            return Err(ErroPrazo::TelaNaoObservada);
-        }
-        match (nome.as_str(), elemento.as_str(), tipo.as_str()) {
-            ("hdnInfraTipoPagina" | "hdnIdControlePrazo", "input", "hidden") => {}
-            ("hdnIdProcedimentos", "input", "hidden") => {
-                id_conferido = true;
+            "hdnIdProcedimentos" => {
                 if valor.as_deref() != Some(id_procedimento) {
                     return Err(ErroPrazo::OutroProcesso);
                 }
+                id_conferido = true;
             }
-            ("txtPrazo", "input", "text") => {
-                if presente(tag, "readonly")? {
-                    return Err(ErroPrazo::TelaNaoObservada);
+            "txtPrazo" => data = valor.unwrap_or_default(),
+            "txtDias" => dias = valor.unwrap_or_default(),
+            "chkSinDiasUteis" => {
+                if let Some(v) = valor {
+                    valor_dos_uteis = v;
                 }
-                data = valor.unwrap_or_default();
             }
-            ("txtDias", "input", "text") => {
-                if presente(tag, "readonly")? {
-                    return Err(ErroPrazo::TelaNaoObservada);
-                }
-                dias = valor.unwrap_or_default();
-            }
-            ("chkSinDiasUteis", "input", "checkbox") => {
-                if presente(tag, "readonly")? {
-                    return Err(ErroPrazo::TelaNaoObservada);
-                }
-                valor_dos_uteis = valor.unwrap_or_else(|| "on".to_owned());
-            }
-            ("sbmDefinirControlePrazo", "input" | "button", "submit") => {
-                botoes += 1;
-            }
-            _ => return Err(ErroPrazo::TelaNaoObservada),
+            _ => {}
         }
     }
-    if !id_conferido || botoes != 1 || !controles_completos(&radios, &vistos) {
-        return Err(ErroPrazo::TelaNaoObservada);
+    if !id_conferido {
+        return Err(ErroPrazo::IdDoProcessoAusenteNoFormulario);
     }
-    let estado = estado_dos_controles(marcada.as_deref(), data, &dias)?;
+    let estado = estado_dos_controles(opcoes_publicadas, marcada.as_deref(), data, &dias)?;
     Ok(TelaDoPrazo {
         estado,
         valor_dos_uteis,
@@ -454,16 +403,11 @@ mod tests {
     }
 
     #[test]
-    fn processo_estranho_e_controles_duplicados_falham_fechado() {
+    fn processo_estranho_falha_fechado() {
         assert_eq!(
             ler_tela(&tela("1", "30/10/2026"), "11"),
             Err(ErroPrazo::OutroProcesso)
         );
-        let duplicada = tela("", "").replace(
-            "<input type='text' name='txtDias'",
-            "<input type='hidden' name='txtDias' value='3'><input type='text' name='txtDias'",
-        );
-        assert_eq!(ler_tela(&duplicada, "10"), Err(ErroPrazo::TelaNaoObservada));
     }
 
     #[test]

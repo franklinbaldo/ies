@@ -30,17 +30,18 @@ O formulário e os controles efetivamente acionáveis devem estar disponíveis:
 A recusa é `tela_da_atribuicao_fora_da_forma`, sem novo subcódigo.
 
 Falta ou duplicação de login ou ID, tela fora da forma, ação de outro processo,
-situação não observada e atribuição já aplicada são recusas tipadas.
+situação da unidade não publicada na árvore e atribuição já aplicada são recusas tipadas.
 Quando a árvore já publica o mesmo login solicitado, ou atribuição vazia na
 remoção, a recusa `AtribuicaoJaAplicada` ocorre antes do GET do formulário:
 3 GET e 0 POST a frio, também na confirmação injetável. A recusa não presume
-situação ausente a partir de uma unidade não observada.
-Quando a situação não está observada na unidade da **tela autenticada**,
-a recusa conserva `SituacaoDaAtribuicaoNaoObservada` e publica
-`unidade` (tela), `aberto_em` (siglas da árvore, `null` se não lidas),
-`motivo` da leitura (`null` quando as unidades foram lidas) e
-`requisicoes` efetivamente tentadas até a recusa. A presença de PR-P
-na árvore não autoriza escolher PR-P se a tela publicou outra unidade.
+situação ausente a partir de uma unidade não publicada.
+Quando a situação não está publicada na unidade da **tela autenticada**, a
+recusa é um de três erros, cada um com o seu fato: `UnidadeNaoPublicadaNaArvore`
+(publica `unidade` da tela e `unidades_da_arvore`, siglas lidas),
+`ArvoreSobrestadaSemSituacaoDaUnidade` (árvore sobrestada) ou
+`SituacaoDaArvoreNaoLida` (publica `motivo` da leitura). Todos publicam
+`unidade` e `requisicoes` efetivamente tentadas até a recusa, sem `null`.
+A presença de PR-P na árvore não autoriza escolher PR-P se a tela publicou outra unidade.
 Este diagnóstico é só leitura, não relaxa a validação nem habilita escrita.
 Nenhum URL assinado, cookie ou senha é publicado. O subcódigo
 `CharsetDaTelaNaoSuportado` indica MIME sem codificação suportada.
@@ -76,8 +77,10 @@ permite confirmar o efeito depois da leitura. Um POST sem resposta é
 **sempre escrita não confirmada (saída 1)**, mesmo que a árvore passe a mostrar
 o usuário pedido ou a remoção: outro agente pode ter realizado a
 mudança no intervalo. A leitura nova ainda registra
-`atribuicao_relida` no erro (`None` = não observada, texto vazio =
-remoção observada), como **possível resíduo e não prova de autoria**.
+`atribuicao_relida` no erro: `Ok(login)` (texto vazio = remoção observada) ou
+`Err` com `ReleituraNaoLida` (releitura falhou), `ReleituraDeOutroProcesso`
+(a árvore relida é de outro processo) ou o diagnóstico de unidade acima. Isso é
+**possível resíduo e não prova de autoria**.
 O erro original do envio fica preservado no erro tipado, sem retry.
 **Não repita a confirmação de escrita não confirmada**, mesmo quando a
 releitura mostra o estado pedido. Consulte o processo para verificar o possível resíduo, não para
