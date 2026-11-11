@@ -82,7 +82,10 @@ fn ancestral_regular_preserva_causa_io_sem_alterar_bytes() {
             std::io::ErrorKind::NotADirectory
         ))
     );
-    assert_eq!(fs::read_to_string(ancestral).unwrap(), "sentinela-sintetica");
+    assert_eq!(
+        fs::read_to_string(ancestral).unwrap(),
+        "sentinela-sintetica"
+    );
 }
 
 #[test]
