@@ -148,7 +148,7 @@ pub(super) fn consulta(
     if inferior == 1 {
         campos.push(("selInfraPaginacaoInferior", indice.as_str()));
     }
-    derivar_submissao(&operacao, instalacao, &tela, "", &campos)
+    derivar_submissao(&operacao, instalacao, &tela, None, &campos)
         .map_err(FalhaDaLupa::SubmissaoNaoDerivada)
 }
 

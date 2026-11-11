@@ -200,7 +200,7 @@ fn preparar_submissao<V: EnvioDoProcesso>(
         &REMOVER,
         &instalacao,
         &tela,
-        unidade,
+        Some(unidade),
         &[("hdnInfraItemId", rotulo.id.as_str())],
         Some(&acao),
     )

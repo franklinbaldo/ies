@@ -293,7 +293,7 @@ pub(crate) fn preparar_submissao(
         &ATRIBUIR_PROCESSO,
         instalacao,
         servida,
-        unidade,
+        Some(unidade),
         &[(SELECAO, valor.as_str())],
     )
     .map_err(ErroAtribuir::Formulario)?;

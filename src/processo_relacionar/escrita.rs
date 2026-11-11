@@ -98,7 +98,7 @@ pub(super) fn remover<V: EnvioDoProcesso>(
         &REMOVER,
         instalacao,
         servida,
-        "",
+        None,
         &[("hdnInfraItemId", id_alvo)],
         Some(&url_exclusao),
     )
@@ -165,7 +165,7 @@ pub(super) fn adicionar<V: EnvioDoProcesso>(
         &ADICIONAR,
         instalacao,
         servida,
-        "",
+        None,
         &[
             ("txtProtocolo", &destino.nup),
             (

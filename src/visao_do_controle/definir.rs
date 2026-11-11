@@ -122,7 +122,7 @@ fn derivar_salvar<V: EnvioDoControle>(
         &SALVAR_NIVEL_DE_DETALHE,
         sessao.instalacao,
         &tela,
-        sessao.unidade,
+        Some(sessao.unidade),
         &campos_do_envio(plano),
     )
     .map_err(super::ErroVisaoDoControle::Submissao)

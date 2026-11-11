@@ -4,7 +4,7 @@ use crate::html_atributos::nos_com_id;
 
 pub(super) fn conferir_unidade(
     dom: &tl::VDom<'_>,
-    solicitada: &str,
+    solicitada: Option<&str>,
 ) -> Result<(), ErroSubmissaoFormulario> {
     // Tag ilegível sai com o erro do tokenizador; depois disso `unidade_html`
     // só falha por identificações repetidas fora do par móvel/desktop.
@@ -12,6 +12,9 @@ pub(super) fn conferir_unidade(
     let publicada = crate::controle_contexto::unidade_html(dom)
         .map_err(ErroSubmissaoFormulario::IdentificacoesDaUnidadeRepetidasNaTela)?
         .ok_or(ErroSubmissaoFormulario::IdentificacaoDaUnidadeAusenteNaTela)?;
+    let Some(solicitada) = solicitada else {
+        return Err(ErroSubmissaoFormulario::UnidadeNaoInformada);
+    };
     let solicitada = solicitada.split_whitespace().collect::<Vec<_>>().join(" ");
     if publicada != solicitada {
         return Err(ErroSubmissaoFormulario::UnidadeDaTelaDiferenteDaSolicitada);

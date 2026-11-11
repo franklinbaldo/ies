@@ -67,7 +67,7 @@ fn post_derivado_pelo_primitivo_na_ordem_do_documento() {
                 codificacao: CodificacaoDaTela::Iso88591,
             };
             let s =
-                derivar_submissao(&ENVIAR_PROCESSO, &instalacao(), &servida, "", &pares).unwrap();
+                derivar_submissao(&ENVIAR_PROCESSO, &instalacao(), &servida, None, &pares).unwrap();
             assert_eq!(
                 String::from_utf8(s.corpo().to_vec()).unwrap(),
                 corpo_do_envio(versao, manter)
@@ -262,7 +262,7 @@ fn bdd_remover_anotacoes_deriva_checkbox_do_formulario_servido() {
                 codificacao: CodificacaoDaTela::Iso88591,
             };
             let envio =
-                derivar_submissao(&ENVIAR_PROCESSO, &instalacao(), &servida, "", &pares).unwrap();
+                derivar_submissao(&ENVIAR_PROCESSO, &instalacao(), &servida, None, &pares).unwrap();
             let esperado = corpo_do_envio(versao, manter_aberto).replacen(
                 "txtPrazo",
                 "chkSinRemoverAnotacoes=on&txtPrazo",

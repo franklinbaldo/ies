@@ -34,7 +34,7 @@ fn submissao() -> SubmissaoDerivada {
         &OPERACAO,
         &instalacao(),
         &tela_iso(&url, &html),
-        "UNIDADE TESTE",
+        Some("UNIDADE TESTE"),
         &[("txtProtocoloPesquisa", "0001")],
     )
     .unwrap()
