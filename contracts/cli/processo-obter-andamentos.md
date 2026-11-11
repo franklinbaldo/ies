@@ -42,8 +42,9 @@ ou repetido continua recusa tipada.
 
 - **Padrão**: 1 GET do link. Publica a visão que a página serviu, lida de
   `hdnTipoHistorico` no `form#frmProcedimentoHistorico` (`R` →
-  `"resumido"`, `P` → `"completo"`; outro valor, ausente ou repetido é
-  `TipoDoHistoricoNaoPublicado`). Normalmente `R`.
+  `"resumido"`, `P` → `"completo"`; outro valor ou campo ausente/repetido é
+  `TipoDoHistoricoNaoPublicado`; campo sem atributo `value` é
+  `TipoDoHistoricoSemValor`). Normalmente `R`.
 - **`--andamentos-completos`**: o GET e, se ele serviu `R`, o POST de
   `verHistorico('P')`: as três linhas servidas da função
   (`function verHistorico(valor){`,
@@ -51,7 +52,11 @@ ou repetido continua recusa tipada.
   `document.getElementById('frmProcedimentoHistorico').submit();`) e o
   único `a#ancTipoHistorico` com `onclick="verHistorico('P');"` são
   conferidos literalmente antes de derivar
-  (`RegraDeVerHistoricoNaoObservada`). O POST vai para o `action`
+  (`RegraDeVerHistoricoAusenteNaPagina`; a âncora é conferida por
+  `AncoraDeVerHistoricoAusente`, `AncoraDeVerHistoricoRepetida`,
+  `AncoraDeVerHistoricoNaoEhLink`, `OnclickDeVerHistoricoAusente`,
+  `OnclickDeVerHistoricoIlegivel` e `OnclickDeVerHistoricoParaOutraVisao`).
+  O POST vai para o `action`
   assinado com os ocultos como servidos, só `hdnTipoHistorico=P`
   reescrito, sem botão (`btnAtualizarAndamento`, escrita, é `type=button`
   e nunca participa). Só a visão `P` é publicada; resposta `R` é
@@ -136,8 +141,8 @@ Página: os do leitor do histórico, `src/historico.rs` (`titulo_ausente`,
 `AndamentosAlemDoTotalDeclarado`, `TipoDoHistoricoNaoPublicado`,
 `CharsetDoHistoricoNaoSuportado`.
 
-Visão completa: `RegraDeVerHistoricoNaoObservada`,
-`VisaoDoHistoricoDiferenteDaPedida` e os do primitivo de formulário.
+Visão completa: `RegraDeVerHistoricoAusenteNaPagina`, as `AncoraDeVerHistorico*` e
+`OnclickDeVerHistorico*` acima, `VisaoDoHistoricoDiferenteDaPedida` e os do primitivo de formulário.
 Login (200 ou 302) fora de palpite é `SessaoEncerrada`;
 status HTTP de falha (503 do gateway visto em GO) sai com o erro de
 transporte e `status_http`, sem retry.

@@ -1,7 +1,13 @@
 //! Decisão tipada de `ies processo marcar` (#255).
 //! O módulo trabalha apenas com os marcadores que a tela Web efetivamente publicou.
 //! Não executa escrita remota nem presume catálogo ausente na tela.
+use crate::indice_local::IndiceLocal;
 use crate::marcadores_processo::MarcadoresLidos;
+use crate::processo_concluir::escrita::Contador;
+use crate::processo_obter::{
+    EnvioDoProcesso, ErroProcessoObter, Marcadores, PedidoDoProcesso, SessaoDoProcesso,
+    obter_processo,
+};
 
 #[derive(Clone, Debug, PartialEq, Eq)]
 pub(crate) struct Rotulo {
@@ -16,6 +22,8 @@ pub(crate) enum Operacao {
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub(crate) enum Decisao {
     NadaAFazer,
+    /// Atribuição ausente da árvore: a prévia depende do catálogo da unidade.
+    PreviaDeAtribuicao,
     PreviaDeRetirada,
 }
 #[derive(Clone, Copy, Debug, PartialEq, Eq, thiserror::Error)]
@@ -28,10 +36,63 @@ pub(crate) enum ErroMarcar {
     TextoDoMarcadorLongo,
     ListaDeMarcadoresParcial,
     RotuloDiferenteDoMarcadorLido,
-    CatalogoDaUnidadeNaoObservado,
     RemocaoSemFormularioObservado,
     MarcadoresNaoLidos,
     UnidadeDaSessaoNaoPublicada,
+    /// A releitura abriu outro processo ou outra unidade.
+    ReleituraDeOutroProcessoOuUnidade,
+    /// O cadastro do marcador redirecionou sem informar destino.
+    RedirecionamentoDoCadastroSemDestino,
+    /// A página do cadastro do marcador não pôde ser interpretada.
+    PaginaDoCadastroIlegivel,
+    /// O cadastro do marcador não publica o atributo ou o `onclick` esperado.
+    CadastroDoMarcadorForaDaForma,
+    /// Nenhum botão `btnAdicionar` na página do cadastro.
+    BotaoAdicionarAusente,
+    /// Mais de um botão `btnAdicionar` na página do cadastro.
+    BotaoAdicionarRepetido,
+    /// O endereço do cadastro não é um endereço reconhecido da instalação.
+    EnderecoDoCadastroNaoReconhecido,
+    /// O endereço do cadastro pertence a outro processo.
+    EnderecoDoCadastroDeOutroProcesso,
+    /// A tela do cadastro não foi servida (redirecionada ou sessão encerrada).
+    FormularioDeCadastroNaoLido,
+    /// O MIME da tela não tem codificação suportada.
+    CharsetDoFormularioNaoSuportado,
+    /// A página da unidade não publica exatamente um `selMarcador`.
+    SelectDeMarcadoresAusenteOuRepetido,
+    /// Uma opção do catálogo não publica o atributo `value`.
+    OpcaoDoMarcadorSemValor,
+    /// O id do marcador não está no catálogo da unidade.
+    OpcaoDoMarcadorNaoOferecida,
+    /// O id do marcador aparece mais de uma vez no catálogo.
+    OpcaoDoMarcadorRepetida,
+    /// O id existe no catálogo, mas o nome publicado é outro.
+    NomeDoMarcadorDiferenteDoCatalogo,
+    /// A barra da árvore não publicou o link de gerenciar marcadores.
+    LinkDeMarcadoresNaoPublicado,
+    /// O formulário foi derivado, mas o envio não saiu (recusa antes do POST).
+    SubmissaoDoMarcadorNaoEnviada,
+    /// A origem da sessão não é uma instalação reconhecida.
+    OrigemNaoInterpretada,
+    /// O formulário de gerenciamento não publica a ação de remoção do marcador.
+    AcaoDeRemocaoAusente,
+    /// A página de gerenciamento publica mais de uma ação de remoção.
+    AcaoDeRemocaoAmbigua,
+    /// A tela de gerenciamento foi redirecionada para outra tela.
+    TelaDaRemocaoRedirecionada,
+    /// A sessão encerrou antes de a tela de gerenciamento ser servida.
+    SessaoEncerradaNaRemocao,
+}
+
+/// Por que a releitura independente não provou o efeito do POST.
+#[derive(Debug, thiserror::Error)]
+#[error("{self:?}")]
+pub(crate) enum ErroDaReleitura {
+    /// O processo não pôde ser reaberto depois do POST.
+    Processo(#[source] ErroProcessoObter),
+    /// A releitura não traz a lista de marcadores que prova o efeito.
+    Marcadores(ErroMarcar),
 }
 /// Falha depois de abrir o processo, com os pedidos já feitos.
 #[derive(Debug, thiserror::Error)]
@@ -42,12 +103,12 @@ pub(crate) enum FalhaDaMarcacao {
     /// O POST da retirada saiu e o efeito não foi comprovado: não repetir.
     RetiradaNaoConfirmada {
         requisicoes: u8,
-        ausente_relido: Option<bool>,
+        ausente_relido: Result<bool, ErroDaReleitura>,
     },
     /// O POST da atribuição saiu e o efeito não foi comprovado: não repetir.
     AtribuicaoNaoConfirmada {
         requisicoes: u8,
-        presente_relido: Option<bool>,
+        presente_relido: Result<bool, ErroDaReleitura>,
     },
 }
 
@@ -111,7 +172,36 @@ pub(crate) fn decidir(
     }
     match operacao {
         Operacao::Retirar => Ok(Decisao::NadaAFazer),
-        Operacao::Atribuir => Err(ErroMarcar::CatalogoDaUnidadeNaoObservado),
+        Operacao::Atribuir => Ok(Decisao::PreviaDeAtribuicao),
+    }
+}
+
+/// Marcadores da releitura independente: prova só com a lista completa do
+/// mesmo processo e da mesma unidade.
+pub(crate) fn releitura_de_marcadores<V: EnvioDoProcesso>(
+    sessao: &SessaoDoProcesso<'_>,
+    indice: &IndiceLocal,
+    pedido: &PedidoDoProcesso<'_>,
+    rede: &mut Contador<'_, V>,
+    processo: (&str, &str),
+) -> Result<MarcadoresLidos, ErroDaReleitura> {
+    let (id, unidade) = processo;
+    let novo = obter_processo(sessao, pedido, indice, rede).map_err(ErroDaReleitura::Processo)?;
+    if novo.arvore.processo.id != id || novo.unidade.as_deref() != Some(unidade) {
+        return Err(ErroDaReleitura::Marcadores(
+            ErroMarcar::ReleituraDeOutroProcessoOuUnidade,
+        ));
+    }
+    match novo.marcadores {
+        Marcadores::Lidos(lidos) if lidos.itens.len() == lidos.total_declarado => Ok(lidos),
+        Marcadores::Lidos(_) => Err(ErroDaReleitura::Marcadores(
+            ErroMarcar::ListaDeMarcadoresParcial,
+        )),
+        Marcadores::Omitidos
+        | Marcadores::NaoPublicadosNaBarra
+        | Marcadores::TabelaNaoPublicada => {
+            Err(ErroDaReleitura::Marcadores(ErroMarcar::MarcadoresNaoLidos))
+        }
     }
 }
 

@@ -67,7 +67,16 @@ restauração de tela.
 | `ErroPrazo::OpcoesIncompativeis` | Combinação de opções mutuamente exclusivas |
 | `ErroPrazo::DataInvalida` | Data não existe |
 | `ErroPrazo::DiasInvalidos` | Contagem fora da faixa |
-| `ErroPrazo::TelaNaoObservada` | Formulário diferente da forma observada |
+| `ErroPrazo::FormularioDoPrazoSemPostUrlencoded` | Formulário sem POST ou com outra codificação |
+| `ErroPrazo::AcaoDoFormularioAusente` / `AcaoDoFormularioIlegivel` / `AcaoDoFormularioSemConsulta` | `action` ausente, ilegível ou sem consulta |
+| `ErroPrazo::CaminhoDaAcaoInesperado` / `AcaoDoControleInesperada` | `action` que não é o controle de prazo |
+| `ErroPrazo::IdDoProcessoNaAcaoAmbiguo` | `action` com zero ou mais de um `id_procedimento` |
+| `ErroPrazo::DataDaTelaInvalida` / `DiasDaTelaInvalidos` | Opção publicada com data inexistente ou dias fora de 1 a 999 |
+| `ErroPrazo::OpcaoDoPrazoDesconhecida` / `OpcaoDoPrazoSemValor` / `OpcaoDoPrazoRepetida` / `OpcaoDoPrazoMarcadaMaisDeUmaVez` | `rdoPrazo` fora da forma observada |
+| `ErroPrazo::ControleDesabilitado` / `CampoDoPrazoSomenteLeitura` / `CampoDoPrazoRepetido` / `ControleInesperado` | Controle do prazo desabilitado, somente leitura, repetido ou fora da lista |
+| `ErroPrazo::ControleDoPrazoDeTipoInesperado` | `rdoPrazo` que não é rádio |
+| `ErroPrazo::IdDoProcessoNaoPublicado` / `BotaoDeEnvioAusenteOuRepetido` / `ControlesDoPrazoIncompletos` | Identidade, botão de envio ou controles obrigatórios ausentes |
+| `ErroPrazo::TelaAcimaDoLimite` / `TelaNaoInterpretada` | Tela acima do limite de bytes ou sem leitura do tokenizador |
 | `ErroPrazo::OutroProcesso` | Identidade distinta |
 | `ErroLinkPrazo::BarraNaoInterpretada` | Barra sem leitura segura |
 | `ErroLinkPrazo::LinksRepetidos` | Múltiplas ações de prazo |

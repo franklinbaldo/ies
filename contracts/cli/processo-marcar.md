@@ -38,9 +38,11 @@ publica URL assinada, cookie ou `infra_hash`.
   esse formulário publica exatamente uma opção `id#nome`, a ação assinada
   pertence ao mesmo processo e os controles de submissão estão presentes,
   apresenta a **prévia de atribuição** com `alterado: false` e **zero POST**.
-  Se não há catálogo observado ou a opção não confere, recusa
-  `CatalogoDaUnidadeNaoObservado`. Um marcador aplicado em outro
-  processo **não** substitui o catálogo da unidade.
+  Se não há catálogo ou a opção não confere, recusa com o erro do ponto de
+  falha (`SelectDeMarcadoresAusenteOuRepetido`, `OpcaoDoMarcadorNaoOferecida`,
+  `OpcaoDoMarcadorRepetida`, `NomeDoMarcadorDiferenteDoCatalogo`,
+  `BotaoAdicionarAusente`, `BotaoAdicionarRepetido`, entre outros da tabela).
+  Um marcador aplicado em outro processo **não** substitui o catálogo da unidade.
 
 A prévia não reivindica uma escrita. A confirmação de **atribuição** exige
 origem de treinamento, catálogo e formulário da unidade conferidos, **um POST**
@@ -95,7 +97,13 @@ a confirmação depende da resposta causal e da releitura independente.
 | `NomeDoMarcadorComControle` | Caracteres de controle no nome |
 | `ListaDeMarcadoresParcial` | Linhas observadas diferentes do total declarado |
 | `RotuloDiferenteDoMarcadorLido` | Mesmo id observado com nome diferente |
-| `CatalogoDaUnidadeNaoObservado` | Atribuição ausente sem catálogo da unidade comprovado |
+| `ErroMarcar::SelectDeMarcadoresAusenteOuRepetido` | Atribuição ausente sem `selMarcador` único na unidade |
+| `ErroMarcar::OpcaoDoMarcadorNaoOferecida` | Atribuição ausente com o id fora do catálogo da unidade |
+| `ErroMarcar::OpcaoDoMarcadorRepetida` | Id repetido no catálogo da unidade |
+| `ErroMarcar::NomeDoMarcadorDiferenteDoCatalogo` | Id do catálogo com nome diferente do pedido |
+| `ErroMarcar::BotaoAdicionarAusente` / `BotaoAdicionarRepetido` | Cadastro sem o botão `btnAdicionar`, ou com mais de um |
+| `ErroMarcar::LinkDeMarcadoresNaoPublicado` | Barra sem o link de gerenciar marcadores |
+| `ErroMarcar::ReleituraDeOutroProcessoOuUnidade` | Releitura do processo com outro id ou outra unidade |
 | `RemocaoSemFormularioObservado` | Remoção sem ação/controles observados no formulário servido |
 | `ErroMarcar::MarcadoresNaoLidos` | Leitura ausente ou não comprovada |
 | `ErroMarcar::UnidadeDaSessaoNaoPublicada` | Unidade não conferida |
@@ -114,7 +122,8 @@ Leitura/decisão (1): erros específicos da abertura do processo, além de
 `ErroMarcar::UnidadeDaSessaoNaoPublicada`,
 `ListaDeMarcadoresParcial`,
 `RotuloDiferenteDoMarcadorLido`,
-`CatalogoDaUnidadeNaoObservado`,
+o catálogo da atribuição (`SelectDeMarcadoresAusenteOuRepetido`,
+`OpcaoDoMarcadorNaoOferecida` e as demais da tabela) e
 `RemocaoSemFormularioObservado`.
 
 O `status_http` e a mensagem saneada do SEI são preservados pela

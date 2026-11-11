@@ -1,6 +1,9 @@
 //! BDD-255-02: uma única remoção, derivada do formulário efetivamente servido.
 //! O GET de gerenciamento não autoriza POST sem handler, hidden e ação assinada.
-use super::{Decisao, ErroMarcar, FalhaDaMarcacao, Operacao, Rotulo, decidir, recusa};
+use super::{
+    Decisao, ErroMarcar, FalhaDaMarcacao, Operacao, Rotulo, decidir, recusa,
+    releitura_de_marcadores,
+};
 use crate::Cli;
 use crate::acao_do_sei::AcaoDoSei;
 use crate::formulario_web::{
@@ -15,7 +18,7 @@ use crate::processo::NumeroProcesso;
 use crate::processo_concluir::escrita::{Contador, FalhaDaTela, ler_cookie, obter_tela};
 use crate::processo_obter::{
     EnvioDoProcesso, Marcadores, PedidoDeAndamentos, PedidoDoProcesso, SessaoDoProcesso,
-    abrir_para_escrever, obter_processo,
+    abrir_para_escrever,
 };
 use crate::visao_do_controle::EnvioDoControle as _;
 use serde_json::json;
@@ -42,17 +45,26 @@ const REMOVER: OperacaoDeFormulario = OperacaoDeFormulario {
 
 /// Extrai SOMENTE a URL literal assinada atribuída pelo handler da mesma tela.
 /// Não executa JS, não troca host, não cria destino a partir de padrões.
-fn action_de_remocao(html: &str, id: &str) -> Option<String> {
-    let script = html.split_once("function acaoRemover(id,desc)")?.1;
+fn action_de_remocao(html: &str, id: &str) -> Result<String, ErroMarcar> {
+    let script = html
+        .split_once("function acaoRemover(id,desc)")
+        .ok_or(ErroMarcar::AcaoDeRemocaoAusente)?
+        .1;
     let inicio = "document.getElementById('frmGerenciarMarcador').action='";
-    let url = script.split_once(inicio)?.1.split_once('\'')?.0;
-    if !html.contains(&format!("acaoRemover('{id}',")) {
-        return None;
+    let url = script
+        .split_once(inicio)
+        .ok_or(ErroMarcar::AcaoDeRemocaoAusente)?
+        .1
+        .split_once('\'')
+        .ok_or(ErroMarcar::AcaoDeRemocaoAusente)?
+        .0;
+    if !html.contains(&format!("acaoRemover('{id}',")) || url.is_empty() {
+        return Err(ErroMarcar::AcaoDeRemocaoAusente);
     }
-    if url.is_empty() || script.matches(inicio).count() != 1 {
-        return None;
+    if script.matches(inicio).count() != 1 {
+        return Err(ErroMarcar::AcaoDeRemocaoAmbigua);
     }
-    Some(url.to_owned())
+    Ok(url.to_owned())
 }
 
 fn aceite_da_remocao(redir: &Redirecionamento302, id: &str) -> bool {
@@ -162,25 +174,26 @@ fn preparar_submissao<V: EnvioDoProcesso>(
     unidade: &str,
     rotulo: &Rotulo,
 ) -> anyhow::Result<crate::formulario_web::SubmissaoDerivada> {
-    let sem_formulario = |n| recusa(ErroMarcar::RemocaoSemFormularioObservado, n);
     let cookie = ler_cookie(sessao)?;
     let (html, mime) = match obter_tela(rede, &cookie, link) {
         Ok(tela) => tela,
         Err(FalhaDaTela::Transporte(erro)) => return Err(erro.into()),
-        Err(
-            FalhaDaTela::Redirecionada
-            | FalhaDaTela::SessaoEncerrada(crate::erro_publico::SessaoEncerrada),
-        ) => return Err(sem_formulario(rede.feitas())),
+        Err(FalhaDaTela::Redirecionada) => {
+            return Err(recusa(
+                ErroMarcar::TelaDaRemocaoRedirecionada,
+                rede.feitas(),
+            ));
+        }
+        Err(FalhaDaTela::SessaoEncerrada(_)) => {
+            return Err(recusa(ErroMarcar::SessaoEncerradaNaRemocao, rede.feitas()));
+        }
     };
-    let Some(acao) = action_de_remocao(&html, &rotulo.id) else {
-        return Err(sem_formulario(rede.feitas()));
-    };
-    let Some(codificacao) = codificacao_da_tela(&mime) else {
-        return Err(sem_formulario(rede.feitas()));
-    };
-    let Some(instalacao) = Instalacao::interpretar(sessao.origem) else {
-        return Err(sem_formulario(rede.feitas()));
-    };
+    let acao =
+        action_de_remocao(&html, &rotulo.id).map_err(|causa| recusa(causa, rede.feitas()))?;
+    let codificacao = codificacao_da_tela(&mime)
+        .ok_or_else(|| recusa(ErroMarcar::CharsetDoFormularioNaoSuportado, rede.feitas()))?;
+    let instalacao = Instalacao::interpretar(sessao.origem)
+        .ok_or_else(|| recusa(ErroMarcar::OrigemNaoInterpretada, rede.feitas()))?;
     let tela = TelaServida {
         url: link,
         html: &html,
@@ -240,12 +253,9 @@ pub(crate) fn confirmar_retirada<V: EnvioDoProcesso>(
         );
         return Ok(());
     }
-    let Some(link) = acoes.marcadores.ok().flatten() else {
-        return Err(recusa(
-            ErroMarcar::RemocaoSemFormularioObservado,
-            rede.feitas(),
-        ));
-    };
+    let link = acoes
+        .marcadores?
+        .ok_or_else(|| recusa(ErroMarcar::LinkDeMarcadoresNaoPublicado, rede.feitas()))?;
     let submissao = preparar_submissao(sessao, &mut rede, link.as_str(), unidade, rotulo)?;
     let mut tentativa = false;
     let resposta = enviar_submissao_via(submissao, sessao.cookie, |submissao, cookie| {
@@ -255,7 +265,7 @@ pub(crate) fn confirmar_retirada<V: EnvioDoProcesso>(
     if !tentativa {
         return Err(match resposta {
             Err(erro) => erro.into(),
-            _ => recusa(ErroMarcar::RemocaoSemFormularioObservado, rede.feitas()),
+            Ok(_) => recusa(ErroMarcar::SubmissaoDoMarcadorNaoEnviada, rede.feitas()),
         });
     }
     let aceito = matches!(
@@ -264,28 +274,18 @@ pub(crate) fn confirmar_retirada<V: EnvioDoProcesso>(
             if aceite_da_remocao(redir, &aberto.arvore.processo.id)
     );
     // Releitura independente, feita UMA vez mesmo em resposta HTTP incerta.
-    let relida = obter_processo(sessao, &pedido, indice, &mut rede);
-    let ausente = match relida {
-        Ok(ref novo)
-            if novo.arvore.processo.id == aberto.arvore.processo.id
-                && novo.unidade.as_deref() == Some(unidade) =>
-        {
-            match &novo.marcadores {
-                Marcadores::Lidos(lidos) if lidos.itens.len() == lidos.total_declarado => {
-                    Some(!lidos.itens.iter().any(|m| m.id == rotulo.id))
-                }
-                Marcadores::Lidos(_)
-                | Marcadores::Omitidos
-                | Marcadores::NaoPublicadosNaBarra
-                | Marcadores::TabelaNaoPublicada => None,
-            }
-        }
-        _ => None,
-    };
-    if !aceito || ausente != Some(true) {
+    let relida = releitura_de_marcadores(
+        sessao,
+        indice,
+        &pedido,
+        &mut rede,
+        (&aberto.arvore.processo.id, unidade),
+    )
+    .map(|lidos| !lidos.itens.iter().any(|m| m.id == rotulo.id));
+    if !aceito || !matches!(relida, Ok(true)) {
         return Err(FalhaDaMarcacao::RetiradaNaoConfirmada {
             requisicoes: rede.feitas(),
-            ausente_relido: ausente,
+            ausente_relido: relida,
         }
         .into());
     }

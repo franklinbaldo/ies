@@ -73,8 +73,23 @@ pub(crate) enum ErroAndamentos {
     Historico(#[from] ErroHistorico),
     AndamentosAlemDoTotalDeclarado,
     TipoDoHistoricoNaoPublicado,
+    /// O campo `hdnTipoHistorico` existe, mas não publica o atributo `value`.
+    TipoDoHistoricoSemValor,
     CharsetDoHistoricoNaoSuportado,
-    RegraDeVerHistoricoNaoObservada,
+    /// A função `verHistorico` servida não aparece literalmente na página.
+    RegraDeVerHistoricoAusenteNaPagina,
+    /// Nenhuma âncora `ancTipoHistorico` na página servida.
+    AncoraDeVerHistoricoAusente,
+    /// Mais de uma âncora `ancTipoHistorico` na página servida.
+    AncoraDeVerHistoricoRepetida,
+    /// A âncora `ancTipoHistorico` não é um elemento `a`.
+    AncoraDeVerHistoricoNaoEhLink,
+    /// A âncora `ancTipoHistorico` não publica `onclick`.
+    OnclickDeVerHistoricoAusente,
+    /// O `onclick` da âncora não decodifica como texto.
+    OnclickDeVerHistoricoIlegivel,
+    /// O `onclick` da âncora aponta para uma visão que não é a completa.
+    OnclickDeVerHistoricoParaOutraVisao,
     VisaoDoHistoricoDiferenteDaPedida,
     LegendaDosAndamentosAusente,
     LegendaDosAndamentosForaDaFormaObservada,

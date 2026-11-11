@@ -49,26 +49,29 @@ pub(crate) fn conferir_regra_de_ver_historico(html: &str) -> Result<(), super::E
         .iter()
         .all(|regra| linhas.contains(regra))
     {
-        return Err(super::ErroAndamentos::RegraDeVerHistoricoNaoObservada);
+        return Err(super::ErroAndamentos::RegraDeVerHistoricoAusenteNaPagina);
     }
     let dom = tl::parse(html, tl::ParserOptions::default())
         .map_err(super::ErroAndamentos::RegraDeVerHistoricoNaoInterpretada)?;
     let parser = dom.parser();
     let links = nos_com_id(&dom, "ancTipoHistorico").map_err(super::ErroAndamentos::Atributo)?;
-    let [link] = links.as_slice() else {
-        return Err(super::ErroAndamentos::RegraDeVerHistoricoNaoObservada);
+    let link = match links.as_slice() {
+        [] => return Err(super::ErroAndamentos::AncoraDeVerHistoricoAusente),
+        [link] => link,
+        _ => return Err(super::ErroAndamentos::AncoraDeVerHistoricoRepetida),
     };
     let link = link
         .get(parser)
         .and_then(tl::Node::as_tag)
         .filter(|t| t.name().as_utf8_str().eq_ignore_ascii_case("a"))
-        .ok_or(super::ErroAndamentos::RegraDeVerHistoricoNaoObservada)?;
-    let onclick = valor_do_atributo(link, "onclick")
+        .ok_or(super::ErroAndamentos::AncoraDeVerHistoricoNaoEhLink)?;
+    let bruto = valor_do_atributo(link, "onclick")
         .map_err(super::ErroAndamentos::Atributo)?
-        .and_then(|bruto| decodificar_atributo(&bruto))
-        .ok_or(super::ErroAndamentos::RegraDeVerHistoricoNaoObservada)?;
+        .ok_or(super::ErroAndamentos::OnclickDeVerHistoricoAusente)?;
+    let onclick =
+        decodificar_atributo(&bruto).ok_or(super::ErroAndamentos::OnclickDeVerHistoricoIlegivel)?;
     if onclick != "verHistorico('P');" {
-        return Err(super::ErroAndamentos::RegraDeVerHistoricoNaoObservada);
+        return Err(super::ErroAndamentos::OnclickDeVerHistoricoParaOutraVisao);
     }
     Ok(())
 }

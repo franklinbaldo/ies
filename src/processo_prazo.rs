@@ -21,7 +21,50 @@ pub(crate) enum ErroPrazo {
     DiasInvalidos,
     /// O valor de dias não cabe no tipo do pedido; guarda a conversão recusada.
     DiasNaoCabemEmU16(#[source] std::num::TryFromIntError),
-    TelaNaoObservada,
+    /// Tela acima do limite de bytes.
+    TelaAcimaDoLimite,
+    /// Formulário sem POST urlencoded.
+    FormularioDoPrazoSemPostUrlencoded,
+    /// `action` ausente.
+    AcaoDoFormularioAusente,
+    /// `action` ilegível.
+    AcaoDoFormularioIlegivel,
+    /// `action` sem consulta.
+    AcaoDoFormularioSemConsulta,
+    /// Caminho do `action` diferente de `controlador.php`.
+    CaminhoDaAcaoInesperado,
+    /// Ação diferente de definir o controle de prazo.
+    AcaoDoControleInesperada,
+    /// `id_procedimento` ausente ou repetido no `action`.
+    IdDoProcessoNaAcaoAmbiguo,
+    /// Data publicada inexistente.
+    DataDaTelaInvalida,
+    /// Dias publicados fora de 1 a 999.
+    DiasDaTelaInvalidos,
+    /// `rdoPrazo` fora das três opções.
+    OpcaoDoPrazoDesconhecida,
+    /// Controle do prazo desabilitado.
+    ControleDesabilitado,
+    /// `rdoPrazo` que não é rádio.
+    ControleDoPrazoDeTipoInesperado,
+    /// Opção de `rdoPrazo` sem `value`.
+    OpcaoDoPrazoSemValor,
+    /// Opção de `rdoPrazo` repetida.
+    OpcaoDoPrazoRepetida,
+    /// Mais de uma opção marcada.
+    OpcaoDoPrazoMarcadaMaisDeUmaVez,
+    /// Campo repetido.
+    CampoDoPrazoRepetido,
+    /// Campo do prazo somente leitura.
+    CampoDoPrazoSomenteLeitura,
+    /// Controle fora da lista observada.
+    ControleInesperado,
+    /// `hdnIdProcedimentos` ausente.
+    IdDoProcessoNaoPublicado,
+    /// Botão de envio ausente ou repetido.
+    BotaoDeEnvioAusenteOuRepetido,
+    /// Controles obrigatórios faltando.
+    ControlesDoPrazoIncompletos,
     /// O tokenizador HTML recusou a tela do controle de prazo.
     TelaNaoInterpretada(#[source] tl::ParseError),
     /// O formulário de cadastro do prazo não foi localizado de forma única.
@@ -111,7 +154,7 @@ fn presente(tag: &tl::HTMLTag<'_>, nome: &str) -> Result<bool, ErroPrazo> {
 
 pub(crate) fn ler_tela(html: &str, id_procedimento: &str) -> Result<TelaDoPrazo, ErroPrazo> {
     if html.len() > crate::MAX_HTML_BYTES {
-        return Err(ErroPrazo::TelaNaoObservada);
+        return Err(ErroPrazo::TelaAcimaDoLimite);
     }
     let dom =
         tl::parse(html, tl::ParserOptions::default()).map_err(ErroPrazo::TelaNaoInterpretada)?;
@@ -120,14 +163,16 @@ pub(crate) fn ler_tela(html: &str, id_procedimento: &str) -> Result<TelaDoPrazo,
     if atributo(form, "method")?.as_deref() != Some("post")
         || atributo(form, "enctype")?.is_some_and(|v| v != "application/x-www-form-urlencoded")
     {
-        return Err(ErroPrazo::TelaNaoObservada);
+        return Err(ErroPrazo::FormularioDoPrazoSemPostUrlencoded);
     }
-    let action = atributo(form, "action")?.ok_or(ErroPrazo::TelaNaoObservada)?;
-    let action =
-        crate::formulario_web::decodificar_atributo(&action).ok_or(ErroPrazo::TelaNaoObservada)?;
-    let (caminho, consulta) = action.split_once('?').ok_or(ErroPrazo::TelaNaoObservada)?;
+    let action = atributo(form, "action")?.ok_or(ErroPrazo::AcaoDoFormularioAusente)?;
+    let action = crate::formulario_web::decodificar_atributo(&action)
+        .ok_or(ErroPrazo::AcaoDoFormularioIlegivel)?;
+    let (caminho, consulta) = action
+        .split_once('?')
+        .ok_or(ErroPrazo::AcaoDoFormularioSemConsulta)?;
     if !caminho.ends_with("controlador.php") {
-        return Err(ErroPrazo::TelaNaoObservada);
+        return Err(ErroPrazo::CaminhoDaAcaoInesperado);
     }
     let valores = |chave: &str| {
         consulta
@@ -138,12 +183,12 @@ pub(crate) fn ler_tela(html: &str, id_procedimento: &str) -> Result<TelaDoPrazo,
             .collect::<Vec<_>>()
     };
     if valores("acao") != [AcaoDoSei::ControlePrazoDefinir.como_na_url()] {
-        return Err(ErroPrazo::TelaNaoObservada);
+        return Err(ErroPrazo::AcaoDoControleInesperada);
     }
     match valores("id_procedimento").as_slice() {
         [id] if *id == id_procedimento => {}
         [_] => return Err(ErroPrazo::OutroProcesso),
-        _ => return Err(ErroPrazo::TelaNaoObservada),
+        _ => return Err(ErroPrazo::IdDoProcessoNaAcaoAmbiguo),
     }
 
     ler_controles_da_tela(form, &dom, id_procedimento)
@@ -174,16 +219,17 @@ fn estado_dos_controles(
     dias: &str,
 ) -> Result<EstadoDoPrazo, ErroPrazo> {
     match marcada {
+        None => Ok(EstadoDoPrazo::SemPrazo),
         Some("1") if data_valida(&data) => Ok(EstadoDoPrazo::Data(data)),
+        Some("1") => Err(ErroPrazo::DataDaTelaInvalida),
         Some("2") => dias
             .parse::<u16>()
             .ok()
             .filter(|n| (1..=999).contains(n))
             .map(EstadoDoPrazo::Dias)
-            .ok_or(ErroPrazo::TelaNaoObservada),
+            .ok_or(ErroPrazo::DiasDaTelaInvalidos),
         Some("3") => Ok(EstadoDoPrazo::Concluido),
-        None => Ok(EstadoDoPrazo::SemPrazo),
-        _ => Err(ErroPrazo::TelaNaoObservada),
+        Some(_) => Err(ErroPrazo::OpcaoDoPrazoDesconhecida),
     }
 }
 
@@ -215,7 +261,7 @@ fn ler_controles_da_tela(
             continue;
         };
         if presente(tag, "disabled")? {
-            return Err(ErroPrazo::TelaNaoObservada);
+            return Err(ErroPrazo::ControleDesabilitado);
         }
         let tipo = atributo(tag, "type")?.unwrap_or_else(|| {
             if elemento == "button" {
@@ -229,19 +275,22 @@ fn ler_controles_da_tela(
         let valor = atributo(tag, "value")?;
         if nome == "rdoPrazo" {
             if elemento != "input" || tipo != "radio" {
-                return Err(ErroPrazo::TelaNaoObservada);
+                return Err(ErroPrazo::ControleDoPrazoDeTipoInesperado);
             }
-            let v = valor.ok_or(ErroPrazo::TelaNaoObservada)?;
-            if !matches!(v.as_str(), "1" | "2" | "3") || !radios.insert(v.clone()) {
-                return Err(ErroPrazo::TelaNaoObservada);
+            let v = valor.ok_or(ErroPrazo::OpcaoDoPrazoSemValor)?;
+            if !matches!(v.as_str(), "1" | "2" | "3") {
+                return Err(ErroPrazo::OpcaoDoPrazoDesconhecida);
+            }
+            if !radios.insert(v.clone()) {
+                return Err(ErroPrazo::OpcaoDoPrazoRepetida);
             }
             if presente(tag, "checked")? && marcada.replace(v).is_some() {
-                return Err(ErroPrazo::TelaNaoObservada);
+                return Err(ErroPrazo::OpcaoDoPrazoMarcadaMaisDeUmaVez);
             }
             continue;
         }
         if !vistos.insert(nome.clone()) {
-            return Err(ErroPrazo::TelaNaoObservada);
+            return Err(ErroPrazo::CampoDoPrazoRepetido);
         }
         match (nome.as_str(), elemento.as_str(), tipo.as_str()) {
             ("hdnInfraTipoPagina" | "hdnIdControlePrazo", "input", "hidden") => {}
@@ -253,30 +302,36 @@ fn ler_controles_da_tela(
             }
             ("txtPrazo", "input", "text") => {
                 if presente(tag, "readonly")? {
-                    return Err(ErroPrazo::TelaNaoObservada);
+                    return Err(ErroPrazo::CampoDoPrazoSomenteLeitura);
                 }
                 data = valor.unwrap_or_default();
             }
             ("txtDias", "input", "text") => {
                 if presente(tag, "readonly")? {
-                    return Err(ErroPrazo::TelaNaoObservada);
+                    return Err(ErroPrazo::CampoDoPrazoSomenteLeitura);
                 }
                 dias = valor.unwrap_or_default();
             }
             ("chkSinDiasUteis", "input", "checkbox") => {
                 if presente(tag, "readonly")? {
-                    return Err(ErroPrazo::TelaNaoObservada);
+                    return Err(ErroPrazo::CampoDoPrazoSomenteLeitura);
                 }
                 valor_dos_uteis = valor.unwrap_or_else(|| "on".to_owned());
             }
             ("sbmDefinirControlePrazo", "input" | "button", "submit") => {
                 botoes += 1;
             }
-            _ => return Err(ErroPrazo::TelaNaoObservada),
+            _ => return Err(ErroPrazo::ControleInesperado),
         }
     }
-    if !id_conferido || botoes != 1 || !controles_completos(&radios, &vistos) {
-        return Err(ErroPrazo::TelaNaoObservada);
+    if !id_conferido {
+        return Err(ErroPrazo::IdDoProcessoNaoPublicado);
+    }
+    if botoes != 1 {
+        return Err(ErroPrazo::BotaoDeEnvioAusenteOuRepetido);
+    }
+    if !controles_completos(&radios, &vistos) {
+        return Err(ErroPrazo::ControlesDoPrazoIncompletos);
     }
     let estado = estado_dos_controles(marcada.as_deref(), data, &dias)?;
     Ok(TelaDoPrazo {
@@ -463,7 +518,11 @@ mod tests {
             "<input type='text' name='txtDias'",
             "<input type='hidden' name='txtDias' value='3'><input type='text' name='txtDias'",
         );
-        assert_eq!(ler_tela(&duplicada, "10"), Err(ErroPrazo::TelaNaoObservada));
+        // O `hidden` com o nome `txtDias` não é o controle de texto observado.
+        assert_eq!(
+            ler_tela(&duplicada, "10"),
+            Err(ErroPrazo::ControleInesperado)
+        );
     }
 
     #[test]
