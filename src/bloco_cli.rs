@@ -1,5 +1,6 @@
 //! CLI Web de blocos: GET Controle, GET lista e, para bloco N, GET detalhe.
 //! Paginação interna com um POST de formulário observado, sem JS, retry ou restauração.
+use crate::acao_do_sei::AcaoDoSei;
 use crate::bloco::{self, ErroBloco, TipoBloco};
 use crate::bloco_detalhe::{self};
 use crate::configuracao;
@@ -126,7 +127,7 @@ pub(crate) fn ler_tipado_via<V: EnvioDoControle>(
             &controle.instalacao,
             &url_lista,
             href,
-            "rel_bloco_protocolo_listar",
+            AcaoDoSei::RelBlocoProtocoloListar,
             Some(numero),
         )?;
         requisicoes += 1;

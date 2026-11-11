@@ -4,6 +4,7 @@
 //! roteiro confere, em cada pedido, que o cookie é o lido (`COOKIE`).
 use super::tests_apoio::*;
 use super::*;
+use crate::acao_do_sei::AcaoDoSei;
 use crate::transporte::sessao::CookieDaSessao;
 
 #[test]
@@ -40,13 +41,13 @@ fn relogin_concorrente_nao_muda_o_cookie_das_requisicoes_seguintes() {
     let (inst, g) = (instalacao(), geracao());
     assert!(
         amb.indice
-            .link(&inst, chave(&g, "procedimento_trabalhar", ID))
+            .link(&inst, chave(&g, AcaoDoSei::ProcedimentoTrabalhar, ID))
             .is_some()
     );
     let outra = crate::sessao_login::geracao_da_sessao("PHPSESSID=OUTRA_GERACAO");
     assert!(
         amb.indice
-            .link(&inst, chave(&outra, "procedimento_trabalhar", ID))
+            .link(&inst, chave(&outra, AcaoDoSei::ProcedimentoTrabalhar, ID))
             .is_none()
     );
 }

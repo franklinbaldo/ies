@@ -12,7 +12,7 @@ use crate::visao_do_controle::EnvioDoControle;
 
 const PREFIXO: &str = "objAutoCompletarInteressadoRI1225 = new infraAjaxAutoCompletar('hdnIdInteressadoProcedimento','txtInteressadoProcedimento','";
 const AUTOCOMPLETAR: ConsultaAjax = ConsultaAjax {
-    acao_ajax: "contato_auto_completar_contexto_RI1225",
+    acao_ajax: crate::acao_do_sei::AcaoAjaxDoSei::ContatoAutoCompletarContextoRi1225,
     campos: &["palavras_pesquisa"],
     efeito: EfeitoAvaliado::ConsultaSemEfeitoObservado {
         evidencia: "docs/como-o-sei-funciona/inicio-do-processo.md: autocomplete do contato",

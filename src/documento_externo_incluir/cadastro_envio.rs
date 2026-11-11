@@ -1,6 +1,7 @@
 //! Preparação técnica do cadastro externo a partir do formulário recarregado (#332).
 //! Só prepara `SubmissaoDerivada`; nunca transmite uma escrita.
 use super::{anexo::FalhaAnexo, cadastro::CadastroExterno, recibo::ReciboUpload};
+use crate::acao_do_sei::AcaoDoSei;
 use crate::formulario_web::{
     ConferenciaDaUnidade, EfeitoAvaliado, EnvioDoFormulario, ErroSubmissaoFormulario,
     EstadoDoProcesso, OperacaoDeFormulario, ResultadoDoEnvio, SubmissaoDerivada, TelaServida,
@@ -9,7 +10,7 @@ use crate::formulario_web::{
 use crate::instalacao::Instalacao;
 
 const CADASTRAR_EXTERNO: OperacaoDeFormulario = OperacaoDeFormulario {
-    acao: "documento_receber",
+    acao: AcaoDoSei::DocumentoReceber,
     formulario: "frmDocumentoCadastro",
     envio: EnvioDoFormulario::SubmitPorScript,
     campos_ocultos_exigidos: &["hdnIdSerie", "hdnAnexos", "hdnFlagDocumentoCadastro"],

@@ -1,5 +1,6 @@
 //! Cadastro somente leitura a partir de `documento_alterar` publicado na barra
 //! (Todos `tests/paginas_reais/documento_alterar.html`, SEI 4.0.9; Refs #60).
+use crate::acao_do_sei::AcaoDoSei;
 use crate::arvore_processo::{barra_do_no, endereco::conferir_endereco_relativo_por};
 use crate::formulario_web::decodificar_atributo;
 use crate::html_atributos::{atributos, nos_com_id, nos_com_id_em};
@@ -21,12 +22,12 @@ pub(crate) enum PropriedadesDocumento {
 /// Não derivar o cadastro por URL criada a partir do id.
 pub(crate) struct LinkDoCadastro {
     pub(crate) url: String,
-    pub(crate) fonte: &'static str,
+    pub(crate) fonte: AcaoDoSei,
 }
 
 #[derive(Debug, PartialEq, Eq, Serialize)]
 pub(crate) struct PropriedadesLidas {
-    pub(crate) fonte: &'static str,
+    pub(crate) fonte: AcaoDoSei,
     pub(crate) tipo: String,
     pub(crate) descricao: String,
     pub(crate) nome_na_arvore: String,
@@ -155,12 +156,14 @@ pub(crate) fn ler_link(
             .and_then(|q| q.split('&').find_map(|p| p.strip_prefix("acao=")));
         // UFRJ 4.1: processo fechado oferece consultar em lugar de alterar;
         // externos publicam as ações `_recebido` (cassette UFRJ #60).
-        let fonte = match acao {
-            Some("documento_alterar") => "documento_alterar",
-            Some("documento_consultar") => "documento_consultar",
-            Some("documento_alterar_recebido") => "documento_alterar_recebido",
-            Some("documento_consultar_recebido") => "documento_consultar_recebido",
-            _ => continue,
+        let Some(
+            fonte @ (AcaoDoSei::DocumentoAlterar
+            | AcaoDoSei::DocumentoConsultar
+            | AcaoDoSei::DocumentoAlterarRecebido
+            | AcaoDoSei::DocumentoConsultarRecebido),
+        ) = acao.and_then(AcaoDoSei::ler)
+        else {
+            continue;
         };
         conferir_endereco_relativo_por(instalacao, &href, fonte, "id_procedimento", processo)
             .map_err(|_| ErroPropriedadesDocumento::LinkCadastroDocumentoInvalido)?;
@@ -227,7 +230,7 @@ pub(crate) fn ler_formulario(
         tipo
     };
     Ok(PropriedadesLidas {
-        fonte: "documento_alterar",
+        fonte: AcaoDoSei::DocumentoAlterar,
         tipo,
         descricao: valor(campo(form, parser, "txtDescricao")?)?,
         nome_na_arvore: valor(campo(form, parser, "txtNomeArvore")?)?,

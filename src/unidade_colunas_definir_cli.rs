@@ -3,6 +3,7 @@
 //! `--confirmar`, um POST de salvar, conferido por leitura. Erro de uso sai
 //! com 2 antes de ler a configuração (sem requisição); efeito incerto, com 3.
 //! Vinda da R, a sessão fica na D.
+use crate::acao_do_sei::AcaoDoSei;
 use crate::configuracao;
 use crate::nivel_de_detalhe::{AlvoDasColunas, ColunaDoDetalhe};
 use crate::transporte::envio_post::ler_tela_do_controle;
@@ -65,7 +66,7 @@ fn opcional(colunas: Option<&[ColunaDoDetalhe]>) -> Value {
 /// Contrato do POST: apenas nomes de campos, nunca valores ou hashes.
 #[derive(serde::Serialize)]
 struct EnvioColunasPublico<'a> {
-    acao: &'static str,
+    acao: AcaoDoSei,
     campos: &'a [String],
     metodo: &'static str,
 }
@@ -102,7 +103,7 @@ fn resultado_colunas(feito: &ColunasDefinidas) -> ResultadoColunas<'_> {
         depois: feito.depois().map(chaves_tipadas),
         desmarcar: chaves_tipadas(&plano.desmarcar()),
         envio: feito.campos_do_envio().map(|campos| EnvioColunasPublico {
-            acao: crate::nivel_de_detalhe::ACAO_DO_NIVEL_DE_DETALHE,
+            acao: AcaoDoSei::ProcedimentoConfigurarDetalhe,
             campos,
             metodo: "POST",
         }),
@@ -122,7 +123,7 @@ fn json_de_sucesso(feito: &ColunasDefinidas) -> Value {
     let envio = feito.campos_do_envio().map_or(Value::Null, |campos| {
         json!({
             "metodo": "POST",
-            "acao": crate::nivel_de_detalhe::ACAO_DO_NIVEL_DE_DETALHE,
+            "acao": AcaoDoSei::ProcedimentoConfigurarDetalhe,
             "campos": campos,
         })
     });

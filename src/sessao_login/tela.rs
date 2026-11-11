@@ -3,6 +3,7 @@
 //! mensagem de recusa e o link do Controle no Painel. As `const` da
 //! operação ficam aqui; o primitivo de formulário deriva o POST.
 use super::{Credenciais, ErroLogin};
+use crate::acao_do_sei::AcaoDoSei;
 use crate::formulario_web::{
     ConferenciaDaUnidade, EfeitoAvaliado, EnvioDoFormulario, EstadoDeSessao, OperacaoDeFormulario,
     ResultadoDoEnvio, SubmissaoDerivada, TelaServida, decodificar_atributo,
@@ -19,7 +20,7 @@ const OCULTOS_REESCRITOS: &[&str] = &["hdnAcao"];
 /// Login com o botão `Acessar` (`UnB` 4.0.9): o `acaoLogin(2)` servido não o
 /// desabilita, e ele participa do corpo com o valor servido.
 pub(crate) const ENTRAR_COM_ACESSAR: OperacaoDeFormulario = OperacaoDeFormulario {
-    acao: "login",
+    acao: AcaoDoSei::Login,
     formulario: "frmLogin",
     envio: EnvioDoFormulario::BotaoDeEnvio("Acessar"),
     campos_ocultos_exigidos: OCULTOS_REESCRITOS,

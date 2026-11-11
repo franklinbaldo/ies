@@ -158,7 +158,7 @@ impl<V: EnvioDoControle> Sessao<'_, V> {
             RespostaDoEnvio::Html(html) => {
                 let mime = mime.into_inner();
                 // Só os envios de `frmProcedimentoControlar` devolvem o Controle.
-                if operacao.acao == "procedimento_controlar" {
+                if operacao.acao == crate::acao_do_sei::AcaoDoSei::ProcedimentoControlar {
                     self.envio.colher_controle(&html, Some(&mime));
                 }
                 Ok(TelaAtual { url, html, mime })

@@ -4,10 +4,9 @@
 //! árvore recém-lida o substitui.
 use super::tests_apoio::*;
 use super::*;
+use crate::acao_do_sei::AcaoDoSei;
 use crate::arvore_processo::tests::NUP;
 use crate::historico_processo::TipoDoHistorico;
-
-const ACAO: &str = "procedimento_consultar_historico";
 
 fn quente(amb: &Ambiente, historico_guardado: bool) {
     let (inst, g) = (instalacao(), geracao());
@@ -15,13 +14,17 @@ fn quente(amb: &Ambiente, historico_guardado: bool) {
     amb.indice
         .registrar_link(
             &inst,
-            chave(&g, "procedimento_visualizar", ID),
+            chave(&g, AcaoDoSei::ProcedimentoVisualizar, ID),
             &url_arvore(ID),
         )
         .unwrap();
     if historico_guardado {
         amb.indice
-            .registrar_link(&inst, chave(&g, ACAO, ID), &url_historico_guardada(ID))
+            .registrar_link(
+                &inst,
+                chave(&g, AcaoDoSei::ProcedimentoConsultarHistorico, ID),
+                &url_historico_guardada(ID),
+            )
             .unwrap();
     }
 }
@@ -29,7 +32,10 @@ fn quente(amb: &Ambiente, historico_guardado: bool) {
 fn guardado(amb: &Ambiente) -> Option<String> {
     let (inst, g) = (instalacao(), geracao());
     amb.indice
-        .link(&inst, chave(&g, ACAO, ID))
+        .link(
+            &inst,
+            chave(&g, AcaoDoSei::ProcedimentoConsultarHistorico, ID),
+        )
         .map(|u| u.url().to_owned())
 }
 

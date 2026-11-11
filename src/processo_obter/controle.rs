@@ -3,6 +3,7 @@
 //! observado em `UnB`, GO, PEN1, PEN3, PEN4 e UFRJ). Os leitores da caixa não
 //! guardam o `href`; esta leitura usa o mesmo tokenizador de atributos.
 use super::ErroProcessoObter;
+use crate::acao_do_sei::AcaoDoSei;
 use crate::formulario_web::decodificar_atributo;
 use crate::html_atributos::valor_do_atributo;
 
@@ -24,7 +25,7 @@ fn eh_link_do_processo(href: &str, id: &str) -> bool {
         .iter()
         .filter_map(|p| p.strip_prefix("id_procedimento="))
         .collect();
-    acoes == ["procedimento_trabalhar"] && ids == [id]
+    acoes == [AcaoDoSei::ProcedimentoTrabalhar.como_na_url()] && ids == [id]
 }
 
 /// `Ok(None)`: o NUP não está nesta página. `Ok(Some((id, href)))`: o id da

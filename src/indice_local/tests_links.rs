@@ -2,6 +2,7 @@
 //! da URL e redação. Hashes sintéticos.
 use super::tests::{instalacao, pasta};
 use super::*;
+use crate::acao_do_sei::AcaoDoSei;
 use crate::instalacao::Instalacao;
 
 const HASH_A: &str = "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa";
@@ -13,7 +14,7 @@ fn chave(geracao: &str) -> ChaveDoLink<'_> {
     ChaveDoLink {
         geracao_sessao: geracao,
         unidade: "110",
-        acao: "procedimento_trabalhar",
+        acao: AcaoDoSei::ProcedimentoTrabalhar,
         alvo: "7",
     }
 }
@@ -95,7 +96,7 @@ fn esquecer_link_apaga_so_a_chave() {
     let indice = indice("link-esquecer");
     let sei = instalacao();
     let outra_acao = ChaveDoLink {
-        acao: "arvore_visualizar",
+        acao: AcaoDoSei::ArvoreVisualizar,
         ..chave(G1)
     };
     let url_arvore = url(HASH_A).replace("procedimento_trabalhar", "arvore_visualizar");
@@ -255,20 +256,6 @@ fn chaves_invalidas_recusadas() {
         ),
         (
             ChaveDoLink {
-                acao: "Procedimento",
-                ..chave(G1)
-            },
-            RegistroRecusado::AcaoInvalida,
-        ),
-        (
-            ChaveDoLink {
-                acao: "",
-                ..chave(G1)
-            },
-            RegistroRecusado::AcaoInvalida,
-        ),
-        (
-            ChaveDoLink {
                 alvo: "a\tb",
                 ..chave(G1)
             },
@@ -289,7 +276,7 @@ fn objeto_vazio_e_sem_unidade_na_url_sao_aceitos() {
     let indice = indice("link-sem-objeto");
     let sei = instalacao();
     let pesquisa = ChaveDoLink {
-        acao: "protocolo_pesquisar",
+        acao: AcaoDoSei::ProtocoloPesquisar,
         alvo: "",
         ..chave(G1)
     };

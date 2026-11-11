@@ -6,6 +6,7 @@
 //! referenciam capturas `UnB` (4.0), UFRJ (4.1) e PEN3 (5.0).
 //! O GET de ciência é ESCRITA e não pode ser feito durante a prévia.
 //! Nenhum JavaScript é executado, e nenhuma URL assinada é publicada.
+use crate::acao_do_sei::AcaoDoSei;
 
 mod documento;
 mod fluxo;
@@ -205,7 +206,8 @@ fn atividade_do_endereco(url: &str, alvo: AlvoDaCiencia<'_>) -> Option<String> {
             Some(id_documento),
         ),
     };
-    if parametro_unico(consulta, "acao") != Some("procedimento_visualizar")
+    if parametro_unico(consulta, "acao").and_then(AcaoDoSei::ler)
+        != Some(AcaoDoSei::ProcedimentoVisualizar)
         || parametro_unico(consulta, "id_procedimento") != Some(id_procedimento)
         || parametro_unico(consulta, marca) != Some("1")
         || id_documento.is_some_and(|doc| parametro_unico(consulta, "id_documento") != Some(doc))

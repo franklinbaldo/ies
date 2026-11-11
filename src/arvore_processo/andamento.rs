@@ -4,9 +4,8 @@
 use super::barra_do_processo::{acao_do_href, ancoras_da_barra};
 use super::concluir::EnderecoDeEscrita;
 use super::endereco::{EnderecoRecusado, conferir_endereco_relativo};
+use crate::acao_do_sei::AcaoDoSei;
 use crate::instalacao::Instalacao;
-
-pub(crate) const ACAO: &str = "procedimento_atualizar_andamento";
 
 #[derive(Clone, Copy, Debug, PartialEq, Eq, thiserror::Error)]
 #[error("{self:?}")]
@@ -27,18 +26,23 @@ pub(crate) fn ler_andamento_da_barra(
     let links: Vec<&str> = ancoras
         .iter()
         .filter_map(|a| a.href.as_deref())
-        .filter(|href| acao_do_href(href) == Some(ACAO))
+        .filter(|href| acao_do_href(href) == Some(AcaoDoSei::ProcedimentoAtualizarAndamento))
         .collect();
     match links.as_slice() {
         [] => Ok(None),
-        [href] => conferir_endereco_relativo(instalacao, href, ACAO, id)
-            .map(|url| Some(EnderecoDeEscrita::novo(url)))
-            .map_err(|e| match e {
-                EnderecoRecusado::NaoReconhecido => {
-                    ErroAndamentoNaBarra::EnderecoDeAtualizarAndamentoNaoReconhecido
-                }
-                EnderecoRecusado::DeOutroProcesso => ErroAndamentoNaBarra::OutroProcesso,
-            }),
+        [href] => conferir_endereco_relativo(
+            instalacao,
+            href,
+            AcaoDoSei::ProcedimentoAtualizarAndamento,
+            id,
+        )
+        .map(|url| Some(EnderecoDeEscrita::novo(url)))
+        .map_err(|e| match e {
+            EnderecoRecusado::NaoReconhecido => {
+                ErroAndamentoNaBarra::EnderecoDeAtualizarAndamentoNaoReconhecido
+            }
+            EnderecoRecusado::DeOutroProcesso => ErroAndamentoNaBarra::OutroProcesso,
+        }),
         _ => Err(ErroAndamentoNaBarra::LinksDeAtualizarAndamentoRepetidos),
     }
 }

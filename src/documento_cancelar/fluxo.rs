@@ -2,6 +2,7 @@
 //! prévia sem POST, uma escrita e uma nova leitura (sem retries/redirects).
 use super::erro::{ErroCancelar, FalhaDoCancelamento, VerificacaoDoCancelamento as Ver};
 use super::ler_link_cancelar;
+use crate::acao_do_sei::AcaoDoSei;
 use crate::arvore_processo::ProcessoNaArvore;
 use crate::documento::NumeroDocumento;
 use crate::formulario_web::{
@@ -25,7 +26,7 @@ use crate::visao_do_controle::EnvioDoControle as _;
 
 /// O navegador envia o botão sbmSalvar e o motivo (GO SEI 5.0/UFRJ 4.1).
 const CANCELAR: OperacaoDeFormulario = OperacaoDeFormulario {
-    acao: "documento_cancelar",
+    acao: AcaoDoSei::DocumentoCancelar,
     formulario: "frmDocumentoCancelar",
     envio: EnvioDoFormulario::BotaoDeEnvio("sbmSalvar"),
     campos_ocultos_exigidos: &["hdnInfraTipoPagina"],
@@ -292,7 +293,7 @@ pub(super) fn localizacao_aceita(
             return false;
         }
         match nome {
-            "acao" if valor == "arvore_visualizar" => acao += 1,
+            "acao" if AcaoDoSei::ler(valor) == Some(AcaoDoSei::ArvoreVisualizar) => acao += 1,
             "id_procedimento" if valor == id_proc => proc += 1,
             "id_documento" if valor == id_doc => doc += 1,
             "atualizar_arvore" if valor == "1" => atualizar += 1,

@@ -3,6 +3,7 @@
 //! link da unidade anterior volta do índice; o Controle novo é colhido com
 //! a chave da unidade nova. Arquivos e hashes sintéticos.
 use super::*;
+use crate::acao_do_sei::AcaoDoSei;
 use crate::indice_local::{ChaveDoLink, NOME_DO_ARQUIVO, unidade_dos_links};
 use crate::sessao_login::geracao_da_sessao;
 use crate::unidade_trocar::tests_apoio::{
@@ -102,7 +103,7 @@ fn troca_regrava_sessao_e_nada_da_unidade_anterior_e_reaproveitado() {
     let chave = |unidade| ChaveDoLink {
         geracao_sessao: &geracao,
         unidade,
-        acao: "procedimento_trabalhar",
+        acao: AcaoDoSei::ProcedimentoTrabalhar,
         alvo: "7",
     };
     indice

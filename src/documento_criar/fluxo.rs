@@ -6,6 +6,7 @@ use super::{
     ErroCriar, EscolhaDoDocumento, cadastro_redirecionado, conferir_cadastro, conferir_tipo,
     escolha_do_tipo, filtro_de_todos, tipos_oferecidos,
 };
+use crate::acao_do_sei::AcaoDoSei;
 use crate::arvore_processo::ErroLinkIncluirDocumento;
 use crate::formulario_web::{
     ConferenciaDaUnidade, EfeitoAvaliado, EnvioDoFormulario, ErroSubmissaoFormulario,
@@ -34,7 +35,7 @@ use crate::visao_do_controle::EnvioDoControle as _;
 // Exibir todos somente quando a lista curta não mostrou o tipo. POST de
 // leitura da lista, nunca de criação; exige o script observado da tela.
 pub(super) const FILTRAR_TIPOS: OperacaoDeFormulario = OperacaoDeFormulario {
-    acao: "documento_escolher_tipo",
+    acao: AcaoDoSei::DocumentoEscolherTipo,
     formulario: "frmDocumentoEscolherTipo",
     envio: EnvioDoFormulario::SubmitPorScript,
     campos_ocultos_exigidos: &["hdnFiltroSerie"],
@@ -48,7 +49,7 @@ pub(super) const FILTRAR_TIPOS: OperacaoDeFormulario = OperacaoDeFormulario {
 };
 
 pub(super) const ESCOLHER_TIPO: OperacaoDeFormulario = OperacaoDeFormulario {
-    acao: "documento_escolher_tipo",
+    acao: AcaoDoSei::DocumentoEscolherTipo,
     formulario: "frmDocumentoEscolherTipo",
     envio: EnvioDoFormulario::SubmitPorScript,
     campos_ocultos_exigidos: &["hdnIdSerie"],
@@ -62,7 +63,7 @@ pub(super) const ESCOLHER_TIPO: OperacaoDeFormulario = OperacaoDeFormulario {
 };
 
 pub(super) const CADASTRAR: OperacaoDeFormulario = OperacaoDeFormulario {
-    acao: "documento_gerar",
+    acao: AcaoDoSei::DocumentoGerar,
     formulario: "frmDocumentoCadastro",
     envio: EnvioDoFormulario::SubmitPorScript,
     campos_ocultos_exigidos: &["hdnFlagDocumentoCadastro", "hdnIdSerie"],

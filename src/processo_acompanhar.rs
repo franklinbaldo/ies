@@ -2,6 +2,7 @@
 //! A leitura/seleção não toca rede; a UI não infere grupo nem sucesso de escrita
 //! pela resposta HTTP. Casos do Todos `tests/test_processo_acompanhar_010.py` @323eb01.
 
+use crate::acao_do_sei::AcaoDoSei;
 use crate::html_atributos::{atributo_presente, valor_do_atributo};
 
 mod exclusao;
@@ -106,8 +107,11 @@ pub(crate) fn grupos_do_cadastro(
     let action = campo(form, "action")?.ok_or(ErroAcompanhar::CadastroNaoPublicado)?;
     let action = crate::formulario_web::decodificar_atributo(&action)
         .ok_or(ErroAcompanhar::HtmlDeAcompanhamentoInvalido)?;
-    if !parametro_unico(&action, "acao", "acompanhamento_cadastrar")
-        || !parametro_unico(&action, "id_procedimento", id_procedimento)
+    if !parametro_unico(
+        &action,
+        "acao",
+        AcaoDoSei::AcompanhamentoCadastrar.como_na_url(),
+    ) || !parametro_unico(&action, "id_procedimento", id_procedimento)
     {
         return Err(ErroAcompanhar::CadastroDeOutroProcesso);
     }

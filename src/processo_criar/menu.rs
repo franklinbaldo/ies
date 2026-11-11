@@ -1,11 +1,10 @@
 //! Link de "Iniciar Processo" publicado pelo Controle da sessão.
 //! Não inferir URL, não executar JS e não seguir redirecionamento.
+use crate::acao_do_sei::AcaoDoSei;
 use crate::formulario_web::decodificar_atributo;
 use crate::html_atributos::valor_do_atributo;
 use crate::instalacao::Instalacao;
 use crate::transporte::{conferir_chave_de_consulta, conferir_valor_de_consulta};
-
-const ACAO: &str = "procedimento_escolher_tipo";
 
 /// O menu do Controle fora da forma observada.
 #[derive(Clone, Copy, Debug, PartialEq, Eq, thiserror::Error)]
@@ -40,15 +39,16 @@ pub(crate) fn link_de_iniciar(
         };
         let href = match decodificar_atributo(&bruto) {
             Some(href) => href,
-            None if bruto.contains(ACAO) => {
+            None if bruto.contains(AcaoDoSei::ProcedimentoEscolherTipo.como_na_url()) => {
                 return Err(ErroMenu::LinkDeIniciarProcessoNaoReconhecido);
             }
             None => continue,
         };
         let aponta = href.split_once('?').is_some_and(|(_, consulta)| {
-            consulta
-                .split('&')
-                .any(|par| par == "acao=procedimento_escolher_tipo")
+            consulta.split('&').any(|par| {
+                par.strip_prefix("acao=").and_then(AcaoDoSei::ler)
+                    == Some(AcaoDoSei::ProcedimentoEscolherTipo)
+            })
         });
         if aponta {
             candidatos.push(href);
@@ -79,7 +79,9 @@ pub(crate) fn link_de_iniciar(
         conferir_valor_de_consulta(valor)
             .map_err(|_| ErroMenu::LinkDeIniciarProcessoNaoReconhecido)?;
         match chave {
-            "acao" if valor == ACAO => acoes += 1,
+            "acao" if AcaoDoSei::ler(valor) == Some(AcaoDoSei::ProcedimentoEscolherTipo) => {
+                acoes += 1;
+            }
             "infra_hash" if valor.len() == 64 && valor.bytes().all(|b| b.is_ascii_hexdigit()) => {
                 hashes += 1;
             }
@@ -129,7 +131,12 @@ mod tests {
     #[test]
     fn aceita_um_link_servido_e_preserva_assinatura() {
         let (url, instalacao) = base();
-        let link = link_de_iniciar(&instalacao, url, &ancora(ACAO)).unwrap();
+        let link = link_de_iniciar(
+            &instalacao,
+            url,
+            &ancora(AcaoDoSei::ProcedimentoEscolherTipo.como_na_url()),
+        )
+        .unwrap();
         assert!(link.contains("acao=procedimento_escolher_tipo&infra_hash="));
         assert!(!link.contains("amp;"));
     }
@@ -141,7 +148,11 @@ mod tests {
             link_de_iniciar(&instalacao, url, "<div/>"),
             Err(ErroMenu::LinkDeIniciarProcessoAusente)
         );
-        let repetido = format!("{}{}", ancora(ACAO), ancora(ACAO));
+        let repetido = format!(
+            "{}{}",
+            ancora(AcaoDoSei::ProcedimentoEscolherTipo.como_na_url()),
+            ancora(AcaoDoSei::ProcedimentoEscolherTipo.como_na_url())
+        );
         assert_eq!(
             link_de_iniciar(&instalacao, url, &repetido),
             Err(ErroMenu::LinkDeIniciarProcessoRepetido)
@@ -156,14 +167,18 @@ mod tests {
     fn recusa_link_externo_ou_sem_assinatura() {
         let (url, instalacao) = base();
         let externo = format!(
-            "<a href='https://outro.test/controlador.php?acao={ACAO}&amp;infra_hash={}'>Iniciar</a>",
+            "<a href='https://outro.test/controlador.php?acao={}&amp;infra_hash={}'>Iniciar</a>",
+            AcaoDoSei::ProcedimentoEscolherTipo.como_na_url(),
             "a".repeat(64)
         );
         assert_eq!(
             link_de_iniciar(&instalacao, url, &externo),
             Err(ErroMenu::LinkDeIniciarProcessoNaoReconhecido)
         );
-        let sem_assinatura = format!("<a href='controlador.php?acao={ACAO}'>Iniciar</a>");
+        let sem_assinatura = format!(
+            "<a href='controlador.php?acao={}'>Iniciar</a>",
+            AcaoDoSei::ProcedimentoEscolherTipo.como_na_url()
+        );
         assert_eq!(
             link_de_iniciar(&instalacao, url, &sem_assinatura),
             Err(ErroMenu::LinkDeIniciarProcessoNaoReconhecido)

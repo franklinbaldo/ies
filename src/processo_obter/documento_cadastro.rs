@@ -42,7 +42,8 @@ pub(super) fn ler<V: EnvioDoProcesso>(
     if buscar_anexo
         && !matches!(
             link.fonte,
-            "documento_alterar_recebido" | "documento_consultar_recebido"
+            crate::acao_do_sei::AcaoDoSei::DocumentoAlterarRecebido
+                | crate::acao_do_sei::AcaoDoSei::DocumentoConsultarRecebido
         )
     {
         return Ok(Cadastro {

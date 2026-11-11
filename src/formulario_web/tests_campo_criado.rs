@@ -3,9 +3,10 @@
 //! o valor da operação; publicado pela tela, é recusa. HTML sintético.
 use super::tests::{instalacao, tela_iso};
 use super::*;
+use crate::acao_do_sei::AcaoDoSei;
 
 const OPERACAO: OperacaoDeFormulario = OperacaoDeFormulario {
-    acao: "infra_trocar_unidade",
+    acao: AcaoDoSei::InfraTrocarUnidade,
     formulario: "frmInfraSelecaoUnidade",
     envio: EnvioDoFormulario::SubmitPorScriptComCampoCriado("selInfraUnidades"),
     campos_ocultos_exigidos: &["hdnInfraItensSelecionados"],

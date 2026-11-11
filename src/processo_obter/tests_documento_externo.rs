@@ -5,6 +5,7 @@
 //! `documento-numero-e-busca-*`; anexo com os cabeçalhos observados.
 use super::tests_apoio::*;
 use super::*;
+use crate::acao_do_sei::AcaoDoSei;
 use crate::anexo_documento::{Disposicao, ErroAnexo, LimiteDoAnexo};
 use crate::arvore_processo::tests::{NUP, arvore, no_documento, no_processo};
 use crate::arvore_processo::tests_conteudo::{
@@ -398,7 +399,7 @@ fn externo_pelo_link_da_arvore_guardado_em_duas() {
     amb.indice
         .registrar_link(
             &inst,
-            chave(&g, "procedimento_visualizar", ID),
+            chave(&g, AcaoDoSei::ProcedimentoVisualizar, ID),
             &url_arvore(ID),
         )
         .unwrap();

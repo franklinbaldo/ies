@@ -3,6 +3,7 @@
 mod celula_marcadores;
 mod colunas;
 
+use crate::acao_do_sei::AcaoDoSei;
 use crate::controle_contexto::{ContextoPagina, contexto_da_pagina};
 use crate::dominio::{Categoria, IdProcedimento};
 use crate::html_atributos::{nos_com_id, valor_do_atributo};
@@ -191,8 +192,8 @@ fn eh_link_do_processo(href: &str, id: &str) -> bool {
         .collect();
     acoes.len() == 1
         && matches!(
-            acoes[0],
-            "procedimento_trabalhar" | "procedimento_visualizar"
+            AcaoDoSei::ler(acoes[0]),
+            Some(AcaoDoSei::ProcedimentoTrabalhar | AcaoDoSei::ProcedimentoVisualizar)
         )
         && ids == [id]
 }

@@ -6,6 +6,7 @@
 //! (`UnB` 4.0.9 e GO 5.0.3, 03/11/2026). O POST reenvia os ocultos como
 //! servidos, só `hdnTipoHistorico` reescrito, sem botão. O botão
 //! `btnAtualizarAndamento` (escrita) nunca participa: é `type=button`.
+use crate::acao_do_sei::AcaoDoSei;
 use crate::formulario_web::{
     ConferenciaDaUnidade, EfeitoAvaliado, EnvioDoFormulario, EstadoDeSessao, MarcadorDeResultado,
     OperacaoDeFormulario, ResultadoDoEnvio, decodificar_atributo,
@@ -17,7 +18,7 @@ pub(crate) const CAMPO_TIPO: &str = "hdnTipoHistorico";
 /// `verHistorico('P')`: `submit()` por script; a página do histórico não
 /// publica a unidade (conferida na tela de origem do link).
 pub(crate) const VER_HISTORICO_COMPLETO: OperacaoDeFormulario = OperacaoDeFormulario {
-    acao: "procedimento_consultar_historico",
+    acao: AcaoDoSei::ProcedimentoConsultarHistorico,
     formulario: "frmProcedimentoHistorico",
     envio: EnvioDoFormulario::SubmitPorScript,
     campos_ocultos_exigidos: &[CAMPO_TIPO],

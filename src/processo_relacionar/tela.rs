@@ -1,5 +1,6 @@
 //! Tela de relacionamentos do SEI 4.0 (PEN1): leitura estrutural, sem JS
 //! executado e sem regex; todos os atributos passam por `html_atributos`.
+use crate::acao_do_sei::AcaoDoSei;
 use crate::formulario_web::{ErroSubmissaoFormulario, decodificar_atributo, localizar_formulario};
 use crate::html_atributos::{ErroAtributoHtml, valor_do_atributo};
 use std::collections::HashSet;
@@ -66,7 +67,7 @@ fn id_do_processo(href: &str) -> Option<&str> {
     for parte in query.split('&') {
         let (nome, valor) = parte.split_once('=')?;
         match nome {
-            "acao" if valor == "procedimento_trabalhar" => acao += 1,
+            "acao" if AcaoDoSei::ler(valor) == Some(AcaoDoSei::ProcedimentoTrabalhar) => acao += 1,
             "id_procedimento" if !valor.is_empty() && valor.bytes().all(|c| c.is_ascii_digit()) => {
                 ids.push(valor);
             }

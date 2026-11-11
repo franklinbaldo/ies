@@ -2,6 +2,7 @@
 //! Teste ignorado: exige ZIP público conferido em `IES_ACERVO_CACHE`.
 //! Nunca executa HTTP nem revela cookie, URL assinada ou HTML.
 use super::ler_pagina;
+use crate::acao_do_sei::AcaoDoSei;
 use crate::cassette::acervo::gravacao;
 use crate::cassette::{ZipDoAcervo, conferir_cassette_ate, html_da_resposta};
 use std::path::Path;
@@ -38,7 +39,7 @@ fn replay_da_lupa_go_no_acervo() {
             // GO: ação da lupa no literal servido pelo cadastro. Não executar JS,
             // não publicar nem comparar o hash assinado da cassette.
             let candidatos: Vec<_> =
-                super::fluxo::candidatos(&html, "unidade_selecionar_envio_processo")
+                super::fluxo::candidatos(&html, AcaoDoSei::UnidadeSelecionarEnvioProcesso)
                     .expect("HTML do cadastro fora da forma observada")
                     .into_iter()
                     .filter(|url| url.contains("acao=unidade_selecionar_envio_processo"))
@@ -55,7 +56,7 @@ fn replay_da_lupa_go_no_acervo() {
                     &html,
                     "https://seitreinamento.go.gov.br/sei/controlador.php",
                     "https://seitreinamento.go.gov.br/sei",
-                    "unidade_selecionar_envio_processo"
+                    AcaoDoSei::UnidadeSelecionarEnvioProcesso
                 )
                 .is_ok(),
                 "cadastro GO passo {} sem link autorizado: relativo={} duplicacao={} fragmento={} escape={}",

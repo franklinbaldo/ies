@@ -14,7 +14,6 @@ pub(crate) enum RegistroRecusado {
     IdProcedimentoInvalido,
     GeracaoInvalida,
     UnidadeInvalida,
-    AcaoInvalida,
     ObjetoInvalido,
     LinkNaoHttps,
     LinkComCaractereProibido,
@@ -94,9 +93,6 @@ pub(super) fn conferir_chave(chave: ChaveDoLink<'_>) -> Result<(), RegistroRecus
     if !imprimivel(chave.unidade, 64) {
         return Err(RegistroRecusado::UnidadeInvalida);
     }
-    if chave.acao.len() > 128 || conferir_chave_de_consulta(chave.acao).is_err() {
-        return Err(RegistroRecusado::AcaoInvalida);
-    }
     if !texto_sem_controle(chave.alvo, 128) {
         return Err(RegistroRecusado::ObjetoInvalido);
     }
@@ -142,7 +138,7 @@ pub(super) fn conferir_url(
             return Err(RegistroRecusado::LinkComConsultaNaoCanonica);
         }
         match nome {
-            "acao" if valor == chave.acao => acoes += 1,
+            "acao" if valor == chave.acao.como_na_url() => acoes += 1,
             "acao" => return Err(RegistroRecusado::LinkSemAcaoUnicaIgual),
             "infra_hash" if hash_valido(valor) => hashes += 1,
             "infra_hash" => return Err(RegistroRecusado::LinkSemInfraHashUnico),

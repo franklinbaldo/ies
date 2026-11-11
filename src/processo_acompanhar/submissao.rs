@@ -3,6 +3,7 @@
 //! Caso do Todos `tests/test_processo_acompanhar_010.py` @323eb01.
 use super::ErroAcompanhar;
 use super::{escolher_grupo, grupos_do_cadastro};
+use crate::acao_do_sei::AcaoDoSei;
 use crate::formulario_web::{
     ConferenciaDaUnidade, EfeitoAvaliado, EnvioDoFormulario, EstadoDoProcesso,
     OperacaoDeFormulario, ResultadoDoEnvio, SubmissaoDerivada, TelaServida, derivar_submissao,
@@ -13,7 +14,7 @@ use crate::instalacao::Instalacao;
 /// O primitivo recusa action fora da instalação, hash inválido, botão ausente,
 /// duplicidade de controles e campos não ofertados.
 const INCLUIR: OperacaoDeFormulario = OperacaoDeFormulario {
-    acao: "acompanhamento_cadastrar",
+    acao: AcaoDoSei::AcompanhamentoCadastrar,
     formulario: "frmAcompanhamentoCadastro",
     envio: EnvioDoFormulario::BotaoDeEnvio("sbmCadastrarAcompanhamento"),
     campos_ocultos_exigidos: &["hdnIdProtocolo"],
@@ -53,7 +54,7 @@ pub(crate) fn derivar_inclusao(
 
 /// Exclusão pelo `submit()` do formulário observado na lista. Sem botão.
 const EXCLUIR: OperacaoDeFormulario = OperacaoDeFormulario {
-    acao: "acompanhamento_excluir",
+    acao: AcaoDoSei::AcompanhamentoExcluir,
     formulario: "frmGerenciarAcompanhamento",
     envio: EnvioDoFormulario::SubmitPorScript,
     campos_ocultos_exigidos: &["hdnInfraItemId"],

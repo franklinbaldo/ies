@@ -1,6 +1,7 @@
 //! Regressões de fronteira da leitura Web da lupa (#244).
 //! Todas as URLs, hashes e respostas HTTP deste arquivo são sintéticos.
 use super::*;
+use crate::acao_do_sei::AcaoDoSei;
 
 const ORIGEM: &str = "https://sei.example/sei";
 const HASH: &str = "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa";
@@ -21,7 +22,7 @@ fn link_publicado_para_outra_acao_pode_ser_lido_com_hash_valido() {
             &link(&consulta),
             &controle(),
             ORIGEM,
-            "grupo_unidade_listar"
+            AcaoDoSei::GrupoUnidadeListar
         ),
         Ok(format!("{ORIGEM}/controlador.php?{consulta}"))
     );
@@ -37,7 +38,7 @@ fn link_com_hash_repetido_valido_ou_invalido_eh_recusado() {
                 &link(&consulta),
                 &controle(),
                 ORIGEM,
-                "grupo_unidade_listar"
+                AcaoDoSei::GrupoUnidadeListar
             ),
             Err(FalhaDaLupa::LinkAusente),
         );
@@ -58,7 +59,7 @@ fn consulta_malformada_ou_com_chave_nao_canonica_eh_recusada() {
                 &link(&consulta),
                 &controle(),
                 ORIGEM,
-                "grupo_unidade_listar"
+                AcaoDoSei::GrupoUnidadeListar
             ),
             Err(FalhaDaLupa::LinkAusente),
             "uma consulta malformada nunca deve autorizar a leitura"
@@ -203,7 +204,7 @@ fn lupa_go_publicada_como_literal_de_script_eh_lida_sem_executar_js() {
             &html,
             &controle(),
             ORIGEM,
-            "unidade_selecionar_envio_processo"
+            AcaoDoSei::UnidadeSelecionarEnvioProcesso
         ),
         Ok(format!("{ORIGEM}/controlador.php?{consulta}")),
     );
@@ -220,7 +221,7 @@ fn dois_literals_assinados_distintos_da_lupa_sao_ambiguos() {
             &html,
             &controle(),
             ORIGEM,
-            "unidade_selecionar_envio_processo"
+            AcaoDoSei::UnidadeSelecionarEnvioProcesso
         ),
         Err(FalhaDaLupa::LinkAmbiguo),
     );
@@ -235,7 +236,7 @@ fn literal_sem_hash_assinado_nao_autoriza_get() {
             html,
             &controle(),
             ORIGEM,
-            "unidade_selecionar_envio_processo"
+            AcaoDoSei::UnidadeSelecionarEnvioProcesso
         ),
         Err(FalhaDaLupa::LinkAusente),
     );

@@ -8,6 +8,7 @@
 //! As linhas vêm dos leitores da caixa (R: `caixa::linhas_com_link`; D:
 //! `caixa_detalhada::linhas_com_link`); não há segundo leitor de linhas.
 //! Nada aqui falha o comando: linha, página ou banco ruins só não gravam.
+use crate::acao_do_sei::AcaoDoSei;
 use crate::caixa::LinhaDoControle;
 use crate::controle_contexto::contexto_da_pagina;
 use crate::controle_reconhecido::publica_visao_detalhada;
@@ -24,11 +25,6 @@ use std::collections::HashMap;
 #[cfg(test)]
 #[path = "colheita_do_controle/tests.rs"]
 mod tests;
-
-/// Ação do link de cada linha (objeto = `id_procedimento`).
-pub(crate) const ACAO_DO_TRABALHO: &str = "procedimento_trabalhar";
-/// Ação do link do menu da pesquisa (objeto vazio).
-pub(crate) const ACAO_DA_PESQUISA: &str = "protocolo_pesquisar";
 
 /// Para onde e com que chave colher: índice, instalação, geração da sessão
 /// (SHA-256 do cookie) e a URL privada do Controle, de onde vêm a unidade
@@ -125,13 +121,19 @@ impl<'i> Colheita<'i> {
             indice.registrar_unidade_observada(instalacao, &alvo.geracao, &observada, visao);
         }
         for (linha, url) in linhas_conferidas(alvo, html) {
-            let gravado = registrar(alvo, &unidade, ACAO_DO_TRABALHO, &linha.id, &url);
+            let gravado = registrar(
+                alvo,
+                &unidade,
+                AcaoDoSei::ProcedimentoTrabalhar,
+                &linha.id,
+                &url,
+            );
             if gravado.is_ok() {
                 let _ = indice.registrar_processo(instalacao, &linha.numero, &linha.id);
             }
         }
         if let Ok(url) = link_da_pesquisa(instalacao, &alvo.url_do_controle, html) {
-            let _ = registrar(alvo, &unidade, ACAO_DA_PESQUISA, "", &url);
+            let _ = registrar(alvo, &unidade, AcaoDoSei::ProtocoloPesquisar, "", &url);
         }
         if let Some(url) = mime.and_then(|mime| action_da_pesquisa_rapida(alvo, html, mime)) {
             let _ = registrar(alvo, &unidade, PESQUISA_RAPIDA.acao, "", &url);
@@ -143,7 +145,7 @@ impl<'i> Colheita<'i> {
 fn registrar(
     alvo: &Alvo<'_>,
     unidade: &str,
-    acao: &str,
+    acao: AcaoDoSei,
     id_alvo: &str,
     url: &str,
 ) -> Result<(), RegistroRecusado> {

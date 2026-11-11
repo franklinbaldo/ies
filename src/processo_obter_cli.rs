@@ -35,7 +35,7 @@ fn json_das_propriedades(lidas: &PropriedadesLidas) -> Value {
         "nivel_de_acesso": lidas.nivel_de_acesso.como_texto(),
         "hipotese_legal": lidas.hipotese_legal,
         "data_de_geracao": lidas.data_de_geracao,
-        "fonte": lidas.fonte.acao(),
+        "fonte": lidas.fonte.acao().como_na_url(),
     })
 }
 
@@ -108,7 +108,7 @@ fn humano_das_propriedades(propriedades: &Propriedades, texto: &mut String) {
     let _ = write!(
         texto,
         "\nPropriedades ({}): tipo {}, nível {}, gerado em {}.",
-        lidas.fonte.acao(),
+        lidas.fonte.acao().como_na_url(),
         lidas.tipo.as_deref().unwrap_or("não observado"),
         lidas.nivel_de_acesso.como_texto(),
         lidas

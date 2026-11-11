@@ -1,6 +1,7 @@
 //! GET HTTPS da caixa; cookies só seguem para a origem explicitamente autorizada.
 //! Sem login, redirects ou tentativa de outro backend; os POSTs são os de
 //! `envio_post`. Todo pedido passa pelo `cliente_https` único (com proxy).
+use crate::acao_do_sei::AcaoDoSei;
 use crate::instalacao::Instalacao;
 use std::fs;
 use std::io::Read;
@@ -44,7 +45,9 @@ fn validar_url(url: &str) -> Result<(&str, &str), FalhaTransporte> {
         conferir_chave_de_consulta(nome)?;
         conferir_valor_de_consulta(valor)?;
         match nome {
-            "acao" if valor == "procedimento_controlar" => actions += 1,
+            "acao" if AcaoDoSei::ler(valor) == Some(AcaoDoSei::ProcedimentoControlar) => {
+                actions += 1;
+            }
             // 192: o Controle a que a troca de unidade redireciona (#205).
             "infra_hash"
                 if matches!(valor.len(), 64 | 192)

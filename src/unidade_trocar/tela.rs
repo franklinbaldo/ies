@@ -4,6 +4,7 @@
 //! observada nas cassettes da `UnB` 4.0.9, UFRJ 4.1.5 e GO 5.0.3. Nenhum JS é
 //! executado: as formas são conferidas como texto e atributos.
 use super::ErroTroca;
+use crate::acao_do_sei::AcaoDoSei;
 use crate::formulario_web::decodificar_atributo;
 use crate::formulario_web::{
     ConferenciaDaUnidade, EfeitoAvaliado, EnvioDoFormulario, EstadoDeSessao, OperacaoDeFormulario,
@@ -18,13 +19,12 @@ use crate::instalacao::Instalacao;
 mod consulta;
 pub(crate) use consulta::{ConsultaForaDaForma, conferir_consulta};
 
-pub(crate) const ACAO_DE_TROCAR: &str = "infra_trocar_unidade";
 /// O oculto que `selecionarUnidade()` cria antes do `submit()`.
 pub(crate) const CAMPO_CRIADO: &str = "selInfraUnidades";
 
 /// O formulário da tela, declarado pela operação (sem catálogo central).
 pub(crate) const TROCAR_UNIDADE: OperacaoDeFormulario = OperacaoDeFormulario {
-    acao: ACAO_DE_TROCAR,
+    acao: AcaoDoSei::InfraTrocarUnidade,
     formulario: "frmInfraSelecaoUnidade",
     envio: EnvioDoFormulario::SubmitPorScriptComCampoCriado(CAMPO_CRIADO),
     campos_ocultos_exigidos: &[
@@ -110,7 +110,7 @@ pub(crate) fn link_da_troca(
     if !relativo.bytes().all(|b| (33..=126).contains(&b)) || relativo.contains(['#', '\\', '\'']) {
         return Err(ErroTroca::LinkDeTrocaDeUnidadeForaDaFormaObservada);
     }
-    conferir_consulta(consulta, ACAO_DE_TROCAR, |h| h.len() == 64)
+    conferir_consulta(consulta, AcaoDoSei::InfraTrocarUnidade, |h| h.len() == 64)
         .map_err(|ConsultaForaDaForma| ErroTroca::LinkDeTrocaDeUnidadeForaDaFormaObservada)?;
     let base = url_da_tela.split('?').next().unwrap_or_default();
     let (pasta, _) = base

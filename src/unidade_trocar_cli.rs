@@ -4,6 +4,7 @@
 //! pedido; troca verificada regrava a URL da sessão e o marcador, apaga os
 //! links assinados da instalação e colhe o Controle novo. A troca vale para
 //! toda a sessão da conta, e a saída diz isso.
+use crate::acao_do_sei::AcaoDoSei;
 use crate::configuracao::{self, ArquivosDeAcesso};
 use crate::formulario_web::{RespostaDoPost, SubmissaoDerivada};
 use crate::indice_local::IndiceLocal;
@@ -12,8 +13,8 @@ use crate::transporte::FalhaTransporte;
 use crate::transporte::contagem::ContagemDeRequisicoes;
 use crate::transporte::sessao::{CookieDaSessao, ReferenciasDaSessao};
 use crate::unidade_trocar::{
-    ACAO_DE_TROCAR, ControleLido, EnvioDaTroca, EnvioHttpsDaTroca, ErroTroca, PedidoDeTroca,
-    SessaoDaTroca, Troca, trocar_unidade,
+    ControleLido, EnvioDaTroca, EnvioHttpsDaTroca, ErroTroca, PedidoDeTroca, SessaoDaTroca, Troca,
+    trocar_unidade,
 };
 
 const AVISO_DE_ESCOPO: &str =
@@ -212,7 +213,7 @@ struct UnidadePublica<'a> {
 
 #[derive(serde::Serialize)]
 struct EnvioTrocaPublico<'a> {
-    acao: &'static str,
+    acao: AcaoDoSei,
     campos: &'a [String],
     metodo: &'static str,
 }
@@ -244,7 +245,7 @@ fn resultado_troca(troca: &Troca, descartados: Option<usize>, pedidos: u32) -> R
             .campos_do_envio
             .as_deref()
             .map(|campos| EnvioTrocaPublico {
-                acao: ACAO_DE_TROCAR,
+                acao: AcaoDoSei::InfraTrocarUnidade,
                 campos,
                 metodo: "POST",
             }),
@@ -288,7 +289,7 @@ pub(crate) fn json_de_sucesso(troca: &Troca, descartados: Option<usize>, pedidos
     let alterado = troca.controle_novo.is_some();
     let envio = troca.campos_do_envio.as_ref().map_or(
         Value::Null,
-        |campos| json!({"metodo": "POST", "acao": ACAO_DE_TROCAR, "campos": campos}),
+        |campos| json!({"metodo": "POST", "acao": AcaoDoSei::InfraTrocarUnidade, "campos": campos}),
     );
     let ja_na_unidade = troca.escolhida.is_none();
     json!({

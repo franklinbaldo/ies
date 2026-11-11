@@ -9,6 +9,7 @@ use super::{
     EnvioDoProcesso, ErroProcessoObter, PedidoDoProcesso, ProcessoAberto, ResolvidoPor,
     SessaoDoProcesso,
 };
+use crate::acao_do_sei::AcaoDoSei;
 use crate::colheita_do_controle::Colheita;
 use crate::formulario_web::{
     ErroSubmissaoFormulario, TelaServida, derivar_submissao, derivar_submissao_guardada,
@@ -171,7 +172,7 @@ pub(super) fn abrir_processo<V: EnvioDoProcesso>(
             &pai.id_procedimento,
         );
         contexto.aprender_link(
-            "procedimento_trabalhar",
+            AcaoDoSei::ProcedimentoTrabalhar,
             &pai.id_procedimento,
             pai.trabalhar.as_str(),
         );
@@ -185,7 +186,7 @@ pub(super) fn abrir_processo<V: EnvioDoProcesso>(
             &destino.id_procedimento,
         );
         contexto.aprender_link(
-            "procedimento_trabalhar",
+            AcaoDoSei::ProcedimentoTrabalhar,
             &destino.id_procedimento,
             destino.trabalhar.as_str(),
         );

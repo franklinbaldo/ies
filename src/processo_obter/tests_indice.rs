@@ -1,6 +1,7 @@
 //! RED/GREEN dos palpites do índice que falham (esquecer e seguir), da
 //! recusa da entrada por id e das falhas tipadas fora de palpite.
 use super::tests_apoio::*;
+use crate::acao_do_sei::AcaoDoSei;
 use crate::arvore_processo::ErroArvore;
 use crate::arvore_processo::tests::NUP;
 use crate::transporte::StatusHttpRecusado;
@@ -11,7 +12,7 @@ fn com_link_da_arvore(amb: &Ambiente) {
     amb.indice
         .registrar_link(
             &inst,
-            chave(&g, "procedimento_visualizar", ID),
+            chave(&g, AcaoDoSei::ProcedimentoVisualizar, ID),
             &url_arvore(ID),
         )
         .unwrap();
@@ -70,7 +71,10 @@ fn link_da_arvore_que_responde_login_e_esquecido_e_a_entrada_por_id_segue() {
     // O link novo da árvore substituiu o esquecido.
     assert!(
         amb.indice
-            .link(&instalacao(), chave(&g, "procedimento_visualizar", ID))
+            .link(
+                &instalacao(),
+                chave(&g, AcaoDoSei::ProcedimentoVisualizar, ID)
+            )
             .is_some()
     );
 }
@@ -90,7 +94,7 @@ fn link_expirado_recusado_pelo_servidor_nao_volta_do_cache() {
     assert_eq!(
         amb.indice.link(
             &instalacao(),
-            chave(&geracao_atual, "procedimento_visualizar", ID)
+            chave(&geracao_atual, AcaoDoSei::ProcedimentoVisualizar, ID)
         ),
         None
     );
@@ -169,7 +173,7 @@ fn pesquisa_rapida_guardada_que_responde_login_e_esquecida() {
     amb.indice
         .registrar_link(
             &inst,
-            chave(&g, "protocolo_pesquisa_rapida", ""),
+            chave(&g, AcaoDoSei::ProtocoloPesquisaRapida, ""),
             &absoluta(&action_rapida()),
         )
         .unwrap();

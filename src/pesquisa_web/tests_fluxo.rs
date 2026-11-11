@@ -1,6 +1,7 @@
 //! RED/GREEN do fluxo de `ies processo buscar`: sequência exata de
 //! requisições por transporte injetável, com telas sintéticas.
 use super::*;
+use crate::acao_do_sei::AcaoDoSei;
 use crate::formulario_web::{RespostaDoPost, SubmissaoDerivada};
 use crate::pesquisa_web::resposta::FaixaDaPesquisa;
 use crate::pesquisa_web::tests_fixtures::{
@@ -549,7 +550,7 @@ fn colheita_do_controle_nao_muda_a_sequencia_e_guarda_o_link_da_pesquisa() {
     let chave = crate::indice_local::ChaveDoLink {
         geracao_sessao: &geracao,
         unidade: "110000001",
-        acao: "protocolo_pesquisar",
+        acao: AcaoDoSei::ProtocoloPesquisar,
         alvo: "",
     };
     assert_eq!(

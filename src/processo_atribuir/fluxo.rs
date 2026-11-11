@@ -1,6 +1,7 @@
 //! Prévia Web injetável da atribuição de processo: abertura, unidade,
 //! atribuição publicada na árvore, formulário da barra e payload local.
 //! A CLI mantém --confirmar fechado até haver validação live em treinamento.
+use crate::acao_do_sei::AcaoDoSei;
 use crate::arvore_processo::{AbertoEm, ErroAtribuirNaBarra};
 use crate::formulario_web::{
     ErroSubmissaoFormulario, Redirecionamento302, RespostaDoEnvio, consulta_do_controlador,
@@ -261,9 +262,14 @@ fn redirecionamento_esperado(resposta: &Redirecionamento302, id: &str) -> bool {
     // genéricos: sem ID explícito, uma leitura coincidente pode ser
     // atribuição/remoção concorrente de outro agente, não deste POST.
     // O 302 é apenas inspecionado, nunca seguido.
-    let acao_esperada = matches!(acao, Some("arvore_visualizar" | "principal"));
+    let acao_esperada = matches!(
+        acao.and_then(AcaoDoSei::ler),
+        Some(AcaoDoSei::ArvoreVisualizar | AcaoDoSei::Principal)
+    );
     // O aceite observado publica também a ação que originou o 302.
     // Sem essa ligação ao POST de atribuição, a árvore coincidente
     // pode ter sido alterada por outro agente: não declarar sucesso.
-    acao_esperada && procedimento == Some(id) && origem == Some("procedimento_atribuicao_cadastrar")
+    acao_esperada
+        && procedimento == Some(id)
+        && origem.and_then(AcaoDoSei::ler) == Some(AcaoDoSei::ProcedimentoAtribuicaoCadastrar)
 }

@@ -2,6 +2,7 @@
 //! URL servida e o NUP declarado pelo nó `PROCESSO` de uma árvore do mesmo
 //! id na mesma cassette. Sem os dois, a leitura é `nao_aplicavel`.
 use super::{Leitor, Registro, Resultado};
+use crate::acao_do_sei::AcaoDoSei;
 use crate::arvore_processo::endereco::conferir_endereco_relativo;
 use crate::arvore_processo::{ler_tela_do_processo, nup_declarado_na_arvore};
 use crate::cassette::acervo::gravacao::{self, Resposta};
@@ -224,7 +225,7 @@ fn propriedades(c: &Cassette<'_>, r: &Resposta<'_>, html: &str, nup: &str, id: &
             registro
                 .formas
                 .push(lidas.nivel_de_acesso.como_texto().into());
-            registro.formas.push(fonte.acao().into());
+            registro.formas.push(fonte.acao().como_na_url().into());
         }
         Err(erro) => registro.resultado = Resultado::Recusado(format!("{erro:?}")),
     }
@@ -260,7 +261,7 @@ fn marcadores_302(c: &Cassette<'_>, r: &Resposta<'_>, id: &str) -> Registro {
             match conferir_endereco_relativo(
                 &c.instalacao,
                 relativo,
-                "andamento_marcador_cadastrar",
+                AcaoDoSei::AndamentoMarcadorCadastrar,
                 id,
             ) {
                 Ok(_) => Resultado::Lido,

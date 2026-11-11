@@ -1,5 +1,6 @@
 //! Tela `procedimento_trabalhar`: a unidade publicada (`#lnkInfraUnidade`)
 //! e o `src` assinado do único `iframe#ifrArvore`, conferido e resolvido.
+use crate::acao_do_sei::AcaoDoSei;
 use crate::html_atributos::{ErroAtributoHtml, nos_com_id, valor_do_atributo};
 use crate::instalacao::Instalacao;
 
@@ -150,7 +151,7 @@ fn conferir_endereco(
     id: &str,
 ) -> Result<EnderecoDaArvore, ErroTelaDoProcesso> {
     use super::endereco::{EnderecoRecusado, conferir_endereco_relativo};
-    conferir_endereco_relativo(instalacao, src, "procedimento_visualizar", id)
+    conferir_endereco_relativo(instalacao, src, AcaoDoSei::ProcedimentoVisualizar, id)
         .map(EnderecoDaArvore)
         .map_err(|recusa| match recusa {
             EnderecoRecusado::NaoReconhecido => ErroTelaDoProcesso::EnderecoDaArvoreNaoReconhecido,

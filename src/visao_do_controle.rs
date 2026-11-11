@@ -19,6 +19,7 @@ mod passos;
 mod plano;
 mod resumida;
 
+use crate::acao_do_sei::AcaoDoSei;
 use crate::caixa_detalhada::ErroDetalhada;
 use crate::erro_web::ErroCaixa;
 use crate::formulario_web::{
@@ -54,7 +55,7 @@ const CAMPOS_USUARIO: &[&str] = &[
 
 /// `trocarVisualizacao(v)`: só `hdnTipoVisualizacao` muda.
 pub(crate) const TROCAR_VISAO_DO_CONTROLE: OperacaoDeFormulario = OperacaoDeFormulario {
-    acao: "procedimento_controlar",
+    acao: AcaoDoSei::ProcedimentoControlar,
     formulario: "frmProcedimentoControlar",
     envio: EnvioDoFormulario::SubmitPorScript,
     campos_ocultos_exigidos: &["hdnTipoVisualizacao"],
@@ -72,7 +73,7 @@ pub(crate) const TROCAR_VISAO_DO_CONTROLE: OperacaoDeFormulario = OperacaoDeForm
 
 /// `infraAcaoPaginar('=', i, 'Detalhado')` a partir de uma tela D.
 pub(crate) const PAGINAR_VISAO_DETALHADA: OperacaoDeFormulario = OperacaoDeFormulario {
-    acao: "procedimento_controlar",
+    acao: AcaoDoSei::ProcedimentoControlar,
     formulario: "frmProcedimentoControlar",
     envio: EnvioDoFormulario::SubmitPorScript,
     campos_ocultos_exigidos: &["hdnTipoVisualizacao", "hdnDetalhadoPaginaAtual"],

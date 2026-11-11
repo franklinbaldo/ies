@@ -1,6 +1,7 @@
 //! Links da árvore e da tela de trabalho guardados no índice local.
 //! Um índice velho pode ser esquecido; uma exigência de senha não pode.
 use super::{ErroProcessoObter, Passo};
+use crate::acao_do_sei::AcaoDoSei;
 use crate::arvore_processo::{ErroArvore, ErroTelaDoProcesso, ler_tela_do_processo};
 use crate::processo_obter::abertura::{Contexto, Lida, Rede, concluir, ler_arvore_aberta};
 use crate::processo_obter::pastas::{self, Guardado};
@@ -13,7 +14,6 @@ pub(in crate::processo_obter) fn link_da_arvore<V: EnvioDoProcesso>(
     contexto: &Contexto<'_>,
     rede: &mut Rede<'_, V>,
 ) -> Passo {
-    const ACAO: &str = "procedimento_visualizar";
     if contexto.unidade_pedida.is_some() {
         return Ok(None);
     }
@@ -27,7 +27,7 @@ pub(in crate::processo_obter) fn link_da_arvore<V: EnvioDoProcesso>(
         Guardado::Seguir => {}
     }
     let Some(link) = contexto
-        .chave(ACAO, &id)
+        .chave(AcaoDoSei::ProcedimentoVisualizar, &id)
         .and_then(|chave| contexto.indice.link(instalacao, chave))
     else {
         return Ok(None);
@@ -47,7 +47,7 @@ pub(in crate::processo_obter) fn link_da_arvore<V: EnvioDoProcesso>(
             Err(erro) => return Err(ErroProcessoObter::Arvore(erro)),
         }
     }
-    contexto.esquecer_link(ACAO, &id);
+    contexto.esquecer_link(AcaoDoSei::ProcedimentoVisualizar, &id);
     Ok(None)
 }
 
@@ -58,20 +58,19 @@ pub(in crate::processo_obter) fn link_de_trabalho<V: EnvioDoProcesso>(
     contexto: &Contexto<'_>,
     rede: &mut Rede<'_, V>,
 ) -> Passo {
-    const ACAO: &str = "procedimento_trabalhar";
     let instalacao = &contexto.instalacao;
     let Some(id) = contexto.indice.id_por_nup(instalacao, contexto.nup) else {
         return Ok(None);
     };
     let Some(link) = contexto
-        .chave(ACAO, &id)
+        .chave(AcaoDoSei::ProcedimentoTrabalhar, &id)
         .and_then(|chave| contexto.indice.link(instalacao, chave))
     else {
         return Ok(None);
     };
     // Login, redirect ou outro status: o link envelheceu.
     let Lida::Html { html, mime } = rede.get(link.url())? else {
-        contexto.esquecer_link(ACAO, &id);
+        contexto.esquecer_link(AcaoDoSei::ProcedimentoTrabalhar, &id);
         return Ok(None);
     };
     let tela = match ler_tela_do_processo(instalacao, &html, &id, contexto.unidade_pedida) {
@@ -94,7 +93,7 @@ pub(in crate::processo_obter) fn link_de_trabalho<V: EnvioDoProcesso>(
         }
         // Não é a tela deste processo: o link envelheceu.
         Err(_) => {
-            contexto.esquecer_link(ACAO, &id);
+            contexto.esquecer_link(AcaoDoSei::ProcedimentoTrabalhar, &id);
             return Ok(None);
         }
     };
@@ -102,7 +101,7 @@ pub(in crate::processo_obter) fn link_de_trabalho<V: EnvioDoProcesso>(
         Ok((arvore, unidade)) => Ok(Some((arvore, Some(unidade), ResolvidoPor::IndiceTrabalhar))),
         Err(ErroProcessoObter::Arvore(erro)) if erro.diverge_do_pedido() => {
             contexto.indice.esquecer_processo(instalacao, contexto.nup);
-            contexto.esquecer_link(ACAO, &id);
+            contexto.esquecer_link(AcaoDoSei::ProcedimentoTrabalhar, &id);
             Ok(None)
         }
         Err(erro) => Err(erro),

@@ -4,6 +4,7 @@
 //! confere no `frmBlocoEscolher` que o bloco e o documento são oferecidos;
 //! o pertencimento anterior vem do detalhe do bloco, a mesma leitura de
 //! `ies bloco N`. Confirmação: um POST e releitura independente (BDD-381-02).
+use crate::acao_do_sei::AcaoDoSei;
 use crate::arvore_processo::{ErroBlocoNaBarra, ler_bloco_escolher_da_barra};
 use crate::bloco::TipoBloco;
 use crate::bloco_cli::{FalhaLeitura, Leitura, ler_tipado_via};
@@ -356,7 +357,7 @@ fn confirmar_documento<V: EnvioDoProcesso>(
 }
 
 const INCLUIR_DOCUMENTO: OperacaoDeFormulario = OperacaoDeFormulario {
-    acao: "bloco_escolher",
+    acao: AcaoDoSei::BlocoEscolher,
     formulario: "frmBlocoEscolher",
     envio: EnvioDoFormulario::BotaoDeEnvio("sbmIncluir"),
     campos_ocultos_exigidos: &["hdnDocumentosItens", "hdnDocumentosItensSelecionados"],
@@ -388,7 +389,7 @@ fn redirecionamento_da_inclusao(
             .map(|(_, valor)| valor)
             .collect()
     };
-    valores("acao") == ["bloco_escolher"]
+    valores("acao") == [AcaoDoSei::BlocoEscolher.como_na_url()]
         && valores("id_procedimento") == [id_procedimento]
         && valores("id_documento") == [id_documento]
 }
