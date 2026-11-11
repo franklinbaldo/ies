@@ -391,7 +391,7 @@ fn bdd_332_03_ies_le_arvore_real_depois_do_cadastro_simulado() {
         .find(|d| d.rotulo == "Anexo (050000001)")
         .expect("documento definitivo lido");
     assert_eq!(pdf.natureza.icone.as_deref(), Some("documento_pdf"));
-    assert_eq!(pdf.natureza.cancelado, Some(false));
+    assert_eq!(pdf.natureza.cancelamento.cancelado(), Some(false));
 }
 
 #[test]

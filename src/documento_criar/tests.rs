@@ -1,6 +1,6 @@
 //! Casos sintéticos do cadastro e da reconciliação de documento interno.
 use super::*;
-use crate::arvore_processo::NaturezaDoDocumento;
+use crate::arvore_processo::{Cancelamento, NaturezaDoDocumento};
 fn doc(id: &str, numero: Option<&str>, rotulo: &str) -> DocumentoNaArvore {
     DocumentoNaArvore {
         id: id.into(),
@@ -9,8 +9,7 @@ fn doc(id: &str, numero: Option<&str>, rotulo: &str) -> DocumentoNaArvore {
         pasta: None,
         natureza: NaturezaDoDocumento {
             icone: None,
-            cancelado: None,
-            motivo_do_cancelamento: None,
+            cancelamento: Cancelamento::NaoObservado,
             dica: None,
         },
     }
