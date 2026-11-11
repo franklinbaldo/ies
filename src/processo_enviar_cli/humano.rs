@@ -1,5 +1,6 @@
 //! Apresentação humana do resultado do envio.
 use super::{ProcessoEnviado, lista_humana};
+use crate::processo_enviar::{DesfechoDoEnvio, MetodoRemocao};
 
 /// Saída humana do sucesso.
 pub(crate) fn humano(feito: &ProcessoEnviado) -> String {
@@ -13,38 +14,37 @@ pub(crate) fn humano(feito: &ProcessoEnviado) -> String {
             if feito.manter_aberto { "sim" } else { "não" }
         ),
     ];
-    if feito.remover_anotacoes {
-        linhas.push(match feito.metodo_remocao {
-            Some(crate::processo_enviar::MetodoRemocao::CheckboxNoEnvio) => {
-                "Remover anotações no envio: sim".to_owned()
-            }
-            Some(crate::processo_enviar::MetodoRemocao::LimparAnotacao) => {
+    if let Some(remocao) = &feito.remocao {
+        linhas.push(match remocao.metodo {
+            MetodoRemocao::CheckboxNoEnvio => "Remover anotações no envio: sim".to_owned(),
+            MetodoRemocao::LimparAnotacao => {
                 "Remover anotações: limpar formulário de anotação antes do envio".to_owned()
             }
-            None => "Remover anotações no envio: sim".to_owned(),
         });
-        let observada = match feito.anotacao_antes {
+        let observada = match remocao.antes {
             Some(true) => "sim",
             Some(false) => "não",
             None => "não observada",
         };
         linhas.push(format!("Anotação na origem, antes do envio: {observada}"));
-        if let Some(false) = feito.anotacao_depois {
+        if let Some(false) = remocao.depois {
             linhas.push("Anotação na origem, após o envio: removida (releitura)".to_owned());
         }
     }
-    match (feito.confirmado, &feito.depois) {
-        (false, _) => {
+    match &feito.desfecho {
+        DesfechoDoEnvio::Previa => {
             linhas.push(format!(
                 "Depois de enviar: {}",
                 refs(&feito.depois_esperado())
             ));
             linhas.push("Para enviar, repita com --confirmar".to_owned());
         }
-        (true, depois) => {
-            let depois = depois.as_deref().unwrap_or_default();
+        DesfechoDoEnvio::Enviado {
+            depois,
+            reconciliado_por,
+        } => {
             linhas.push(format!("Enviado. Aberto em, relido: {}", refs(depois)));
-            if let Some(falha) = &feito.reconciliado_por {
+            if let Some(falha) = reconciliado_por {
                 linhas.push(format!(
                     "A resposta não foi a esperada ({falha:?}); a leitura confirmou."
                 ));

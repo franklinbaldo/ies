@@ -75,26 +75,26 @@ fn publicar(json_mode: bool, previa: &PreviaDocumental) {
                 "bloco": previa.bloco,
                 "tipo_bloco": "assinatura",
                 "alvo": {"documento": previa.documento},
-                "confirmado": previa.confirmado,
-                "alterado": previa.alterado,
-                "presente_antes": previa.presente_antes,
-                "presente_depois": previa.presente_depois,
+                "confirmado": previa.desfecho.confirmado(),
+                "alterado": previa.desfecho.alterado(),
+                "presente_antes": previa.desfecho.presente_antes(),
+                "presente_depois": previa.desfecho.presente_depois(),
                 "origem": "web",
                 "requisicoes": previa.requisicoes,
             })
         );
-    } else if previa.alterado {
+    } else if previa.desfecho.alterado() {
         println!(
             "Documento {} incluído e conferido no bloco de assinatura {}. Requisições: {}",
             previa.documento, previa.bloco, previa.requisicoes
         );
-    } else if previa.presente_antes == Some(true) {
+    } else if previa.desfecho.presente_antes() == Some(true) {
         println!(
             "Documento {} já está no bloco de assinatura {}; nenhuma alteração necessária. Requisições: {}",
             previa.documento, previa.bloco, previa.requisicoes
         );
     } else {
-        let antes = match previa.presente_antes {
+        let antes = match previa.desfecho.presente_antes() {
             Some(true) => "já está no bloco; nada a incluir",
             Some(false) => "não está no bloco",
             None => "não observado no detalhe do bloco",

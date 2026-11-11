@@ -77,9 +77,9 @@ fn bdd_333_03_limpa_anotacao_confere_e_so_depois_envia() {
         ],
     ));
     let feito = resultado.expect("limpeza relida e destino confirmado");
-    assert_eq!(feito.metodo_remocao, Some(MetodoRemocao::LimparAnotacao));
-    assert!(feito.alterado);
-    assert_eq!(feito.anotacao_depois, Some(false));
+    assert_eq!(feito.metodo_remocao(), Some(MetodoRemocao::LimparAnotacao));
+    assert!(feito.alterado());
+    assert_eq!(feito.anotacao_depois(), Some(false));
     assert_eq!(feito.requisicoes, 10);
     let posts: Vec<_> = pedidos.iter().filter(|p| p.metodo == "POST").collect();
     assert_eq!(posts.len(), 3, "consulta de destino, limpeza e envio");
@@ -114,8 +114,8 @@ fn bdd_333_04_anotacao_ja_vazia_nao_grava_limpeza() {
         ],
     ));
     let feito = resultado.expect("nenhuma limpeza redundante");
-    assert_eq!(feito.anotacao_antes, Some(false));
-    assert_eq!(feito.anotacao_depois, Some(false));
+    assert_eq!(feito.anotacao_antes(), Some(false));
+    assert_eq!(feito.anotacao_depois(), Some(false));
     assert_eq!(feito.requisicoes, 8);
     assert!(
         !pedidos

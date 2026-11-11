@@ -3,7 +3,7 @@
 //! escrita nas duas formas e a tabela de reconciliação. Telas sintéticas.
 use super::erro::{ErroConcluir, FalhaDoEnvio, VerificacaoPorLeitura};
 use super::tests_apoio::*;
-use super::{FormaDaConclusao, ProcessoConcluido};
+use super::{DesfechoDaConclusao, FormaDaConclusao, ProcessoConcluido};
 use crate::arvore_processo::{ErroFuncaoDeConcluir, MotivoAbertoEm};
 use crate::transporte::FalhaTransporte;
 
@@ -36,29 +36,43 @@ fn pela_funcao_e_verificacao() -> Vec<Pedido> {
     pedidos(vec![get(&links().1), get(&links().2), get(&url_arvore())])
 }
 
-fn previa(forma: Option<FormaDaConclusao>, aberto_em: &[&str]) -> ProcessoConcluido {
+fn com_desfecho(
+    desfecho: DesfechoDaConclusao,
+    aberto_em: &[&str],
+    requisicoes: u8,
+) -> ProcessoConcluido {
     ProcessoConcluido {
         nup: NUP.into(),
         id_procedimento: ID.into(),
         unidade: UNIDADE.into(),
-        confirmado: false,
-        alterado: false,
-        forma,
         aberto_em: siglas(aberto_em),
-        depois: None,
-        reconciliado_por: None,
-        requisicoes: 3,
+        requisicoes,
+        desfecho,
     }
 }
 
+fn previa(forma: FormaDaConclusao, aberto_em: &[&str]) -> ProcessoConcluido {
+    com_desfecho(DesfechoDaConclusao::Previa { forma }, aberto_em, 3)
+}
+
+fn nao_aberto(confirmado: bool, aberto_em: &[&str]) -> ProcessoConcluido {
+    com_desfecho(
+        DesfechoDaConclusao::NaoAbertoNaUnidade { confirmado },
+        aberto_em,
+        3,
+    )
+}
+
 fn concluido(forma: FormaDaConclusao, aberto_em: &[&str], depois: &[&str]) -> ProcessoConcluido {
-    ProcessoConcluido {
-        confirmado: true,
-        alterado: true,
-        depois: Some(siglas(depois)),
-        requisicoes: 6,
-        ..previa(Some(forma), aberto_em)
-    }
+    com_desfecho(
+        DesfechoDaConclusao::Concluido {
+            forma,
+            depois: siglas(depois),
+            reconciliado_por: None,
+        },
+        aberto_em,
+        6,
+    )
 }
 
 #[test]
@@ -66,7 +80,7 @@ fn previa_pela_tela_so_abre_o_processo() {
     let amb = ambiente();
     let (r, feitos) = rodar(&amb, false, abertura(arvore(&[UNIDADE], &tela())));
     let feito = r.unwrap();
-    assert_eq!(feito, previa(Some(FormaDaConclusao::Tela), &[UNIDADE]));
+    assert_eq!(feito, previa(FormaDaConclusao::Tela, &[UNIDADE]));
     assert_eq!(feito.depois_esperado(), Vec::<String>::new());
     assert_eq!(feitos, pedidos_da_abertura());
 }
@@ -77,10 +91,7 @@ fn previa_pela_funcao_nao_pede_a_tela_do_no() {
     let html = arvore(&["OUTRA", UNIDADE], &funcao());
     let (r, feitos) = rodar(&amb, false, abertura(html));
     let feito = r.unwrap();
-    assert_eq!(
-        feito,
-        previa(Some(FormaDaConclusao::Funcao), &["OUTRA", UNIDADE])
-    );
+    assert_eq!(feito, previa(FormaDaConclusao::Funcao, &["OUTRA", UNIDADE]));
     assert_eq!(feito.depois_esperado(), siglas(&["OUTRA"]));
     assert_eq!(feitos, pedidos_da_abertura());
 }
@@ -190,13 +201,7 @@ fn ja_fechado_na_unidade_e_sem_acao_e_sucesso_sem_escrita() {
     for confirmar in [false, true] {
         let amb = ambiente();
         let (r, feitos) = rodar(&amb, confirmar, abertura(arvore(&["OUTRA"], vazio())));
-        assert_eq!(
-            r.unwrap(),
-            ProcessoConcluido {
-                confirmado: confirmar,
-                ..previa(None, &["OUTRA"])
-            }
-        );
+        assert_eq!(r.unwrap(), nao_aberto(confirmar, &["OUTRA"]));
         assert_eq!(feitos, pedidos_da_abertura());
     }
 }
@@ -308,15 +313,15 @@ fn tela_com(
 fn resposta_nao_esperada_e_unidade_fechada_reconcilia_pela_leitura() {
     let (r, feitos) = tela_com(ok("<html></html>".into()), ok(arvore(&[], vazio())));
     let feito = r.unwrap();
-    assert!(feito.alterado);
+    assert!(feito.alterado());
     assert_eq!(
-        feito.reconciliado_por,
+        feito.reconciliado_por().cloned(),
         Some(FalhaDoEnvio::RespostaSemRedirecionamento)
     );
     assert_eq!(feitos, pela_tela_e_verificacao());
     let (r, _) = tela_com(Ok((503, String::new(), None)), ok(arvore(&[], vazio())));
     assert!(matches!(
-        r.unwrap().reconciliado_por,
+        r.unwrap().reconciliado_por().cloned(),
         Some(FalhaDoEnvio::Envio(_))
     ));
 }
@@ -393,7 +398,7 @@ fn falha_no_get_da_funcao_nao_repete_e_reconcilia() {
     );
     let (r, feitos) = rodar(&amb, true, respostas);
     assert_eq!(
-        r.unwrap().reconciliado_por,
+        r.unwrap().reconciliado_por().cloned(),
         Some(FalhaDoEnvio::Transporte(FalhaTransporte::Rede))
     );
     assert_eq!(feitos, pela_funcao_e_verificacao());

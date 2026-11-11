@@ -31,7 +31,7 @@ pub(crate) fn json_do_documento(d: &DocumentoObtido) -> serde_json::Map<String, 
         "rotulo": d.rotulo,
         "tipo": d.tipo,
         "icone": d.natureza.icone,
-        "cancelado": d.natureza.cancelado,
+        "cancelado": d.natureza.cancelamento.cancelado(),
         "pasta": d.pasta,
         "processo": {"nup": d.processo.nup, "id": d.processo.id, "tipo": d.processo.tipo},
         "unidade": d.unidade,
@@ -291,7 +291,7 @@ fn gravar(
             gravados.push(None);
             continue;
         };
-        let Some(arquivo) = a.arquivo.take() else {
+        let Some(arquivo) = a.tirar_arquivo() else {
             if let Some(Some(cache)) = caches.get(i) {
                 let extensao = cache
                     .caminho
@@ -425,7 +425,7 @@ fn publicar(
                     objeto.insert("arquivo".to_owned(), arquivo);
                 } else {
                     let texto = match &d.anexo {
-                        Some(a) => json!(a.texto),
+                        Some(a) => json!(a.texto()),
                         None => json!(d.texto),
                     };
                     objeto.insert("texto".to_owned(), texto);
@@ -458,7 +458,7 @@ fn publicar(
                     println!("{linha}");
                 }
                 (None, Some(a)) => {
-                    if let Some(texto) = &a.texto {
+                    if let Some(texto) = a.texto() {
                         println!("{texto}");
                     }
                 }

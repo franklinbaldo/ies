@@ -1,5 +1,6 @@
 //! Recusas tipadas de documento cancelar. Nenhum tipo armazena URL ou segredo.
 use super::ErroLinkCancelar;
+use crate::arvore_processo::Cancelamento;
 use crate::formulario_web::ErroSubmissaoFormulario;
 use crate::processo_concluir::escrita::CookieIlegivel;
 use crate::processo_obter::ErroDocumentoObter;
@@ -14,10 +15,7 @@ pub(crate) enum FalhaDoCancelamento {
 
 #[derive(Clone, Debug, PartialEq, Eq)]
 pub(crate) enum VerificacaoDoCancelamento {
-    Lida {
-        cancelado: Option<bool>,
-        motivo: Option<String>,
-    },
+    Lida { cancelamento: Cancelamento },
     LeituraFalhou(ErroDocumentoObter),
 }
 

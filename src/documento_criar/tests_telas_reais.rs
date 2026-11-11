@@ -1,7 +1,7 @@
 //! Telas de escolha do tipo observadas ao vivo em 10/11/2026, sem URLs
 //! assinadas: `UnB` 4.0.9 e as instalações PEN, UFRJ e GO de treinamento.
 use super::*;
-use crate::arvore_processo::NaturezaDoDocumento;
+use crate::arvore_processo::{Cancelamento, NaturezaDoDocumento};
 
 const EXIBIR: &str = "function exibirSeries(tipo) {
         document.getElementById('hdnFiltroSerie').value = tipo;
@@ -57,8 +57,7 @@ fn rotulo_com_numeracao_do_tipo_comprova_o_novo_documento() {
         pasta: None,
         natureza: NaturezaDoDocumento {
             icone: None,
-            cancelado: None,
-            motivo_do_cancelamento: None,
+            cancelamento: Cancelamento::NaoObservado,
             dica: None,
         },
     };

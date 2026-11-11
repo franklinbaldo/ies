@@ -215,8 +215,7 @@ fn indice_quente_nao_confirma_assinatura_ausente_na_arvore_relida() {
             numero: &numero,
             unidade: None,
             processo: Some(nup),
-            cargo: Some(CARGO),
-            confirmacao: Some(confirmar),
+            acao: super::AcaoDaAssinatura::Confirmar(confirmar),
         };
         super::assinar_documento(sessao, &pedido, indice, envio)
     });

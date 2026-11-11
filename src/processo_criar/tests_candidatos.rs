@@ -261,6 +261,10 @@ fn dois_candidatos_web_comprovados_sao_publicados_como_ambiguos() {
         diagnostico.candidatos_compativeis,
         Some(vec![NUP.to_owned(), SEGUNDO_NUP.to_owned()])
     );
+    assert_eq!(
+        diagnostico.evidencia(),
+        Some(crate::processo_criar_fluxo::erro_fluxo::EvidenciaDeCoincidencia::Multiplas)
+    );
     assert_eq!(requests.len(), 11); // 3 GET + 1 POST + 1 Controle + 3 GET por candidato
     assert_eq!(requests.iter().filter(|r| r.metodo == "POST").count(), 1);
     assert!(requests[4..].iter().all(|r| r.metodo == "GET"));
@@ -410,7 +414,11 @@ fn falha_http_na_releitura_apos_post_sem_resposta_preserva_status_503() {
     let erro = resultado.expect_err("a escrita não foi comprovada");
     let diagnostico = erro.diagnostico_apos_post().expect("duas causas");
     assert_eq!(
-        diagnostico.http_releitura.as_ref().map(|http| http.status),
+        diagnostico
+            .releitura_falhou
+            .as_ref()
+            .and_then(|falha| falha.http.as_ref())
+            .map(|http| http.status),
         Some(503)
     );
     assert_eq!(diagnostico.candidatos_observados, None);
@@ -456,7 +464,10 @@ fn post_503_e_releitura_502_sao_status_distintos_sem_retry() {
     let erro = resultado.expect_err("duas falhas nao confirmam criacao");
     assert_eq!(erro.status_http().map(|http| http.status), Some(503));
     let diagnostico = erro.diagnostico_apos_post().expect("duas causas");
-    let http_releitura = diagnostico.http_releitura.expect("HTTP da releitura");
+    let http_releitura = diagnostico
+        .releitura_falhou
+        .and_then(|falha| falha.http)
+        .expect("HTTP da releitura");
     assert_eq!(http_releitura.status, 502);
     assert_eq!(
         http_releitura.mensagem_do_servidor.as_deref(),
