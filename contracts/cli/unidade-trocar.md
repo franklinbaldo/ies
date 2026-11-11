@@ -105,18 +105,19 @@ preferência. Nada é restaurado.
 
 ```json
 {"antes": "PR-P", "pedida": "PR-A", "id_unidade": "110000938",
- "depois": null, "confirmado": false, "alterado": false,
+ "confirmado": false, "alterado": false,
  "escopo": "sessao_da_conta",
  "oferecidas": [{"sigla": "PR-A", "descricao": "Pró-Reitoria de Acesso", "id_unidade": "110000938"}, "…"],
  "envio": {"metodo": "POST", "acao": "infra_trocar_unidade",
            "campos": ["hdnInfraTipoPagina", "…", "selInfraUnidades"]},
- "links_descartados": null, "requisicoes": 2}
+ "requisicoes": 2}
 ```
 
 Com `--confirmar` e sucesso: `depois` = `SIGLA`, `confirmado: true`,
 `alterado: true` e `links_descartados` (quantos links o índice apagou;
-`null` com o índice desligado). Já na unidade: `alterado: false`,
-`id_unidade`, `oferecidas` e `envio` `null`. `envio` traz só nomes, nunca
+omitido com o índice desligado). Já na unidade: `alterado: false`, sem
+`id_unidade`, `oferecidas` e `envio`. Campo sem valor é omitido, nunca
+`null` (#749). `envio` traz só nomes, nunca
 valores, URL ou `infra_hash`. A saída humana diz a unidade antes e
 depois e repete que a troca vale para toda a sessão da conta.
 

@@ -89,7 +89,7 @@ fn rodar(
 fn previa_seleciona_login_exato_com_quatro_gets_e_nenhum_post() {
     let (resultado, pedidos) = rodar(Some("aluno2"), respostas_previa("aluno20"));
     let feito = resultado.unwrap();
-    assert_eq!(feito.usuario_atual, "aluno20");
+    assert_eq!(feito.usuario_atual.as_deref(), Some("aluno20"));
     assert_eq!(feito.usuario_pedido.as_deref(), Some("aluno2"));
     assert_eq!(feito.valor_da_opcao, "100000035");
     assert_eq!(feito.requisicoes, 4);
@@ -354,7 +354,7 @@ fn post_sem_resposta_e_releitura_coincidente_nao_comprovam_autoria() {
         } if matches!(
             falha.as_ref(),
             crate::formulario_web::ErroSubmissaoFormulario::Transporte(FalhaTransporte::Rede)
-        ) && atual == "aluno2"
+        ) && atual.as_deref() == Some("aluno2")
     ));
     assert_eq!(pedidos, pedidos_confirmacao("100000035"));
     assert_eq!(pedidos.len(), 6);

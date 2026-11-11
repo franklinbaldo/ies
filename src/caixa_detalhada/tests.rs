@@ -1,4 +1,5 @@
 use super::*;
+use crate::paginas::FaixaObservada;
 
 fn pagina(total: usize, inicio: usize, ids: &[(u32, &str)]) -> String {
     let fim = inicio + ids.len() - 1;
@@ -62,7 +63,10 @@ fn pagina_parcial_publica_faixa_observada_sem_afirmar_total_lido() {
     let pagina = pagina(3, 1, &[(1, "000001/2026"), (2, "000002/2026")]);
     let leitura = ler_paginas(&[pagina], Some("PPI")).unwrap();
     assert_eq!(leitura.total_declarado, 3);
-    assert_eq!(leitura.faixa_observada, Some((1, 2)));
+    assert_eq!(
+        leitura.faixa_observada,
+        FaixaObservada::Lidas { inicio: 1, fim: 2 }
+    );
     assert_eq!(leitura.processos.len(), 2);
 }
 
@@ -70,7 +74,10 @@ fn pagina_parcial_publica_faixa_observada_sem_afirmar_total_lido() {
 fn pagina_lembrada_fora_do_inicio_publica_sua_faixa() {
     let pagina = pagina(3, 3, &[(3, "000003/2026")]);
     let leitura = ler_paginas(&[pagina], Some("PPI")).unwrap();
-    assert_eq!(leitura.faixa_observada, Some((3, 3)));
+    assert_eq!(
+        leitura.faixa_observada,
+        FaixaObservada::Lidas { inicio: 3, fim: 3 }
+    );
 }
 
 #[test]

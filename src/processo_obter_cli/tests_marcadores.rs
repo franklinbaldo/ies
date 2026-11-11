@@ -67,28 +67,7 @@ fn menos_linhas_que_a_legenda_publicam_total_e_faixa_sem_alegar_completude() {
 }
 
 #[test]
-fn nao_publicados_ou_sem_tabela_saem_null_com_motivo_e_omitidos_tiram_a_chave() {
-    for (estado, motivo) in [
-        (
-            Marcadores::NaoPublicadosNaBarra,
-            "tela_de_marcadores_nao_publicada_na_barra",
-        ),
-        (
-            Marcadores::TabelaNaoPublicada,
-            "tabela_de_marcadores_nao_publicada_na_tela",
-        ),
-    ] {
-        let mut aberto = aberto(None);
-        aberto.marcadores = estado;
-        let valor = json_do_processo(&nup(), &aberto, true);
-        assert!(valor.get("marcadores").is_some_and(Value::is_null));
-        assert!(valor.get("marcadores_total_declarado").is_none());
-        assert_eq!(valor["marcadores_nao_lidos_motivo"], motivo);
-        assert_eq!(
-            valor["nao_lidos"],
-            json!(["andamentos", "marcadores", "propriedades"])
-        );
-    }
+fn omitidos_tiram_a_chave_e_so_dizem_o_motivo_pedido() {
     let omitidos = json_do_processo(&nup(), &aberto(None), true);
     assert!(omitidos.get("marcadores").is_none());
     assert_eq!(

@@ -36,16 +36,25 @@ fn pagina_parcial_publica_a_faixa_da_legenda() {
         "<a id='lnkRecebidosProximaPaginaSuperior'>»</a>",
     );
     let leitura = juntar(&[pagina(&rec, &vazia("Gerados"))], Some("TESTE")).unwrap();
-    assert_eq!(leitura.recebidos.faixa_observada(), Some((1, 2)));
+    assert_eq!(
+        leitura.recebidos.faixa_observada(),
+        Ok(FaixaObservada::Lidas { inicio: 1, fim: 2 })
+    );
     assert!(!leitura.recebidos.completa(&leitura.caixa.recebidos));
-    assert_eq!(leitura.gerados.faixa_observada(), None);
+    assert_eq!(
+        leitura.gerados.faixa_observada(),
+        Ok(FaixaObservada::SemLinhas)
+    );
 }
 
 #[test]
 fn legenda_sem_intervalo_com_todas_as_linhas_publica_um_ate_total() {
     let rec = tabela("Recebidos", "3 registros:", &[1, 2, 3], "");
     let leitura = juntar(&[pagina(&rec, &vazia("Gerados"))], None).unwrap();
-    assert_eq!(leitura.recebidos.faixa_observada(), Some((1, 3)));
+    assert_eq!(
+        leitura.recebidos.faixa_observada(),
+        Ok(FaixaObservada::Lidas { inicio: 1, fim: 3 })
+    );
 }
 
 #[test]
@@ -57,7 +66,10 @@ fn pagina_lembrada_pelo_servidor_publica_faixa_fora_do_inicio() {
         "",
     );
     let leitura = juntar(&[pagina(&rec, &vazia("Gerados"))], Some("TESTE")).unwrap();
-    assert_eq!(leitura.recebidos.faixa_observada(), Some((3, 4)));
+    assert_eq!(
+        leitura.recebidos.faixa_observada(),
+        Ok(FaixaObservada::Lidas { inicio: 3, fim: 4 })
+    );
     assert!(!leitura.recebidos.completa(&leitura.caixa.recebidos));
 }
 
@@ -70,7 +82,10 @@ fn paginas_contiguas_fora_do_inicio_somam_faixas() {
         pagina(&p3, &vazia("Gerados")),
     ];
     let leitura = juntar(&paginas, Some("TESTE")).unwrap();
-    assert_eq!(leitura.recebidos.faixa_observada(), Some((3, 6)));
+    assert_eq!(
+        leitura.recebidos.faixa_observada(),
+        Ok(FaixaObservada::Lidas { inicio: 3, fim: 6 })
+    );
 }
 
 #[test]
@@ -134,15 +149,11 @@ fn faixa_publicavel_exige_total_e_intervalo_ou_todas_as_linhas() {
         ),
     ];
     for (rec, esperado) in casos {
-        let leitura = juntar(&[pagina(&rec, &vazia("Gerados"))], None).unwrap();
-        assert_eq!(
-            conferir_faixa_publicavel(
-                Categoria::Recebidos,
-                &leitura.caixa.recebidos,
-                &leitura.recebidos
-            ),
-            Err(esperado)
-        );
+        // Legenda sem total falha já na leitura; as demais na publicação.
+        let resultado = juntar(&[pagina(&rec, &vazia("Gerados"))], None).and_then(|leitura| {
+            conferir_faixa_publicavel(Categoria::Recebidos, &leitura.recebidos)
+        });
+        assert_eq!(resultado, Err(esperado));
     }
 }
 
@@ -150,18 +161,11 @@ fn faixa_publicavel_exige_total_e_intervalo_ou_todas_as_linhas() {
 fn faixa_publicavel_aceita_parcial_vazia_e_integral() {
     let rec = tabela("Recebidos", "(4 registros - 1 a 2):", &[1, 2], "");
     let leitura = juntar(&[pagina(&rec, &vazia("Gerados"))], None).unwrap();
-    for (categoria, tabela, cobertura) in [
-        (
-            Categoria::Recebidos,
-            &leitura.caixa.recebidos,
-            &leitura.recebidos,
-        ),
-        (Categoria::Gerados, &leitura.caixa.gerados, &leitura.gerados),
+    for (categoria, cobertura) in [
+        (Categoria::Recebidos, &leitura.recebidos),
+        (Categoria::Gerados, &leitura.gerados),
     ] {
-        assert_eq!(
-            conferir_faixa_publicavel(categoria, tabela, cobertura),
-            Ok(())
-        );
+        assert_eq!(conferir_faixa_publicavel(categoria, cobertura), Ok(()));
     }
 }
 
@@ -194,13 +198,12 @@ fn legenda_no_singular_comprova_a_faixa_de_um_registro() {
     // UFRJ, 04/11/2026: `Processos recebidos (1 registro):`, uma linha.
     let rec = tabela("Recebidos", "Processos recebidos (1 registro):", &[1], "");
     let leitura = juntar(&[pagina(&rec, &vazia("Gerados"))], None).unwrap();
-    assert_eq!(leitura.recebidos.faixa_observada(), Some((1, 1)));
     assert_eq!(
-        conferir_faixa_publicavel(
-            Categoria::Recebidos,
-            &leitura.caixa.recebidos,
-            &leitura.recebidos
-        ),
+        leitura.recebidos.faixa_observada(),
+        Ok(FaixaObservada::Lidas { inicio: 1, fim: 1 })
+    );
+    assert_eq!(
+        conferir_faixa_publicavel(Categoria::Recebidos, &leitura.recebidos),
         Ok(())
     );
     let parcial = tabela("Recebidos", "(1 registro - 1 a 1):", &[1], "");

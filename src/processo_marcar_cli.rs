@@ -75,9 +75,7 @@ pub(crate) fn tentar_marcar(cli: &Cli) -> Option<anyhow::Result<()>> {
 fn marcadores_observados(marcadores: &Marcadores) -> Result<&MarcadoresLidos, ErroMarcar> {
     match marcadores {
         Marcadores::Lidos(lista) => Ok(lista),
-        Marcadores::Omitidos
-        | Marcadores::NaoPublicadosNaBarra
-        | Marcadores::TabelaNaoPublicada => Err(ErroMarcar::MarcadoresNaoLidos),
+        Marcadores::Omitidos => Err(ErroMarcar::MarcadoresNaoLidos),
     }
 }
 

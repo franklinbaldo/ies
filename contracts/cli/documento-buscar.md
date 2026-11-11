@@ -73,11 +73,13 @@ Todas têm `resultado`, `termo` (aparado), `unidade` (do Controle),
   que a faixa escrita na barra.
   `numero_sei` e `processo` são opacos, como servidos; `rotulo` é o
   texto do link do documento (tipo e número na árvore); `unidade` e
-  `inclusao` são `null` quando a linha não os mostra; `anexo` diz se o
+  `inclusao` são sempre texto: a linha sem a sub-linha "Unidade:" ou
+  "Inclusão:" falha com `UnidadeDoDocumentoAusente` ou
+  `InclusaoDoDocumentoAusente`, nunca publica `null`; `anexo` diz se o
   link do documento é `documento_download_anexo` (e não
   `documento_visualizar`).
 - **200 com `div.pesquisaSemResultado`**: `{"resultado":"sem_resultado",
-  "total_declarado":0,"faixa_observada":null,"documentos":[]}`. Resposta
+  "total_declarado":0,"documentos":[]}` (sem `faixa_observada`). Resposta
   observada para esta conta/unidade, **não** prova de inexistência.
 
 ## Linha de documento (forma observada)
@@ -122,6 +124,8 @@ validação, 302, barra, paginação, transporte e
   `numero_sei_ausente_na_linha`, `rotulo_do_documento_ausente`,
   `metadado_do_documento_repetido`,
   `data_de_inclusao_fora_da_forma_observada`,
+  `UnidadeDoDocumentoAusente` (sem "Unidade:" ou com valor vazio),
+  `InclusaoDoDocumentoAusente` (sem "Inclusão:"),
   `LinhaDaPesquisaForaDeUmRegistro`,
   `numero_sei_repetido_na_pesquisa`.
 

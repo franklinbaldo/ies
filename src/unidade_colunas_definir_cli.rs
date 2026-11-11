@@ -77,8 +77,10 @@ struct ResultadoColunas<'a> {
     alvo: Vec<&'static str>,
     antes: Vec<&'static str>,
     confirmado: bool,
+    #[serde(skip_serializing_if = "Option::is_none")]
     depois: Option<Vec<&'static str>>,
     desmarcar: Vec<&'static str>,
+    #[serde(skip_serializing_if = "Option::is_none")]
     envio: Option<EnvioColunasPublico<'a>>,
     #[serde(skip_serializing_if = "Option::is_none")]
     falha_do_salvar: Option<String>,
@@ -143,6 +145,10 @@ fn json_de_sucesso(feito: &ColunasDefinidas) -> Value {
     });
     if let (Some(falha), Some(objeto)) = (feito.reconciliado_por(), valor.as_object_mut()) {
         objeto.insert("falha_do_salvar".to_owned(), json!(format!("{falha:?}")));
+    }
+    // Sem valor, a chave é omitida: a saída não traz null.
+    if let Some(objeto) = valor.as_object_mut() {
+        objeto.retain(|_, v| !v.is_null());
     }
     valor
 }

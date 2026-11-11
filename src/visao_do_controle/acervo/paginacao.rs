@@ -180,7 +180,11 @@ pub(super) fn detalhada(
     saida.registros.push(lista);
     let mut pagina = cas.pagina(resp.passo, Lista::Detalhada, unidade);
     pagina.total = leitura.total_declarado;
-    pagina.faixa = leitura.faixa_observada;
+    // A cassette grava zero linhas como ausência de faixa (NULL).
+    pagina.faixa = match leitura.faixa_observada {
+        crate::paginas::FaixaObservada::SemLinhas => None,
+        crate::paginas::FaixaObservada::Lidas { inicio, fim } => Some((inicio, fim)),
+    };
     pagina.ids = leitura
         .processos
         .iter()
@@ -242,7 +246,10 @@ fn posicao_da_d(
     }
     match planejar(&pos, pos.indice + 2) {
         Ok(Some(pedido)) => {
-            let (inicio, fim) = pedido.esperada.unwrap_or((0, 0));
+            let (inicio, fim) = match pedido.esperada {
+                crate::paginas::FaixaObservada::Lidas { inicio, fim } => (inicio, fim),
+                crate::paginas::FaixaObservada::SemLinhas => (0, 0),
+            };
             reg.contagens.extend([
                 ("indice_pedido", pedido.indice as u64),
                 ("esperada_inicio", inicio as u64),

@@ -10,7 +10,7 @@ use crate::formulario_web::{
 use crate::indice_local::IndiceLocal;
 use crate::instalacao::Instalacao;
 use crate::processo::NumeroProcesso;
-use crate::processo_atribuir::{ErroAtribuir, preparar_submissao};
+use crate::processo_atribuir::{Atribuicao, ErroAtribuir, preparar_submissao};
 use crate::processo_concluir::escrita::CookieIlegivel;
 use crate::processo_concluir::escrita::{Contador, FalhaDaTela, leitura, ler_cookie, obter_tela};
 use crate::processo_obter::{
@@ -37,7 +37,8 @@ pub(crate) struct ProcessoAtribuido {
     pub(crate) nup: String,
     pub(crate) id_procedimento: String,
     pub(crate) unidade: String,
-    pub(crate) usuario_atual: String,
+    /// `None`: a unidade não tinha atribuição (fato da árvore).
+    pub(crate) usuario_atual: Option<String>,
     pub(crate) usuario_pedido: Option<String>,
     pub(crate) valor_da_opcao: String,
     pub(crate) estado: EstadoDaAtribuicao,
@@ -86,8 +87,8 @@ pub(crate) enum ErroProcessoAtribuir {
     NaoConfirmadoNaAtribuicao {
         falha_do_envio: Option<Box<ErroSubmissaoFormulario>>,
         leitura: Option<Box<ErroProcessoObter>>,
-        /// `Ok(login)` (vazio = remoção observada) ou o motivo da releitura.
-        atribuicao_relida: Result<String, Box<ErroProcessoAtribuir>>,
+        /// `Ok(None)` = unidade sem atribuição observada; `Ok(Some)` = login; `Err` = motivo da releitura.
+        atribuicao_relida: Result<Option<String>, Box<ErroProcessoAtribuir>>,
         requisicoes: u8,
     },
 }
@@ -111,8 +112,8 @@ pub(crate) fn executar_previa<V: EnvioDoProcesso>(
     // Rejeitar antes de abrir o formulário evita um GET desnecessário,
     // inclusive nas confirmações injetáveis, sem mudar o estado remoto.
     let ja_aplicada = match pedido.usuario {
-        Some(login) => !login.is_empty() && login == atual,
-        None => atual.is_empty(),
+        Some(login) => !login.is_empty() && atual == Atribuicao::Usuario(login),
+        None => atual == Atribuicao::Ninguem,
     };
     if ja_aplicada {
         return Err(ErroProcessoAtribuir::Preparacao(
@@ -150,7 +151,7 @@ pub(crate) fn executar_previa<V: EnvioDoProcesso>(
         nup: pedido.nup.as_str().to_owned(),
         id_procedimento: aberto.arvore.processo.id,
         unidade: unidade.to_owned(),
-        usuario_atual: atual.to_owned(),
+        usuario_atual: atual.login().map(str::to_owned),
         usuario_pedido: pedido.usuario.map(str::to_owned),
         valor_da_opcao: valor,
         estado: EstadoDaAtribuicao::Previa,
@@ -196,7 +197,7 @@ pub(crate) fn executar_previa<V: EnvioDoProcesso>(
     // remoção da atribuição. Divergência após POST é efeito incerto (3).
     let confirmada = atribuicao_relida
         .as_ref()
-        .is_ok_and(|relida| relida.as_str() == pedido.usuario.unwrap_or(""));
+        .is_ok_and(|relida| relida.as_deref() == pedido.usuario);
     if !resposta_permite_confirmar || !confirmada {
         return Err(ErroProcessoAtribuir::NaoConfirmadoNaAtribuicao {
             falha_do_envio: falha_do_envio.map(Box::new),
@@ -218,7 +219,7 @@ fn reler_situacao<V: EnvioDoProcesso>(
     rede: &mut Contador<'_, V>,
     feito: &ProcessoAtribuido,
 ) -> (
-    Result<String, Box<ErroProcessoAtribuir>>,
+    Result<Option<String>, Box<ErroProcessoAtribuir>>,
     Option<ErroProcessoObter>,
 ) {
     let verificado = obter_processo(
@@ -232,7 +233,7 @@ fn reler_situacao<V: EnvioDoProcesso>(
     match verificado {
         Ok(lido) if lido.arvore.processo.id == feito.id_procedimento => (
             situacao_da_unidade(&lido.arvore.aberto_em, &feito.unidade, requisicoes)
-                .map(str::to_owned)
+                .map(|atual| atual.login().map(str::to_owned))
                 .map_err(Box::new),
             None,
         ),
@@ -257,7 +258,7 @@ fn situacao_da_unidade<'a>(
     aberto_em: &'a AbertoEm,
     unidade: &str,
     requisicoes: u8,
-) -> Result<&'a str, ErroProcessoAtribuir> {
+) -> Result<Atribuicao<'a>, ErroProcessoAtribuir> {
     match aberto_em {
         AbertoEm::Unidades(unidades) => {
             let achada = unidades
@@ -269,7 +270,12 @@ fn situacao_da_unidade<'a>(
                     requisicoes,
                 })?;
             // Unidade sem atribuição é um fato publicado pela árvore, não ausência.
-            Ok(achada.atribuido_a.as_ref().map_or("", |a| a.sigla.as_str()))
+            Ok(achada
+                .atribuido_a
+                .as_ref()
+                .map_or(Atribuicao::Ninguem, |a| {
+                    Atribuicao::Usuario(a.sigla.as_str())
+                }))
         }
         AbertoEm::Sobrestado(_) => {
             Err(ErroProcessoAtribuir::ArvoreSobrestadaSemSituacaoDaUnidade {

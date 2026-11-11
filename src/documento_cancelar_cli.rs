@@ -69,7 +69,7 @@ struct ResultadoCancelamento<'a> {
     processo: ProcessoCanceladoPublico<'a>,
     reconciliado_por_leitura: bool,
     requisicoes: u8,
-    unidade: Option<&'a str>,
+    unidade: &'a str,
 }
 
 fn resultado_cancelamento(feito: &DocumentoCancelado) -> ResultadoCancelamento<'_> {
@@ -87,7 +87,7 @@ fn resultado_cancelamento(feito: &DocumentoCancelado) -> ResultadoCancelamento<'
         },
         reconciliado_por_leitura: feito.resultado.cancelado(),
         requisicoes: feito.requisicoes,
-        unidade: feito.unidade.as_deref(),
+        unidade: feito.unidade.as_str(),
     }
 }
 

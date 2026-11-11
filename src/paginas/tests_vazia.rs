@@ -68,11 +68,15 @@ fn tela_gravada_da_unidade_vazia_publica_total_zero_sem_faixa() {
         ),
         (Categoria::Gerados, &leitura.caixa.gerados, &leitura.gerados),
     ] {
-        assert_eq!(tabela.total_declarado, Some(0), "{cat:?}");
+        assert_eq!(tabela.total_declarado, 0, "{cat:?}");
         assert!(tabela.processos.is_empty(), "{cat:?}");
-        assert_eq!(cobertura.faixa_observada(), None, "{cat:?}");
+        assert_eq!(
+            cobertura.faixa_observada(),
+            Ok(FaixaObservada::SemLinhas),
+            "{cat:?}"
+        );
         assert!(cobertura.completa(tabela), "{cat:?}");
-        assert!(conferir_faixa_publicavel(cat, tabela, cobertura).is_ok());
+        assert!(conferir_faixa_publicavel(cat, cobertura).is_ok());
         assert_eq!(faixa_na_pagina(&gravada(), cat), Ok(None));
     }
     assert_eq!(leitura.unidade.as_deref(), Some("ABC/GECONT-18141"));

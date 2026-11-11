@@ -97,6 +97,7 @@ O usuário deve conferir a unidade antes de nova tentativa.
 | `ErroCadastro::EspecificacaoNaoPublicadaNoCadastro` | Campo de especificação ausente ou desabilitado |
 | `ErroCadastro::EspecificacaoAcimaDoLimite` | Especificação maior que `maxlength` observado no cadastro; rejeita prévia e confirmação antes do POST |
 | `ErroCadastro::LimiteDaEspecificacaoInvalidoNoCadastro` | Atributo `maxlength` presente, mas não numérico; HTML insuficiente para autorizar escrita |
+| `ErroCadastro::LimiteDaEspecificacaoNaoPublicado` | O campo da especificação não publica `maxlength`; sem o limite, a escrita não é autorizada |
 | `ErroCadastro::AssuntoSugeridoNaoUnico` | Nenhum ou vários assuntos selecionáveis no cadastro |
 | `ErroCadastro::AssuntoDesabilitado` | O `select` de assunto está desabilitado: a opção visível não comprova escolha habilitada; recusa antes do POST |
 | `HipoteseLegalDesabilitada` | `select` da hipótese legal está desabilitado quando o nível solicitado é restrito; recusa antes do POST |

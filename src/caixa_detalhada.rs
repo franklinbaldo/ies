@@ -33,8 +33,8 @@ pub(crate) struct ProcessoDetalhado {
 pub(crate) struct LeituraDetalhada {
     pub(crate) unidade: String,
     pub(crate) total_declarado: usize,
-    /// Posições lidas (`inicio`, `fim`); `None` sem linhas.
-    pub(crate) faixa_observada: Option<(usize, usize)>,
+    /// Posições lidas (`inicio`, `fim`); `SemLinhas` para zero registros.
+    pub(crate) faixa_observada: crate::paginas::FaixaObservada,
     pub(crate) processos: Vec<ProcessoDetalhado>,
     /// Colunas configuradas presentes no cabeçalho, na ordem da tabela.
     pub(crate) colunas: Vec<ColunaDoDetalhe>,
@@ -454,9 +454,14 @@ pub(crate) fn ler_paginas(
         }
     }
     let total = total.ok_or(ErroDetalhada::TotalNaoDeclarado)?;
-    let faixa_observada = faixa_inicio
-        .filter(|_| !processos.is_empty())
-        .map(|inicio| (inicio, proximo - 1));
+    // Sem página com linhas, a primeira página não fixou início: zero registros.
+    let faixa_observada = match faixa_inicio.filter(|_| !processos.is_empty()) {
+        Some(inicio) => crate::paginas::FaixaObservada::Lidas {
+            inicio,
+            fim: proximo - 1,
+        },
+        None => crate::paginas::FaixaObservada::SemLinhas,
+    };
     let unidade = contexto
         .and_then(|v: ContextoPagina| v.unidade)
         .ok_or(ErroDetalhada::UnidadeNaoIdentificada)?;

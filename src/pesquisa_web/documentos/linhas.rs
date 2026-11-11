@@ -122,10 +122,11 @@ fn arvore_da_linha(
 }
 
 /// Os metadados publicados ("Unidade:", "Inclusão:") das linhas do registro.
+/// Sem um deles, o registro falha: a ausência é recusada, não publicada.
 fn metadados(
     dom: &tl::VDom<'_>,
     linhas: &[&Tag<'_>],
-) -> Result<(Option<String>, Option<String>), ErroDocumentoDaPesquisa> {
+) -> Result<(String, String), ErroDocumentoDaPesquisa> {
     let parser = dom.parser();
     let (mut unidade, mut inclusao, mut usuario) = (None, None, false);
     for linha in linhas {
@@ -153,7 +154,11 @@ fn metadados(
             }
         }
     }
-    Ok((unidade.filter(|u| !u.is_empty()), inclusao))
+    let unidade = unidade
+        .filter(|valor| !valor.is_empty())
+        .ok_or(ErroDocumentoDaPesquisa::UnidadeDoDocumentoAusente)?;
+    let inclusao = inclusao.ok_or(ErroDocumentoDaPesquisa::InclusaoDoDocumentoAusente)?;
+    Ok((unidade, inclusao))
 }
 
 /// `dd/mm/aaaa`, como mostrado.

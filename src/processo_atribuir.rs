@@ -248,15 +248,32 @@ pub(crate) fn ler_tela(html: &str, id: &str) -> Result<TelaDaAtribuicao, ErroAtr
     Ok(TelaDaAtribuicao { usuarios })
 }
 
+/// Quem a unidade tem atribuído na árvore. `Ninguem` é fato publicado.
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+pub(crate) enum Atribuicao<'a> {
+    Ninguem,
+    Usuario(&'a str),
+}
+
+impl<'a> Atribuicao<'a> {
+    /// O login atribuído, ou `None` quando a unidade não tem atribuição.
+    pub(crate) fn login(self) -> Option<&'a str> {
+        match self {
+            Self::Ninguem => None,
+            Self::Usuario(login) => Some(login),
+        }
+    }
+}
+
 /// Valor exato da opção: nenhum POST é feito aqui.
 /// `atual` é a situação já lida da árvore; quem a lê recusa antes de chegar aqui.
 pub(crate) fn planejar(
     tela: &TelaDaAtribuicao,
     login: Option<&str>,
-    atual: &str,
+    atual: Atribuicao<'_>,
 ) -> Result<String, ErroAtribuir> {
     let Some(login) = login else {
-        if atual.is_empty() {
+        if atual == Atribuicao::Ninguem {
             return Err(ErroAtribuir::AtribuicaoJaAplicada);
         }
         return Ok(SEM_ATRIBUICAO.to_owned());
@@ -269,7 +286,7 @@ pub(crate) fn planejar(
     if achados.next().is_some() {
         return Err(ErroAtribuir::UsuarioAmbiguo);
     }
-    if atual == usuario.login {
+    if atual == Atribuicao::Usuario(usuario.login.as_str()) {
         return Err(ErroAtribuir::AtribuicaoJaAplicada);
     }
     Ok(usuario.id.clone())
@@ -283,7 +300,7 @@ pub(crate) fn preparar_submissao(
     id: &str,
     unidade: &str,
     login: Option<&str>,
-    atual: &str,
+    atual: Atribuicao<'_>,
 ) -> Result<(String, SubmissaoDerivada), ErroAtribuir> {
     let tela = ler_tela(servida.html, id)?;
     let valor = planejar(&tela, login, atual)?;

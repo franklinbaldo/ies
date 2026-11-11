@@ -181,11 +181,7 @@ pub(crate) fn releitura_de_marcadores<V: EnvioDoProcesso>(
         Marcadores::Lidos(_) => Err(ErroDaReleitura::Marcadores(
             ErroMarcar::ListaDeMarcadoresParcial,
         )),
-        Marcadores::Omitidos
-        | Marcadores::NaoPublicadosNaBarra
-        | Marcadores::TabelaNaoPublicada => {
-            Err(ErroDaReleitura::Marcadores(ErroMarcar::MarcadoresNaoLidos))
-        }
+        Marcadores::Omitidos => Err(ErroDaReleitura::Marcadores(ErroMarcar::MarcadoresNaoLidos)),
     }
 }
 

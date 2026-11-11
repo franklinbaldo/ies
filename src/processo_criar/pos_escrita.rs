@@ -136,8 +136,8 @@ fn conferir_candidato<V: EnvioDoControle>(
         id: candidato.id.clone(),
         nup: candidato.nup.clone(),
         tipo: propriedades.tipo,
-        especificacao: Some(propriedades.especificacao),
-        nivel: Some(propriedades.nivel_de_acesso.como_texto().to_owned()),
+        especificacao: propriedades.especificacao,
+        nivel: propriedades.nivel_de_acesso.como_texto().to_owned(),
         interessados: propriedades.interessados,
     })
 }
@@ -191,9 +191,9 @@ pub(super) fn reconciliar<V: EnvioDoControle>(
                 candidato,
                 requisicoes,
             )?;
-            if conferido.tipo.as_deref() == Some(feito.tipo.as_str())
-                && conferido.especificacao.as_deref() == Some(especificacao)
-                && conferido.nivel.as_deref() == Some(feito.nivel.as_str())
+            if conferido.tipo == feito.tipo
+                && conferido.especificacao == especificacao
+                && conferido.nivel == feito.nivel
                 && reconciliacao::desfechos::interessados_conferem(
                     &feito.interessados,
                     &conferido.interessados,

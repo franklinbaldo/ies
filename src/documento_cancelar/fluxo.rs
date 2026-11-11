@@ -73,7 +73,7 @@ pub(crate) struct DocumentoCancelado {
     pub(crate) numero: String,
     pub(crate) id_documento: String,
     pub(crate) processo: ProcessoNaArvore,
-    pub(crate) unidade: Option<String>,
+    pub(crate) unidade: String,
     pub(crate) motivo: String,
     pub(crate) resultado: ResultadoDaVerificacao,
     pub(crate) requisicoes: u8,
@@ -131,11 +131,13 @@ pub(crate) fn cancelar_documento<V: EnvioDoProcesso>(
         &aberto.processo.id,
         &aberto.id_documento,
     )?;
+    // A unidade é parte da escrita: sem ela publicada, nada é enviado.
+    let unidade = aberto.unidade.ok_or(ErroCancelar::UnidadeNaoPublicada)?;
     let sub = derivar_submissao(
         &CANCELAR,
         &instalacao,
         &tela,
-        aberto.unidade.as_deref().unwrap_or_default(),
+        &unidade,
         &[("txaMotivo", motivo)],
     )
     .map_err(ErroCancelar::Formulario)?;
@@ -143,7 +145,7 @@ pub(crate) fn cancelar_documento<V: EnvioDoProcesso>(
         numero: aberto.numero,
         id_documento: aberto.id_documento,
         processo: aberto.processo,
-        unidade: aberto.unidade,
+        unidade,
         motivo: motivo.to_owned(),
         resultado: ResultadoDaVerificacao::Previa,
         requisicoes: rede.feitas(),

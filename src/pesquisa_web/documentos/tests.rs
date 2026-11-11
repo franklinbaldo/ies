@@ -32,8 +32,8 @@ fn le_numero_sei_rotulo_processo_unidade_inclusao_e_anexo() {
             numero_sei: numero_sei(1),
             rotulo: "Despacho 1".to_owned(),
             processo: NumeroProcesso::novo(&nup(1)).unwrap(),
-            unidade: Some("TESTE".to_owned()),
-            inclusao: Some("12/10/2026".to_owned()),
+            unidade: "TESTE".to_owned(),
+            inclusao: "12/10/2026".to_owned(),
             anexo: false,
         }
     );
@@ -167,12 +167,13 @@ fn rotulo_vazio_metadado_repetido_e_data_fora_da_forma_sao_recusados() {
 }
 
 #[test]
-fn sem_metadados_unidade_e_inclusao_sao_nao_observados() {
+fn sem_metadados_unidade_e_inclusao_falham_fechado() {
     let linha = linha_de_documento(1, false);
     let corte = linha.find("<tr><td colspan=\"3\"").unwrap();
-    let documentos = ler_documentos(&uma_linha(&linha[..corte])).unwrap();
-    assert_eq!(documentos[0].unidade, None);
-    assert_eq!(documentos[0].inclusao, None);
+    assert_eq!(
+        erro_da_linha(&uma_linha(&linha[..corte])),
+        ErroDocumentoDaPesquisa::UnidadeDoDocumentoAusente
+    );
 }
 
 #[test]

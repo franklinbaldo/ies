@@ -80,8 +80,8 @@ Controle), `origem: "web"` e `requisicoes`.
   `LinhasDaTabelaDiferentesDaFaixaDaBarra`. A paginação conta
   pela barra.
 - **200 com `div.pesquisaSemResultado`** (sem tabela):
-  `{"resultado":"sem_resultado","total_declarado":0,"faixa_observada":null,
-  "processos":[]}`. É uma **resposta observada**, não erro e **não**
+  `{"resultado":"sem_resultado","total_declarado":0,"processos":[]}`, sem a
+  chave `faixa_observada` (nem `null`, nem `[]`). É uma **resposta observada**, não erro e **não**
   `processo_inexistente`: significa "a pesquisa não devolveu nada para esta
   conta/unidade", sujeito a permissões e restrições de acesso.
 

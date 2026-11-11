@@ -45,6 +45,8 @@ pub(crate) enum ErroCancelar {
     /// O endereço do formulário não aponta para o documento pedido.
     EnderecoDoDocumentoRecusado(crate::arvore_processo::endereco::EnderecoRecusado),
     MotivoNaoPublicadoNaTela,
+    /// A unidade da escrita não foi publicada pela árvore nem pela sessão.
+    UnidadeNaoPublicada,
     /// A leitura nova confirma ausência inequívoca do cancelamento.
     CancelamentoNaoAplicado {
         falha_do_envio: Option<FalhaDoCancelamento>,

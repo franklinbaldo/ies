@@ -12,8 +12,8 @@ use crate::formulario_web::{
     ErroSubmissaoFormulario, RespostaDoEnvio, TelaServida, derivar_submissao, enviar_submissao_via,
 };
 use crate::historico_processo::{
-    AndamentosLidos, CAMPO_TIPO, ErroAndamentos, ErroLinkDoHistorico, TipoDoHistorico,
-    VER_HISTORICO_COMPLETO, conferir_regra_de_ver_historico, ler_andamentos,
+    AndamentosLidos, CAMPO_TIPO, ErroAndamentos, TipoDoHistorico, VER_HISTORICO_COMPLETO,
+    conferir_regra_de_ver_historico, ler_andamentos,
 };
 use crate::pagina_do_controle::codificacao_da_tela;
 
@@ -71,9 +71,6 @@ pub(super) fn ler<V: EnvioDoProcesso>(
         Some(pagina) => pagina,
         None => match &aberta.historico {
             Ok(endereco) => pelo_link_da_arvore(contexto, rede, endereco.as_str())?,
-            Err(ErroLinkDoHistorico::LinkDoHistoricoAusenteNaArvore) => {
-                return Ok(Andamentos::LinkNaoPublicadoNaArvore);
-            }
             Err(erro) => return Err(ErroProcessoObter::LinkDoHistorico(erro.clone())),
         },
     };

@@ -141,7 +141,9 @@ diretório, `fsync` e `rename`. O marcador `<url-controle>.geracao`
 (`0600`, JSON com `geracao`, `instalacao` e o SHA-256 do cookie e da URL)
 é renomeado **por último**: arquivos que não batem com o marcador são de
 gerações misturadas e não são conferidos (vão direto ao login). Sem
-marcador (sessão preparada à mão), vale a conferência por GET. O lock
+marcador (sessão preparada à mão), vale a conferência por GET. Marcador
+existente e ilegível falha a gravação (`MarcadorDaSessaoIlegivel`): a
+geração nunca recomeça em 1 por ilegibilidade. O lock
 cobre conferência, login e gravação; o segundo processo espera e confere
 a sessão que o primeiro gravou.
 
@@ -172,7 +174,9 @@ rodar de novo resolve). Todas as requisições do comando e a colheita do
 `selecao_de_orgao_repetida_na_tela_de_login`,
 `orgao_nao_encontrado_na_tela_de_login`,
 `orgao_com_mais_de_uma_opcao_na_tela_de_login`,
-`RegraDoOnsubmitDoLoginNaoObservada`,
+`OnsubmitDoLoginAusente` (o `<form>` sem `onsubmit`),
+`OnsubmitDoLoginForaDoFormato` (`onsubmit` diferente de `return acaoLogin(N);`),
+`ScriptDoLoginSemHdnAcao` (a página não grava `hdnAcao`),
 `botao_de_envio_do_login_nao_reconhecido`, os do primitivo de formulário,
 `credencial_recusada` (com `mensagem_do_servidor` saneada quando a tela
 a declara: primeiro o `#txaInfraValidacao` da

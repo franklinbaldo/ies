@@ -129,11 +129,11 @@ continuam como estavam (observado). Desfaz-se com
 {"nup": "00001.000001/2026-01", "id_procedimento": "10", "unidade": "TESTE",
  "origem": "web", "confirmado": false, "alterado": false, "forma": "tela",
  "aberto_em": ["TESTE", "TESTE_1_1"], "depois_esperado": ["TESTE_1_1"],
- "depois": null, "reconciliado_por_leitura": false, "requisicoes": 3}
+ "reconciliado_por_leitura": false, "requisicoes": 3}
 ```
 
-`forma` é `tela`, `funcao` ou `null` (nada a fazer). `depois` são as
-siglas lidas na verificação. Nunca URL, `infra_hash` ou cookie. Falhas:
+`forma` é `tela` ou `funcao`, omitida quando não há nada a fazer.
+`depois`, só após escrita, são as siglas lidas na verificação. Nunca URL, `infra_hash` ou cookie. Falhas:
 saída 1, stdout vazio e `Error: <ErroConcluir::…>` em stderr;
 `aberto_em`, `depois`, `falha_do_envio` e `verificacao` são campos dos
 erros que os observaram.
