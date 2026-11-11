@@ -37,6 +37,9 @@ fn cards() -> Vec<PathBuf> {
     let mut cards = Vec::new();
     for instalacao in std::fs::read_dir(&raiz).expect("cassettes/") {
         let pasta = instalacao.expect("entrada").path();
+        if !pasta.is_dir() {
+            continue;
+        }
         for card in std::fs::read_dir(&pasta).expect("pasta da instalação") {
             let card = card.expect("card").path();
             if card.extension().is_some_and(|e| e == "md") {
