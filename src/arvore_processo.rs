@@ -492,7 +492,7 @@ fn ler_documento(a: &[Literal; ARGUMENTOS]) -> Result<DocumentoLido, ErroArvore>
             rotulo: texto(&a[5])?.to_owned(),
             numero_sei: texto_ou_nulo(&a[15])?.map(str::to_owned),
             pasta,
-            natureza: natureza::ler_natureza(a),
+            natureza: natureza::ler_natureza(a)?,
         },
         barra: Barra::NaoLida,
     })

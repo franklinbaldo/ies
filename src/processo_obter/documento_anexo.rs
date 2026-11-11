@@ -73,6 +73,7 @@ pub(super) fn ler<V: EnvioDoProcesso>(
         | ErroAnexo::TipoNaoPermitido
         | ErroAnexo::CabecalhoRepetido
         | ErroAnexo::DisposicaoForaDaFormaObservada(_)
+        | ErroAnexo::CabecalhoDeDisposicaoAusente
         | ErroAnexo::AcimaDoLimite
         | ErroAnexo::Vazio
         | ErroAnexo::ConteudoComLinkAssinado

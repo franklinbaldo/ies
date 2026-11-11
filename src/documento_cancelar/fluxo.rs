@@ -100,7 +100,7 @@ pub(crate) fn cancelar_documento<V: EnvioDoProcesso>(
     };
     let aberto = abrir_documento_na_arvore(sessao, &leitura, indice, &mut rede)
         .map_err(ErroCancelar::Abertura)?;
-    if aberto.natureza.cancelamento.cancelado() == Some(true) {
+    if aberto.natureza.cancelamento.cancelado() {
         return Err(ErroCancelar::DocumentoJaCancelado);
     }
     let link = ler_link_cancelar(
@@ -111,9 +111,6 @@ pub(crate) fn cancelar_documento<V: EnvioDoProcesso>(
     )
     .map_err(ErroCancelar::Link)?
     .ok_or(ErroCancelar::CancelamentoNaoOferecido)?;
-    if aberto.natureza.cancelamento.cancelado() != Some(false) {
-        return Err(ErroCancelar::EstadoAntesNaoObservado);
-    }
     let cookie = ler_cookie(sessao)?;
     let (html, mime) = obter_tela(&mut rede, &cookie, link.as_str()).map_err(|f| match f {
         FalhaDaTela::Transporte(falha) => ErroCancelar::Tela(falha),
@@ -178,9 +175,7 @@ fn reconciliar<V: EnvioDoProcesso>(
                 cancelamento: depois.natureza.cancelamento,
             }
         }
-        Ok(_) => Ver::Lida {
-            cancelamento: Cancelamento::NaoObservado,
-        },
+        Ok(_) => Ver::DocumentoDiferenteNaReleitura,
         Err(erro) => Ver::LeituraFalhou(erro),
     };
     feito.requisicoes = rede.feitas();
@@ -198,10 +193,12 @@ fn reconciliar<V: EnvioDoProcesso>(
         } => Err(ErroCancelar::CancelamentoNaoAplicado {
             falha_do_envio: falha,
         }),
-        outra @ (Ver::Lida { .. } | Ver::LeituraFalhou(_)) => Err(ErroCancelar::NaoConfirmado {
-            falha_do_envio: falha,
-            verificacao: Box::new(outra),
-        }),
+        outra @ (Ver::Lida { .. } | Ver::LeituraFalhou(_) | Ver::DocumentoDiferenteNaReleitura) => {
+            Err(ErroCancelar::NaoConfirmado {
+                falha_do_envio: falha,
+                verificacao: Box::new(outra),
+            })
+        }
     }
 }
 

@@ -15,8 +15,12 @@ pub(crate) enum FalhaDoCancelamento {
 
 #[derive(Clone, Debug, PartialEq, Eq)]
 pub(crate) enum VerificacaoDoCancelamento {
-    Lida { cancelamento: Cancelamento },
+    Lida {
+        cancelamento: Cancelamento,
+    },
     LeituraFalhou(ErroDocumentoObter),
+    /// A releitura abriu outro documento: a escrita não pode ser atribuída ao pedido.
+    DocumentoDiferenteNaReleitura,
 }
 
 #[derive(Clone, Debug, PartialEq, Eq, thiserror::Error)]
@@ -28,7 +32,6 @@ pub(crate) enum ErroCancelar {
     Link(ErroLinkCancelar),
     CancelamentoNaoOferecido,
     DocumentoJaCancelado,
-    EstadoAntesNaoObservado,
     Tela(FalhaTransporte),
     TelaRedirecionada,
     SessaoEncerrada,

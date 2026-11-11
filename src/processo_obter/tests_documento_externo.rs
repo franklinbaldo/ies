@@ -170,12 +170,12 @@ fn pdf_externo_e_o_quinto_pedido_pelo_link_da_arvore() {
     assert_eq!(d.numero, DOC);
     assert_eq!(d.tipo, "");
     assert_eq!(d.texto, "");
-    assert_eq!(d.natureza.icone.as_deref(), Some("documento_pdf"));
+    assert_eq!(d.natureza.icone, "documento_pdf");
     let anexo = d.anexo.as_ref().expect("anexo");
     assert_eq!(anexo.mime, "application/pdf");
     assert_eq!(anexo.tamanho, 12);
-    assert_eq!(anexo.nome_original.as_deref(), Some("Minuta.pdf"));
-    assert_eq!(anexo.disposicao, Some(Disposicao::Inline));
+    assert_eq!(anexo.nome_original, "Minuta.pdf");
+    assert_eq!(anexo.disposicao, Disposicao::Inline);
     assert_eq!(anexo.texto(), None);
     assert!(!format!("{d:?}").contains(HASH_CONTEUDO));
     // #88: o arquivo não serve rodapé; sem `--versao`, a barra não é lida.
@@ -299,7 +299,10 @@ fn html_recebido_publica_o_texto_visivel() {
         &amb,
         binaria(
             200,
-            &[("content-type", "text/html;;charset=iso-8859-1")],
+            &[
+                ("content-type", "text/html;;charset=iso-8859-1"),
+                ("content-disposition", "inline; filename=\"despacho.html\""),
+            ],
             html,
         ),
         PedidoDoAnexo::default(),

@@ -12,16 +12,14 @@ pub(super) fn json_do_anexo(a: &AnexoLido) -> Value {
         "tamanho": a.tamanho,
         "sha256": a.sha256,
         "nome_original": a.nome_original,
-        "disposicao": a.disposicao.map(crate::anexo_documento::Disposicao::como_texto),
+        "disposicao": a.disposicao.como_texto(),
     })
 }
 
 /// A linha humana do anexo; sem texto nem arquivo, a dica de `--saida`.
 pub(super) fn linha_do_anexo(a: &AnexoLido, gravado: bool) -> String {
-    let nome = a
-        .nome_original
-        .as_deref()
-        .map_or_else(String::new, |n| format!(", nome original {n:?}"));
+    let nome_original = &a.nome_original;
+    let nome = format!(", nome original {nome_original:?}");
     let dica = if gravado || a.texto().is_some() {
         ""
     } else {
@@ -43,8 +41,8 @@ mod tests {
             mime: "application/pdf".to_owned(),
             tamanho: 12,
             sha256: "ab".repeat(32),
-            nome_original: Some("Minuta.pdf".to_owned()),
-            disposicao: Some(Disposicao::Inline),
+            nome_original: "Minuta.pdf".to_owned(),
+            disposicao: Disposicao::Inline,
             conteudo: texto.map_or(ConteudoDoAnexo::Nenhum, |t| {
                 ConteudoDoAnexo::Texto(t.to_owned())
             }),

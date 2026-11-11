@@ -10,7 +10,24 @@ pub(crate) enum FalhaCadastroExterno {
     Atributo(#[source] crate::html_atributos::ErroAtributoHtml),
     /// O tokenizador HTML recusou a tela inteira.
     HtmlNaoAnalisavel(#[source] tl::ParseError),
-    FormaNaoObservada,
+    /// Um nó da tela que não pode ser lido como elemento.
+    NoSemTag,
+    CampoOcultoAusenteOuRepetido,
+    CampoOcultoForaDoFormulario,
+    CampoOcultoDesabilitado,
+    CampoOcultoDivergente,
+    ValorDoCampoOcultoAusente,
+    FormularioDeCadastroAusenteOuRepetido,
+    FormularioDeCadastroFormaDivergente,
+    SelectDeSerieAusenteOuRepetido,
+    SelectDeSerieFormaDivergente,
+    OpcaoDoTipoSemValor,
+    IdDoTipoInvalido,
+    ScriptSemCorpoLegivel,
+    LinhaDoLimiteForaDaForma,
+    LimiteDoPdfEstourou,
+    ListaDeExtensoesNaoDeclarada,
+    LimitePdfRepetido,
     TipoNaoOferecido,
     TipoAmbiguo,
     TipoNaoRecarregado,
@@ -34,21 +51,23 @@ fn valor_input(
     formulario: &tl::HTMLTag<'_>,
     id: &str,
 ) -> Result<String, FalhaCadastroExterno> {
-    let erro = || FalhaCadastroExterno::FormaNaoObservada;
     let nos = nos_com_id(dom, id).map_err(FalhaCadastroExterno::Atributo)?;
     let [no] = nos.as_slice() else {
-        return Err(erro());
+        return Err(FalhaCadastroExterno::CampoOcultoAusenteOuRepetido);
     };
     let tag = no
         .get(dom.parser())
         .and_then(tl::Node::as_tag)
-        .ok_or_else(erro)?;
+        .ok_or(FalhaCadastroExterno::NoSemTag)?;
     let (ini, fim) = formulario.boundaries(dom.parser());
     let (start, end) = tag.boundaries(dom.parser());
-    if start <= ini
-        || end > fim
-        || !tag.name().as_utf8_str().eq_ignore_ascii_case("input")
-        || atributo_presente(tag, "disabled").map_err(FalhaCadastroExterno::Atributo)?
+    if start <= ini || end > fim {
+        return Err(FalhaCadastroExterno::CampoOcultoForaDoFormulario);
+    }
+    if atributo_presente(tag, "disabled").map_err(FalhaCadastroExterno::Atributo)? {
+        return Err(FalhaCadastroExterno::CampoOcultoDesabilitado);
+    }
+    if !tag.name().as_utf8_str().eq_ignore_ascii_case("input")
         || valor_do_atributo(tag, "name")
             .map_err(FalhaCadastroExterno::Atributo)?
             .as_deref()
@@ -58,37 +77,39 @@ fn valor_input(
             .as_deref()
             != Some("hidden")
     {
-        return Err(erro());
+        return Err(FalhaCadastroExterno::CampoOcultoDivergente);
     }
-    Ok(valor_do_atributo(tag, "value")
+    valor_do_atributo(tag, "value")
         .map_err(FalhaCadastroExterno::Atributo)?
-        .unwrap_or_default())
+        .ok_or(FalhaCadastroExterno::ValorDoCampoOcultoAusente)
 }
 
 /// Lê a declaração literal da extensão PDF no script do upload da tela.
 /// Nenhum código JavaScript é executado.
 fn limite_pdf(html: &str, dom: &tl::VDom<'_>) -> Result<u64, FalhaCadastroExterno> {
-    let erro = || FalhaCadastroExterno::FormaNaoObservada;
     let mut limites = Vec::new();
     let mut declarou_lista = false;
     for no in dom.query_selector("script").into_iter().flatten() {
         let tag = no
             .get(dom.parser())
             .and_then(tl::Node::as_tag)
-            .ok_or_else(erro)?;
+            .ok_or(FalhaCadastroExterno::NoSemTag)?;
         if atributo_presente(tag, "src").map_err(FalhaCadastroExterno::Atributo)? {
             continue;
         }
         let inicio = tag.boundaries(dom.parser()).0;
-        let restante = html.get(inicio..).ok_or_else(erro)?;
-        let inicio_corpo = restante.find('>').ok_or_else(erro)? + 1;
+        let sem_corpo = || FalhaCadastroExterno::ScriptSemCorpoLegivel;
+        let restante = html.get(inicio..).ok_or_else(sem_corpo)?;
+        let inicio_corpo = restante.find('>').ok_or_else(sem_corpo)? + 1;
         let fim_corpo = inicio_corpo
             + restante
                 .get(inicio_corpo..)
-                .ok_or_else(erro)?
+                .ok_or_else(sem_corpo)?
                 .find("</script>")
-                .ok_or_else(erro)?;
-        let fonte = restante.get(inicio_corpo..fim_corpo).ok_or_else(erro)?;
+                .ok_or_else(sem_corpo)?;
+        let fonte = restante
+            .get(inicio_corpo..fim_corpo)
+            .ok_or_else(sem_corpo)?;
         if fonte.contains("var arrExt = [];") {
             declarou_lista = true;
         }
@@ -97,42 +118,47 @@ fn limite_pdf(html: &str, dom: &tl::VDom<'_>) -> Result<u64, FalhaCadastroExtern
             .map(str::trim)
             .filter(|linha| linha.starts_with("arrExt[") && linha.contains("= {"))
         {
-            let (_, objeto) = linha.split_once("= {").ok_or_else(erro)?;
-            let (objeto, fim) = objeto.split_once("};").ok_or_else(erro)?;
+            let forma = || FalhaCadastroExterno::LinhaDoLimiteForaDaForma;
+            let (_, objeto) = linha.split_once("= {").ok_or_else(forma)?;
+            let (objeto, fim) = objeto.split_once("};").ok_or_else(forma)?;
             if !fim.trim().is_empty() {
-                return Err(erro());
+                return Err(forma());
             }
             let mut atributos = objeto.split(',').map(str::trim);
-            let nome = atributos.next().ok_or_else(erro)?;
-            let tamanho = atributos.next().ok_or_else(erro)?;
+            let nome = atributos.next().ok_or_else(forma)?;
+            let tamanho = atributos.next().ok_or_else(forma)?;
             if atributos.next().is_some() {
-                return Err(erro());
+                return Err(forma());
             }
-            let (chave, valor) = nome.split_once(':').ok_or_else(erro)?;
+            let (chave, valor) = nome.split_once(':').ok_or_else(forma)?;
             if chave.trim() != "nome" {
-                return Err(erro());
+                return Err(forma());
             }
             let extensao = valor.trim().trim_matches('"');
-            let (chave, valor) = tamanho.split_once(':').ok_or_else(erro)?;
+            let (chave, valor) = tamanho.split_once(':').ok_or_else(forma)?;
             if chave.trim() != "tamanho" {
-                return Err(erro());
+                return Err(forma());
             }
             let tamanho_mb = valor
                 .trim()
                 .parse::<u64>()
                 .map_err(FalhaCadastroExterno::TamanhoDeclaradoIlegivel)?;
             if extensao == "pdf" {
-                limites.push(tamanho_mb.checked_mul(1024 * 1024).ok_or_else(erro)?);
+                limites.push(
+                    tamanho_mb
+                        .checked_mul(1024 * 1024)
+                        .ok_or(FalhaCadastroExterno::LimiteDoPdfEstourou)?,
+                );
             }
         }
     }
     if !declarou_lista {
-        return Err(erro());
+        return Err(FalhaCadastroExterno::ListaDeExtensoesNaoDeclarada);
     }
     match limites.as_slice() {
         [unico] => Ok(*unico),
         [] => Err(FalhaCadastroExterno::PdfNaoOferecido),
-        _ => Err(erro()),
+        _ => Err(FalhaCadastroExterno::LimitePdfRepetido),
     }
 }
 
@@ -142,7 +168,6 @@ fn campos_oferecidos(
     dom: &tl::VDom<'_>,
     formulario: &tl::HTMLTag<'_>,
 ) -> Result<Vec<String>, FalhaCadastroExterno> {
-    let erro = || FalhaCadastroExterno::FormaNaoObservada;
     let (inicio_form, fim_form) = formulario.boundaries(dom.parser());
     let mut encontrados = Vec::new();
     for elemento in ["input", "select", "textarea"] {
@@ -150,7 +175,7 @@ fn campos_oferecidos(
             let tag = no
                 .get(dom.parser())
                 .and_then(tl::Node::as_tag)
-                .ok_or_else(erro)?;
+                .ok_or(FalhaCadastroExterno::NoSemTag)?;
             let (inicio, fim) = tag.boundaries(dom.parser());
             if inicio <= inicio_form
                 || fim > fim_form
@@ -196,34 +221,33 @@ pub(crate) fn observar_cadastro(
     tipo: &str,
     tamanho_pdf: u64,
 ) -> Result<CadastroExterno, FalhaCadastroExterno> {
-    let erro = || FalhaCadastroExterno::FormaNaoObservada;
     let dom = tl::parse(html, tl::ParserOptions::default())
         .map_err(FalhaCadastroExterno::HtmlNaoAnalisavel)?;
     let formularios =
         nos_com_id(&dom, "frmDocumentoCadastro").map_err(FalhaCadastroExterno::Atributo)?;
     let [no] = formularios.as_slice() else {
-        return Err(erro());
+        return Err(FalhaCadastroExterno::FormularioDeCadastroAusenteOuRepetido);
     };
     let form = no
         .get(dom.parser())
         .and_then(tl::Node::as_tag)
-        .ok_or_else(erro)?;
+        .ok_or(FalhaCadastroExterno::NoSemTag)?;
     if !form.name().as_utf8_str().eq_ignore_ascii_case("form")
         || valor_do_atributo(form, "method")
             .map_err(FalhaCadastroExterno::Atributo)?
             .as_deref()
             != Some("post")
     {
-        return Err(erro());
+        return Err(FalhaCadastroExterno::FormularioDeCadastroFormaDivergente);
     }
     let selects = nos_com_id(&dom, "selSerie").map_err(FalhaCadastroExterno::Atributo)?;
     let [no] = selects.as_slice() else {
-        return Err(erro());
+        return Err(FalhaCadastroExterno::SelectDeSerieAusenteOuRepetido);
     };
     let select = no
         .get(dom.parser())
         .and_then(tl::Node::as_tag)
-        .ok_or_else(erro)?;
+        .ok_or(FalhaCadastroExterno::NoSemTag)?;
     let (ini, fim) = form.boundaries(dom.parser());
     let (start, end) = select.boundaries(dom.parser());
     if !select.name().as_utf8_str().eq_ignore_ascii_case("select")
@@ -235,7 +259,7 @@ pub(crate) fn observar_cadastro(
             .as_deref()
             != Some("selSerie")
     {
-        return Err(erro());
+        return Err(FalhaCadastroExterno::SelectDeSerieFormaDivergente);
     }
     let mut candidatos = Vec::new();
     for tag in select
@@ -260,7 +284,7 @@ pub(crate) fn observar_cadastro(
         }
         let id = valor_do_atributo(tag, "value")
             .map_err(FalhaCadastroExterno::Atributo)?
-            .ok_or_else(erro)?;
+            .ok_or(FalhaCadastroExterno::OpcaoDoTipoSemValor)?;
         let selecionado =
             atributo_presente(tag, "selected").map_err(FalhaCadastroExterno::Atributo)?;
         candidatos.push((id, selecionado));
@@ -271,7 +295,7 @@ pub(crate) fn observar_cadastro(
         _ => return Err(FalhaCadastroExterno::TipoAmbiguo),
     };
     if id_tipo == "null" || id_tipo.is_empty() {
-        return Err(erro());
+        return Err(FalhaCadastroExterno::IdDoTipoInvalido);
     }
     if valor_input(&dom, form, "hdnIdSerie")? != *id_tipo || !selecionado {
         return Err(FalhaCadastroExterno::TipoNaoRecarregado);

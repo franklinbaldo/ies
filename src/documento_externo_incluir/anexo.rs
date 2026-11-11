@@ -10,7 +10,17 @@ pub(crate) enum FalhaAnexo {
     Atributo(#[source] crate::html_atributos::ErroAtributoHtml),
     /// O tokenizador HTML recusou a tela inteira.
     HtmlNaoAnalisavel(#[source] tl::ParseError),
-    FormaNaoObservada,
+    /// Um nó do HTML da tela que não pode ser lido como elemento.
+    NoSemTag,
+    ChamadaDoUploadSemFechamento,
+    ChamadaDoUploadSemPontoEVirgula,
+    FormularioDoUploadDivergente,
+    AridadeDoUploadDivergente,
+    UrlDoUploadSemAspas,
+    UrlDoUploadForaDoControlador,
+    ScriptSemCorpoLegivel,
+    ChamadaDoScriptForaDaForma,
+    UploadDaTelaNaoEhUnico,
     LinhaInvalida,
     ReciboIncompativel,
 }
@@ -89,27 +99,29 @@ fn formatar_tamanho(bytes: u64) -> String {
 }
 
 fn ler_url_upload(fonte: &str) -> Result<String, FalhaAnexo> {
-    let (argumentos, restante) = fonte.split_once(')').ok_or(FalhaAnexo::FormaNaoObservada)?;
+    let (argumentos, restante) = fonte
+        .split_once(')')
+        .ok_or(FalhaAnexo::ChamadaDoUploadSemFechamento)?;
     if !restante.trim_start().starts_with(';') {
-        return Err(FalhaAnexo::FormaNaoObservada);
+        return Err(FalhaAnexo::ChamadaDoUploadSemPontoEVirgula);
     }
     let argumentos: Vec<&str> = argumentos.split(',').map(str::trim).collect();
     let ["'frmAnexos'", url, ..] = argumentos.as_slice() else {
-        return Err(FalhaAnexo::FormaNaoObservada);
+        return Err(FalhaAnexo::FormularioDoUploadDivergente);
     };
     if !matches!(argumentos.as_slice(), [_, _] | [_, _, "true" | "false"]) {
-        return Err(FalhaAnexo::FormaNaoObservada);
+        return Err(FalhaAnexo::AridadeDoUploadDivergente);
     }
     let url = url
         .strip_prefix('\'')
         .and_then(|texto| texto.strip_suffix('\''))
-        .ok_or(FalhaAnexo::FormaNaoObservada)?;
+        .ok_or(FalhaAnexo::UrlDoUploadSemAspas)?;
     // Somente a URL relativa que a própria tela publica. O fluxo Web
     // ainda terá de conferir origem, assinatura, sessão e identidade.
     if !url.starts_with("controlador.php?acao=documento_upload_anexo&")
         || url.contains(['\'', '"', '\r', '\n'])
     {
-        return Err(FalhaAnexo::FormaNaoObservada);
+        return Err(FalhaAnexo::UrlDoUploadForaDoControlador);
     }
     Ok(url.to_owned())
 }
@@ -202,7 +214,7 @@ pub(crate) fn ler_plano(html: &str) -> Result<PlanoAnexo, FalhaAnexo> {
         let tag = no
             .get(dom.parser())
             .and_then(tl::Node::as_tag)
-            .ok_or(FalhaAnexo::FormaNaoObservada)?;
+            .ok_or(FalhaAnexo::NoSemTag)?;
         inertes.push(tag.boundaries(dom.parser()));
     }
     let mut uploads = Vec::new();
@@ -211,7 +223,7 @@ pub(crate) fn ler_plano(html: &str) -> Result<PlanoAnexo, FalhaAnexo> {
         let tag = no
             .get(dom.parser())
             .and_then(tl::Node::as_tag)
-            .ok_or(FalhaAnexo::FormaNaoObservada)?;
+            .ok_or(FalhaAnexo::NoSemTag)?;
         let inicio = tag.boundaries(dom.parser()).0;
         if inertes
             .iter()
@@ -230,12 +242,12 @@ pub(crate) fn ler_plano(html: &str) -> Result<PlanoAnexo, FalhaAnexo> {
         if crate::html_atributos::atributo_presente(tag, "src").map_err(FalhaAnexo::Atributo)? {
             continue;
         }
-        let fonte = corpo_do_script(html, inicio).ok_or(FalhaAnexo::FormaNaoObservada)?;
+        let fonte = corpo_do_script(html, inicio).ok_or(FalhaAnexo::ScriptSemCorpoLegivel)?;
         let depois_de = |inicio: usize, chamada: &str| {
             let (_, daqui) = fonte.split_at(inicio);
             daqui
                 .strip_prefix(chamada)
-                .ok_or(FalhaAnexo::FormaNaoObservada)
+                .ok_or(FalhaAnexo::ChamadaDoScriptForaDaForma)
         };
         for (inicio, chamada) in fonte.match_indices("new infraUpload(") {
             uploads.push(ler_url_upload(depois_de(inicio, chamada)?)?);
@@ -249,7 +261,7 @@ pub(crate) fn ler_plano(html: &str) -> Result<PlanoAnexo, FalhaAnexo> {
         }
     }
     let [upload] = uploads.as_slice() else {
-        return Err(FalhaAnexo::FormaNaoObservada);
+        return Err(FalhaAnexo::UploadDaTelaNaoEhUnico);
     };
     let [colunas] = linhas.as_slice() else {
         return Err(FalhaAnexo::LinhaInvalida);
@@ -331,25 +343,38 @@ objTabelaAnexos = new infraTabelaDinamica('tblAnexos','hdnAnexos',false,false);
     }
 
     #[test]
-    fn dado_upload_ambíguo_ou_nao_observado_quando_leio_entao_recuso() {
-        for (indice, tela) in [
-            tela(", objeto", COLUNAS),
-            tela(", true, false", COLUNAS),
-            tela("", COLUNAS).replace("new infraUpload", "outraCoisa"),
-            format!("{}{}", tela("", COLUNAS), tela("", COLUNAS)),
+    fn dado_upload_ambiguo_ou_ausente_quando_leio_entao_recuso() {
+        for (indice, (tela, esperado)) in [
+            (
+                tela(", objeto", COLUNAS),
+                FalhaAnexo::AridadeDoUploadDivergente,
+            ),
+            (
+                tela(", true, false", COLUNAS),
+                FalhaAnexo::AridadeDoUploadDivergente,
+            ),
+            (
+                tela("", COLUNAS).replace("new infraUpload", "outraCoisa"),
+                FalhaAnexo::UploadDaTelaNaoEhUnico,
+            ),
+            (
+                format!("{}{}", tela("", COLUNAS), tela("", COLUNAS)),
+                FalhaAnexo::UploadDaTelaNaoEhUnico,
+            ),
         ]
         .into_iter()
         .enumerate()
         {
-            assert!(
-                matches!(ler_plano(&tela), Err(FalhaAnexo::FormaNaoObservada)),
+            assert_eq!(
+                ler_plano(&tela).map(|_| ()),
+                Err(esperado),
                 "indice {indice}"
             );
         }
     }
 
     #[test]
-    fn dado_coluna_nao_observada_ou_ambiguo_quando_leio_entao_recuso() {
+    fn dado_coluna_fora_da_forma_ou_ambigua_quando_leio_entao_recuso() {
         for colunas in [
             "arr['campo_desconhecido']",
             "",
@@ -377,9 +402,9 @@ objTabelaAnexos = new infraTabelaDinamica('tblAnexos','hdnAnexos',false,false);
     #[test]
     fn dado_only_template_quando_leio_entao_nao_invento_upload() {
         let falso = format!("<template>{}</template>", tela("", COLUNAS));
-        assert!(matches!(
-            ler_plano(&falso),
-            Err(FalhaAnexo::FormaNaoObservada)
-        ));
+        assert_eq!(
+            ler_plano(&falso).map(|_| ()),
+            Err(FalhaAnexo::UploadDaTelaNaoEhUnico)
+        );
     }
 }

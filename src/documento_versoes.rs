@@ -17,7 +17,7 @@ pub enum ErroVersao {
     LinkInseguro,
     DocumentoDivergente,
     ListaIncompleta,
-    VersaoNaoObservada,
+    VersaoPedidaAusenteNoHistorico,
     ColunasHistoricoInesperadas,
     HistoricoDocumentoAusente,
     HistoricoDocumentoNaoInterpretado(#[source] tl::ParseError),
@@ -78,7 +78,7 @@ impl HistoricoDocumento {
         self.entradas
             .iter()
             .find(|e| e.versao == numero)
-            .ok_or(ErroVersao::VersaoNaoObservada)
+            .ok_or(ErroVersao::VersaoPedidaAusenteNoHistorico)
     }
     #[cfg(test)]
     pub fn len(&self) -> usize {
@@ -411,7 +411,7 @@ pub(crate) mod testes {
         assert_eq!(h.atual().unwrap().numero(), 4);
         assert_eq!(
             h.selecionar(VersaoDocumento::nova(2).unwrap()),
-            Err(ErroVersao::VersaoNaoObservada)
+            Err(ErroVersao::VersaoPedidaAusenteNoHistorico)
         );
     }
     #[test]

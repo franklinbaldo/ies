@@ -105,7 +105,7 @@ fn conteudo_pelo_controle_em_cinco_requisicoes_e_aprende_o_caminho() {
     assert_eq!(d.unidade.as_deref(), Some(UNIDADE));
     assert_eq!(d.texto, "Texto do despacho.");
     assert_eq!(d.requisicoes, 5);
-    assert_eq!(d.natureza.icone.as_deref(), Some("documento_interno"));
+    assert_eq!(d.natureza.icone, "documento_interno");
     let debug = format!("{d:?}");
     for segredo in [HASH_CONTEUDO.to_owned(), hash('b'), hash('c')] {
         assert!(!debug.contains(&segredo), "{debug}");

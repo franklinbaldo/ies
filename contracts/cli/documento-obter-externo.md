@@ -72,8 +72,8 @@ O JSON de cada documento externo traz `fonte: "documento_download_anexo"`,
 | `mime` | tipo principal, em minúsculas |
 | `tamanho` | bytes lidos |
 | `sha256` | do corpo lido |
-| `nome_original` | `filename*` (RFC 5987) ou `filename` do `Content-Disposition`, saneado (sem diretório nem controle, até 255 caracteres); `null` sem o cabeçalho |
-| `disposicao` | `inline`, `attachment` ou `null` |
+| `nome_original` | `filename*` (RFC 5987) ou `filename` do `Content-Disposition`, saneado (sem diretório nem controle, até 255 caracteres); sem nome, ou com nome vazio após o saneamento, é erro tipado |
+| `disposicao` | `inline` ou `attachment`; sem o `Content-Disposition` é erro tipado |
 
 Sem `--saida`: `texto` só para tipos de texto (`text/plain` decodificado
 no charset declarado ou UTF-8 estrito, controles trocados por `�`;
@@ -110,7 +110,8 @@ da pessoa); o nome final nunca é seguido.
 | `ErroAnexo::SemTipoDeConteudo` | resposta 200 sem `Content-Type` |
 | `ErroAnexo::TipoNaoPermitido` | tipo principal fora da lista observada |
 | `ErroAnexo::CabecalhoRepetido` | `Content-Type`, `Content-Length` ou `Content-Disposition` mais de uma vez |
-| `ErroAnexo::DisposicaoForaDaFormaObservada(ErroDisposicao::…)` | `Content-Disposition` sem `inline`/`attachment` ou com nome repetido ou ilegível |
+| `ErroAnexo::DisposicaoForaDaFormaObservada(ErroDisposicao::…)` | `Content-Disposition` sem `inline`/`attachment` ou com nome repetido ou ilegível; `NomeDeArquivoAusente` e `NomeDeArquivoVazioAposSaneamento` para nome ausente ou vazio |
+| `ErroAnexo::CabecalhoDeDisposicaoAusente` | a resposta 200 não traz `Content-Disposition`; conferido depois do corpo, para que login e exceção do SEI continuem sendo o que a resposta mostra |
 | `ErroAnexo::AcimaDoLimite` | declarado ou lido acima do limite |
 | `ErroAnexo::Vazio` | corpo sem bytes |
 | `ErroAnexo::RecusadoPeloSei` | HTML com o contêiner de exceção do SEI |
