@@ -1,5 +1,6 @@
 //! #259: registro Web de andamento, com prévia e verificação independente.
 //! Casos: Todos src/todos/andamento.py @323eb01.
+use crate::acao_do_sei::AcaoDoSei;
 use crate::arvore_processo::ErroAndamentoNaBarra;
 use crate::formulario_web::{
     ConferenciaDaUnidade, EfeitoAvaliado, EnvioDoFormulario, ErroSubmissaoFormulario,
@@ -20,15 +21,13 @@ use crate::processo_obter::{
 };
 use crate::visao_do_controle::EnvioDoControle as _;
 
-const ACAO: &str = "procedimento_atualizar_andamento";
-const HISTORICO: &str = "procedimento_consultar_historico";
 const FORM: &str = "frmAtividadeListar";
 const TEXTO: &str = "txaDescricao";
 const BOTAO: &str = "sbmSalvar";
 const OCULTOS: [&str; 2] = ["hdnIdAtividade", "hdnIdProtocolo"];
 
 const REGISTRAR: OperacaoDeFormulario = OperacaoDeFormulario {
-    acao: ACAO,
+    acao: AcaoDoSei::ProcedimentoAtualizarAndamento,
     formulario: FORM,
     envio: EnvioDoFormulario::BotaoDeEnvio(BOTAO),
     campos_ocultos_exigidos: &OCULTOS,
@@ -161,7 +160,8 @@ fn localizacao_esperada(local: Option<&str>, origem: &str, id: &str) -> bool {
             .map(|(_, v)| v)
             .collect()
     };
-    valores("acao") == [HISTORICO] && valores("id_procedimento") == [id]
+    valores("acao") == [AcaoDoSei::ProcedimentoConsultarHistorico.como_na_url()]
+        && valores("id_procedimento") == [id]
 }
 pub(crate) struct Resultado {
     pub(crate) numero: String,

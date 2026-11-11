@@ -8,10 +8,10 @@
 use super::endereco::conferir_endereco_relativo;
 use super::literais::{Literal, indice_do_html, ler_declaracao, ler_html};
 use super::{EnderecoDaArvore, ErroArvore, VinculoDeAnexacao};
+use crate::acao_do_sei::AcaoDoSei;
 use crate::html_atributos::atributos;
 use crate::instalacao::Instalacao;
 
-const ACAO: &str = "procedimento_trabalhar";
 const CHAVE_DO_ANEXADO: &str = "id_procedimento_anexado";
 
 /// O pai do processo `id`, se o `.html` da raiz publica o vínculo.
@@ -113,7 +113,9 @@ fn conferir(
     if *anexado != id || *pai == id || !super::decimal(pai) {
         return Err(fora);
     }
-    let absoluta = conferir_endereco_relativo(instalacao, href, ACAO, pai).map_err(|_| fora)?;
+    let absoluta =
+        conferir_endereco_relativo(instalacao, href, AcaoDoSei::ProcedimentoTrabalhar, pai)
+            .map_err(|_| fora)?;
     if texto.is_empty() || texto.trim() != texto || texto.contains(['<', '>', '&']) {
         return Err(fora);
     }

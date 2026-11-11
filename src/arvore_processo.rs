@@ -79,8 +79,8 @@ pub(crate) use andamento::{ErroAndamentoNaBarra, ler_andamento_da_barra};
 use anexados::{AnexadoLido, conferir_anexados, ler_anexado};
 pub(crate) use anexar::{ErroAnexarNaBarra, ler_anexar_da_barra};
 pub(crate) use assinatura::{
-    ACAO_DE_ASSINAR, Assinante, ErroAssinaturaNaArvore, ErroLinkDeAssinar,
-    ler_assinatura_na_arvore, ler_link_de_assinar, tela_do_documento,
+    Assinante, ErroAssinaturaNaArvore, ErroLinkDeAssinar, ler_assinatura_na_arvore,
+    ler_link_de_assinar, tela_do_documento,
 };
 pub(crate) use atribuir::{ErroAtribuirNaBarra, ler_atribuir_da_barra};
 pub(crate) use barra_do_documento::barra_do_no;
@@ -103,14 +103,14 @@ pub(crate) use ciencia::{
     lista_do_processo, url_da_ciencia, url_da_ciencia_do_documento,
 };
 pub(crate) use concluir::{
-    ACAO_DE_CONCLUIR, ConcluirNaBarra, EnderecoDeEscrita, ErroConcluirNaBarra,
-    ErroFuncaoDeConcluir, ler_concluir_da_barra, ler_funcao_de_concluir,
+    ConcluirNaBarra, EnderecoDeEscrita, ErroConcluirNaBarra, ErroFuncaoDeConcluir,
+    ler_concluir_da_barra, ler_funcao_de_concluir,
 };
 pub(crate) use conteudo::{
     ConteudoNaArvore, EnderecoDoConteudo, ErroConteudoNaArvore, ler_conteudo_na_arvore,
 };
 pub(crate) use endereco::conferir_endereco_relativo;
-pub(crate) use enviar::{ACAO_DE_ENVIAR, ErroEnviarNaBarra, ler_enviar_da_barra};
+pub(crate) use enviar::{ErroEnviarNaBarra, ler_enviar_da_barra};
 pub(crate) use erro::ErroArvore;
 use literais::{Literal, ler_barra, ler_declaracao, ler_protocolos};
 pub(crate) use movidos::ler_destinos_dos_movidos;

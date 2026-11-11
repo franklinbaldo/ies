@@ -1,4 +1,5 @@
 //! Histórico Web observado: nunca constrói links nem abre editor.
+use crate::acao_do_sei::AcaoDoSei;
 use crate::documento::NumeroDocumento;
 use crate::html_atributos::{nos_por_elemento_e_classe, valor_do_atributo};
 use std::collections::HashSet;
@@ -123,7 +124,7 @@ fn conferir_link(href: &str, id: &str, versao: VersaoDocumento) -> Result<(), Er
             None => {}
         }
     }
-    if acao != Some("documento_visualizar")
+    if acao.and_then(AcaoDoSei::ler) != Some(AcaoDoSei::DocumentoVisualizar)
         || versao_observada != Some(versao.numero().to_string().as_str())
     {
         return Err(ErroVersao::LinkInseguro);

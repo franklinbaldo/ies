@@ -1,12 +1,13 @@
 //! RED/GREEN da derivação: HTML sintético modelado no formulário servido.
 use super::*;
+use crate::acao_do_sei::AcaoDoSei;
 
 pub(crate) const HASH_TELA: &str =
     "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa";
 const HASH_FORM: &str = "bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb";
 
 pub(crate) const OPERACAO: OperacaoDeFormulario = OperacaoDeFormulario {
-    acao: "protocolo_pesquisar",
+    acao: AcaoDoSei::ProtocoloPesquisar,
     formulario: "frmPesquisaProtocolo",
     envio: EnvioDoFormulario::BotaoDeEnvio("sbmPesquisar"),
     campos_ocultos_exigidos: &["hdnInfraTipoPagina", "hdnInicio"],

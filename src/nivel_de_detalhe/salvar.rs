@@ -7,8 +7,9 @@
 //! `value`); a resposta é 200 sem redirect, uma página que fecha o modal,
 //! e a mudança vale na leitura seguinte. Não há marcador de resultado
 //! observado: o efeito é conferido por um GET da mesma tela.
-use super::tela::{ACAO_DO_NIVEL_DE_DETALHE, ErroNivelDeDetalhe, FORMULARIO_DO_NIVEL_DE_DETALHE};
+use super::tela::{ErroNivelDeDetalhe, FORMULARIO_DO_NIVEL_DE_DETALHE};
 use super::{ColunaDoDetalhe, PlanoDasColunas};
+use crate::acao_do_sei::AcaoDoSei;
 use crate::formulario_web::{
     ConferenciaDaUnidade, EfeitoAvaliado, EnvioDoFormulario, OperacaoDeFormulario,
     PreferenciaDoUsuario, ResultadoDoEnvio, localizar_formulario,
@@ -38,7 +39,7 @@ pub(crate) const BOTAO_SALVAR: &str = "sbmSalvar";
 /// Salvar a tela `procedimento_configurar_detalhe`. A tela é uma janela
 /// sem barra da unidade, aberta pelo link da D já conferida.
 pub(crate) const SALVAR_NIVEL_DE_DETALHE: OperacaoDeFormulario = OperacaoDeFormulario {
-    acao: ACAO_DO_NIVEL_DE_DETALHE,
+    acao: AcaoDoSei::ProcedimentoConfigurarDetalhe,
     formulario: FORMULARIO_DO_NIVEL_DE_DETALHE,
     envio: EnvioDoFormulario::BotaoDeEnvio(BOTAO_SALVAR),
     campos_ocultos_exigidos: &[OCULTO_DO_NIVEL_DE_DETALHE],

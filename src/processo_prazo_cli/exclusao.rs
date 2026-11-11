@@ -1,11 +1,12 @@
 //! Exclusao do prazo pela lista da unidade, nunca pelo cadastro da barra.
 //! O unico POST e reservado ao anti-IES de teste; release recusa antes da rede.
 use super::*;
+use crate::acao_do_sei::AcaoDoSei;
 use crate::formulario_web::derivar_submissao_com_action;
 use crate::url_observada::UrlHttps;
 
 const EXCLUIR_PRAZO: OperacaoDeFormulario = OperacaoDeFormulario {
-    acao: "controle_prazo_excluir",
+    acao: AcaoDoSei::ControlePrazoExcluir,
     formulario: "frmControlePrazoLista",
     envio: EnvioDoFormulario::SubmitPorScript,
     campos_ocultos_exigidos: &["hdnInfraItemId"],

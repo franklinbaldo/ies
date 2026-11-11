@@ -10,6 +10,7 @@ use super::{
     Barra, DocumentoLido, ErroArvore, Literal, PastaNaArvore, VerificacaoDaPasta,
     tela::EnderecoDaArvore,
 };
+use crate::acao_do_sei::AcaoDoSei;
 use crate::instalacao::Instalacao;
 use std::collections::{HashMap, HashSet};
 
@@ -283,8 +284,9 @@ fn conferir_url_de_abrir(
     id: &str,
 ) -> Result<EnderecoDaArvore, ErroArvore> {
     let recusa = ErroArvore::EnderecoDeAbrirPastasNaoReconhecido;
-    let absoluta = conferir_endereco_relativo(instalacao, url, "procedimento_visualizar", id)
-        .map_err(|_| recusa)?;
+    let absoluta =
+        conferir_endereco_relativo(instalacao, url, AcaoDoSei::ProcedimentoVisualizar, id)
+            .map_err(|_| recusa)?;
     let consulta = url.split_once('?').map_or("", |(_, c)| c);
     let mut abrir = 0;
     for par in consulta.split('&') {

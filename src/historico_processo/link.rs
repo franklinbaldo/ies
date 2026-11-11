@@ -9,6 +9,7 @@
 //!
 //! Só essas formas exatas; nada de regex nem de JavaScript executado.
 use super::ErroLinkDoHistorico;
+use crate::acao_do_sei::AcaoDoSei;
 use crate::arvore_processo::endereco::{EnderecoRecusado, conferir_endereco_relativo};
 use crate::formulario_web::decodificar_atributo;
 use crate::html_atributos::{nos_com_id, valor_do_atributo};
@@ -50,16 +51,19 @@ pub(crate) fn ler_link_do_historico(
         [url] => url,
         _ => return Err(ErroLinkDoHistorico::LinksDoHistoricoRepetidosNaArvore),
     };
-    conferir_endereco_relativo(instalacao, url, super::ACAO_DO_HISTORICO, id)
-        .map(EnderecoDoHistorico)
-        .map_err(|recusa| match recusa {
-            EnderecoRecusado::NaoReconhecido => {
-                ErroLinkDoHistorico::EnderecoDoHistoricoNaoReconhecido
-            }
-            EnderecoRecusado::DeOutroProcesso => {
-                ErroLinkDoHistorico::EnderecoDoHistoricoDeOutroProcesso
-            }
-        })
+    conferir_endereco_relativo(
+        instalacao,
+        url,
+        AcaoDoSei::ProcedimentoConsultarHistorico,
+        id,
+    )
+    .map(EnderecoDoHistorico)
+    .map_err(|recusa| match recusa {
+        EnderecoRecusado::NaoReconhecido => ErroLinkDoHistorico::EnderecoDoHistoricoNaoReconhecido,
+        EnderecoRecusado::DeOutroProcesso => {
+            ErroLinkDoHistorico::EnderecoDoHistoricoDeOutroProcesso
+        }
+    })
 }
 
 /// Forma GO: URL no `onclick` de cada `a` dentro de `div#divConsultarAndamento`.

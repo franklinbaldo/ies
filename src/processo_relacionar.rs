@@ -33,7 +33,7 @@ use tela::{
 };
 
 const CONSULTA: ConsultaAjax = ConsultaAjax {
-    acao_ajax: "protocolo_RI1023",
+    acao_ajax: crate::acao_do_sei::AcaoAjaxDoSei::ProtocoloRi1023,
     campos: &["idProcedimento"],
     efeito: EfeitoAvaliado::ConsultaSemEfeitoObservado {
         evidencia: "tests/paginas_reais/procedimento_relacionar.html no Todos @323eb01: consulta do botão Pesquisar",

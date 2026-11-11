@@ -1,5 +1,6 @@
 //! Cancelamento Web de documento (#273): link do nó DOCUMENTO e motivo.
 //! Deriva endereços somente de âncoras servidas; nunca executa JavaScript.
+use crate::acao_do_sei::AcaoDoSei;
 use crate::arvore_processo::barra_do_no;
 use crate::arvore_processo::endereco::{EnderecoRecusado, conferir_endereco_relativo_por};
 use crate::formulario_web::decodificar_atributo;
@@ -71,7 +72,7 @@ pub(crate) fn ler_link_cancelar(
         let acao = href
             .split_once('?')
             .and_then(|(_, query)| query.split('&').find_map(|p| p.strip_prefix("acao=")));
-        if acao == Some("documento_cancelar") {
+        if acao.and_then(AcaoDoSei::ler) == Some(AcaoDoSei::DocumentoCancelar) {
             links.push(href);
         }
     }
@@ -87,7 +88,7 @@ pub(crate) fn ler_link_cancelar(
     conferir_endereco_relativo_por(
         instalacao,
         href,
-        "documento_cancelar",
+        AcaoDoSei::DocumentoCancelar,
         "id_procedimento",
         processo,
     )
@@ -95,7 +96,7 @@ pub(crate) fn ler_link_cancelar(
     let url = conferir_endereco_relativo_por(
         instalacao,
         href,
-        "documento_cancelar",
+        AcaoDoSei::DocumentoCancelar,
         "id_documento",
         documento,
     )

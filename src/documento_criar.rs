@@ -13,6 +13,7 @@ pub(crate) use fluxo::{
     EstadoCriacao, PedidoCriacao, ResultadoCriacao, executar_criacao, validar_nivel_de_confirmacao,
 };
 
+use crate::acao_do_sei::AcaoDoSei;
 use crate::arvore_processo::DocumentoNaArvore;
 use crate::arvore_processo::endereco::conferir_endereco_relativo;
 use crate::formulario_web::decodificar_atributo;
@@ -383,8 +384,13 @@ pub(crate) fn cadastro_redirecionado(
 ) -> Result<String, ErroCriar> {
     let base = format!("{}/", instalacao.url_base());
     let relativo = location.strip_prefix(&base).unwrap_or(location);
-    conferir_endereco_relativo(instalacao, relativo, "documento_gerar", id_procedimento)
-        .map_err(|_| ErroCriar::EnderecoDoTipoNaoReconhecido)
+    conferir_endereco_relativo(
+        instalacao,
+        relativo,
+        AcaoDoSei::DocumentoGerar,
+        id_procedimento,
+    )
+    .map_err(|_| ErroCriar::EnderecoDoTipoNaoReconhecido)
 }
 
 #[cfg(test)]

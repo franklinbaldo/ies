@@ -8,6 +8,7 @@
 use super::super::EnvioDoProcesso;
 use super::super::abertura::{Lida, Rede};
 use super::{ErroDocumentoObter, fora_do_html};
+use crate::acao_do_sei::AcaoDoSei;
 use crate::arvore_processo::endereco::conferir_endereco_relativo;
 use crate::arvore_processo::{BarraDoDocumento, EnderecoDoConteudo, ler_barra_do_documento};
 use crate::documento::NumeroDocumento;
@@ -199,7 +200,7 @@ fn ler_versao<V: EnvioDoProcesso>(
     let url = conferir_endereco_relativo(
         no.instalacao,
         entrada.link_privado(),
-        "documento_visualizar",
+        AcaoDoSei::DocumentoVisualizar,
         no.id_procedimento,
     )
     .map_err(|_| ErroDocumentoObter::Versoes(ErroVersao::LinkInseguro))?;

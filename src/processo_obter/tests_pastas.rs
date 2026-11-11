@@ -3,6 +3,7 @@
 //! aprendizado no índice e recusas tipadas. Árvores sintéticas.
 use super::tests_apoio::*;
 use super::*;
+use crate::acao_do_sei::AcaoDoSei;
 use crate::arvore_processo::ErroArvore;
 use crate::arvore_processo::tests::NUP;
 use crate::arvore_processo::tests_pastas::{
@@ -19,7 +20,10 @@ fn url_abrir_absoluta() -> String {
 fn link(amb: &Ambiente, objeto: &str) -> Option<String> {
     let g = geracao();
     amb.indice
-        .link(&instalacao(), chave(&g, "procedimento_visualizar", objeto))
+        .link(
+            &instalacao(),
+            chave(&g, AcaoDoSei::ProcedimentoVisualizar, objeto),
+        )
         .map(|u| u.url().to_owned())
 }
 
@@ -27,7 +31,11 @@ fn guardar(amb: &Ambiente, objeto: &str, url: &str) {
     let (inst, g) = (instalacao(), geracao());
     amb.indice.registrar_processo(&inst, NUP, ID).unwrap();
     amb.indice
-        .registrar_link(&inst, chave(&g, "procedimento_visualizar", objeto), url)
+        .registrar_link(
+            &inst,
+            chave(&g, AcaoDoSei::ProcedimentoVisualizar, objeto),
+            url,
+        )
         .unwrap();
 }
 

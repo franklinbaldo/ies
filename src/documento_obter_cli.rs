@@ -1,5 +1,6 @@
 //! Leitura Web de documentos e anexos. Contrato: contracts/cli/documento-obter-web.md.
 //! Refs #60; sem publicar URLs, HTML ou cookies.
+use crate::acao_do_sei::AcaoDoSei;
 use crate::anexo_documento::LimiteDoAnexo;
 use crate::documento::NumeroDocumento;
 use crate::documento_versao_cli;
@@ -36,7 +37,7 @@ pub(crate) fn json_do_documento(d: &DocumentoObtido) -> serde_json::Map<String, 
         "unidade": d.unidade,
         "resolvido_por": d.resolvido_por.como_texto(),
         "requisicoes": d.requisicoes,
-        "fonte": "documento_visualizar",
+        "fonte": AcaoDoSei::DocumentoVisualizar,
         "versao_atual": null,
     });
     let mut mapa = match valor {
@@ -60,7 +61,7 @@ pub(crate) fn json_do_documento(d: &DocumentoObtido) -> serde_json::Map<String, 
     if let Some(a) = &d.anexo {
         // Externo: o título do HTML recebido é do órgão de origem (fatia 3).
         mapa.insert("tipo".to_owned(), Value::Null);
-        mapa.insert("fonte".to_owned(), json!("documento_download_anexo"));
+        mapa.insert("fonte".to_owned(), json!(AcaoDoSei::DocumentoDownloadAnexo));
         mapa.insert("anexo".to_owned(), anexo::json_do_anexo(a));
     }
     mapa

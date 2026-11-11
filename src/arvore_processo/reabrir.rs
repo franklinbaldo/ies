@@ -14,10 +14,9 @@
 use super::barra_do_processo::ancoras_da_barra;
 use super::concluir::{EnderecoDeEscrita, FuncaoForaDaForma, tela_do_no_da_raiz, urls_das_funcoes};
 use super::endereco::{EnderecoRecusado, conferir_endereco_relativo};
+use crate::acao_do_sei::AcaoDoSei;
 use crate::instalacao::Instalacao;
 
-/// A `acao` da reabertura.
-pub(crate) const ACAO_DE_REABRIR: &str = "procedimento_reabrir";
 const ONCLICK: &str = "reabrirProcesso();";
 const VARIAVEL: &str = "var linkReabrirProcesso";
 const VARIAVEL_ATE_A_URL: &str = "var linkReabrirProcesso = '";
@@ -116,7 +115,7 @@ pub(crate) fn ler_endereco_de_reabrir(
         ([], [url]) => (*url, FormaDaReabertura::Variavel),
         _ => return Err(ErroEnderecoDeReabrir::EnderecosDeReabrirRepetidosNaTelaDoNo),
     };
-    conferir_endereco_relativo(instalacao, url, ACAO_DE_REABRIR, id)
+    conferir_endereco_relativo(instalacao, url, AcaoDoSei::ProcedimentoReabrir, id)
         .map(|url| (EnderecoDeEscrita::novo(url), forma))
         .map_err(|recusa| match recusa {
             EnderecoRecusado::NaoReconhecido => {

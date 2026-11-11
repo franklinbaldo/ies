@@ -5,6 +5,7 @@
 //! `processo-em-pastas-unb`; hosts, ids, números e hashes inventados.
 use super::tests_apoio::*;
 use super::*;
+use crate::acao_do_sei::AcaoDoSei;
 use crate::arvore_processo::tests::{NUP, arvore, no_documento, no_processo};
 use crate::arvore_processo::tests_conteudo::{com_src, src_da_arvore_do_documento, src_visualizar};
 use crate::arvore_processo::tests_pastas::{arvore_aberta, arvore_fechada, url_abrir};
@@ -175,7 +176,11 @@ fn link_de_trabalho_guardado_em_tres() {
     let (inst, g) = (instalacao(), geracao());
     let trabalho = absoluta(&trabalhar_controle(ID));
     amb.indice
-        .registrar_link(&inst, chave(&g, "procedimento_trabalhar", ID), &trabalho)
+        .registrar_link(
+            &inst,
+            chave(&g, AcaoDoSei::ProcedimentoTrabalhar, ID),
+            &trabalho,
+        )
         .unwrap();
     let (r, pedidos) = rodar_doc(
         &amb,
@@ -368,7 +373,7 @@ fn processo_informado_pelo_link_da_arvore_em_duas() {
     amb.indice
         .registrar_link(
             &inst,
-            chave(&g, "procedimento_visualizar", ID),
+            chave(&g, AcaoDoSei::ProcedimentoVisualizar, ID),
             &url_arvore(ID),
         )
         .unwrap();
@@ -399,7 +404,7 @@ fn guardar_arvore(amb: &Ambiente) {
     amb.indice
         .registrar_link(
             &inst,
-            chave(&g, "procedimento_visualizar", ID),
+            chave(&g, AcaoDoSei::ProcedimentoVisualizar, ID),
             &url_arvore(ID),
         )
         .unwrap();

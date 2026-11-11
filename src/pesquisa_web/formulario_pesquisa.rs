@@ -6,6 +6,7 @@ use super::redirecionamento::{
 };
 use super::regras_formulario::{ErroRegraDoFormularioDePesquisa, PesquisarEm, ler_regras_da_tela};
 use super::resposta::{ErroRespostaDaPesquisa, RespostaDaPesquisa, ler_resposta_html};
+use crate::acao_do_sei::AcaoDoSei;
 use crate::formulario_web::{
     ConferenciaDaUnidade, EfeitoAvaliado, EnvioDoFormulario, ErroSubmissaoFormulario,
     EstadoDeSessao, MarcadorDeResultado, OperacaoDeFormulario, RespostaDoEnvio, ResultadoDoEnvio,
@@ -61,7 +62,7 @@ pub(crate) const MARCADORES_DA_RESPOSTA: ResultadoDoEnvio = ResultadoDoEnvio::Um
 /// O servidor pode lembrar página/filtro da sessão
 /// (docs/como-o-sei-funciona/tabelas-e-paginacao.md): não é consulta pura.
 pub(crate) const PESQUISAR_PROTOCOLO: OperacaoDeFormulario = OperacaoDeFormulario {
-    acao: "protocolo_pesquisar",
+    acao: AcaoDoSei::ProtocoloPesquisar,
     formulario: "frmPesquisaProtocolo",
     envio: EnvioDoFormulario::BotaoDeEnvio("sbmPesquisar"),
     campos_ocultos_exigidos: CAMPOS_OCULTOS_DA_PESQUISA,

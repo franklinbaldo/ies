@@ -11,6 +11,7 @@ use super::{
     confirmacao::FotoProcesso,
     escolha::{EscolhaExterna, escolher_externo, identificar_tipo},
 };
+use crate::acao_do_sei::AcaoDoSei;
 use crate::arvore_processo::ErroLinkIncluirDocumento;
 use crate::arvore_processo::MotivoAbertoEm;
 use crate::arvore_processo::endereco::EnderecoRecusado;
@@ -35,7 +36,7 @@ use crate::transporte::FalhaTransporte;
 use crate::visao_do_controle::EnvioDoControle as _;
 
 const ESCOLHER_EXTERNO: OperacaoDeFormulario = OperacaoDeFormulario {
-    acao: "documento_escolher_tipo",
+    acao: AcaoDoSei::DocumentoEscolherTipo,
     formulario: "frmDocumentoEscolherTipo",
     envio: EnvioDoFormulario::SubmitPorScript,
     campos_ocultos_exigidos: &["hdnIdSerie"],
@@ -49,7 +50,7 @@ const ESCOLHER_EXTERNO: OperacaoDeFormulario = OperacaoDeFormulario {
 };
 
 const RECARREGAR_TIPO: OperacaoDeFormulario = OperacaoDeFormulario {
-    acao: "documento_receber",
+    acao: AcaoDoSei::DocumentoReceber,
     formulario: "frmDocumentoCadastro",
     envio: EnvioDoFormulario::SubmitPorScript,
     campos_ocultos_exigidos: &["hdnIdSerie", "hdnFlagDocumentoCadastro"],
@@ -128,7 +129,7 @@ fn conferir_destino(
     conferir_endereco_com_identidade_repetida(
         instalacao,
         relativo,
-        "documento_receber",
+        AcaoDoSei::DocumentoReceber,
         id_procedimento,
     )
     .map_err(ErroIncluirExterno::DestinoDoExternoRecusado)

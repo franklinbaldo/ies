@@ -18,7 +18,7 @@ pub(crate) mod tests_apoio;
 mod tests_tela;
 
 pub(crate) use erro::{ErroTroca, EtapaDaTroca, FalhaDepoisDoEnvio};
-pub(crate) use tela::{ACAO_DE_TROCAR, UnidadeOferecida};
+pub(crate) use tela::UnidadeOferecida;
 
 use crate::controle_reconhecido::unidade_do_controle;
 use crate::formulario_web::{

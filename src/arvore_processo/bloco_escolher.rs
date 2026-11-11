@@ -6,11 +6,10 @@
 use super::barra_do_documento::{ErroBarraDoDocumento, barra_do_no};
 use super::concluir::EnderecoDeEscrita;
 use super::endereco::{EnderecoRecusado, conferir_endereco_relativo_por};
+use crate::acao_do_sei::AcaoDoSei;
 use crate::formulario_web::decodificar_atributo;
 use crate::html_atributos::atributos;
 use crate::instalacao::Instalacao;
-
-pub(crate) const ACAO_DE_ESCOLHER_BLOCO: &str = "bloco_escolher";
 
 #[derive(Clone, Copy, Debug, PartialEq, Eq, thiserror::Error)]
 #[error("{self:?}")]
@@ -48,7 +47,7 @@ pub(crate) fn ler_bloco_escolher_da_barra(
             continue;
         };
         let href = decodificar_atributo(bruto).ok_or(fora)?;
-        if acao_do_href(&href) == Some(ACAO_DE_ESCOLHER_BLOCO) {
+        if acao_do_href(&href) == Some(AcaoDoSei::BlocoEscolher) {
             links.push(href);
         }
     }
@@ -64,7 +63,7 @@ pub(crate) fn ler_bloco_escolher_da_barra(
     conferir_endereco_relativo_por(
         instalacao,
         href,
-        ACAO_DE_ESCOLHER_BLOCO,
+        AcaoDoSei::BlocoEscolher,
         "id_procedimento",
         id_procedimento,
     )
@@ -72,7 +71,7 @@ pub(crate) fn ler_bloco_escolher_da_barra(
     conferir_endereco_relativo_por(
         instalacao,
         href,
-        ACAO_DE_ESCOLHER_BLOCO,
+        AcaoDoSei::BlocoEscolher,
         "id_documento",
         id_documento,
     )
@@ -81,9 +80,10 @@ pub(crate) fn ler_bloco_escolher_da_barra(
 }
 
 /// O primeiro `acao=` da consulta (a conferência recusa dois).
-fn acao_do_href(href: &str) -> Option<&str> {
+fn acao_do_href(href: &str) -> Option<AcaoDoSei> {
     let (_, consulta) = href.split_once('?')?;
     consulta
         .split('&')
         .find_map(|par| par.strip_prefix("acao="))
+        .and_then(AcaoDoSei::ler)
 }

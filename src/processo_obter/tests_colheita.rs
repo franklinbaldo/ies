@@ -4,10 +4,9 @@
 //! do Controle do passo 4, sem requisição a mais.
 use super::tests_apoio::*;
 use super::*;
+use crate::acao_do_sei::AcaoDoSei;
 use crate::arvore_processo::tests::NUP;
 use crate::colheita_do_controle::Colheita;
-
-const ACAO: &str = "procedimento_trabalhar";
 
 /// O que um comando anterior (login, listagem) deixou ao ler o Controle.
 fn colhido(amb: &Ambiente, linhas: &[(&str, &str)]) {
@@ -18,7 +17,7 @@ fn colhido(amb: &Ambiente, linhas: &[(&str, &str)]) {
 fn trabalho_guardado(amb: &Ambiente, id: &str) -> Option<String> {
     let (inst, g) = (instalacao(), geracao());
     amb.indice
-        .link(&inst, chave(&g, ACAO, id))
+        .link(&inst, chave(&g, AcaoDoSei::ProcedimentoTrabalhar, id))
         .map(|u| u.url().to_owned())
 }
 

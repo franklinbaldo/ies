@@ -1,5 +1,6 @@
 //! CLI Web de controle de prazo: leitura, prévia e confirmação local testável.
 //! O binário de distribuição continua recusando escrita antes da rede.
+use crate::acao_do_sei::AcaoDoSei;
 use crate::formulario_web::{
     ConferenciaDaUnidade, EfeitoAvaliado, EnvioDoFormulario, ErroSubmissaoFormulario,
     EstadoDoProcesso, OperacaoDeFormulario, RespostaDoEnvio, ResultadoDoEnvio, TelaServida,
@@ -171,7 +172,7 @@ fn publicar_previa(
 }
 
 const DEFINIR_PRAZO: OperacaoDeFormulario = OperacaoDeFormulario {
-    acao: "controle_prazo_definir",
+    acao: AcaoDoSei::ControlePrazoDefinir,
     formulario: "frmControlePrazoCadastro",
     envio: EnvioDoFormulario::BotaoDeEnvio("sbmDefinirControlePrazo"),
     campos_ocultos_exigidos: &[

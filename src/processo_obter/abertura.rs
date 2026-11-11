@@ -3,6 +3,7 @@
 //! rápida e a abertura `procedimento_trabalhar` → árvore.
 use super::login::{DestinoDoRedirecionamento, destino};
 use super::{EnvioDoProcesso, ErroProcessoObter};
+use crate::acao_do_sei::AcaoDoSei;
 use crate::arvore_processo::{
     AbertoEm, ArvoreLida, ConcluirNaBarra, EnderecoDeEscrita, EnderecoDoIncluirDocumento,
     ErroAcaoSobrestar, ErroAcompanharNaBarra, ErroAndamentoNaBarra, ErroAnexarNaBarra, ErroArvore,
@@ -36,7 +37,7 @@ use crate::transporte::{FalhaTransporte, decodificar_resposta};
 /// assinado, um controle `txtPesquisaRapida`, enviado pelo `onclick` da
 /// imagem (`submit()`), sem botão nem oculto. A resposta esperada é o 302.
 pub(crate) const PESQUISA_RAPIDA: OperacaoDeFormulario = OperacaoDeFormulario {
-    acao: "protocolo_pesquisa_rapida",
+    acao: AcaoDoSei::ProtocoloPesquisaRapida,
     formulario: "frmProtocoloPesquisaRapida",
     envio: EnvioDoFormulario::SubmitPorScript,
     campos_ocultos_exigidos: &[],
@@ -85,7 +86,7 @@ impl Contexto<'_> {
         }
     }
 
-    pub(super) fn chave<'c>(&'c self, acao: &'c str, objeto: &'c str) -> Option<ChaveDoLink<'c>> {
+    pub(super) fn chave<'c>(&'c self, acao: AcaoDoSei, objeto: &'c str) -> Option<ChaveDoLink<'c>> {
         Some(ChaveDoLink {
             geracao_sessao: &self.geracao,
             unidade: self.unidade_id.as_deref()?,
@@ -95,13 +96,13 @@ impl Contexto<'_> {
     }
 
     /// Guarda o link sem editar; recusa do índice é ignorada (ADR 0003).
-    pub(super) fn aprender_link(&self, acao: &str, objeto: &str, url: &str) {
+    pub(super) fn aprender_link(&self, acao: AcaoDoSei, objeto: &str, url: &str) {
         if let Some(chave) = self.chave(acao, objeto) {
             let _ = self.indice.registrar_link(&self.instalacao, chave, url);
         }
     }
 
-    pub(super) fn esquecer_link(&self, acao: &str, objeto: &str) {
+    pub(super) fn esquecer_link(&self, acao: AcaoDoSei, objeto: &str) {
         if let Some(chave) = self.chave(acao, objeto) {
             self.indice.esquecer_link(&self.instalacao, chave);
         }
@@ -428,7 +429,7 @@ pub(super) fn concluir(
         .indice
         .registrar_processo(&contexto.instalacao, contexto.nup, id);
     if let Some(trabalho) = trabalho {
-        contexto.aprender_link("procedimento_trabalhar", id, trabalho);
+        contexto.aprender_link(AcaoDoSei::ProcedimentoTrabalhar, id, trabalho);
     }
-    contexto.aprender_link("procedimento_visualizar", id, url_da_arvore);
+    contexto.aprender_link(AcaoDoSei::ProcedimentoVisualizar, id, url_da_arvore);
 }

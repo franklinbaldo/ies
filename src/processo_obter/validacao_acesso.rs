@@ -3,6 +3,7 @@
 //! assinada e montada ou adivinhada e nenhum segredo entra no Debug.
 use super::abertura::{ArvoreAberta, Contexto, Lida, Rede};
 use super::{EnvioDoProcesso, ErroProcessoObter};
+use crate::acao_do_sei::AcaoDoSei;
 use crate::arvore_processo::{conferir_endereco_relativo, ler_tela_do_processo};
 use crate::formulario_web::{
     ConferenciaDaUnidade, EfeitoAvaliado, EnvioDoFormulario, ErroSubmissaoFormulario,
@@ -13,7 +14,7 @@ use crate::sessao_login::{Credenciais, ErroLogin};
 use std::path::PathBuf;
 
 const OPERACAO: OperacaoDeFormulario = OperacaoDeFormulario {
-    acao: "usuario_validar_acesso",
+    acao: AcaoDoSei::UsuarioValidarAcesso,
     formulario: "frmValidarAcesso",
     envio: EnvioDoFormulario::SubmitPorScript,
     campos_ocultos_exigidos: &[],

@@ -10,7 +10,7 @@ use crate::visao_do_controle::EnvioDoControle;
 
 const PREFIXO: &str = "objAjaxHipoteseLegal = new infraAjaxMontarSelect('selHipoteseLegal','";
 const CONSULTA: ConsultaAjax = ConsultaAjax {
-    acao_ajax: "hipotese_legal_select_nome_base_legal",
+    acao_ajax: crate::acao_do_sei::AcaoAjaxDoSei::HipoteseLegalSelectNomeBaseLegal,
     campos: &[
         "primeiroItemValor",
         "primeiroItemDescricao",

@@ -1,6 +1,7 @@
 //! Oferta de retirada: reconhece somente os literais publicados na tela.
 //! Não executa nem interpreta JavaScript e não inventa action assinada.
 use super::{ErroAcompanhar, campo};
+use crate::acao_do_sei::AcaoDoSei;
 use crate::formulario_web::decodificar_atributo;
 use crate::instalacao::Instalacao;
 
@@ -24,7 +25,7 @@ pub(super) fn destino_oferecido(
     crate::arvore_processo::conferir_endereco_relativo(
         instalacao,
         &action,
-        "acompanhamento_gerenciar",
+        AcaoDoSei::AcompanhamentoGerenciar,
         id_procedimento,
     )
     .map_err(|_| recusada())?;
@@ -78,7 +79,7 @@ pub(super) fn destino_oferecido(
         crate::arvore_processo::conferir_endereco_relativo(
             instalacao,
             &destino,
-            "acompanhamento_excluir",
+            AcaoDoSei::AcompanhamentoExcluir,
             id_procedimento,
         )
         .map_err(|_| recusada())?;

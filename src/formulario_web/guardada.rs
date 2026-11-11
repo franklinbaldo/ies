@@ -62,7 +62,7 @@ pub(crate) fn derivar_submissao_guardada(
         url: url_guardada.to_owned(),
         host: alvo.host.to_owned(),
         caminho: alvo.caminho.to_owned(),
-        acao: operacao.acao,
+        acao: crate::acao_do_sei::AcaoDaSubmissao::Controlador(operacao.acao),
         referer: referer.to_owned(),
         nomes: campos.iter().map(|(n, _)| (*n).to_owned()).collect(),
         corpo: corpo.into_bytes(),

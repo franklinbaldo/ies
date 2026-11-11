@@ -10,6 +10,7 @@ mod login;
 mod redirecionamento;
 mod unidade;
 
+use crate::acao_do_sei::{AcaoDaSubmissao, AcaoDoSei};
 use crate::html_atributos::{nos_com_id, nos_por_elemento_e_classe};
 use crate::instalacao::Instalacao;
 use crate::transporte::sessao::CookieDaSessao;
@@ -75,7 +76,7 @@ pub(crate) enum EnvioDoFormulario {
 /// Declaração `const` feita pela própria operação; não há catálogo central.
 #[derive(Debug)]
 pub(crate) struct OperacaoDeFormulario {
-    pub(crate) acao: &'static str,
+    pub(crate) acao: AcaoDoSei,
     pub(crate) formulario: &'static str,
     pub(crate) envio: EnvioDoFormulario,
     pub(crate) campos_ocultos_exigidos: &'static [&'static str],
@@ -138,7 +139,7 @@ pub(crate) struct SubmissaoDerivada {
     url: String,
     host: String,
     caminho: String,
-    acao: &'static str,
+    acao: AcaoDaSubmissao,
     referer: String,
     nomes: Vec<String>,
     corpo: Vec<u8>,
@@ -357,7 +358,7 @@ pub(crate) fn derivar_submissao_com_action(
         url,
         host: servida.host.to_owned(),
         caminho: servida.caminho.to_owned(),
-        acao: operacao.acao,
+        acao: AcaoDaSubmissao::Controlador(operacao.acao),
         referer: tela.url.to_owned(),
         nomes: ordenados.iter().map(|(n, _)| (*n).to_owned()).collect(),
         corpo: corpo.into_bytes(),

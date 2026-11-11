@@ -11,7 +11,7 @@ use super::{ConsultaAjax, derivar_consulta_ajax};
 const HASH: &str = "cccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccc";
 
 const AUTOCOMPLETAR: ConsultaAjax = ConsultaAjax {
-    acao_ajax: "unidade_auto_completar_envio_processo",
+    acao_ajax: crate::acao_do_sei::AcaoAjaxDoSei::UnidadeAutoCompletarEnvioProcesso,
     campos: &["palavras_pesquisa", "id_orgao", "unidade_atual"],
     efeito: EfeitoAvaliado::ConsultaSemEfeitoObservado { evidencia: "teste" },
 };

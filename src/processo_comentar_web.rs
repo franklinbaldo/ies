@@ -1,5 +1,6 @@
 //! Prévia e confirmação de comentário por links servidos e POST único.
 //! O 302 isolado não prova efeito; só releitura completa com id e texto.
+use crate::acao_do_sei::AcaoDoSei;
 use crate::arvore_processo::conferir_endereco_relativo;
 use crate::arvore_processo::endereco::EnderecoRecusado;
 use crate::formulario_web::{
@@ -24,7 +25,7 @@ use crate::processo_obter::{
 use crate::visao_do_controle::EnvioDoControle as _;
 
 const COMENTAR: OperacaoDeFormulario = OperacaoDeFormulario {
-    acao: "comentario_cadastrar",
+    acao: AcaoDoSei::ComentarioCadastrar,
     formulario: "frmComentarioCadastro",
     envio: EnvioDoFormulario::BotaoDeEnvio("sbmCadastrarComentario"),
     campos_ocultos_exigidos: &[],
@@ -129,7 +130,7 @@ fn link_do_cadastro(instalacao: &Instalacao, html: &str, id: &str) -> Result<Str
     let [unico] = links.as_slice() else {
         return Err(ErroComentar::LinkDoCadastroNaoUnico);
     };
-    conferir_endereco_relativo(instalacao, unico, "comentario_cadastrar", id)
+    conferir_endereco_relativo(instalacao, unico, AcaoDoSei::ComentarioCadastrar, id)
         .map_err(ErroComentar::LinkDoCadastroRecusado)
 }
 
@@ -148,9 +149,10 @@ fn id_do_aceite<'a>(local: &'a str, url_post: &str, id_processo: &str) -> Option
             _ => {}
         }
     }
-    (acao == Some("comentario_listar") && processo.is_none_or(|processo| processo == id_processo))
-        .then_some(id?)
-        .filter(|valor| !valor.is_empty() && valor.bytes().all(|b| b.is_ascii_digit()))
+    (acao.and_then(AcaoDoSei::ler) == Some(AcaoDoSei::ComentarioListar)
+        && processo.is_none_or(|processo| processo == id_processo))
+    .then_some(id?)
+    .filter(|valor| !valor.is_empty() && valor.bytes().all(|b| b.is_ascii_digit()))
 }
 
 /// Uma tentativa de POST e uma releitura da lista; jamais reenvia a escrita.
@@ -264,7 +266,7 @@ pub(crate) fn prever<V: EnvioDoProcesso>(
         .url()
         .strip_prefix(&format!("{}/", instalacao.url_base()))
         .ok_or(ErroComentar::EnderecoDoFormularioRecusado)?;
-    conferir_endereco_relativo(&instalacao, endereco, "comentario_cadastrar", id)
+    conferir_endereco_relativo(&instalacao, endereco, AcaoDoSei::ComentarioCadastrar, id)
         .map_err(|_| ErroComentar::EnderecoDoFormularioRecusado)?;
     if confirmar_escrita {
         confirmar(

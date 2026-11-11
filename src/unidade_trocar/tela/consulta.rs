@@ -1,5 +1,6 @@
 //! Consulta de link assinado na forma conferida (chaves canônicas, `acao`
 //! única, `infra_hash` hexadecimal único, sem `acao_ajax`).
+use crate::acao_do_sei::AcaoDoSei;
 
 /// Confere a consulta de um link assinado: chaves canônicas, valores sem
 /// `;`, `acao` única igual a `acao`, um `infra_hash` hexadecimal aceito por
@@ -7,7 +8,7 @@
 /// se houver.
 pub(crate) fn conferir_consulta(
     consulta: &str,
-    acao: &str,
+    acao: AcaoDoSei,
     comprimento: impl Fn(&str) -> bool,
 ) -> Result<Option<String>, ConsultaForaDaForma> {
     let mut unidades = conferir(consulta, acao, comprimento).ok_or(ConsultaForaDaForma)?;
@@ -21,7 +22,11 @@ pub(crate) fn conferir_consulta(
 #[derive(Debug)]
 pub(crate) struct ConsultaForaDaForma;
 
-fn conferir(consulta: &str, acao: &str, comprimento: impl Fn(&str) -> bool) -> Option<Vec<String>> {
+fn conferir(
+    consulta: &str,
+    acao: AcaoDoSei,
+    comprimento: impl Fn(&str) -> bool,
+) -> Option<Vec<String>> {
     use crate::transporte::{conferir_chave_de_consulta, conferir_valor_de_consulta};
     let (mut acoes, mut hashes) = (0, 0);
     let mut unidades = Vec::new();
@@ -30,7 +35,7 @@ fn conferir(consulta: &str, acao: &str, comprimento: impl Fn(&str) -> bool) -> O
         conferir_chave_de_consulta(nome).ok()?;
         conferir_valor_de_consulta(valor).ok()?;
         match nome {
-            "acao" if valor == acao => acoes += 1,
+            "acao" if valor == acao.como_na_url() => acoes += 1,
             "infra_hash" if comprimento(valor) && valor.bytes().all(|b| b.is_ascii_hexdigit()) => {
                 hashes += 1;
             }
