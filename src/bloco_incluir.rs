@@ -8,6 +8,7 @@ use crate::acao_do_sei::AcaoDoSei;
 use crate::arvore_processo::{ErroBlocoNaBarra, ler_bloco_escolher_da_barra};
 use crate::bloco::TipoBloco;
 use crate::bloco_cli::{FalhaLeitura, Leitura, ler_tipado_via};
+use crate::consulta_do_controlador::ConsultaDoControlador;
 use crate::documento::NumeroDocumento;
 use crate::formulario_web::{
     ConferenciaDaUnidade, EfeitoAvaliado, EnvioDoFormulario, EstadoDoProcesso,
@@ -424,17 +425,11 @@ fn redirecionamento_da_inclusao(
     let Some(consulta) = location.and_then(|loc| consulta_do_controlador(loc, url_do_envio)) else {
         return false;
     };
-    let valores = |campo: &str| -> Vec<&str> {
-        consulta
-            .split('&')
-            .filter_map(|item| item.split_once('='))
-            .filter(|(nome, _)| *nome == campo)
-            .map(|(_, valor)| valor)
-            .collect()
-    };
-    valores("acao") == [AcaoDoSei::BlocoEscolher.como_na_url()]
-        && valores("id_procedimento") == [id_procedimento]
-        && valores("id_documento") == [id_documento]
+    ConsultaDoControlador::ler(consulta).is_ok_and(|consulta| {
+        consulta.acao() == Ok(AcaoDoSei::BlocoEscolher)
+            && consulta.unico("id_procedimento") == Ok(id_procedimento)
+            && consulta.unico("id_documento") == Ok(id_documento)
+    })
 }
 
 #[cfg(test)]
