@@ -1,7 +1,7 @@
 //! Orquestração de `ies login`: lock, conferência da sessão gravada (um
 //! GET), login pela raiz da instalação e gravação da nova geração.
 use super::cookies::PoteDeCookies;
-use super::gravacao::{self, TravaDoLogin};
+use super::gravacao::{self, travar_o_login};
 use super::redirecionamento::resolver_no_host;
 use super::{
     Conexao, Credenciais, ErroLogin, MAX_REDIRECIONAMENTOS, PedidoDeLogin, RespostaHttp,
@@ -343,7 +343,7 @@ pub(crate) fn entrar_colhendo<T: TransporteDeLogin>(
     let instalacao = Instalacao::interpretar(origem).ok_or(OrigemIlegivel::Arquivo(
         FalhaTransporte::OrigemNaoAutorizada,
     ))?;
-    let _trava = TravaDoLogin::obter(&pedido.arquivos.url_controle, pedido.espera_do_lock)?;
+    let _trava = travar_o_login(&pedido.arquivos.url_controle, pedido.espera_do_lock)?;
     let mut contador = Contador {
         transporte,
         pedidos: ContagemDeRequisicoes::default(),
@@ -429,7 +429,7 @@ pub(super) fn relogar<T: TransporteDeLogin>(
     let instalacao = Instalacao::interpretar(origem).ok_or(OrigemIlegivel::Arquivo(
         FalhaTransporte::OrigemNaoAutorizada,
     ))?;
-    let _trava = TravaDoLogin::obter(&pedido.arquivos.url_controle, pedido.espera_do_lock)?;
+    let _trava = travar_o_login(&pedido.arquivos.url_controle, pedido.espera_do_lock)?;
     if gravacao::geracao_gravada(pedido.arquivos).as_deref() != inicial {
         return Ok(Relogado::GeracaoJaTrocada);
     }

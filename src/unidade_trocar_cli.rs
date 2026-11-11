@@ -90,7 +90,7 @@ pub(crate) fn trocar(
     // Nenhum `ies login` troca a sessão no meio da troca: com `--confirmar`,
     // o retrato da sessão é lido já sob o lock (#222).
     let _trava = if confirmar {
-        Some(crate::sessao_login::TravaDoLogin::obter(
+        Some(crate::sessao_login::travar_o_login(
             &arquivos.url_controle,
             crate::sessao_login_cli::ESPERA_DO_LOCK,
         )?)

@@ -305,13 +305,14 @@ fn arquivos_de_geracoes_misturadas_vao_ao_login_sem_o_get() {
 #[test]
 fn lock_de_outro_processo_impede_qualquer_pedido_ate_ser_liberado() {
     let ambiente = Ambiente::novo();
-    let trava = super::gravacao::TravaDoLogin::obter(
+    let trava = super::gravacao::travar_o_login(
         &ambiente.arquivos.url_controle,
         std::time::Duration::from_millis(50),
     )
     .unwrap();
     let mut roteiro = Roteiro::novo(login_completo());
-    let _erro = entrar_via(&ambiente.pedido(false), &mut roteiro).unwrap_err();
+    let erro = entrar_via(&ambiente.pedido(false), &mut roteiro).unwrap_err();
+    assert_eq!(erro, super::ErroLogin::LoginEmAndamentoEmOutroProcesso);
     assert!(roteiro.pedidos.is_empty());
     drop(trava);
     entrar_via(&ambiente.pedido(false), &mut roteiro).unwrap();
