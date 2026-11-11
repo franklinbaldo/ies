@@ -166,7 +166,7 @@ fn traduzir(falha: FalhaDaGravacao, papel: ArquivoPrivado) -> ErroLogin {
         | FalhaDaGravacao::DiretorioNaoConsultado(_)
         | FalhaDaGravacao::DestinoJaExiste
         | FalhaDaGravacao::AcimaDoLimite
-        | FalhaDaGravacao::CriacaoFalhou
+        | FalhaDaGravacao::CriacaoFalhou(_)
         | FalhaDaGravacao::EscritaFalhou
         | FalhaDaGravacao::ErroDeIoNaEscrita(_)
         | FalhaDaGravacao::NivelDoCaminhoNaoEhDiretorio

@@ -124,7 +124,8 @@ pub(crate) enum FalhaDaGravacao {
     DestinoJaExiste,
     DestinoNaoEhArquivoRegular,
     AcimaDoLimite,
-    CriacaoFalhou,
+    /// Falha do sistema ao consultar o nome final antes da publicação.
+    CriacaoFalhou(ErrorKind),
     EscritaFalhou,
     /// O sistema recusou publicar no nome final (o motivo do sistema).
     ConfirmacaoFalhou(std::io::ErrorKind),
@@ -378,7 +379,7 @@ impl Eq for Parcial {}
 fn conferir_destino(destino: &Path, modo: Modo) -> Result<(), FalhaDaGravacao> {
     match (fs::symlink_metadata(destino), modo) {
         (Err(erro), _) if erro.kind() == ErrorKind::NotFound => Ok(()),
-        (Err(_), _) => Err(FalhaDaGravacao::CriacaoFalhou),
+        (Err(erro), _) => Err(FalhaDaGravacao::CriacaoFalhou(erro.kind())),
         (Ok(_), Modo::Exclusivo) => Err(FalhaDaGravacao::DestinoJaExiste),
         (Ok(info), Modo::Substituir) if info.file_type().is_file() => Ok(()),
         (Ok(_), Modo::Substituir) => Err(FalhaDaGravacao::DestinoNaoEhArquivoRegular),
