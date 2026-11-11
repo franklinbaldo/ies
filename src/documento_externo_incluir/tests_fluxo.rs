@@ -177,7 +177,7 @@ fn destino_de_outro_processo_ou_ambiguo_recusa_antes_do_upload() {
         let (resultado, pedidos) = confirmar_com_upload_recusado(identidade);
         assert!(matches!(
             resultado,
-            Err(ErroIncluirExterno::IdentidadeDoProcessoNoUploadDivergenteOuRepetida)
+            Err(ErroIncluirExterno::UploadParaOutroProcesso)
         ));
         assert_eq!(pedidos.len(), a::pedidos_da_abertura().len() + 3);
     }

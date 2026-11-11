@@ -51,9 +51,9 @@ fn conferir_upload(
 ) -> Result<String, ErroIncluirExterno> {
     let consulta = relativo
         .strip_prefix("controlador.php?")
-        .ok_or(ErroIncluirExterno::EnderecoDeUploadForaDoControlador)?;
+        .ok_or(ErroIncluirExterno::EnderecoDeUploadRecusado)?;
     if relativo.len() > 8_192 || !relativo.bytes().all(|b| (33..=126).contains(&b)) {
-        return Err(ErroIncluirExterno::EnderecoDeUploadComCaractereIlegivel);
+        return Err(ErroIncluirExterno::EnderecoDeUploadRecusado);
     }
     let mut acao = 0;
     let mut hash = 0;
@@ -61,7 +61,7 @@ fn conferir_upload(
     for par in consulta.split('&') {
         let (chave, valor) = par
             .split_once('=')
-            .ok_or(ErroIncluirExterno::ConsultaDoUploadParSemIgual)?;
+            .ok_or(ErroIncluirExterno::EnderecoDeUploadRecusado)?;
         conferir_chave_de_consulta(chave)
             .map_err(ErroIncluirExterno::ConsultaDoUploadForaDaForma)?;
         conferir_valor_de_consulta(valor)
@@ -75,16 +75,16 @@ fn conferir_upload(
                 processo_informado = true;
             }
             "id_procedimento" => {
-                return Err(ErroIncluirExterno::IdentidadeDoProcessoNoUploadDivergenteOuRepetida);
+                return Err(ErroIncluirExterno::UploadParaOutroProcesso);
             }
             "acao" | "infra_hash" | "acao_ajax" => {
-                return Err(ErroIncluirExterno::ConsultaDoUploadRepetidaOuDesconhecida);
+                return Err(ErroIncluirExterno::EnderecoDeUploadRecusado);
             }
             _ => {}
         }
     }
     if acao != 1 || hash != 1 {
-        return Err(ErroIncluirExterno::ConsultaDoUploadSemAcaoOuHashUnicos);
+        return Err(ErroIncluirExterno::EnderecoDeUploadRecusado);
     }
     Ok(format!("{}/{relativo}", instalacao.url_base()))
 }

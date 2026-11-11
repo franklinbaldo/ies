@@ -107,12 +107,11 @@ pub(crate) enum ErroIncluirExterno {
     Formulario(#[from] ErroSubmissaoFormulario),
     CodificacaoNaoPublicada,
     Pdf(#[from] FalhaPdf),
-    EnderecoDeUploadForaDoControlador,
-    EnderecoDeUploadComCaractereIlegivel,
-    ConsultaDoUploadParSemIgual,
-    ConsultaDoUploadRepetidaOuDesconhecida,
-    IdentidadeDoProcessoNoUploadDivergenteOuRepetida,
-    ConsultaDoUploadSemAcaoOuHashUnicos,
+    /// O endereço de upload da tela não é `controlador.php?acao=documento_upload_anexo`
+    /// com um `infra_hash` único, em caracteres seguros.
+    EnderecoDeUploadRecusado,
+    /// O endereço de upload traz `id_procedimento` de outro processo (ou repetido).
+    UploadParaOutroProcesso,
     OrigemDaSessaoNaoInterpretada,
     /// A consulta do endereço de upload tem chave ou valor fora da forma canônica.
     ConsultaDoUploadForaDaForma(#[source] FalhaTransporte),
