@@ -1,6 +1,7 @@
 //! Endereços de navegação observados nas telas de criação; sem seguir
 //! redirecionamentos automaticamente e sem inferir IDs ou URLs assinadas.
 use super::ErroCriar;
+use crate::acao_do_sei::AcaoDoSei;
 use crate::instalacao::Instalacao;
 
 pub(super) fn id_do_link(link: &str) -> Option<&str> {
@@ -15,19 +16,19 @@ pub(super) fn id_do_link(link: &str) -> Option<&str> {
 
 /// Exige exatamente uma ocorrência do parâmetro acao, com valor literal
 /// esperado. Uma segunda ação diferente também torna a URL ambígua.
-fn acao_unica(consulta: &str, esperada: &str) -> bool {
+fn acao_unica(consulta: &str, esperada: AcaoDoSei) -> bool {
     let mut acoes = consulta.split('&').filter_map(|par| {
         let (nome, valor) = par.split_once('=').unwrap_or((par, ""));
         (nome == "acao").then_some(valor)
     });
-    acoes.next() == Some(esperada) && acoes.next().is_none()
+    acoes.next() == Some(esperada.como_na_url()) && acoes.next().is_none()
 }
 
 pub(super) fn resolver_link(
     instalacao: &Instalacao,
     base: &str,
     referencia: &str,
-    acao: &str,
+    acao: AcaoDoSei,
 ) -> Result<String, ErroCriar> {
     if !referencia.starts_with("controlador.php?")
         || referencia.contains(['#', '\\', '\''])
@@ -52,7 +53,7 @@ pub(super) fn url_do_redirecionamento(
     instalacao: &Instalacao,
     localizacao: &str,
     url_envio: &str,
-    acao: &str,
+    acao: AcaoDoSei,
 ) -> Result<String, ErroCriar> {
     let absoluta = if localizacao.starts_with("https://") {
         localizacao.to_owned()
@@ -80,8 +81,13 @@ pub(super) fn retorno_da_criacao(
     let localizacao = localizacao
         .split_once('#')
         .map_or(localizacao, |(url, _)| url);
-    let url = url_do_redirecionamento(instalacao, localizacao, url_envio, "procedimento_trabalhar")
-        .map_err(|_| ErroCriar::NaoConfirmado)?;
+    let url = url_do_redirecionamento(
+        instalacao,
+        localizacao,
+        url_envio,
+        AcaoDoSei::ProcedimentoTrabalhar,
+    )
+    .map_err(|_| ErroCriar::NaoConfirmado)?;
     let consulta = crate::url_observada::UrlHttps::interpretar(&url)
         .and_then(|p| p.consulta)
         .ok_or(ErroCriar::NaoConfirmado)?;

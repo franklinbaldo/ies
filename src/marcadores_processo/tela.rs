@@ -3,7 +3,8 @@
 //! `form#frmGerenciarMarcador` nunca participam além da conferência de
 //! identidade. Atributos pelo tokenizador de `html_atributos`; aninhamento
 //! pelo `tl`; sem regex e sem JavaScript.
-use super::{ACAO, ErroMarcadores, MarcadorDoProcesso, MarcadoresLidos, TelaDosMarcadores};
+use super::{ErroMarcadores, MarcadorDoProcesso, MarcadoresLidos, TelaDosMarcadores};
+use crate::acao_do_sei::AcaoDoSei;
 use crate::formulario_web::decodificar_atributo;
 use crate::html_atributos::{atributos, nos_com_id, nos_com_id_em};
 use crate::nivel_de_detalhe::texto_colapsado;
@@ -124,7 +125,7 @@ fn conferir_identidade(dom: &tl::VDom<'_>, nup: &str, id: &str) -> Result<(), Er
             .filter_map(|par| par.strip_prefix(chave)?.strip_prefix('='))
             .collect()
     };
-    if valores("acao") != [ACAO] {
+    if valores("acao") != [AcaoDoSei::AndamentoMarcadorGerenciar.como_na_url()] {
         return Err(ErroMarcadores::TelaDosMarcadoresAusente);
     }
     if valores("id_procedimento") != [id] {

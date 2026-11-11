@@ -131,7 +131,7 @@ fn prever_processo(cli: &Cli, bloco: &str, nup_bruto: &str) -> anyhow::Result<()
     let mut rede = Contador::novo(&mut envio);
     let lido = ler_bloco_por_numero_via(&referencias, cli.unidade.as_deref(), bloco, &mut rede)?;
     let Leitura::Detalhe(detalhe) = lido.leitura else {
-        unreachable!("número identifica detalhe");
+        return Err(crate::bloco_cli::FalhaLeitura::HtmlDeBlocosInvalido.into());
     };
     if !matches!(detalhe.tipo, TipoBloco::Interno | TipoBloco::Reuniao) {
         return Err(ErroPreviaProcessual::TipoInadequado.into());

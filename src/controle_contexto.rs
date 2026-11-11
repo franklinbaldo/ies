@@ -206,15 +206,17 @@ fn par_de_barras_equivalentes(dom: &tl::VDom<'_>) -> Result<bool, ErroCaixa> {
         .filter_map(|n| n.get(parser))
         .filter_map(tl::Node::as_tag)
         .collect();
-    if tags.len() != 2
-        || !tags.iter().all(|tag| tag.name() == "a")
-        || tags[0].inner_text(parser) != tags[1].inner_text(parser)
+    let [primeira, segunda] = tags.as_slice() else {
+        return Ok(false);
+    };
+    if !tags.iter().all(|tag| tag.name() == "a")
+        || primeira.inner_text(parser) != segunda.inner_text(parser)
     {
         return Ok(false);
     }
     // `href` repetido numa das tags não comprova o par: não equivalente.
     let href = |tag: &tl::HTMLTag<'_>| valor_do_atributo(tag, "href").ok().flatten();
-    Ok(href(tags[0]).is_some_and(|primeiro| href(tags[1]).is_some_and(|h| h == primeiro)))
+    Ok(href(primeira).is_some_and(|primeiro| href(segunda).is_some_and(|h| h == primeiro)))
 }
 
 fn valor_oculto(dom: &tl::VDom<'_>, id: &str) -> Result<Option<String>, ErroCaixa> {

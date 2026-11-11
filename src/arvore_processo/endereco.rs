@@ -3,6 +3,7 @@
 //! `acao` igual à da operação, um `id_procedimento` igual ao aberto e um
 //! `infra_hash` de 64 hex, chaves canônicas. Resolvido contra a instalação;
 //! sem regex.
+use crate::acao_do_sei::AcaoDoSei;
 use crate::instalacao::Instalacao;
 use crate::transporte::{conferir_chave_de_consulta, conferir_valor_de_consulta};
 
@@ -16,7 +17,7 @@ pub(crate) enum EnderecoRecusado {
 pub(crate) fn conferir_endereco_relativo(
     instalacao: &Instalacao,
     src: &str,
-    acao: &str,
+    acao: AcaoDoSei,
     id: &str,
 ) -> Result<String, EnderecoRecusado> {
     conferir_endereco_relativo_por(instalacao, src, acao, "id_procedimento", id)
@@ -27,7 +28,7 @@ pub(crate) fn conferir_endereco_relativo(
 pub(crate) fn conferir_endereco_relativo_por(
     instalacao: &Instalacao,
     src: &str,
-    acao: &str,
+    acao: AcaoDoSei,
     chave_do_id: &str,
     id: &str,
 ) -> Result<String, EnderecoRecusado> {
@@ -49,7 +50,7 @@ pub(crate) fn conferir_endereco_relativo_por(
             return Err(EnderecoRecusado::NaoReconhecido);
         }
         match nome {
-            "acao" if valor == acao => acoes += 1,
+            "acao" if valor == acao.como_na_url() => acoes += 1,
             "infra_hash" if valor.len() == 64 && valor.bytes().all(|b| b.is_ascii_hexdigit()) => {
                 hashes += 1;
             }
@@ -78,7 +79,7 @@ pub(crate) fn conferir_endereco_relativo_por(
 pub(crate) fn conferir_endereco_com_identidade_repetida(
     instalacao: &Instalacao,
     href: &str,
-    acao: &str,
+    acao: AcaoDoSei,
     id_procedimento: &str,
 ) -> Result<String, EnderecoRecusado> {
     let consulta = href

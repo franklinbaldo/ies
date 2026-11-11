@@ -1,5 +1,6 @@
 //! Leitura Web de documentos e anexos. Contrato: contracts/cli/documento-obter-web.md.
 //! Refs #60; sem publicar URLs, HTML ou cookies.
+use crate::acao_do_sei::AcaoDoSei;
 use crate::anexo_documento::LimiteDoAnexo;
 use crate::documento::NumeroDocumento;
 use crate::documento_versao_cli;
@@ -36,12 +37,14 @@ pub(crate) fn json_do_documento(d: &DocumentoObtido) -> serde_json::Map<String, 
         "unidade": d.unidade,
         "resolvido_por": d.resolvido_por.como_texto(),
         "requisicoes": d.requisicoes,
-        "fonte": "documento_visualizar",
+        "fonte": AcaoDoSei::DocumentoVisualizar,
         "versao_atual": null,
     });
     let mut mapa = match valor {
         Value::Object(mapa) => mapa,
-        _ => serde_json::Map::new(),
+        Value::Null | Value::Bool(_) | Value::Number(_) | Value::String(_) | Value::Array(_) => {
+            serde_json::Map::new()
+        }
     };
     match &d.propriedades {
         PropriedadesDocumento::NaoPedidas => {}
@@ -60,7 +63,7 @@ pub(crate) fn json_do_documento(d: &DocumentoObtido) -> serde_json::Map<String, 
     if let Some(a) = &d.anexo {
         // Externo: o título do HTML recebido é do órgão de origem (fatia 3).
         mapa.insert("tipo".to_owned(), Value::Null);
-        mapa.insert("fonte".to_owned(), json!("documento_download_anexo"));
+        mapa.insert("fonte".to_owned(), json!(AcaoDoSei::DocumentoDownloadAnexo));
         mapa.insert("anexo".to_owned(), anexo::json_do_anexo(a));
     }
     mapa
@@ -98,7 +101,11 @@ pub(crate) fn tentar_obter(cli: &Cli) -> Option<anyhow::Result<()>> {
     }
     let numeros = &comando.numeros;
     for (i, numero) in numeros.iter().enumerate() {
-        if numeros[..i].iter().any(|n| n.as_str() == numero.as_str()) {
+        if numeros
+            .iter()
+            .take(i)
+            .any(|n| n.as_str() == numero.as_str())
+        {
             crate::uso_invalido::recusar(crate::uso_invalido::UsoInvalido::NumeroSeiRepetido);
         }
     }
@@ -249,14 +256,16 @@ struct ArquivoDaSaida {
     gravado: bool,
 }
 
-impl From<FotoGravada> for ArquivoDaSaida {
-    fn from(f: FotoGravada) -> Self {
-        Self {
+impl TryFrom<FotoGravada> for ArquivoDaSaida {
+    type Error = std::num::TryFromIntError;
+
+    fn try_from(f: FotoGravada) -> Result<Self, Self::Error> {
+        Ok(Self {
             nome: f.nome,
-            bytes: f.bytes as u64,
+            bytes: u64::try_from(f.bytes)?,
             sha256: f.sha256,
             gravado: f.gravado,
-        }
+        })
     }
 }
 
@@ -275,7 +284,7 @@ fn gravar(
     let mut gravados = Vec::new();
     for (i, (d, foto)) in obtidos.iter_mut().zip(fotos).enumerate() {
         if let Some(foto) = foto {
-            gravados.push(Some(ArquivoDaSaida::from(foto)));
+            gravados.push(Some(ArquivoDaSaida::try_from(foto)?));
             continue;
         }
         let Some(a) = &mut d.anexo else {
@@ -361,6 +370,10 @@ fn apresentar_metadados(d: &DocumentoObtido) {
     }
 }
 
+#[expect(
+    clippy::indexing_slicing,
+    reason = "serde_json::Value: leitura ausente dá Null e a escrita é em objeto json! local; projeção de saída a substituir em #733"
+)]
 fn publicar(
     json_mode: bool,
     lidos: lote::LoteLido,

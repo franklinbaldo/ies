@@ -1,6 +1,7 @@
 //! Um único POST de anexação mais releitura independente da lista observada.
 //! O aceite 302 sozinho nunca demonstra que houve anexação.
 use super::{Destino, EtapaNaoComprovada, FalhaAnexar, ler_tela};
+use crate::acao_do_sei::AcaoDoSei;
 use crate::formulario_web::{
     ConferenciaDaUnidade, EfeitoAvaliado, EnvioDoFormulario, EstadoDoProcesso,
     OperacaoDeFormulario, RespostaDoEnvio, ResultadoDoEnvio, TelaServida, consulta_do_controlador,
@@ -14,7 +15,7 @@ use crate::transporte::{conferir_chave_de_consulta, conferir_valor_de_consulta};
 use crate::visao_do_controle::EnvioDoControle as _;
 
 const ANEXAR: OperacaoDeFormulario = OperacaoDeFormulario {
-    acao: "procedimento_anexar",
+    acao: AcaoDoSei::ProcedimentoAnexar,
     formulario: "frmProcedimentoAnexar",
     envio: EnvioDoFormulario::BotaoDeEnvio("sbmAnexar"),
     campos_ocultos_exigidos: &["hdnIdProtocolo", "hdnAnexacao"],
@@ -41,7 +42,7 @@ fn aceite(localizacao: &str, url_post: &str, principal: &str) -> bool {
             return false;
         }
         match chave {
-            "acao" if valor == "procedimento_anexar" => acao += 1,
+            "acao" if AcaoDoSei::ler(valor) == Some(AcaoDoSei::ProcedimentoAnexar) => acao += 1,
             "resultado" if valor == "1" => resultado += 1,
             "id_procedimento" if valor == principal => id += 1,
             "acao" | "resultado" | "id_procedimento" => return false,
@@ -101,7 +102,7 @@ pub(super) fn confirmar<V: EnvioDoProcesso>(
         RespostaDoEnvio::Redirecionamento(r)
             if r.localizacao()
                 .is_some_and(|loc| aceite(loc, r.url_do_envio(), id_principal)) => {}
-        _ => {
+        RespostaDoEnvio::Html(_) | RespostaDoEnvio::Redirecionamento(_) => {
             return Err(FalhaAnexar::NaoConfirmado(
                 EtapaNaoComprovada::RespostaDoPost,
             ));

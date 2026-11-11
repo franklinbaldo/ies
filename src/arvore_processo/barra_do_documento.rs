@@ -8,11 +8,10 @@ use super::endereco::{EnderecoRecusado, conferir_endereco_relativo_por};
 use super::literais::{
     Literal, concatenacao_vazia_da_barra, indice_da_barra, ler_barra, ler_declaracao,
 };
+use crate::acao_do_sei::AcaoDoSei;
 use crate::formulario_web::decodificar_atributo;
 use crate::html_atributos::{ErroAtributoHtml, atributos};
 use crate::instalacao::Instalacao;
-
-pub(crate) const ACAO_DAS_VERSOES: &str = "documento_versao_listar";
 
 /// URL absoluta da lista de versões, assinada: `Debug` redigido.
 #[derive(Clone, PartialEq, Eq)]
@@ -98,7 +97,7 @@ pub(crate) fn ler_barra_do_documento(
             }
         };
         if let Some(href) = valor("href")?
-            && acao_do_href(&href) == Some(ACAO_DAS_VERSOES)
+            && acao_do_href(&href) == Some(AcaoDoSei::DocumentoVersaoListar)
         {
             links.push(href);
         }
@@ -131,7 +130,7 @@ pub(crate) fn ler_barra_do_documento(
     conferir_endereco_relativo_por(
         instalacao,
         href,
-        ACAO_DAS_VERSOES,
+        AcaoDoSei::DocumentoVersaoListar,
         "id_procedimento",
         id_procedimento,
     )
@@ -139,7 +138,7 @@ pub(crate) fn ler_barra_do_documento(
     let url = conferir_endereco_relativo_por(
         instalacao,
         href,
-        ACAO_DAS_VERSOES,
+        AcaoDoSei::DocumentoVersaoListar,
         "id_documento",
         id_documento,
     )
@@ -151,11 +150,12 @@ pub(crate) fn ler_barra_do_documento(
 }
 
 /// O primeiro `acao=` da consulta (a conferência recusa dois).
-fn acao_do_href(href: &str) -> Option<&str> {
+fn acao_do_href(href: &str) -> Option<AcaoDoSei> {
     let (_, consulta) = href.split_once('?')?;
     consulta
         .split('&')
         .find_map(|par| par.strip_prefix("acao="))
+        .and_then(AcaoDoSei::ler)
 }
 
 /// O texto da barra do nó `DOCUMENTO` de id `id`; duas barras são recusa.

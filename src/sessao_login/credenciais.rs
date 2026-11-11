@@ -51,13 +51,14 @@ impl Credenciais {
             let (chave, valor) = linha
                 .split_once('=')
                 .ok_or(ErroLogin::LinhaDasCredenciaisSemCampoConhecido)?;
-            let (campo, indice) = match chave {
-                "usuario" => (CampoDasCredenciais::Usuario, 0),
-                "senha" => (CampoDasCredenciais::Senha, 1),
-                "orgao" => (CampoDasCredenciais::Orgao, 2),
+            let [usuario, senha, orgao] = &mut valores;
+            let (campo, guardado) = match chave {
+                "usuario" => (CampoDasCredenciais::Usuario, usuario),
+                "senha" => (CampoDasCredenciais::Senha, senha),
+                "orgao" => (CampoDasCredenciais::Orgao, orgao),
                 _ => return Err(ErroLogin::LinhaDasCredenciaisSemCampoConhecido),
             };
-            if valores[indice].is_some() {
+            if guardado.is_some() {
                 return Err(ErroLogin::CampoDasCredenciaisRepetido(campo));
             }
             let valor = if campo == CampoDasCredenciais::Senha {
@@ -68,7 +69,7 @@ impl Credenciais {
             if valor.is_empty() {
                 return Err(ErroLogin::CampoDasCredenciaisVazio(campo));
             }
-            valores[indice] = Some(valor.to_owned());
+            *guardado = Some(valor.to_owned());
         }
         let [usuario, senha, orgao] = valores;
         Ok(Self {

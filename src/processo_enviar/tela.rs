@@ -12,7 +12,7 @@
 //! (4.0 sem e 4.1/5.0 com `&unidade_atual=0`).
 use super::Destino;
 use super::erro::ErroTelaDeEnvio;
-use crate::arvore_processo::ACAO_DE_ENVIAR;
+use crate::acao_do_sei::AcaoDoSei;
 use crate::formulario_web::decodificar_atributo;
 use crate::formulario_web::{
     ConferenciaDaUnidade, ConsultaAjax, EfeitoAvaliado, EnvioDoFormulario, EstadoDoProcesso,
@@ -78,7 +78,7 @@ const USUARIO: [&str; 10] = [
 /// Enviar da tela de envio: janela sem barra da unidade, aberta pelo link
 /// da barra da árvore da tela do processo conferida.
 pub(crate) const ENVIAR_PROCESSO: OperacaoDeFormulario = OperacaoDeFormulario {
-    acao: ACAO_DE_ENVIAR,
+    acao: AcaoDoSei::ProcedimentoEnviar,
     formulario: FORMULARIO_DE_ENVIO,
     envio: EnvioDoFormulario::BotaoDeEnvio(BOTAO_ENVIAR),
     campos_ocultos_exigidos: &OCULTOS,
@@ -93,7 +93,7 @@ pub(crate) const ENVIAR_PROCESSO: OperacaoDeFormulario = OperacaoDeFormulario {
 
 /// A consulta que o `infraAjaxAutoCompletar` de `hdnIdUnidade` faz.
 pub(crate) const AUTOCOMPLETAR_UNIDADE: ConsultaAjax = ConsultaAjax {
-    acao_ajax: "unidade_auto_completar_envio_processo",
+    acao_ajax: crate::acao_do_sei::AcaoAjaxDoSei::UnidadeAutoCompletarEnvioProcesso,
     campos: &["palavras_pesquisa", "id_orgao", "unidade_atual"],
     efeito: EfeitoAvaliado::ConsultaSemEfeitoObservado {
         evidencia: "docs/como-o-sei-funciona/envio-do-processo.md: o histórico depois de duas consultas e duas telas só tem a criação e o envio",
@@ -356,7 +356,7 @@ pub(crate) fn redirecionamento_esperado(
             .map(|(_, v)| v)
             .collect()
     };
-    valores("acao") == ["arvore_visualizar"]
-        && valores("acao_origem") == [ACAO_DE_ENVIAR]
+    valores("acao") == [AcaoDoSei::ArvoreVisualizar.como_na_url()]
+        && valores("acao_origem") == [AcaoDoSei::ProcedimentoEnviar.como_na_url()]
         && valores("id_procedimento") == [id]
 }

@@ -31,7 +31,9 @@ pub(super) fn inserir_aberto_em(
         AbertoEm::Sobrestado(_) | AbertoEm::NaoLido(_) => {
             let motivo = match aberto_em {
                 AbertoEm::NaoLido(motivo) => *motivo,
-                _ => MotivoAbertoEm::RaizPublicaOSobrestamento,
+                AbertoEm::Unidades(_) | AbertoEm::Sobrestado(_) => {
+                    MotivoAbertoEm::RaizPublicaOSobrestamento
+                }
             };
             nao_lidos.push("aberto_em");
             objeto.insert(
@@ -49,7 +51,7 @@ pub(super) fn inserir_aberto_em(
                 .map(|u| json!({"sigla": u.sigla, "nome": u.nome}))
                 .collect(),
         ),
-        _ => Value::Null,
+        AbertoEm::Unidades(_) | AbertoEm::NaoLido(_) => Value::Null,
     };
     objeto.insert("sobrestado_em".to_owned(), sobrestado_em);
 }

@@ -1,6 +1,7 @@
 //! Remover relacionamento: action servida no handler, POST único e releitura.
 //! A remoção não é inferida do HTML devolvido pelo POST nem só do estado final.
 use super::{FalhaRelacionar, tela};
+use crate::acao_do_sei::AcaoDoSei;
 use crate::formulario_web::{
     ConferenciaDaUnidade, EfeitoAvaliado, EnvioDoFormulario, EstadoDoProcesso,
     OperacaoDeFormulario, RespostaDoEnvio, ResultadoDoEnvio, TelaServida, consulta_do_controlador,
@@ -14,7 +15,7 @@ use crate::transporte::{conferir_chave_de_consulta, conferir_valor_de_consulta};
 use crate::visao_do_controle::EnvioDoControle as _;
 
 const REMOVER: OperacaoDeFormulario = OperacaoDeFormulario {
-    acao: "procedimento_excluir_relacionamento",
+    acao: AcaoDoSei::ProcedimentoExcluirRelacionamento,
     formulario: "frmProcedimentoListarRelacionamentos",
     envio: EnvioDoFormulario::SubmitPorScript,
     campos_ocultos_exigidos: &["hdnInfraItemId"],
@@ -28,7 +29,7 @@ const REMOVER: OperacaoDeFormulario = OperacaoDeFormulario {
 };
 
 const ADICIONAR: OperacaoDeFormulario = OperacaoDeFormulario {
-    acao: "procedimento_relacionar",
+    acao: AcaoDoSei::ProcedimentoRelacionar,
     formulario: "frmProcedimentoListarRelacionamentos",
     envio: EnvioDoFormulario::BotaoDeEnvio("sbmAdicionar"),
     campos_ocultos_exigidos: &["hdnIdProtocolo"],
@@ -77,7 +78,9 @@ fn aceite_da_remocao(localizacao: &str, url_post: &str, id: &str) -> bool {
             return false;
         }
         match chave {
-            "acao" if valor == "procedimento_relacionar" => acoes += 1,
+            "acao" if AcaoDoSei::ler(valor) == Some(AcaoDoSei::ProcedimentoRelacionar) => {
+                acoes += 1;
+            }
             "resultado" if valor == "1" => resultados += 1,
             "id_procedimento" if valor == id => ids += 1,
             "acao" | "resultado" | "id_procedimento" => return false,
@@ -153,7 +156,9 @@ pub(super) fn remover<V: EnvioDoProcesso>(
             if redir
                 .localizacao()
                 .is_some_and(|loc| aceite_da_remocao(loc, redir.url_do_envio(), id_origem)) => {}
-        _ => return Err(FalhaRelacionar::NaoConfirmado(None)),
+        RespostaDoEnvio::Html(_) | RespostaDoEnvio::Redirecionamento(_) => {
+            return Err(FalhaRelacionar::NaoConfirmado(None));
+        }
     }
     let (nova_tela, _) =
         obter_tela(rede, cookie, link).map_err(|_| FalhaRelacionar::NaoConfirmado(None))?;
@@ -243,7 +248,9 @@ pub(super) fn adicionar<V: EnvioDoProcesso>(
             if redir
                 .localizacao()
                 .is_some_and(|loc| aceite_da_remocao(loc, redir.url_do_envio(), id_origem)) => {}
-        _ => return Err(FalhaRelacionar::NaoConfirmado(None)),
+        RespostaDoEnvio::Html(_) | RespostaDoEnvio::Redirecionamento(_) => {
+            return Err(FalhaRelacionar::NaoConfirmado(None));
+        }
     }
     let (nova_tela, _) =
         obter_tela(rede, cookie, link).map_err(|_| FalhaRelacionar::NaoConfirmado(None))?;

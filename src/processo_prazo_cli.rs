@@ -1,5 +1,6 @@
 //! CLI Web de controle de prazo: leitura, prévia e confirmação local testável.
 //! O binário de distribuição continua recusando escrita antes da rede.
+use crate::acao_do_sei::AcaoDoSei;
 use crate::formulario_web::{
     ConferenciaDaUnidade, EfeitoAvaliado, EnvioDoFormulario, ErroSubmissaoFormulario,
     EstadoDoProcesso, OperacaoDeFormulario, RespostaDoEnvio, ResultadoDoEnvio, TelaServida,
@@ -39,8 +40,11 @@ pub(crate) enum FalhaDoPrazo {
     /// O Controle da unidade não publicou a lista de prazos.
     ListaDePrazosNaoPublicada,
     ProcessoForaDaListaDePrazos,
-    /// A lista de prazos não identifica um único controle do processo.
-    ControleNaoUnicoNaLista,
+    /// A lista de prazos fora da forma observada ou sem um único controle
+    /// do processo.
+    ListaDePrazos(#[source] exclusao::ErroListaDePrazos),
+    /// O POST saiu e a lista relida não pôde ser lida: efeito incerto.
+    ListaRelidaIlegivel(#[source] exclusao::ErroListaDePrazos),
     /// A lista não publicou a ação de exclusão.
     AcaoDeExclusaoNaoPublicada,
 }
@@ -171,7 +175,7 @@ fn publicar_previa(
 }
 
 const DEFINIR_PRAZO: OperacaoDeFormulario = OperacaoDeFormulario {
-    acao: "controle_prazo_definir",
+    acao: AcaoDoSei::ControlePrazoDefinir,
     formulario: "frmControlePrazoCadastro",
     envio: EnvioDoFormulario::BotaoDeEnvio("sbmDefinirControlePrazo"),
     campos_ocultos_exigidos: &[

@@ -5,6 +5,8 @@
 //! enviado. Estrutura em docs/como-o-sei-funciona/propriedades-do-processo.md.
 mod tela;
 
+use crate::acao_do_sei::AcaoDoSei;
+
 #[cfg(test)]
 pub(crate) mod tests_apoio;
 #[cfg(test)]
@@ -22,10 +24,10 @@ pub(crate) enum FonteDasPropriedades {
 }
 
 impl FonteDasPropriedades {
-    pub(crate) fn acao(self) -> &'static str {
+    pub(crate) const fn acao(self) -> AcaoDoSei {
         match self {
-            Self::Alterar => "procedimento_alterar",
-            Self::Consultar => "procedimento_consultar",
+            Self::Alterar => AcaoDoSei::ProcedimentoAlterar,
+            Self::Consultar => AcaoDoSei::ProcedimentoConsultar,
         }
     }
 }

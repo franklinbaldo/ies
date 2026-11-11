@@ -137,10 +137,12 @@ fn bdd_333_04_limpeza_inconclusiva_falha_sem_tramitar() {
         ],
     ));
     let erro = resultado.expect_err("sem releitura não há envio autorizado");
-    assert!(matches!(
+    assert_eq!(
         erro,
-        super::ErroEnviar::NaoConfirmadoNaLimpezaDaAnotacao
-    ));
+        super::ErroEnviar::NaoConfirmadoNaLimpezaDaAnotacao(Box::new(
+            super::ErroEnviar::NaoConfirmadoNaRemocaoDeAnotacoes { depois: None }
+        ))
+    );
     assert_eq!(
         pedidos
             .iter()

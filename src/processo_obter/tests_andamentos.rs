@@ -3,6 +3,7 @@
 //! e com `--sem-andamentos`, e as falhas tipadas.
 use super::tests_apoio::*;
 use super::*;
+use crate::acao_do_sei::AcaoDoSei;
 use crate::arvore_processo::tests::NUP;
 use crate::historico::ErroHistorico;
 use crate::historico_processo::{ErroAndamentos, ErroLinkDoHistorico, TipoDoHistorico};
@@ -47,7 +48,10 @@ fn padrao_le_a_visao_servida_com_mais_um_get() {
     let (inst, g) = (instalacao(), geracao());
     let guardado = amb
         .indice
-        .link(&inst, chave(&g, "procedimento_consultar_historico", ID))
+        .link(
+            &inst,
+            chave(&g, AcaoDoSei::ProcedimentoConsultarHistorico, ID),
+        )
         .map(|u| u.url().to_owned());
     assert_eq!(guardado, Some(url_historico(ID)));
     let debug = format!("{r:?}");
@@ -300,7 +304,7 @@ fn caminhos_2_e_3_somam_um_get_do_historico() {
     amb.indice
         .registrar_link(
             &inst,
-            chave(&g, "protocolo_pesquisa_rapida", ""),
+            chave(&g, AcaoDoSei::ProtocoloPesquisaRapida, ""),
             &absoluta(&action_rapida()),
         )
         .unwrap();

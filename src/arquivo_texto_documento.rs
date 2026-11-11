@@ -1,5 +1,6 @@
 //! Persistência privada de texto de documento já verificado offline.
 //! Nunca sobrescreve destino existente, não publica conteúdo em diagnóstico.
+use crate::arquivo_privado::FalhaDaGravacao;
 use std::path::Path;
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, thiserror::Error)]
@@ -13,22 +14,21 @@ pub enum ErroArquivoTexto {
 /// A falha da gravação privada única nos erros do texto.
 fn traduzir(falha: crate::arquivo_privado::FalhaDaGravacao) -> ErroArquivoTexto {
     match falha {
-        crate::arquivo_privado::FalhaDaGravacao::SemNomeDeArquivo => ErroArquivoTexto::NomeAusente,
-        crate::arquivo_privado::FalhaDaGravacao::DiretorioAusente => {
-            ErroArquivoTexto::DiretorioAusente
-        }
-        crate::arquivo_privado::FalhaDaGravacao::DestinoJaExiste => {
-            ErroArquivoTexto::DestinoJaExiste
-        }
+        FalhaDaGravacao::SemNomeDeArquivo => ErroArquivoTexto::NomeAusente,
+        FalhaDaGravacao::DiretorioAusente
+        | FalhaDaGravacao::NivelDoCaminhoNaoEhDiretorio
+        | FalhaDaGravacao::NivelDoCaminhoIlegivel(_) => ErroArquivoTexto::DiretorioAusente,
+        FalhaDaGravacao::DestinoJaExiste => ErroArquivoTexto::DestinoJaExiste,
         // Diretório do usuário: a peça não confere o modo.
-        crate::arquivo_privado::FalhaDaGravacao::DiretorioGravavelPorOutros
-        | crate::arquivo_privado::FalhaDaGravacao::DestinoNaoEhArquivoRegular
-        | crate::arquivo_privado::FalhaDaGravacao::AcimaDoLimite
-        | crate::arquivo_privado::FalhaDaGravacao::CriacaoFalhou
-        | crate::arquivo_privado::FalhaDaGravacao::EscritaFalhou
-        | crate::arquivo_privado::FalhaDaGravacao::ConfirmacaoFalhou => {
-            ErroArquivoTexto::EscritaFalhou
-        }
+        FalhaDaGravacao::DiretorioGravavelPorOutros
+        | FalhaDaGravacao::DestinoNaoEhArquivoRegular
+        | FalhaDaGravacao::AcimaDoLimite
+        | FalhaDaGravacao::CriacaoFalhou
+        | FalhaDaGravacao::CriacaoDoDiretorioFalhou(_)
+        | FalhaDaGravacao::CriacaoDoTemporarioFalhou(_)
+        | FalhaDaGravacao::NomesDeTemporarioEsgotados
+        | FalhaDaGravacao::EscritaFalhou
+        | FalhaDaGravacao::ConfirmacaoFalhou => ErroArquivoTexto::EscritaFalhou,
     }
 }
 

@@ -24,6 +24,14 @@ pub(crate) mod recibo;
 #[allow(dead_code)] // #332: transporte de upload à espera de ensaio autenticado em treinamento.
 pub(crate) mod upload;
 
+/// Soma ao total os bytes lidos; estouro de `u64` é leitura impossível.
+fn somar_lidos(total: u64, lidos: usize) -> Result<u64, FalhaPdf> {
+    u64::try_from(lidos)
+        .ok()
+        .and_then(|lidos| total.checked_add(lidos))
+        .ok_or(FalhaPdf::Leitura)
+}
+
 #[cfg(test)]
 #[path = "documento_externo_incluir/tests_upload.rs"]
 mod tests_upload;
@@ -169,18 +177,18 @@ fn inspecionar_pdf_com_arquivo(
         return Err(FalhaPdf::Conteudo);
     }
     digest.update(inicio);
-    let mut total = inicio.len() as u64;
+    let mut total = somar_lidos(0, inicio.len())?;
     let mut bloco = [0_u8; 8 * 1024];
     loop {
         let lidos = arquivo.read(&mut bloco).map_err(|_| FalhaPdf::Leitura)?;
         if lidos == 0 {
             break;
         }
-        total = total.checked_add(lidos as u64).ok_or(FalhaPdf::Leitura)?;
+        total = somar_lidos(total, lidos)?;
         if limite_observado.is_some_and(|limite| total > limite) {
             return Err(FalhaPdf::AcimaDoLimite);
         }
-        digest.update(&bloco[..lidos]);
+        digest.update(bloco.split_at(lidos.min(bloco.len())).0);
     }
     // Conferir o mesmo descritor após o hash: tamanho igual não prova
     // imutabilidade, pois outro processo pode regravar bytes no meio da leitura.

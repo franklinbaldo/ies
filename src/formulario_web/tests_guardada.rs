@@ -5,11 +5,12 @@ use super::super::{
     EstadoDeSessao, OperacaoDeFormulario, ResultadoDoEnvio,
 };
 use super::derivar_submissao_guardada;
+use crate::acao_do_sei::AcaoDoSei;
 
 const HASH: &str = "cccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccc";
 
 const RAPIDA: OperacaoDeFormulario = OperacaoDeFormulario {
-    acao: "protocolo_pesquisa_rapida",
+    acao: AcaoDoSei::ProtocoloPesquisaRapida,
     formulario: "frmProtocoloPesquisaRapida",
     envio: EnvioDoFormulario::SubmitPorScript,
     campos_ocultos_exigidos: &[],

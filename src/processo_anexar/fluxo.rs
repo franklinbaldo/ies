@@ -22,14 +22,14 @@ use crate::transporte::{FalhaTransporte, decodificar_resposta_xml};
 use crate::visao_do_controle::EnvioDoControle as _;
 
 const IDENTIFICAR: ConsultaAjax = ConsultaAjax {
-    acao_ajax: "protocolo_RI1023",
+    acao_ajax: crate::acao_do_sei::AcaoAjaxDoSei::ProtocoloRi1023,
     campos: &["idProcedimento"],
     efeito: EfeitoAvaliado::ConsultaSemEfeitoObservado {
         evidencia: "Todos/src/todos/anexacao.py @323eb01, UnB 4.0.9",
     },
 };
 const CONFERIR: ConsultaAjax = ConsultaAjax {
-    acao_ajax: "procedimento_anexacao_verificar",
+    acao_ajax: crate::acao_do_sei::AcaoAjaxDoSei::ProcedimentoAnexacaoVerificar,
     campos: &["idProcedimento"],
     efeito: EfeitoAvaliado::ConsultaSemEfeitoObservado {
         evidencia: "Todos/src/todos/anexacao.py @323eb01, UnB 4.0.9",

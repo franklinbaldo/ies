@@ -1,4 +1,5 @@
 //! Resolução de um número pelas listas de blocos publicadas.
+use crate::acao_do_sei::AcaoDoSei;
 use super::{
     EnvioDoControle, ErroBloco, FalhaLeitura, Leitura, Lido, ReferenciasDaSessao, TipoBloco, bloco,
     bloco_detalhe, controle_reconhecido, ler_tela_via, transporte,
@@ -52,7 +53,7 @@ pub(crate) fn ler_bloco_por_numero_via<V: EnvioDoControle>(
                 &controle.instalacao,
                 &url_lista,
                 href,
-                "rel_bloco_protocolo_listar",
+                AcaoDoSei::RelBlocoProtocoloListar,
                 Some(numero),
             )?;
             identidade = Some((tipo, url, item.estado.clone()));

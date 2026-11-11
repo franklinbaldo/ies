@@ -2,6 +2,7 @@
 //! Somente leitura de ZIP verificado, nunca rede nem segredos.
 use super::super::fluxo;
 use super::{ZipDoAcervo, conferir_cassette_ate, gravacao, html_da_resposta, ler_pagina};
+use crate::acao_do_sei::AcaoDoSei;
 use crate::formulario_web::{RespostaDoPost, SubmissaoDerivada};
 use crate::transporte::{FalhaTransporte, RespostaWeb};
 use std::io::Cursor;
@@ -153,11 +154,11 @@ fn observacao_dos_links_da_lupa_unb_no_acervo() {
             continue;
         }
         let proxima = if resposta.operacao == "procedimento_controlar" {
-            Some("grupo_unidade_listar")
+            Some(AcaoDoSei::GrupoUnidadeListar)
         } else if resposta.operacao == "grupo_unidade_listar" {
-            Some("grupo_unidade_cadastrar")
+            Some(AcaoDoSei::GrupoUnidadeCadastrar)
         } else if resposta.operacao == "grupo_unidade_cadastrar" {
-            Some("unidade_selecionar_envio_processo")
+            Some(AcaoDoSei::UnidadeSelecionarEnvioProcesso)
         } else {
             None
         };
@@ -199,7 +200,7 @@ fn observacao_dos_links_da_lupa_unb_no_acervo() {
             fluxo::candidatos(&html, proxima).expect("controle UnB precisa ser analisável");
         let distintos: std::collections::HashSet<_> = candidatos
             .iter()
-            .filter(|u| u.contains(&format!("acao={proxima}")))
+            .filter(|u| u.contains(&format!("acao={}", proxima.como_na_url())))
             .collect();
         let resultado = fluxo::destino(&html, url_tela, origem, proxima);
         let estado = match resultado {
@@ -209,7 +210,7 @@ fn observacao_dos_links_da_lupa_unb_no_acervo() {
             Err(_) => "outra_recusa",
         };
         println!(
-            "observacao UnB passo {}: proxima={proxima}, candidatos={}, distintos={}, estado={estado}",
+            "observacao UnB passo {}: proxima={proxima:?}, candidatos={}, distintos={}, estado={estado}",
             resposta.passo,
             candidatos.len(),
             distintos.len()

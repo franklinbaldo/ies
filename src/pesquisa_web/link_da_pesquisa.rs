@@ -2,6 +2,7 @@
 //! Forma observada (`UnB` 4.0.9, PEN1 5.0.4, GO 5.0.3; capturas privadas):
 //! `<a link="protocolo_pesquisar" href="controlador.php?acao=protocolo_pesquisar&…&infra_hash=<64 hex>">`,
 //! exatamente um por Controle. Só esse link é seguido, da mesma resposta.
+use crate::acao_do_sei::AcaoDoSei;
 use crate::formulario_web::decodificar_atributo;
 use crate::html_atributos::valor_do_atributo;
 use crate::instalacao::Instalacao;
@@ -46,7 +47,7 @@ pub(crate) fn link_da_pesquisa(
         conferir_chave_de_consulta(nome).map_err(|_| nao)?;
         conferir_valor_de_consulta(valor).map_err(|_| nao)?;
         match nome {
-            "acao" if valor == ACAO_DA_PESQUISA => acoes += 1,
+            "acao" if AcaoDoSei::ler(valor) == Some(AcaoDoSei::ProtocoloPesquisar) => acoes += 1,
             "infra_hash" if valor.len() == 64 && valor.bytes().all(|b| b.is_ascii_hexdigit()) => {
                 hashes += 1;
             }
@@ -71,8 +72,6 @@ pub(crate) fn link_da_pesquisa(
     Ok(url)
 }
 
-const ACAO_DA_PESQUISA: &str = "protocolo_pesquisar";
-
 /// O único `href` (decodificado) de `<a>` cuja consulta tem
 /// `acao=protocolo_pesquisar`; `protocolo_pesquisa_rapida` não conta.
 fn href_publicado(html: &str) -> Result<String, ErroLinkDaPesquisa> {
@@ -90,15 +89,16 @@ fn href_publicado(html: &str) -> Result<String, ErroLinkDaPesquisa> {
         };
         let Some(href) = decodificar_atributo(&bruto) else {
             // Entidade desconhecida só importa se puder ser o menu da pesquisa.
-            if bruto.contains(ACAO_DA_PESQUISA) {
+            if bruto.contains(AcaoDoSei::ProtocoloPesquisar.como_na_url()) {
                 return Err(nao);
             }
             continue;
         };
         let publica = href.split_once('?').is_some_and(|(_, consulta)| {
-            consulta
-                .split('&')
-                .any(|par| par.strip_prefix("acao=") == Some(ACAO_DA_PESQUISA))
+            consulta.split('&').any(|par| {
+                par.strip_prefix("acao=").and_then(AcaoDoSei::ler)
+                    == Some(AcaoDoSei::ProtocoloPesquisar)
+            })
         });
         if publica {
             achados.push(href);

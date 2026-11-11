@@ -1,6 +1,7 @@
 //! Leitura da anotação de origem, sem efetuar alterações.
 //! Forma observada no SEI 4.0.9 de treinamento (Todos,
 //! `tests/paginas_reais/processo_anotacao_registrar.html`).
+use crate::acao_do_sei::AcaoDoSei;
 use crate::formulario_web::{
     ConferenciaDaUnidade, EfeitoAvaliado, EnvioDoFormulario, EstadoDoProcesso,
     OperacaoDeFormulario, ResultadoDoEnvio,
@@ -31,7 +32,7 @@ pub(crate) enum ErroLeituraDaAnotacao {
 
 /// POST do botão Salvar no formulário de anotação observado no SEI 4.0.9.
 pub(crate) const REGISTRAR_ANOTACAO: OperacaoDeFormulario = OperacaoDeFormulario {
-    acao: "anotacao_registrar",
+    acao: AcaoDoSei::AnotacaoRegistrar,
     formulario: "frmAnotacaoCadastro",
     envio: EnvioDoFormulario::BotaoDeEnvio("sbmRegistrarAnotacao"),
     campos_ocultos_exigidos: &["hdnIdProtocolo"],

@@ -1,6 +1,7 @@
 //! Controle de prazo da tela Web observada nas cassettes UnB/GO/UFRJ.
 //! O núcleo não faz rede, não avalia JavaScript e não publica URLs assinadas.
 //! Caso de testes: `Todos` `tests/test_ciclo_prazo_010.py` @323eb01.
+use crate::acao_do_sei::AcaoDoSei;
 
 #[derive(Clone, Debug, PartialEq, Eq)]
 pub(crate) enum PedidoDePrazo {
@@ -130,7 +131,7 @@ pub(crate) fn ler_tela(html: &str, id_procedimento: &str) -> Result<TelaDoPrazo,
             .map(|(_, valor)| valor)
             .collect::<Vec<_>>()
     };
-    if valores("acao") != ["controle_prazo_definir"] {
+    if valores("acao") != [AcaoDoSei::ControlePrazoDefinir.como_na_url()] {
         return Err(ErroPrazo::TelaNaoObservada);
     }
     match valores("id_procedimento").as_slice() {

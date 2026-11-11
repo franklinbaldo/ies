@@ -35,7 +35,7 @@ fn json_das_propriedades(lidas: &PropriedadesLidas) -> Value {
         "nivel_de_acesso": lidas.nivel_de_acesso.como_texto(),
         "hipotese_legal": lidas.hipotese_legal,
         "data_de_geracao": lidas.data_de_geracao,
-        "fonte": lidas.fonte.acao(),
+        "fonte": lidas.fonte.acao().como_na_url(),
     })
 }
 
@@ -108,7 +108,7 @@ fn humano_das_propriedades(propriedades: &Propriedades, texto: &mut String) {
     let _ = write!(
         texto,
         "\nPropriedades ({}): tipo {}, nível {}, gerado em {}.",
-        lidas.fonte.acao(),
+        lidas.fonte.acao().como_na_url(),
         lidas.tipo.as_deref().unwrap_or("não observado"),
         lidas.nivel_de_acesso.como_texto(),
         lidas
@@ -370,7 +370,7 @@ fn humano(nup: &NumeroProcesso, aberto: &ProcessoAberto, sem_documentos: bool) -
                 );
             }
         }
-        outro => {
+        outro @ (Andamentos::Omitidos | Andamentos::LinkNaoPublicadoNaArvore) => {
             let _ = write!(
                 texto,
                 "\nAndamentos não lidos ({}).",
@@ -434,10 +434,7 @@ fn obter(cli: &Cli, comando: &Processo, nup: &NumeroProcesso) -> anyhow::Result<
     if cli.json {
         let mut valor = json_do_processo(nup, &aberto, comando.sem_documentos);
         relogin_cli::anotar(&mut valor, nota.as_ref());
-        println!(
-            "{}",
-            serde_json::to_string_pretty(&valor).expect("JSON serializável")
-        );
+        println!("{}", serde_json::to_string_pretty(&valor)?);
     } else {
         relogin_cli::avisar(cli.json, nota.as_ref());
         println!("{}", humano(nup, &aberto, comando.sem_documentos));

@@ -126,8 +126,8 @@ pub(crate) fn ler_pagina(html: &str) -> Result<PaginaDaLupa, ErroLupa> {
         }
         existe_tabela_infra = true;
         let legendas = tags(tabela, parser, "caption");
-        if legendas.len() == 1
-            && texto_da_tag(legendas[0], parser).starts_with("Lista de Unidades (")
+        if let [legenda] = legendas.as_slice()
+            && texto_da_tag(legenda, parser).starts_with("Lista de Unidades (")
         {
             candidatas.push(tabela);
         }
@@ -151,7 +151,10 @@ pub(crate) fn ler_pagina(html: &str) -> Result<PaginaDaLupa, ErroLupa> {
         }
         _ => return Err(ErroLupa::TabelaForaDaForma),
     };
-    let legenda = texto_da_tag(tags(tabela, parser, "caption")[0], parser);
+    let legenda = tags(tabela, parser, "caption")
+        .first()
+        .map(|legenda| texto_da_tag(legenda, parser))
+        .ok_or(ErroLupa::TabelaForaDaForma)?;
     let total = total_da_legenda(&legenda).ok_or(ErroLupa::TotalAusente)?;
     if pagina >= paginas {
         return Err(ErroLupa::PaginaInvalida);
@@ -195,7 +198,9 @@ pub(crate) fn ler_pagina(html: &str) -> Result<PaginaDaLupa, ErroLupa> {
         let Some((tamanho, sigla, descricao, orgao)) = indices else {
             return Err(ErroLupa::TabelaForaDaForma);
         };
-        if tds.len() == 1 && atributo(tds[0], "colspan")?.is_some() {
+        if let [aviso] = tds.as_slice()
+            && atributo(aviso, "colspan")?.is_some()
+        {
             // O único aviso permitido é a lista realmente vazia.
             if total == 0 && unidades.is_empty() {
                 continue;
@@ -216,15 +221,20 @@ pub(crate) fn ler_pagina(html: &str) -> Result<PaginaDaLupa, ErroLupa> {
         if id.is_empty() {
             return Err(ErroLupa::LinhaSemIdentidade);
         }
-        let sigla = texto_da_tag(tds[sigla], parser);
+        let celula = |i: usize| {
+            tds.get(i)
+                .map(|tag| texto_da_tag(tag, parser))
+                .ok_or(ErroLupa::TabelaForaDaForma)
+        };
+        let sigla = celula(sigla)?;
         if sigla.is_empty() {
             return Err(ErroLupa::TabelaForaDaForma);
         }
         unidades.push(UnidadeGuardada {
             id,
             sigla,
-            descricao: texto_da_tag(tds[descricao], parser),
-            orgao: texto_da_tag(tds[orgao], parser),
+            descricao: celula(descricao)?,
+            orgao: celula(orgao)?,
         });
     }
     if indices.is_none() {

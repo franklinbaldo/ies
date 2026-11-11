@@ -5,16 +5,17 @@ use super::CodificacaoDaTela;
 /// entidade que o HTML não conhece (não reenviar `&foo;` literal ao SEI).
 pub(crate) fn decodificar_atributo(bruto: &str) -> Option<String> {
     let desconhecida = bruto.match_indices('&').any(|(i, _)| {
-        let resto = &bruto[i..];
-        resto
-            .find(';')
-            .filter(|&fim| {
-                fim > 1
-                    && resto[1..fim]
-                        .bytes()
-                        .all(|b| b.is_ascii_alphanumeric() || b == b'#')
-            })
-            .is_some_and(|fim| html_escape::decode_html_entities(&resto[..=fim]) == resto[..=fim])
+        let (_, resto) = bruto.split_at(i);
+        let Some((antes, _)) = resto.split_once(';') else {
+            return false;
+        };
+        let Some(nome) = antes.strip_prefix('&') else {
+            return false;
+        };
+        let entidade = format!("{antes};");
+        !nome.is_empty()
+            && nome.bytes().all(|b| b.is_ascii_alphanumeric() || b == b'#')
+            && html_escape::decode_html_entities(&entidade) == entidade.as_str()
     });
     (!desconhecida).then(|| html_escape::decode_html_entities(bruto).into_owned())
 }

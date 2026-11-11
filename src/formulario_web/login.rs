@@ -49,7 +49,7 @@ pub(crate) fn derivar_submissao_de_login(
         url,
         host: servida.host.to_ascii_lowercase(),
         caminho: servida.caminho.to_owned(),
-        acao: operacao.acao,
+        acao: crate::acao_do_sei::AcaoDaSubmissao::Controlador(operacao.acao),
         referer: tela.url.to_owned(),
         nomes: ordenados.iter().map(|(n, _)| (*n).to_owned()).collect(),
         corpo: corpo.into_bytes(),

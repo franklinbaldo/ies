@@ -2,9 +2,10 @@
 //! O primitivo não escolhe opções; só aceita a repetição que o HTML permite.
 use super::tests::{instalacao, tela_iso, url_servida};
 use super::*;
+use crate::acao_do_sei::AcaoDoSei;
 
 const OPERACAO_COM_SELECAO: OperacaoDeFormulario = OperacaoDeFormulario {
-    acao: "protocolo_pesquisar",
+    acao: AcaoDoSei::ProtocoloPesquisar,
     formulario: "frmPesquisaProtocolo",
     envio: EnvioDoFormulario::BotaoDeEnvio("sbmPesquisar"),
     campos_ocultos_exigidos: &["hdnInicio"],

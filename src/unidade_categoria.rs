@@ -59,6 +59,10 @@ pub(crate) fn selecionar(
 
 /// Publica ou exporta a lista da categoria a partir do HTML obtido,
 /// com a conferência de `--unidade` da leitura da caixa.
+#[expect(
+    clippy::indexing_slicing,
+    reason = "serde_json::Value: leitura ausente dá Null e a escrita é em objeto json! local; projeção de saída a substituir em #733"
+)]
 pub(crate) fn publicar_lista(
     html: &str,
     unidade: Option<&str>,
@@ -89,10 +93,7 @@ pub(crate) fn publicar_lista(
     }
     if json_mode {
         relogin_cli::anotar_com_total(&mut modelo, nota);
-        println!(
-            "{}",
-            serde_json::to_string_pretty(&modelo).expect("JSON serializável")
-        );
+        println!("{}", serde_json::to_string_pretty(&modelo)?);
     } else {
         relogin_cli::avisar(json_mode, nota);
         let quantidade = modelo["processos"].as_array().map_or(0, Vec::len);
@@ -102,7 +103,11 @@ pub(crate) fn publicar_lista(
             modelo["total_declarado"],
             match &modelo["faixa_observada"] {
                 Value::Null => "nenhuma".to_owned(),
-                faixa => format!("{} a {}", faixa["inicio"], faixa["fim"]),
+                faixa @ (Value::Bool(_)
+                | Value::Number(_)
+                | Value::String(_)
+                | Value::Array(_)
+                | Value::Object(_)) => format!("{} a {}", faixa["inicio"], faixa["fim"]),
             }
         );
     }

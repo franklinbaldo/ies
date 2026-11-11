@@ -14,20 +14,26 @@ use std::io::ErrorKind;
 use std::path::{Path, PathBuf};
 use std::time::Duration;
 
-/// Falha sem dados: o erro do SQLite ou do sistema nunca sai do módulo.
-#[derive(Debug)]
-pub(super) struct Falha;
-
-impl From<rusqlite::Error> for Falha {
-    fn from(_: rusqlite::Error) -> Self {
-        Self
-    }
-}
-
-impl From<std::io::Error> for Falha {
-    fn from(_: std::io::Error) -> Self {
-        Self
-    }
+/// Por que o banco não abriu. O índice se desliga em qualquer caso
+/// (`IndiceLocal::executar`); o erro diz qual conferência recusou.
+#[derive(Debug, thiserror::Error)]
+#[error("{self:?}")]
+pub(super) enum ErroAberturaDoIndice {
+    DiretoriosRecusados(#[source] crate::arquivo_privado::FalhaDaGravacao),
+    DiretorioIlegivel(#[source] std::io::Error),
+    DiretorioNaoPrivado,
+    CaminhoDoBancoSemNomeDeArquivo,
+    ArquivoIlegivel(#[source] std::io::Error),
+    /// Link simbólico, não regular, ou aberto a grupo/outros.
+    ArquivoNaoPrivado,
+    CriacaoDoBancoRecusada(#[source] crate::arquivo_privado::FalhaDaGravacao),
+    BancoAusenteAposCriacao,
+    TravaDaPreparacaoIlegivel(#[source] std::io::Error),
+    TravaDaPreparacaoOcupada,
+    ModoWalRecusado,
+    VersaoDoEsquemaNegativa(i64),
+    EsquemaDeBinarioMaisNovo,
+    Sqlite(#[from] rusqlite::Error),
 }
 
 /// Vários `ies` ao mesmo tempo: as transações são minúsculas.
@@ -147,28 +153,29 @@ fn politica_do_banco() -> crate::arquivo_privado::Politica {
 /// Os níveis ausentes nascem `0700` e o diretório real do banco (links
 /// no caminho são aceitos) é privado; o IES não muda o modo do que não
 /// criou.
-fn conferir_diretorio(banco: &Path, diretorio: &Path) -> Result<(), Falha> {
-    crate::arquivo_privado::conferir_diretorios(banco, politica_do_banco()).map_err(|_| Falha)?;
-    let info = fs::metadata(diretorio)?;
+fn conferir_diretorio(banco: &Path, diretorio: &Path) -> Result<(), ErroAberturaDoIndice> {
+    crate::arquivo_privado::conferir_diretorios(banco, politica_do_banco())
+        .map_err(ErroAberturaDoIndice::DiretoriosRecusados)?;
+    let info = fs::metadata(diretorio).map_err(ErroAberturaDoIndice::DiretorioIlegivel)?;
     if info.is_dir() && privado(&info) {
         Ok(())
     } else {
-        Err(Falha)
+        Err(ErroAberturaDoIndice::DiretorioNaoPrivado)
     }
 }
 
 /// Arquivo regular, não link simbólico, sem bits de grupo/outros.
 /// `Ok(false)`: não existe.
-fn arquivo_privado_existente(caminho: &Path) -> Result<bool, Falha> {
+fn arquivo_privado_existente(caminho: &Path) -> Result<bool, ErroAberturaDoIndice> {
     match fs::symlink_metadata(caminho) {
         Ok(info) => {
             if info.file_type().is_symlink() || !info.is_file() || !privado(&info) {
-                return Err(Falha);
+                return Err(ErroAberturaDoIndice::ArquivoNaoPrivado);
             }
             Ok(true)
         }
         Err(erro) if erro.kind() == ErrorKind::NotFound => Ok(false),
-        Err(erro) => Err(erro.into()),
+        Err(erro) => Err(ErroAberturaDoIndice::ArquivoIlegivel(erro)),
     }
 }
 
@@ -178,16 +185,16 @@ fn lateral(caminho: &Path, sufixo: &str) -> PathBuf {
     PathBuf::from(nome)
 }
 
-fn conferir_arquivos(caminho: &Path) -> Result<(), Falha> {
+fn conferir_arquivos(caminho: &Path) -> Result<(), ErroAberturaDoIndice> {
     if !arquivo_privado_existente(caminho)? {
         use crate::arquivo_privado::{FalhaDaGravacao, gravar};
         match gravar(caminho, b"", politica_do_banco()) {
             // Outro `ies` criou ao mesmo tempo: confere o dele.
             Ok(()) | Err(FalhaDaGravacao::DestinoJaExiste) => {}
-            Err(_) => return Err(Falha),
+            Err(falha) => return Err(ErroAberturaDoIndice::CriacaoDoBancoRecusada(falha)),
         }
         if !arquivo_privado_existente(caminho)? {
-            return Err(Falha);
+            return Err(ErroAberturaDoIndice::BancoAusenteAposCriacao);
         }
     }
     for sufixo in ["-wal", "-shm", "-journal", ".lock"] {
@@ -198,7 +205,7 @@ fn conferir_arquivos(caminho: &Path) -> Result<(), Falha> {
 
 /// Abre o banco já conferido; `preparar` aplica WAL e o esquema (uma vez
 /// por `IndiceLocal`).
-pub(super) fn conectar(caminho: &Path, preparar: bool) -> Result<Connection, Falha> {
+pub(super) fn conectar(caminho: &Path, preparar: bool) -> Result<Connection, ErroAberturaDoIndice> {
     let diretorio = match caminho.parent() {
         Some(pai) if !pai.as_os_str().is_empty() => pai,
         _ => Path::new("."),
@@ -206,7 +213,12 @@ pub(super) fn conectar(caminho: &Path, preparar: bool) -> Result<Connection, Fal
     conferir_diretorio(caminho, diretorio)?;
     // O SQLite com `NOFOLLOW` recusa link em qualquer componente: o banco
     // é aberto pelo diretório real, já conferido.
-    let caminho = &fs::canonicalize(diretorio)?.join(caminho.file_name().ok_or(Falha)?);
+    let nome = caminho
+        .file_name()
+        .ok_or(ErroAberturaDoIndice::CaminhoDoBancoSemNomeDeArquivo)?;
+    let caminho = &fs::canonicalize(diretorio)
+        .map_err(ErroAberturaDoIndice::DiretorioIlegivel)?
+        .join(nome);
     conferir_arquivos(caminho)?;
     let flags = OpenFlags::SQLITE_OPEN_READ_WRITE
         | OpenFlags::SQLITE_OPEN_NOFOLLOW
@@ -221,7 +233,7 @@ pub(super) fn conectar(caminho: &Path, preparar: bool) -> Result<Connection, Fal
         let modo: String =
             conexao.pragma_update_and_check(None, "journal_mode", "WAL", |l| l.get(0))?;
         if !modo.eq_ignore_ascii_case("wal") {
-            return Err(Falha);
+            return Err(ErroAberturaDoIndice::ModoWalRecusado);
         }
         migrar(&mut conexao)?;
     }
@@ -235,9 +247,10 @@ struct TravaDaPreparacao {
 }
 
 impl TravaDaPreparacao {
-    fn obter(banco: &Path) -> Result<Self, Falha> {
+    fn obter(banco: &Path) -> Result<Self, ErroAberturaDoIndice> {
         let arquivo = opcoes_privadas(OpenOptions::new().write(true).create(true).truncate(false))
-            .open(lateral(banco, ".lock"))?;
+            .open(lateral(banco, ".lock"))
+            .map_err(ErroAberturaDoIndice::TravaDaPreparacaoIlegivel)?;
         let limite = std::time::Instant::now() + ESPERA_DO_LOCK;
         loop {
             match arquivo.try_lock() {
@@ -245,7 +258,12 @@ impl TravaDaPreparacao {
                 Err(fs::TryLockError::WouldBlock) if std::time::Instant::now() < limite => {
                     std::thread::sleep(Duration::from_millis(10));
                 }
-                Err(_) => return Err(Falha),
+                Err(fs::TryLockError::WouldBlock) => {
+                    return Err(ErroAberturaDoIndice::TravaDaPreparacaoOcupada);
+                }
+                Err(fs::TryLockError::Error(erro)) => {
+                    return Err(ErroAberturaDoIndice::TravaDaPreparacaoIlegivel(erro));
+                }
             }
         }
     }
@@ -253,14 +271,15 @@ impl TravaDaPreparacao {
 
 /// O esquema e as migrações numa transação só: o que falhar no meio desfaz
 /// tudo, e a próxima abertura recomeça do banco como estava.
-fn migrar(conexao: &mut Connection) -> Result<(), Falha> {
+fn migrar(conexao: &mut Connection) -> Result<(), ErroAberturaDoIndice> {
     let transacao = conexao.transaction_with_behavior(rusqlite::TransactionBehavior::Immediate)?;
     let versao: i64 = transacao.pragma_query_value(None, "user_version", |l| l.get(0))?;
-    let inicio = usize::try_from(versao).map_err(|_| Falha)?;
-    if inicio > MIGRACOES.len() {
-        return Err(Falha);
-    }
-    for migracao in &MIGRACOES[inicio..] {
+    let inicio = usize::try_from(versao)
+        .map_err(|_| ErroAberturaDoIndice::VersaoDoEsquemaNegativa(versao))?;
+    let pendentes = MIGRACOES
+        .get(inicio..)
+        .ok_or(ErroAberturaDoIndice::EsquemaDeBinarioMaisNovo)?;
+    for migracao in pendentes {
         transacao.execute_batch(migracao)?;
     }
     if inicio < MIGRACOES.len() {

@@ -3,6 +3,7 @@
 //! assinada e montada ou adivinhada e nenhum segredo entra no Debug.
 use super::abertura::{ArvoreAberta, Contexto, Lida, Rede};
 use super::{EnvioDoProcesso, ErroProcessoObter};
+use crate::acao_do_sei::AcaoDoSei;
 use crate::arvore_processo::{conferir_endereco_relativo, ler_tela_do_processo};
 use crate::formulario_web::{
     ConferenciaDaUnidade, EfeitoAvaliado, EnvioDoFormulario, ErroSubmissaoFormulario,
@@ -13,7 +14,7 @@ use crate::sessao_login::{Credenciais, ErroLogin};
 use std::path::PathBuf;
 
 const OPERACAO: OperacaoDeFormulario = OperacaoDeFormulario {
-    acao: "usuario_validar_acesso",
+    acao: AcaoDoSei::UsuarioValidarAcesso,
     formulario: "frmValidarAcesso",
     envio: EnvioDoFormulario::SubmitPorScript,
     campos_ocultos_exigidos: &[],
@@ -64,11 +65,10 @@ fn link_oferecido(
     if ocorrencias.next().is_some() {
         return Err(ErroValidacaoAcesso::ModalNaoReconhecida);
     }
-    let restante = &html[inicio..];
-    let fim = restante
-        .find('\'')
+    let (_, restante) = html.split_at(inicio);
+    let (relativo, _) = restante
+        .split_once('\'')
         .ok_or(ErroValidacaoAcesso::ModalNaoReconhecida)?;
-    let relativo = &restante[..fim];
     conferir_endereco_relativo(&contexto.instalacao, relativo, OPERACAO.acao, id)
         .map_err(|_| ErroValidacaoAcesso::ModalNaoReconhecida)
 }

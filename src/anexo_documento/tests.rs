@@ -3,6 +3,7 @@
 //! HTML recebido gravado em PEN1/PEN2/PEN4, `application/pdf` com
 //! `inline; filename="…"` (`UnB`, pelo oráculo Todos) e `text/plain` do
 //! ícone `documento_txt`. Nenhum valor real.
+use super::cabecalhos::ErroDisposicao;
 use super::*;
 use std::io::{self, Cursor};
 use std::path::PathBuf;
@@ -277,20 +278,35 @@ fn tipo_ausente_fora_da_lista_ou_repetido_e_recusado_sem_ler_o_corpo() {
         ]),
         ErroAnexo::CabecalhoRepetido
     );
-    for ruim in [
-        "form-data; filename=\"a.pdf\"",
-        "inline; filename=\"a.pdf\"; filename=\"b.pdf\"",
-        "inline; filename=\"sem fim",
-        "inline; filename*=KOI8-R''%E1",
-        "inline; filename*=UTF-8''%ZZ",
-        "",
+    for (ruim, esperado) in [
+        (
+            "form-data; filename=\"a.pdf\"",
+            ErroDisposicao::TipoDeDisposicaoNaoObservado,
+        ),
+        (
+            "inline; filename=\"a.pdf\"; filename=\"b.pdf\"",
+            ErroDisposicao::NomeDeArquivoRepetido,
+        ),
+        (
+            "inline; filename=\"sem fim",
+            ErroDisposicao::AspasSemFechamento,
+        ),
+        (
+            "inline; filename*=KOI8-R''%E1",
+            ErroDisposicao::CharsetDoNomeEstendidoNaoAceito,
+        ),
+        (
+            "inline; filename*=UTF-8''%ZZ",
+            ErroDisposicao::PercentualInvalidoNoNomeEstendido,
+        ),
+        ("", ErroDisposicao::TipoDeDisposicaoNaoObservado),
     ] {
         assert_eq!(
             sem_ler(&[
                 ("content-type", "application/pdf"),
                 ("content-disposition", ruim)
             ]),
-            ErroAnexo::DisposicaoForaDaFormaObservada,
+            ErroAnexo::DisposicaoForaDaFormaObservada(esperado),
             "{ruim:?}"
         );
     }

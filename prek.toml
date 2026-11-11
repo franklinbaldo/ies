@@ -39,6 +39,17 @@ pass_filenames = false
 always_run = true
 stages = ["pre-push"]
 
+# Produção sem panic nem curinga (#727). Só os alvos de produção: testes e
+# o emulador anti-ies (infraestrutura de teste) ficam de fora.
+[[repos.hooks]]
+id = "lint-producao"
+name = "Clippy de produção sem panic nem curinga"
+entry = "cargo clippy --locked --workspace --exclude anti-ies -- -D warnings -D clippy::wildcard_enum_match_arm -D clippy::string_slice -D clippy::indexing_slicing -D clippy::expect_used -D clippy::unwrap_used -D clippy::panic -D clippy::as_conversions"
+language = "system"
+pass_filenames = false
+always_run = true
+stages = ["pre-push"]
+
 [[repos.hooks]]
 id = "testes"
 name = "Suite Rust"

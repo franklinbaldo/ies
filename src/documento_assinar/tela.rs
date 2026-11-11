@@ -10,7 +10,7 @@
 //! `assinarSenha()` põe `hdnFormaAutenticacao='S'` e chama `submit()`. A
 //! resposta aceita é a mesma tela com `inicializar()` chamando `finalizar()`.
 use super::erro::ErroTelaDeAssinatura;
-use crate::arvore_processo::ACAO_DE_ASSINAR;
+use crate::acao_do_sei::AcaoDoSei;
 use crate::formulario_web::{
     ConferenciaDaUnidade, EfeitoAvaliado, EnvioDoFormulario, EstadoDoProcesso,
     OperacaoDeFormulario, ResultadoDoEnvio, decodificar_atributo, localizar_formulario,
@@ -42,7 +42,7 @@ const VAZIA: &str = "null";
 /// Assinar com a senha: janela sem barra da unidade, aberta pelo link da
 /// tela do documento conferido na árvore.
 pub(crate) const ASSINAR_DOCUMENTO: OperacaoDeFormulario = OperacaoDeFormulario {
-    acao: ACAO_DE_ASSINAR,
+    acao: AcaoDoSei::DocumentoAssinar,
     formulario: FORMULARIO_DE_ASSINATURA,
     envio: EnvioDoFormulario::SubmitPorScript,
     campos_ocultos_exigidos: &[
