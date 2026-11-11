@@ -20,7 +20,7 @@ Cancela irreversivelmente um documento por sua ação **publicada na barra do n�
 
 ## Ação e formulário
 
-1. Abre o documento até a árvore, confere NUP, id e número SEI. Exige `natureza.cancelado == false`. Se já cancelado, recusa sem abrir a tela. Se estado não observado, não tenta escrever.
+1. Abre o documento até a árvore, confere NUP, id e número SEI. Exige `natureza.cancelado == false`. Se já cancelado, recusa sem abrir a tela. Cancelamento com uma só marca já é recusado pela leitura da árvore (`ErroArvore`), antes de qualquer escrita.
 2. Da única barra `Nos[i].acoes` **desse documento** obtém a única âncora cujo href traz `acao=documento_cancelar`; ausência recusa `ErroCancelar::CancelamentoNaoOferecido`. Confere o endereço relativo contra a instalação, `id_procedimento`, `id_documento` e `infra_hash` único (64 hex). Duplicata, outro documento ou URL suspeita são recusados.
 3. Faz GET da tela publicada; 302 não é seguido. Confere `form#frmDocumentoCancelar`, `method=post`, `action` do mesmo processo e documento, um `textarea name=txaMotivo` habilitado, o oculto `hdnInfraTipoPagina` e único `button type=submit name=sbmSalvar`. Não aceita campos enviáveis adicionais.
 4. Deriva a submissão pelo primitivo compartilhado `formulario_web`, com `EfeitoAvaliado::AlteraEstadoDoProcesso { CancelamentoDoDocumento }`, `txaMotivo` e o botão `sbmSalvar`; `charset` da tela.
@@ -33,7 +33,7 @@ Abertura do documento, pelo `--processo` a frio: 3 GET. Prévia: +1 GET da tela 
 
 ## Saída
 
-Prévia e sucesso: `numero`, `id_documento`, `processo` (`nup`, `id`), `unidade`, `motivo`, `origem:"web"`, `confirmado`, `alterado`, `requisicoes`, `reconciliado_por_leitura`. Em falha: saída 1, stdout vazio e `Error: <ErroCancelar::…>` em stderr; o status HTTP e a mensagem saneada vêm em `Transporte(Status(..))` quando observados, e depois do POST os erros carregam `falha_do_envio` e `verificacao`. Nenhum cookie, URL assinada ou `infra_hash` aparece.
+Prévia e sucesso: `numero`, `id_documento`, `processo` (`nup`, `id`), `unidade`, `motivo`, `origem:"web"`, `confirmado`, `alterado`, `requisicoes`, `reconciliado_por_leitura`. Em falha: saída 1, stdout vazio e `Error: <ErroCancelar::…>` em stderr; o status HTTP e a mensagem saneada vêm em `Transporte(Status(..))` quando observados, e depois do POST os erros carregam `falha_do_envio` e `verificacao`, que é `Lida`, `LeituraFalhou` ou `DocumentoDiferenteNaReleitura` (a releitura abriu outro documento; a escrita não é atribuída ao pedido). Nenhum cookie, URL assinada ou `infra_hash` aparece.
 
 ## Subcódigos específicos
 
@@ -45,7 +45,6 @@ Prévia e sucesso: `numero`, `id_documento`, `processo` (`nup`, `id`), `unidade`
 | `ErroLinkCancelar::EnderecoDeOutroDocumento` | Recusa tipada na leitura, validação, envio ou verificação conforme o estágio |
 | `ErroCancelar::CancelamentoNaoOferecido` | Recusa tipada na leitura, validação, envio ou verificação conforme o estágio |
 | `DocumentoJaCancelado` | Recusa tipada na leitura, validação, envio ou verificação conforme o estágio |
-| `ErroCancelar::EstadoAntesNaoObservado` | Recusa tipada na leitura, validação, envio ou verificação conforme o estágio |
 | `ErroCancelar::TelaRedirecionada` | Recusa tipada na leitura, validação, envio ou verificação conforme o estágio |
 | `ErroCancelar::CharsetNaoSuportado` | Recusa tipada na leitura, validação, envio ou verificação conforme o estágio |
 | `ErroCancelar::FormularioDeOutroDocumento` | Recusa tipada na leitura, validação, envio ou verificação conforme o estágio |

@@ -21,8 +21,8 @@ e suas sub-issues #717–#723; a ordem atual consta do [roadmap #56](https://git
 Fazer ablações pequenas com contraprova, testes e redução real de
 complexidade. Não trocar cada problema por novos wrappers, enums ou
 estruturas de `Causa`; tipos são instrumentos, não entregas por si só.
-Triar caso a caso: `Option` legitimamente não observado, defaults de
-fatiamento e exceções de plataforma não são erros. Respeitar os BDDs
+Triar caso a caso: defaults de fatiamento e exceções de plataforma não
+são erros; "não observado" é (#749). Respeitar os BDDs
 públicos existentes, as três provas independentes, a ausência de retry
 e todos os limites de segurança. Fatias já em curso continuam sujeitas
 ao CI e à integração normal, mas não abrem nova frente prioritária.
@@ -235,9 +235,11 @@ O que falta implementar e em que ordem está na
   variante tipada, nomeada pelo fato verificável
   ([erros tipados](docs/erros-tipados.md)); recusas expõem `status_http` e
   a mensagem saneada do SEI. Mensagem é apresentação, nunca classificação.
-- **Publicar só o observado.** `total_declarado` e `faixa_observada`,
-  nunca "completo"; `null` é "não observado", não "não tem"; NUP e ids são
-  opacos.
+- **Publicar só o lido; a ausência é erro.** `total_declarado` e
+  `faixa_observada`, nunca "completo". Não existe "não observado": o dado
+  que o comando promete ou é lido ou o comando falha com erro tipado no
+  ponto em que a ausência é detectada; nada de `null` na saída (#749).
+  NUP e ids são opacos.
 - **Escrita com prévia, `--confirmar` e verificação por leitura.** Sucesso
   só com releitura confirmada; o resto é falha (saída 1) e nunca se repete.
 - **Peças únicas, sem despachante genérico.** Um cliente HTTPS (proxy,

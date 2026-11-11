@@ -27,9 +27,10 @@ pub(crate) fn ler_andamentos(html: &str, nup: &str) -> Result<AndamentosLidos, E
 /// A única `caption` da tabela (já conferida única pelo leitor das linhas).
 fn legenda(dom: &tl::VDom<'_>) -> Result<u64, ErroAndamentos> {
     let parser = dom.parser();
-    let tabela = nos_com_id(dom, "tblHistorico")
-        .ok()
-        .and_then(|nos| nos.first().copied())
+    let nos = nos_com_id(dom, "tblHistorico").map_err(ErroAndamentos::Atributo)?;
+    let tabela = nos
+        .first()
+        .copied()
         .and_then(|no| no.get(parser))
         .and_then(tl::Node::as_tag)
         .ok_or(ErroAndamentos::LegendaDosAndamentosAusente)?;
@@ -85,10 +86,11 @@ fn tipo_servido(dom: &tl::VDom<'_>) -> Result<TipoDoHistorico, ErroAndamentos> {
             .as_deref()
             == Some(super::CAMPO_TIPO)
         {
-            let bruto = valor_do_atributo(tag, "value").map_err(ErroAndamentos::Atributo)?;
+            let bruto = valor_do_atributo(tag, "value")
+                .map_err(ErroAndamentos::Atributo)?
+                .ok_or(ErroAndamentos::TipoDoHistoricoSemValor)?;
             valores.push(
-                decodificar_atributo(&bruto.unwrap_or_default())
-                    .ok_or(ErroAndamentos::TipoDoHistoricoNaoPublicado)?,
+                decodificar_atributo(&bruto).ok_or(ErroAndamentos::TipoDoHistoricoNaoPublicado)?,
             );
         }
     }

@@ -127,41 +127,38 @@ fn sobrestado_em_sai_null_fora_da_frase_do_sobrestamento() {
 }
 
 #[test]
-fn documento_cancelado_publica_motivo_e_meia_marca_e_null() {
+fn documento_cancelado_publica_motivo_e_sem_marca_como_falso() {
     let mut processo = aberto(None);
     processo.arvore.documentos[0].natureza = NaturezaDoDocumento {
-        icone: Some("documento_cancelado".into()),
+        icone: "documento_cancelado".into(),
         cancelamento: Cancelamento::Cancelado {
             motivo: "erro".into(),
         },
         dica: Some("Documento Cancelado: erro".into()),
     };
     processo.arvore.documentos[1].natureza = NaturezaDoDocumento {
-        icone: Some("documento_cancelado".into()),
-        cancelamento: Cancelamento::NaoObservado,
+        icone: "documento_email".into(),
+        cancelamento: Cancelamento::Ativo,
         dica: None,
     };
     let valor = json_do_processo(&nup(), &processo, false);
     assert_eq!(valor["documentos"][0]["icone"], "documento_cancelado");
     assert_eq!(valor["documentos"][0]["cancelado"], true);
     assert_eq!(valor["documentos"][0]["motivo_do_cancelamento"], "erro");
-    assert!(valor["documentos"][1]["cancelado"].is_null());
+    assert_eq!(valor["documentos"][1]["cancelado"], false);
     let texto = humano(&nup(), &processo, false);
     assert!(
         texto.contains("- Despacho 0000101 (id 21) [cancelado: erro]"),
         "{texto}"
     );
-    assert!(
-        texto.contains("- E-mail (id 22) [cancelamento não confirmado]"),
-        "{texto}"
-    );
+    assert!(texto.contains("- E-mail (id 22)\n"), "{texto}");
 }
 
 #[test]
 fn dica_sai_no_json_e_cada_linha_no_texto_humano() {
     let mut processo = aberto(None);
     processo.arvore.documentos[0].natureza = NaturezaDoDocumento {
-        icone: Some("documento_email".into()),
+        icone: "documento_email".into(),
         cancelamento: Cancelamento::Ativo,
         dica: Some("Data de Envio: 01/01/2026 10:00:00\nDe: a@x\nAssunto: y\n".into()),
     };

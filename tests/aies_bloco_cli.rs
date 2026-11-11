@@ -418,11 +418,11 @@ fn bdd_256_01_cli_real_lista_somente_pagina_observada_no_sqlite() {
     assert_eq!(itens[0]["numero"], "2195");
     assert_eq!(itens[0]["estado"], "Gerado");
     assert_eq!(itens[0]["descricao"], "Despachos de teste");
-    assert!(itens[0]["quantidade_itens"].is_null());
+    assert!(itens[0].get("quantidade_itens").is_none());
     assert_eq!(itens[1]["numero"], "2196");
     assert_eq!(itens[1]["estado"], "Disponibilizado");
     assert_eq!(itens[1]["descricao"], "Assinaturas pendentes");
-    assert!(itens[1]["quantidade_itens"].is_null());
+    assert!(itens[1].get("quantidade_itens").is_none());
     assert!(!valor.to_string().contains("infra_hash"));
     assert!(!valor.to_string().contains("PHPSESSID"));
 }
@@ -452,7 +452,7 @@ fn bdd_256_02_cli_real_pagina_2_interna_sqlite() {
     assert_eq!(itens[0]["numero"], "3003");
     assert_eq!(itens[1]["numero"], "3004");
     assert_eq!(itens[0]["estado"], "Disponibilizado");
-    assert!(itens.iter().all(|x| x["quantidade_itens"].is_null()));
+    assert!(itens.iter().all(|x| x.get("quantidade_itens").is_none()));
     assert!(!valor.to_string().contains("3001"));
     assert!(!valor.to_string().contains("3002"));
     assert!(!valor.to_string().contains("infra_hash"));
