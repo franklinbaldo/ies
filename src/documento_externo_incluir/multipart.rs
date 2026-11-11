@@ -9,8 +9,8 @@ pub(crate) enum FalhaMultipart {
     NomeIncompativelComCharset,
     FronteiraInvalida,
     TamanhoInvalido,
-    /// O caractere passa de 255: não existe byte ISO-8859-1 para ele.
-    CaractereAlemDoIso88591(#[source] std::num::TryFromIntError),
+    /// O nome do arquivo tem um caractere que o ISO-8859-1 da tela não representa.
+    CaractereDoNomeForaDoIso88591(char),
 }
 
 /// Peças de um único POST de upload. O PDF fica no leitor, não em memória.
@@ -69,7 +69,8 @@ pub(crate) fn preparar_pdf(
         match codificacao {
             CodificacaoDaTela::Iso88591 => {
                 let codigo = u32::from(caractere);
-                let byte = u8::try_from(codigo).map_err(FalhaMultipart::CaractereAlemDoIso88591)?;
+                let byte = u8::try_from(codigo)
+                    .map_err(|_| FalhaMultipart::CaractereDoNomeForaDoIso88591(caractere))?;
                 nome_codificado.push(byte);
             }
             CodificacaoDaTela::Utf8 => {
@@ -170,7 +171,7 @@ mod tests {
                 "----ies332",
                 CodificacaoDaTela::Iso88591
             ),
-            Err(FalhaMultipart::NomeIncompativelComCharset)
+            Err(FalhaMultipart::CaractereDoNomeForaDoIso88591('📄'))
         ));
     }
 
