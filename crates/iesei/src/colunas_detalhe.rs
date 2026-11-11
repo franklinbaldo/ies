@@ -184,7 +184,10 @@ pub fn definir(
     let mut vistas = std::collections::HashSet::new();
     if !marcadas.iter().all(|coluna| {
         vistas.insert(*coluna)
-            && configuracao.opcoes.iter().any(|opcao| opcao.coluna == *coluna)
+            && configuracao
+                .opcoes
+                .iter()
+                .any(|opcao| opcao.coluna == *coluna)
     }) {
         return Err(Erro::DadoInvalido);
     }
