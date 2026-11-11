@@ -158,7 +158,6 @@ fn tela_de_troca_fora_da_forma_e_recusada() {
     }
 }
 
-
 #[test]
 fn atributos_repetidos_preservam_a_causa_da_recusa_na_troca() {
     use crate::html_atributos::ErroAtributoHtml;
