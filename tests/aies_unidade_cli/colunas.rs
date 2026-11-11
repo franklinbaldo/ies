@@ -86,9 +86,7 @@ fn encaminhar_requisicoes(
         let pedido = cabecalho(&mut canal);
         let cabecalho_http = String::from_utf8_lossy(&pedido);
         assert!(
-            cabecalho_http.starts_with(&format!(
-                "{metodo} /sei/controlador.php?acao={acao}"
-            )),
+            cabecalho_http.starts_with(&format!("{metodo} /sei/controlador.php?acao={acao}")),
             "método/ação divergentes"
         );
         let mut upstream = TcpStream::connect(destino).unwrap();
@@ -327,9 +325,8 @@ fn bdd_565_03_confirmar_aplica_post_unico_e_rele_mesmo_sqlite() {
     let cookie = pasta.privado("cookie", "PHPSESSID=FICTICIO");
     let servidor = TcpListener::bind(("127.0.0.1", 0)).unwrap();
     let destino = servidor.local_addr().unwrap();
-    let backend = thread::spawn(move || {
-        atender_requisicoes(&servidor, false, CONFIRMACAO_E_LEITURA.len())
-    });
+    let backend =
+        thread::spawn(move || atender_requisicoes(&servidor, false, CONFIRMACAO_E_LEITURA.len()));
     let proxy = TcpListener::bind(("127.0.0.1", 0)).unwrap();
     let porta = proxy.local_addr().unwrap().port();
     let tunel = thread::spawn(move || {
@@ -337,10 +334,22 @@ fn bdd_565_03_confirmar_aplica_post_unico_e_rele_mesmo_sqlite() {
     });
 
     let confirmacao = cli_colunas(
-        &pasta, &cert, porta, &url, &cookie, &origem, ComandoColunas::Confirmar,
+        &pasta,
+        &cert,
+        porta,
+        &url,
+        &cookie,
+        &origem,
+        ComandoColunas::Confirmar,
     );
     let releitura = cli_colunas(
-        &pasta, &cert, porta, &url, &cookie, &origem, ComandoColunas::Listar,
+        &pasta,
+        &cert,
+        porta,
+        &url,
+        &cookie,
+        &origem,
+        ComandoColunas::Listar,
     );
     tunel.join().unwrap();
     let opcoes = backend.join().unwrap();
