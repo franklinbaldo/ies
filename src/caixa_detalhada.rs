@@ -4,6 +4,7 @@ mod celula_marcadores;
 mod colunas;
 
 use crate::acao_do_sei::AcaoDoSei;
+use crate::consulta_do_controlador::{ConsultaDoControlador, menciona_acao};
 use crate::controle_contexto::{ContextoPagina, contexto_da_pagina};
 use crate::dominio::{Categoria, IdProcedimento};
 use crate::formulario_web::decodificar_atributo;
@@ -91,6 +92,16 @@ pub(crate) enum ErroDetalhada {
     ConsultaDoMarcadorIlegivel(#[source] crate::consulta_do_controlador::ErroConsultaDoControlador),
     /// `acao` ou `id_procedimento` do marcador ausente ou repetido.
     ChaveDoMarcadorDetalhado(#[source] crate::consulta_do_controlador::ErroChaveDaConsulta),
+    /// A consulta do link do processo não se deixa ler em pares.
+    ConsultaDoLinkDoProcessoIlegivel(
+        #[source] crate::consulta_do_controlador::ErroConsultaDoControlador,
+    ),
+    /// `acao` ou `id_procedimento` do link do processo ausente ou repetido.
+    ChaveDoLinkDoProcessoDetalhado(#[source] crate::consulta_do_controlador::ErroChaveDaConsulta),
+    /// O link do processo não é `controlador.php` com a ação de trabalhar ou visualizar.
+    LinkDoProcessoDetalhadoForaDaForma,
+    /// O link do processo aponta para outro `id_procedimento` que o da linha.
+    IdDoLinkDoProcessoDiferente,
     IdentificadorDetalhadoRepetido,
     ItensNaoPrevistosNaCelulaDetalhada,
     LegendaDetalhadaAusente,
@@ -189,26 +200,41 @@ fn faixa(
     Ok((total, inicio, fim))
 }
 
-fn eh_link_do_processo(href: &str, id: &str) -> bool {
-    let Some(query) = href.strip_prefix("controlador.php?") else {
-        return false;
-    };
-    let campos: Vec<_> = query.split('&').collect();
-    let acoes: Vec<_> = campos
-        .iter()
-        .filter_map(|s| s.strip_prefix("acao="))
-        .collect();
-    let ids: Vec<_> = campos
-        .iter()
-        .filter_map(|s| s.strip_prefix("id_procedimento="))
-        .collect();
-    matches!(
-        acoes.as_slice(),
-        [acao] if matches!(
-            AcaoDoSei::ler(acao),
-            Some(AcaoDoSei::ProcedimentoTrabalhar | AcaoDoSei::ProcedimentoVisualizar)
-        )
-    ) && ids == [id]
+/// Seleção tolerante do link do processo: menciona a ação de trabalhar ou de
+/// visualizar. Quem escolhe confere o candidato com [`conferir_link_do_processo`].
+fn menciona_processo(href: &str) -> bool {
+    [
+        AcaoDoSei::ProcedimentoTrabalhar,
+        AcaoDoSei::ProcedimentoVisualizar,
+    ]
+    .into_iter()
+    .any(|acao| menciona_acao(href, acao))
+}
+
+/// Confere de forma estrita o link escolhido: `controlador.php`, a ação de
+/// trabalhar ou visualizar única e o `id_procedimento` único da própria linha.
+fn conferir_link_do_processo(href: &str, id: &str) -> Result<(), ErroDetalhada> {
+    let consulta = href
+        .strip_prefix("controlador.php?")
+        .ok_or(ErroDetalhada::LinkDoProcessoDetalhadoForaDaForma)?;
+    let consulta = ConsultaDoControlador::ler(consulta)
+        .map_err(ErroDetalhada::ConsultaDoLinkDoProcessoIlegivel)?;
+    let acao = consulta
+        .acao()
+        .map_err(ErroDetalhada::ChaveDoLinkDoProcessoDetalhado)?;
+    if !matches!(
+        acao,
+        AcaoDoSei::ProcedimentoTrabalhar | AcaoDoSei::ProcedimentoVisualizar
+    ) {
+        return Err(ErroDetalhada::LinkDoProcessoDetalhadoForaDaForma);
+    }
+    let alvo = consulta
+        .unico("id_procedimento")
+        .map_err(ErroDetalhada::ChaveDoLinkDoProcessoDetalhado)?;
+    if alvo != id {
+        return Err(ErroDetalhada::IdDoLinkDoProcessoDiferente);
+    }
+    Ok(())
 }
 
 fn ler_linha(
@@ -258,14 +284,19 @@ fn ler_linha(
         let Some(link) = link.get(parser).and_then(tl::Node::as_tag) else {
             continue;
         };
-        let Some(href) = valor_do_atributo(link, "href")?.filter(|bruto| {
-            decodificar_atributo(bruto).is_some_and(|href| eh_link_do_processo(&href, id.as_str()))
-        }) else {
+        let Some(bruto) = valor_do_atributo(link, "href")? else {
             continue;
         };
+        let Some(href) = decodificar_atributo(&bruto) else {
+            continue;
+        };
+        if !menciona_processo(&href) {
+            continue;
+        }
         if escolhido.is_some() {
             return Err(ErroDetalhada::LinksDoProcessoDetalhadoRepetidos);
         }
+        conferir_link_do_processo(&href, id.as_str())?;
         let classe = valor_do_atributo(link, "class")?.unwrap_or_default();
         let estado = crate::classe_link_processo::estado_do_link(&classe)
             .map_err(ErroDetalhada::ClassesDeEstadoDiferentesNoLink)?
@@ -281,7 +312,7 @@ fn ler_linha(
                 categoria: None,
                 colunas: ColunasDaLinha(configuradas.clone()),
             },
-            href,
+            bruto,
         ));
     }
     escolhido

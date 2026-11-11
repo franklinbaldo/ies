@@ -58,6 +58,10 @@ pub(crate) fn unidade_do_controle(
                 | ErroDetalhada::IdentificadorDetalhadoInvalido(_)
                 | ErroDetalhada::ConsultaDoMarcadorIlegivel(_)
                 | ErroDetalhada::ChaveDoMarcadorDetalhado(_)
+                | ErroDetalhada::ConsultaDoLinkDoProcessoIlegivel(_)
+                | ErroDetalhada::ChaveDoLinkDoProcessoDetalhado(_)
+                | ErroDetalhada::LinkDoProcessoDetalhadoForaDaForma
+                | ErroDetalhada::IdDoLinkDoProcessoDiferente
                 | ErroDetalhada::IdentificadorDetalhadoRepetido
                 | ErroDetalhada::ItensNaoPrevistosNaCelulaDetalhada
                 | ErroDetalhada::LegendaDetalhadaAusente

@@ -237,3 +237,52 @@ fn detalhada_recusa_classes_de_estado_diferentes_no_link() {
         ));
     }
 }
+
+#[test]
+fn link_do_processo_com_par_sem_igual_e_recusado_com_a_causa() {
+    let original = pagina(1, 1, &[(1, "000001/2026")]);
+    let com_lixo = original.replace(
+        "&amp;id_procedimento=1'",
+        "&amp;lixo&amp;id_procedimento=1'",
+    );
+    assert_eq!(
+        ler_paginas(
+            &[crate::tela_html::HtmlServido::de_teste(&com_lixo)],
+            Some("PPI")
+        ),
+        Err(ErroDetalhada::ConsultaDoLinkDoProcessoIlegivel(
+            crate::consulta_do_controlador::ErroConsultaDoControlador::ParSemIgual
+        ))
+    );
+}
+
+#[test]
+fn link_do_processo_com_acao_repetida_tem_a_causa() {
+    let original = pagina(1, 1, &[(1, "000001/2026")]);
+    let repetida = original.replace(
+        "acao=procedimento_trabalhar&amp;",
+        "acao=procedimento_trabalhar&amp;acao=procedimento_trabalhar&amp;",
+    );
+    assert_eq!(
+        ler_paginas(
+            &[crate::tela_html::HtmlServido::de_teste(&repetida)],
+            Some("PPI")
+        ),
+        Err(ErroDetalhada::ChaveDoLinkDoProcessoDetalhado(
+            crate::consulta_do_controlador::ErroChaveDaConsulta::Repetida { chave: "acao" }
+        ))
+    );
+}
+
+#[test]
+fn link_do_processo_de_outro_id_procedimento_tem_a_causa() {
+    let original = pagina(1, 1, &[(1, "000001/2026")]);
+    let outro = original.replace("&amp;id_procedimento=1'", "&amp;id_procedimento=2'");
+    assert_eq!(
+        ler_paginas(
+            &[crate::tela_html::HtmlServido::de_teste(&outro)],
+            Some("PPI")
+        ),
+        Err(ErroDetalhada::IdDoLinkDoProcessoDiferente)
+    );
+}

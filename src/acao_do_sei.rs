@@ -102,6 +102,7 @@ acoes_do_sei! {
         ProtocoloPesquisaRapida => "protocolo_pesquisa_rapida",
         ProtocoloPesquisar => "protocolo_pesquisar",
         RelBlocoProtocoloListar => "rel_bloco_protocolo_listar",
+        RetornoProgramadoListar => "retorno_programado_listar",
         UnidadeSelecionarEnvioProcesso => "unidade_selecionar_envio_processo",
         UsuarioValidarAcesso => "usuario_validar_acesso",
     }
