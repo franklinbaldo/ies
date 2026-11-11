@@ -161,7 +161,6 @@ impl From<FalhaConfiguracaoLocal> for ErroConfiguracao {
         match causa {
             FalhaConfiguracaoLocal::LinkSimbolico => Self::ArquivoConfiguracaoLinkSimbolico,
             #[cfg(unix)]
-            #[cfg(unix)]
             FalhaConfiguracaoLocal::PermissoesAbertas => Self::ArquivoConfiguracaoPermissoesAbertas,
             FalhaConfiguracaoLocal::JsonInvalido(_) => Self::ArquivoConfiguracaoJsonInvalido,
             FalhaConfiguracaoLocal::CampoInvalido => Self::ArquivoConfiguracaoCampoInvalido,
