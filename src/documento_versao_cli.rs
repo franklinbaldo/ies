@@ -112,7 +112,7 @@ pub(crate) fn linha_do_arquivo(nome: &str, bytes: u64, gravado: bool) -> String 
 #[cfg(test)]
 pub(crate) mod testes {
     use super::*;
-    use crate::arvore_processo::{NaturezaDoDocumento, ProcessoNaArvore};
+    use crate::arvore_processo::{Cancelamento, NaturezaDoDocumento, ProcessoNaArvore};
     use crate::processo_obter::{FotoDaVersao, SemVersaoAtual, VersoesDoDocumento};
 
     pub(crate) fn documento(versoes: VersoesDoDocumento) -> DocumentoObtido {
@@ -123,8 +123,7 @@ pub(crate) mod testes {
             tipo: "Despacho".into(),
             natureza: NaturezaDoDocumento {
                 icone: Some("documento_interno".into()),
-                cancelado: Some(false),
-                motivo_do_cancelamento: None,
+                cancelamento: Cancelamento::Ativo,
                 dica: None,
             },
             pasta: None,

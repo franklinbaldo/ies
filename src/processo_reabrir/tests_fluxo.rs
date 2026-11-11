@@ -3,7 +3,7 @@
 //! do nó nas duas formas, uma escrita e a tabela de reconciliação. Telas
 //! sintéticas (as de `processo concluir` mais a barra e a tela do nó de
 //! reabrir).
-use super::{PedidoDaReabertura, ProcessoReaberto, reabrir_processo};
+use super::{DesfechoDaReabertura, PedidoDaReabertura, ProcessoReaberto, reabrir_processo};
 use crate::arvore_processo::ErroReabrirNaBarra;
 use crate::arvore_processo::tests_reabrir::{
     ACAO_REABRIR, link_de_reabrir, tela_do_no_pela_funcao, tela_do_no_pela_variavel,
@@ -59,31 +59,43 @@ fn escrita_e_verificacao() -> Vec<Pedido> {
     ])
 }
 
-fn previa(aberto_em: &[&str]) -> ProcessoReaberto {
+fn com_desfecho(
+    desfecho: DesfechoDaReabertura,
+    aberto_em: &[&str],
+    requisicoes: u8,
+) -> ProcessoReaberto {
     ProcessoReaberto {
         nup: NUP.into(),
         id_procedimento: ID.into(),
         unidade: UNIDADE.into(),
-        confirmado: false,
-        alterado: false,
-        oferecido: true,
-        forma: None,
         aberto_em: siglas(aberto_em),
-        depois: None,
-        reconciliado_por: None,
-        requisicoes: 3,
+        requisicoes,
+        desfecho,
     }
 }
 
+fn previa(aberto_em: &[&str]) -> ProcessoReaberto {
+    com_desfecho(DesfechoDaReabertura::Previa, aberto_em, 3)
+}
+
+fn ja_aberto(confirmado: bool, aberto_em: &[&str]) -> ProcessoReaberto {
+    com_desfecho(
+        DesfechoDaReabertura::JaAbertoNaUnidade { confirmado },
+        aberto_em,
+        3,
+    )
+}
+
 fn reaberto(forma: FormaDaReabertura, aberto_em: &[&str], depois: &[&str]) -> ProcessoReaberto {
-    ProcessoReaberto {
-        confirmado: true,
-        alterado: true,
-        forma: Some(forma),
-        depois: Some(siglas(depois)),
-        requisicoes: 6,
-        ..previa(aberto_em)
-    }
+    com_desfecho(
+        DesfechoDaReabertura::Reaberto {
+            forma,
+            depois: siglas(depois),
+            reconciliado_por: None,
+        },
+        aberto_em,
+        6,
+    )
 }
 
 /// A página que o GET de reabrir devolveu nas gravações (molde da tela do nó).
@@ -107,14 +119,7 @@ fn previa_so_abre_o_processo() {
 fn ja_aberto_na_unidade_e_sucesso_sem_escrita() {
     for confirmar in [false, true] {
         let (r, feitos) = rodar_reabrir(confirmar, abertura(arvore(&[UNIDADE], &tela())));
-        assert_eq!(
-            r.unwrap(),
-            ProcessoReaberto {
-                confirmado: confirmar,
-                oferecido: false,
-                ..previa(&[UNIDADE])
-            }
-        );
+        assert_eq!(r.unwrap(), ja_aberto(confirmar, &[UNIDADE]));
         assert_eq!(feitos, pedidos_da_abertura());
     }
 }
@@ -249,8 +254,8 @@ fn resposta_nao_esperada_e_unidade_aberta_reconcilia_pela_leitura() {
     for (resposta, falha) in casos {
         let (r, feitos) = escrita_com(resposta, ok(arvore(&[UNIDADE], &tela())));
         let feito = r.unwrap();
-        assert!(feito.alterado);
-        assert_eq!(feito.reconciliado_por, Some(falha));
+        assert!(feito.alterado());
+        assert_eq!(feito.reconciliado_por().cloned(), Some(falha));
         assert_eq!(feitos, escrita_e_verificacao());
     }
 }

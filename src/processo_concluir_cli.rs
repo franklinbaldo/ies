@@ -4,7 +4,9 @@
 //! A saída nunca traz URL, `infra_hash` ou cookie.
 use crate::indice_local::IndiceLocal;
 use crate::processo::NumeroProcesso;
-use crate::processo_concluir::{PedidoDaConclusao, ProcessoConcluido, concluir_processo};
+use crate::processo_concluir::{
+    DesfechoDaConclusao, PedidoDaConclusao, ProcessoConcluido, concluir_processo,
+};
 use crate::processo_obter::SessaoDoProcesso;
 use crate::visao_do_controle::EnvioHttps;
 use crate::{Cli, Domain, Processo, ProcessoAcao, configuracao, transporte};
@@ -97,17 +99,17 @@ fn resultado_conclusao(feito: &ProcessoConcluido) -> ResultadoConclusao<'_> {
         id_procedimento: &feito.id_procedimento,
         unidade: &feito.unidade,
         origem: "web",
-        confirmado: feito.confirmado,
-        alterado: feito.alterado,
+        confirmado: feito.confirmado(),
+        alterado: feito.alterado(),
         forma: feito
-            .forma
+            .forma()
             .map(crate::processo_concluir::FormaDaConclusao::como_texto),
         aberto_em: &feito.aberto_em,
         depois_esperado: feito.depois_esperado(),
-        depois: feito.depois.as_deref(),
-        reconciliado_por_leitura: feito.reconciliado_por.is_some(),
+        depois: feito.depois(),
+        reconciliado_por_leitura: feito.reconciliado_por().is_some(),
         requisicoes: feito.requisicoes,
-        falha_do_envio: feito.reconciliado_por.as_ref().map(|f| format!("{f:?}")),
+        falha_do_envio: feito.reconciliado_por().map(|f| format!("{f:?}")),
     }
 }
 
@@ -134,20 +136,23 @@ pub(crate) fn humano(feito: &ProcessoConcluido) -> String {
         format!("Processo {} na unidade {}", feito.nup, feito.unidade),
         format!("Aberto em: {}", refs(&feito.aberto_em)),
     ];
-    match (feito.forma, feito.confirmado, &feito.depois) {
-        (None, _, _) => linhas.push(
+    match &feito.desfecho {
+        DesfechoDaConclusao::NaoAbertoNaUnidade { .. } => linhas.push(
             "Nada a fazer: o processo não está aberto nesta unidade e a barra não oferece concluir."
                 .to_owned(),
         ),
-        (Some(forma), false, _) => {
+        DesfechoDaConclusao::Previa { forma } => {
             linhas.push(format!("Ação na barra: {}", forma.como_texto()));
             linhas.push(format!("Depois de concluir: {}", refs(&feito.depois_esperado())));
             linhas.push("Para concluir, repita com --confirmar".to_owned());
         }
-        (Some(_), true, depois) => {
-            let depois = depois.as_deref().unwrap_or_default();
+        DesfechoDaConclusao::Concluido {
+            depois,
+            reconciliado_por,
+            ..
+        } => {
             linhas.push(format!("Concluído. Aberto em, relido: {}", refs(depois)));
-            if let Some(falha) = &feito.reconciliado_por {
+            if let Some(falha) = reconciliado_por {
                 linhas.push(format!(
                     "A resposta não foi a esperada ({falha:?}); a leitura confirmou."
                 ));

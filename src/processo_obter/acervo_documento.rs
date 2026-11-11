@@ -88,7 +88,7 @@ fn anexo(interacao: &serde_json::Value) -> String {
         Ok(lido) => format!(
             "`{}` lido, {}",
             lido.mime,
-            if lido.texto.is_some() {
+            if lido.texto().is_some() {
                 "com texto"
             } else {
                 "sem texto"

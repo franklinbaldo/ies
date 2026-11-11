@@ -15,6 +15,9 @@ use std::io::Read;
 use std::path::Path;
 
 mod cabecalhos;
+mod conteudo;
+
+pub(crate) use conteudo::ConteudoDoAnexo;
 
 /// Limite padrão do PDF: 64 MiB.
 pub(crate) const LIMITE_PADRAO: u64 = 64 * 1024 * 1024;
@@ -105,10 +108,7 @@ pub(crate) struct AnexoLido {
     pub(crate) sha256: String,
     pub(crate) nome_original: Option<String>,
     pub(crate) disposicao: Option<Disposicao>,
-    /// Só tipos de texto, sem `--saida`.
-    pub(crate) texto: Option<String>,
-    /// Com `--saida`: o parcial ainda não ligado ao nome final.
-    pub(crate) arquivo: Option<ArquivoParcial>,
+    pub(crate) conteudo: ConteudoDoAnexo,
 }
 
 /// `DIR/.DOC.ext.parcial-PID-N` da gravação privada única, removido no
@@ -320,14 +320,14 @@ pub(crate) fn ler_anexo<R: Read>(
     }
     let hash = hex::encode(hasher.finalize());
     publicar_cache(&mut arquivo, destino, numero, &hash, conferido.extensao)?;
-    let texto = if texto && arquivo.is_none() {
-        Some(texto_do_anexo(
+    let conteudo = match arquivo {
+        Some(parcial) => ConteudoDoAnexo::Arquivo(parcial),
+        None if texto => ConteudoDoAnexo::Texto(texto_do_anexo(
             &conferido.mime,
             &guardado,
             &conferido.valor_do_tipo,
-        )?)
-    } else {
-        None
+        )?),
+        None => ConteudoDoAnexo::Nenhum,
     };
     Ok(AnexoLido {
         mime: conferido.mime,
@@ -335,8 +335,7 @@ pub(crate) fn ler_anexo<R: Read>(
         sha256: hash,
         nome_original: conferido.nome_original,
         disposicao: conferido.disposicao,
-        texto,
-        arquivo,
+        conteudo,
     })
 }
 

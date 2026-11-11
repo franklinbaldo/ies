@@ -385,7 +385,7 @@ pub(super) fn ler_do_no<V: EnvioDoProcesso>(
             let (tipo, texto, anexo) = anexo::ler(rede, &e, numero, pedido.anexo)?;
             (tipo, texto, anexo, versoes)
         }
-        ConteudoNaArvore::Vazio if no.natureza.cancelado == Some(true) => {
+        ConteudoNaArvore::Vazio if no.natureza.cancelamento.cancelado() == Some(true) => {
             return Err(ErroDocumentoObter::DocumentoCancelado);
         }
         ConteudoNaArvore::Vazio => {

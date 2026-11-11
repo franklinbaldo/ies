@@ -1,7 +1,7 @@
 //! Ensaios sintéticos da fronteira real de escrita e verificação (#246).
 //! Casos de Todos `src/todos/documentos.py::_conferir_criacao` @323eb01.
 use super::*;
-use crate::arvore_processo::{DocumentoNaArvore, NaturezaDoDocumento};
+use crate::arvore_processo::{Cancelamento, DocumentoNaArvore, NaturezaDoDocumento};
 use crate::formulario_web::{CodificacaoDaTela, RespostaDoPost};
 use crate::transporte::sessao::CookieDaSessao;
 use crate::transporte::{FalhaTransporte, RespostaWeb, StatusHttpRecusado};
@@ -20,8 +20,7 @@ fn documento(id: &str, numero: &str, tipo: &str) -> DocumentoNaArvore {
         pasta: None,
         natureza: NaturezaDoDocumento {
             icone: None,
-            cancelado: None,
-            motivo_do_cancelamento: None,
+            cancelamento: Cancelamento::NaoObservado,
             dica: None,
         },
     }

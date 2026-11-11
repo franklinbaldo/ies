@@ -18,15 +18,10 @@ fn natureza(no: String) -> NaturezaDoDocumento {
     lida.documentos[0].natureza.clone()
 }
 
-fn esperada(
-    icone: Option<&str>,
-    cancelado: Option<bool>,
-    motivo: Option<&str>,
-) -> NaturezaDoDocumento {
+fn esperada(icone: Option<&str>, cancelamento: Cancelamento) -> NaturezaDoDocumento {
     NaturezaDoDocumento {
         icone: icone.map(str::to_owned),
-        cancelado,
-        motivo_do_cancelamento: motivo.map(str::to_owned),
+        cancelamento,
         dica: None,
     }
 }
@@ -46,7 +41,7 @@ fn icone_e_o_radical_opaco_com_ou_sem_versao() {
     assert_eq!(natureza(no_documento(1, "21", "10", "0000101")), interno());
     assert_eq!(
         natureza(documento("Anexo 0000101", "Anexo 0000101", [PDF; 3])),
-        esperada(Some("documento_pdf"), Some(false), None)
+        esperada(Some("documento_pdf"), Cancelamento::Ativo)
     );
 }
 
@@ -59,7 +54,12 @@ fn cancelado_com_as_duas_marcas_publica_o_motivo() {
             [CANCELADO; 3]
         )),
         com_dica(
-            esperada(Some("documento_cancelado"), Some(true), Some("erro")),
+            esperada(
+                Some("documento_cancelado"),
+                Cancelamento::Cancelado {
+                    motivo: "erro".into(),
+                },
+            ),
             "Documento Cancelado: erro"
         )
     );
@@ -72,8 +72,9 @@ fn cancelado_com_as_duas_marcas_publica_o_motivo() {
         com_dica(
             esperada(
                 Some("documento_cancelado"),
-                Some(true),
-                Some(" enviado em duplicidade ")
+                Cancelamento::Cancelado {
+                    motivo: " enviado em duplicidade ".into(),
+                },
             ),
             "Documento Cancelado:  enviado em duplicidade "
         )
@@ -88,7 +89,7 @@ fn meia_marca_de_cancelamento_e_null() {
             "Ofício 0000101",
             [CANCELADO; 3]
         )),
-        esperada(Some("documento_cancelado"), None, None)
+        esperada(Some("documento_cancelado"), Cancelamento::NaoObservado)
     );
     assert_eq!(
         natureza(documento(
@@ -97,7 +98,7 @@ fn meia_marca_de_cancelamento_e_null() {
             [PDF; 3]
         )),
         com_dica(
-            esperada(Some("documento_pdf"), None, None),
+            esperada(Some("documento_pdf"), Cancelamento::NaoObservado),
             "Documento Cancelado: erro"
         )
     );
@@ -117,7 +118,7 @@ fn icone_fora_da_forma_e_null_sem_recusar_a_arvore() {
     for icones in casos {
         assert_eq!(
             natureza(documento("Anexo 0000101", "Anexo 0000101", icones)),
-            esperada(None, None, None),
+            esperada(None, Cancelamento::NaoObservado),
             "{icones:?}"
         );
     }
@@ -138,7 +139,7 @@ fn email_publica_o_icone_e_a_dica_decodificada() {
                 "Data de Envio: 01/01/2026 10:00:00\nDe: pessoa@exemplo.gov.br\nPara: outra@exemplo.gov.br\nAssunto: x\n"
                     .into()
             ),
-            ..esperada(Some("documento_email"), Some(false), None)
+            ..esperada(Some("documento_email"), Cancelamento::Ativo)
         }
     );
 }

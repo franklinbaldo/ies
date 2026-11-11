@@ -5,7 +5,9 @@
 use crate::arvore_processo::FormaDaReabertura;
 use crate::processo::NumeroProcesso;
 use crate::processo_concluir_cli::{com_sessao, lista_humana};
-use crate::processo_reabrir::{PedidoDaReabertura, ProcessoReaberto, reabrir_processo};
+use crate::processo_reabrir::{
+    DesfechoDaReabertura, PedidoDaReabertura, ProcessoReaberto, reabrir_processo,
+};
 use crate::visao_do_controle::EnvioHttps;
 use crate::{Cli, Domain, Processo, ProcessoAcao};
 #[cfg(test)]
@@ -73,15 +75,15 @@ fn resultado_reabertura(feito: &ProcessoReaberto) -> ResultadoReabertura<'_> {
         id_procedimento: &feito.id_procedimento,
         unidade: &feito.unidade,
         origem: "web",
-        confirmado: feito.confirmado,
-        alterado: feito.alterado,
-        reabertura_oferecida: feito.oferecido,
-        forma: feito.forma.map(FormaDaReabertura::como_texto),
+        confirmado: feito.confirmado(),
+        alterado: feito.alterado(),
+        reabertura_oferecida: feito.oferecido(),
+        forma: feito.forma().map(FormaDaReabertura::como_texto),
         aberto_em: &feito.aberto_em,
-        depois: feito.depois.as_deref(),
-        reconciliado_por_leitura: feito.reconciliado_por.is_some(),
+        depois: feito.depois(),
+        reconciliado_por_leitura: feito.reconciliado_por().is_some(),
         requisicoes: feito.requisicoes,
-        falha_do_envio: feito.reconciliado_por.as_ref().map(|f| format!("{f:?}")),
+        falha_do_envio: feito.reconciliado_por().map(|f| format!("{f:?}")),
     }
 }
 
@@ -99,12 +101,12 @@ pub(crate) fn humano(feito: &ProcessoReaberto) -> String {
         format!("Processo {} na unidade {}", feito.nup, feito.unidade),
         format!("Aberto em: {}", refs(&feito.aberto_em)),
     ];
-    match (feito.oferecido, feito.confirmado, &feito.depois) {
-        (false, _, _) => linhas.push(
+    match &feito.desfecho {
+        DesfechoDaReabertura::JaAbertoNaUnidade { .. } => linhas.push(
             "Nada a fazer: o processo já está aberto nesta unidade e a barra não oferece reabrir."
                 .to_owned(),
         ),
-        (true, false, _) => {
+        DesfechoDaReabertura::Previa => {
             linhas.push("Ação na barra: reabrir".to_owned());
             linhas.push(format!(
                 "Depois de reabrir: aberto também em {}",
@@ -112,10 +114,13 @@ pub(crate) fn humano(feito: &ProcessoReaberto) -> String {
             ));
             linhas.push("Para reabrir, repita com --confirmar".to_owned());
         }
-        (true, true, depois) => {
-            let depois = depois.as_deref().unwrap_or_default();
+        DesfechoDaReabertura::Reaberto {
+            depois,
+            reconciliado_por,
+            ..
+        } => {
             linhas.push(format!("Reaberto. Aberto em, relido: {}", refs(depois)));
-            if let Some(falha) = &feito.reconciliado_por {
+            if let Some(falha) = reconciliado_por {
                 linhas.push(format!(
                     "A resposta não foi a esperada ({falha:?}); a leitura confirmou."
                 ));

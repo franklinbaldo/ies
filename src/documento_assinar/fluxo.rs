@@ -7,7 +7,9 @@ use super::tela::{
     ASSINAR_DOCUMENTO, CARGO, FORMA_DE_AUTENTICACAO, ORGAO, PELA_SENHA, SENHA, TelaDeAssinatura,
     USUARIO, assinatura_realizada, conferir_tela_de_assinatura,
 };
-use super::{Confirmacao, DocumentoAssinado, PedidoDaAssinatura, ResultadoDaAssinatura};
+use super::{
+    AcaoDaAssinatura, Confirmacao, DocumentoAssinado, PedidoDaAssinatura, ResultadoDaAssinatura,
+};
 use crate::arvore_processo::{
     Assinante, EdicaoNaBarra, ler_assinatura_na_arvore, ler_barra_do_documento,
     ler_link_de_assinar, tela_do_documento,
@@ -63,7 +65,7 @@ pub(crate) fn assinar_documento<V: EnvioDoProcesso>(
     feito.requisicoes = rede.feitas();
     if feito.assinaturas.iter().any(|a| a.nome == tela.assinante) {
         feito.resultado = ResultadoDaAssinatura::JaAssinadoPelaSessao {
-            confirmacao_pedida: pedido.confirmacao.is_some(),
+            confirmacao_pedida: matches!(pedido.acao, AcaoDaAssinatura::Confirmar(_)),
         };
         return Ok(feito);
     }
@@ -79,7 +81,7 @@ pub(crate) fn assinar_documento<V: EnvioDoProcesso>(
             antes: feito.assinaturas,
         });
     }
-    let Some(confirmacao) = pedido.confirmacao else {
+    let AcaoDaAssinatura::Confirmar(confirmacao) = pedido.acao else {
         return Ok(feito);
     };
     let codificacao = codificacao_da_tela(&mime).ok_or(ErroAssinar::CharsetDaTelaNaoSuportado)?;
@@ -103,11 +105,7 @@ fn previa(
     assinaturas: Vec<Assinante>,
     pedido: &PedidoDaAssinatura<'_>,
 ) -> DocumentoAssinado {
-    let cargo = pedido
-        .confirmacao
-        .map(|c| c.cargo)
-        .or(pedido.cargo)
-        .map(str::to_owned);
+    let cargo = pedido.acao.cargo().map(str::to_owned);
     DocumentoAssinado {
         numero: aberto.numero.clone(),
         id_documento: aberto.id_documento.clone(),

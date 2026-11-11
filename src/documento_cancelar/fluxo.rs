@@ -3,7 +3,7 @@
 use super::erro::{ErroCancelar, FalhaDoCancelamento, VerificacaoDoCancelamento as Ver};
 use super::ler_link_cancelar;
 use crate::acao_do_sei::AcaoDoSei;
-use crate::arvore_processo::ProcessoNaArvore;
+use crate::arvore_processo::{Cancelamento, ProcessoNaArvore};
 use crate::documento::NumeroDocumento;
 use crate::formulario_web::{
     ConferenciaDaUnidade, EfeitoAvaliado, EnvioDoFormulario, ErroSubmissaoFormulario,
@@ -100,7 +100,7 @@ pub(crate) fn cancelar_documento<V: EnvioDoProcesso>(
     };
     let aberto = abrir_documento_na_arvore(sessao, &leitura, indice, &mut rede)
         .map_err(ErroCancelar::Abertura)?;
-    if aberto.natureza.cancelado == Some(true) {
+    if aberto.natureza.cancelamento.cancelado() == Some(true) {
         return Err(ErroCancelar::DocumentoJaCancelado);
     }
     let link = ler_link_cancelar(
@@ -111,7 +111,7 @@ pub(crate) fn cancelar_documento<V: EnvioDoProcesso>(
     )
     .map_err(ErroCancelar::Link)?
     .ok_or(ErroCancelar::CancelamentoNaoOferecido)?;
-    if aberto.natureza.cancelado != Some(false) {
+    if aberto.natureza.cancelamento.cancelado() != Some(false) {
         return Err(ErroCancelar::EstadoAntesNaoObservado);
     }
     let cookie = ler_cookie(sessao)?;
@@ -175,21 +175,18 @@ fn reconciliar<V: EnvioDoProcesso>(
                 && depois.processo.id == feito.processo.id =>
         {
             Ver::Lida {
-                cancelado: depois.natureza.cancelado,
-                motivo: depois.natureza.motivo_do_cancelamento,
+                cancelamento: depois.natureza.cancelamento,
             }
         }
         Ok(_) => Ver::Lida {
-            cancelado: None,
-            motivo: None,
+            cancelamento: Cancelamento::NaoObservado,
         },
         Err(erro) => Ver::LeituraFalhou(erro),
     };
     feito.requisicoes = rede.feitas();
     match verificacao {
         Ver::Lida {
-            cancelado: Some(true),
-            motivo: Some(ref lido),
+            cancelamento: Cancelamento::Cancelado { motivo: ref lido },
         } if lido == &feito.motivo => {
             feito.resultado = ResultadoDaVerificacao::Cancelado {
                 falha_do_envio: falha,
@@ -197,8 +194,7 @@ fn reconciliar<V: EnvioDoProcesso>(
             Ok(feito)
         }
         Ver::Lida {
-            cancelado: Some(false),
-            ..
+            cancelamento: Cancelamento::Ativo,
         } => Err(ErroCancelar::CancelamentoNaoAplicado {
             falha_do_envio: falha,
         }),

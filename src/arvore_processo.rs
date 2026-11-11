@@ -115,7 +115,7 @@ pub(crate) use erro::ErroArvore;
 use literais::{Literal, ler_barra, ler_declaracao, ler_protocolos};
 pub(crate) use movidos::ler_destinos_dos_movidos;
 use movidos::{MovidoLido, conferir_movidos, ler_movido};
-pub(crate) use natureza::NaturezaDoDocumento;
+pub(crate) use natureza::{Cancelamento, NaturezaDoDocumento};
 pub(crate) use pastas::ler_acao_de_abrir_pastas;
 use pastas::{NoDePasta, Pai};
 pub(crate) use reabrir::{

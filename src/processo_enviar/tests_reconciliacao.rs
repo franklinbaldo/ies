@@ -1,7 +1,7 @@
 //! RED/GREEN do `--confirmar` de `processo enviar`: um POST, a leitura de
 //! verificação e a tabela de reconciliação do contrato.
-use super::ProcessoEnviado;
 use super::tests_apoio::*;
+use super::{DesfechoDoEnvio, ProcessoEnviado};
 use crate::formulario_web::ErroSubmissaoFormulario;
 use crate::processo_concluir::tests_apoio::*;
 use crate::processo_concluir::{FalhaDoEnvio, VerificacaoPorLeitura};
@@ -22,9 +22,10 @@ fn respostas(versao: Versao, resposta: Resposta, relida: Resposta) -> Vec<Respos
 
 fn enviado(manter: bool, depois: &[&str]) -> ProcessoEnviado {
     ProcessoEnviado {
-        confirmado: true,
-        alterado: true,
-        depois: Some(siglas(depois)),
+        desfecho: DesfechoDoEnvio::Enviado {
+            depois: siglas(depois),
+            reconciliado_por: None,
+        },
         requisicoes: 7,
         ..previa(&[UNIDADE], manter)
     }
@@ -124,7 +125,10 @@ fn resposta_nao_esperada_e_reconciliada_pela_leitura() {
         assert_eq!(
             r.unwrap(),
             ProcessoEnviado {
-                reconciliado_por: Some(falha),
+                desfecho: DesfechoDoEnvio::Enviado {
+                    depois: siglas(&[DESTINO]),
+                    reconciliado_por: Some(falha),
+                },
                 ..enviado(false, &[DESTINO])
             }
         );
