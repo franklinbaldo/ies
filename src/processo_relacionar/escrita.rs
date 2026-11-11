@@ -107,7 +107,8 @@ pub(super) fn remover<V: EnvioDoProcesso>(
     let url_exclusao = tela::url_exclusao(servida.html)
         .ok_or(FalhaRelacionar::AcaoExcluirRelacionamentoNaoDeclarada)?;
     // A action deve pertencer ao mesmo processo de origem, não a outro.
-    let id_origem = servida.url
+    let id_origem = servida
+        .url
         .split('?')
         .nth(1)
         .and_then(|query| {
@@ -192,12 +193,16 @@ pub(super) fn adicionar<V: EnvioDoProcesso>(
         "",
         &[
             ("txtProtocolo", &destino.nup),
-            ("txtIdentificacaoProtocolo", destino.tipo.as_deref().unwrap_or("")),
+            (
+                "txtIdentificacaoProtocolo",
+                destino.tipo.as_deref().unwrap_or(""),
+            ),
             ("hdnIdProtocolo", &destino.id),
         ],
     )
     .map_err(FalhaRelacionar::ConsultaDerivacao)?;
-    let id_origem = servida.url
+    let id_origem = servida
+        .url
         .split('?')
         .nth(1)
         .and_then(|query| {
