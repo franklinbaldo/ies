@@ -55,10 +55,40 @@ pub(crate) enum ErroBlocoDetalhe {
     Atributo(#[source] crate::html_atributos::ErroAtributoHtml),
 }
 
+/// A marca que o SEI publica para um bloco sem registros, no lugar da tabela.
+const BLOCO_VAZIO: &str = "Nenhum registro encontrado.";
+
+/// Verdadeiro só para a forma observada: a área da tabela tem como único
+/// conteúdo um rótulo com a marca de vazio, e a tabela não existe.
+fn bloco_vazio(dom: &tl::VDom<'_>, parser: &tl::Parser<'_>) -> Result<bool, ErroBlocoDetalhe> {
+    let areas = nos_com_id(dom, "divInfraAreaTabela").map_err(ErroBlocoDetalhe::Atributo)?;
+    let [area] = areas.as_slice() else {
+        return Ok(false);
+    };
+    let Some(area) = area.get(parser).and_then(tl::Node::as_tag) else {
+        return Ok(false);
+    };
+    let mut rotulos = area.query_selector(parser, "label").into_iter().flatten();
+    let rotulo = rotulos
+        .next()
+        .and_then(|no| no.get(parser))
+        .and_then(tl::Node::as_tag);
+    Ok(rotulos.next().is_none()
+        && rotulo.is_some_and(|r| texto(r, parser) == BLOCO_VAZIO)
+        && texto(area, parser) == BLOCO_VAZIO)
+}
+
 fn faixa(legenda: &str, linhas: usize) -> Result<(usize, Option<Faixa>), ErroBlocoDetalhe> {
-    let (inicio, resto) = legenda
-        .split_once(" registros")
-        .ok_or(ErroBlocoDetalhe::LegendaDoBlocoInvalida)?;
+    // O singular "(1 registro):" é publicado só para um item; o plural, para os demais.
+    let (inicio, resto, singular) = if let Some((inicio, resto)) = legenda.split_once(" registros")
+    {
+        (inicio, resto, false)
+    } else {
+        let (inicio, resto) = legenda
+            .split_once(" registro")
+            .ok_or(ErroBlocoDetalhe::LegendaDoBlocoInvalida)?;
+        (inicio, resto, true)
+    };
     let total = inicio
         .split_whitespace()
         .last()
@@ -67,6 +97,15 @@ fn faixa(legenda: &str, linhas: usize) -> Result<(usize, Option<Faixa>), ErroBlo
         .replace('.', "")
         .parse::<usize>()
         .map_err(ErroBlocoDetalhe::TotalDaLegendaIlegivel)?;
+    if singular {
+        if resto != "):" || total != 1 {
+            return Err(ErroBlocoDetalhe::LegendaDoBlocoInvalida);
+        }
+        if linhas != 1 {
+            return Err(ErroBlocoDetalhe::FaixaDoBlocoInvalida);
+        }
+        return Ok((1, Some(Faixa { inicio: 1, fim: 1 })));
+    }
     if let Some((_, r)) = resto.split_once(" - ") {
         let (de, ate) = r
             .split_once(" a ")
@@ -172,6 +211,16 @@ pub(crate) fn ler_detalhe(
         .map_err(ErroBlocoDetalhe::HtmlDoBlocoIlegivel)?;
     let parser = dom.parser();
     let tabelas = nos_com_id(&dom, "tblProtocolosBlocos").map_err(ErroBlocoDetalhe::Atributo)?;
+    if tabelas.is_empty() && bloco_vazio(&dom, parser)? {
+        return Ok(BlocoDetalhado {
+            numero: numero.to_owned(),
+            tipo,
+            estado: estado.to_owned(),
+            total_declarado: 0,
+            faixa_observada: None,
+            itens: Vec::new(),
+        });
+    }
     let tabela = match tabelas.as_slice() {
         [] => return Err(ErroBlocoDetalhe::TabelaDoBlocoAusente),
         [no] => no
@@ -264,6 +313,68 @@ mod tests {
         assert_eq!(
             ler_detalhe(html, "91", TipoBloco::Reuniao, "Gerado").err(),
             Some(ErroBlocoDetalhe::FaixaDoBlocoInvalida)
+        );
+    }
+    #[test]
+    fn legenda_no_singular_com_um_item_e_lida() {
+        // Forma observada: "(1 registro):" com a única linha da tabela.
+        let html = "<table id='tblProtocolosBlocos'><caption class='infraCaption'>Lista de Processos/Documentos (1 registro):</caption><tr><th></th><th>Documento</th><th>Processo</th><th>Anotações</th></tr><tr><td><input type='checkbox'/></td><td>0001234</td><td>0000.00/2026-01</td><td></td></tr></table>";
+        let d = ler_detalhe(html, "91", TipoBloco::Assinatura, "Gerado").unwrap();
+        assert_eq!(d.total_declarado, 1);
+        assert_eq!(d.faixa_observada, Some(Faixa { inicio: 1, fim: 1 }));
+        assert_eq!(d.itens.len(), 1);
+        assert_eq!(d.itens[0].documento.as_deref(), Some("0001234"));
+    }
+    #[test]
+    fn legenda_no_singular_fora_da_forma_e_recusada() {
+        let linha = "<tr><th>Processo</th><th>Anotações</th></tr><tr><td>NUP</td><td></td></tr>";
+        let dois = format!(
+            "<table id='tblProtocolosBlocos'><caption>Lista (2 registro):</caption>{linha}</table>"
+        );
+        assert_eq!(
+            ler_detalhe(&dois, "91", TipoBloco::Reuniao, "Gerado").err(),
+            Some(ErroBlocoDetalhe::LegendaDoBlocoInvalida)
+        );
+        let sem_linha = "<table id='tblProtocolosBlocos'><caption>Lista (1 registro):</caption><tr><th>Processo</th><th>Anotações</th></tr></table>";
+        assert_eq!(
+            ler_detalhe(sem_linha, "91", TipoBloco::Reuniao, "Gerado").err(),
+            Some(ErroBlocoDetalhe::FaixaDoBlocoInvalida)
+        );
+    }
+    #[test]
+    fn bloco_vazio_com_a_marca_observada_e_lido_sem_itens() {
+        // Forma observada: a área da tabela traz só o rótulo de vazio.
+        let html = "<div id='divInfraAreaTabela' class='infraAreaTabela'><label class='infraLabelTabelaNenhumRegistro'>Nenhum registro encontrado.</label></div><input type='hidden' id='hdnInfraNroItens' name='hdnInfraNroItens' value='0'/>";
+        let d = ler_detalhe(html, "91", TipoBloco::Assinatura, "Gerado").unwrap();
+        assert_eq!(d.total_declarado, 0);
+        assert_eq!(d.faixa_observada, None);
+        assert!(d.itens.is_empty());
+        let sem_classe = "<div id='divInfraAreaTabela' class='infraAreaTabela'><label>Nenhum registro encontrado.</label></div>";
+        let d = ler_detalhe(sem_classe, "91", TipoBloco::Interno, "Gerado").unwrap();
+        assert!(d.itens.is_empty());
+    }
+    #[test]
+    fn ausencia_de_tabela_sem_a_marca_de_vazio_continua_recusada() {
+        let outra_mensagem = "<div id='divInfraAreaTabela' class='infraAreaTabela'><label>Outra mensagem.</label></div>";
+        assert_eq!(
+            ler_detalhe(outra_mensagem, "91", TipoBloco::Assinatura, "Gerado").err(),
+            Some(ErroBlocoDetalhe::TabelaDoBlocoAusente)
+        );
+        let marca_fora_da_area = "<div><label>Nenhum registro encontrado.</label></div>";
+        assert_eq!(
+            ler_detalhe(marca_fora_da_area, "91", TipoBloco::Assinatura, "Gerado").err(),
+            Some(ErroBlocoDetalhe::TabelaDoBlocoAusente)
+        );
+        let marca_com_conteudo_extra = "<div id='divInfraAreaTabela'><label>Nenhum registro encontrado.</label><label>Outro</label></div>";
+        assert_eq!(
+            ler_detalhe(
+                marca_com_conteudo_extra,
+                "91",
+                TipoBloco::Assinatura,
+                "Gerado"
+            )
+            .err(),
+            Some(ErroBlocoDetalhe::TabelaDoBlocoAusente)
         );
     }
 }
