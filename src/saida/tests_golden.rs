@@ -21,7 +21,7 @@ fn contrato_json_v2_da_caixa_resumida_e_deterministico() {
     let leitura = juntar(&[HTML.to_owned()], Some("TESTE")).unwrap();
     let texto = format!(
         "{}\n",
-        serde_json::to_string_pretty(&json(&leitura, "unb")).unwrap()
+        serde_json::to_string_pretty(&json(&leitura, "unb").unwrap()).unwrap()
     );
     assert_eq!(texto, include_str!("../../tests/fixtures/caixa-v2.json"));
     assert!(!texto.contains("infra_hash") && !texto.contains("SEGREDO"));
@@ -30,7 +30,7 @@ fn contrato_json_v2_da_caixa_resumida_e_deterministico() {
 #[test]
 fn caixa_resumida_sao_duas_listas_sem_url_assinada_nem_completude() {
     let leitura = juntar(&[HTML.to_owned()], None).unwrap();
-    let valor = json(&leitura, "unb");
+    let valor = json(&leitura, "unb").unwrap();
     assert_eq!(valor.as_array().map(Vec::len), Some(2));
     assert_eq!(valor[0]["categoria"], "recebidos");
     assert_eq!(valor[1]["categoria"], "gerados");

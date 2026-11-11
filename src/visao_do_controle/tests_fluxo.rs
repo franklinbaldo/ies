@@ -39,7 +39,10 @@ fn sessao_em_r_troca_para_d_le_e_fica_na_d() {
     let leitura = resultado.unwrap();
     assert_eq!(leitura.unidade, "TESTE");
     assert_eq!(leitura.total_declarado, 5);
-    assert_eq!(leitura.faixa_observada, Some((1, 5)));
+    assert_eq!(
+        leitura.faixa_observada,
+        crate::paginas::FaixaObservada::Lidas { inicio: 1, fim: 5 }
+    );
     let categorias: Vec<_> = leitura.processos.iter().map(|p| p.categoria).collect();
     assert_eq!(
         categorias,
@@ -90,7 +93,10 @@ fn pagina_n_a_partir_da_r_fica_na_pagina_n_da_d() {
         ]
     );
     let leitura = resultado.unwrap();
-    assert_eq!(leitura.faixa_observada, Some((3, 4)));
+    assert_eq!(
+        leitura.faixa_observada,
+        crate::paginas::FaixaObservada::Lidas { inicio: 3, fim: 4 }
+    );
     assert_eq!(leitura.processos[0].categoria, Some(Categoria::Gerados));
     assert_eq!(leitura.processos[1].categoria, None);
 }
@@ -112,7 +118,10 @@ fn pagina_encontrada_da_d_e_a_da_resposta_da_troca() {
             "POST visao=D pagina=0"
         ]
     );
-    assert_eq!(resultado.unwrap().faixa_observada, Some((1, 2)));
+    assert_eq!(
+        resultado.unwrap().faixa_observada,
+        crate::paginas::FaixaObservada::Lidas { inicio: 1, fim: 2 }
+    );
 }
 
 #[test]
@@ -137,7 +146,10 @@ fn pagina_ja_lembrada_pela_d_nao_pede_pagina() {
     let d2 = TelaD::nova(5, 1, 2, vec![3, 9]);
     let (resultado, registro) = listar(r().html(), Some(2), vec![(200, d2.html())]);
     assert_eq!(registro, ["POST visao=D recebidos=0 gerados=0"]);
-    assert_eq!(resultado.unwrap().faixa_observada, Some((3, 4)));
+    assert_eq!(
+        resultado.unwrap().faixa_observada,
+        crate::paginas::FaixaObservada::Lidas { inicio: 3, fim: 4 }
+    );
 }
 
 #[test]
@@ -146,7 +158,10 @@ fn sessao_em_d_pagina_n_fica_na_pagina_n() {
     let d3 = TelaD::nova(5, 2, 2, vec![10]);
     let (resultado, registro) = listar(d1.html(), Some(3), vec![(200, d3.html())]);
     assert_eq!(registro, ["POST visao=D pagina=2"]);
-    assert_eq!(resultado.unwrap().faixa_observada, Some((5, 5)));
+    assert_eq!(
+        resultado.unwrap().faixa_observada,
+        crate::paginas::FaixaObservada::Lidas { inicio: 5, fim: 5 }
+    );
 }
 
 #[test]

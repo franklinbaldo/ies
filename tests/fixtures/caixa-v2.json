@@ -1,10 +1,10 @@
 [
   {
     "categoria": "recebidos",
-    "faixa_observada": {
-      "fim": 3,
-      "inicio": 1
-    },
+    "faixa_observada": [
+      1,
+      3
+    ],
     "origem": "unb",
     "processos": [
       {
@@ -31,7 +31,7 @@
   },
   {
     "categoria": "gerados",
-    "faixa_observada": null,
+    "faixa_observada": [],
     "origem": "unb",
     "processos": [],
     "total_declarado": 0,

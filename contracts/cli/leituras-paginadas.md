@@ -14,8 +14,8 @@ Invariante de **toda** leitura paginada da CLI:
 
 - **Sem opção**, a leitura usa só a tela já obtida (GET ou arquivo),
   sem POST de paginação, e devolve a página que a tela mostra com o
-  `total_declarado` e a `faixa_observada` (`inicio`/`fim` das posições
-  lidas) de cada lista. A faixa não diz "primeira página": o servidor
+  `total_declarado` e a `faixa_observada` (`[inicio, fim]` das posições
+  lidas; `[]` com zero registros) de cada lista. A faixa não diz "primeira página": o servidor
   pode lembrar a última página pedida na sessão.
 - A saída **nunca** publica `completa`, `completude` ou afirma lista
   integral ou snapshot; quem consome compara faixa e total.

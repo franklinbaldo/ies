@@ -75,7 +75,7 @@ o [golden v2](../../tests/fixtures/caixa-v2.json), conferido por teste unitário
 um **array** de duas listas na ordem recebidos, gerados, cada uma na
 [forma única](unidade-recebidos-gerados.md) `{unidade, origem, categoria,
 total_declarado, faixa_observada, processos}` (`faixa_observada` é
-`{inicio, fim}` ou `null`), sem campo `completa`. Cada processo
+`[inicio, fim]`, ou `[]` com zero registros), sem campo `completa`. Cada processo
 publica `id`, `numero` (opaco, sem máscara), `visualizado` e `sigiloso`.
 A apresentação não transforma critérios de paginação em propriedades
 do domínio.

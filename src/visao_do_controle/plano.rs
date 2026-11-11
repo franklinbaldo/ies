@@ -3,7 +3,7 @@
 use crate::caixa_detalhada::LeituraDetalhada;
 use crate::erro_web::ErroCaixa;
 use crate::html_atributos::{nos_com_id, valor_do_atributo};
-use crate::paginas::FaixaNaPagina;
+use crate::paginas::{FaixaNaPagina, FaixaObservada};
 
 fn html_invalido(_: impl Sized) -> super::ErroVisaoDoControle {
     super::ErroVisaoDoControle::Caixa(ErroCaixa::HtmlDaCaixaInvalido)
@@ -35,7 +35,7 @@ pub(super) fn valores_ocultos(
 #[derive(Clone, Debug, PartialEq, Eq)]
 pub(super) struct PosicaoDetalhada {
     pub(super) total: usize,
-    pub(super) faixa: Option<(usize, usize)>,
+    pub(super) faixa: FaixaObservada,
     /// `hdnDetalhadoPaginaAtual` (a partir de 0).
     pub(super) indice: usize,
     pub(super) tamanho: Option<usize>,
@@ -56,9 +56,11 @@ pub(super) fn posicao(
     let indice = match indices.as_slice() {
         // UnB 4.0.9: sem o campo, sem paginação; só a página 1 inteira.
         [] => match faixa {
-            None => 0,
-            Some((1, fim)) if fim == total => 0,
-            Some(_) => return Err(super::ErroVisaoDoControle::PaginaAtualDaVisaoDetalhadaIlegivel),
+            FaixaObservada::SemLinhas => 0,
+            FaixaObservada::Lidas { inicio: 1, fim } if fim == total => 0,
+            FaixaObservada::Lidas { .. } => {
+                return Err(super::ErroVisaoDoControle::PaginaAtualDaVisaoDetalhadaIlegivel);
+            }
         },
         [valor] => {
             if valor.is_empty() || !valor.bytes().all(|b| b.is_ascii_digit()) {
@@ -71,9 +73,9 @@ pub(super) fn posicao(
         _ => return Err(super::ErroVisaoDoControle::PaginaAtualDaVisaoDetalhadaIlegivel),
     };
     let (tamanho, paginas) = match faixa {
-        None if indice == 0 => (None, 1),
-        None => return Err(incompativel),
-        Some((inicio, fim)) => {
+        FaixaObservada::SemLinhas if indice == 0 => (None, 1),
+        FaixaObservada::SemLinhas => return Err(incompativel),
+        FaixaObservada::Lidas { inicio, fim } => {
             let tamanho = crate::pagina_do_controle::tamanho_da_pagina(
                 indice,
                 FaixaNaPagina { total, inicio, fim },
@@ -101,7 +103,7 @@ pub(super) fn posicao(
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub(super) struct PedidoDePagina {
     pub(super) indice: usize,
-    pub(super) esperada: Option<(usize, usize)>,
+    pub(super) esperada: FaixaObservada,
     pub(super) total: usize,
 }
 
@@ -125,7 +127,10 @@ pub(super) fn planejar(
     let indice = pagina - 1;
     Ok(Some(PedidoDePagina {
         indice,
-        esperada: Some((indice * tamanho + 1, posicao.total.min(pagina * tamanho))),
+        esperada: FaixaObservada::Lidas {
+            inicio: indice * tamanho + 1,
+            fim: posicao.total.min(pagina * tamanho),
+        },
         total: posicao.total,
     }))
 }

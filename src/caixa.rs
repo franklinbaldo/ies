@@ -68,13 +68,13 @@ fn ler_linhas(
     dom: &tl::VDom<'_>,
     table_id: &str,
     categoria: Categoria,
-) -> Result<(Option<usize>, Vec<LinhaLida>), ErroCaixa> {
+) -> Result<(usize, Vec<LinhaLida>), ErroCaixa> {
     let parser = dom.parser();
     // A primeira ocorrência do ID não comprova que não houve uma segunda tabela.
     // Se duas existem, escolher uma pode omitir processos apesar dos totais declarados.
     let candidatas = nos_com_id(dom, table_id).map_err(ErroCaixa::AtributoDaCaixaIlegivel)?;
     let primeira = match candidatas.as_slice() {
-        [] if vazia::lista_vazia_comprovada(dom, categoria)? => return Ok((Some(0), Vec::new())),
+        [] if vazia::lista_vazia_comprovada(dom, categoria)? => return Ok((0, Vec::new())),
         [] => return Err(ErroCaixa::TabelaAusente { categoria }),
         [primeira] => *primeira,
         _ => return Err(ErroCaixa::TabelasDaCategoriaRepetidas { categoria }),
@@ -99,7 +99,8 @@ fn ler_linhas(
         .and_then(tl::Node::as_tag)
         .ok_or(ErroCaixa::LegendaAusente { categoria })?
         .inner_text(parser);
-    let total = total_da_legenda(&legenda);
+    let total =
+        total_da_legenda(&legenda).ok_or(ErroCaixa::TotalNaoDeclaradoNaLegenda { categoria })?;
     let mut processos = Vec::new();
     let linhas = tabela
         .query_selector(parser, "tr")
@@ -226,7 +227,19 @@ mod tests {
     fn linha_sem_id_nao_cria_processo() {
         let resultado = parse_html(&html("<tr><td>aviso</td></tr>", 1)).unwrap();
         assert_eq!(resultado.recebidos.processos, []);
-        assert_eq!(resultado.recebidos.total_declarado, Some(1));
+        assert_eq!(resultado.recebidos.total_declarado, 1);
+    }
+
+    #[test]
+    fn legenda_ilegivel_falha_com_erro_tipado() {
+        let html = "<table id='tblProcessosRecebidos'><caption>indefinido:</caption></table>\
+                    <table id='tblProcessosGerados'><caption>0 registros:</caption></table>";
+        assert_eq!(
+            parse_html(html),
+            Err(ErroCaixa::TotalNaoDeclaradoNaLegenda {
+                categoria: Categoria::Recebidos
+            })
+        );
     }
 
     #[test]

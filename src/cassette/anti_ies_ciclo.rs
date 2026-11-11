@@ -8,11 +8,16 @@ use std::net::{TcpListener, TcpStream};
 
 fn linhas_da_cassette(
     tabela: &crate::dominio::Tabela<crate::dominio::Processo>,
-    faixa: Option<(usize, usize)>,
+    faixa: crate::paginas::FaixaObservada,
 ) -> TabelaObservada<Linha> {
-    let faixa = faixa.map(|(inicio, fim)| FaixaObservada::nova(inicio, fim).unwrap());
+    let faixa = match faixa {
+        crate::paginas::FaixaObservada::SemLinhas => None,
+        crate::paginas::FaixaObservada::Lidas { inicio, fim } => {
+            Some(FaixaObservada::nova(inicio, fim).unwrap())
+        }
+    };
     TabelaObservada::nova(
-        tabela.total_declarado,
+        Some(tabela.total_declarado),
         faixa,
         tabela
             .processos
@@ -65,9 +70,12 @@ fn cassette_unb_controle_r_fecha_ciclo_http_e_leitor_da_cli() {
         unidade: UnidadeExibida::nova(&unidade).unwrap(),
         recebidos: linhas_da_cassette(
             &esperado.caixa.recebidos,
-            esperado.recebidos.faixa_observada(),
+            esperado.recebidos.faixa_observada().unwrap(),
         ),
-        gerados: linhas_da_cassette(&esperado.caixa.gerados, esperado.gerados.faixa_observada()),
+        gerados: linhas_da_cassette(
+            &esperado.caixa.gerados,
+            esperado.gerados.faixa_observada().unwrap(),
+        ),
     };
 
     let pasta = std::env::temp_dir().join(format!(
@@ -122,12 +130,12 @@ fn cassette_unb_controle_r_fecha_ciclo_http_e_leitor_da_cli() {
     assert_eq!(obtido.unidade, esperado.unidade);
     assert_eq!(obtido.caixa, esperado.caixa);
     assert_eq!(
-        obtido.recebidos.faixa_observada(),
-        esperado.recebidos.faixa_observada()
+        obtido.recebidos.faixa_observada().unwrap(),
+        esperado.recebidos.faixa_observada().unwrap()
     );
     assert_eq!(
-        obtido.gerados.faixa_observada(),
-        esperado.gerados.faixa_observada()
+        obtido.gerados.faixa_observada().unwrap(),
+        esperado.gerados.faixa_observada().unwrap()
     );
     std::fs::remove_dir_all(&pasta).unwrap();
 }

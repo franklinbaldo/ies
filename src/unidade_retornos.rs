@@ -2,7 +2,7 @@
 //! Fonte dos cenarios: Todos `tests/test_unidade_listar_retornos_010.py` @323eb01.
 //! Nao interpreta JavaScript, nao escolhe linhas fora de tabela reconhecida.
 use crate::html_atributos::valor_do_atributo;
-use serde::Serialize;
+use serde::{Serialize, Serializer};
 use std::collections::HashSet;
 
 #[derive(Clone, Debug, PartialEq, Eq, Serialize)]
@@ -12,8 +12,40 @@ pub(crate) struct Retorno {
     pub(crate) unidade: String,
     pub(crate) data_programada: String,
     #[serde(rename = "data_retorno")]
-    pub(crate) retornado_em: Option<String>,
-    pub(crate) prazo_restante: Option<String>,
+    pub(crate) retornado_em: DataDeRetorno,
+    pub(crate) prazo_restante: PrazoRestante,
+}
+
+/// Célula "Data de Retorno Efetiva": vazia enquanto a unidade não devolveu.
+#[derive(Clone, Debug, PartialEq, Eq)]
+pub(crate) enum DataDeRetorno {
+    Pendente,
+    Em(String),
+}
+
+impl Serialize for DataDeRetorno {
+    fn serialize<S: Serializer>(&self, s: S) -> Result<S::Ok, S::Error> {
+        match self {
+            Self::Pendente => s.serialize_str("pendente"),
+            Self::Em(data) => s.serialize_str(data),
+        }
+    }
+}
+
+/// Célula "Prazo Restante": vazia quando a tabela não publica prazo.
+#[derive(Clone, Debug, PartialEq, Eq)]
+pub(crate) enum PrazoRestante {
+    SemPrazo,
+    Em(String),
+}
+
+impl Serialize for PrazoRestante {
+    fn serialize<S: Serializer>(&self, s: S) -> Result<S::Ok, S::Error> {
+        match self {
+            Self::SemPrazo => s.serialize_str("sem_prazo"),
+            Self::Em(prazo) => s.serialize_str(prazo),
+        }
+    }
 }
 
 #[derive(Clone, Debug, PartialEq, Eq, thiserror::Error)]
@@ -26,6 +58,10 @@ pub(crate) enum ErroRetornos {
     PaginadorDosRetornosIlegivel(#[source] crate::erro_web::ErroCaixa),
     ListaDeRetornosIncompleta,
     ListaDeRetornosComMaisDeUmaPagina,
+    /// A tabela não tem a coluna "Data de Retorno Efetiva".
+    ColunaDataDeRetornoAusente,
+    /// A tabela não tem a coluna "Prazo Restante".
+    ColunaPrazoRestanteAusente,
 }
 
 fn atributo(tag: &tl::HTMLTag<'_>, nome: &'static str) -> Result<Option<String>, ErroRetornos> {
@@ -136,8 +172,14 @@ fn ler_tabela(
     if titulos.iter().collect::<HashSet<_>>().len() != titulos.len() {
         return Err(ErroRetornos::TelaDeRetornosDesconhecida);
     }
-    let retorno = titulos.iter().position(|c| c == "data de retorno efetiva");
-    let prazo = titulos.iter().position(|c| c == "prazo restante");
+    let retorno = titulos
+        .iter()
+        .position(|c| c == "data de retorno efetiva")
+        .ok_or(ErroRetornos::ColunaDataDeRetornoAusente)?;
+    let prazo = titulos
+        .iter()
+        .position(|c| c == "prazo restante")
+        .ok_or(ErroRetornos::ColunaPrazoRestanteAusente)?;
     let mut lista = Vec::new();
     for no in tabela.query_selector(parser, "tr").into_iter().flatten() {
         let Some(linha) = no.get(parser).and_then(tl::Node::as_tag) else {
@@ -167,16 +209,23 @@ fn ler_tabela(
         if numero.is_empty() || origem.is_empty() || !data_valida(&programada) {
             return Err(ErroRetornos::TelaDeRetornosDesconhecida);
         }
-        let opcional = |pos: Option<usize>| -> Result<Option<String>, ErroRetornos> {
-            Ok(pos.map(valor).transpose()?.filter(|v| !v.is_empty()))
-        };
+        let devolucao = valor(retorno)?;
+        let prazo_lido = valor(prazo)?;
         lista.push(Retorno {
             situacao,
             numero,
             unidade: origem,
             data_programada: programada,
-            retornado_em: opcional(retorno)?,
-            prazo_restante: opcional(prazo)?,
+            retornado_em: if devolucao.is_empty() {
+                DataDeRetorno::Pendente
+            } else {
+                DataDeRetorno::Em(devolucao)
+            },
+            prazo_restante: if prazo_lido.is_empty() {
+                PrazoRestante::SemPrazo
+            } else {
+                PrazoRestante::Em(prazo_lido)
+            },
         });
     }
     if lista.len() != declarado {
@@ -290,7 +339,7 @@ mod tests {
     use super::*;
     fn tabela(situacao: &str, numero: &str, unidade: &str) -> String {
         format!(
-            "<table summary='{situacao}'><caption>1 registro:</caption><thead><tr><th>Processo</th><th>Unidade</th><th>Data Programada</th></tr></thead><tbody><tr><td><a>{numero}</a></td><td>{unidade}</td><td>15/10/2026</td></tr></tbody></table>"
+            "<table summary='{situacao}'><caption>1 registro:</caption><thead><tr><th>Processo</th><th>Unidade</th><th>Data Programada</th><th>Data de Retorno Efetiva</th><th>Prazo Restante</th></tr></thead><tbody><tr><td><a>{numero}</a></td><td>{unidade}</td><td>15/10/2026</td><td></td><td></td></tr></tbody></table>"
         )
     }
     #[test]
@@ -408,5 +457,49 @@ mod tests {
         );
         assert!(data_valida("29/02/2024"));
         assert!(!data_valida("29/02/2025"));
+    }
+    fn duas_tabelas(celulas: &str) -> String {
+        format!(
+            "<div id='divAguardandoAreaTabela'><table summary='Aguardando Retorno de Outras Unidades'><caption>1 registro:</caption><thead><tr><th>Processo</th><th>Unidade</th><th>Data Programada</th><th>Data de Retorno Efetiva</th><th>Prazo Restante</th></tr></thead><tbody><tr><td><a>P1</a></td><td>U1</td><td>15/10/2026</td>{celulas}</tr></tbody></table></div>\
+             <div id='divDevolverAreaTabela'><table summary='Para Devolver'><caption>0 registros:</caption><thead><tr><th>Processo</th><th>Unidade</th><th>Data Programada</th><th>Data de Retorno Efetiva</th><th>Prazo Restante</th></tr></thead></table></div>"
+        )
+    }
+    #[test]
+    fn celula_vazia_de_devolucao_e_prazo_nao_vira_null() {
+        let html = duas_tabelas("<td></td><td></td>");
+        let itens = extrair_retornos(&html).unwrap();
+        assert_eq!(itens[0].retornado_em, DataDeRetorno::Pendente);
+        assert_eq!(itens[0].prazo_restante, PrazoRestante::SemPrazo);
+        let json = serde_json::to_value(&itens[0]).unwrap();
+        assert_eq!(json["data_retorno"], "pendente");
+        assert_eq!(json["prazo_restante"], "sem_prazo");
+    }
+    #[test]
+    fn celulas_preenchidas_sao_lidas_como_fato() {
+        let html = duas_tabelas("<td>16/10/2026</td><td>2 dias</td>");
+        let itens = extrair_retornos(&html).unwrap();
+        assert_eq!(
+            itens[0].retornado_em,
+            DataDeRetorno::Em("16/10/2026".to_owned())
+        );
+        assert_eq!(
+            itens[0].prazo_restante,
+            PrazoRestante::Em("2 dias".to_owned())
+        );
+    }
+    #[test]
+    fn coluna_ausente_e_recusada_com_erro_tipado() {
+        let sem_devolucao =
+            duas_tabelas("<td></td><td></td>").replacen("<th>Data de Retorno Efetiva</th>", "", 1);
+        assert_eq!(
+            extrair_retornos(&sem_devolucao),
+            Err(ErroRetornos::ColunaDataDeRetornoAusente)
+        );
+        let sem_prazo =
+            duas_tabelas("<td></td><td></td>").replacen("<th>Prazo Restante</th>", "", 1);
+        assert_eq!(
+            extrair_retornos(&sem_prazo),
+            Err(ErroRetornos::ColunaPrazoRestanteAusente)
+        );
     }
 }

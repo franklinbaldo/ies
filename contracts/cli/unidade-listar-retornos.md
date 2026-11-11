@@ -33,9 +33,10 @@ Nao ha POST nem restauracao da tela.
 
 As duas tabelas, quando presentes, distinguem a situacao pelo
 `summary`: `aguardando` (outras unidades devem devolver) e
-`devolver` (a unidade atual deve devolver). Le a coluna Processo,
-Unidade, Data Programada, e opcionalmente Data de Retorno Efetiva e
-Prazo Restante. A contagem de cada tabela deve conferir sua legenda. Quando so
+`devolver` (a unidade atual deve devolver). Le as colunas Processo,
+Unidade, Data Programada, Data de Retorno Efetiva e Prazo Restante. Sem
+qualquer uma delas a tabela falha: `ColunaDataDeRetornoAusente` ou
+`ColunaPrazoRestanteAusente`. A contagem de cada tabela deve conferir sua legenda. Quando so
 `aguardando` aparece, a captura do mes inteiro pode omitir a tabela
 `devolver`: esta forma so e aceita com uma unica
 `divAguardandoAreaTabela` envolvendo a tabela reconhecida.
@@ -53,10 +54,12 @@ presentes.
 
 JSON: `unidade`, `mes` no formato `AAAA-MM`,
 `origem: "web"`, `total_declarado`, `faixa_observada`
-(`null` se vazio, senao `inicio` e `fim`), `retornos`
-(array) e `requisicoes`. Cada retorno publica `situacao`,
-`numero`, `unidade`, `data_programada`, `data_retorno`
-e `prazo_restante`; os campos nao observados sao `null`.
+(`[]` se vazio, senao `[1, n]`), `retornos` (array) e
+`requisicoes`. Cada retorno publica `situacao`, `numero`, `unidade`,
+`data_programada`, `data_retorno` e `prazo_restante`. Celula vazia e
+fato lido, nunca `null`: `data_retorno` vira `"pendente"` (ainda nao
+devolvido) e `prazo_restante` vira `"sem_prazo"`; celula preenchida
+publica o texto da celula.
 
 Sem relogin, a consulta do mes mostrado custa **3 GET**:
 Controle, menu e Ver todo o mes. Cada passo pelo calendario acrescenta
@@ -104,3 +107,5 @@ isso nao equivale a validacao live de GO/PEN3.
 | `ListaDeRetornosIncompleta` | Total declarado em legenda não corresponde às linhas |
 | `ListaDeRetornosComMaisDeUmaPagina` | Paginador visível na tela: a lista tem mais páginas que as lidas, sem derivação segura |
 | `UnidadeDiferenteDaSolicitada` | Controle comprovou unidade diferente de --unidade |
+| `ColunaDataDeRetornoAusente` | A tabela nao tem a coluna "Data de Retorno Efetiva" |
+| `ColunaPrazoRestanteAusente` | A tabela nao tem a coluna "Prazo Restante" |
