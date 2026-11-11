@@ -375,7 +375,7 @@ fn conferir_resultados(
     pedidos: &[String],
 ) {
     let erro_esperado = match modo {
-        Modo::RespostaIncerta => Some("NaoConfirmado"),
+        Modo::RespostaIncerta => Some("NaoConfirmadoNoPost"),
         Modo::JaAnexado => Some("Recusada"),
         Modo::PreviaSemObservacao => Some("ConsultaResposta"),
         Modo::Aceite
@@ -386,6 +386,15 @@ fn conferir_resultados(
     };
     if modo == Modo::JaAnexado {
         falha_por(saida, "Recusada", "ProcessoJaAnexado");
+    } else if modo == Modo::RespostaIncerta {
+        // O único POST chegou ao SQLite, mas a resposta 503 não o confirma.
+        // A recusa pública precisa conservar também a causa do transporte.
+        falha_por(saida, "NaoConfirmadoNoPost", "Transporte");
+        assert!(
+            String::from_utf8_lossy(&saida.stderr).contains("503"),
+            "status original perdido: {}",
+            String::from_utf8_lossy(&saida.stderr)
+        );
     } else if let Some(erro) = erro_esperado {
         falha(saida, erro);
     } else {
