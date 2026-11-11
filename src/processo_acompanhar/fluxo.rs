@@ -73,7 +73,7 @@ fn url_do_cadastro(
 ) -> Result<String, ErroAcompanhar> {
     use crate::arvore_processo::conferir_endereco_relativo;
     conferir_endereco_relativo(instalacao, ref_url, AcaoDoSei::AcompanhamentoCadastrar, id)
-        .map_err(|_| ErroAcompanhar::RedirecionamentoDeAcompanhamentoInesperado)
+        .map_err(ErroAcompanhar::EnderecoDoCadastroRecusado)
 }
 
 fn redirecionamento_do_gerenciar(
@@ -95,7 +95,7 @@ fn adicionar_da_lista(
     id: &str,
 ) -> Result<String, ErroAcompanhar> {
     let dom = tl::parse(html, tl::ParserOptions::default())
-        .map_err(|_| ErroAcompanhar::TelaDeAcompanhamentoInesperada)?;
+        .map_err(ErroAcompanhar::TelaDeAcompanhamentoRecusadaPeloParser)?;
     let mut urls = Vec::new();
     for no in dom.query_selector("button").into_iter().flatten() {
         let tag = no

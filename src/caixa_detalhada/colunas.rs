@@ -57,10 +57,6 @@ pub(crate) fn serializar_categoria<S: Serializer>(
     }
 }
 
-fn ilegivel(_: impl Sized) -> ErroDetalhada {
-    ErroDetalhada::HtmlDetalhadoNaoInterpretado
-}
-
 /// Texto visível com entidades conhecidas decodificadas e espaços colapsados.
 fn texto(tag: &tl::HTMLTag<'_>, parser: &tl::Parser<'_>) -> String {
     let bruto = tag.inner_text(parser);
@@ -76,7 +72,7 @@ fn tags<'d>(
 ) -> Result<Vec<&'d tl::HTMLTag<'d>>, ErroDetalhada> {
     let parser = dom.parser();
     Ok(nos_por_elemento_e_classe(dom, Some(raiz), elemento, classe)
-        .map_err(ilegivel)?
+        .map_err(ErroDetalhada::AtributoDaDetalhadaIlegivel)?
         .into_iter()
         .filter_map(|n| n.get(parser).and_then(tl::Node::as_tag))
         .collect())
@@ -99,10 +95,10 @@ fn rotulo_do_icone(
         return Ok(None);
     };
     let aria = valor_do_atributo(imagem, "aria-label")
-        .map_err(ilegivel)?
+        .map_err(ErroDetalhada::AtributoDaDetalhadaIlegivel)?
         .map(|v| texto_colapsado(&decodificar_atributo(&v).unwrap_or(v)));
     let dica = valor_do_atributo(imagem, "onmouseover")
-        .map_err(ilegivel)?
+        .map_err(ErroDetalhada::AtributoDaDetalhadaIlegivel)?
         .and_then(|v| decodificar_atributo(&v))
         .and_then(|v| {
             let resto = v.strip_prefix("return infraTooltipMostrar('")?;
@@ -189,7 +185,7 @@ pub(super) fn valor_da_celula(
 ) -> Result<ValorDaColuna, ErroDetalhada> {
     let parser = dom.parser();
     let rotulo = valor_do_atributo(celula, "data-label")
-        .map_err(ilegivel)?
+        .map_err(ErroDetalhada::AtributoDaDetalhadaIlegivel)?
         .map(|v| texto_colapsado(&decodificar_atributo(&v).unwrap_or(v)))
         .filter(|v| !v.is_empty());
     let (CabecalhoDaColuna::Texto(cabecalho) | CabecalhoDaColuna::Icone(cabecalho)) =

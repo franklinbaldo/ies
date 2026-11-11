@@ -31,7 +31,7 @@ pub(super) enum ErroAberturaDoIndice {
     TravaDaPreparacaoIlegivel(#[source] std::io::Error),
     TravaDaPreparacaoOcupada,
     ModoWalRecusado,
-    VersaoDoEsquemaNegativa(i64),
+    VersaoDoEsquemaNegativa(i64, #[source] std::num::TryFromIntError),
     EsquemaDeBinarioMaisNovo,
     Sqlite(#[from] rusqlite::Error),
 }
@@ -275,7 +275,7 @@ fn migrar(conexao: &mut Connection) -> Result<(), ErroAberturaDoIndice> {
     let transacao = conexao.transaction_with_behavior(rusqlite::TransactionBehavior::Immediate)?;
     let versao: i64 = transacao.pragma_query_value(None, "user_version", |l| l.get(0))?;
     let inicio = usize::try_from(versao)
-        .map_err(|_| ErroAberturaDoIndice::VersaoDoEsquemaNegativa(versao))?;
+        .map_err(|erro| ErroAberturaDoIndice::VersaoDoEsquemaNegativa(versao, erro))?;
     let pendentes = MIGRACOES
         .get(inicio..)
         .ok_or(ErroAberturaDoIndice::EsquemaDeBinarioMaisNovo)?;

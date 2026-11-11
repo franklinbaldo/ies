@@ -5,7 +5,7 @@
 use crate::formulario_web::decodificar_atributo;
 use crate::html_atributos::{ErroAtributoHtml, atributo_presente, valor_do_atributo};
 
-#[derive(Clone, Copy, Debug, PartialEq, Eq, thiserror::Error)]
+#[derive(Clone, Debug, PartialEq, Eq, thiserror::Error)]
 #[error("{self:?}")]
 pub(crate) enum ErroRegraDoFormularioDePesquisa {
     OpcaoDeProcessosComNomeDiferenteDeRdoPesquisarEm,
@@ -20,6 +20,8 @@ pub(crate) enum ErroRegraDoFormularioDePesquisa {
     },
     /// `maxlength` do termo servido fora de um inteiro decimal não negativo.
     MaxlengthDoTermoIlegivelNaTela,
+    /// `maxlength` decimal que não cabe em `u32`.
+    MaxlengthDoTermoNaoCabeEmU32NaTela(#[source] std::num::ParseIntError),
     OpcaoDeDocumentosComNomeDiferenteDeRdoPesquisarEm,
     /// Nenhuma das duas servida marcada: `onSubmitForm()` não envia.
     NenhumTipoDeDocumentoMarcadoNaTela,
@@ -288,7 +290,7 @@ fn maxlength_do_termo(
     valor
         .parse()
         .map(Some)
-        .map_err(|_| ErroRegraDoFormularioDePesquisa::MaxlengthDoTermoIlegivelNaTela)
+        .map_err(ErroRegraDoFormularioDePesquisa::MaxlengthDoTermoNaoCabeEmU32NaTela)
 }
 
 /// Lê, do `<form>` já localizado, os valores que o `onsubmit` exige.

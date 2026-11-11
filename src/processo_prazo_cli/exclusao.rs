@@ -85,7 +85,8 @@ fn link_da_lista(html: &str, origem: &str) -> Option<String> {
 #[derive(Debug, thiserror::Error)]
 #[error("{self:?}")]
 pub(crate) enum ErroListaDePrazos {
-    HtmlDaListaNaoInterpretado,
+    /// O parser de HTML recusou a lista de prazos.
+    HtmlDaListaRecusadoPeloParser(#[source] tl::ParseError),
     FormularioDaListaNaoLocalizado(#[source] crate::formulario_web::ErroSubmissaoFormulario),
     AtributoDaLista(#[source] crate::html_atributos::ErroAtributoHtml),
     AcaoExcluirForaDaForma,
@@ -98,7 +99,7 @@ pub(crate) enum ErroListaDePrazos {
 /// Ausencia de acao ao confirmar a exclusao significa ausencia da linha.
 fn id_na_lista(html: &str, nup: &str) -> Result<Option<String>, ErroListaDePrazos> {
     let dom = tl::parse(html, tl::ParserOptions::default())
-        .map_err(|_| ErroListaDePrazos::HtmlDaListaNaoInterpretado)?;
+        .map_err(ErroListaDePrazos::HtmlDaListaRecusadoPeloParser)?;
     crate::formulario_web::localizar_formulario(&dom, "frmControlePrazoLista")
         .map_err(ErroListaDePrazos::FormularioDaListaNaoLocalizado)?;
     let mut encontrado = None;
@@ -215,8 +216,8 @@ fn escrever_e_verificar<V: EnvioDoProcesso>(
             return Err(FalhaDoPrazo::NaoConfirmado(None));
         }
     }
-    let (lista_nova, _) = obter_tela(rede, cookie, &dados.link_lista)
-        .map_err(|_| FalhaDoPrazo::NaoConfirmado(None))?;
+    let (lista_nova, _) =
+        obter_tela(rede, cookie, &dados.link_lista).map_err(FalhaDoPrazo::TelaRelidaNaoObtida)?;
     // A mesma linha do NUP precisa desaparecer da lista relida.
     match id_na_lista(&lista_nova, &dados.nup) {
         Ok(None) => {}
@@ -228,14 +229,14 @@ fn escrever_e_verificar<V: EnvioDoProcesso>(
     // processo-prazo-excluir-unb, interacoes 11 e 19): reabrir o processo e
     // usar o link novo da barra, como a leitura de `ies processo prazo`.
     let (_, acoes) = abrir_para_escrever(sessao, pedido, indice, rede)
-        .map_err(|_| FalhaDoPrazo::NaoConfirmado(None))?;
+        .map_err(FalhaDoPrazo::ProcessoRelidoNaoAbriu)?;
     let Ok(Some(link_novo)) = acoes.prazo else {
         return Err(FalhaDoPrazo::NaoConfirmado(None));
     };
-    let (formulario, _) = obter_tela(rede, cookie, link_novo.as_str())
-        .map_err(|_| FalhaDoPrazo::NaoConfirmado(None))?;
-    let prazo = ler_tela(&formulario, &dados.id_procedimento)
-        .map_err(|_| FalhaDoPrazo::NaoConfirmado(None))?;
+    let (formulario, _) =
+        obter_tela(rede, cookie, link_novo.as_str()).map_err(FalhaDoPrazo::TelaRelidaNaoObtida)?;
+    let prazo =
+        ler_tela(&formulario, &dados.id_procedimento).map_err(FalhaDoPrazo::PrazoRelidoIlegivel)?;
     if prazo.estado != EstadoDoPrazo::SemPrazo {
         return Err(FalhaDoPrazo::NaoConfirmado(None));
     }

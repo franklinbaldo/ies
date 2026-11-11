@@ -237,7 +237,7 @@ fn bdd_332_04_dado_recibo_e_cadastro_quando_releitura_nao_muda_entao_saida_3() {
     assert!(matches!(
         resultado,
         Err(ErroIncluirExterno::Confirmacao(
-            super::super::confirmacao::FalhaConfirmacao::NaoConfirmado
+            super::super::confirmacao::FalhaConfirmacao::CriacaoNaoConferida(_)
         ))
     ));
     assert_eq!(pedidos.len(), a::pedidos_da_abertura().len() + 5);

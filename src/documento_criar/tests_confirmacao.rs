@@ -197,10 +197,12 @@ fn dois_documentos_novos_sao_nao_confirmado_apos_post_unico() {
             Ok(foto(2))
         },
     );
-    assert!(matches!(
+    assert_eq!(
         resultado,
-        Err(ErroConfirmacaoDaCriacao::NaoConfirmado)
-    ));
+        Err(ErroConfirmacaoDaCriacao::NaoDemonstradoNaArvore(
+            ErroCriar::NaoConfirmado
+        ))
+    );
     assert_eq!(rede.chamadas, ["POST criador", "GET arvore"]);
     assert_eq!(rede.submissoes.len(), 1);
 }

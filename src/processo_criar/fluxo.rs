@@ -147,7 +147,7 @@ fn enviada<V: EnvioDoControle>(
         codificacao,
     };
     let submissao = derivar_submissao(operacao, instalacao, &servida, unidade, campos)
-        .map_err(|_| ErroCriar::Formulario)?;
+        .map_err(ErroCriar::Submissao)?;
     let mut tentou = false;
     let resultado = enviar_submissao_via(submissao, cookie, |s, c| {
         tentou = true;
@@ -197,10 +197,10 @@ pub(crate) fn criar_com_contagem<V: EnvioDoControle>(
 ) -> Result<Criacao, ErroCriar> {
     *requisicoes = 0;
     let instalacao = Instalacao::interpretar(origem).ok_or(ErroCriar::SessaoLocalIlegivel)?;
-    let cookie_valor = cookie.valor().map_err(|_| ErroCriar::SessaoLocalIlegivel)?;
+    let cookie_valor = cookie.valor().map_err(ErroCriar::CookieDaSessaoIlegivel)?;
     let controle = get(envio, url_controle, cookie_valor, requisicoes)?;
     let unidade = crate::controle_reconhecido::unidade_do_controle(&controle.html)
-        .map_err(|_| ErroCriar::UnidadeDiferente)?;
+        .map_err(ErroCriar::UnidadeDoControleIlegivel)?;
     if pedido.unidade.is_some_and(|exigida| exigida != unidade) {
         return Err(ErroCriar::UnidadeDiferente);
     }
@@ -341,7 +341,7 @@ pub(crate) fn criar_com_contagem<V: EnvioDoControle>(
     }
     // Derive o POST inclusive na prévia, sem executar JS e sem escrita.
     let submissao = derivar_submissao(&CADASTRAR, &instalacao, &servida, &feito.unidade, &campos)
-        .map_err(|_| ErroCriar::Formulario)?;
+        .map_err(ErroCriar::Submissao)?;
     if !pedido.confirmar {
         return Ok(feito);
     }

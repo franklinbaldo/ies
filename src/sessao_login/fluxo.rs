@@ -93,7 +93,7 @@ fn ler_da_sessao(caminho: &std::path::Path) -> Result<Option<String>, ErroLogin>
         Ok(texto) => Ok(Some(texto.trim().to_owned())),
         // Vazio: o arquivo que o `ies setup` exige antes do primeiro login.
         Err(
-            FalhaTransporte::ArquivoPrivadoAusenteOuInacessivel
+            FalhaTransporte::ArquivoPrivadoAusenteOuInacessivel(_)
             | FalhaTransporte::ArquivoPrivadoVazio,
         ) => Ok(None),
         Err(falha) => Err(SessaoGravadaInvalida::Arquivo(falha).into()),
@@ -191,8 +191,10 @@ fn html_200(resposta: RespostaHttp) -> Result<(String, String), ErroLogin> {
         ));
     }
     let html =
-        crate::transporte::corpo::decode_http_body(web.corpo.get_ref(), &mime).map_err(|_| {
-            ErroLogin::Transporte(FalhaTransporte::CorpoNaoDecodificavelNoCharsetDeclarado)
+        crate::transporte::corpo::decode_http_body(web.corpo.get_ref(), &mime).map_err(|erro| {
+            ErroLogin::Transporte(FalhaTransporte::CorpoNaoDecodificavelNoCharsetDeclarado(
+                erro,
+            ))
         })?;
     Ok((html, mime))
 }
@@ -295,10 +297,8 @@ fn autenticar<T: TransporteDeLogin>(
     }
     // Página inicial da conta (Painel de Controle): só o link do menu.
     let link = tela::link_do_controle(&html)?.ok_or(ErroLogin::TelaAposOLoginNaoReconhecida)?;
-    let destino = resolver_no_host(&url, &link, host)
-        .map_err(|_| ErroLogin::LinkDoControleDeProcessosNaoReconhecido)?;
-    transporte::validar_origem(&destino, origem)
-        .map_err(|_| ErroLogin::LinkDoControleDeProcessosNaoReconhecido)?;
+    let destino = resolver_no_host(&url, &link, host)?;
+    transporte::validar_origem(&destino, origem).map_err(ErroLogin::Transporte)?;
     let (url, resposta) = navegar(transporte, &mut pote, host, destino)?;
     let (html, mime) = html_200(resposta)?;
     como_controle(&url, (&html, &mime), origem, &pote).unwrap_or(Err(

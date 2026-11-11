@@ -48,7 +48,7 @@ pub(crate) enum ConcluirNaBarra {
 }
 
 /// Recusas da leitura da barra (só pesam quando se pede para concluir).
-#[derive(Clone, Copy, Debug, PartialEq, Eq, thiserror::Error)]
+#[derive(Clone, Debug, PartialEq, Eq, thiserror::Error)]
 #[error("{self:?}")]
 pub(crate) enum ErroConcluirNaBarra {
     Barra(#[from] crate::arvore_processo::ErroBarraDoProcesso),
@@ -144,7 +144,9 @@ const CONFIRM: &str = "if (confirm(";
 const LOCATION: &str = "location.href = '";
 
 /// A definição de uma função da tela do nó fora da forma de três linhas.
-pub(super) struct FuncaoForaDaForma;
+#[derive(Clone, Copy, Debug, PartialEq, Eq, thiserror::Error)]
+#[error("{self:?}")]
+pub(crate) struct FuncaoForaDaForma;
 
 /// As URLs de `location.href` de cada `function {nome}(){` da tela do nó,
 /// na forma observada no SEI 4.0: a linha da função, a do `confirm`

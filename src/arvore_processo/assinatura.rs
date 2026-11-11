@@ -39,9 +39,11 @@ pub(crate) struct AssinaturaNaArvore {
 }
 
 /// Recusas da leitura da ação de assinar e das canetas do documento na árvore.
-#[derive(Clone, Copy, Debug, PartialEq, Eq, thiserror::Error)]
+#[derive(Clone, Debug, PartialEq, Eq, thiserror::Error)]
 #[error("{self:?}")]
 pub(crate) enum ErroAssinaturaNaArvore {
+    ParseDaBarraDoDocumentoFalhou(#[source] tl::ParseError),
+    BarraDoDocumentoIlegivel(#[source] super::ErroBarraDoDocumento),
     /// O tokenizador de atributos recusou a tag.
     Atributo(#[source] crate::html_atributos::ErroAtributoHtml),
     AcoesDeAssinarRepetidasNaBarra,
@@ -69,6 +71,11 @@ pub(crate) fn ler_assinatura_na_arvore(
         | super::ErroBarraDoDocumento::LinkDasVersoesRepetidoNaBarra => {
             ErroAssinaturaNaArvore::BarraDoDocumentoForaDaFormaObservada
         }
+        outro @ (super::ErroBarraDoDocumento::ParseDaBarraDoDocumentoFalhou(_)
+        | super::ErroBarraDoDocumento::ParseDaBarraDaCienciaFalhou(_)
+        | super::ErroBarraDoDocumento::LinhaDaBarraDoDocumentoIlegivel(_)) => {
+            ErroAssinaturaNaArvore::BarraDoDocumentoIlegivel(outro)
+        }
     })?;
     let acoes = match barra {
         Some(texto) => acoes_de_assinar(&texto)?,
@@ -85,8 +92,9 @@ pub(crate) fn ler_assinatura_na_arvore(
 
 /// Quantas âncoras da barra têm exatamente `onclick="assinarDocumento();"`.
 fn acoes_de_assinar(texto: &str) -> Result<usize, ErroAssinaturaNaArvore> {
-    let fora = ErroAssinaturaNaArvore::BarraDoDocumentoForaDaFormaObservada;
-    let dom = tl::parse(texto, tl::ParserOptions::default()).map_err(|_| fora)?;
+    let fora = || ErroAssinaturaNaArvore::BarraDoDocumentoForaDaFormaObservada;
+    let dom = tl::parse(texto, tl::ParserOptions::default())
+        .map_err(ErroAssinaturaNaArvore::ParseDaBarraDoDocumentoFalhou)?;
     let parser = dom.parser();
     let mut contagem = 0;
     for no in dom.query_selector("a").into_iter().flatten() {
@@ -98,7 +106,7 @@ fn acoes_de_assinar(texto: &str) -> Result<usize, ErroAssinaturaNaArvore> {
             .valor("onclick")
             .map_err(ErroAssinaturaNaArvore::Atributo)?
         {
-            let onclick = decodificar_atributo(bruto).ok_or(fora)?;
+            let onclick = decodificar_atributo(bruto).ok_or_else(fora)?;
             contagem += usize::from(onclick == ONCLICK);
         }
     }

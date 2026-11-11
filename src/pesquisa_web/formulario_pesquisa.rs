@@ -83,6 +83,8 @@ pub(crate) enum ErroPesquisaProtocolo {
     Submissao(#[from] ErroSubmissaoFormulario),
     Redirecionamento(#[from] ErroRedirecionamentoDaPesquisa),
     Resposta(#[from] ErroRespostaDaPesquisa),
+    /// O parser HTML recusou a tela do formulário de pesquisa.
+    HtmlDaTelaDoFormularioNaoInterpretado(#[source] tl::ParseError),
 }
 
 impl ErroPesquisaProtocolo {
@@ -94,7 +96,8 @@ impl ErroPesquisaProtocolo {
             Self::Filtro(_)
             | Self::RegraDoFormulario(_)
             | Self::Redirecionamento(_)
-            | Self::Resposta(_) => false,
+            | Self::Resposta(_)
+            | Self::HtmlDaTelaDoFormularioNaoInterpretado(_) => false,
         }
     }
 }
@@ -224,7 +227,8 @@ fn derivar_com(
     }
     // As recusas de instalação e unidade vêm de `derivar_submissao`, depois
     // destas regras; ler a tela em memória não tem efeito.
-    let dom = tl::parse(tela.html, tl::ParserOptions::default()).map_err(|_| excessiva())?;
+    let dom = tl::parse(tela.html, tl::ParserOptions::default())
+        .map_err(ErroPesquisaProtocolo::HtmlDaTelaDoFormularioNaoInterpretado)?;
     let form = localizar_formulario(&dom, operacao.formulario)?;
     let regras = ler_regras_da_tela(form, dom.parser(), em)?;
     // O navegador conta `maxlength` em unidades UTF-16; termo maior não
@@ -330,7 +334,8 @@ pub(crate) fn falha_do_envio(erro: ErroSubmissaoFormulario) -> ErroPesquisaProto
         | ErroSubmissaoFormulario::BotoesDeEnvioRepetidosNoFormulario
         | ErroSubmissaoFormulario::FormularioAusenteNaTela
         | ErroSubmissaoFormulario::IdentificacaoDaUnidadeAusenteNaTela
-        | ErroSubmissaoFormulario::IdentificacoesDaUnidadeRepetidasNaTela) => {
+        | ErroSubmissaoFormulario::IdentificacoesDaUnidadeRepetidasNaTela(_)
+        | ErroSubmissaoFormulario::HtmlDaTelaNaoInterpretado(_)) => {
             ErroPesquisaProtocolo::Submissao(outro)
         }
     }

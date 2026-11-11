@@ -16,12 +16,14 @@ pub(crate) struct Retorno {
     pub(crate) prazo_restante: Option<String>,
 }
 
-#[derive(Clone, Copy, Debug, PartialEq, Eq, thiserror::Error)]
+#[derive(Clone, Debug, PartialEq, Eq, thiserror::Error)]
 #[error("{self:?}")]
 pub(crate) enum ErroRetornos {
     /// O tokenizador de atributos recusou a tag.
     Atributo(#[source] crate::html_atributos::ErroAtributoHtml),
     TelaDeRetornosDesconhecida,
+    ParseDaTelaDeRetornosFalhou(#[source] tl::ParseError),
+    PaginadorDosRetornosIlegivel(#[source] crate::erro_web::ErroCaixa),
     ListaDeRetornosIncompleta,
     PaginacaoDosRetornosNaoObservada,
 }
@@ -188,13 +190,13 @@ fn ler_tabela(
 pub(crate) fn extrair_retornos(html: &str) -> Result<Vec<Retorno>, ErroRetornos> {
     for prefixo in ["Aguardando", "Devolver"] {
         if crate::paginacao_controle::paginador_com_prefixo(html, prefixo)
-            .map_err(|_| ErroRetornos::TelaDeRetornosDesconhecida)?
+            .map_err(ErroRetornos::PaginadorDosRetornosIlegivel)?
         {
             return Err(ErroRetornos::PaginacaoDosRetornosNaoObservada);
         }
     }
     let dom = tl::parse(html, tl::ParserOptions::default())
-        .map_err(|_| ErroRetornos::TelaDeRetornosDesconhecida)?;
+        .map_err(ErroRetornos::ParseDaTelaDeRetornosFalhou)?;
     let parser = dom.parser();
     let mut situacoes = HashSet::new();
     let mut lista = Vec::new();

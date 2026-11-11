@@ -19,7 +19,8 @@ pub(crate) fn conferir_consulta(
 }
 
 /// A consulta não tem a forma conferida por [`conferir_consulta`].
-#[derive(Debug)]
+#[derive(Clone, Debug, PartialEq, Eq, thiserror::Error)]
+#[error("{self:?}")]
 pub(crate) struct ConsultaForaDaForma;
 
 fn conferir(

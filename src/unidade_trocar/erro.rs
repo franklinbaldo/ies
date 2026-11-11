@@ -1,7 +1,7 @@
 //! Recusas tipadas de `ies unidade trocar` (#205), uma por fato. Antes do
 //! POST nada mudou (saída 1); depois dele, todo desvio é efeito incerto
 //! (saída 3), com a etapa e o fato.
-use super::tela::UnidadeOferecida;
+use super::tela::{ConsultaForaDaForma, UnidadeOferecida};
 use crate::erro_web::ErroCaixa;
 use crate::formulario_web::ErroSubmissaoFormulario;
 use crate::transporte::FalhaTransporte;
@@ -34,6 +34,8 @@ pub(crate) enum FalhaDepoisDoEnvio {
     ControleNaoReconhecido(#[from] ErroCaixa),
     /// O Controle novo mostra outra sigla que a pedida.
     UnidadeDoControleDiferenteDaPedida,
+    /// A `Location` não tem a consulta conferida (`acao`, `infra_hash`).
+    ConsultaDaLocalizacaoForaDaForma(#[source] ConsultaForaDaForma),
 }
 
 #[derive(Clone, Debug, PartialEq, Eq, thiserror::Error)]
@@ -65,4 +67,6 @@ pub(crate) enum ErroTroca {
     AtributoDoLinkDeTrocaIlegivel(#[source] crate::html_atributos::ErroAtributoHtml),
     TelaDeTrocaDeUnidadeNaoReconhecida,
     AtributoDaTelaDeTrocaIlegivel(#[source] crate::html_atributos::ErroAtributoHtml),
+    ParseDoLinkDeTrocaFalhou(#[source] tl::ParseError),
+    ParseDaTelaDeTrocaFalhou(#[source] tl::ParseError),
 }

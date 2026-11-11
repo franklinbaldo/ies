@@ -13,14 +13,17 @@ pub(crate) fn usuario_da_atividade_na_lista(
     if !atividade_na_lista(html, atividade)? {
         return Ok(None);
     }
-    let fora = ErroCiencia::ListaDeCienciasForaDaFormaObservada;
-    let dom = tl::parse(html, tl::ParserOptions::default()).map_err(|_| fora)?;
+    let dom = tl::parse(html, tl::ParserOptions::default())
+        .map_err(ErroCiencia::ListaDeCienciasNaoInterpretada)?;
     let parser = dom.parser();
-    let tabelas = nos_com_id(&dom, "tblAndamentos").map_err(|_| fora)?;
+    let tabelas = nos_com_id(&dom, "tblAndamentos").map_err(ErroCiencia::Atributo)?;
     let [unica] = tabelas.as_slice() else {
-        return Err(fora);
+        return Err(ErroCiencia::ListaDeCienciasForaDaFormaObservada);
     };
-    let tabela = unica.get(parser).and_then(tl::Node::as_tag).ok_or(fora)?;
+    let tabela = unica
+        .get(parser)
+        .and_then(tl::Node::as_tag)
+        .ok_or(ErroCiencia::ListaDeCienciasForaDaFormaObservada)?;
 
     // Não presumir que a segunda coluna é o nome: nas instalações
     // reais a disposição pode variar ou sequer estar identificada.

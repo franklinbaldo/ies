@@ -68,7 +68,11 @@ fn controle_fora_da_lista_e_recusado() {
 fn sem_formulario_de_outro_processo_ou_sem_somente_concluir() {
     assert_eq!(
         conferir("<html><body></body></html>"),
-        Err(super::erro::ErroTelaDeConclusao::FormularioDeConclusaoAusente)
+        Err(
+            super::erro::ErroTelaDeConclusao::FormularioDeConclusaoAusente(
+                crate::formulario_web::ErroSubmissaoFormulario::FormularioAusenteNaTela
+            )
+        )
     );
     assert_eq!(
         conferir_tela_de_conclusao(&tela_de_conclusao("11"), ID),

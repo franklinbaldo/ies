@@ -74,8 +74,6 @@ fn link_fora_da_forma_observada_e_recusado() {
         outra_acao,
         dois_hashes,
         outra_pasta,
-        ponto_e_virgula,
-        chave_estranha,
         ajax,
     ] {
         assert_eq!(
@@ -84,6 +82,18 @@ fn link_fora_da_forma_observada_e_recusado() {
             "{href}"
         );
     }
+    assert_eq!(
+        link(&controle(&menu(&ponto_e_virgula))),
+        Err(ErroLinkDaPesquisa::ConsultaDoLinkRecusadaPeloTransporte(
+            crate::transporte::FalhaTransporte::SeparadorDeConsultaAmbiguo
+        ))
+    );
+    assert_eq!(
+        link(&controle(&menu(&chave_estranha))),
+        Err(ErroLinkDaPesquisa::ConsultaDoLinkRecusadaPeloTransporte(
+            crate::transporte::FalhaTransporte::ChaveDeConsultaNaoCanonica
+        ))
+    );
 }
 
 #[test]

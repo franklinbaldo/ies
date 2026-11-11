@@ -32,11 +32,12 @@ pub(crate) fn ler_marcadores(
     nup: &str,
     id: &str,
 ) -> Result<TelaDosMarcadores, ErroMarcadores> {
-    let dom = tl::parse(html, tl::ParserOptions::default()).map_err(|_| ILEGIVEL)?;
+    let dom = tl::parse(html, tl::ParserOptions::default())
+        .map_err(ErroMarcadores::HtmlDosMarcadoresRecusadoPeloParser)?;
     let parser = dom.parser();
     conferir_identidade(&dom, nup, id)?;
     let tabela = match nos_com_id(&dom, "tblMarcadores")
-        .map_err(|_| ILEGIVEL)?
+        .map_err(ErroMarcadores::Atributo)?
         .as_slice()
     {
         [] => return Ok(TelaDosMarcadores::SemTabela),
@@ -102,7 +103,7 @@ fn conferir_identidade(dom: &tl::VDom<'_>, nup: &str, id: &str) -> Result<(), Er
     if numero != nup {
         return Err(ErroMarcadores::NumeroDosMarcadoresDiferenteDoSolicitado);
     }
-    let formularios = nos_com_id(dom, "frmGerenciarMarcador").map_err(|_| ILEGIVEL)?;
+    let formularios = nos_com_id(dom, "frmGerenciarMarcador").map_err(ErroMarcadores::Atributo)?;
     let [formulario] = formularios.as_slice() else {
         return Err(ErroMarcadores::TelaDosMarcadoresAusente);
     };
@@ -113,9 +114,7 @@ fn conferir_identidade(dom: &tl::VDom<'_>, nup: &str, id: &str) -> Result<(), Er
     if formulario.name() != "form" {
         return Err(ErroMarcadores::TelaDosMarcadoresAusente);
     }
-    let action = atributo(formulario, "action")
-        .map_err(|_| ILEGIVEL)?
-        .ok_or(ErroMarcadores::TelaDosMarcadoresAusente)?;
+    let action = atributo(formulario, "action")?.ok_or(ErroMarcadores::TelaDosMarcadoresAusente)?;
     let consulta = action
         .strip_prefix("controlador.php?")
         .ok_or(ErroMarcadores::TelaDosMarcadoresAusente)?;
@@ -136,23 +135,25 @@ fn conferir_identidade(dom: &tl::VDom<'_>, nup: &str, id: &str) -> Result<(), Er
 
 /// `Marcadores (N registro):` ou `Marcadores (N registros):`, sem faixa.
 fn legenda(tabela: Tag<'_>, parser: &tl::Parser<'_>) -> Result<usize, ErroMarcadores> {
-    let fora = ErroMarcadores::LegendaDosMarcadoresForaDaFormaObservada;
+    let fora = || ErroMarcadores::LegendaDosMarcadoresForaDaFormaObservada;
     let [caption] = descendentes(tabela, parser, "caption")[..] else {
-        return Err(fora);
+        return Err(fora());
     };
-    let legenda = texto(caption, parser).map_err(|_| fora)?;
+    let legenda = texto(caption, parser).map_err(|_| fora())?;
     let (numero, palavra) = legenda
         .strip_prefix("Marcadores (")
         .and_then(|r| r.strip_suffix("):"))
         .and_then(|r| r.split_once(' '))
-        .ok_or(fora)?;
+        .ok_or_else(fora)?;
     if !matches!(palavra, "registro" | "registros")
         || numero.is_empty()
         || !numero.bytes().all(|b| b.is_ascii_digit())
     {
-        return Err(fora);
+        return Err(fora());
     }
-    numero.parse().map_err(|_| fora)
+    numero
+        .parse()
+        .map_err(ErroMarcadores::NumeroDaLegendaIlegivel)
 }
 
 /// Rótulo de `div.infraDivRotuloOrdenacao` ou do `th`; a seleção é o `th`
@@ -162,18 +163,19 @@ fn rotulo_do_th(
     parser: &tl::Parser<'_>,
     selecao: bool,
 ) -> Result<String, ErroMarcadores> {
-    let fora = ErroMarcadores::CabecalhoDosMarcadoresNaoReconhecido;
+    let fora = || ErroMarcadores::CabecalhoDosMarcadoresNaoReconhecido;
     if selecao {
-        let marcado = nos_com_id_em(th, parser, "lnkInfraCheck").map_err(|_| fora)?;
+        let marcado =
+            nos_com_id_em(th, parser, "lnkInfraCheck").map_err(ErroMarcadores::Atributo)?;
         if marcado.len() != 1 {
-            return Err(fora);
+            return Err(fora());
         }
     }
     let rotulos = nos_por_elemento_e_classe_em(th, parser, "div", "infraDivRotuloOrdenacao")?;
     match rotulos.as_slice() {
         [] => texto(th, parser),
         [div] => texto(div, parser),
-        _ => Err(fora),
+        _ => Err(fora()),
     }
 }
 
@@ -187,7 +189,7 @@ fn nos_por_elemento_e_classe_em<'p>(
     for tag in descendentes(raiz, parser, elemento) {
         if atributos(tag)
             .and_then(|a| a.tem_classe(classe))
-            .map_err(|_| ILEGIVEL)?
+            .map_err(ErroMarcadores::Atributo)?
         {
             achados.push(tag);
         }

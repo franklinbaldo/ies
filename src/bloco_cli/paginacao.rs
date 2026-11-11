@@ -33,7 +33,8 @@ pub(super) const PAGINAR_BLOCOS: OperacaoDeFormulario = OperacaoDeFormulario {
 pub(super) fn conferir_indice_da_pagina(html: &str, indice: &str) -> Result<(), FalhaLeitura> {
     use crate::html_atributos::valor_do_atributo;
     let ilegivel = || FalhaLeitura::HtmlDeBlocosInvalido;
-    let dom = tl::parse(html, tl::ParserOptions::default()).map_err(|_| ilegivel())?;
+    let dom = tl::parse(html, tl::ParserOptions::default())
+        .map_err(FalhaLeitura::HtmlDeBlocosRecusadoPeloParser)?;
     let form = crate::formulario_web::localizar_formulario(&dom, "frmBlocoLista")?;
     let mut achados = 0;
     for no in form

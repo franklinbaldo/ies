@@ -36,6 +36,8 @@ pub(crate) enum ErroValidacaoAcesso {
     RedirecionamentoSemProva,
     /// A sessao mudou depois do POST; nao reiniciar a operacao nem reenviar senha.
     ReleituraNaoConfirmada,
+    /// O link oferecido pela modal não tem a forma observada.
+    EnderecoDaModalRecusado(#[source] crate::arvore_processo::endereco::EnderecoRecusado),
 }
 
 impl ErroValidacaoAcesso {
@@ -45,7 +47,8 @@ impl ErroValidacaoAcesso {
             Self::Formulario(erro) => erro.sessao_encerrada(),
             Self::ModalNaoReconhecida
             | Self::RedirecionamentoSemProva
-            | Self::ReleituraNaoConfirmada => false,
+            | Self::ReleituraNaoConfirmada
+            | Self::EnderecoDaModalRecusado(_) => false,
         }
     }
 }
@@ -70,7 +73,7 @@ fn link_oferecido(
         .split_once('\'')
         .ok_or(ErroValidacaoAcesso::ModalNaoReconhecida)?;
     conferir_endereco_relativo(&contexto.instalacao, relativo, OPERACAO.acao, id)
-        .map_err(|_| ErroValidacaoAcesso::ModalNaoReconhecida)
+        .map_err(ErroValidacaoAcesso::EnderecoDaModalRecusado)
 }
 
 /// Apenas uma tentativa de POST na modal. Sucesso provisório exige nova
