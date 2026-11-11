@@ -59,7 +59,6 @@ pub(crate) enum FalhaRelacionar {
     ConsultaComplementarDeRelacionamentoNaoDeclarada,
     ConsultaDeRelacionamentoRedirecionada,
     DestinoDaConsulta(#[from] ErroDestinoDaConsulta),
-    DestinoARelacionarNaoIdentificado,
     AcaoExcluirRelacionamentoNaoDeclarada,
     IdDaOrigemNaActionAusente,
     ActionDeRemocaoDeOutroProcesso,
