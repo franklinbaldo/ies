@@ -23,19 +23,32 @@ fn html(d: &Detalhe) -> String {
         )
         .expect("escrever em String");
     }
-    saida.push_str(
-        "<tr><th></th><th>Documento</th><th>Processo</th><th>Anotações</th><th>Tipo</th></tr>",
-    );
-    for i in &d.itens {
-        write!(
-            saida,
-            "<tr><td><input type='checkbox'></td><td>{}</td><td>{}</td><td>{}</td><td>{}</td></tr>",
-            escapar(i.documento.as_deref().unwrap_or("")),
-            escapar(&i.processo),
-            escapar(&i.anotacoes),
-            escapar(i.tipo.as_deref().unwrap_or(""))
-        )
-        .expect("escrever em String");
+    if d.tipo == Tipo::Assinatura {
+        saida.push_str(
+            "<tr><th></th><th>Documento</th><th>Processo</th><th>Anotações</th><th>Tipo</th></tr>",
+        );
+        for i in &d.itens {
+            write!(
+                saida,
+                "<tr><td><input type='checkbox'></td><td>{}</td><td>{}</td><td>{}</td><td>{}</td></tr>",
+                escapar(i.documento.as_deref().unwrap_or("")),
+                escapar(&i.processo),
+                escapar(&i.anotacoes),
+                escapar(i.tipo.as_deref().unwrap_or(""))
+            )
+            .expect("escrever em String");
+        }
+    } else {
+        saida.push_str("<tr><th></th><th>Processo</th><th>Anotações</th></tr>");
+        for i in &d.itens {
+            write!(
+                saida,
+                "<tr><td><input type='checkbox'></td><td>{}</td><td>{}</td></tr>",
+                escapar(&i.processo),
+                escapar(&i.anotacoes),
+            )
+            .expect("escrever em String");
+        }
     }
     saida.push_str("</table></body></html>");
     saida
@@ -57,13 +70,28 @@ pub(crate) fn responder(
     if numero.is_empty() || !numero.bytes().all(|b| b.is_ascii_digit()) {
         return Resposta::nova(Estado::RequisicaoInvalida);
     }
-    // O link do detalhe so foi publicado na lista de assinatura observada.
-    let publicado = blocos::ler(banco, instalacao, cenario, Tipo::Assinatura);
-    match publicado {
-        Ok(Some(pagina)) if pagina.linhas.iter().any(|l| l.numero == numero) => {}
-        _ => return Resposta::nova(Estado::DadosInsuficientes),
+    // A URL observada não identifica o tipo. Só publicar quando uma única
+    // lista completa comprovar o número, sem adivinhar assinatura.
+    let mut tipo_encontrado = None;
+    for tipo in [Tipo::Assinatura, Tipo::Interno, Tipo::Reuniao] {
+        let Ok(pagina) = blocos::ler(banco, instalacao, cenario, tipo) else {
+            return Resposta::nova(Estado::DadosInsuficientes);
+        };
+        let Some(pagina) = pagina else {
+            continue;
+        };
+        if pagina.linhas.iter().any(|linha| linha.numero == numero) {
+            if tipo_encontrado.replace(tipo).is_some() {
+                return Resposta::nova(Estado::DadosInsuficientes);
+            }
+        } else if pagina.total != pagina.linhas.len() {
+            return Resposta::nova(Estado::DadosInsuficientes);
+        }
     }
-    match bloco_detalhe::ler(banco, instalacao, cenario, Tipo::Assinatura, numero) {
+    let Some(tipo) = tipo_encontrado else {
+        return Resposta::nova(Estado::DadosInsuficientes);
+    };
+    match bloco_detalhe::ler(banco, instalacao, cenario, tipo, numero) {
         Ok(Some(detalhe)) => Resposta::html(html(&detalhe)),
         _ => Resposta::nova(Estado::DadosInsuficientes),
     }
