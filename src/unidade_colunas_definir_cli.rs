@@ -48,11 +48,11 @@ pub(crate) fn definir_colunas(
         }),
     )?;
     if json_mode {
-        println!(
-            "{}",
-            serde_json::to_string_pretty(&resultado_colunas(&feito))?
-        );
+        let mut valor = serde_json::to_value(resultado_colunas(&feito))?;
+        crate::indice_local::anexar_avisos(&mut valor, &indice);
+        println!("{}", serde_json::to_string_pretty(&valor)?);
     } else {
+        crate::indice_local::avisar_no_texto(&indice);
         println!("{}", humano(&feito));
     }
     Ok(())

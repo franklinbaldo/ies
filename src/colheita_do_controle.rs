@@ -13,7 +13,7 @@ use crate::caixa::LinhaDoControle;
 use crate::controle_contexto::contexto_da_pagina;
 use crate::controle_reconhecido::publica_visao_detalhada;
 use crate::formulario_web::{TelaServida, decodificar_atributo, derivar_submissao};
-use crate::indice_local::{ChaveDoLink, IndiceLocal, RegistroRecusado, unidade_dos_links};
+use crate::indice_local::{ChaveDoLink, IndiceLocal, unidade_dos_links};
 use crate::instalacao::Instalacao;
 use crate::pagina_do_controle::codificacao_da_tela;
 use crate::pesquisa_web::link_da_pesquisa::link_da_pesquisa;
@@ -25,6 +25,9 @@ use std::collections::HashMap;
 #[cfg(test)]
 #[path = "colheita_do_controle/tests.rs"]
 mod tests;
+#[cfg(test)]
+#[path = "colheita_do_controle/tests_avisos.rs"]
+mod tests_avisos;
 
 /// Para onde e com que chave colher: índice, instalação, geração da sessão
 /// (SHA-256 do cookie) e a URL privada do Controle, de onde vêm a unidade
@@ -128,34 +131,29 @@ impl<'i> Colheita<'i> {
                 &linha.id,
                 &url,
             );
-            if gravado.is_ok() {
-                let _ = indice.registrar_processo(instalacao, &linha.numero, &linha.id);
+            if gravado {
+                indice.registrar_processo(instalacao, &linha.numero, &linha.id);
             }
         }
         if let Ok(url) = link_da_pesquisa(instalacao, &alvo.url_do_controle, html) {
-            let _ = registrar(alvo, &unidade, AcaoDoSei::ProtocoloPesquisar, "", &url);
+            registrar(alvo, &unidade, AcaoDoSei::ProtocoloPesquisar, "", &url);
         }
         if let Some(url) = mime.and_then(|mime| action_da_pesquisa_rapida(alvo, html, mime)) {
-            let _ = registrar(alvo, &unidade, PESQUISA_RAPIDA.acao, "", &url);
+            registrar(alvo, &unidade, PESQUISA_RAPIDA.acao, "", &url);
         }
     }
 }
 
-/// Guarda o link sem editar; a recusa da conferência é a resposta.
-fn registrar(
-    alvo: &Alvo<'_>,
-    unidade: &str,
-    acao: AcaoDoSei,
-    id_alvo: &str,
-    url: &str,
-) -> Result<(), RegistroRecusado> {
+/// Guarda o link sem editar; a recusa da conferência fica nos avisos do
+/// índice. `true` se a entrada passou.
+fn registrar(alvo: &Alvo<'_>, unidade: &str, acao: AcaoDoSei, id_alvo: &str, url: &str) -> bool {
     let chave = ChaveDoLink {
         geracao_sessao: &alvo.geracao,
         unidade,
         acao,
         alvo: id_alvo,
     };
-    alvo.indice.registrar_link(&alvo.instalacao, chave, url)
+    alvo.indice.guardar_link(&alvo.instalacao, chave, url)
 }
 
 /// As linhas da página pelo leitor da visão que ela publica (D se houver

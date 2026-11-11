@@ -298,7 +298,7 @@ fn publicar_exclusao(
     cli: &Cli,
     nup: &NumeroProcesso,
     confirmar: bool,
-    aberto: &crate::processo_obter::ProcessoAberto,
+    (aberto, indice): (&crate::processo_obter::ProcessoAberto, &IndiceLocal),
     requisicoes: u8,
 ) {
     // Na prévia o prazo atual não é lido: a chave `atual` sai, sem null.
@@ -319,6 +319,7 @@ fn publicar_exclusao(
         }
     }
     if cli.json {
+        crate::indice_local::anexar_avisos(&mut resultado, indice);
         println!("{resultado}");
     } else if confirmar {
         println!(
@@ -374,7 +375,7 @@ pub(super) fn executar(
     if confirmar {
         escrever_e_verificar(sessao, (&leitura, indice), &preparada, &mut rede, &cookie)?;
     }
-    publicar_exclusao(cli, nup, confirmar, &aberto, rede.feitas());
+    publicar_exclusao(cli, nup, confirmar, (&aberto, indice), rede.feitas());
     Ok(())
 }
 

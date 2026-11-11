@@ -289,7 +289,11 @@ mod tests {
             unidade("2", "RETOMADA/CDE-21385", "Descrição"),
         ];
         assert_eq!(indice.lista_de_unidades("https://sei.exemplo", "7"), None);
-        assert!(indice.guardar_lista_de_unidades("https://sei.exemplo", "7", &lista, 2));
+        assert!(
+            indice.guardar_lista_de_unidades("https://sei.exemplo", "7", &lista, 2),
+            "{:?}",
+            indice.avisos()
+        );
         let achadas = indice
             .pesquisar_unidades_guardadas("https://sei.exemplo", "7", "descricão")
             .unwrap();

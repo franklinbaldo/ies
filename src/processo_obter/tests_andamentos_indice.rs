@@ -10,7 +10,7 @@ use crate::historico_processo::TipoDoHistorico;
 
 fn quente(amb: &Ambiente, historico_guardado: bool) {
     let (inst, g) = (instalacao(), geracao());
-    amb.indice.registrar_processo(&inst, NUP, ID).unwrap();
+    amb.indice.registrar_processo(&inst, NUP, ID);
     amb.indice
         .registrar_link(
             &inst,

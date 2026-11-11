@@ -2,7 +2,7 @@
 //! valida o termo (saída 2 antes de ler a configuração), lê os arquivos
 //! privados da sessão e publica a resposta observada da pesquisa Web.
 use crate::colheita_do_controle::Colheita;
-use crate::indice_local::IndiceLocal;
+use crate::indice_local::{self, IndiceLocal};
 use crate::pesquisa_web::alvo::EmProcessos;
 use crate::pesquisa_web::erro_busca::ErroBuscaDeProcesso;
 use crate::pesquisa_web::filtros::FiltrosDaPesquisa;
@@ -119,9 +119,11 @@ fn buscar(
         pagina,
         unidade: cli.unidade.as_deref(),
     };
-    // Cada tentativa relê a sessão e o índice: depois do relogin, a nova.
+    let indice = IndiceLocal::da_configuracao(&arquivos);
+    // Cada tentativa relê a sessão: depois do relogin, a nova.
     let (mut busca, nota) = relogin_cli::ler(
         &arquivos,
+        &indice,
         cli.unidade.as_deref(),
         ErroBuscaDeProcesso::sessao_encerrada,
         || {
@@ -136,7 +138,6 @@ fn buscar(
                 origem: referencias.origem(),
                 cookie: referencias.cookie(),
             };
-            let indice = IndiceLocal::da_configuracao(&arquivos);
             let colheita = Colheita::das_referencias(&indice, &referencias);
             buscar_colhendo_filtrado::<EmProcessos, _>(
                 &sessao,
@@ -152,9 +153,11 @@ fn buscar(
     if cli.json {
         let mut valor = json_da_busca(termo, &busca);
         relogin_cli::anotar(&mut valor, nota.as_ref());
+        indice_local::anexar_avisos(&mut valor, &indice);
         println!("{}", serde_json::to_string_pretty(&valor)?);
     } else {
         relogin_cli::avisar(cli.json, nota.as_ref());
+        indice_local::avisar_no_texto(&indice);
         println!("{}", humano(termo, &busca));
     }
     Ok(())

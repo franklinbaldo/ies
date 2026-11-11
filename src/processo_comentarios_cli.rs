@@ -36,22 +36,21 @@ pub(crate) fn tentar_ler(cli: &Cli) -> Option<anyhow::Result<()>> {
                         })
                     })
                     .collect();
-                println!(
-                    "{}",
-                    json!({
-                        "nup": resultado.numero,
-                        "id_procedimento": resultado.id_procedimento,
-                        "visao": match resultado.visao {
-                            VisaoDosComentarios::Processo => "P",
-                            VisaoDosComentarios::Todos => "T",
-                        },
-                        "total": resultado.total_declarado,
-                        "comentarios": itens,
-                        "lista_completa": true,
-                        "origem": "web",
-                        "requisicoes": resultado.requisicoes,
-                    })
-                );
+                let mut valor = json!({
+                    "nup": resultado.numero,
+                    "id_procedimento": resultado.id_procedimento,
+                    "visao": match resultado.visao {
+                        VisaoDosComentarios::Processo => "P",
+                        VisaoDosComentarios::Todos => "T",
+                    },
+                    "total": resultado.total_declarado,
+                    "comentarios": itens,
+                    "lista_completa": true,
+                    "origem": "web",
+                    "requisicoes": resultado.requisicoes,
+                });
+                crate::indice_local::anexar_avisos(&mut valor, indice);
+                println!("{valor}");
             } else {
                 println!(
                     "Comentários do processo {} ({} registros):",

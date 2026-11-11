@@ -52,21 +52,20 @@ fn operar(
         };
         let previa = executar(sessao, &pedido, indice, &mut EnvioHttps)?;
         if cli.json {
-            println!(
-                "{}",
-                json!({
-                    "nup": previa.nup,
-                    "id_procedimento": previa.id_procedimento,
-                    "unidade": previa.unidade,
-                    "acao": previa.acao.como_texto(),
-                    "motivo": motivo,
-                    "confirmado": previa.estado.aplicada(),
-                    "alterado": previa.estado.aplicada(),
-                    "reconciliado_por_leitura": previa.estado.aplicada(),
-                    "origem": "web",
-                    "requisicoes": previa.requisicoes
-                })
-            );
+            let mut valor = json!({
+                "nup": previa.nup,
+                "id_procedimento": previa.id_procedimento,
+                "unidade": previa.unidade,
+                "acao": previa.acao.como_texto(),
+                "motivo": motivo,
+                "confirmado": previa.estado.aplicada(),
+                "alterado": previa.estado.aplicada(),
+                "reconciliado_por_leitura": previa.estado.aplicada(),
+                "origem": "web",
+                "requisicoes": previa.requisicoes
+            });
+            crate::indice_local::anexar_avisos(&mut valor, indice);
+            println!("{valor}");
         } else if previa.estado.aplicada() {
             println!(
                 "Processo {}: {} aplicado e conferido por leitura. Requisições: {}.",

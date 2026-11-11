@@ -95,6 +95,17 @@ impl IndiceLocal {
         Ok(())
     }
 
+    /// [`Self::registrar_link`] para quem não decide pela recusa: ela fica nos
+    /// avisos. `true` se a entrada passou na conferência.
+    pub(crate) fn guardar_link(
+        &self,
+        instalacao: &Instalacao,
+        chave: ChaveDoLink<'_>,
+        url: &str,
+    ) -> bool {
+        self.anotar_recusa(self.registrar_link(instalacao, chave, url))
+    }
+
     /// O link guardado não abriu a tela esperada: esquece-o.
     pub(crate) fn esquecer_link(&self, instalacao: &Instalacao, chave: ChaveDoLink<'_>) {
         let origem = instalacao.url_base();
