@@ -27,23 +27,23 @@ pub(crate) enum VerificacaoDoCancelamento {
 #[error("{self:?}")]
 pub(crate) enum ErroCancelar {
     /// O cookie privado da sessão não pôde ser lido.
-    Cookie(CookieIlegivel),
-    Abertura(ErroDocumentoObter),
-    Link(ErroLinkCancelar),
+    Cookie(#[source] CookieIlegivel),
+    Abertura(#[source] ErroDocumentoObter),
+    Link(#[source] ErroLinkCancelar),
     CancelamentoNaoOferecido,
     DocumentoJaCancelado,
-    Tela(FalhaTransporte),
+    Tela(#[source] FalhaTransporte),
     TelaRedirecionada,
     SessaoEncerrada,
     CharsetNaoSuportado,
-    Formulario(ErroSubmissaoFormulario),
+    Formulario(#[source] ErroSubmissaoFormulario),
     FormularioDeOutroDocumento,
     /// O HTML do formulário de cancelamento não pôde ser interpretado.
     HtmlDoFormularioNaoInterpretado(#[source] tl::ParseError),
     /// O endereço do formulário não aponta para o processo aberto.
-    EnderecoDoProcessoRecusado(crate::arvore_processo::endereco::EnderecoRecusado),
+    EnderecoDoProcessoRecusado(#[source] crate::arvore_processo::endereco::EnderecoRecusado),
     /// O endereço do formulário não aponta para o documento pedido.
-    EnderecoDoDocumentoRecusado(crate::arvore_processo::endereco::EnderecoRecusado),
+    EnderecoDoDocumentoRecusado(#[source] crate::arvore_processo::endereco::EnderecoRecusado),
     MotivoNaoPublicadoNaTela,
     /// A unidade da escrita não foi publicada pela árvore nem pela sessão.
     UnidadeNaoPublicada,
