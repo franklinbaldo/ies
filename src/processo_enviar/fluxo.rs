@@ -300,7 +300,8 @@ fn conferir_link_do_envio(
 ) -> Result<crate::arvore_processo::EnderecoDeEscrita, ErroEnviar> {
     let aberta = aberto_em.iter().any(|sigla| sigla == unidade);
     match (enviar, aberta) {
-        (Ok(None) | Err(_), false) => Err(ErroEnviar::ProcessoNaoAbertoNaUnidadeDaSessao {
+        (Err(erro), _) => Err(ErroEnviar::Barra(erro)),
+        (Ok(None), false) => Err(ErroEnviar::ProcessoNaoAbertoNaUnidadeDaSessao {
             aberto_em: aberto_em.to_vec(),
         }),
         (Ok(Some(_)), false) => Err(ErroEnviar::UnidadeDaSessaoAusenteDaSituacao {
@@ -309,7 +310,6 @@ fn conferir_link_do_envio(
         (Ok(None), true) => Err(ErroEnviar::EnvioNaoPublicadoNaBarra {
             aberto_em: aberto_em.to_vec(),
         }),
-        (Err(erro), true) => Err(ErroEnviar::Barra(erro)),
         (Ok(Some(link)), true) => Ok(link),
     }
 }
