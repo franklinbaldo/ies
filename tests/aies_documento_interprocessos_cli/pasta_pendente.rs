@@ -1,10 +1,10 @@
 //! Regressão #496, ligada ao BDD-60-05: lista parcial não é ausência provada.
-//! Hipótese sintética de PASTA/AGUARDE; cassettes UnB de busca não trazem
+//! Hipótese sintética de PASTA/AGUARDE; cassettes `UnB` de busca não trazem
 //! esta recusa. Duas CLIs reais consultam o mesmo SQLite, por TLS loopback.
 use super::*;
 
 /// O processo informa leitura parcial; a consulta documental estrita precisa
-/// recusar sem substituir DOC_B pelo DOC_A visível e sem buscar conteúdo.
+/// recusar sem substituir `DOC_B` pelo `DOC_A` visível e sem buscar conteúdo.
 /// A opção de ocultar inacessíveis não transforma erro de identidade em omissão.
 #[test]
 fn regressao_496_documento_em_arvore_parcial_recusa_sem_falso_ausente() {
