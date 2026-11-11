@@ -96,10 +96,10 @@ pub(crate) enum ErroConfirmacaoDaCriacao {
     NaoDemonstradoNaArvore(#[source] ErroCriar),
     /// O POST pode ter produzido efeito mesmo com falha HTTP ou de rede;
     /// preservar sua causa sem autorizar uma segunda tentativa.
-    NaoConfirmadoNoEnvio(ErroSubmissaoFormulario),
+    NaoConfirmadoNoEnvio(#[source] ErroSubmissaoFormulario),
     /// O GET de reconciliação falhou após o POST; preservar a causa
     /// observada, sem inferir que o documento deixou de ser criado.
-    NaoConfirmadoNaReleitura(ErroProcessoObter),
+    NaoConfirmadoNaReleitura(#[source] ErroProcessoObter),
 }
 
 pub(super) fn postar_e_verificar<T, R, P, L>(
