@@ -31,7 +31,6 @@ pub(crate) enum FalhaLeitura {
     HtmlDeBlocosInvalido,
     IdentidadeDoBlocoAmbigua,
     ListaParcialNaoExcluiColisao,
-    BlocoNaoIdentificadoNasListas,
 }
 /// Lista ou detalhe de bloco, já tipados.
 pub(crate) enum Leitura {
