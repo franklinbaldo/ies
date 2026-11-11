@@ -4,6 +4,7 @@ use crate::acao_do_sei::AcaoDoSei;
 use crate::consulta_do_controlador::ConsultaDoControlador;
 use crate::formulario_web::{ErroSubmissaoFormulario, localizar_formulario};
 use crate::html_atributos::{ErroAtributoHtml, valor_decodificado};
+use crate::resposta_ajax::{ErroXml, RespostaAjax};
 use ErroAtributoDeRelacionamento::AtributoDaTelaIlegivel;
 use std::collections::HashSet;
 
@@ -38,10 +39,10 @@ pub(crate) enum ErroTelaDeRelacionamentos {
 }
 
 /// A resposta XML da consulta `protocolo_RI1023` do destino.
-#[derive(Clone, Debug, PartialEq, Eq, thiserror::Error)]
+#[derive(Clone, Debug, thiserror::Error)]
 #[error("{self:?}")]
 pub(crate) enum ErroDestinoDaConsulta {
-    Atributo(#[from] ErroAtributoDeRelacionamento),
+    Xml(#[from] ErroXml),
     ProcessoDeDestinoNaoEncontrado,
     DestinoDaConsultaAmbiguo,
     DestinoARelacionarNaoIdentificado,
@@ -184,39 +185,21 @@ pub(super) fn url_complementar(html: &str) -> Option<String> {
 }
 
 /// Só devolve identidade observada nos complementos únicos da resposta.
-pub(super) fn ler_destino(
-    xml: &crate::tela_html::HtmlServido,
-) -> Result<DestinoConsultado, ErroDestinoDaConsulta> {
-    let dom = crate::tela_html::interpretar(xml);
-    let parser = dom.parser();
-    if dom
-        .query_selector("erros")
-        .into_iter()
-        .flatten()
-        .next()
-        .is_some()
-    {
+pub(super) fn ler_destino(xml: &str) -> Result<DestinoConsultado, ErroDestinoDaConsulta> {
+    let resposta = RespostaAjax::ler(xml)?;
+    if !resposta.elementos("erros").is_empty() {
         return Err(ErroDestinoDaConsulta::ProcessoDeDestinoNaoEncontrado);
     }
     let mut id = Vec::new();
     let mut numero = Vec::new();
     let mut tipos = Vec::new();
-    for no in dom.query_selector("complemento").into_iter().flatten() {
-        let Some(tag) = no.get(parser).and_then(tl::Node::as_tag) else {
-            continue;
-        };
-        let valor = html_escape::decode_html_entities(&tag.inner_text(parser))
-            .into_owned()
-            .trim()
-            .to_owned();
-        match valor_decodificado(tag, "nome")
-            .map_err(AtributoDaTelaIlegivel)?
-            .as_deref()
-        {
+    for complemento in resposta.elementos("complemento") {
+        let valor = complemento.texto().trim().to_owned();
+        match complemento.atributo("nome") {
             Some("IdProcedimento") => id.push(valor),
             Some("ProtocoloProcedimentoFormatado") => numero.push(valor),
             Some("NomeTipoProcedimento") => tipos.push(valor),
-            _ => (),
+            Some(_) | None => (),
         }
     }
     match (id.as_slice(), numero.as_slice()) {

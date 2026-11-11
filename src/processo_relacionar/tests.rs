@@ -85,28 +85,23 @@ fn xml_complementos_identifica_destino_sem_inventar_id() {
     let d = ler_destino(&xml).unwrap();
     assert_eq!(d.id, "50698");
     assert_eq!(d.nup, "12345.000001/2026-01");
-    assert_eq!(
-        ler_destino(&HtmlServido::de_teste(
-            "<erros><erro descricao='Não encontrado.'/></erros>"
-        ))
-        .err(),
-        Some(ErroDestinoDaConsulta::ProcessoDeDestinoNaoEncontrado)
-    );
+    assert!(matches!(
+        ler_destino("<erros><erro descricao='Não encontrado.'/></erros>"),
+        Err(ErroDestinoDaConsulta::ProcessoDeDestinoNaoEncontrado)
+    ));
 }
 
 #[test]
 fn xml_destino_duplicado_ou_vazio_e_recusado() {
-    let duplicado = HtmlServido::de_teste(
-        r#"<complementos><complemento nome="IdProcedimento">11</complemento><complemento nome="IdProcedimento">12</complemento><complemento nome="ProtocoloProcedimentoFormatado">00001</complemento></complementos>"#,
-    );
-    assert_eq!(
-        ler_destino(&duplicado).err(),
-        Some(ErroDestinoDaConsulta::DestinoDaConsultaAmbiguo)
-    );
-    assert_eq!(
-        ler_destino(&HtmlServido::de_teste("<complementos/>")).err(),
-        Some(ErroDestinoDaConsulta::DestinoARelacionarNaoIdentificado)
-    );
+    let duplicado = r#"<complementos><complemento nome="IdProcedimento">11</complemento><complemento nome="IdProcedimento">12</complemento><complemento nome="ProtocoloProcedimentoFormatado">00001</complemento></complementos>"#;
+    assert!(matches!(
+        ler_destino(duplicado),
+        Err(ErroDestinoDaConsulta::DestinoDaConsultaAmbiguo)
+    ));
+    assert!(matches!(
+        ler_destino("<complementos/>"),
+        Err(ErroDestinoDaConsulta::DestinoARelacionarNaoIdentificado)
+    ));
 }
 
 #[test]

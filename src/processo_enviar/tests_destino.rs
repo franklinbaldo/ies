@@ -55,15 +55,23 @@ fn itens_na_forma_observada() {
     for fora in [
         "<html><body>login</body></html>",
         "<?xml version=\"1.0\"?><erro descricao=\"x\"/>",
-        "<?xml version=\"1.0\"?><itens></itens><itens></itens>",
         "<?xml version=\"1.0\"?><itens><item descricao=\"X - Y\"></item></itens>",
     ] {
-        assert_eq!(
-            itens_do_autocompletar(&HtmlServido::de_teste(fora)),
-            Err(FalhaDaConsulta::RespostaDoAutocompletarForaDaFormaObservada),
+        assert!(
+            matches!(
+                itens_do_autocompletar(fora),
+                Err(FalhaDaConsulta::RespostaDoAutocompletarForaDaFormaObservada)
+            ),
             "{fora}"
         );
     }
+    // Dois elementos raiz não são XML bem formado: recusado pelo leitor XML.
+    assert!(matches!(
+        itens_do_autocompletar("<?xml version=\"1.0\"?><itens></itens><itens></itens>"),
+        Err(FalhaDaConsulta::Xml(
+            crate::resposta_ajax::ErroXml::VariosElementosRaiz
+        ))
+    ));
 }
 
 #[test]
@@ -74,13 +82,14 @@ fn resposta_precisa_ser_xml_200() {
     );
     assert_eq!(
         ler_resposta_da_consulta(resposta(200, "text/xml; charset=iso-8859-1", &um_destino()))
-            .map(|i| i.len()),
-        Ok(1)
+            .map(|i| i.len())
+            .ok(),
+        Some(1)
     );
-    assert_eq!(
+    assert!(matches!(
         ler_resposta_da_consulta(resposta(200, "text/html; charset=iso-8859-1", "<html/>")),
         Err(FalhaDaConsulta::RespostaDoAutocompletarNaoXml)
-    );
+    ));
     assert!(matches!(
         ler_resposta_da_consulta(resposta(500, XML, "")),
         Err(FalhaDaConsulta::Transporte(FalhaTransporte::Status(_)))
@@ -109,30 +118,29 @@ fn destino_e_a_sigla_exata_sem_caixa() {
         );
     }
     assert_eq!(
-        escolher_destino("ADCENTRAL/GR/ARQUIVO /PROCE", &servidos).map(|d| d.id_unidade),
-        Ok("110000936".into())
+        escolher_destino("ADCENTRAL/GR/ARQUIVO /PROCE", &servidos)
+            .map(|d| d.id_unidade)
+            .ok(),
+        Some("110000936".into())
     );
-    assert_eq!(
+    assert!(matches!(
         escolher_destino("ADCENT", &servidos),
-        Err(ErroEnviar::DestinoNaoOferecidoPeloSei {
-            oferecidos: servidos.iter().map(|(_, d)| d.clone()).collect()
-        })
-    );
+        Err(ErroEnviar::DestinoNaoOferecidoPeloSei { oferecidos })
+            if oferecidos == servidos.iter().map(|(_, d)| d.clone()).collect::<Vec<_>>()
+    ));
     let repetidos = itens(&[
         ("1", "TESTE - Um"),
         ("2", "teste - Dois"),
         ("3", "Sem sigla"),
     ]);
-    assert_eq!(
+    assert!(matches!(
         escolher_destino("TESTE", &repetidos),
-        Err(ErroEnviar::VariosDestinosComASigla {
-            candidatos: vec!["TESTE - Um".into(), "teste - Dois".into()]
-        })
-    );
-    assert_eq!(
+        Err(ErroEnviar::VariosDestinosComASigla { candidatos })
+            if candidatos == ["TESTE - Um".to_owned(), "teste - Dois".to_owned()]
+    ));
+    assert!(matches!(
         escolher_destino("Sem sigla", &repetidos),
-        Err(ErroEnviar::DestinoNaoOferecidoPeloSei {
-            oferecidos: repetidos.iter().map(|(_, d)| d.clone()).collect()
-        })
-    );
+        Err(ErroEnviar::DestinoNaoOferecidoPeloSei { oferecidos })
+            if oferecidos == repetidos.iter().map(|(_, d)| d.clone()).collect::<Vec<_>>()
+    ));
 }

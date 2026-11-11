@@ -2,11 +2,11 @@
 //! Cada pedido faz uma consulta sem efeito de escrita, por URL assinada
 //! observada, e exige identidade unívoca; nenhum nome vira ID inventado.
 use crate::formulario_web::{
-    ConsultaAjax, EfeitoAvaliado, TelaServida, decodificar_atributo, derivar_consulta_ajax,
-    localizar_formulario,
+    ConsultaAjax, EfeitoAvaliado, TelaServida, derivar_consulta_ajax, localizar_formulario,
 };
 use crate::html_atributos::{atributo_presente, valor_do_atributo};
 use crate::instalacao::Instalacao;
+use crate::resposta_ajax::{Elemento, ErroXml, RespostaAjax};
 use crate::transporte::ler_limitado;
 use crate::visao_do_controle::EnvioDoControle;
 
@@ -19,7 +19,7 @@ const AUTOCOMPLETAR: ConsultaAjax = ConsultaAjax {
     },
 };
 
-#[derive(Debug, Clone, PartialEq, Eq, thiserror::Error)]
+#[derive(Debug, Clone, thiserror::Error)]
 #[error("{self:?}")]
 pub(crate) enum ErroInteressado {
     AutocompletarNaoDeclarado,
@@ -30,8 +30,8 @@ pub(crate) enum ErroInteressado {
     FormularioDosControlesRecusado(#[source] crate::formulario_web::ErroSubmissaoFormulario),
     AtributoDosControlesDeInteressadoIlegivel(#[source] crate::html_atributos::ErroAtributoHtml),
     InteressadoRespostaNaoReconhecida,
+    Xml(#[from] ErroXml),
     CorpoDaRespostaIlegivel(#[source] crate::transporte::corpo::ErroCorpoHttp),
-    AtributoDaRespostaDeInteressadoIlegivel(#[source] crate::html_atributos::ErroAtributoHtml),
     /// Falha observada no transporte do AJAX consultivo, antes da escrita.
     Transporte(#[from] crate::transporte::FalhaTransporte),
 }
@@ -49,8 +49,8 @@ impl ErroInteressado {
             | Self::FormularioDosControlesRecusado(_)
             | Self::AtributoDosControlesDeInteressadoIlegivel(_)
             | Self::InteressadoRespostaNaoReconhecida
-            | Self::CorpoDaRespostaIlegivel(_)
-            | Self::AtributoDaRespostaDeInteressadoIlegivel(_) => None,
+            | Self::Xml(_)
+            | Self::CorpoDaRespostaIlegivel(_) => None,
         }
     }
 }
@@ -105,37 +105,24 @@ fn url_publicada(html: &crate::tela_html::HtmlServido) -> Result<String, ErroInt
     }
 }
 
-fn itens_da_resposta(
-    xml: &crate::tela_html::HtmlServido,
-) -> Result<Vec<(String, String)>, ErroInteressado> {
-    let dom = crate::tela_html::interpretar(xml);
-    let parser = dom.parser();
-    let roots: Vec<_> = dom.query_selector("itens").into_iter().flatten().collect();
-    let [root] = roots.as_slice() else {
+fn itens_da_resposta(xml: &str) -> Result<Vec<(String, String)>, ErroInteressado> {
+    let resposta = RespostaAjax::ler(xml)?;
+    let raizes = resposta.elementos("itens");
+    let [raiz] = raizes.as_slice() else {
         return Err(ErroInteressado::InteressadoRespostaNaoReconhecida);
     };
-    let root = root
-        .get(parser)
-        .and_then(tl::Node::as_tag)
-        .ok_or(ErroInteressado::InteressadoRespostaNaoReconhecida)?;
-    let mut itens = Vec::new();
     // Só itens subordinados à raiz oferecida no XML são selecionáveis;
     // outros elementos do documento não são candidatos de interessado.
-    for handle in root.query_selector(parser, "item").into_iter().flatten() {
-        let tag = handle
-            .get(parser)
-            .and_then(tl::Node::as_tag)
-            .ok_or(ErroInteressado::InteressadoRespostaNaoReconhecida)?;
-        let ler = |nome| -> Result<String, ErroInteressado> {
-            valor_do_atributo(tag, nome)
-                .map_err(ErroInteressado::AtributoDaRespostaDeInteressadoIlegivel)?
-                .and_then(|s| decodificar_atributo(&s))
-                .filter(|s| !s.is_empty())
-                .ok_or(ErroInteressado::InteressadoRespostaNaoReconhecida)
-        };
-        itens.push((ler("id")?, ler("descricao")?));
-    }
-    Ok(itens)
+    let ler = |item: &Elemento, nome: &str| {
+        item.atributo(nome)
+            .filter(|valor| !valor.is_empty())
+            .map(str::to_owned)
+            .ok_or(ErroInteressado::InteressadoRespostaNaoReconhecida)
+    };
+    raiz.descendentes("item")
+        .into_iter()
+        .map(|item| Ok((ler(item, "id")?, ler(item, "descricao")?)))
+        .collect()
 }
 
 fn escolher(pedido: &str, itens: &[(String, String)]) -> Result<(String, String), ErroInteressado> {
@@ -231,27 +218,24 @@ mod tests {
     fn xml_sem_correspondencia_exata_eh_recusado() {
         let xml =
             "<itens><item id='1' descricao='Pessoa A'/><item id='2' descricao='Pessoa B'/></itens>";
-        let itens = itens_da_resposta(&crate::tela_html::HtmlServido::de_teste(xml)).unwrap();
-        assert_eq!(
+        let itens = itens_da_resposta(xml).unwrap();
+        assert!(matches!(
             escolher("Pessoa C", &itens),
             Err(ErroInteressado::NaoOferecido)
-        );
+        ));
         assert_eq!(
-            escolher("Pessoa A", &itens),
-            Ok(("1".into(), "Pessoa A".into()))
+            escolher("Pessoa A", &itens).ok(),
+            Some(("1".into(), "Pessoa A".into()))
         );
     }
     #[test]
     fn duplicados_com_nome_igual_sao_ambiguos() {
         let xml =
             "<itens><item id='1' descricao='Pessoa A'/><item id='2' descricao='Pessoa A'/></itens>";
-        assert_eq!(
-            escolher(
-                "Pessoa A",
-                &itens_da_resposta(&crate::tela_html::HtmlServido::de_teste(xml)).unwrap()
-            ),
+        assert!(matches!(
+            escolher("Pessoa A", &itens_da_resposta(xml).unwrap()),
             Err(ErroInteressado::Ambiguo)
-        );
+        ));
     }
     /// Resposta AJAX sintética adversarial: somente `item` sob a única
     /// raiz `itens` representa interessado oferecido pelo SEI. Um item
@@ -260,15 +244,20 @@ mod tests {
     fn autocomplete_nao_aceita_item_fora_da_raiz_xml() {
         // Estrutura dos itens: autocomplete de interessado publicado no
         // cadastro; o segundo `item` é uma mutação sintética negativa.
-        let xml = crate::tela_html::HtmlServido::de_teste(
-            "<itens><item id='1' descricao='Pessoa A'></item></itens><item id='2' descricao='Pessoa B'></item>",
-        );
-        let itens = itens_da_resposta(&xml).unwrap();
-        assert_eq!(itens, vec![("1".into(), "Pessoa A".into())]);
-        assert_eq!(
+        let xml = "<itens><item id='1' descricao='Pessoa A'></item></itens><item id='2' descricao='Pessoa B'></item>";
+        // Dois elementos raiz não são XML bem formado: recusado, não filtrado.
+        assert!(matches!(
+            itens_da_resposta(xml),
+            Err(ErroInteressado::Xml(
+                crate::resposta_ajax::ErroXml::VariosElementosRaiz
+            ))
+        ));
+        let itens =
+            itens_da_resposta("<itens><item id='1' descricao='Pessoa A'></item></itens>").unwrap();
+        assert!(matches!(
             escolher("Pessoa B", &itens),
             Err(ErroInteressado::NaoOferecido)
-        );
+        ));
     }
 
     #[test]

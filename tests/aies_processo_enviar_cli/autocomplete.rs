@@ -16,7 +16,7 @@ fn autocomplete_com_id_repetido_preserva_causa_e_nao_envia_processo() {
     falha(&saidas[0], "Consulta");
     let stderr = String::from_utf8_lossy(&saidas[0].stderr);
     assert!(
-        stderr.contains("AtributoDoItemIlegivel(AtributoRepetidoNaTag { atributo: \"id\" })"),
+        stderr.contains("Xml(Atributo(Duplicated(12, 5)))"),
         "causa precisa no stderr: {stderr}"
     );
     assert_eq!(

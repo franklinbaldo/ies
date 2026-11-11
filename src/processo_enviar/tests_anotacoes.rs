@@ -338,17 +338,16 @@ fn bdd_333_04_remocao_incerta_preserva_destino_comprovado_na_saida_json() {
         )
     });
     let erro = resultado.expect_err("a anotação não pôde ser relida");
-    assert_eq!(
+    assert!(matches!(
         erro,
-        super::ErroEnviar::NaoConfirmadoNaRemocaoDeAnotacoes {
-            depois: Some(vec![DESTINO.into()]),
-            causa: Box::new(super::ErroEnviar::Anotacoes(
-                super::anotacoes::ErroDasAnotacoes::TelaDasAnotacoes(
-                    crate::transporte::FalhaTransporte::Rede,
-                ),
-            )),
-        }
-    );
+        super::ErroEnviar::NaoConfirmadoNaRemocaoDeAnotacoes { depois: Some(depois), causa }
+            if depois == [DESTINO.to_owned()]
+                && matches!(causa.as_ref(), super::ErroEnviar::Anotacoes(
+                    super::anotacoes::ErroDasAnotacoes::TelaDasAnotacoes(
+                        crate::transporte::FalhaTransporte::Rede,
+                    ),
+                ))
+    ));
     assert_eq!(
         pedidos
             .iter()

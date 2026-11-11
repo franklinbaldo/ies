@@ -34,6 +34,8 @@ fn eh_teste_ou_tokenizador(caminho: &Path) -> bool {
             .components()
             .any(|c| c.as_os_str() == "html_atributos")
         || nome == "html_atributos.rs"
+        // Fronteira XML (quick-xml): `attributes()` é do quick-xml, não o mapa do tl.
+        || nome == "resposta_ajax.rs"
 }
 
 /// Código antes do primeiro módulo de testes embutido.

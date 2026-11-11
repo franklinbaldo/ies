@@ -149,15 +149,15 @@ fn leitura_sem_o_destino_e_escrita_nao_aplicada() {
         ),
     );
     let erro = r.unwrap_err();
-    assert_eq!(
+    assert!(matches!(
         erro,
         super::erro::ErroEnviar::EnvioNaoAplicado {
-            aberto_em: siglas(&[UNIDADE]),
-            depois: siglas(&[UNIDADE]),
+            aberto_em,
+            depois,
             anotacao_depois: None,
             falha_do_envio: None,
-        }
-    );
+        } if aberto_em == siglas(&[UNIDADE]) && depois == siglas(&[UNIDADE])
+    ));
     assert_eq!(feitos, pedidos_da_escrita(Versao::V41, false));
 }
 
@@ -175,15 +175,15 @@ fn origem_diferente_do_pedido_e_escrita_diferente() {
             ),
         );
         let erro = r.unwrap_err();
-        assert_eq!(
+        assert!(matches!(
             erro,
             super::erro::ErroEnviar::SituacaoDaOrigemDiferenteDaPedidaAposEnvio {
-                aberto_em: siglas(&[UNIDADE]),
-                depois: siglas(depois),
+                aberto_em,
+                depois: depois_do_envio,
                 anotacao_depois: None,
                 falha_do_envio: None,
-            }
-        );
+            } if aberto_em == siglas(&[UNIDADE]) && depois_do_envio == siglas(depois)
+        ));
     }
 }
 

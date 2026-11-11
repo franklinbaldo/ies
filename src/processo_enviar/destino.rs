@@ -5,8 +5,8 @@
 //! quando nada casa). A sigla é o texto de `descricao` antes de ` - `.
 use super::Destino;
 use super::erro::{ErroEnviar, FalhaDaConsulta};
-use crate::formulario_web::{RespostaDoPost, decodificar_atributo};
-use crate::html_atributos::valor_do_atributo;
+use crate::formulario_web::RespostaDoPost;
+use crate::resposta_ajax::RespostaAjax;
 use crate::transporte::{FalhaTransporte, ler_limitado, recusar_status};
 
 /// Mais itens que isso não é a resposta observada (o GO corta em 50).
@@ -49,25 +49,17 @@ pub(crate) fn ler_resposta_da_consulta<R: std::io::Read>(
 }
 
 /// Os itens de um `<itens>` único; cada `<item>` com `id` e `descricao`.
-pub(crate) fn itens_do_autocompletar(
-    xml: &crate::tela_html::HtmlServido,
-) -> Result<Vec<(String, String)>, FalhaDaConsulta> {
-    let dom = crate::tela_html::interpretar(xml);
-    let parser = dom.parser();
-    let contar = |seletor: &str| dom.query_selector(seletor).map_or(0, Iterator::count);
-    if contar("itens") != 1 || contar("erro") != 0 {
+pub(crate) fn itens_do_autocompletar(xml: &str) -> Result<Vec<(String, String)>, FalhaDaConsulta> {
+    let resposta = RespostaAjax::ler(xml)?;
+    if resposta.elementos("itens").len() != 1 || !resposta.elementos("erro").is_empty() {
         return Err(FalhaDaConsulta::RespostaDoAutocompletarForaDaFormaObservada);
     }
     let mut itens = Vec::new();
-    for no in dom.query_selector("item").into_iter().flatten() {
-        let tag = no
-            .get(parser)
-            .and_then(tl::Node::as_tag)
-            .ok_or(FalhaDaConsulta::RespostaDoAutocompletarForaDaFormaObservada)?;
-        let lido = |nome: &'static str| {
-            valor_do_atributo(tag, nome)?
-                .and_then(|bruto| decodificar_atributo(&bruto))
+    for item in resposta.elementos("item") {
+        let lido = |nome: &str| {
+            item.atributo(nome)
                 .filter(|valor| !valor.trim().is_empty())
+                .map(str::to_owned)
                 .ok_or(FalhaDaConsulta::RespostaDoAutocompletarForaDaFormaObservada)
         };
         itens.push((lido("id")?, lido("descricao")?));

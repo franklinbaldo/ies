@@ -367,14 +367,14 @@ fn lista_40_com_identidade_duplicada_recusa_sem_abrir_cadastro() {
             rede,
         )
     });
-    assert_eq!(
+    assert!(matches!(
         resultado,
         Err(ErroCriar::Lista(ErroListaDeTipos::ChaveDoCadastroIlegivel(
             ErroChaveDaConsulta::Repetida {
                 chave: "id_tipo_procedimento"
             }
         )))
-    );
+    ));
     assert_eq!(requests.len(), 2);
     assert!(requests.iter().all(|req| req.metodo == "GET"));
 }
@@ -398,12 +398,12 @@ fn lista_40_com_duas_acoes_recusa_sem_abrir_cadastro() {
             rede,
         )
     });
-    assert_eq!(
+    assert!(matches!(
         resultado,
         Err(ErroCriar::Lista(ErroListaDeTipos::ChaveDoCadastroIlegivel(
             ErroChaveDaConsulta::Repetida { chave: "acao" }
         )))
-    );
+    ));
     assert_eq!(requests.len(), 2);
     assert!(requests.iter().all(|req| req.metodo == "GET"));
 }

@@ -1,8 +1,8 @@
 //! Consulta da hipótese legal que o cadastro restrito publica por AJAX.
 //! Não executa JavaScript, não inventa opções nem repete requisições.
 use crate::formulario_web::{ConsultaAjax, EfeitoAvaliado, TelaServida, derivar_consulta_ajax};
-use crate::html_atributos::{atributo_presente, valor_do_atributo};
 use crate::instalacao::Instalacao;
+use crate::resposta_ajax::{ErroXml, RespostaAjax};
 #[cfg(test)]
 use crate::transporte::StatusHttpRecusado;
 use crate::transporte::{FalhaTransporte, ler_limitado};
@@ -22,15 +22,15 @@ const CONSULTA: ConsultaAjax = ConsultaAjax {
     },
 };
 
-#[derive(Debug, Clone, PartialEq, Eq, thiserror::Error)]
+#[derive(Debug, Clone, thiserror::Error)]
 #[error("{self:?}")]
 pub(crate) enum ErroHipotese {
-    /// O tokenizador de atributos recusou a tag.
-    Atributo(#[source] crate::html_atributos::ErroAtributoHtml),
     HipoteseLegalAjaxNaoDeclarada,
     HipoteseLegalAjaxNaoDerivada(#[source] crate::formulario_web::ErroSubmissaoFormulario),
     HipoteseLegalAjaxRespostaNaoReconhecida,
     OpcaoNaoUnica,
+    /// O XML do select não foi lido (`ErroXml` leva a causa do `quick-xml`).
+    Xml(#[from] ErroXml),
     CorpoDaRespostaIlegivel(#[source] crate::transporte::corpo::ErroCorpoHttp),
     OpcoesDisponiveis(Vec<(String, String)>),
     EscolhaNaoOferecida,
@@ -41,14 +41,6 @@ pub(crate) enum ErroHipotese {
 }
 
 impl ErroHipotese {
-    fn consulta_nao_declarada() -> Self {
-        Self::HipoteseLegalAjaxNaoDeclarada
-    }
-
-    fn resposta_nao_reconhecida() -> Self {
-        Self::HipoteseLegalAjaxRespostaNaoReconhecida
-    }
-
     /// Somente opções distintas, habilitadas e imprimíveis realmente vistas no
     /// AJAX podem ser oferecidas para uma próxima prévia com ID#NOME.
     #[cfg(test)]
@@ -66,11 +58,11 @@ impl ErroHipotese {
             Self::HipoteseLegalAjaxNaoDeclarada
             | Self::HipoteseLegalAjaxNaoDerivada(_)
             | Self::HipoteseLegalAjaxRespostaNaoReconhecida
+            | Self::Xml(_)
             | Self::CorpoDaRespostaIlegivel(_)
             | Self::OpcaoNaoUnica
             | Self::OpcoesDisponiveis(_)
             | Self::EscolhaNaoOferecida
-            | Self::Atributo(_)
             | Self::EscolhaInlineNaoVerificada => None,
         }
     }
@@ -91,43 +83,33 @@ fn url_publicada(html: &str) -> Result<String, ErroHipotese> {
         .collect();
     match urls.as_slice() {
         [url] if url.starts_with("controlador_ajax.php?") => Ok((*url).to_owned()),
-        _ => Err(ErroHipotese::consulta_nao_declarada()),
+        _ => Err(ErroHipotese::HipoteseLegalAjaxNaoDeclarada),
     }
 }
 
 /// A resposta do infraAjaxMontarSelect é um select XML.
-fn opcoes(xml: &crate::tela_html::HtmlServido) -> Result<Vec<(String, String)>, ErroHipotese> {
-    let dom = crate::tela_html::interpretar(xml);
-    let mut selects = dom.query_selector("select").into_iter().flatten();
-    let select = selects
-        .next()
-        .ok_or(ErroHipotese::resposta_nao_reconhecida())?;
-    if selects.next().is_some() {
-        return Err(ErroHipotese::resposta_nao_reconhecida());
-    }
-    let parser = dom.parser();
-    let tag = select
-        .get(parser)
-        .and_then(tl::Node::as_tag)
-        .ok_or(ErroHipotese::resposta_nao_reconhecida())?;
+fn opcoes(xml: &str) -> Result<Vec<(String, String)>, ErroHipotese> {
+    let resposta = RespostaAjax::ler(xml)?;
+    let selects = resposta.elementos("select");
+    let [select] = selects.as_slice() else {
+        return Err(ErroHipotese::HipoteseLegalAjaxRespostaNaoReconhecida);
+    };
     let mut opcoes = Vec::new();
-    for handle in tag.query_selector(parser, "option").into_iter().flatten() {
-        let opcao = handle
-            .get(parser)
-            .and_then(tl::Node::as_tag)
-            .ok_or(ErroHipotese::resposta_nao_reconhecida())?;
-        if atributo_presente(opcao, "disabled").map_err(ErroHipotese::Atributo)? {
+    for opcao in select.descendentes("option") {
+        if opcao.atributo("disabled").is_some() {
             continue;
         }
-        let valor = valor_do_atributo(opcao, "value").map_err(ErroHipotese::Atributo)?;
-        let Some(id) = valor.filter(|v| !v.is_empty() && v != "null") else {
+        let Some(id) = opcao
+            .atributo("value")
+            .filter(|v| !v.is_empty() && *v != "null")
+        else {
             continue;
         };
-        let texto = html_escape::decode_html_entities(&opcao.inner_text(parser)).into_owned();
+        let texto = opcao.texto();
         if texto.trim().is_empty() {
-            return Err(ErroHipotese::resposta_nao_reconhecida());
+            return Err(ErroHipotese::HipoteseLegalAjaxRespostaNaoReconhecida);
         }
-        opcoes.push((id, texto.trim().to_owned()));
+        opcoes.push((id.to_owned(), texto.trim().to_owned()));
     }
     Ok(opcoes)
 }
@@ -154,13 +136,13 @@ fn publicavel(valor: &str) -> bool {
 }
 
 /// Sem escolha explícita, apenas uma opção efetiva é segura.
-pub(crate) fn opcao_unica(xml: &crate::tela_html::HtmlServido) -> Result<String, ErroHipotese> {
+pub(crate) fn opcao_unica(xml: &str) -> Result<String, ErroHipotese> {
     let opcoes = opcoes(xml)?;
     match opcoes.as_slice() {
         // Mesmo uma opção única pode ter vindo contaminada do XML remoto.
         // Não publicar seu ID nem enviá-lo no formulário de criação.
         [(id, nome)] if id.contains('#') || !publicavel(id) || !publicavel(nome) => {
-            Err(ErroHipotese::resposta_nao_reconhecida())
+            Err(ErroHipotese::HipoteseLegalAjaxRespostaNaoReconhecida)
         }
         [(id, _)] => Ok(id.clone()),
         [] => Err(ErroHipotese::OpcaoNaoUnica),
@@ -187,10 +169,7 @@ pub(crate) fn opcao_unica(xml: &crate::tela_html::HtmlServido) -> Result<String,
 
 /// Seleção por ID e nome exatamente como observados, nunca pela posição.
 /// O ID é opaco; recusar duplicata mesmo se as descrições forem diferentes.
-pub(crate) fn opcao_selecionada(
-    xml: &crate::tela_html::HtmlServido,
-    escolha: Option<&str>,
-) -> Result<String, ErroHipotese> {
+pub(crate) fn opcao_selecionada(xml: &str, escolha: Option<&str>) -> Result<String, ErroHipotese> {
     let Some(escolha) = escolha else {
         return opcao_unica(xml);
     };
@@ -206,7 +185,7 @@ pub(crate) fn opcao_selecionada(
     if opcoes.iter().any(|(id_lido, nome_lido)| {
         id_lido.contains('#') || !publicavel(id_lido) || !publicavel(nome_lido)
     }) {
-        return Err(ErroHipotese::resposta_nao_reconhecida());
+        return Err(ErroHipotese::HipoteseLegalAjaxRespostaNaoReconhecida);
     }
     for (indice, (id_lido, _)) in opcoes.iter().enumerate() {
         if opcoes
@@ -271,7 +250,7 @@ pub(crate) fn resolver<V: EnvioDoControle>(
             .trim(),
         "application/xml" | "text/xml"
     ) {
-        return Err(ErroHipotese::resposta_nao_reconhecida());
+        return Err(ErroHipotese::HipoteseLegalAjaxRespostaNaoReconhecida);
     }
     let mime = resposta.resposta.mime.clone();
     let bytes = ler_limitado(resposta.resposta.corpo, crate::MAX_HTML_BYTES)
@@ -288,65 +267,50 @@ mod tests {
     #[test]
     fn exige_uma_opcao_efetiva_depois_do_placeholder() {
         let xml = "<?xml version='1.0'?><select><option value='null'> </option><option value='42'>Unica</option></select>";
-        assert_eq!(
-            opcao_unica(&crate::tela_html::HtmlServido::de_teste(xml)),
-            Ok("42".to_owned())
-        );
-        assert_eq!(
-            opcao_unica(&crate::tela_html::HtmlServido::de_teste(
-                "<?xml version='1.0'?><select><option value='null'> </option></select>"
-            )),
+        assert_eq!(opcao_unica(xml).ok(), Some("42".to_owned()));
+        assert!(matches!(
+            opcao_unica("<?xml version='1.0'?><select><option value='null'> </option></select>"),
             Err(ErroHipotese::OpcaoNaoUnica)
-        );
+        ));
     }
 
     #[test]
     fn red_escolhe_segunda_hipotese_por_id_e_nome_exatos() {
         // Cenário de opções AJAX múltiplas observado no acervo UnB, #245.
-        let xml = crate::tela_html::HtmlServido::de_teste(
-            "<select><option value='null'> </option><option value='31'>Base A</option><option value='32'>Base B</option></select>",
-        );
+        let xml = "<select><option value='null'> </option><option value='31'>Base A</option><option value='32'>Base B</option></select>";
         assert_eq!(
-            opcao_selecionada(&xml, Some("32#Base B")),
-            Ok("32".to_owned())
+            opcao_selecionada(xml, Some("32#Base B")).ok(),
+            Some("32".to_owned())
         );
     }
 
     #[test]
     fn red_escolha_nao_publicada_eh_recusada_mesmo_com_opcao_unica() {
-        let xml = crate::tela_html::HtmlServido::de_teste(
-            "<select><option value='31'>Base A</option></select>",
-        );
-        assert_eq!(
-            opcao_selecionada(&xml, Some("31#Outra base")),
+        let xml = "<select><option value='31'>Base A</option></select>";
+        assert!(matches!(
+            opcao_selecionada(xml, Some("31#Outra base")),
             Err(ErroHipotese::EscolhaNaoOferecida)
-        );
+        ));
     }
 
     #[test]
     fn opcao_desabilitada_ou_id_duplicado_nao_eh_aceita() {
-        let desabilitada = crate::tela_html::HtmlServido::de_teste(
-            "<select><option value='31' disabled>Base A</option><option value='32'>Base B</option></select>",
-        );
-        assert_eq!(
-            opcao_selecionada(&desabilitada, Some("31#Base A")),
+        let desabilitada = "<select><option value='31' disabled='disabled'>Base A</option><option value='32'>Base B</option></select>";
+        assert!(matches!(
+            opcao_selecionada(desabilitada, Some("31#Base A")),
             Err(ErroHipotese::EscolhaNaoOferecida)
-        );
-        let duplicada = crate::tela_html::HtmlServido::de_teste(
-            "<select><option value='32'>Base B</option><option value='32'>Outra B</option></select>",
-        );
-        assert_eq!(
-            opcao_selecionada(&duplicada, Some("32#Base B")),
+        ));
+        let duplicada = "<select><option value='32'>Base B</option><option value='32'>Outra B</option></select>";
+        assert!(matches!(
+            opcao_selecionada(duplicada, Some("32#Base B")),
             Err(ErroHipotese::OpcaoNaoUnica)
-        );
+        ));
     }
 
     #[test]
     fn red_oferece_id_e_nome_exatos_de_duas_hipoteses_ajax() {
-        let xml = crate::tela_html::HtmlServido::de_teste(
-            "<select><option value='null'>Selecione</option><option value='31'>Base A</option><option value='32'>Base B</option></select>",
-        );
-        let erro = opcao_selecionada(&xml, None).expect_err("sem escolha nao escreve");
+        let xml = "<select><option value='null'>Selecione</option><option value='31'>Base A</option><option value='32'>Base B</option></select>";
+        let erro = opcao_selecionada(xml, None).expect_err("sem escolha nao escreve");
         assert_eq!(
             erro.opcoes_para_escolha(),
             Some(
@@ -360,10 +324,8 @@ mod tests {
 
     #[test]
     fn red_nao_sugere_hipotese_desabilitada() {
-        let xml = crate::tela_html::HtmlServido::de_teste(
-            "<select><option value='31'>Base A</option><option value='32' disabled>Desabilitada</option><option value='33'>Base C</option></select>",
-        );
-        let erro = opcao_selecionada(&xml, None).expect_err("multiplas hipoteses");
+        let xml = "<select><option value='31'>Base A</option><option value='32' disabled='disabled'>Desabilitada</option><option value='33'>Base C</option></select>";
+        let erro = opcao_selecionada(xml, None).expect_err("multiplas hipoteses");
         assert_eq!(
             erro.opcoes_para_escolha(),
             Some(
@@ -379,26 +341,21 @@ mod tests {
     fn ids_duplicados_ou_texto_com_controle_nao_sao_sugeridos() {
         let duplicados =
             "<select><option value='31'>A</option><option value='31'>B</option></select>";
-        let erro = opcao_unica(&crate::tela_html::HtmlServido::de_teste(duplicados))
-            .expect_err("id repetido nao e selecionavel");
-        assert_eq!(erro, ErroHipotese::OpcaoNaoUnica);
+        let erro = opcao_unica(duplicados).expect_err("id repetido nao e selecionavel");
+        assert!(matches!(erro, ErroHipotese::OpcaoNaoUnica));
         assert_eq!(erro.opcoes_para_escolha(), None);
 
-        let com_controle = crate::tela_html::HtmlServido::de_teste(
-            "<select><option value='31'>Base A</option><option value='32'>Base\u{001b} B</option></select>",
-        );
-        let erro = opcao_unica(&com_controle).expect_err("controle nao pode ir ao terminal");
-        assert_eq!(erro, ErroHipotese::OpcaoNaoUnica);
+        let com_controle = "<select><option value='31'>Base A</option><option value='32'>Base\u{001b} B</option></select>";
+        let erro = opcao_unica(com_controle).expect_err("controle nao pode ir ao terminal");
+        assert!(matches!(erro, ErroHipotese::OpcaoNaoUnica));
         assert_eq!(erro.opcoes_para_escolha(), None);
     }
 
     #[test]
     fn url_em_nome_de_hipotese_nao_eh_exibida_como_sugestao() {
-        let xml = crate::tela_html::HtmlServido::de_teste(
-            "<select><option value='31'>Base A</option><option value='32'>https://example.invalid/segredo</option></select>",
-        );
-        let erro = opcao_unica(&xml).expect_err("url nao eh nome publicavel");
-        assert_eq!(erro, ErroHipotese::OpcaoNaoUnica);
+        let xml = "<select><option value='31'>Base A</option><option value='32'>https://example.invalid/segredo</option></select>";
+        let erro = opcao_unica(xml).expect_err("url nao eh nome publicavel");
+        assert!(matches!(erro, ErroHipotese::OpcaoNaoUnica));
         assert_eq!(erro.opcoes_para_escolha(), None);
     }
 
@@ -408,45 +365,38 @@ mod tests {
         // mesmo quando só existe uma hipótese habilitada.
         let xml =
             "<select><option value='https://example.invalid/marcador'>Base A</option></select>";
-        assert_eq!(
-            opcao_unica(&crate::tela_html::HtmlServido::de_teste(xml)),
-            Err(ErroHipotese::resposta_nao_reconhecida())
-        );
-        assert_eq!(
-            opcao_selecionada(
-                &crate::tela_html::HtmlServido::de_teste(xml),
-                Some("https://example.invalid/marcador#Base A")
-            ),
-            Err(ErroHipotese::resposta_nao_reconhecida())
-        );
+        assert!(matches!(
+            opcao_unica(xml),
+            Err(ErroHipotese::HipoteseLegalAjaxRespostaNaoReconhecida)
+        ));
+        assert!(matches!(
+            opcao_selecionada(xml, Some("https://example.invalid/marcador#Base A")),
+            Err(ErroHipotese::HipoteseLegalAjaxRespostaNaoReconhecida)
+        ));
     }
 
     #[test]
     fn red_escolha_explicita_nao_autoriza_nome_com_url() {
         // Uma opção maliciosa não pode ser transformada em argumento de
         // confirmação só porque ID#NOME coincide com o XML.
-        let xml = crate::tela_html::HtmlServido::de_teste(
-            "<select><option value='31'>https://example.invalid/marcador</option></select>",
-        );
-        assert_eq!(
-            opcao_selecionada(&xml, Some("31#https://example.invalid/marcador")),
-            Err(ErroHipotese::resposta_nao_reconhecida())
-        );
-        assert_eq!(
-            opcao_unica(&xml),
-            Err(ErroHipotese::resposta_nao_reconhecida())
-        );
+        let xml = "<select><option value='31'>https://example.invalid/marcador</option></select>";
+        assert!(matches!(
+            opcao_selecionada(xml, Some("31#https://example.invalid/marcador")),
+            Err(ErroHipotese::HipoteseLegalAjaxRespostaNaoReconhecida)
+        ));
+        assert!(matches!(
+            opcao_unica(xml),
+            Err(ErroHipotese::HipoteseLegalAjaxRespostaNaoReconhecida)
+        ));
     }
 
     #[test]
     fn escolha_segura_nao_aproveita_lista_contaminada() {
-        let xml = crate::tela_html::HtmlServido::de_teste(
-            "<select><option value='31'>Base A</option><option value='32'>https://example.invalid/marcador</option></select>",
-        );
-        assert_eq!(
-            opcao_selecionada(&xml, Some("31#Base A")),
-            Err(ErroHipotese::resposta_nao_reconhecida())
-        );
+        let xml = "<select><option value='31'>Base A</option><option value='32'>https://example.invalid/marcador</option></select>";
+        assert!(matches!(
+            opcao_selecionada(xml, Some("31#Base A")),
+            Err(ErroHipotese::HipoteseLegalAjaxRespostaNaoReconhecida)
+        ));
     }
 
     #[test]
@@ -454,10 +404,10 @@ mod tests {
         let linha = format!(
             "{PREFIXO}controlador_ajax.php?acao_ajax=hipotese_legal_select_nome_base_legal');"
         );
-        assert_eq!(
+        assert!(matches!(
             url_publicada(&format!("{linha}\n{linha}")),
-            Err(ErroHipotese::consulta_nao_declarada())
-        );
+            Err(ErroHipotese::HipoteseLegalAjaxNaoDeclarada)
+        ));
     }
     #[test]
     fn causa_ajax_preserva_folhas_e_tipo_estrutural() {
