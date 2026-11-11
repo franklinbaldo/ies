@@ -27,7 +27,6 @@ pub(crate) struct Envio<'a> {
 }
 
 /// Corpo de POST multipart preparado sem copiar o arquivo inteiro.
-#[allow(dead_code)] // #332: será ligado ao comando após observar o formulário em treinamento.
 pub(crate) struct EnvioEmFluxo<'a, R: Read> {
     pub(crate) tipo: &'a str,
     pub(crate) origem: &'a str,
@@ -151,7 +150,6 @@ pub(crate) fn requisitar(
 
 /// POST multipart de tamanho conhecido, transmitido diretamente do leitor.
 /// Uma única tentativa. A operação avalia o efeito de eventual interrupção.
-#[allow(dead_code)] // #332: será chamado pela CLI após observar o cadastro em treinamento.
 pub(crate) fn requisitar_em_fluxo<R: Read>(
     url: &str,
     cookie: &str,

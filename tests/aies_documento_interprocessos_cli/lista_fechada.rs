@@ -21,7 +21,7 @@ fn bdd_60_05_cli_recusa_versao_sem_link_na_unidade_mas_le_conteudo_atual() {
         "histórico não oferecido não pode virar uma versão: stderr={} trilha={trilha:?}",
         String::from_utf8_lossy(&saida.stderr)
     );
-    falha_cli::falha_por(&saida, "Documento", "ListaDeVersoesNaoPublicadaNaArvore");
+    falha_por_cli::falha_por(&saida, "Documento", "ListaDeVersoesNaoPublicadaNaArvore");
     assert!(
         trilha
             .iter()

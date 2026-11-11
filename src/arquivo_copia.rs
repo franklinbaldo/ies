@@ -59,13 +59,12 @@ pub(crate) fn ler_regular(alvo: &Path, ausente: ErroCopia) -> Result<Vec<u8>, Er
     Ok(bytes)
 }
 
-#[cfg(test)]
+#[cfg(all(test, unix))]
 mod testes {
     use super::*;
     use std::path::PathBuf;
     use std::time::{SystemTime, UNIX_EPOCH};
 
-    #[cfg_attr(not(unix), allow(dead_code))]
     fn pasta() -> PathBuf {
         let path = std::env::temp_dir().join(format!(
             "ies-copia-privada-{}-{}",
@@ -79,7 +78,6 @@ mod testes {
         path
     }
 
-    #[cfg(unix)]
     #[test]
     fn recusa_copia_com_permissoes_de_outros_usuarios() {
         use std::os::unix::fs::PermissionsExt;
@@ -94,7 +92,6 @@ mod testes {
         fs::remove_dir_all(pasta).unwrap();
     }
 
-    #[cfg(unix)]
     #[test]
     fn recusa_link_simbolico_mesmo_para_arquivo_regular_privado() {
         use std::os::unix::fs::{PermissionsExt, symlink};
@@ -111,7 +108,6 @@ mod testes {
         fs::remove_dir_all(pasta).unwrap();
     }
 
-    #[cfg(unix)]
     #[test]
     fn recusa_arquivo_acima_de_oito_megabytes_antes_da_leitura() {
         use std::os::unix::fs::PermissionsExt;
@@ -127,7 +123,6 @@ mod testes {
         fs::remove_dir_all(pasta).unwrap();
     }
 
-    #[cfg(unix)]
     #[test]
     fn copia_regular_privada_preserva_bytes_sem_forcar_utf8() {
         use std::os::unix::fs::PermissionsExt;

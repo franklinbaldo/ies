@@ -14,6 +14,8 @@ use rusqlite::Connection;
 use serde_json::Value;
 #[path = "support/falha.rs"]
 mod falha_cli;
+#[path = "support/falha_por.rs"]
+mod falha_por_cli;
 use falha_cli::falha;
 use std::fs;
 use std::io::{Read, Write};

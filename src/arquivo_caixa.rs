@@ -37,8 +37,9 @@ pub fn gravar(destino: &Path, valor: &Value) -> Result<usize, ErroArquivoCaixa> 
         | FalhaDaGravacao::NivelDoCaminhoIlegivel(_) => ErroArquivoCaixa::DiretorioDeDestinoAusente,
         FalhaDaGravacao::DestinoJaExiste => ErroArquivoCaixa::DestinoJaExiste,
         // Diretório do usuário: a peça não confere o modo.
-        FalhaDaGravacao::DiretorioGravavelPorOutros
-        | FalhaDaGravacao::DestinoNaoEhArquivoRegular
+        #[cfg(unix)]
+        FalhaDaGravacao::DiretorioGravavelPorOutros => ErroArquivoCaixa::EscritaDeArquivoFalhou,
+        FalhaDaGravacao::DestinoNaoEhArquivoRegular
         | FalhaDaGravacao::AcimaDoLimite
         | FalhaDaGravacao::CriacaoFalhou
         | FalhaDaGravacao::CriacaoDoDiretorioFalhou(_)

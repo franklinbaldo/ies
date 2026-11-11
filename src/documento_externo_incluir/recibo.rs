@@ -77,7 +77,6 @@ pub(crate) fn interpretar_resposta(
 }
 
 /// Interpreta o retorno do POST temporário, sem confundi-lo com o cadastro.
-#[allow(dead_code)] // #332: usado na bancada; a CLI ainda não transmite.
 pub(crate) fn interpretar_http<R: std::io::Read>(
     resposta: crate::transporte::RespostaWeb<R>,
     nome_esperado: &str,
