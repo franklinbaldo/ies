@@ -193,3 +193,6 @@ pub(crate) use escrita::confirmar_retirada;
 #[cfg(test)]
 #[path = "processo_marcar/tests.rs"]
 mod tests;
+
+#[cfg(test)]
+mod acervo;
