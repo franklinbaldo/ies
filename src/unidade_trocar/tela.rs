@@ -143,7 +143,7 @@ fn atributo(tag: &tl::HTMLTag<'_>, nome: &'static str) -> Result<Option<String>,
         Ok(Some(bruto)) => decodificar_atributo(&bruto)
             .map(Some)
             .ok_or(super::ErroTroca::LinhaDeUnidadeForaDaFormaObservada),
-        Err(_) => Err(ErroTroca::LinhaDeUnidadeForaDaFormaObservada),
+        Err(causa) => Err(ErroTroca::AtributoDaLinhaDeUnidadeIlegivel(causa)),
     }
 }
 
@@ -270,9 +270,11 @@ fn filtro(
         .and_then(tl::Node::as_tag)
         .ok_or(ErroTroca::TelaDeTrocaDeUnidadeNaoReconhecida)?;
     let valor = |t: &tl::HTMLTag<'_>| -> Result<String, super::ErroTroca> {
-        Ok(atributo(t, "value")
-            .map_err(|_| super::ErroTroca::TelaDeTrocaDeUnidadeNaoReconhecida)?
-            .unwrap_or_default())
+        match valor_do_atributo(t, "value").map_err(ErroTroca::AtributoDaTelaDeTrocaIlegivel)? {
+            None => Ok(String::new()),
+            Some(bruto) => decodificar_atributo(&bruto)
+                .ok_or(ErroTroca::TelaDeTrocaDeUnidadeNaoReconhecida),
+        }
     };
     if tag.name() != "select" {
         return Ok((nome, valor(tag)?));
