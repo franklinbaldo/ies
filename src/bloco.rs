@@ -210,10 +210,13 @@ fn ler_linhas(
         nomes
             .iter()
             .position(|n| n == s)
-            .expect("cabeçalho conferido")
+            .ok_or(ErroBloco::CabecalhoDeBlocosNaoReconhecido)
     };
-    let (indice_numero, indice_estado, indice_descricao) =
-        (posicao("Número"), posicao("Estado"), posicao("Descrição"));
+    let (indice_numero, indice_estado, indice_descricao) = (
+        posicao("Número")?,
+        posicao("Estado")?,
+        posicao("Descrição")?,
+    );
     let mut itens = Vec::new();
     let mut links = Vec::new();
     let mut vistos = HashSet::new();

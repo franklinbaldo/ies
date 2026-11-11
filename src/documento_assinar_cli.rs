@@ -91,7 +91,7 @@ fn assinar_na_sessao(
     if cli.json {
         println!(
             "{}",
-            serde_json::to_string_pretty(&json_de_sucesso(&feito))?
+            serde_json::to_string_pretty(&json_de_sucesso(&feito)?)?
         );
     } else {
         println!("{}", humano(&feito));
@@ -99,13 +99,12 @@ fn assinar_na_sessao(
     Ok(())
 }
 
-fn json_das_assinaturas(lista: &[Assinante]) -> Value {
+fn json_das_assinaturas(lista: &[Assinante]) -> Result<Value, serde_json::Error> {
     serde_json::to_value(assinaturas_publicas(lista))
-        .expect("assinaturas públicas só possuem valores JSON")
 }
 
 /// JSON do sucesso (prévia, já assinado, ou assinado e conferido).
-pub(crate) fn json_de_sucesso(feito: &DocumentoAssinado) -> Value {
+pub(crate) fn json_de_sucesso(feito: &DocumentoAssinado) -> Result<Value, serde_json::Error> {
     let (confirmado, alterado, ja_assinado, assinaturas_depois, edicao_depois, reconciliado_por) =
         match &feito.resultado {
             ResultadoDaAssinatura::Previa => (false, false, false, None, None, None),
@@ -139,8 +138,8 @@ pub(crate) fn json_de_sucesso(feito: &DocumentoAssinado) -> Value {
         "cargo_da_tela": feito.cargo_da_tela,
         "cargos": feito.cargos,
         "ja_assinado_pela_sessao": ja_assinado,
-        "assinaturas": json_das_assinaturas(&feito.assinaturas),
-        "assinaturas_depois": assinaturas_depois.map(json_das_assinaturas),
+        "assinaturas": json_das_assinaturas(&feito.assinaturas)?,
+        "assinaturas_depois": assinaturas_depois.map(json_das_assinaturas).transpose()?,
         "edicao": edicao_como_texto(feito.edicao),
         "edicao_depois": edicao_depois.map(edicao_como_texto),
         "reconciliado_por_leitura": reconciliado_por.is_some(),
@@ -149,7 +148,7 @@ pub(crate) fn json_de_sucesso(feito: &DocumentoAssinado) -> Value {
     if let (Some(falha), Some(objeto)) = (reconciliado_por, valor.as_object_mut()) {
         objeto.insert("falha_do_envio".to_owned(), json!(format!("{falha:?}")));
     }
-    valor
+    Ok(valor)
 }
 
 fn linha_das_assinaturas(lista: &[Assinante]) -> String {

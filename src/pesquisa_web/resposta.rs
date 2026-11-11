@@ -195,7 +195,10 @@ pub(crate) fn classificar_resposta<T>(
     // linhas, `tr` = 3 por registro lido. Publica-se o que veio e quantas
     // posições faltam; nunca mais linhas que a faixa.
     let na_faixa = faixa.fim - faixa.inicio + 1;
-    let lidas = itens.len() as u64;
+    // Mais linhas que `u64` comporta excede qualquer faixa da barra.
+    let lidas = u64::try_from(itens.len())
+        .ok()
+        .ok_or(ErroRespostaDaPesquisa::LinhasDaTabelaDiferentesDaFaixaDaBarra)?;
     if lidas > na_faixa || (lidas < na_faixa && !escrita) {
         return Err(ErroRespostaDaPesquisa::LinhasDaTabelaDiferentesDaFaixaDaBarra);
     }

@@ -84,10 +84,11 @@ pub(crate) fn escolher_externo(html: &str) -> Result<EscolhaExterna, ErroEscolha
             return Err(ErroEscolhaExterna::ForaDaForma);
         }
     }
-    match escolhas.len() {
-        0 => Err(ErroEscolhaExterna::NaoOferecido),
-        1 => Ok(escolhas.pop().expect("comprimento conferido")),
-        _ => Err(ErroEscolhaExterna::Ambiguo),
+    let mut escolhas = escolhas.into_iter();
+    match (escolhas.next(), escolhas.next()) {
+        (None, _) => Err(ErroEscolhaExterna::NaoOferecido),
+        (Some(escolha), None) => Ok(escolha),
+        (Some(_), Some(_)) => Err(ErroEscolhaExterna::Ambiguo),
     }
 }
 

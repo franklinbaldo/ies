@@ -194,8 +194,7 @@ fn concluir(
     if json_mode {
         println!(
             "{}",
-            serde_json::to_string_pretty(&resultado_troca(troca, descartados, pedidos))
-                .expect("JSON serializável")
+            serde_json::to_string_pretty(&resultado_troca(troca, descartados, pedidos))?
         );
     } else {
         println!("{}", humano(troca, pedidos));

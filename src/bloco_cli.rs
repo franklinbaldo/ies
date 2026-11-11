@@ -138,7 +138,7 @@ pub(crate) fn ler_tipado_via<V: EnvioDoControle>(
             .itens
             .iter()
             .find(|b| b.numero == numero)
-            .expect("href_do_bloco validou a linha")
+            .ok_or(FalhaLeitura::Bloco(ErroBloco::BlocoNaoEncontradoNaPagina))?
             .estado
             .as_str();
         let detalhe = bloco_detalhe::ler_detalhe(&html, numero, tipo, estado)

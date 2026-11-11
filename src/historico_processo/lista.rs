@@ -14,7 +14,7 @@ pub(crate) fn ler_andamentos(html: &str, nup: &str) -> Result<AndamentosLidos, E
         .map_err(|_| ErroAndamentos::LegendaDosAndamentosAusente)?;
     let total_declarado = legenda(&dom)?;
     let tipo = tipo_servido(&dom)?;
-    if detalhe.andamentos.len() as u64 > total_declarado {
+    if usize::try_from(total_declarado).is_ok_and(|total| detalhe.andamentos.len() > total) {
         return Err(ErroAndamentos::AndamentosAlemDoTotalDeclarado);
     }
     Ok(AndamentosLidos {

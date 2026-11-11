@@ -252,14 +252,16 @@ struct ArquivoDaSaida {
     gravado: bool,
 }
 
-impl From<FotoGravada> for ArquivoDaSaida {
-    fn from(f: FotoGravada) -> Self {
-        Self {
+impl TryFrom<FotoGravada> for ArquivoDaSaida {
+    type Error = std::num::TryFromIntError;
+
+    fn try_from(f: FotoGravada) -> Result<Self, Self::Error> {
+        Ok(Self {
             nome: f.nome,
-            bytes: f.bytes as u64,
+            bytes: u64::try_from(f.bytes)?,
             sha256: f.sha256,
             gravado: f.gravado,
-        }
+        })
     }
 }
 
@@ -278,7 +280,7 @@ fn gravar(
     let mut gravados = Vec::new();
     for (i, (d, foto)) in obtidos.iter_mut().zip(fotos).enumerate() {
         if let Some(foto) = foto {
-            gravados.push(Some(ArquivoDaSaida::from(foto)));
+            gravados.push(Some(ArquivoDaSaida::try_from(foto)?));
             continue;
         }
         let Some(a) = &mut d.anexo else {

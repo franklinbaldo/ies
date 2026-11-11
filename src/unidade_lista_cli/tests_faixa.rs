@@ -31,10 +31,7 @@ fn detalhada(legenda: &str, classe: &str) -> String {
 fn exportar_detalhada(html: &str, nome: &str) -> String {
     let leitura = ler_paginas(&[html.to_owned()], Some("PPI")).unwrap();
     let caminho = destino(nome);
-    assert_eq!(
-        mostrar_caixa_detalhada(&leitura, "web", true, Some(&caminho), None),
-        Ok(())
-    );
+    mostrar_caixa_detalhada(&leitura, "web", true, Some(&caminho), None).unwrap();
     let texto = fs::read_to_string(&caminho).unwrap();
     fs::remove_file(&caminho).unwrap();
     texto

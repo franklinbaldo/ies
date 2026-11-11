@@ -360,10 +360,8 @@ fn limpar_anotacao<V: EnvioDoProcesso>(
         saiu = true;
         rede.post(s, c)
     });
-    if !saiu {
-        return Err(ErroEnviar::Formulario(
-            resposta.expect_err("sem POST só falha na derivação"),
-        ));
+    if !saiu && let Err(erro) = resposta {
+        return Err(ErroEnviar::Formulario(erro));
     }
     // Mesmo erro de transporte pós-POST não autoriza retry. A leitura decide.
     match conferir_anotacao_depois(rede, cookie, link, id, None) {

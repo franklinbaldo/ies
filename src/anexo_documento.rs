@@ -249,7 +249,10 @@ pub(crate) fn ler_anexo<R: Read>(
                 return Err(erro_de_leitura(&erro));
             }
         };
-        tamanho += lido as u64;
+        tamanho = u64::try_from(lido)
+            .ok()
+            .and_then(|lido| tamanho.checked_add(lido))
+            .ok_or(ErroAnexo::AcimaDoLimite)?;
         if tamanho > conferido.limite {
             return Err(ErroAnexo::AcimaDoLimite);
         }
@@ -395,7 +398,8 @@ fn conferir<R: Read>(
         None => (None, None),
     };
     let limite = if cabecalhos::e_texto(&mime) {
-        limite.bytes().min(crate::MAX_HTML_BYTES as u64)
+        u64::try_from(crate::MAX_HTML_BYTES)
+            .map_or(limite.bytes(), |maximo| limite.bytes().min(maximo))
     } else {
         limite.bytes()
     };

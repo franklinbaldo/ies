@@ -15,7 +15,7 @@ pub(crate) fn listar(
         cli.json,
         lista.saida.as_deref(),
         categoria,
-        lista.pagina.map(|n| n as usize),
+        lista.pagina.map(usize::try_from).transpose()?,
     )
 }
 
@@ -65,7 +65,7 @@ pub(crate) fn executar(cli: &Cli, acao: &UnidadeAcao) -> anyhow::Result<()> {
                 unidade,
                 cli.json,
                 saida.as_deref(),
-                pagina.map(|n| n as usize),
+                pagina.map(usize::try_from).transpose()?,
             )
         }
         UnidadeAcao::Colunas { definir, confirmar } => colunas(cli, definir.as_ref(), *confirmar),

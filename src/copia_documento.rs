@@ -246,10 +246,9 @@ pub fn previa_local(
         &pasta.join(nome(numero, seguinte)),
         ErroCopia::VersaoEditadaAusente,
     )?;
-    if editada == base {
+    let Some(trecho) = trecho_divergente(&base, &editada) else {
         return Err(ErroCopia::EdicaoIgualABase);
-    }
-    let trecho = trecho_divergente(&base, &editada).expect("a edição difere da base");
+    };
     Ok(PreviaCopia {
         documento: numero.to_owned(),
         versao_base: n.numero(),

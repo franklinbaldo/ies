@@ -50,7 +50,7 @@ pub(crate) fn definir_colunas(
     if json_mode {
         println!(
             "{}",
-            serde_json::to_string_pretty(&resultado_colunas(&feito)).expect("JSON serializável")
+            serde_json::to_string_pretty(&resultado_colunas(&feito))?
         );
     } else {
         println!("{}", humano(&feito));
