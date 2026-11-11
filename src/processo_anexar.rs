@@ -30,7 +30,6 @@ pub(crate) enum ErroAtributoDaAnexacao {
 #[error("{self:?}")]
 pub(crate) enum ErroTelaDeAnexacao {
     Atributo(#[from] ErroAtributoDaAnexacao),
-    HtmlDeAnexacaoNaoInterpretado(#[source] tl::ParseError),
     FormularioDeAnexacaoNaoLocalizado(#[source] ErroSubmissaoFormulario),
     ControlesDaAnexacaoAusentesOuRepetidos,
     ListasDeAnexadosRepetidas,
@@ -43,7 +42,6 @@ pub(crate) enum ErroTelaDeAnexacao {
 #[error("{self:?}")]
 pub(crate) enum ErroComplementosDaAnexacao {
     Atributo(#[from] ErroAtributoDaAnexacao),
-    ComplementosDaAnexacaoNaoInterpretados(#[source] tl::ParseError),
     ProcessoAAnexarNaoIdentificado,
     IdentidadeDeAnexadoAmbigua,
     AnexacaoNaoVerificada,
@@ -58,9 +56,10 @@ pub(crate) enum ErroAnexacaoRecusada {
 }
 
 /// Exige controles únicos dentro do formulário real.
-pub(crate) fn ler_tela(html: &str) -> Result<TelaDeAnexacao, ErroTelaDeAnexacao> {
-    let dom = tl::parse(html, tl::ParserOptions::default())
-        .map_err(ErroTelaDeAnexacao::HtmlDeAnexacaoNaoInterpretado)?;
+pub(crate) fn ler_tela(
+    html: &crate::tela_html::HtmlServido,
+) -> Result<TelaDeAnexacao, ErroTelaDeAnexacao> {
+    let dom = crate::tela_html::interpretar(html);
     let parser = dom.parser();
     let form = localizar_formulario(&dom, "frmProcedimentoAnexar")
         .map_err(ErroTelaDeAnexacao::FormularioDeAnexacaoNaoLocalizado)?;
@@ -157,7 +156,9 @@ pub(crate) fn ler_tela(html: &str) -> Result<TelaDeAnexacao, ErroTelaDeAnexacao>
     Ok(TelaDeAnexacao { anexados })
 }
 /// Consulta `protocolo_RI1023`: ID, NUP e tipo únicos.
-pub(crate) fn ler_destino(xml: &str) -> Result<Destino, ErroComplementosDaAnexacao> {
+pub(crate) fn ler_destino(
+    xml: &crate::tela_html::HtmlServido,
+) -> Result<Destino, ErroComplementosDaAnexacao> {
     let valores = ler_complementos(xml)?;
     let ids: Vec<_> = valores
         .iter()
@@ -188,7 +189,9 @@ pub(crate) fn ler_destino(xml: &str) -> Result<Destino, ErroComplementosDaAnexac
     })
 }
 /// Consulta `procedimento_anexacao_verificar`: S=tudo assinado, N=há pendência.
-pub(crate) fn ler_confirmacao(xml: &str) -> Result<bool, ErroComplementosDaAnexacao> {
+pub(crate) fn ler_confirmacao(
+    xml: &crate::tela_html::HtmlServido,
+) -> Result<bool, ErroComplementosDaAnexacao> {
     let valores = ler_complementos(xml)?;
     let encontrados: Vec<_> = valores.iter().filter(|(n, _)| n == "Anexacao").collect();
     match encontrados.as_slice() {
@@ -197,9 +200,10 @@ pub(crate) fn ler_confirmacao(xml: &str) -> Result<bool, ErroComplementosDaAnexa
         _ => Err(ErroComplementosDaAnexacao::AnexacaoNaoVerificada),
     }
 }
-fn ler_complementos(xml: &str) -> Result<Vec<(String, String)>, ErroComplementosDaAnexacao> {
-    let dom = tl::parse(xml, tl::ParserOptions::default())
-        .map_err(ErroComplementosDaAnexacao::ComplementosDaAnexacaoNaoInterpretados)?;
+fn ler_complementos(
+    xml: &crate::tela_html::HtmlServido,
+) -> Result<Vec<(String, String)>, ErroComplementosDaAnexacao> {
+    let dom = crate::tela_html::interpretar(xml);
     let parser = dom.parser();
     if dom
         .query_selector("erros")

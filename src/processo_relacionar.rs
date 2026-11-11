@@ -167,7 +167,9 @@ fn relacionamento_existente<'a>(
 
 /// A consulta do protocolo é XML (e não a tela HTML do controle).
 /// Não reutilizar o decodificador exclusivo de text/html da infraestrutura.
-fn xml_da_consulta<R: Read>(mut resposta: RespostaWeb<R>) -> Result<String, FalhaRelacionar> {
+fn xml_da_consulta<R: Read>(
+    mut resposta: RespostaWeb<R>,
+) -> Result<crate::tela_html::HtmlServido, FalhaRelacionar> {
     if resposta.status_code != 200 {
         return Err(FalhaRelacionar::ConsultaResposta(recusar_status(resposta)));
     }
@@ -185,7 +187,7 @@ fn xml_da_consulta<R: Read>(mut resposta: RespostaWeb<R>) -> Result<String, Falh
     }
     let bytes = ler_limitado(&mut resposta.corpo, crate::MAX_HTML_BYTES)
         .map_err(FalhaRelacionar::ConsultaResposta)?;
-    crate::transporte::corpo::decode_http_body(&bytes, &resposta.mime).map_err(|erro| {
+    crate::tela_html::HtmlServido::do_corpo(&bytes, &resposta.mime).map_err(|erro| {
         FalhaRelacionar::ConsultaResposta(FalhaTransporte::CorpoNaoDecodificavelNoCharsetDeclarado(
             erro,
         ))

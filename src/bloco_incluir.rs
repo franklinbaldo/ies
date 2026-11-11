@@ -129,15 +129,14 @@ pub(crate) enum ErroIncluir {
     SelecaoDeBlocoAusente,
     SelecoesDeBlocoRepetidas,
     TelaDeEscolherBlocoForaDaFormaObservada,
-    /// O parser de HTML recusou a tela de escolha do bloco.
-    HtmlDaEscolhaRecusadoPeloParser(#[source] tl::ParseError),
 }
 
 /// Lê o `frmBlocoEscolher`: um formulário, um `selBloco`.
-pub(crate) fn ler_tela_de_escolha(html: &str) -> Result<TelaDeEscolha, ErroIncluir> {
+pub(crate) fn ler_tela_de_escolha(
+    html: &crate::tela_html::HtmlServido,
+) -> Result<TelaDeEscolha, ErroIncluir> {
     let fora = || ErroIncluir::TelaDeEscolherBlocoForaDaFormaObservada;
-    let dom = tl::parse(html, tl::ParserOptions::default())
-        .map_err(ErroIncluir::HtmlDaEscolhaRecusadoPeloParser)?;
+    let dom = crate::tela_html::interpretar(html);
     let parser = dom.parser();
     let tags = |seletor: &str| -> Vec<&tl::HTMLTag<'_>> {
         dom.query_selector(seletor)
@@ -331,7 +330,7 @@ fn caixa_do_documento<'t>(
 /// A tela fresca da oferta de inclusão, sem persistir HTML assinado.
 struct TelaDaInclusao<'a> {
     url: &'a str,
-    html: &'a str,
+    html: &'a crate::tela_html::HtmlServido,
     mime: &'a str,
     nome_da_caixa: &'a str,
 }

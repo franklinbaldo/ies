@@ -1,5 +1,6 @@
 use super::*;
 use crate::controle_contexto::unidade_exibida_no_controle;
+use crate::tela_html::HtmlServido;
 
 #[test]
 fn duas_legendas_na_mesma_tabela_recusam_cobertura_mesmo_se_iguais() {
@@ -7,9 +8,9 @@ fn duas_legendas_na_mesma_tabela_recusam_cobertura_mesmo_se_iguais() {
         ("tblProcessosRecebidos", Categoria::Recebidos),
         ("tblProcessosGerados", Categoria::Gerados),
     ] {
-        let html = format!(
+        let html = HtmlServido::de_teste(&format!(
             "<table id='{id}'><caption>0 registros:</caption><caption>0 registros:</caption></table>"
-        );
+        ));
         assert_eq!(
             faixa_da_tabela(&html, id, categoria, 0),
             Err(ErroCaixa::LegendasDaTabelaRepetidas { categoria })
@@ -19,9 +20,11 @@ fn duas_legendas_na_mesma_tabela_recusam_cobertura_mesmo_se_iguais() {
 
 #[test]
 fn unica_legenda_continua_sendo_aceita() {
-    let html = "<table id='tblProcessosRecebidos'><caption>0 registros:</caption></table>";
+    let html = HtmlServido::de_teste(
+        "<table id='tblProcessosRecebidos'><caption>0 registros:</caption></table>",
+    );
     assert!(matches!(
-        faixa_da_tabela(html, "tblProcessosRecebidos", Categoria::Recebidos, 0),
+        faixa_da_tabela(&html, "tblProcessosRecebidos", Categoria::Recebidos, 0),
         Ok(Some(Faixa { total: 0, .. }))
     ));
 }
@@ -55,7 +58,7 @@ fn resumida_com_controles_de_paginacao_nao_pode_atestar_cobertura() {
         "<a id='lnkInfraPaginaAnteriorDetalhado'>Anterior</a>",
         "<select id='selInfraPaginacaoDetalhado'><option>1</option></select>",
     ] {
-        let pagina = format!("{base}{controle}");
+        let pagina = HtmlServido::de_teste(&format!("{base}{controle}"));
         assert_eq!(
             juntar(&[pagina], Some("TESTE")).err(),
             Some(ErroCaixa::VisaoResumidaComPaginacao)
@@ -65,7 +68,7 @@ fn resumida_com_controles_de_paginacao_nao_pode_atestar_cobertura() {
 
 #[test]
 fn visao_resumida_sem_paginacao_preserva_a_unica_leitura() {
-    let pagina = html((2, 1, 2, &[1, 2]), (0, 1, 0, &[]));
+    let pagina = HtmlServido::de_teste(&html((2, 1, 2, &[1, 2]), (0, 1, 0, &[])));
     let leitura = juntar(&[pagina], Some("TESTE")).unwrap();
     assert!(leitura.recebidos.completa(&leitura.caixa.recebidos));
     assert!(leitura.gerados.completa(&leitura.caixa.gerados));
@@ -74,17 +77,17 @@ fn visao_resumida_sem_paginacao_preserva_a_unica_leitura() {
 #[test]
 fn booleano_antes_dos_ids_preserva_faixas_das_duas_paginas() {
     let com = crate::html_atributos::com_booleano_antes_dos_atributos;
-    let primeira = com(&html((4, 1, 2, &[1, 2]), (1, 1, 1, &[11])));
-    let segunda = com(&html((4, 3, 4, &[3, 4]), (1, 1, 1, &[11])));
-    let leitura = juntar(&[primeira, segunda], Some("TESTE")).unwrap();
+    let primeira = HtmlServido::de_teste(&com(&html((4, 1, 2, &[1, 2]), (1, 1, 1, &[11]))));
+    let segunda = HtmlServido::de_teste(&com(&html((4, 3, 4, &[3, 4]), (1, 1, 1, &[11]))));
+    let leitura = juntar(&[primeira.clone(), segunda], Some("TESTE")).unwrap();
     assert_eq!(leitura.caixa.recebidos.processos.len(), 4);
     assert!(leitura.recebidos.completa(&leitura.caixa.recebidos));
 }
 
 #[test]
 fn ablacao_da_segunda_pagina_impede_afirmar_cobertura() {
-    let primeira = html((4, 1, 2, &[1, 2]), (1, 1, 1, &[11]));
-    let segunda = html((4, 3, 4, &[3, 4]), (1, 1, 1, &[11]));
+    let primeira = HtmlServido::de_teste(&html((4, 1, 2, &[1, 2]), (1, 1, 1, &[11])));
+    let segunda = HtmlServido::de_teste(&html((4, 3, 4, &[3, 4]), (1, 1, 1, &[11])));
     let referencia = juntar(&[primeira.clone(), segunda], Some("TESTE")).unwrap();
     let sem_segunda = juntar(&[primeira], Some("TESTE")).unwrap();
     assert_eq!(referencia.caixa.recebidos.processos.len(), 4);
@@ -99,19 +102,19 @@ fn ablacao_da_segunda_pagina_impede_afirmar_cobertura() {
 
 #[test]
 fn ablacao_de_verificacao_de_contexto_nao_e_segura() {
-    let primeira = html((4, 1, 2, &[1, 2]), (1, 1, 1, &[11]));
+    let primeira = HtmlServido::de_teste(&html((4, 1, 2, &[1, 2]), (1, 1, 1, &[11])));
     let segunda = html((4, 3, 4, &[3, 4]), (1, 1, 1, &[11]));
-    let outra_unidade = segunda.replace(">TESTE</a>", ">OUTRA</a>");
-    let _erro = juntar(&[primeira, outra_unidade], Some("TESTE"))
+    let outra_unidade = HtmlServido::de_teste(&segunda.replace(">TESTE</a>", ">OUTRA</a>"));
+    let _erro = juntar(&[primeira.clone(), outra_unidade], Some("TESTE"))
         .err()
         .unwrap();
 }
 
 #[test]
 fn duas_tabelas_paginam_independentemente() {
-    let primeira = html((4, 1, 2, &[1, 2]), (1, 1, 1, &[11]));
-    let segunda = html((4, 3, 4, &[3, 4]), (1, 1, 1, &[11]));
-    let leitura = juntar(&[primeira, segunda], None).unwrap();
+    let primeira = HtmlServido::de_teste(&html((4, 1, 2, &[1, 2]), (1, 1, 1, &[11])));
+    let segunda = HtmlServido::de_teste(&html((4, 3, 4, &[3, 4]), (1, 1, 1, &[11])));
+    let leitura = juntar(&[primeira.clone(), segunda], None).unwrap();
     assert!(leitura.recebidos.completa(&leitura.caixa.recebidos));
     assert!(leitura.gerados.completa(&leitura.caixa.gerados));
     assert_eq!(leitura.caixa.recebidos.processos.len(), 4);
@@ -134,25 +137,29 @@ fn recusa_troca_conteudo_total_e_identidade_repetida() {
 }
 #[test]
 fn primeira_pagina_incompleta_nao_inventa_completude() {
-    let a = html((5, 1, 2, &[1, 2]), (1, 1, 1, &[11]));
+    let a = HtmlServido::de_teste(&html((5, 1, 2, &[1, 2]), (1, 1, 1, &[11])));
     let l = juntar(&[a], None).unwrap();
     assert!(!l.recebidos.completa(&l.caixa.recebidos));
     assert!(l.gerados.completa(&l.caixa.gerados));
 }
 #[test]
 fn legenda_sem_faixa_nao_gera_prova_falsa() {
-    let a = "<table id='tblProcessosRecebidos'><caption>5 registros:</caption>\
+    let a = HtmlServido::de_teste(
+        "<table id='tblProcessosRecebidos'><caption>5 registros:</caption>\
         <tr id='P1'><td><a class='processoVisualizado'>NUP-1</a></td></tr></table>\
-        <table id='tblProcessosGerados'><caption>0 registros:</caption></table>";
-    let l = juntar(&[a.to_owned()], None).unwrap();
+        <table id='tblProcessosGerados'><caption>0 registros:</caption></table>",
+    );
+    let l = juntar(&[a], None).unwrap();
     assert!(!l.recebidos.completa(&l.caixa.recebidos));
     assert!(l.gerados.completa(&l.caixa.gerados));
 }
 #[test]
 fn zero_itens_verificados_e_uma_colecao_completa() {
-    let a = "<table id='tblProcessosRecebidos'><caption>0 registros:</caption></table>\
-        <table id='tblProcessosGerados'><caption>0 registros:</caption></table>";
-    let l = juntar(&[a.to_owned()], None).unwrap();
+    let a = HtmlServido::de_teste(
+        "<table id='tblProcessosRecebidos'><caption>0 registros:</caption></table>\
+        <table id='tblProcessosGerados'><caption>0 registros:</caption></table>",
+    );
+    let l = juntar(&[a], None).unwrap();
     assert!(l.recebidos.completa(&l.caixa.recebidos));
     assert!(l.gerados.completa(&l.caixa.gerados));
 }
@@ -173,7 +180,7 @@ fn filtros_e_modo_divergentes_bloqueiam_juncao() {
 
 #[test]
 fn unidade_solicitada_precisa_estar_na_pagina() {
-    let a = html((1, 1, 1, &[42]), (0, 1, 0, &[]));
+    let a = HtmlServido::de_teste(&html((1, 1, 1, &[42]), (0, 1, 0, &[])));
     assert_eq!(
         juntar(std::slice::from_ref(&a), Some("TESTE"))
             .unwrap()

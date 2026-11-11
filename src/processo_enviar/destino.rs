@@ -40,7 +40,7 @@ pub(crate) fn ler_resposta_da_consulta<R: std::io::Read>(
     }
     let bytes = ler_limitado(resposta.corpo, crate::MAX_HTML_BYTES)?;
     let texto =
-        crate::transporte::corpo::decode_http_body(&bytes, &resposta.mime).map_err(|erro| {
+        crate::tela_html::HtmlServido::do_corpo(&bytes, &resposta.mime).map_err(|erro| {
             FalhaDaConsulta::Transporte(FalhaTransporte::CorpoNaoDecodificavelNoCharsetDeclarado(
                 erro,
             ))
@@ -49,9 +49,10 @@ pub(crate) fn ler_resposta_da_consulta<R: std::io::Read>(
 }
 
 /// Os itens de um `<itens>` único; cada `<item>` com `id` e `descricao`.
-pub(crate) fn itens_do_autocompletar(xml: &str) -> Result<Vec<(String, String)>, FalhaDaConsulta> {
-    let dom = tl::parse(xml, tl::ParserOptions::default())
-        .map_err(FalhaDaConsulta::ParseDaRespostaDoAutocompletarFalhou)?;
+pub(crate) fn itens_do_autocompletar(
+    xml: &crate::tela_html::HtmlServido,
+) -> Result<Vec<(String, String)>, FalhaDaConsulta> {
+    let dom = crate::tela_html::interpretar(xml);
     let parser = dom.parser();
     let contar = |seletor: &str| dom.query_selector(seletor).map_or(0, Iterator::count);
     if contar("itens") != 1 || contar("erro") != 0 {

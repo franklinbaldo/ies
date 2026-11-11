@@ -1,6 +1,7 @@
 //! Regressões da coleta integral de unidades (#244). Fixture sintética
 //! reproduz a paginação publicada pela lupa no acervo GO.
 use super::*;
+use crate::tela_html::HtmlServido;
 fn pagina(n: usize, paginas: usize, total: usize, ids: &[&str]) -> String {
     let options = (0..paginas).fold(String::new(), |mut html, i| {
         use std::fmt::Write as _;
@@ -32,20 +33,20 @@ fn total_da_legenda_aceita_faixa_observada_no_go() {
 }
 #[test]
 fn paginas_inteiras_sem_repeticao() {
-    let p0 = ler_pagina(&pagina(0, 2, 3, &["1", "2"])).unwrap();
-    let p1 = ler_pagina(&pagina(1, 2, 3, &["3"])).unwrap();
+    let p0 = ler_pagina(&HtmlServido::de_teste(&pagina(0, 2, 3, &["1", "2"]))).unwrap();
+    let p1 = ler_pagina(&HtmlServido::de_teste(&pagina(1, 2, 3, &["3"]))).unwrap();
     assert_eq!(reunir_paginas(vec![p0, p1]).unwrap().len(), 3);
 }
 #[test]
 fn repeticao_e_total_errado_sao_recusados_antes_do_indice() {
-    let p0 = ler_pagina(&pagina(0, 2, 3, &["1", "2"])).unwrap();
-    let p1 = ler_pagina(&pagina(1, 2, 3, &["1"])).unwrap();
+    let p0 = ler_pagina(&HtmlServido::de_teste(&pagina(0, 2, 3, &["1", "2"]))).unwrap();
+    let p1 = ler_pagina(&HtmlServido::de_teste(&pagina(1, 2, 3, &["1"]))).unwrap();
     assert_eq!(
         reunir_paginas(vec![p0, p1]),
         Err(ErroLupa::PaginasDivergentes)
     );
-    let p0 = ler_pagina(&pagina(0, 2, 3, &["1", "2"])).unwrap();
-    let p1 = ler_pagina(&pagina(1, 2, 3, &[])).unwrap();
+    let p0 = ler_pagina(&HtmlServido::de_teste(&pagina(0, 2, 3, &["1", "2"]))).unwrap();
+    let p1 = ler_pagina(&HtmlServido::de_teste(&pagina(1, 2, 3, &[]))).unwrap();
     assert_eq!(
         reunir_paginas(vec![p0, p1]),
         Err(ErroLupa::PaginasDivergentes)
@@ -55,27 +56,31 @@ fn repeticao_e_total_errado_sao_recusados_antes_do_indice() {
 fn nenhuma_unidade_publicada_na_lupa_eh_uma_lista_vazia() {
     // Cassette GO unidade-listar-destinos-go, POST passo 12:
     // frmUnidadeLista e "Nenhum registro encontrado.", sem infraTable.
-    let html = "<form id='frmUnidadeLista'>
+    let html = HtmlServido::de_teste(
+        "<form id='frmUnidadeLista'>
         <input type='hidden' name='hdnInfraPaginaAtual' value='0'>
         <select name='selInfraPaginacaoSuperior'><option value='0'>1</option></select>
         <div>Nenhum registro encontrado.</div>
-    </form>";
-    let lida = ler_pagina(html).expect("vazio observado, sem tabela");
+    </form>",
+    );
+    let lida = ler_pagina(&html).expect("vazio observado, sem tabela");
     assert_eq!((lida.total, lida.pagina, lida.paginas), (0, 0, 1));
     assert_eq!(lida.unidades, Vec::new());
     assert_eq!(reunir_paginas(vec![lida]).unwrap(), Vec::new());
 }
 #[test]
 fn ausencia_de_tabela_sem_aviso_de_vazio_nao_pode_ser_sucesso() {
-    let html = "<form id='frmUnidadeLista'>
+    let html = HtmlServido::de_teste(
+        "<form id='frmUnidadeLista'>
         <input type='hidden' name='hdnInfraPaginaAtual' value='0'>
         <select name='selInfraPaginacaoSuperior'><option value='0'>1</option></select>
-    </form>";
-    assert_eq!(ler_pagina(html).err(), Some(ErroLupa::TabelaForaDaForma));
+    </form>",
+    );
+    assert_eq!(ler_pagina(&html).err(), Some(ErroLupa::TabelaForaDaForma));
 }
 #[test]
 fn cabecalho_ausente_nao_pode_virar_lista_vazia() {
-    assert!(ler_pagina("<form id='frmUnidadeLista'></form>").is_err());
+    assert!(ler_pagina(&HtmlServido::de_teste("<form id='frmUnidadeLista'></form>")).is_err());
 }
 #[test]
 fn filtros_publicados_precisam_provar_lista_integral() {
@@ -90,7 +95,10 @@ fn filtros_publicados_precisam_provar_lista_integral() {
          <input name='txtDescricaoUnidade' value=''>
          <table class='infraTable'>",
     );
-    assert_eq!(conferir_filtros_de_lista_integral(&html), Ok(()));
+    assert_eq!(
+        conferir_filtros_de_lista_integral(&HtmlServido::de_teste(&html)),
+        Ok(())
+    );
     // Uma lista de nove resultados filtrados pode ser internamente
     // consistente, mas não substitui a lista integral de destinos.
     for alterada in [
@@ -113,7 +121,7 @@ fn filtros_publicados_precisam_provar_lista_integral() {
         ),
     ] {
         assert_eq!(
-            conferir_filtros_de_lista_integral(&alterada),
+            conferir_filtros_de_lista_integral(&HtmlServido::de_teste(&alterada)),
             Err(ErroLupa::PaginaInvalida),
             "não publicar um snapshot quando o filtro não é integral"
         );
@@ -137,7 +145,7 @@ fn paginador_so_admite_indices_contiguos_e_unicos() {
         html.replace("<option value='1'>2</option>", "<option>2</option>"),
     ] {
         assert_eq!(
-            ler_pagina(&alterada).err(),
+            ler_pagina(&HtmlServido::de_teste(&alterada)).err(),
             Some(ErroLupa::PaginaInvalida),
             "paginador corrompido nao pode gerar snapshot completo"
         );

@@ -80,13 +80,12 @@ fn faixa_da_legenda(legenda: &str, linhas: usize) -> Result<Option<Faixa>, ErroF
 }
 
 fn faixa_da_tabela(
-    html: &str,
+    html: &crate::tela_html::HtmlServido,
     id: &str,
     categoria: Categoria,
     linhas: usize,
 ) -> Result<Option<Faixa>, ErroCaixa> {
-    let dom = tl::parse(html, tl::ParserOptions::default())
-        .map_err(ErroCaixa::HtmlDaCaixaRecusadoPeloParser)?;
+    let dom = crate::tela_html::interpretar(html);
     let parser = dom.parser();
     let tabela = match nos_com_id(&dom, id)
         .map_err(ErroCaixa::AtributoDaCaixaIlegivel)?
@@ -294,7 +293,7 @@ fn id_da_tabela(categoria: Categoria) -> &'static str {
 /// Faixa de uma tabela numa página isolada; `None` se a tabela não tem
 /// linhas ou a legenda não a comprova.
 pub(crate) fn faixa_na_pagina(
-    html: &str,
+    html: &crate::tela_html::HtmlServido,
     categoria: Categoria,
 ) -> Result<Option<FaixaNaPagina>, ErroCaixa> {
     let caixa = crate::caixa::parse_html(html)?;
@@ -334,11 +333,15 @@ pub struct Leitura {
     pub unidade: Option<String>,
 }
 
-pub fn juntar(paginas: &[String], unidade_esperada: Option<&str>) -> Result<Leitura, ErroCaixa> {
+pub fn juntar(
+    paginas: &[crate::tela_html::HtmlServido],
+    unidade_esperada: Option<&str>,
+) -> Result<Leitura, ErroCaixa> {
     let Some(primeira) = paginas.first() else {
         return Err(ErroCaixa::SemPaginas);
     };
-    if paginas.len() > 200 || paginas.iter().map(String::len).sum::<usize>() > 48_000_000 {
+    if paginas.len() > 200 || paginas.iter().map(|pagina| pagina.len()).sum::<usize>() > 48_000_000
+    {
         return Err(ErroCaixa::LimitePaginas);
     }
     let contexto_inicial = contexto_da_pagina(primeira)?;

@@ -1,5 +1,6 @@
 //! RED/GREEN da faixa observada: a página que a tela mostra, sem POST.
 use super::*;
+use crate::tela_html::HtmlServido;
 
 fn linha(id: u32) -> String {
     format!("<tr id='P{id}'><td><a class='processoVisualizado'>NUP-{id}</a></td></tr>")
@@ -35,7 +36,11 @@ fn pagina_parcial_publica_a_faixa_da_legenda() {
         &[1, 2],
         "<a id='lnkRecebidosProximaPaginaSuperior'>»</a>",
     );
-    let leitura = juntar(&[pagina(&rec, &vazia("Gerados"))], Some("TESTE")).unwrap();
+    let leitura = juntar(
+        &[HtmlServido::de_teste(&pagina(&rec, &vazia("Gerados")))],
+        Some("TESTE"),
+    )
+    .unwrap();
     assert_eq!(
         leitura.recebidos.faixa_observada(),
         Ok(FaixaObservada::Lidas { inicio: 1, fim: 2 })
@@ -50,7 +55,11 @@ fn pagina_parcial_publica_a_faixa_da_legenda() {
 #[test]
 fn legenda_sem_intervalo_com_todas_as_linhas_publica_um_ate_total() {
     let rec = tabela("Recebidos", "3 registros:", &[1, 2, 3], "");
-    let leitura = juntar(&[pagina(&rec, &vazia("Gerados"))], None).unwrap();
+    let leitura = juntar(
+        &[HtmlServido::de_teste(&pagina(&rec, &vazia("Gerados")))],
+        None,
+    )
+    .unwrap();
     assert_eq!(
         leitura.recebidos.faixa_observada(),
         Ok(FaixaObservada::Lidas { inicio: 1, fim: 3 })
@@ -65,7 +74,11 @@ fn pagina_lembrada_pelo_servidor_publica_faixa_fora_do_inicio() {
         &[3, 4],
         "",
     );
-    let leitura = juntar(&[pagina(&rec, &vazia("Gerados"))], Some("TESTE")).unwrap();
+    let leitura = juntar(
+        &[HtmlServido::de_teste(&pagina(&rec, &vazia("Gerados")))],
+        Some("TESTE"),
+    )
+    .unwrap();
     assert_eq!(
         leitura.recebidos.faixa_observada(),
         Ok(FaixaObservada::Lidas { inicio: 3, fim: 4 })
@@ -78,8 +91,8 @@ fn paginas_contiguas_fora_do_inicio_somam_faixas() {
     let p2 = tabela("Recebidos", "(6 registros - 3 a 4):", &[3, 4], "");
     let p3 = tabela("Recebidos", "(6 registros - 5 a 6):", &[5, 6], "");
     let paginas = [
-        pagina(&p2, &vazia("Gerados")),
-        pagina(&p3, &vazia("Gerados")),
+        HtmlServido::de_teste(&pagina(&p2, &vazia("Gerados"))),
+        HtmlServido::de_teste(&pagina(&p3, &vazia("Gerados"))),
     ];
     let leitura = juntar(&paginas, Some("TESTE")).unwrap();
     assert_eq!(
@@ -93,8 +106,8 @@ fn paginas_com_lacuna_continuam_recusadas() {
     let p1 = tabela("Recebidos", "(6 registros - 1 a 2):", &[1, 2], "");
     let p3 = tabela("Recebidos", "(6 registros - 5 a 6):", &[5, 6], "");
     let paginas = [
-        pagina(&p1, &vazia("Gerados")),
-        pagina(&p3, &vazia("Gerados")),
+        HtmlServido::de_teste(&pagina(&p1, &vazia("Gerados"))),
+        HtmlServido::de_teste(&pagina(&p3, &vazia("Gerados"))),
     ];
     assert_eq!(
         juntar(&paginas, Some("TESTE")).err(),
@@ -119,11 +132,11 @@ fn paginador_da_tabela_com_legenda_sem_intervalo_e_recusado() {
         ),
     ] {
         let alvo = tabela(nome, "2 registros:", &[1, 2], controle);
-        let html = if nome == "Recebidos" {
+        let html = HtmlServido::de_teste(&if nome == "Recebidos" {
             pagina(&alvo, &vazia("Gerados"))
         } else {
             pagina(&vazia("Recebidos"), &alvo)
-        };
+        });
         assert_eq!(
             juntar(&[html], Some("TESTE")).err(),
             Some(ErroCaixa::PaginadorDaTabelaSemFaixaNaLegenda { categoria }),
@@ -150,9 +163,11 @@ fn faixa_publicavel_exige_total_e_intervalo_ou_todas_as_linhas() {
     ];
     for (rec, esperado) in casos {
         // Legenda sem total falha já na leitura; as demais na publicação.
-        let resultado = juntar(&[pagina(&rec, &vazia("Gerados"))], None).and_then(|leitura| {
-            conferir_faixa_publicavel(Categoria::Recebidos, &leitura.recebidos)
-        });
+        let resultado = juntar(
+            &[HtmlServido::de_teste(&pagina(&rec, &vazia("Gerados")))],
+            None,
+        )
+        .and_then(|leitura| conferir_faixa_publicavel(Categoria::Recebidos, &leitura.recebidos));
         assert_eq!(resultado, Err(esperado));
     }
 }
@@ -160,7 +175,11 @@ fn faixa_publicavel_exige_total_e_intervalo_ou_todas_as_linhas() {
 #[test]
 fn faixa_publicavel_aceita_parcial_vazia_e_integral() {
     let rec = tabela("Recebidos", "(4 registros - 1 a 2):", &[1, 2], "");
-    let leitura = juntar(&[pagina(&rec, &vazia("Gerados"))], None).unwrap();
+    let leitura = juntar(
+        &[HtmlServido::de_teste(&pagina(&rec, &vazia("Gerados")))],
+        None,
+    )
+    .unwrap();
     for (categoria, cobertura) in [
         (Categoria::Recebidos, &leitura.recebidos),
         (Categoria::Gerados, &leitura.gerados),
@@ -172,7 +191,10 @@ fn faixa_publicavel_aceita_parcial_vazia_e_integral() {
 #[test]
 fn faixa_na_pagina_le_total_e_intervalo_de_uma_tabela() {
     let rec = tabela("Recebidos", "(114 registros - 101 a 102):", &[1, 2], "");
-    let html = pagina(&rec, &tabela("Gerados", "2 registros:", &[7, 8], ""));
+    let html = HtmlServido::de_teste(&pagina(
+        &rec,
+        &tabela("Gerados", "2 registros:", &[7, 8], ""),
+    ));
     assert_eq!(
         faixa_na_pagina(&html, Categoria::Recebidos),
         Ok(Some(FaixaNaPagina {
@@ -189,7 +211,7 @@ fn faixa_na_pagina_le_total_e_intervalo_de_uma_tabela() {
             fim: 2
         }))
     );
-    let zero = pagina(&vazia("Recebidos"), &vazia("Gerados"));
+    let zero = HtmlServido::de_teste(&pagina(&vazia("Recebidos"), &vazia("Gerados")));
     assert_eq!(faixa_na_pagina(&zero, Categoria::Recebidos), Ok(None));
 }
 
@@ -197,7 +219,11 @@ fn faixa_na_pagina_le_total_e_intervalo_de_uma_tabela() {
 fn legenda_no_singular_comprova_a_faixa_de_um_registro() {
     // UFRJ, 04/11/2026: `Processos recebidos (1 registro):`, uma linha.
     let rec = tabela("Recebidos", "Processos recebidos (1 registro):", &[1], "");
-    let leitura = juntar(&[pagina(&rec, &vazia("Gerados"))], None).unwrap();
+    let leitura = juntar(
+        &[HtmlServido::de_teste(&pagina(&rec, &vazia("Gerados")))],
+        None,
+    )
+    .unwrap();
     assert_eq!(
         leitura.recebidos.faixa_observada(),
         Ok(FaixaObservada::Lidas { inicio: 1, fim: 1 })
@@ -207,7 +233,7 @@ fn legenda_no_singular_comprova_a_faixa_de_um_registro() {
         Ok(())
     );
     let parcial = tabela("Recebidos", "(1 registro - 1 a 1):", &[1], "");
-    let html = pagina(&parcial, &vazia("Gerados"));
+    let html = HtmlServido::de_teste(&pagina(&parcial, &vazia("Gerados")));
     assert_eq!(
         faixa_na_pagina(&html, Categoria::Recebidos),
         Ok(Some(FaixaNaPagina {

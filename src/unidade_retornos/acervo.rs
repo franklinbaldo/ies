@@ -4,6 +4,7 @@
 use super::extrair_retornos;
 use crate::cassette::acervo::gravacao;
 use crate::cassette::{ZipDoAcervo, conferir_cassette_ate, html_da_resposta};
+use crate::tela_html::HtmlServido;
 use std::path::{Path, PathBuf};
 
 const CARDS: [(&str, &str); 7] = [
@@ -26,10 +27,8 @@ fn pasta_do_acervo() -> PathBuf {
 /// Conta somente elementos e nomes de parametros de links gravados.
 /// Nunca publica href, corpo HTML, `infra_hash`, URL assinada ou cookie.
 fn diagnosticar_calendario(html: &str, instalacao: &str, passo: usize) {
-    let Ok(dom) = tl::parse(html, tl::ParserOptions::default()) else {
-        println!("{instalacao}: calendario passo={passo} html_nao_estruturado");
-        return;
-    };
+    let servido = HtmlServido::de_teste(html);
+    let dom = crate::tela_html::interpretar(&servido);
     let parser = dom.parser();
     let mut links = 0usize;
     let mut links_de_mes = 0usize;
@@ -177,7 +176,7 @@ fn replay_retornos_no_acervo() {
                 println!("{instalacao}: passo {} sem HTML legivel", resposta.passo);
                 continue;
             };
-            match extrair_retornos(&html) {
+            match extrair_retornos(&HtmlServido::de_teste(&html)) {
                 Ok(itens) => {
                     lidos += 1;
                     println!(

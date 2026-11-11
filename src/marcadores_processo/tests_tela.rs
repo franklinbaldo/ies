@@ -4,11 +4,12 @@
 use super::tests_apoio::{Linha, dois, legenda, linha, tabela, tela_com, tela_dos_marcadores};
 use super::{ErroMarcadores, MarcadorDoProcesso, TelaDosMarcadores, ler_marcadores};
 use crate::arvore_processo::tests::NUP;
+use crate::tela_html::HtmlServido;
 
 const ID: &str = "10";
 
 fn lidos(html: &str) -> Vec<MarcadorDoProcesso> {
-    match ler_marcadores(html, NUP, ID) {
+    match ler_marcadores(&HtmlServido::de_teste(html), NUP, ID) {
         Ok(TelaDosMarcadores::Lidos(lidos)) => {
             assert_eq!(lidos.total_declarado, lidos.itens.len());
             lidos.itens
@@ -18,7 +19,7 @@ fn lidos(html: &str) -> Vec<MarcadorDoProcesso> {
 }
 
 fn erro(html: &str) -> ErroMarcadores {
-    ler_marcadores(html, NUP, ID).unwrap_err()
+    ler_marcadores(&HtmlServido::de_teste(html), NUP, ID).unwrap_err()
 }
 
 #[test]
@@ -59,7 +60,7 @@ fn um_marcador_com_legenda_no_singular_e_usuario_vazio() {
 
 #[test]
 fn legenda_maior_que_as_linhas_publica_o_total_sem_alegar_completude() {
-    let html = tela_com(NUP, ID, &tabela(&legenda(5), &dois()));
+    let html = HtmlServido::de_teste(&tela_com(NUP, ID, &tabela(&legenda(5), &dois())));
     let Ok(TelaDosMarcadores::Lidos(lidos)) = ler_marcadores(&html, NUP, ID) else {
         panic!("não lidos");
     };
@@ -75,7 +76,7 @@ fn linhas_alem_da_legenda_sao_recusa() {
 
 #[test]
 fn tela_sem_tabela_e_nao_observada_e_nao_lista_vazia() {
-    let html = tela_com(NUP, ID, "");
+    let html = HtmlServido::de_teste(&tela_com(NUP, ID, ""));
     assert_eq!(
         ler_marcadores(&html, NUP, ID),
         Ok(TelaDosMarcadores::SemTabela)

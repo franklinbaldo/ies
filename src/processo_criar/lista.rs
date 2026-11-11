@@ -15,7 +15,6 @@ pub(crate) enum ErroListaDeTipos {
     TipoSemAcao,
     ListaIncompleta,
     ListaDeTiposHtmlInvalido,
-    HtmlDaListaNaoAnalisavel(#[source] tl::ParseError),
     AtributoDaListaDeTiposIlegivel(#[source] crate::html_atributos::ErroAtributoHtml),
     TabelaDeTiposAusenteOuRepetida,
     TipoDeProcessoAmbiguo,
@@ -78,9 +77,11 @@ fn link_do_cadastro(href: &str) -> Result<Option<String>, ErroListaDeTipos> {
 /// Compara o nome apresentado pelo SEI, sem escolher um candidato por
 /// prefixo ou por posição. Entidades HTML são decodificadas pelo leitor
 /// comum antes da comparação.
-pub(crate) fn tipo_na_lista(html: &str, pedido: &str) -> Result<TipoEscolhido, ErroListaDeTipos> {
-    let dom = tl::parse(html, tl::ParserOptions::default())
-        .map_err(ErroListaDeTipos::HtmlDaListaNaoAnalisavel)?;
+pub(crate) fn tipo_na_lista(
+    html: &crate::tela_html::HtmlServido,
+    pedido: &str,
+) -> Result<TipoEscolhido, ErroListaDeTipos> {
+    let dom = crate::tela_html::interpretar(html);
     let tabelas = nos_com_id(&dom, "tblTipoProcedimento")
         .map_err(ErroListaDeTipos::AtributoDaListaDeTiposIlegivel)?;
     let [tabela] = tabelas.as_slice() else {
@@ -163,10 +164,10 @@ mod tests {
 
     #[test]
     fn escolhe_link_literal_da_versao_40() {
-        let html = tela(
+        let html = crate::tela_html::HtmlServido::de_teste(&tela(
             "<a class='ancoraOpcao' href='controlador.php?acao=procedimento_gerar&amp;id_tipo_procedimento=12'>Ensaio</a>",
             true,
-        );
+        ));
         // O valor de href é bruto, com a entidade publicada, preservada.
         assert!(matches!(
             tipo_na_lista(&html, "Ensaio"),
@@ -179,10 +180,10 @@ mod tests {
 
     #[test]
     fn escolhe_formulario_da_versao_41() {
-        let html = tela(
+        let html = crate::tela_html::HtmlServido::de_teste(&tela(
             "<a class='ancoraOpcao' href='#' onclick='escolher(23)'>Ensaio</a>",
             true,
-        );
+        ));
         assert_eq!(
             tipo_na_lista(&html, "Ensaio").unwrap().escolha,
             EscolhaDoTipo::Formulario("23".into())
@@ -192,7 +193,10 @@ mod tests {
     #[test]
     fn nao_confunde_lista_curta_com_tipo_inexistente() {
         assert_eq!(
-            tipo_na_lista(&tela("", false), "Outro"),
+            tipo_na_lista(
+                &crate::tela_html::HtmlServido::de_teste(&tela("", false)),
+                "Outro"
+            ),
             Err(ErroListaDeTipos::ListaIncompleta)
         );
     }
@@ -200,7 +204,10 @@ mod tests {
     #[test]
     fn tipo_ausente_so_na_lista_completa() {
         assert_eq!(
-            tipo_na_lista(&tela("", true), "Outro"),
+            tipo_na_lista(
+                &crate::tela_html::HtmlServido::de_teste(&tela("", true)),
+                "Outro"
+            ),
             Err(ErroListaDeTipos::TipoNaoOferecido)
         );
     }
@@ -209,17 +216,20 @@ mod tests {
     fn nome_duplicado_eh_recusado() {
         let link = "<a class='ancoraOpcao' onclick='escolher(1)' href='#'>Ensaio</a>";
         assert_eq!(
-            tipo_na_lista(&tela(&format!("{link}{link}"), true), "Ensaio"),
+            tipo_na_lista(
+                &crate::tela_html::HtmlServido::de_teste(&tela(&format!("{link}{link}"), true)),
+                "Ensaio"
+            ),
             Err(ErroListaDeTipos::TipoDeProcessoAmbiguo)
         );
     }
 
     #[test]
     fn acao_nao_reconhecida_eh_recusada() {
-        let html = tela(
+        let html = crate::tela_html::HtmlServido::de_teste(&tela(
             "<a class='ancoraOpcao' href='#' onclick='avaliar(1)'>Ensaio</a>",
             true,
-        );
+        ));
         assert_eq!(
             tipo_na_lista(&html, "Ensaio"),
             Err(ErroListaDeTipos::TipoSemAcao)
@@ -229,14 +239,18 @@ mod tests {
     #[test]
     fn tabela_ausente_eh_recusada() {
         assert_eq!(
-            tipo_na_lista("<div/>", "Ensaio"),
+            tipo_na_lista(&crate::tela_html::HtmlServido::de_teste("<div/>"), "Ensaio"),
             Err(ErroListaDeTipos::TabelaDeTiposAusenteOuRepetida)
         );
     }
 
     #[test]
     fn tabela_repetida_eh_recusada() {
-        let html = format!("{}{}", tela("", true), tela("", true));
+        let html = crate::tela_html::HtmlServido::de_teste(&format!(
+            "{}{}",
+            tela("", true),
+            tela("", true)
+        ));
         assert_eq!(
             tipo_na_lista(&html, "Ensaio"),
             Err(ErroListaDeTipos::TabelaDeTiposAusenteOuRepetida)
@@ -245,28 +259,28 @@ mod tests {
 
     #[test]
     fn link_com_duas_acoes_nao_vira_escolha() {
-        let html = tela(
+        let html = crate::tela_html::HtmlServido::de_teste(&tela(
             "<a class='ancoraOpcao' href='controlador.php?acao=procedimento_gerar&amp;acao=procedimento_excluir&amp;id_tipo_procedimento=12'>Ensaio</a>",
             true,
-        );
+        ));
         assert!(tipo_na_lista(&html, "Ensaio").is_err());
     }
 
     #[test]
     fn link_com_par_sem_igual_nao_vira_escolha() {
-        let html = tela(
+        let html = crate::tela_html::HtmlServido::de_teste(&tela(
             "<a class='ancoraOpcao' href='controlador.php?acao=procedimento_gerar&amp;id_tipo_procedimento=12&amp;lixo'>Ensaio</a>",
             true,
-        );
+        ));
         assert!(tipo_na_lista(&html, "Ensaio").is_err());
     }
 
     #[test]
     fn nao_aceita_prefixo() {
-        let html = tela(
+        let html = crate::tela_html::HtmlServido::de_teste(&tela(
             "<a class='ancoraOpcao' href='#' onclick='escolher(1)'>Ensaio Especial</a>",
             true,
-        );
+        ));
         assert_eq!(
             tipo_na_lista(&html, "Ensaio"),
             Err(ErroListaDeTipos::TipoNaoOferecido)
@@ -275,10 +289,10 @@ mod tests {
 
     #[test]
     fn ancora_desabilitada_nao_pode_ser_escolhida() {
-        let html = tela(
+        let html = crate::tela_html::HtmlServido::de_teste(&tela(
             "<a class='ancoraOpcao' href='#' onclick='escolher(3)' disabled>Ensaio</a>",
             true,
-        );
+        ));
         assert_eq!(
             tipo_na_lista(&html, "Ensaio"),
             Err(ErroListaDeTipos::TipoSemAcao)

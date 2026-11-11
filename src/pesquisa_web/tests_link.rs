@@ -3,13 +3,14 @@ use super::*;
 use crate::pesquisa_web::tests_fixtures::{
     ORIGEM, controle, hash, href_do_menu, menu, url_controle, url_da_tela,
 };
+use crate::tela_html::HtmlServido;
 
 fn instalacao() -> Instalacao {
     Instalacao::interpretar(ORIGEM).unwrap()
 }
 
 fn link(html: &str) -> Result<String, ErroLinkDaPesquisa> {
-    link_da_pesquisa(&instalacao(), &url_controle(), html)
+    link_da_pesquisa(&instalacao(), &url_controle(), &HtmlServido::de_teste(html))
 }
 
 #[test]

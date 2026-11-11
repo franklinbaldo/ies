@@ -1,6 +1,7 @@
 //! Segunda vertical: duas páginas mensais reais de retorno da `UnB`, sem SEI.
 use crate::cassette::acervo::gravacao;
 use crate::cassette::{ZipDoAcervo, conferir_cassette_ate, html_da_resposta};
+use crate::tela_html::HtmlServido;
 use iesei::banco_cassettes::iniciar;
 use iesei::retornos_cassettes::{Mes, Retorno, Situacao, guardar};
 use std::io::{Read, Write};
@@ -74,7 +75,7 @@ fn cassette_unb_retornos_mensais_fecha_ciclo_http_e_leitor() {
             .first()
             .copied()
             .expect("mês da cassette tem data final");
-        let html = html_da_resposta(resposta.interacao).unwrap();
+        let html = HtmlServido::de_teste(&html_da_resposta(resposta.interacao).unwrap());
         let esperado = crate::unidade_retornos::extrair_retornos(&html).unwrap();
         assert_eq!(esperado.len(), 2, "não reduzir o conteúdo da cassette");
         let mes = Mes {
@@ -122,7 +123,8 @@ fn cassette_unb_retornos_mensais_fecha_ciclo_http_e_leitor() {
         let (cabecalho, corpo) = resposta.split_once("\r\n\r\n").unwrap();
         assert!(cabecalho.starts_with("HTTP/1.1 200 OK"));
         assert!(cabecalho.contains("Content-Type: text/html; charset=utf-8"));
-        let obtido = crate::unidade_retornos::extrair_retornos(corpo).unwrap();
+        let obtido =
+            crate::unidade_retornos::extrair_retornos(&HtmlServido::de_teste(corpo)).unwrap();
         assert_eq!(obtido, esperado, "mesmo significado da cassette original");
     }
     std::fs::remove_dir_all(&pasta).unwrap();

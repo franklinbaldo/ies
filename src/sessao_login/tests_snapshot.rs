@@ -11,6 +11,7 @@ use crate::acao_do_sei::AcaoDoSei;
 use crate::colheita_do_controle::Colheita;
 use crate::indice_local::{ChaveDoLink, IndiceLocal};
 use crate::instalacao::Instalacao;
+use crate::tela_html::HtmlServido;
 use crate::transporte::FalhaTransporte;
 use crate::transporte::sessao::ReferenciasDaSessao;
 
@@ -164,7 +165,10 @@ fn colheita_da_leitura_registra_sob_a_geracao_do_cookie_lido() {
     let lidas = ler(&ambiente, || {}).unwrap();
     logar(&ambiente, &url_do_controle(), COOKIE_B);
     let indice = IndiceLocal::em(ambiente.dir.join("indice").join("ies.sqlite3"));
-    Colheita::das_referencias(&indice, &lidas).colher(&controle_com_linha(), Some("text/html"));
+    Colheita::das_referencias(&indice, &lidas).colher(
+        &HtmlServido::de_teste(&controle_com_linha()),
+        Some("text/html"),
+    );
     let instalacao = Instalacao::interpretar(ORIGEM).unwrap();
     let chave = |geracao| ChaveDoLink {
         geracao_sessao: geracao,

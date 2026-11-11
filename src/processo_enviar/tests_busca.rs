@@ -9,6 +9,7 @@ use super::tela::conferir_tela_de_envio;
 use super::tests_apoio::*;
 use super::{Destino, ProcessoEnviado};
 use crate::processo_concluir::tests_apoio::*;
+use crate::tela_html::HtmlServido;
 
 const ABC: &str = "ABC/GECONT-18141";
 const ABC_CODIFICADA: &str = "ABC%2FGECONT-18141";
@@ -75,7 +76,7 @@ fn filtrada_alargada() -> String {
 
 #[test]
 fn tela_publica_os_orgaos_do_selorgao() {
-    let tela = conferir_tela_de_envio(&tela_de_envio_go(ID), ID).unwrap();
+    let tela = conferir_tela_de_envio(&HtmlServido::de_teste(&tela_de_envio_go(ID)), ID).unwrap();
     assert_eq!(tela.orgao, "");
     assert_eq!(
         tela.orgaos,

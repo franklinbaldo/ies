@@ -79,7 +79,6 @@ pub(crate) enum ErroDetalhada {
     CabecalhoProcessoDetalhadoRepetido,
     ColunaDaVisaoDetalhadaRepetida,
     FaixaDetalhadaInvalida,
-    HtmlDetalhadoNaoInterpretado(#[source] tl::ParseError),
     AtributoDaDetalhadaIlegivel(#[from] crate::html_atributos::ErroAtributoHtml),
     /// O total declarado na página não é um inteiro decimal.
     TotalNaoNumerico(#[source] std::num::ParseIntError),
@@ -290,7 +289,7 @@ fn ler_linha(
         .ok_or(ErroDetalhada::LinkDoProcessoDetalhadoAusente)
 }
 
-fn ler_pagina(html: &str) -> Result<Pagina, ErroDetalhada> {
+fn ler_pagina(html: &crate::tela_html::HtmlServido) -> Result<Pagina, ErroDetalhada> {
     let contexto =
         contexto_da_pagina(html).map_err(ErroDetalhada::ControleDaPaginaNaoInterpretado)?;
     if !contexto.eh_detalhada() {
@@ -299,8 +298,7 @@ fn ler_pagina(html: &str) -> Result<Pagina, ErroDetalhada> {
     if contexto.unidade.is_none() {
         return Err(ErroDetalhada::UnidadeNaoIdentificada);
     }
-    let dom = tl::parse(html, tl::ParserOptions::default())
-        .map_err(ErroDetalhada::HtmlDetalhadoNaoInterpretado)?;
+    let dom = crate::tela_html::interpretar(html);
     let parser = dom.parser();
     let tabelas = nos_com_id(&dom, "tblProcessosDetalhado")
         .map_err(ErroDetalhada::AtributoDaDetalhadaIlegivel)?;
@@ -375,7 +373,7 @@ fn ler_pagina(html: &str) -> Result<Pagina, ErroDetalhada> {
 /// As linhas de uma página D com o `href` do link do processo, pela mesma
 /// leitura e com as mesmas recusas da página em [`ler_paginas`].
 pub(crate) fn linhas_com_link(
-    html: &str,
+    html: &crate::tela_html::HtmlServido,
 ) -> Result<Vec<crate::caixa::LinhaDoControle>, ErroDetalhada> {
     let pagina = ler_pagina(html)?;
     Ok(pagina
@@ -392,13 +390,13 @@ pub(crate) fn linhas_com_link(
 
 /// Consome páginas de uma mesma sessão sem inventar uma cobertura transacional.
 pub(crate) fn ler_paginas(
-    paginas: &[String],
+    paginas: &[crate::tela_html::HtmlServido],
     unidade_esperada: Option<&str>,
 ) -> Result<LeituraDetalhada, ErroDetalhada> {
     if paginas.is_empty() {
         return Err(ErroDetalhada::TabelaDetalhadaAusente);
     }
-    if paginas.iter().map(String::len).sum::<usize>() > 48_000_000 {
+    if paginas.iter().map(|pagina| pagina.len()).sum::<usize>() > 48_000_000 {
         return Err(ErroDetalhada::LimitePaginas);
     }
     let mut contexto = None;
@@ -475,10 +473,10 @@ pub(crate) fn ler_paginas(
 
 #[cfg(test)]
 pub(crate) fn possui_tabela(html: &str) -> bool {
-    tl::parse(html, tl::ParserOptions::default()).is_ok_and(|dom| {
-        // Tag ilegível conta como possível tabela: a leitura falhará tipada.
-        !nos_com_id(&dom, "tblProcessosDetalhado").is_ok_and(|tabelas| tabelas.is_empty())
-    })
+    let servido = crate::tela_html::HtmlServido::de_teste(html);
+    let dom = crate::tela_html::interpretar(&servido);
+    // Tag ilegível conta como possível tabela: a leitura falhará tipada.
+    !nos_com_id(&dom, "tblProcessosDetalhado").is_ok_and(|tabelas| tabelas.is_empty())
 }
 
 #[cfg(test)]

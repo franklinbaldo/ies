@@ -103,7 +103,7 @@ impl<'i> Colheita<'i> {
     /// Colhe uma página do Controle já lida. `mime` é o `Content-Type` da
     /// resposta (o charset do `action` da pesquisa rápida); sem ele, a
     /// pesquisa rápida não é colhida.
-    pub(crate) fn colher(&self, html: &str, mime: Option<&str>) {
+    pub(crate) fn colher(&self, html: &crate::tela_html::HtmlServido, mime: Option<&str>) {
         let Some(alvo) = &self.alvo else {
             return;
         };
@@ -158,7 +158,7 @@ fn registrar(alvo: &Alvo<'_>, unidade: &str, acao: AcaoDoSei, id_alvo: &str, url
 
 /// As linhas da página pelo leitor da visão que ela publica (D se houver
 /// `tblProcessosDetalhado`, senão R); página recusada: nenhuma.
-fn linhas_da_pagina(html: &str) -> Vec<LinhaDoControle> {
+fn linhas_da_pagina(html: &crate::tela_html::HtmlServido) -> Vec<LinhaDoControle> {
     if publica_visao_detalhada(html) {
         crate::caixa_detalhada::linhas_com_link(html).unwrap_or_default()
     } else {
@@ -169,7 +169,10 @@ fn linhas_da_pagina(html: &str) -> Vec<LinhaDoControle> {
 /// Cada linha de NUP e id únicos na página cujo `href` relativo é o
 /// `procedimento_trabalhar` do Controle para o id da linha, com a URL
 /// absoluta conferida. As outras são puladas.
-fn linhas_conferidas(alvo: &Alvo<'_>, html: &str) -> Vec<(LinhaDoControle, String)> {
+fn linhas_conferidas(
+    alvo: &Alvo<'_>,
+    html: &crate::tela_html::HtmlServido,
+) -> Vec<(LinhaDoControle, String)> {
     let linhas = linhas_da_pagina(html);
     let mut nups: HashMap<&str, usize> = HashMap::new();
     let mut ids: HashMap<&str, usize> = HashMap::new();
@@ -205,7 +208,11 @@ fn trabalho_da_linha(alvo: &Alvo<'_>, linha: &LinhaDoControle) -> Option<String>
 
 /// O `action` assinado de `frmProtocoloPesquisaRapida`, pela mesma
 /// derivação do envio de `ies processo NUP`.
-fn action_da_pesquisa_rapida(alvo: &Alvo<'_>, html: &str, mime: &str) -> Option<String> {
+fn action_da_pesquisa_rapida(
+    alvo: &Alvo<'_>,
+    html: &crate::tela_html::HtmlServido,
+    mime: &str,
+) -> Option<String> {
     let codificacao = codificacao_da_tela(mime)?;
     let unidade = contexto_da_pagina(html).ok()?.unidade?;
     let tela = TelaServida {
@@ -250,7 +257,7 @@ impl EnvioDoControle for EnvioColhendo<'_, '_> {
     {
         EnvioHttps.get(url, cookie)
     }
-    fn colher_controle(&mut self, html: &str, mime: Option<&str>) {
+    fn colher_controle(&mut self, html: &crate::tela_html::HtmlServido, mime: Option<&str>) {
         self.colheita.colher(html, mime);
     }
 }

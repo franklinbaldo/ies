@@ -15,7 +15,6 @@ pub(crate) enum ErroTelaDeConclusao {
     TelaDeConclusaoComReaberturaPreenchida,
     CampoNaoPrevistoNaTelaDeConclusao,
     FormularioDeConclusaoAusente(#[source] crate::formulario_web::ErroSubmissaoFormulario),
-    TelaDeConclusaoNaoInterpretada(#[source] tl::ParseError),
     TelaDeConclusaoComAtributoIlegivel(#[from] crate::html_atributos::ErroAtributoHtml),
 }
 

@@ -7,11 +7,9 @@
 pub(crate) enum ErroArvore {
     /// O tokenizador de atributos recusou a tag.
     Atributo(#[source] crate::html_atributos::ErroAtributoHtml),
-    ParseDoHtmlDoNoDoProcessoFalhou(#[source] tl::ParseError),
     EnderecoDoVinculoDeAnexacaoRecusado(
         #[source] crate::arvore_processo::endereco::EnderecoRecusado,
     ),
-    ParseDoDestinoMovidoFalhou(#[source] tl::ParseError),
     EnderecoDoDestinoMovidoRecusado(#[source] crate::arvore_processo::endereco::EnderecoRecusado),
     LinhaDoDestinoMovidoIlegivel(#[source] Box<ErroArvore>),
     EnderecoDeAbrirPastasRecusado(#[source] crate::arvore_processo::endereco::EnderecoRecusado),
@@ -22,6 +20,9 @@ pub(crate) enum ErroArvore {
     BarraDeNoIlegivel(#[source] Box<ErroArvore>),
     SrcDeNoIlegivel(#[source] Box<ErroArvore>),
     HtmlDoNoDoProcessoIlegivel(#[source] Box<ErroArvore>),
+    /// O HTML de um literal (`.acoes`, `.html`) não cabe no limite do
+    /// HTML interpretado.
+    HtmlDoLiteralAcimaDoLimite(#[from] crate::tela_html::HtmlAcimaDoLimite),
     ProtocolosDaPastaIlegiveis(#[source] Box<ErroArvore>),
     ArgumentoDeNoNaoLiteral,
     TextoDeNoSemFechamento,

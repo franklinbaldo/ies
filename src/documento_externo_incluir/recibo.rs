@@ -108,7 +108,7 @@ pub(crate) fn interpretar_http<R: std::io::Read>(
     }
     let bytes = crate::transporte::ler_limitado(resposta.corpo, 64 * 1024)
         .map_err(FalhaUpload::CorpoNaoLido)?;
-    let corpo = crate::transporte::corpo::decode_http_body(&bytes, &resposta.mime)
+    let corpo = crate::tela_html::HtmlServido::do_corpo(&bytes, &resposta.mime)
         .map_err(FalhaUpload::CorpoIlegivel)?;
     interpretar_resposta(status_http, &corpo, nome_esperado, tamanho_esperado)
 }

@@ -6,6 +6,7 @@ use crate::formulario_web::TelaServida;
 use crate::html_atributos::{nos_com_id, valor_do_atributo};
 use crate::instalacao::Instalacao;
 use crate::pagina_do_controle::codificacao_da_tela;
+use crate::tela_html::HtmlServido;
 use iesei::banco_cassettes::iniciar;
 use iesei::documento_versoes::{DocumentoSimulado, Revisao, guardar};
 use rusqlite::Connection;
@@ -24,7 +25,8 @@ struct Forma {
 }
 
 fn forma(html: &str) -> Option<Forma> {
-    let dom = tl::parse(html, tl::ParserOptions::default()).ok()?;
+    let servido = HtmlServido::de_teste(html);
+    let dom = crate::tela_html::interpretar(&servido);
     let forms = nos_com_id(&dom, "frmDocumentoCancelar").ok()?;
     let [form] = forms.as_slice() else {
         return None;
@@ -162,7 +164,7 @@ fn replay_independente_formulario_documento_cancelar_go_ufrj() {
             let origem = Instalacao::interpretar(base).expect("base do controlador");
             let tela = TelaServida {
                 url,
-                html: &html,
+                html: &HtmlServido::de_teste(&html),
                 codificacao,
             };
             assert!(
@@ -176,7 +178,7 @@ fn replay_independente_formulario_documento_cancelar_go_ufrj() {
             );
             let sim_tela = TelaServida {
                 url: &url_simulado,
-                html: &simulado,
+                html: &HtmlServido::de_teste(&simulado),
                 codificacao: codificacao_da_tela("text/html; charset=utf-8").expect("UTF-8"),
             };
             assert!(

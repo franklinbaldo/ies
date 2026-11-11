@@ -77,11 +77,10 @@ pub(crate) struct TelaDeAssinatura {
 /// Confere a tela servida antes de qualquer POST: lista fechada de
 /// controles enviáveis, o documento, o assinante, o órgão e a senha.
 pub(crate) fn conferir_tela_de_assinatura(
-    html: &str,
+    html: &crate::tela_html::HtmlServido,
     id_documento: &str,
 ) -> Result<TelaDeAssinatura, ErroTelaDeAssinatura> {
-    let dom = tl::parse(html, tl::ParserOptions::default())
-        .map_err(ErroTelaDeAssinatura::HtmlDaTelaDeAssinaturaRecusadoPeloParser)?;
+    let dom = crate::tela_html::interpretar(html);
     let parser = dom.parser();
     let form = localizar_formulario(&dom, FORMULARIO_DE_ASSINATURA)
         .map_err(ErroTelaDeAssinatura::FormularioDeAssinaturaAusente)?;

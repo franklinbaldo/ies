@@ -2,6 +2,7 @@
 //! sintéticos na estrutura de GO/PEN1 (5.0.x, `aria-label`, `data-label`)
 //! e da `UnB` (4.0.9, tooltip, sem `data-label`).
 use super::*;
+use crate::tela_html::HtmlServido;
 
 pub(super) fn rotulo(texto: &str) -> String {
     format!(
@@ -45,7 +46,7 @@ pub(super) fn tabela(cabecalhos: &[String], celulas: &[&str]) -> String {
 }
 
 pub(super) fn ler(html: &str) -> Result<LeituraDetalhada, ErroDetalhada> {
-    ler_paginas(&[html.to_owned()], Some("PPI"))
+    ler_paginas(&[HtmlServido::de_teste(html)], Some("PPI"))
 }
 
 #[test]

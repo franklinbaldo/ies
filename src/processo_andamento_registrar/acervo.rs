@@ -11,6 +11,7 @@ use crate::arvore_processo::nup_declarado_na_arvore;
 use crate::cassette::acervo::{INSTALACOES, gravacao, percorrer, publicar};
 use crate::cassette::html_da_resposta;
 use crate::historico::ler_historico;
+use crate::tela_html::HtmlServido;
 use std::collections::{BTreeMap, HashMap};
 use std::fmt::Write as _;
 
@@ -37,7 +38,7 @@ fn formulario(interacao: &serde_json::Value, id: &str) -> String {
     let Ok(html) = html_da_resposta(interacao) else {
         return "HTML ilegível".into();
     };
-    match conferir_formulario(&html, id) {
+    match conferir_formulario(&HtmlServido::de_teste(&html), id) {
         Ok(()) => "conferido".into(),
         Err(erro) => format!("`{erro:?}`"),
     }
@@ -68,7 +69,7 @@ fn historico(interacao: &serde_json::Value, nup: Option<&String>) -> String {
     let Ok(html) = html_da_resposta(interacao) else {
         return "HTML ilegível".into();
     };
-    match ler_historico(&html, nup) {
+    match ler_historico(&HtmlServido::de_teste(&html), nup) {
         Ok(_) => "lido".into(),
         Err(erro) => format!("`{erro:?}`"),
     }

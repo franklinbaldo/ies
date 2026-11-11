@@ -147,12 +147,11 @@ pub(crate) fn ler_destinos_dos_movidos(
 
 fn destino_do_html(
     instalacao: &Instalacao,
-    texto: &str,
+    texto: &crate::tela_html::HtmlServido,
     id: &str,
     processo: &ProcessoNaArvore,
 ) -> Result<Option<DestinoDoMovido>, ErroArvore> {
-    let dom = tl::parse(texto, tl::ParserOptions::default())
-        .map_err(ErroArvore::ParseDoDestinoMovidoFalhou)?;
+    let dom = crate::tela_html::interpretar(texto);
     let parser = dom.parser();
     let mut achado = None;
     for no in dom.query_selector("a").into_iter().flatten() {

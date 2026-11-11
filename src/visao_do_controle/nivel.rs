@@ -74,8 +74,7 @@ pub(super) fn link_do_nivel_de_detalhe(
     tela: &TelaAtual,
 ) -> Result<String, super::ErroVisaoDoControle> {
     let invalido = super::ErroVisaoDoControle::LinkDoNivelDeDetalheNaoReconhecido;
-    let dom = tl::parse(&tela.html, tl::ParserOptions::default())
-        .map_err(super::ErroVisaoDoControle::HtmlDoNivelDeDetalheRecusadoPeloParser)?;
+    let dom = crate::tela_html::interpretar(&tela.html);
     let parser = dom.parser();
     let nos = nos_com_id(&dom, "ancNivelDetalhe").map_err(super::ErroVisaoDoControle::Atributo)?;
     let no = match nos.as_slice() {

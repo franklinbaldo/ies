@@ -7,6 +7,7 @@ use super::super::{
     CodificacaoDaTela, EfeitoAvaliado, ErroSubmissaoFormulario, EstadoDeSessao, TelaServida,
 };
 use super::{ConsultaAjax, derivar_consulta_ajax};
+use crate::tela_html::HtmlServido;
 
 const HASH: &str = "cccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccc";
 
@@ -36,7 +37,7 @@ fn derivar(
     let tela_url = tela_url();
     let tela = TelaServida {
         url: &tela_url,
-        html: "",
+        html: &HtmlServido::de_teste(""),
         codificacao: CodificacaoDaTela::Iso88591,
     };
     derivar_consulta_ajax(consulta, &instalacao(), &tela, url, campos)

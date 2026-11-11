@@ -1,6 +1,7 @@
 //! RED/GREEN do envio injetável: resposta sintética, no máximo uma chamada.
 use super::tests::{OPERACAO, instalacao, tela_iso, url_servida};
 use super::*;
+use crate::tela_html::HtmlServido;
 use crate::transporte::sessao::CookieDaSessao;
 use std::cell::Cell;
 use std::fs;
@@ -20,7 +21,7 @@ fn submissao() -> SubmissaoDerivada {
     derivar_submissao(
         &OPERACAO,
         &instalacao(),
-        &tela_iso(&url, FORM),
+        &tela_iso(&url, &HtmlServido::de_teste(FORM)),
         Some("UNIDADE TESTE"),
         &[("txtProtocoloPesquisa", "0001")],
     )
@@ -70,7 +71,7 @@ fn html(
     r: Result<RespostaDoEnvio, ErroSubmissaoFormulario>,
 ) -> Result<String, ErroSubmissaoFormulario> {
     r.map(|resposta| match resposta {
-        RespostaDoEnvio::Html(html) => html,
+        RespostaDoEnvio::Html(html) => html.as_str().to_owned(),
         RespostaDoEnvio::Redirecionamento(_) => panic!("302 inesperado"),
     })
 }

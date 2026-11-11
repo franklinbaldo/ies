@@ -56,7 +56,6 @@ pub(crate) enum ErroRespostaDaPesquisa {
     AtributoHtml(#[from] ErroAtributoHtml),
     BarraDeContagemDaPesquisaAusente,
     BarrasDeContagemDaPesquisaRepetidas,
-    HtmlDaRespostaDaPesquisaNaoInterpretado(#[source] tl::ParseError),
 }
 
 /// Número da barra: grupos de 3 dígitos separados por `.` (o primeiro com
@@ -136,12 +135,11 @@ pub(crate) enum Classificada<T> {
 /// `--pagina N`: na última página a PEN3 5.0.4 mostra "N resultados", que
 /// só vale essa faixa quando ela termina em N e o paginador marca a página.
 pub(crate) fn classificar_resposta<T>(
-    html: &str,
+    html: &crate::tela_html::HtmlServido,
     na_pagina: Option<(FaixaDaPesquisa, u64)>,
-    ler: impl FnOnce(&str) -> Result<Vec<T>, ErroRespostaDaPesquisa>,
+    ler: impl FnOnce(&crate::tela_html::HtmlServido) -> Result<Vec<T>, ErroRespostaDaPesquisa>,
 ) -> Result<Classificada<T>, ErroRespostaDaPesquisa> {
-    let dom = tl::parse(html, tl::ParserOptions::default())
-        .map_err(ErroRespostaDaPesquisa::HtmlDaRespostaDaPesquisaNaoInterpretado)?;
+    let dom = crate::tela_html::interpretar(html);
     let tabelas = nos_por_elemento_e_classe(&dom, None, "table", "pesquisaResultado")?;
     let avisos = nos_por_elemento_e_classe(&dom, None, "div", "pesquisaSemResultado")?;
     let barras = nos_por_elemento_e_classe(&dom, None, "div", "pesquisaBarraD")?;
@@ -211,16 +209,20 @@ pub(crate) fn classificar_resposta<T>(
 }
 
 /// A resposta 200 da pesquisa em processos.
-pub(crate) fn ler_resposta_html(html: &str) -> Result<RespostaDaPesquisa, ErroRespostaDaPesquisa> {
+pub(crate) fn ler_resposta_html(
+    html: &crate::tela_html::HtmlServido,
+) -> Result<RespostaDaPesquisa, ErroRespostaDaPesquisa> {
     ler_resposta_na_pagina(html, None)
 }
 
 /// [`ler_resposta_html`] da resposta de `--pagina N` (faixa esperada e N).
 pub(crate) fn ler_resposta_na_pagina(
-    html: &str,
+    html: &crate::tela_html::HtmlServido,
     na_pagina: Option<(FaixaDaPesquisa, u64)>,
 ) -> Result<RespostaDaPesquisa, ErroRespostaDaPesquisa> {
-    let ler = |html: &str| ler_resultados(html).map_err(ErroRespostaDaPesquisa::Resultado);
+    let ler = |html: &crate::tela_html::HtmlServido| {
+        ler_resultados(html).map_err(ErroRespostaDaPesquisa::Resultado)
+    };
     Ok(match classificar_resposta(html, na_pagina, ler)? {
         Classificada::SemResultado => RespostaDaPesquisa::SemResultado,
         Classificada::Lista {

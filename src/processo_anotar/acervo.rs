@@ -10,6 +10,7 @@ use super::redirecionamento_esperado;
 use crate::cassette::acervo::{INSTALACOES, gravacao, percorrer, publicar};
 use crate::cassette::html_da_resposta;
 use crate::processo_enviar::{salvar_oferecido, texto_anotacao};
+use crate::tela_html::HtmlServido;
 use std::collections::BTreeMap;
 use std::fmt::Write as _;
 
@@ -33,7 +34,7 @@ fn esperada(leitor: &str, classe: &str) -> bool {
 
 fn texto(interacao: &serde_json::Value, id: &str) -> String {
     match html_da_resposta(interacao) {
-        Ok(html) => match texto_anotacao(&html, id) {
+        Ok(html) => match texto_anotacao(&HtmlServido::de_teste(&html), id) {
             Ok(texto) if texto.trim().is_empty() => "lida (sem anotação)".into(),
             Ok(_) => "lida (com anotação)".into(),
             Err(erro) => format!("`{erro:?}`"),
@@ -46,7 +47,7 @@ fn salvar(interacao: &serde_json::Value, id: &str) -> String {
     let Ok(html) = html_da_resposta(interacao) else {
         return "HTML ilegível".into();
     };
-    match salvar_oferecido(&html) {
+    match salvar_oferecido(&HtmlServido::de_teste(&html)) {
         Ok(true) => "oferecido".into(),
         Ok(false) => "não oferecido".into(),
         Err(erro) => format!("`{erro:?}` (processo {id})"),

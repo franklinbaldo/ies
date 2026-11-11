@@ -14,6 +14,7 @@ use super::{Destino, decidir, ler_confirmacao, ler_destino, ler_tela};
 use crate::arvore_processo::nup_declarado_na_arvore;
 use crate::cassette::acervo::{INSTALACOES, gravacao, percorrer, publicar};
 use crate::cassette::html_da_resposta;
+use crate::tela_html::HtmlServido;
 use crate::transporte::{RespostaWeb, decodificar_resposta_xml};
 use std::collections::{BTreeMap, HashMap};
 use std::fmt::Write as _;
@@ -61,7 +62,7 @@ struct Estado {
     depois_do_post: Option<(String, Vec<String>)>,
 }
 
-fn xml(interacao: &serde_json::Value, status: u64) -> Result<String, String> {
+fn xml(interacao: &serde_json::Value, status: u64) -> Result<HtmlServido, String> {
     let corpo = gravacao::corpo(interacao);
     decodificar_resposta_xml(RespostaWeb {
         status_code: i32::try_from(status).unwrap_or(0),
@@ -90,7 +91,7 @@ impl Estado {
         } else {
             consultas.join(", ")
         };
-        match ler_tela(&html) {
+        match ler_tela(&HtmlServido::de_teste(&html)) {
             Ok(tela) => {
                 let n = tela.anexados.len();
                 leituras.push((TELA, format!("lida ({n} anexado(s))")));
@@ -116,7 +117,7 @@ impl Estado {
         leituras
     }
 
-    fn destino(&mut self, xml: Result<String, String>) -> Vec<(&'static str, String)> {
+    fn destino(&mut self, xml: Result<HtmlServido, String>) -> Vec<(&'static str, String)> {
         let lido = match xml.map(|x| ler_destino(&x)) {
             Err(classe) => return vec![(DESTINO, classe)],
             Ok(Err(erro)) => return vec![(DESTINO, format!("`{erro:?}`"))],
@@ -187,7 +188,9 @@ fn replay(json: &serde_json::Value) -> Vec<(&'static str, String)> {
                 leituras.extend(estado.destino(xml(r.interacao, status)));
             }
             ("procedimento_anexacao_verificar", "POST", status) => {
-                let classe = match xml(r.interacao, status).map(|x| ler_confirmacao(&x)) {
+                let classe = match xml(r.interacao, status)
+                    .map(|x| ler_confirmacao(&HtmlServido::de_teste(&x)))
+                {
                     Err(classe) => classe,
                     Ok(Ok(true)) => "`S`".to_owned(),
                     Ok(Ok(false)) => "`N`".to_owned(),

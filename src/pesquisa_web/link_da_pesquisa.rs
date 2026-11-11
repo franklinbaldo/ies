@@ -24,8 +24,6 @@ pub(crate) enum ErroLinkDaPesquisa {
     LinksDaPesquisaRepetidosNoControle,
     /// Chave ou valor da consulta do link recusado pelo transporte.
     ConsultaDoLinkRecusadaPeloTransporte(#[source] FalhaTransporte),
-    /// O parser HTML recusou a página do menu.
-    HtmlDoLinkNaoInterpretado(#[source] tl::ParseError),
 }
 
 /// URL absoluta do link de pesquisa do Controle, resolvida contra a URL
@@ -33,7 +31,7 @@ pub(crate) enum ErroLinkDaPesquisa {
 pub(crate) fn link_da_pesquisa(
     instalacao: &Instalacao,
     url_do_controle: &str,
-    html: &str,
+    html: &crate::tela_html::HtmlServido,
 ) -> Result<String, ErroLinkDaPesquisa> {
     let href = href_publicado(html)?;
     let minusculo = href.to_ascii_lowercase();
@@ -78,10 +76,9 @@ pub(crate) fn link_da_pesquisa(
 
 /// O único `href` (decodificado) de `<a>` cuja consulta tem
 /// `acao=protocolo_pesquisar`; `protocolo_pesquisa_rapida` não conta.
-fn href_publicado(html: &str) -> Result<String, ErroLinkDaPesquisa> {
+fn href_publicado(html: &crate::tela_html::HtmlServido) -> Result<String, ErroLinkDaPesquisa> {
     let nao = || ErroLinkDaPesquisa::LinkDaPesquisaNaoReconhecido;
-    let dom = tl::parse(html, tl::ParserOptions::default())
-        .map_err(ErroLinkDaPesquisa::HtmlDoLinkNaoInterpretado)?;
+    let dom = crate::tela_html::interpretar(html);
     let parser = dom.parser();
     let mut achados = Vec::new();
     for no in dom.query_selector("a").into_iter().flatten() {

@@ -5,6 +5,7 @@
 //! ícone `documento_txt`. Nenhum valor real.
 use super::cabecalhos::ErroDisposicao;
 use super::*;
+use crate::tela_html::HtmlServido;
 use std::io::{self, Cursor};
 use std::path::PathBuf;
 
@@ -131,8 +132,8 @@ fn html_recebido_com_parametro_vazio_rende_o_texto_visivel() {
 fn html_de_login_ou_de_excecao_do_sei_nao_e_o_arquivo() {
     let login = b"<html><body><form id=\"frmLogin\"><input id=\"txtUsuario\" name=\"txtUsuario\">\
         <input type=\"password\" id=\"pwdSenha\" name=\"pwdSenha\"></form></body></html>";
-    assert!(crate::tela_login::e_tela_login(&String::from_utf8_lossy(
-        login
+    assert!(crate::tela_login::e_tela_login(&HtmlServido::de_teste(
+        &String::from_utf8_lossy(login)
     )));
     assert_eq!(
         ler(resposta(&[("content-type", "text/html")], login)),

@@ -5,6 +5,7 @@ use super::*;
 use crate::arvore_processo::tests::no_documento;
 use crate::processo_concluir::tests_apoio as a;
 use crate::propriedades_processo::tests_apoio::acao_da_barra;
+use crate::tela_html::HtmlServido;
 
 fn link_escolha() -> String {
     format!(
@@ -260,7 +261,7 @@ fn executar_com_cadastro_sintetico(
 #[test]
 fn botao_salvar_observado_publica_controle_de_gravacao() {
     // A forma servida inclui o botão habilitado e o formulário de cadastro.
-    assert!(cadastro_oferece_salvar(&cadastro()));
+    assert!(cadastro_oferece_salvar(&HtmlServido::de_teste(&cadastro())));
 }
 
 #[test]
@@ -268,7 +269,7 @@ fn botao_salvar_sem_name_conserva_post_unico_e_releitura() {
     // Um button type=button com onclick nao envia seu atributo name.
     // A ausencia dele nao remove a oferta de salvar publicada na tela.
     let html = cadastro().replace(" name=\"btnSalvar\"", "");
-    assert!(cadastro_oferece_salvar(&html));
+    assert!(cadastro_oferece_salvar(&HtmlServido::de_teste(&html)));
     let amb = a::ambiente();
     let mut respostas = a::abertura(arvore_inicial());
     respostas.push(a::ok(lista_de_tipos()));
@@ -332,9 +333,9 @@ fn dois_botoes_salvar_identicos_sao_permitidos_na_captura() {
     // Topo e rodape da captura 4.0.9 repetem intencionalmente btnSalvar.
     let original = cadastro();
     let botao = "<button type=\"button\" id=\"btnSalvar\" name=\"btnSalvar\"\n          onclick=\"confirmarDados()\">Salvar</button>";
-    assert!(cadastro_oferece_salvar(
+    assert!(cadastro_oferece_salvar(&HtmlServido::de_teste(
         &original.replace("</body>", &format!("{botao}</body>"))
-    ));
+    )));
 }
 
 #[test]
@@ -393,7 +394,9 @@ fn controle_salvar_e_formulario_servidos_nao_dependem_de_interpretar_js() {
     // Ablação #246 (🦡): a autorização deriva de botão e formulário
     // observados; a lógica interna do JS não é o contrato HTTP do IES.
     // O servidor ainda decide se aceita o POST e a árvore comprova o efeito.
-    let html = cadastro_com_script("/* lógica do navegador não interpretada */");
+    let html = HtmlServido::de_teste(&cadastro_com_script(
+        "/* lógica do navegador não interpretada */",
+    ));
     assert!(cadastro_oferece_salvar(&html));
 }
 
@@ -418,9 +421,9 @@ fn salvar_oculto_ou_em_fieldset_desabilitado_recusa_post() {
         let (_resultado, pedidos) = executar_com_cadastro_sintetico(html);
         assert_eq!(pedidos, pedidos_antes_da_escrita(), "5 GET, 0 POST");
     }
-    assert!(cadastro_oferece_salvar(
+    assert!(cadastro_oferece_salvar(&HtmlServido::de_teste(
         &original
             .replace("<button", "<fieldset><button")
             .replace("</button>", "</button></fieldset>")
-    ));
+    )));
 }

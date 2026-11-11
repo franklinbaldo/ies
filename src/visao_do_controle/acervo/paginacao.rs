@@ -13,6 +13,7 @@ use crate::dominio::Categoria;
 use crate::html_atributos::valor_do_atributo;
 use crate::pagina_do_controle::{ErroPaginaDoControle, PlanoDaPagina};
 use crate::paginas::faixa_na_pagina;
+use crate::tela_html::HtmlServido;
 
 fn prefixo(categoria: Categoria) -> &'static str {
     match categoria {
@@ -24,15 +25,17 @@ fn prefixo(categoria: Categoria) -> &'static str {
 /// `hdn{T}HashCriterios` servido (só para comparar páginas).
 pub(super) fn criterio(html: &str, categoria: Categoria) -> Option<String> {
     let id = format!("hdn{}HashCriterios", prefixo(categoria));
-    valores_ocultos(html, &id).ok()?.into_iter().next()
+    valores_ocultos(&HtmlServido::de_teste(html), &id)
+        .ok()?
+        .into_iter()
+        .next()
 }
 
 /// Controles de paginação publicados com o prefixo da tabela (`lnk{P}…`,
 /// `sel{P}Paginacao…`), sem o sufixo `Superior`/`Inferior`.
 pub(super) fn controles(html: &str, prefixo: &str) -> Vec<String> {
-    let Ok(dom) = tl::parse(html, tl::ParserOptions::default()) else {
-        return Vec::new();
-    };
+    let servido = HtmlServido::de_teste(html);
+    let dom = crate::tela_html::interpretar(&servido);
     let parser = dom.parser();
     let mut achados = Vec::new();
     for seletor in ["a", "select"] {
@@ -79,7 +82,7 @@ pub(super) fn da_tabela(
 ) -> Registro {
     let mut p = cas.registro(leitor_da_pagina(categoria), resp.passo, Resultado::Lido);
     p.formas = controles(html, prefixo(categoria));
-    match crate::paginacao_controle::paginador_da_tabela(html, categoria) {
+    match crate::paginacao_controle::paginador_da_tabela(&HtmlServido::de_teste(html), categoria) {
         Ok(true) => p.formas.push("paginador_publicado".into()),
         Ok(false) => p.formas.push("sem_paginador".into()),
         Err(erro) => p.formas.push(format!("paginador_{erro:?}")),
@@ -93,15 +96,16 @@ pub(super) fn da_tabela(
 
 fn planejar_r(html: &str, categoria: Categoria) -> Result<Vec<(&'static str, u64)>, String> {
     use crate::pagina_do_controle::planejar as plano;
-    let faixa = faixa_na_pagina(html, categoria).map_err(|e| format!("{e:?}"))?;
+    let faixa =
+        faixa_na_pagina(&HtmlServido::de_teste(html), categoria).map_err(|e| format!("{e:?}"))?;
     // A página exibida pela faixa (páginas cheias antes dela).
     let exibida = faixa.map_or(1, |f| (f.inicio - 1) / (f.fim - f.inicio + 1) + 1);
-    match plano(html, categoria, exibida).map_err(|e| format!("{e:?}"))? {
+    match plano(&HtmlServido::de_teste(html), categoria, exibida).map_err(|e| format!("{e:?}"))? {
         PlanoDaPagina::JaExibida => {}
         PlanoDaPagina::Pedir { .. } => return Err("pagina_exibida_nao_reconhecida".to_owned()),
     }
     let mut contagens = vec![("pagina_exibida", exibida as u64)];
-    match plano(html, categoria, exibida + 1) {
+    match plano(&HtmlServido::de_teste(html), categoria, exibida + 1) {
         Ok(PlanoDaPagina::Pedir { indice, esperada }) => {
             let f = faixa.ok_or("pedido_sem_faixa")?;
             let tamanho = (f.fim - f.inicio + 1) as u64;
@@ -144,7 +148,7 @@ pub(super) fn detalhada(
             .push(cas.registro(leitor, resp.passo, motivo));
     }
     let mut lista = cas.registro(Leitor::Detalhada, resp.passo, Resultado::Lido);
-    let leitura = match ler_detalhada(html, unidade) {
+    let leitura = match ler_detalhada(&HtmlServido::de_teste(html), unidade) {
         Ok(leitura) => leitura,
         Err(erro) => {
             lista.resultado = fora.map_or(Resultado::Recusado(format!("{erro:?}")), |motivo| {
@@ -190,7 +194,7 @@ pub(super) fn detalhada(
         .iter()
         .map(|x| x.id.as_str().to_owned())
         .collect();
-    pagina.criterio = valores_ocultos(html, "hdnDetalhadoHashCriterios")
+    pagina.criterio = valores_ocultos(&HtmlServido::de_teste(html), "hdnDetalhadoHashCriterios")
         .ok()
         .and_then(|v| v.into_iter().next());
     saida.paginas.push(pagina);
@@ -198,7 +202,7 @@ pub(super) fn detalhada(
         .registros
         .push(posicao_da_d(cas, resp, html, &leitura));
     let mut colheita = cas.registro(Leitor::LinhasComLink, resp.passo, Resultado::Lido);
-    match crate::caixa_detalhada::linhas_com_link(html) {
+    match crate::caixa_detalhada::linhas_com_link(&HtmlServido::de_teste(html)) {
         Ok(linhas) => {
             let com = linhas.iter().filter(|l| l.href.is_some()).count() as u64;
             colheita.contagens = vec![("linhas", linhas.len() as u64), ("com_href", com)];
@@ -217,7 +221,7 @@ fn posicao_da_d(
 ) -> Registro {
     let mut reg = cas.registro(Leitor::PaginaDetalhada, resp.passo, Resultado::Lido);
     reg.formas = controles(html, "Detalhado");
-    let pos = match posicao(html, leitura) {
+    let pos = match posicao(&HtmlServido::de_teste(html), leitura) {
         Ok(pos) => pos,
         Err(erro) => {
             reg.resultado = Resultado::Recusado(format!("{erro:?}"));

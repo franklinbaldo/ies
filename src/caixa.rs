@@ -162,9 +162,8 @@ fn ler_linhas(
     Ok((total, processos))
 }
 
-pub fn parse_html(html: &str) -> Result<CaixaDeEntrada, ErroCaixa> {
-    let dom = tl::parse(html, tl::ParserOptions::default())
-        .map_err(ErroCaixa::HtmlDaCaixaRecusadoPeloParser)?;
+pub fn parse_html(html: &crate::tela_html::HtmlServido) -> Result<CaixaDeEntrada, ErroCaixa> {
+    let dom = crate::tela_html::interpretar(html);
     Ok(CaixaDeEntrada {
         recebidos: ler_tabela(&dom, "tblProcessosRecebidos", Categoria::Recebidos)?,
         gerados: ler_tabela(&dom, "tblProcessosGerados", Categoria::Gerados)?,
@@ -173,9 +172,10 @@ pub fn parse_html(html: &str) -> Result<CaixaDeEntrada, ErroCaixa> {
 
 /// As linhas de Recebidos e Gerados com o `href` do número, pela mesma
 /// leitura e com as mesmas recusas de [`parse_html`].
-pub(crate) fn linhas_com_link(html: &str) -> Result<Vec<LinhaDoControle>, ErroCaixa> {
-    let dom = tl::parse(html, tl::ParserOptions::default())
-        .map_err(ErroCaixa::HtmlDaCaixaRecusadoPeloParser)?;
+pub(crate) fn linhas_com_link(
+    html: &crate::tela_html::HtmlServido,
+) -> Result<Vec<LinhaDoControle>, ErroCaixa> {
+    let dom = crate::tela_html::interpretar(html);
     let mut todas = Vec::new();
     for (tabela, categoria) in [
         ("tblProcessosRecebidos", Categoria::Recebidos),
@@ -220,17 +220,23 @@ mod tests {
 
     #[test]
     fn linha_sem_id_nao_cria_processo() {
-        let resultado = parse_html(&html("<tr><td>aviso</td></tr>", 1)).unwrap();
+        let resultado = parse_html(&crate::tela_html::HtmlServido::de_teste(&html(
+            "<tr><td>aviso</td></tr>",
+            1,
+        )))
+        .unwrap();
         assert_eq!(resultado.recebidos.processos, []);
         assert_eq!(resultado.recebidos.total_declarado, 1);
     }
 
     #[test]
     fn legenda_ilegivel_falha_com_erro_tipado() {
-        let html = "<table id='tblProcessosRecebidos'><caption>indefinido:</caption></table>\
-                    <table id='tblProcessosGerados'><caption>0 registros:</caption></table>";
+        let html = crate::tela_html::HtmlServido::de_teste(
+            "<table id='tblProcessosRecebidos'><caption>indefinido:</caption></table>\
+                    <table id='tblProcessosGerados'><caption>0 registros:</caption></table>",
+        );
         assert_eq!(
-            parse_html(html),
+            parse_html(&html),
             Err(ErroCaixa::TotalNaoDeclaradoNaLegenda {
                 categoria: Categoria::Recebidos
             })
@@ -245,8 +251,13 @@ mod tests {
     #[test]
     fn booleano_antes_de_id_e_class_nao_omite_tabela_nem_processo() {
         let original = html(&format!("{}{}", linha("42"), linha("43")), 2);
-        let com_booleano = crate::html_atributos::com_booleano_antes_dos_atributos(&original);
-        assert_eq!(parse_html(&com_booleano), parse_html(&original));
+        let com_booleano = crate::tela_html::HtmlServido::de_teste(
+            &crate::html_atributos::com_booleano_antes_dos_atributos(&original),
+        );
+        assert_eq!(
+            parse_html(&com_booleano),
+            parse_html(&crate::tela_html::HtmlServido::de_teste(&original))
+        );
         assert_eq!(
             parse_html(&com_booleano).unwrap().recebidos.processos.len(),
             2
@@ -257,16 +268,19 @@ mod tests {
     fn recusa_dois_links_de_processo_na_linha() {
         let linhas = "<tr id='P7'><td><a class='processoVisualizado'>123</a>\
             <a class='processoNaoVisualizado'>124</a></td></tr>";
-        let erro = parse_html(&html(linhas, 1)).unwrap_err();
+        let erro =
+            parse_html(&crate::tela_html::HtmlServido::de_teste(&html(linhas, 1))).unwrap_err();
         assert_eq!(erro.id(), Some("7"));
     }
 
     #[test]
     fn recusa_legenda_ausente() {
-        let html = "<table id='tblProcessosRecebidos'></table>\
-                    <table id='tblProcessosGerados'><caption>0 registros:</caption></table>";
+        let html = crate::tela_html::HtmlServido::de_teste(
+            "<table id='tblProcessosRecebidos'></table>\
+                    <table id='tblProcessosGerados'><caption>0 registros:</caption></table>",
+        );
         assert!(matches!(
-            parse_html(html),
+            parse_html(&html),
             Err(ErroCaixa::LegendaAusente { .. })
         ));
     }
@@ -274,7 +288,10 @@ mod tests {
     #[test]
     fn recusa_excesso_de_linhas() {
         assert!(matches!(
-            parse_html(&html(&format!("{}{}", linha("1"), linha("2")), 1)),
+            parse_html(&crate::tela_html::HtmlServido::de_teste(&html(
+                &format!("{}{}", linha("1"), linha("2")),
+                1
+            ))),
             Err(ErroCaixa::TotalExcedido { .. })
         ));
     }
@@ -291,7 +308,7 @@ mod tests {
     fn ancora_de_classe_desconhecida_falha_fechado() {
         let linhas = "<tr id='P9'><td><a class='outraClasse'>123</a></td></tr>";
         assert!(matches!(
-            parse_html(&html(linhas, 1)),
+            parse_html(&crate::tela_html::HtmlServido::de_teste(&html(linhas, 1))),
             Err(ErroCaixa::LinkDoProcessoNaoIdentificadoNaLinha { .. })
         ));
     }
@@ -303,7 +320,10 @@ mod tests {
             "<table id='tblProcessosRecebidos'><caption>1 registros:</caption>{}</table>",
             linha("2")
         );
-        let erro = parse_html(&format!("{original}{extra}")).unwrap_err();
+        let erro = parse_html(&crate::tela_html::HtmlServido::de_teste(&format!(
+            "{original}{extra}"
+        )))
+        .unwrap_err();
         assert_eq!(
             erro,
             ErroCaixa::TabelasDaCategoriaRepetidas {
@@ -317,7 +337,10 @@ mod tests {
         let original = html("", 0);
         let extra = "<table id='tblProcessosGerados'><caption>0 registros:</caption></table>";
         assert_eq!(
-            parse_html(&format!("{original}{extra}")).unwrap_err(),
+            parse_html(&crate::tela_html::HtmlServido::de_teste(&format!(
+                "{original}{extra}"
+            )))
+            .unwrap_err(),
             ErroCaixa::TabelasDaCategoriaRepetidas {
                 categoria: Categoria::Gerados
             }

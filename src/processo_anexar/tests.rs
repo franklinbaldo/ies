@@ -1,6 +1,7 @@
 //! Casos de Todos src/todos/anexacao.py @323eb01 (formulário,
 //! complemento `protocolo_RI1023`, verificação e lista de anexados).
 use super::*;
+use crate::tela_html::HtmlServido;
 
 fn html() -> String {
     let hash = "a".repeat(64);
@@ -32,14 +33,17 @@ fn destino() -> Destino {
 }
 #[test]
 fn controle_e_lista_da_tela_sao_reconhecidos() {
-    assert_eq!(ler_tela(&html()).unwrap().anexados, vec!["22"]);
+    assert_eq!(
+        ler_tela(&HtmlServido::de_teste(&html())).unwrap().anexados,
+        vec!["22"]
+    );
 }
 #[test]
 fn campos_duplicados_nao_podem_ser_escolhidos_arbitrariamente() {
-    let repetida = html().replace(
+    let repetida = HtmlServido::de_teste(&html().replace(
         "</form>",
         "<input name=\"hdnIdProtocolo\" type=\"hidden\"></form>",
-    );
+    ));
     assert_eq!(
         ler_tela(&repetida),
         Err(ErroTelaDeAnexacao::ControlesDaAnexacaoAusentesOuRepetidos)
@@ -47,18 +51,18 @@ fn campos_duplicados_nao_podem_ser_escolhidos_arbitrariamente() {
 }
 #[test]
 fn lista_duplicada_ou_anexado_duplicado_nao_e_aceito() {
-    let tabela_repetida = html().replace(
+    let tabela_repetida = HtmlServido::de_teste(&html().replace(
         "</form>",
         r#"<table summary="Lista de Processos Anexados"></table></form>"#,
-    );
+    ));
     assert_eq!(
         ler_tela(&tabela_repetida),
         Err(ErroTelaDeAnexacao::ListasDeAnexadosRepetidas)
     );
-    let id_repetido = html().replace(
+    let id_repetido = HtmlServido::de_teste(&html().replace(
         "</table>",
         r#"<tr><td><input type="checkbox" value="22"></td></tr></table>"#,
-    );
+    ));
     assert_eq!(
         ler_tela(&id_repetido),
         Err(ErroTelaDeAnexacao::IdsDeAnexadosRepetidos)
@@ -66,45 +70,48 @@ fn lista_duplicada_ou_anexado_duplicado_nao_e_aceito() {
 }
 #[test]
 fn complemento_identifica_numero_id_e_tipo_sem_adivinhar() {
-    assert_eq!(ler_destino(complemento()).unwrap(), destino());
+    assert_eq!(
+        ler_destino(&HtmlServido::de_teste(complemento())).unwrap(),
+        destino()
+    );
 }
 #[test]
 fn complemento_ambiguo_nao_e_aceito() {
-    let alterado = complemento().replace(
+    let alterado = HtmlServido::de_teste(&complemento().replace(
         "</complementos>",
         "<complemento nome=\"IdProcedimento\">43</complemento></complementos>",
-    );
+    ));
     assert_eq!(
         ler_destino(&alterado),
         Err(ErroComplementosDaAnexacao::IdentidadeDeAnexadoAmbigua)
     );
     assert_eq!(
-        ler_destino("<complementos/>"),
+        ler_destino(&HtmlServido::de_teste("<complementos/>")),
         Err(ErroComplementosDaAnexacao::ProcessoAAnexarNaoIdentificado)
     );
 }
 #[test]
 fn verificacao_da_anexacao_exige_s_ou_n_unico() {
     assert_eq!(
-        ler_confirmacao(
+        ler_confirmacao(&HtmlServido::de_teste(
             r#"<complementos><complemento nome="Anexacao">S</complemento></complementos>"#
-        ),
+        )),
         Ok(true)
     );
     assert_eq!(
-        ler_confirmacao(
+        ler_confirmacao(&HtmlServido::de_teste(
             r#"<complementos><complemento nome="Anexacao">N</complemento></complementos>"#
-        ),
+        )),
         Ok(false)
     );
     assert_eq!(
-        ler_confirmacao("<complementos/>"),
+        ler_confirmacao(&HtmlServido::de_teste("<complementos/>")),
         Err(ErroComplementosDaAnexacao::AnexacaoNaoVerificada)
     );
     assert_eq!(
-        ler_confirmacao(
+        ler_confirmacao(&HtmlServido::de_teste(
             r#"<complementos><complemento nome="Anexacao">S</complemento><complemento nome="Anexacao">N</complemento></complementos>"#
-        ),
+        )),
         Err(ErroComplementosDaAnexacao::AnexacaoNaoVerificada)
     );
 }
@@ -134,12 +141,14 @@ fn existente_e_recusado_e_novo_e_aceito() {
 #[test]
 fn tabela_de_anexados_pode_ser_irma_do_formulario() {
     // Forma do oráculo Todos: a lista é procurada na tela, não apenas no form.
-    let alterado = html()
-        .replace(
-            "<table summary=\"Lista de Processos Anexados\">",
-            "</form><table summary=\"Lista de Processos Anexados\">",
-        )
-        .replace("</table></form>", "</table>");
+    let alterado = HtmlServido::de_teste(
+        &html()
+            .replace(
+                "<table summary=\"Lista de Processos Anexados\">",
+                "</form><table summary=\"Lista de Processos Anexados\">",
+            )
+            .replace("</table></form>", "</table>"),
+    );
     assert_eq!(ler_tela(&alterado).unwrap().anexados, vec!["22"]);
 }
 
@@ -172,9 +181,9 @@ fn consulta_ajax_exige_literal_unico_e_endereco_relativo() {
 #[test]
 fn botao_submit_da_unb_conta_como_controle_de_anexar() {
     // UnB 4.0.9 ao vivo (10/11/2026): <button type="submit" name="sbmAnexar">.
-    let tela = html().replace(
+    let tela = HtmlServido::de_teste(&html().replace(
         r#"<input name="sbmAnexar" type="submit" value="Anexar">"#,
         r#"<button type="submit" name="sbmAnexar" id="sbmAnexar" value="Anexar">Anexar</button>"#,
-    );
+    ));
     assert_eq!(ler_tela(&tela).unwrap().anexados, vec!["22"]);
 }

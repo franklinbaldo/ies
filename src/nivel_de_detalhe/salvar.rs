@@ -67,9 +67,10 @@ pub(crate) fn campos_do_envio(plano: &PlanoDasColunas) -> Vec<(&'static str, &'s
 /// Recusa, antes de qualquer POST, controle enviável que o formulário
 /// observado não tem: só `hdnInfraTipoPagina`, `sbmSalvar` e as caixas do
 /// catálogo. Botões `button`/`reset` e controles `disabled` não são enviados.
-pub(crate) fn conferir_controles_do_formulario(html: &str) -> Result<(), ErroNivelDeDetalhe> {
-    let dom = tl::parse(html, tl::ParserOptions::default())
-        .map_err(ErroNivelDeDetalhe::HtmlDoNivelDeDetalheNaoInterpretado)?;
+pub(crate) fn conferir_controles_do_formulario(
+    html: &crate::tela_html::HtmlServido,
+) -> Result<(), ErroNivelDeDetalhe> {
+    let dom = crate::tela_html::interpretar(html);
     let parser = dom.parser();
     let form = localizar_formulario(&dom, FORMULARIO_DO_NIVEL_DE_DETALHE)
         .map_err(ErroNivelDeDetalhe::FormularioDoNivelDeDetalheAusente)?;

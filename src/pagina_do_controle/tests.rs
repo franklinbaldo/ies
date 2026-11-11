@@ -3,6 +3,7 @@
 //! (02/11/2026), com unidade, ids, números e hashes fictícios.
 use super::*;
 use crate::formulario_web::CodificacaoDaTela;
+use crate::tela_html::HtmlServido;
 
 pub(super) const HASH_TELA: &str =
     "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa";
@@ -138,7 +139,7 @@ pub(super) fn url() -> String {
     )
 }
 
-pub(super) fn tela<'a>(url: &'a str, html: &'a str) -> TelaServida<'a> {
+pub(super) fn tela<'a>(url: &'a str, html: &'a HtmlServido) -> TelaServida<'a> {
     TelaServida {
         url,
         html,
@@ -155,13 +156,13 @@ use Categoria::{Gerados, Recebidos};
 
 #[test]
 fn pagina_ja_exibida_nao_exige_post() {
-    let html = pen1().html();
+    let html = HtmlServido::de_teste(&pen1().html());
     assert_eq!(planejar(&html, Recebidos, 1), Ok(PlanoDaPagina::JaExibida));
 }
 
 #[test]
 fn pagina_seguinte_tem_indice_e_faixa_esperada() {
-    let html = pen1().html();
+    let html = HtmlServido::de_teste(&pen1().html());
     assert_eq!(
         planejar(&html, Recebidos, 2),
         Ok(PlanoDaPagina::Pedir {
@@ -188,7 +189,7 @@ fn pagina_seguinte_tem_indice_e_faixa_esperada() {
 
 #[test]
 fn pagina_alem_do_total_e_recusada_antes_de_qualquer_post() {
-    let html = pen1().html();
+    let html = HtmlServido::de_teste(&pen1().html());
     assert_eq!(
         planejar(&html, Recebidos, 3),
         Err(ErroPaginaDoControle::PaginaForaDoIntervalo {
@@ -201,7 +202,9 @@ fn pagina_alem_do_total_e_recusada_antes_de_qualquer_post() {
 
 #[test]
 fn goias_com_paginas_de_dez_calcula_a_ultima_pagina() {
-    let html = Tela::nova(Tab::nova(131, 1, 10, "0"), Tab::nova(7990, 1, 10, "0")).html();
+    let html = HtmlServido::de_teste(
+        &Tela::nova(Tab::nova(131, 1, 10, "0"), Tab::nova(7990, 1, 10, "0")).html(),
+    );
     assert_eq!(
         planejar(&html, Gerados, 799),
         Ok(PlanoDaPagina::Pedir {
@@ -225,7 +228,9 @@ fn goias_com_paginas_de_dez_calcula_a_ultima_pagina() {
 
 #[test]
 fn pagina_lembrada_pelo_servidor_usa_o_indice_publicado() {
-    let html = Tela::nova(Tab::nova(114, 101, 114, "1"), Tab::nova(218, 1, 100, "0")).html();
+    let html = HtmlServido::de_teste(
+        &Tela::nova(Tab::nova(114, 101, 114, "1"), Tab::nova(218, 1, 100, "0")).html(),
+    );
     assert_eq!(planejar(&html, Recebidos, 2), Ok(PlanoDaPagina::JaExibida));
     assert_eq!(
         planejar(&html, Recebidos, 1),
@@ -243,7 +248,9 @@ fn pagina_lembrada_pelo_servidor_usa_o_indice_publicado() {
 #[test]
 fn indice_incompativel_com_a_faixa_e_recusado() {
     for (inicio, fim, atual) in [(1, 100, "1"), (101, 114, "0"), (51, 114, "2")] {
-        let html = Tela::nova(Tab::nova(114, inicio, fim, atual), Tab::nova(0, 1, 0, "0")).html();
+        let html = HtmlServido::de_teste(
+            &Tela::nova(Tab::nova(114, inicio, fim, atual), Tab::nova(0, 1, 0, "0")).html(),
+        );
         assert_eq!(
             planejar(&html, Recebidos, 1),
             Err(
@@ -259,7 +266,9 @@ fn indice_incompativel_com_a_faixa_e_recusado() {
 #[test]
 fn indice_ilegivel_e_recusado() {
     for atual in ["", "x", "-1", "1.0"] {
-        let html = Tela::nova(Tab::nova(114, 1, 100, atual), Tab::nova(0, 1, 0, "0")).html();
+        let html = HtmlServido::de_teste(
+            &Tela::nova(Tab::nova(114, 1, 100, atual), Tab::nova(0, 1, 0, "0")).html(),
+        );
         assert_eq!(
             planejar(&html, Recebidos, 2),
             Err(ErroPaginaDoControle::PaginaAtualDaTabelaIlegivel {
@@ -274,7 +283,7 @@ fn indice_ilegivel_e_recusado() {
 fn tabela_de_uma_pagina_ou_vazia_so_tem_a_pagina_um() {
     let mut sem_intervalo = Tab::nova(3, 1, 3, "0");
     sem_intervalo.intervalo = false;
-    let html = Tela::nova(sem_intervalo, Tab::nova(0, 1, 0, "0")).html();
+    let html = HtmlServido::de_teste(&Tela::nova(sem_intervalo, Tab::nova(0, 1, 0, "0")).html());
     assert_eq!(planejar(&html, Recebidos, 1), Ok(PlanoDaPagina::JaExibida));
     assert_eq!(planejar(&html, Gerados, 1), Ok(PlanoDaPagina::JaExibida));
     assert!(matches!(
@@ -292,7 +301,7 @@ fn visao_detalhada_nao_tem_pagina_por_tabela() {
     let mut detalhada = pen1();
     detalhada.modo = "D";
     assert_eq!(
-        planejar(&detalhada.html(), Recebidos, 2),
+        planejar(&HtmlServido::de_teste(&detalhada.html()), Recebidos, 2),
         Err(ErroPaginaDoControle::PaginaExigeVisaoResumida)
     );
 }
@@ -302,7 +311,7 @@ fn tabela_paginada_sem_paginador_publicado_e_recusada() {
     let mut tela = pen1();
     tela.rec.paginador = false;
     assert_eq!(
-        planejar(&tela.html(), Recebidos, 2),
+        planejar(&HtmlServido::de_teste(&tela.html()), Recebidos, 2),
         Err(ErroPaginaDoControle::PaginadorDaTabelaNaoPublicado {
             categoria: Recebidos
         })
@@ -316,8 +325,14 @@ fn corpo(submissao: &SubmissaoDerivada) -> String {
 #[test]
 fn post_reescreve_so_a_pagina_da_tabela_pedida() {
     let (url, html) = (url(), pen1().html());
-    let submissao =
-        derivar_pagina(&instalacao(), &tela(&url, &html), "TESTE", Recebidos, 1).unwrap();
+    let submissao = derivar_pagina(
+        &instalacao(),
+        &tela(&url, &HtmlServido::de_teste(&html)),
+        "TESTE",
+        Recebidos,
+        1,
+    )
+    .unwrap();
     let corpo = corpo(&submissao);
     assert!(corpo.contains("hdnRecebidosPaginaAtual=1&"), "{corpo}");
     assert!(corpo.contains("hdnGeradosPaginaAtual=0&"), "{corpo}");
@@ -346,7 +361,14 @@ fn post_reescreve_so_a_pagina_da_tabela_pedida() {
 #[test]
 fn post_de_gerados_mantem_recebidos_como_servido() {
     let (url, html) = (url(), pen1().html());
-    let submissao = derivar_pagina(&instalacao(), &tela(&url, &html), "TESTE", Gerados, 2).unwrap();
+    let submissao = derivar_pagina(
+        &instalacao(),
+        &tela(&url, &HtmlServido::de_teste(&html)),
+        "TESTE",
+        Gerados,
+        2,
+    )
+    .unwrap();
     let corpo = corpo(&submissao);
     assert!(corpo.contains("hdnRecebidosPaginaAtual=0&"));
     assert!(corpo.contains("hdnGeradosPaginaAtual=2&"));
@@ -356,7 +378,14 @@ fn post_de_gerados_mantem_recebidos_como_servido() {
 fn unidade_diferente_da_solicitada_recusa_a_derivacao() {
     let (url, html) = (url(), pen1().html());
     assert_eq!(
-        derivar_pagina(&instalacao(), &tela(&url, &html), "OUTRA", Recebidos, 1).err(),
+        derivar_pagina(
+            &instalacao(),
+            &tela(&url, &HtmlServido::de_teste(&html)),
+            "OUTRA",
+            Recebidos,
+            1
+        )
+        .err(),
         Some(ErroPaginaDoControle::Submissao(
             ErroSubmissaoFormulario::UnidadeDaTelaDiferenteDaSolicitada
         ))
@@ -367,7 +396,13 @@ fn derivar_com_extra(extra: &str) -> Result<SubmissaoDerivada, ErroPaginaDoContr
     let mut tela_extra = pen1();
     tela_extra.extra = extra.to_owned();
     let (url, html) = (url(), tela_extra.html());
-    derivar_pagina(&instalacao(), &tela(&url, &html), "TESTE", Recebidos, 1)
+    derivar_pagina(
+        &instalacao(),
+        &tela(&url, &HtmlServido::de_teste(&html)),
+        "TESTE",
+        Recebidos,
+        1,
+    )
 }
 
 #[test]

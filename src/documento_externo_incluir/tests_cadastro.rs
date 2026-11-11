@@ -2,6 +2,7 @@
 //! e `tests/test_documento_juntar_sei5_010.py` (PEN3 SEI 5).
 //! Fixtures sintéticas: nenhum cookie, URL assinada verdadeira ou rede.
 use super::*;
+use crate::tela_html::HtmlServido;
 
 fn cadastro(terceiro: &str, selecionado: &str, extensoes: &str) -> String {
     format!(
@@ -29,8 +30,12 @@ const PDF: &str = r#"arrExt[0] = {nome : "pdf", tamanho : 200};"#;
 
 #[test]
 fn dado_cadastro_unb_recarregado_quando_inspeciono_entao_encontro_tipo_limite_e_upload() {
-    let result =
-        observar_cadastro(&cadastro("", "selected=\"selected\"", PDF), "Anexo", 68).unwrap();
+    let result = observar_cadastro(
+        &HtmlServido::de_teste(&cadastro("", "selected=\"selected\"", PDF)),
+        "Anexo",
+        68,
+    )
+    .unwrap();
     assert_eq!(result.id_tipo, "293");
     assert_eq!(result.limite_pdf_bytes, 200 * 1024 * 1024);
     assert!(
@@ -44,7 +49,7 @@ fn dado_cadastro_unb_recarregado_quando_inspeciono_entao_encontro_tipo_limite_e_
 #[test]
 fn dado_cadastro_sei5_com_terceiro_argumento_quando_leio_entao_mantem_o_plano() {
     let result = observar_cadastro(
-        &cadastro(", true", "selected=\"selected\"", PDF),
+        &HtmlServido::de_teste(&cadastro(", true", "selected=\"selected\"", PDF)),
         "Anexo",
         68,
     )
@@ -55,7 +60,7 @@ fn dado_cadastro_sei5_com_terceiro_argumento_quando_leio_entao_mantem_o_plano() 
 #[test]
 fn dado_tipo_nao_escolhido_quando_preparo_upload_entao_exijo_recarga_do_cadastro() {
     assert!(matches!(
-        observar_cadastro(&cadastro("", "", PDF), "Anexo", 68),
+        observar_cadastro(&HtmlServido::de_teste(&cadastro("", "", PDF)), "Anexo", 68),
         Err(FalhaCadastroExterno::TipoNaoRecarregado)
     ));
 }
@@ -64,7 +69,7 @@ fn dado_tipo_nao_escolhido_quando_preparo_upload_entao_exijo_recarga_do_cadastro
 fn dado_pdf_maior_que_limite_observado_quando_inspeciono_entao_recuso_antes_do_upload() {
     assert!(matches!(
         observar_cadastro(
-            &cadastro("", "selected=\"selected\"", PDF),
+            &HtmlServido::de_teste(&cadastro("", "selected=\"selected\"", PDF)),
             "Anexo",
             200 * 1024 * 1024 + 1
         ),
@@ -76,13 +81,13 @@ fn dado_pdf_maior_que_limite_observado_quando_inspeciono_entao_recuso_antes_do_u
 fn dado_tipo_ausente_ou_duplicado_quando_inspeciono_entao_nao_invento_id() {
     let normal = cadastro("", "selected=\"selected\"", PDF);
     assert!(matches!(
-        observar_cadastro(&normal, "Parecer", 68),
+        observar_cadastro(&HtmlServido::de_teste(&normal), "Parecer", 68),
         Err(FalhaCadastroExterno::TipoNaoOferecido)
     ));
-    let duplicado = normal.replace(
+    let duplicado = HtmlServido::de_teste(&normal.replace(
         "<option value=\"291\">Despacho</option>",
         "<option value=\"291\">Anexo</option>",
-    );
+    ));
     assert!(matches!(
         observar_cadastro(&duplicado, "Anexo", 68),
         Err(FalhaCadastroExterno::TipoAmbiguo)
@@ -93,7 +98,11 @@ fn dado_tipo_ausente_ou_duplicado_quando_inspeciono_entao_nao_invento_id() {
 fn dado_cadastro_sem_pdf_quando_avalio_entao_recuso_pdf_nao_oferecido() {
     let outro = r#"arrExt[0] = {nome : "txt", tamanho : 200};"#;
     assert!(matches!(
-        observar_cadastro(&cadastro("", "selected=\"selected\"", outro), "Anexo", 68),
+        observar_cadastro(
+            &HtmlServido::de_teste(&cadastro("", "selected=\"selected\"", outro)),
+            "Anexo",
+            68
+        ),
         Err(FalhaCadastroExterno::PdfNaoOferecido)
     ));
 }
@@ -101,7 +110,7 @@ fn dado_cadastro_sem_pdf_quando_avalio_entao_recuso_pdf_nao_oferecido() {
 #[test]
 fn dado_tipo_desabilitado_quando_consulto_previa_entao_nao_e_oferecido() {
     // BDD-332-02: um tipo desabilitado nao e opcao oferecida ao usuario.
-    let html = cadastro("", "selected=\"selected\" disabled", PDF);
+    let html = HtmlServido::de_teste(&cadastro("", "selected=\"selected\" disabled", PDF));
     assert!(matches!(
         observar_cadastro(&html, "Anexo", 68),
         Err(FalhaCadastroExterno::TipoNaoOferecido)
@@ -111,7 +120,7 @@ fn dado_tipo_desabilitado_quando_consulto_previa_entao_nao_e_oferecido() {
 #[test]
 fn dado_formulario_com_campos_quando_previa_entao_exibe_so_controles_ativos_sem_valores() {
     // BDD-332-02: saída da prévia publica os campos ofertados pelo cadastro.
-    let pagina = cadastro("", "selected=\"selected\"", PDF).replacen(
+    let pagina = HtmlServido::de_teste(&cadastro("", "selected=\"selected\"", PDF).replacen(
         "</form>",
         r#"<input type="text" name="txtDataElaboracao" value="confidencial">
 <select name="selTipoConferencia"><option value="0">Original</option></select>
@@ -122,7 +131,7 @@ fn dado_formulario_com_campos_quando_previa_entao_exibe_so_controles_ativos_sem_
 <input type="text" name="desabilitado" disabled>
 </form>"#,
         1,
-    );
+    ));
     let cadastro = observar_cadastro(&pagina, "Anexo", 68).unwrap();
     assert_eq!(
         cadastro.campos_oferecidos,
@@ -176,26 +185,26 @@ fn bdd_332_02_leitor_ies_consume_cadastro_gerado_do_sqlite_do_anti_ies() {
             .expect("rota disponível")
             .corpo
     };
-    let escolha = renderizar(
+    let escolha = HtmlServido::de_teste(&renderizar(
         "GET",
         "/sei/controlador.php?acao=documento_escolher_tipo&id_procedimento=7",
         b"",
-    );
+    ));
     assert!(matches!(
         escolher_externo(&escolha),
         Ok(EscolhaExterna::Url(_))
     ));
-    let formulario = renderizar(
+    let formulario = HtmlServido::de_teste(&renderizar(
         "GET",
         "/sei/controlador.php?acao=documento_receber&id_procedimento=7",
         b"",
-    );
+    ));
     assert_eq!(identificar_tipo(&formulario, "Anexo"), Ok("293".into()));
-    let recarregado = renderizar(
+    let recarregado = HtmlServido::de_teste(&renderizar(
         "POST",
         "/sei/controlador.php?acao=documento_receber&id_procedimento=7",
         b"hdnFlagDocumentoCadastro=1&selSerie=293",
-    );
+    ));
     let previa = observar_cadastro(&recarregado, "Anexo", 68).unwrap();
     assert_eq!(previa.id_tipo, "293");
     assert_eq!(previa.limite_pdf_bytes, 200 * 1024 * 1024);
@@ -256,7 +265,12 @@ fn bdd_332_03_ies_interpreta_upload_e_cadastra_no_anti_ies_com_redirect_conferiv
     assert_eq!(recarregado.estado, anti_ies::Estado::Ok);
 
     let pdf = b"%PDF-1.7\nconteudo";
-    let previa = observar_cadastro(&recarregado.corpo, "Anexo", pdf.len() as u64).unwrap();
+    let previa = observar_cadastro(
+        &HtmlServido::de_teste(&recarregado.corpo),
+        "Anexo",
+        pdf.len() as u64,
+    )
+    .unwrap();
     let multipart = b"--B\r\nContent-Disposition: form-data; name=\"filArquivo\"; filename=\"prova.pdf\"\r\nContent-Type: application/pdf\r\n\r\n%PDF-1.7\nconteudo\r\n--B--\r\n";
     let upload = anti_ies::pdf_externo::atender(
         "POST",
@@ -275,7 +289,7 @@ fn bdd_332_03_ies_interpreta_upload_e_cadastra_no_anti_ies_com_redirect_conferiv
         "https://sei.exemplo/sei/controlador.php?acao=documento_receber&id_procedimento=7";
     let tela = TelaServida {
         url: url_cadastro,
-        html: &recarregado.corpo,
+        html: &HtmlServido::de_teste(&recarregado.corpo),
         codificacao: CodificacaoDaTela::Utf8,
     };
     let submissao =
@@ -398,10 +412,10 @@ fn bdd_332_03_ies_le_arvore_real_depois_do_cadastro_simulado() {
 fn dado_recarga_unb_com_opcao_nbsp_quando_inspeciono_entao_encontro_o_tipo() {
     // Recarga observada na UnB (cassette documento-mover-cancelar-unb,
     // interação 17): a opção vazia vem como `&nbsp;`.
-    let html = cadastro("", "selected=\"selected\"", PDF).replace(
+    let html = HtmlServido::de_teste(&cadastro("", "selected=\"selected\"", PDF).replace(
         r#"<option value="null"> </option>"#,
         r#"<option value="null">&nbsp;</option>"#,
-    );
+    ));
     let result = observar_cadastro(&html, "Anexo", 68).unwrap();
     assert_eq!(result.id_tipo, "293");
 }

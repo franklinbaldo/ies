@@ -28,8 +28,10 @@ pub(crate) fn texto_da_validacao(dom: &tl::VDom<'_>) -> Option<String> {
 
 /// Mensagem saneada (e limitada) da validação da Infra, se a página a traz.
 /// Para os fluxos de POST classificarem uma resposta 200 que é recusa.
-pub(crate) fn mensagem_de_validacao_da_infra(html: &str) -> Option<String> {
-    let dom = tl::parse(html, tl::ParserOptions::default()).ok()?;
+pub(crate) fn mensagem_de_validacao_da_infra(
+    html: &crate::tela_html::HtmlServido,
+) -> Option<String> {
+    let dom = crate::tela_html::interpretar(html);
     sanear(&texto_da_validacao(&dom)?)
 }
 

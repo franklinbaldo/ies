@@ -11,7 +11,7 @@ pub(crate) enum FalhaControleWeb {
     UnidadeExibidaDiferenteDaSolicitada,
 }
 /// A tela precisa conter Controle de Processos e unidade única, não apenas HTTP 200.
-pub(crate) fn projetar(html: &str) -> Result<Value, FalhaControleWeb> {
+pub(crate) fn projetar(html: &crate::tela_html::HtmlServido) -> Result<Value, FalhaControleWeb> {
     // Visão resumida ou detalhada: a sessão fica na última visão usada.
     let unidade =
         crate::controle_reconhecido::unidade_do_controle(html).map_err(|erro| match erro {
@@ -47,7 +47,6 @@ pub(crate) fn projetar(html: &str) -> Result<Value, FalhaControleWeb> {
             | ErroCaixa::HashesDeCriteriosGeradosRepetidosNoControle
             | ErroCaixa::HashesDeCriteriosRecebidosRepetidosNoControle
             | ErroCaixa::HtmlDaCaixaInvalido
-            | ErroCaixa::HtmlDaCaixaRecusadoPeloParser(_)
             | ErroCaixa::AtributoDaCaixaIlegivel(_)
             | ErroCaixa::IdentificacoesDaUnidadeRepetidasNoControle
             | ErroCaixa::TiposDeVisualizacaoRepetidosNoControle
@@ -67,7 +66,7 @@ pub(crate) fn projetar(html: &str) -> Result<Value, FalhaControleWeb> {
     reason = "serde_json::Value: leitura ausente dá Null e a escrita é em objeto json! local; projeção de saída a substituir em #733"
 )]
 fn projetar_com_unidade(
-    html: &str,
+    html: &crate::tela_html::HtmlServido,
     unidade_esperada: Option<&str>,
 ) -> Result<Value, FalhaControleWeb> {
     let modelo = projetar(html)?;
@@ -139,10 +138,12 @@ mod testes {
 
     #[test]
     fn pagina_de_controle_identificada_sem_expor_conteudo_da_caixa() {
-        let html = "<a id='lnkInfraUnidade'>PPI</a>\
+        let html = crate::tela_html::HtmlServido::de_teste(
+            "<a id='lnkInfraUnidade'>PPI</a>\
                     <table id='tblProcessosRecebidos'><caption>0 registros:</caption></table>\
-                    <table id='tblProcessosGerados'><caption>0 registros:</caption></table>";
-        let valor = projetar(html).unwrap();
+                    <table id='tblProcessosGerados'><caption>0 registros:</caption></table>",
+        );
+        let valor = projetar(&html).unwrap();
         assert_eq!(valor["controle_web"], "observado");
         assert_eq!(valor["unidade_exibida"], "PPI");
         assert_eq!(valor["autenticacao_remota"], "nao_auditada");
@@ -154,38 +155,44 @@ mod testes {
     #[test]
     fn formulario_de_login_nao_prova_controle_web() {
         // HTTP 200 informa sobre o transporte, não identifica a página do SEI.
-        let html = "<html><body><form id='frmLogin' method='post'>\
+        let html = crate::tela_html::HtmlServido::de_teste(
+            "<html><body><form id='frmLogin' method='post'>\
                     <input name='txtUsuario' type='text'>\
                     <input name='pwdSenha' type='password'>\
-                    </form></body></html>";
+                    </form></body></html>",
+        );
         assert!(
-            projetar(html).is_err(),
+            projetar(&html).is_err(),
             "formulário de login não pode ser tratado como Controle Web"
         );
     }
 
     #[test]
     fn unidade_global_errada_nao_pode_gerar_sucesso_web() {
-        let html = "<a id='lnkInfraUnidade'>PPI</a>\
+        let html = crate::tela_html::HtmlServido::de_teste(
+            "<a id='lnkInfraUnidade'>PPI</a>\
                     <table id='tblProcessosRecebidos'><caption>0 registros:</caption></table>\
-                    <table id='tblProcessosGerados'><caption>0 registros:</caption></table>";
+                    <table id='tblProcessosGerados'><caption>0 registros:</caption></table>",
+        );
         assert_eq!(
-            projetar_com_unidade(html, Some("OUTRA")),
+            projetar_com_unidade(&html, Some("OUTRA")),
             Err(FalhaControleWeb::UnidadeExibidaDiferenteDaSolicitada)
         );
         assert_eq!(
-            projetar_com_unidade(html, Some("ppi")),
+            projetar_com_unidade(&html, Some("ppi")),
             Err(FalhaControleWeb::UnidadeExibidaDiferenteDaSolicitada)
         );
     }
 
     #[test]
     fn unidade_global_igual_ou_ausente_preserva_diagnostico() {
-        let html = "<a id='lnkInfraUnidade'>PPI</a>\
+        let html = crate::tela_html::HtmlServido::de_teste(
+            "<a id='lnkInfraUnidade'>PPI</a>\
                     <table id='tblProcessosRecebidos'><caption>0 registros:</caption></table>\
-                    <table id='tblProcessosGerados'><caption>0 registros:</caption></table>";
+                    <table id='tblProcessosGerados'><caption>0 registros:</caption></table>",
+        );
         for esperada in [None, Some("PPI")] {
-            let valor = projetar_com_unidade(html, esperada).unwrap();
+            let valor = projetar_com_unidade(&html, esperada).unwrap();
             assert_eq!(valor["unidade_exibida"], "PPI");
             assert_eq!(valor["autenticacao_remota"], "nao_auditada");
         }
@@ -193,10 +200,12 @@ mod testes {
 
     #[test]
     fn controles_sem_rotulo_de_unidade_nao_provam_contexto() {
-        let html = "<table id='tblProcessosRecebidos'><caption>0 registros:</caption></table>\
-                    <table id='tblProcessosGerados'><caption>0 registros:</caption></table>";
+        let html = crate::tela_html::HtmlServido::de_teste(
+            "<table id='tblProcessosRecebidos'><caption>0 registros:</caption></table>\
+                    <table id='tblProcessosGerados'><caption>0 registros:</caption></table>",
+        );
         assert_eq!(
-            projetar(html),
+            projetar(&html),
             Err(FalhaControleWeb::IdentificacaoDaUnidadeAusenteNoControle)
         );
     }

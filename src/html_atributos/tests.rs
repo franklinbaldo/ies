@@ -1,6 +1,7 @@
 //! RED/GREEN do tokenizador: casos reproduzidos do defeito do `tl` 0.7.8 e
 //! estados WHATWG de nome e valor de atributo.
 use super::*;
+use crate::tela_html::HtmlServido;
 
 fn nomes(fonte: &str) -> Vec<String> {
     tokenizar_tag_de_abertura(fonte)
@@ -178,11 +179,10 @@ fn tem_classe_separa_por_espaco_html() {
 
 #[test]
 fn le_a_fonte_da_tag_do_tl_e_nao_o_mapa_corrompido() {
-    let dom = tl::parse(
+    let html = HtmlServido::de_teste(
         "<form><select multiple disabled name='x' id='y'><option selected value=1>a</option></select></form>",
-        tl::ParserOptions::default(),
-    )
-    .unwrap();
+    );
+    let dom = crate::tela_html::interpretar(&html);
     let select = dom
         .query_selector("select")
         .and_then(|mut i| i.next())
@@ -204,9 +204,12 @@ fn le_a_fonte_da_tag_do_tl_e_nao_o_mapa_corrompido() {
 
 #[test]
 fn busca_por_id_e_classe_apos_booleano() {
-    let html = "<div id='raiz'><input disabled id='hdn' value='v'>\
-        <a hidden class='protocoloNormal' href='h'>x</a></div><p id='hdn'></p>";
-    let dom = tl::parse(html, tl::ParserOptions::default()).unwrap();
+    let html = HtmlServido::de_teste(
+        "<div id='raiz'><input disabled id='hdn' value='v'>\
+        <a hidden class='protocoloNormal' href='h'>x</a></div><p id='hdn'></p>",
+    );
+    let servido = html;
+    let dom = crate::tela_html::interpretar(&servido);
     assert_eq!(nos_com_id(&dom, "hdn").unwrap().len(), 2);
     let raiz = nos_com_id(&dom, "raiz").unwrap()[0]
         .get(dom.parser())

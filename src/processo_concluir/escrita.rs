@@ -87,7 +87,7 @@ pub(crate) fn obter_tela<V: EnvioDoProcesso>(
     rede: &mut Contador<'_, V>,
     cookie: &str,
     url: &str,
-) -> Result<(String, String), FalhaDaTela> {
+) -> Result<(crate::tela_html::HtmlServido, String), FalhaDaTela> {
     let resposta = rede.get_sem_seguir(url, cookie)?;
     if resposta.resposta.status_code == 302 {
         return Err(FalhaDaTela::Redirecionada);
@@ -174,7 +174,7 @@ impl<V: EnvioDoProcesso> EnvioDoControle for Contador<'_, V> {
         self.feitas.registrar();
         self.envio.get(url, cookie)
     }
-    fn colher_controle(&mut self, html: &str, mime: Option<&str>) {
+    fn colher_controle(&mut self, html: &crate::tela_html::HtmlServido, mime: Option<&str>) {
         self.envio.colher_controle(html, mime);
     }
 }

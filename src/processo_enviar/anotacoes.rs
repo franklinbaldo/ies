@@ -23,7 +23,6 @@ pub(crate) enum ErroDasAnotacoes {
 #[error("{self:?}")]
 pub(crate) enum ErroLeituraDaAnotacao {
     TelaDeAnotacoesNaoInterpretada,
-    ParseDaTelaDeAnotacoesFalhou(#[source] tl::ParseError),
     TelaDeAnotacoesComAtributoIlegivel(#[source] crate::html_atributos::ErroAtributoHtml),
     FormularioDeAnotacoesAusente(#[source] crate::formulario_web::ErroSubmissaoFormulario),
     AnotacaoDeOutroProcesso,
@@ -47,9 +46,10 @@ pub(crate) const REGISTRAR_ANOTACAO: OperacaoDeFormulario = OperacaoDeFormulario
 };
 
 /// Sem o botão de salvar a tela não oferece edição, apenas leitura.
-pub(crate) fn salvar_oferecido(html: &str) -> Result<bool, ErroLeituraDaAnotacao> {
-    let dom = tl::parse(html, tl::ParserOptions::default())
-        .map_err(ErroLeituraDaAnotacao::ParseDaTelaDeAnotacoesFalhou)?;
+pub(crate) fn salvar_oferecido(
+    html: &crate::tela_html::HtmlServido,
+) -> Result<bool, ErroLeituraDaAnotacao> {
+    let dom = crate::tela_html::interpretar(html);
     let form = crate::formulario_web::localizar_formulario(&dom, "frmAnotacaoCadastro")
         .map_err(ErroLeituraDaAnotacao::FormularioDeAnotacoesAusente)?;
     for tag in form
@@ -73,12 +73,14 @@ pub(crate) fn salvar_oferecido(html: &str) -> Result<bool, ErroLeituraDaAnotacao
     Ok(false)
 }
 
-pub(crate) fn texto_anotacao(html: &str, id: &str) -> Result<String, ErroLeituraDaAnotacao> {
+pub(crate) fn texto_anotacao(
+    html: &crate::tela_html::HtmlServido,
+    id: &str,
+) -> Result<String, ErroLeituraDaAnotacao> {
     use crate::formulario_web::{decodificar_atributo, localizar_formulario};
     use crate::html_atributos::valor_do_atributo;
 
-    let dom = tl::parse(html, tl::ParserOptions::default())
-        .map_err(ErroLeituraDaAnotacao::ParseDaTelaDeAnotacoesFalhou)?;
+    let dom = crate::tela_html::interpretar(html);
     let form = localizar_formulario(&dom, "frmAnotacaoCadastro")
         .map_err(ErroLeituraDaAnotacao::FormularioDeAnotacoesAusente)?;
     let parser = dom.parser();
@@ -121,7 +123,10 @@ pub(crate) fn texto_anotacao(html: &str, id: &str) -> Result<String, ErroLeitura
 }
 
 /// Ausência só é comprovada se a tela do mesmo processo publicar o texto vazio.
-pub(crate) fn anotacao_presente(html: &str, id: &str) -> Result<bool, ErroLeituraDaAnotacao> {
+pub(crate) fn anotacao_presente(
+    html: &crate::tela_html::HtmlServido,
+    id: &str,
+) -> Result<bool, ErroLeituraDaAnotacao> {
     texto_anotacao(html, id).map(|texto| !texto.trim().is_empty())
 }
 
@@ -144,13 +149,19 @@ mod tests {
     fn bdd_anotacao_presente_na_tela_do_processo() {
         // Dado formulário de anotação da UnB com texto publicado,
         // quando leio o mesmo processo, então há anotação verificável.
-        let html = formulario("50693", "Observa&ccedil;&atilde;o &amp; prioridade");
+        let html = crate::tela_html::HtmlServido::de_teste(&formulario(
+            "50693",
+            "Observa&ccedil;&atilde;o &amp; prioridade",
+        ));
         assert_eq!(anotacao_presente(&html, "50693"), Ok(true));
     }
 
     #[test]
     fn texto_do_formulario_e_lido_sem_perder_entidades() {
-        let html = formulario("50693", "Observa&ccedil;&atilde;o &amp; prioridade");
+        let html = crate::tela_html::HtmlServido::de_teste(&formulario(
+            "50693",
+            "Observa&ccedil;&atilde;o &amp; prioridade",
+        ));
         assert_eq!(
             texto_anotacao(&html, "50693"),
             Ok("Observação & prioridade".into())
@@ -162,11 +173,17 @@ mod tests {
         // Dado formulário da UnB com textarea vazia,
         // quando releio, então há ausência observada de anotação.
         assert_eq!(
-            anotacao_presente(&formulario("50693", ""), "50693"),
+            anotacao_presente(
+                &crate::tela_html::HtmlServido::de_teste(&formulario("50693", "")),
+                "50693"
+            ),
             Ok(false)
         );
         assert_eq!(
-            anotacao_presente(&formulario("50693", " \n  "), "50693"),
+            anotacao_presente(
+                &crate::tela_html::HtmlServido::de_teste(&formulario("50693", " \n  ")),
+                "50693"
+            ),
             Ok(false)
         );
     }
@@ -176,7 +193,10 @@ mod tests {
         // Dado formulário servido para outro id,
         // quando confiro, então não se infere existência nem ausência.
         assert_eq!(
-            anotacao_presente(&formulario("99999", "Anotação"), "50693"),
+            anotacao_presente(
+                &crate::tela_html::HtmlServido::de_teste(&formulario("99999", "Anotação")),
+                "50693"
+            ),
             Err(super::ErroLeituraDaAnotacao::AnotacaoDeOutroProcesso)
         );
     }

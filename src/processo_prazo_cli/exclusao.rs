@@ -24,7 +24,7 @@ const EXCLUIR_PRAZO: OperacaoDeFormulario = OperacaoDeFormulario {
 
 struct ExclusaoPreparada {
     link_lista: String,
-    html_lista: String,
+    html_lista: crate::tela_html::HtmlServido,
     mime: String,
     id_controle: String,
     id_procedimento: String,
@@ -55,9 +55,11 @@ pub(crate) enum ErroLinkDaLista {
 }
 
 /// Lê o href realmente publicado na pagina do Controle, sem fabricar token.
-pub(super) fn link_da_lista(html: &str, origem: &str) -> Result<String, ErroLinkDaLista> {
-    let dom = tl::parse(html, tl::ParserOptions::default())
-        .map_err(|_| ErroLinkDaLista::ControleIlegivel)?;
+pub(super) fn link_da_lista(
+    html: &crate::tela_html::HtmlServido,
+    origem: &str,
+) -> Result<String, ErroLinkDaLista> {
+    let dom = crate::tela_html::interpretar(html);
     let instalacao =
         Instalacao::interpretar(origem).ok_or(ErroLinkDaLista::OrigemNaoInterpretada)?;
     let mut encontrados = Vec::new();
@@ -113,8 +115,6 @@ pub(super) fn link_da_lista(html: &str, origem: &str) -> Result<String, ErroLink
 #[derive(Debug, thiserror::Error)]
 #[error("{self:?}")]
 pub(crate) enum ErroListaDePrazos {
-    /// O parser de HTML recusou a lista de prazos.
-    HtmlDaListaRecusadoPeloParser(#[source] tl::ParseError),
     FormularioDaListaNaoLocalizado(#[source] crate::formulario_web::ErroSubmissaoFormulario),
     AtributoDaLista(#[source] crate::html_atributos::ErroAtributoHtml),
     AcaoExcluirForaDaForma,
@@ -125,9 +125,11 @@ pub(crate) enum ErroListaDePrazos {
 
 /// Lê uma funcao de linha observada sem executar o JavaScript.
 /// Ausencia de acao ao confirmar a exclusao significa ausencia da linha.
-pub(super) fn id_na_lista(html: &str, nup: &str) -> Result<Option<String>, ErroListaDePrazos> {
-    let dom = tl::parse(html, tl::ParserOptions::default())
-        .map_err(ErroListaDePrazos::HtmlDaListaRecusadoPeloParser)?;
+pub(super) fn id_na_lista(
+    html: &crate::tela_html::HtmlServido,
+    nup: &str,
+) -> Result<Option<String>, ErroListaDePrazos> {
+    let dom = crate::tela_html::interpretar(html);
     crate::formulario_web::localizar_formulario(&dom, "frmControlePrazoLista")
         .map_err(ErroListaDePrazos::FormularioDaListaNaoLocalizado)?;
     let mut encontrado = None;
@@ -443,7 +445,10 @@ mod tests {
             "controlador.php?acao=controle_prazo_listar&infra_sistema=1&infra_hash={}",
             hash()
         );
-        let link = link_da_lista(&controle_com(&href), "https://sei.exemplo/sei");
+        let link = link_da_lista(
+            &crate::tela_html::HtmlServido::de_teste(&controle_com(&href)),
+            "https://sei.exemplo/sei",
+        );
         assert_eq!(link.ok(), Some(format!("https://sei.exemplo/sei/{href}")));
     }
 
@@ -453,7 +458,11 @@ mod tests {
             "controlador.php?acao=outra&acao=controle_prazo_listar&infra_hash={}",
             hash()
         );
-        let erro = link_da_lista(&controle_com(&href), "https://sei.exemplo/sei").err();
+        let erro = link_da_lista(
+            &crate::tela_html::HtmlServido::de_teste(&controle_com(&href)),
+            "https://sei.exemplo/sei",
+        )
+        .err();
         assert!(
             matches!(erro, Some(ErroLinkDaLista::LinkDaListaForaDaForma)),
             "{erro:?}"

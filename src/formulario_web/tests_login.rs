@@ -3,6 +3,7 @@
 //! enviado, tela e `action` fora do host recusados.
 use super::*;
 use crate::sessao_login::tela::{ENTRAR_COM_ACESSAR, ENTRAR_COM_SBM_ACESSAR};
+use crate::tela_html::HtmlServido;
 
 fn instalacao() -> Instalacao {
     Instalacao::interpretar("https://sei.exemplo.gov.br/sei").unwrap()
@@ -14,7 +15,7 @@ const FORM: &str = "<form id='frmLogin' method='post' action='login.php?s=1' ons
     <button type='submit' name='BOTAO'>ACESSAR</button>\
     <input type='hidden' name='hdnAcao' value='1'></form>";
 
-fn tela<'a>(url: &'a str, html: &'a str) -> TelaServida<'a> {
+fn tela<'a>(url: &'a str, html: &'a HtmlServido) -> TelaServida<'a> {
     TelaServida {
         url,
         html,
@@ -31,7 +32,7 @@ const CAMPOS: &[(&str, &str)] = &[
 
 #[test]
 fn login_no_sip_fora_do_caminho_base_deriva_com_hdn_acao_reescrito() {
-    let html = FORM.replace("BOTAO", "Acessar");
+    let html = HtmlServido::de_teste(&FORM.replace("BOTAO", "Acessar"));
     let url = "https://sei.exemplo.gov.br/sip/login.php?s=1";
     let s = derivar_submissao_de_login(
         &ENTRAR_COM_ACESSAR,
@@ -52,7 +53,7 @@ fn login_no_sip_fora_do_caminho_base_deriva_com_hdn_acao_reescrito() {
 #[test]
 fn botao_desabilitado_pelo_onsubmit_e_exigido_mas_nao_enviado() {
     let url = "https://sei.exemplo.gov.br/sip/login.php?s=1";
-    let html = FORM.replace("BOTAO", "sbmAcessar");
+    let html = HtmlServido::de_teste(&FORM.replace("BOTAO", "sbmAcessar"));
     let s = derivar_submissao_de_login(
         &ENTRAR_COM_SBM_ACESSAR,
         &instalacao(),
@@ -64,7 +65,7 @@ fn botao_desabilitado_pelo_onsubmit_e_exigido_mas_nao_enviado() {
         s.nomes_dos_campos(),
         ["txtUsuario", "pwdSenha", "selOrgao", "hdnAcao"]
     );
-    let sem = FORM.replace("BOTAO", "outro");
+    let sem = HtmlServido::de_teste(&FORM.replace("BOTAO", "outro"));
     assert_eq!(
         derivar_submissao_de_login(
             &ENTRAR_COM_SBM_ACESSAR,
@@ -84,16 +85,19 @@ fn tela_ou_action_fora_do_host_sao_recusados() {
         derivar_submissao_de_login(
             &ENTRAR_COM_ACESSAR,
             &instalacao(),
-            &tela("https://outro.gov.br/sip/login.php", &html),
+            &tela(
+                "https://outro.gov.br/sip/login.php",
+                &HtmlServido::de_teste(&html)
+            ),
             CAMPOS
         )
         .unwrap_err(),
         ErroSubmissaoFormulario::Transporte(FalhaTransporte::OrigemNaoAutorizada)
     );
-    let fora = html.replace(
+    let fora = HtmlServido::de_teste(&html.replace(
         "action='login.php?s=1'",
         "action='//outro.gov.br/login.php'",
-    );
+    ));
     assert_eq!(
         derivar_submissao_de_login(
             &ENTRAR_COM_ACESSAR,
@@ -104,7 +108,8 @@ fn tela_ou_action_fora_do_host_sao_recusados() {
         .unwrap_err(),
         ErroSubmissaoFormulario::AcaoDoFormularioForaDaInstalacao
     );
-    let ponto = html.replace("action='login.php?s=1'", "action='../sei/login.php'");
+    let ponto =
+        HtmlServido::de_teste(&html.replace("action='login.php?s=1'", "action='../sei/login.php'"));
     assert_eq!(
         derivar_submissao_de_login(
             &ENTRAR_COM_ACESSAR,

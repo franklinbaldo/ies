@@ -121,15 +121,17 @@ mod tests {
         recibo: &ReciboUpload,
     ) -> Result<SubmissaoDerivada, FalhaCadastroEnvio> {
         let instalacao = Instalacao::interpretar(a::ORIGEM).unwrap();
-        let cadastro = observar_cadastro(html, "Anexo", 68).unwrap();
+        let cadastro =
+            observar_cadastro(&crate::tela_html::HtmlServido::de_teste(html), "Anexo", 68).unwrap();
         let url = format!(
             "{}/controlador.php?acao=documento_receber&id_procedimento=10&infra_hash={}",
             a::ORIGEM,
             "a".repeat(64)
         );
+        let html = crate::tela_html::HtmlServido::de_teste(html);
         let tela = TelaServida {
             url: &url,
-            html,
+            html: &html,
             codificacao: CodificacaoDaTela::Iso88591,
         };
         preparar_cadastro_definitivo(&instalacao, &tela, a::UNIDADE, &cadastro, recibo)

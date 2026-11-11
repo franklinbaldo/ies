@@ -11,6 +11,8 @@ use std::path::Path;
 #[error("{self:?}")]
 enum ErroHtmlPrivado {
     Fonte(#[from] transporte::FalhaTransporte),
+    /// O arquivo não cabe no limite do HTML interpretado.
+    HtmlAcimaDoLimite(#[from] crate::tela_html::HtmlAcimaDoLimite),
     Titulo(#[from] documento_web::ErroTituloDocumento),
     Corpo(#[from] documento_web::ErroCorpoDocumento),
     NumeroDiferenteDoSolicitado,
@@ -38,7 +40,7 @@ fn conferir_comando(
 
 /// Seleção positiva deve verificar identidade exata, sem converter zeros.
 fn selecionar(
-    html: &str,
+    html: &crate::tela_html::HtmlServido,
     numero: &documento::NumeroDocumento,
 ) -> Result<(documento_web::IdentidadeDoDocumento, String), ErroHtmlPrivado> {
     let identidade = documento_web::identidade_do_titulo(html)?;
@@ -68,8 +70,9 @@ pub(super) fn tentar_ler(cli: &Cli) -> Option<anyhow::Result<()>> {
     let resultado: Result<_, ErroHtmlPrivado> = (|| {
         let numero =
             conferir_comando(documento, cli.unidade.as_deref()).unwrap_or_else(|uso| recusar(uso));
-        let html =
-            transporte::arquivo_privado(arquivo, 8_000_000).map_err(ErroHtmlPrivado::Fonte)?;
+        let html = crate::tela_html::HtmlServido::novo(
+            transporte::arquivo_privado(arquivo, 8_000_000).map_err(ErroHtmlPrivado::Fonte)?,
+        )?;
         let (identidade, texto) = selecionar(&html, &numero)?;
         let exportado = documento
             .saida
@@ -150,7 +153,11 @@ mod tests {
         };
         assert!(conferir_comando(&comando, None).is_ok());
         let numero = documento::NumeroDocumento::novo("0007").unwrap();
-        let (identidade, texto) = selecionar(&html("0007"), &numero).unwrap();
+        let (identidade, texto) = selecionar(
+            &crate::tela_html::HtmlServido::de_teste(&html("0007")),
+            &numero,
+        )
+        .unwrap();
         let inexistente = std::env::temp_dir()
             .join(format!("ies-html-diretorio-ausente-{}", std::process::id()))
             .join("nao-existe");
@@ -174,7 +181,11 @@ mod tests {
         ));
         std::fs::create_dir(&raiz).unwrap();
         let numero = documento::NumeroDocumento::novo("0007").unwrap();
-        let (identidade, texto) = selecionar(&html("0007"), &numero).unwrap();
+        let (identidade, texto) = selecionar(
+            &crate::tela_html::HtmlServido::de_teste(&html("0007")),
+            &numero,
+        )
+        .unwrap();
         assert_eq!(exportar(&raiz, &identidade, &texto), Ok(texto.len()));
         let destino = raiz.join("0007.txt");
         assert_eq!(std::fs::read_to_string(&destino).unwrap(), texto);
@@ -198,7 +209,11 @@ mod tests {
     #[test]
     fn html_com_numero_exato_devolve_texto_sem_versao_inventada() {
         let numero = documento::NumeroDocumento::novo("0007").unwrap();
-        let (identidade, texto) = selecionar(&html("0007"), &numero).unwrap();
+        let (identidade, texto) = selecionar(
+            &crate::tela_html::HtmlServido::de_teste(&html("0007")),
+            &numero,
+        )
+        .unwrap();
         assert_eq!(identidade.numero, "0007");
         assert_eq!(identidade.tipo, "Ofício");
         assert_eq!(texto, "Texto preservado da captura.");
@@ -208,7 +223,10 @@ mod tests {
     fn numero_nao_casado_nao_aceita_zero_a_esquerda_perdido() {
         let numero = documento::NumeroDocumento::novo("7").unwrap();
         assert_eq!(
-            selecionar(&html("0007"), &numero),
+            selecionar(
+                &crate::tela_html::HtmlServido::de_teste(&html("0007")),
+                &numero
+            ),
             Err(ErroHtmlPrivado::NumeroDiferenteDoSolicitado)
         );
     }
@@ -216,10 +234,10 @@ mod tests {
     #[test]
     fn recusa_corpo_com_script_sem_expor_segredos() {
         let numero = documento::NumeroDocumento::novo("0007").unwrap();
-        let suspeito = html("0007").replace(
+        let suspeito = crate::tela_html::HtmlServido::de_teste(&html("0007").replace(
             "<p>Texto preservado da captura.</p>",
             "<script>valor_interno</script><p>Texto</p>",
-        );
+        ));
         assert_eq!(
             selecionar(&suspeito, &numero),
             Err(ErroHtmlPrivado::Corpo(

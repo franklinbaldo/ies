@@ -9,9 +9,10 @@ use crate::arvore_processo::tests_concluir::absoluta;
 use crate::arvore_processo::tests_tela::instalacao;
 use crate::formulario_web::{CodificacaoDaTela, TelaServida, derivar_submissao};
 use crate::processo_concluir::tests_apoio::{ID, NUP};
+use crate::tela_html::HtmlServido;
 
 fn conferida(versao: Versao) -> TelaDeEnvio {
-    conferir_tela_de_envio(&tela_de_envio(versao, ID), ID).unwrap()
+    conferir_tela_de_envio(&HtmlServido::de_teste(&tela_de_envio(versao, ID)), ID).unwrap()
 }
 
 #[test]
@@ -57,13 +58,13 @@ fn post_derivado_pelo_primitivo_na_ordem_do_documento() {
     for versao in [Versao::V40, Versao::V41] {
         for manter in [false, true] {
             let html = tela_de_envio(versao, ID);
-            let tela = conferir_tela_de_envio(&html, ID).unwrap();
+            let tela = conferir_tela_de_envio(&HtmlServido::de_teste(&html), ID).unwrap();
             let campos = campos_do_envio(&tela, &destino(), manter, false);
             let pares: Vec<(&str, &str)> = campos.iter().map(|(n, v)| (*n, v.as_str())).collect();
             let url = url_da_tela();
             let servida = TelaServida {
                 url: &url,
-                html: &html,
+                html: &HtmlServido::de_teste(&html),
                 codificacao: CodificacaoDaTela::Iso88591,
             };
             let s =
@@ -172,7 +173,10 @@ fn recusas_da_tela_antes_de_qualquer_post() {
         assert!(base.contains(de), "{de}");
         base.replacen(de, para, 1)
     };
-    let ausente = conferir_tela_de_envio(&trocar("frmAtividadeListar", "frmOutro"), ID);
+    let ausente = conferir_tela_de_envio(
+        &HtmlServido::de_teste(&trocar("frmAtividadeListar", "frmOutro")),
+        ID,
+    );
     assert!(
         matches!(
             ausente,
@@ -182,7 +186,7 @@ fn recusas_da_tela_antes_de_qualquer_post() {
     );
     for (html, erro) in casos_de_recusa(trocar) {
         assert_eq!(
-            conferir_tela_de_envio(&html, ID),
+            conferir_tela_de_envio(&HtmlServido::de_teste(&html), ID),
             Err(erro.clone()),
             "{erro:?}"
         );
@@ -192,7 +196,7 @@ fn recusas_da_tela_antes_de_qualquer_post() {
         "objAutoCompletarUnidade = new infraAjaxAutoCompletar('hdnIdUnidade','txtUnidade','{}');",
         autocompletar()
     );
-    let repetida = base.replacen(&linha, &format!("{linha}\n{linha}"), 1);
+    let repetida = HtmlServido::de_teste(&base.replacen(&linha, &format!("{linha}\n{linha}"), 1));
     assert_eq!(
         conferir_tela_de_envio(&repetida, ID),
         Err(super::erro::ErroTelaDeEnvio::AutocompletarDeUnidadeNaoDeclarado)
@@ -232,10 +236,11 @@ fn bdd_checkbox_de_remocao_e_oferta_observada_da_tela() {
     // Dado um controle habilitado nas famílias 4.0 e 4.1/5.0.
     for versao in [Versao::V40, Versao::V41] {
         let html = tela_de_envio(versao, ID);
-        let tela = conferir_tela_de_envio(&html, ID).unwrap();
+        let tela = conferir_tela_de_envio(&HtmlServido::de_teste(&html), ID).unwrap();
         assert!(tela.remover_anotacoes_oferecida);
         // A ausência de name significa que não há controle enviável.
-        let sem_opcao = html.replace(r#"name="chkSinRemoverAnotacoes""#, r#"name="""#);
+        let sem_opcao =
+            HtmlServido::de_teste(&html.replace(r#"name="chkSinRemoverAnotacoes""#, r#"name="""#));
         assert!(
             !conferir_tela_de_envio(&sem_opcao, ID)
                 .unwrap()
@@ -252,13 +257,13 @@ fn bdd_remover_anotacoes_deriva_checkbox_do_formulario_servido() {
     for versao in [Versao::V40, Versao::V41] {
         for manter_aberto in [false, true] {
             let html = tela_de_envio(versao, ID);
-            let tela = conferir_tela_de_envio(&html, ID).unwrap();
+            let tela = conferir_tela_de_envio(&HtmlServido::de_teste(&html), ID).unwrap();
             let campos = campos_do_envio(&tela, &destino(), manter_aberto, true);
             let pares: Vec<(&str, &str)> = campos.iter().map(|(n, v)| (*n, v.as_str())).collect();
             let url = url_da_tela();
             let servida = TelaServida {
                 url: &url,
-                html: &html,
+                html: &HtmlServido::de_teste(&html),
                 codificacao: CodificacaoDaTela::Iso88591,
             };
             let envio =
@@ -312,7 +317,7 @@ fn anti_ies_gera_formulario_que_o_leitor_ies_compreende() {
         "teste-leitor",
     );
     assert_eq!(resposta.estado, anti_ies::Estado::Ok);
-    let tela = conferir_tela_de_envio(&resposta.corpo, "10").unwrap();
+    let tela = conferir_tela_de_envio(&HtmlServido::de_teste(&resposta.corpo), "10").unwrap();
     assert_eq!(tela.orgao, "");
     assert!(tela.remover_anotacoes_oferecida);
     assert_eq!(tela.textos, ["txtPrazo", "txtDias"]);
@@ -355,7 +360,8 @@ fn anti_ies_autocomplete_e_lido_pelo_parser_real_do_ies() {
         "teste-autocomplete",
     );
     assert_eq!(resposta.estado, anti_ies::Estado::Ok);
-    let itens = super::destino::itens_do_autocompletar(&resposta.corpo).unwrap();
+    let itens =
+        super::destino::itens_do_autocompletar(&HtmlServido::de_teste(&resposta.corpo)).unwrap();
     let escolhido = super::destino::escolher_destino("DESTINO", &itens).unwrap();
     assert_eq!(escolhido.id_unidade, "2");
     assert_eq!(escolhido.sigla, "DESTINO");

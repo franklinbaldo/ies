@@ -23,6 +23,7 @@ use crate::formulario_web::{
     CodificacaoDaTela, RespostaDoPost, TelaServida, derivar_consulta_ajax, derivar_submissao,
 };
 use crate::instalacao::Instalacao;
+use crate::tela_html::HtmlServido;
 use crate::transporte::RespostaWeb;
 use std::collections::BTreeMap;
 use std::fmt::Write as _;
@@ -74,7 +75,7 @@ fn barra(
 struct Tela {
     id: String,
     url: String,
-    html: String,
+    html: HtmlServido,
     conferida: TelaDeEnvio,
 }
 
@@ -165,9 +166,9 @@ fn replay_de_processo_enviar_no_acervo() {
             let html = || html_da_resposta(r.interacao).ok();
             match (r.operacao, r.metodo, r.status) {
                 ("procedimento_trabalhar", "GET", 200) => {
-                    if let Some(t) =
-                        html().and_then(|h| ler_tela_do_processo(&inst, &h, &id, None).ok())
-                    {
+                    if let Some(t) = html().and_then(|h| {
+                        ler_tela_do_processo(&inst, &HtmlServido::de_teste(&h), &id, None).ok()
+                    }) {
                         unidade = Some(t.unidade);
                     }
                 }
@@ -197,7 +198,7 @@ fn replay_de_processo_enviar_no_acervo() {
                         .as_str()
                         .unwrap_or("")
                         .to_owned();
-                    let classe = match conferir_tela_de_envio(&h, &id) {
+                    let classe = match conferir_tela_de_envio(&HtmlServido::de_teste(&h), &id) {
                         Ok(conferida) => {
                             let forma = if conferida.unidade_atual {
                                 "4.1/5.0"
@@ -207,7 +208,7 @@ fn replay_de_processo_enviar_no_acervo() {
                             let nova = Tela {
                                 id: id.clone(),
                                 url,
-                                html: h,
+                                html: HtmlServido::de_teste(&h),
                                 conferida,
                             };
                             let campos = campos_da_consulta(&nova.conferida, "SIGLA");

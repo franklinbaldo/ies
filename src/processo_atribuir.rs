@@ -54,8 +54,6 @@ pub(crate) enum ErroAtribuir {
     CharsetDaTelaNaoSuportado,
     Formulario(#[from] ErroSubmissaoFormulario),
     TelaDaAtribuicaoForaDaForma,
-    /// O parser HTML recusou a tela de atribuição.
-    HtmlDaAtribuicaoRecusadoPeloParser(#[source] tl::ParseError),
     /// O formulário de atribuição não foi localizado na tela.
     FormularioDaAtribuicaoNaoLocalizado(#[source] crate::formulario_web::ErroSubmissaoFormulario),
 }
@@ -134,9 +132,11 @@ fn ler_opcoes(
 }
 
 /// Confere a forma observada: POST, identidade, lista simples e opção null.
-pub(crate) fn ler_tela(html: &str, id: &str) -> Result<TelaDaAtribuicao, ErroAtribuir> {
-    let dom = tl::parse(html, tl::ParserOptions::default())
-        .map_err(ErroAtribuir::HtmlDaAtribuicaoRecusadoPeloParser)?;
+pub(crate) fn ler_tela(
+    html: &crate::tela_html::HtmlServido,
+    id: &str,
+) -> Result<TelaDaAtribuicao, ErroAtribuir> {
+    let dom = crate::tela_html::interpretar(html);
     let parser = dom.parser();
     let form = localizar_formulario(&dom, FORMULARIO)
         .map_err(ErroAtribuir::FormularioDaAtribuicaoNaoLocalizado)?;

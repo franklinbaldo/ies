@@ -12,6 +12,7 @@ use crate::cassette::acervo::{Resultado, gravacao, percorrer, publicar, tabela};
 use crate::cassette::html_da_resposta;
 use crate::controle_reconhecido::unidade_do_controle;
 use crate::formulario_web::{CodificacaoDaTela, TelaServida, derivar_submissao};
+use crate::tela_html::HtmlServido;
 
 fn classe<T, E>(r: Result<T, E>, sub: impl Fn(&E) -> String) -> Resultado {
     match r {
@@ -52,13 +53,14 @@ fn replay_de_unidade_trocar_no_acervo() {
                     let Ok(h) = html_da_resposta(r.interacao) else {
                         continue;
                     };
-                    if unidade_do_controle(&h).is_ok() {
+                    if unidade_do_controle(&HtmlServido::de_teste(&h)).is_ok() {
                         soma(
                             0,
                             "link da troca no Controle",
-                            classe(link_da_troca(&inst, url, &h), |e: &ErroTroca| {
-                                format!("{e:?}")
-                            }),
+                            classe(
+                                link_da_troca(&inst, url, &HtmlServido::de_teste(&h)),
+                                |e: &ErroTroca| format!("{e:?}"),
+                            ),
                         );
                     }
                 }
@@ -66,7 +68,7 @@ fn replay_de_unidade_trocar_no_acervo() {
                     let Ok(h) = html_da_resposta(r.interacao) else {
                         continue;
                     };
-                    let lida = ler_tela_de_troca(&h);
+                    let lida = ler_tela_de_troca(&HtmlServido::de_teste(&h));
                     soma(
                         1,
                         "tela Trocar Unidade",
@@ -77,7 +79,7 @@ fn replay_de_unidade_trocar_no_acervo() {
                         if let Some(outra) = t.unidades.iter().find(|u| **u != t.marcada) {
                             let servida = TelaServida {
                                 url,
-                                html: &h,
+                                html: &HtmlServido::de_teste(&h),
                                 codificacao: CodificacaoDaTela::Iso88591,
                             };
                             let s = derivar_submissao(
@@ -162,7 +164,7 @@ fn replay_de_unidade_trocar_no_acervo() {
                     let sigla = oferecido.map(|u| u.sigla).unwrap_or_default();
                     let lida = html_da_resposta(controle.interacao)
                         .ok()
-                        .map(|h| unidade_do_controle(&h));
+                        .map(|h| unidade_do_controle(&HtmlServido::de_teste(&h)));
                     soma(
                         6,
                         "Controle da unidade nova",

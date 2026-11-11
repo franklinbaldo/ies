@@ -67,6 +67,4 @@ pub(crate) enum ErroTroca {
     AtributoDoLinkDeTrocaIlegivel(#[source] crate::html_atributos::ErroAtributoHtml),
     TelaDeTrocaDeUnidadeNaoReconhecida,
     AtributoDaTelaDeTrocaIlegivel(#[source] crate::html_atributos::ErroAtributoHtml),
-    ParseDoLinkDeTrocaFalhou(#[source] tl::ParseError),
-    ParseDaTelaDeTrocaFalhou(#[source] tl::ParseError),
 }

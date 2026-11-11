@@ -4,6 +4,7 @@ use super::*;
 use crate::pesquisa_web::tests_fixtures::{
     conteudo_da_lista, formulario, numero, resultado, resultado_numa_pagina, sem_resultado,
 };
+use crate::tela_html::HtmlServido;
 
 #[test]
 fn contagem_aceita_ponto_so_entre_grupos_de_tres_digitos() {
@@ -30,7 +31,7 @@ fn contagem_enorme_nao_estoura() {
 #[test]
 fn lista_publica_total_faixa_e_numeros_com_linha_da_arvore() {
     let RespostaDaPesquisa::Lista(lista) =
-        ler_resposta_html(&resultado("00001", 1, 10, "1.234")).unwrap()
+        ler_resposta_html(&HtmlServido::de_teste(&resultado("00001", 1, 10, "1.234"))).unwrap()
     else {
         panic!("esperada lista");
     };
@@ -43,9 +44,10 @@ fn lista_publica_total_faixa_e_numeros_com_linha_da_arvore() {
 
 #[test]
 fn pagina_posterior_e_lida_com_a_faixa_da_barra() {
-    let RespostaDaPesquisa::Lista(lista) =
-        ler_resposta_html(&resultado("00001", 1231, 1234, "1.234")).unwrap()
-    else {
+    let RespostaDaPesquisa::Lista(lista) = ler_resposta_html(&HtmlServido::de_teste(&resultado(
+        "00001", 1231, 1234, "1.234",
+    )))
+    .unwrap() else {
         panic!("esperada lista");
     };
     assert_eq!(
@@ -61,14 +63,17 @@ fn pagina_posterior_e_lida_com_a_faixa_da_barra() {
 #[test]
 fn aviso_de_sem_resultado_e_resposta_observada() {
     assert_eq!(
-        ler_resposta_html(&sem_resultado("99999")),
+        ler_resposta_html(&HtmlServido::de_teste(&sem_resultado("99999"))),
         Ok(RespostaDaPesquisa::SemResultado)
     );
 }
 
 #[test]
 fn pagina_sem_tabela_nem_aviso_nao_e_reconhecida() {
-    let html = format!("<html>{}</html>", formulario("x", true, "<p>outra</p>"));
+    let html = HtmlServido::de_teste(&format!(
+        "<html>{}</html>",
+        formulario("x", true, "<p>outra</p>")
+    ));
     assert_eq!(
         ler_resposta_html(&html),
         Err(ErroRespostaDaPesquisa::RespostaDaPesquisaNaoReconhecida)
@@ -77,10 +82,10 @@ fn pagina_sem_tabela_nem_aviso_nao_e_reconhecida() {
 
 #[test]
 fn tabela_e_aviso_juntos_falham_fechado() {
-    let html = resultado("1", 1, 3, "3").replace(
+    let html = HtmlServido::de_teste(&resultado("1", 1, 3, "3").replace(
         "</table>",
         "</table><div class=\"pesquisaSemResultado\">Nenhum</div>",
-    );
+    ));
     assert_eq!(
         ler_resposta_html(&html),
         Err(ErroRespostaDaPesquisa::TabelaDeResultadoEAvisoDeSemResultadoNaMesmaResposta)
@@ -89,15 +94,17 @@ fn tabela_e_aviso_juntos_falham_fechado() {
 
 #[test]
 fn barra_ausente_ou_repetida_e_recusada() {
-    let sem = resultado("1", 1, 3, "3").replace("pesquisaBarraD", "pesquisaBarraX");
+    let sem = HtmlServido::de_teste(
+        &resultado("1", 1, 3, "3").replace("pesquisaBarraD", "pesquisaBarraX"),
+    );
     assert_eq!(
         ler_resposta_html(&sem),
         Err(ErroRespostaDaPesquisa::BarraDeContagemDaPesquisaAusente)
     );
-    let dupla = resultado("1", 1, 3, "3").replace(
+    let dupla = HtmlServido::de_teste(&resultado("1", 1, 3, "3").replace(
         "<table border",
         "<div class=\"pesquisaBarraD\">Exibindo 1 - 3 de 3</div><table border",
-    );
+    ));
     assert_eq!(
         ler_resposta_html(&dupla),
         Err(ErroRespostaDaPesquisa::BarrasDeContagemDaPesquisaRepetidas)
@@ -113,7 +120,8 @@ fn texto_da_barra_fora_da_forma_observada_e_recusado() {
         "Exibindo 1 - 3 de 3 itens",
         "Exibindo 1-3 de 3",
     ] {
-        let html = resultado("1", 1, 3, "3").replace("Exibindo 1 - 3 de 3", texto);
+        let html =
+            HtmlServido::de_teste(&resultado("1", 1, 3, "3").replace("Exibindo 1 - 3 de 3", texto));
         assert_eq!(
             ler_resposta_html(&html),
             Err(ErroRespostaDaPesquisa::TextoDaBarraDeContagemForaDoFormato),
@@ -125,7 +133,9 @@ fn texto_da_barra_fora_da_forma_observada_e_recusado() {
 #[test]
 fn numero_da_barra_sem_separador_observado_e_recusado() {
     for total in ["1234", "1,234", "1.23"] {
-        let html = resultado("1", 1, 10, "1.234").replace("de 1.234", &format!("de {total}"));
+        let html = HtmlServido::de_teste(
+            &resultado("1", 1, 10, "1.234").replace("de 1.234", &format!("de {total}")),
+        );
         assert_eq!(
             ler_resposta_html(&html),
             Err(ErroRespostaDaPesquisa::NumeroDaBarraDeContagemForaDoFormato),
@@ -137,10 +147,10 @@ fn numero_da_barra_sem_separador_observado_e_recusado() {
 #[test]
 fn faixa_impossivel_e_recusada() {
     for (inicio, fim, total) in [("0", "3", "3"), ("3", "1", "3"), ("1", "3", "2")] {
-        let html = resultado("1", 1, 3, "3").replace(
+        let html = HtmlServido::de_teste(&resultado("1", 1, 3, "3").replace(
             "Exibindo 1 - 3 de 3",
             &format!("Exibindo {inicio} - {fim} de {total}"),
-        );
+        ));
         assert_eq!(
             ler_resposta_html(&html),
             Err(ErroRespostaDaPesquisa::FaixaDaBarraDeContagemImpossivel),
@@ -153,11 +163,13 @@ fn faixa_impossivel_e_recusada() {
 /// 9 registros no HTML (27 `tr`, 3 por registro); a linha falta na página.
 #[test]
 fn menos_linhas_que_a_faixa_declarada_publicam_as_ausentes() {
-    let html = format!(
-        "<html>{}</html>",
-        formulario("1", true, &conteudo_da_lista(1, 9, "966", 10))
-    )
-    .replace("Exibindo 1 - 9 de", "Exibindo 1 - 10 de");
+    let html = HtmlServido::de_teste(
+        &format!(
+            "<html>{}</html>",
+            formulario("1", true, &conteudo_da_lista(1, 9, "966", 10))
+        )
+        .replace("Exibindo 1 - 9 de", "Exibindo 1 - 10 de"),
+    );
     let RespostaDaPesquisa::Lista(lista) = ler_resposta_html(&html).unwrap() else {
         panic!("esperada lista");
     };
@@ -174,7 +186,7 @@ fn tabela_vazia_com_barra_publica_a_faixa_inteira_ausente() {
     let html = resultado("1", 1, 10, "3.300");
     let inicio = html.find("class=\"pesquisaResultado\">").unwrap() + 26;
     let fim = html[inicio..].find("</table>").unwrap() + inicio;
-    let vazia = format!("{} {}", &html[..inicio], &html[fim..]);
+    let vazia = HtmlServido::de_teste(&format!("{} {}", &html[..inicio], &html[fim..]));
     let RespostaDaPesquisa::Lista(lista) = ler_resposta_html(&vazia).unwrap() else {
         panic!("esperada lista");
     };
@@ -185,11 +197,13 @@ fn tabela_vazia_com_barra_publica_a_faixa_inteira_ausente() {
 
 #[test]
 fn mais_linhas_que_a_faixa_sao_recusadas() {
-    let html = format!(
-        "<html>{}</html>",
-        formulario("1", true, &conteudo_da_lista(1, 11, "1.234", 10))
-    )
-    .replace("Exibindo 1 - 11 de", "Exibindo 1 - 10 de");
+    let html = HtmlServido::de_teste(
+        &format!(
+            "<html>{}</html>",
+            formulario("1", true, &conteudo_da_lista(1, 11, "1.234", 10))
+        )
+        .replace("Exibindo 1 - 11 de", "Exibindo 1 - 10 de"),
+    );
     assert_eq!(
         ler_resposta_html(&html),
         Err(ErroRespostaDaPesquisa::LinhasDaTabelaDiferentesDaFaixaDaBarra)
@@ -199,7 +213,7 @@ fn mais_linhas_que_a_faixa_sao_recusadas() {
 #[test]
 fn lista_completa_nao_tem_linhas_ausentes() {
     let RespostaDaPesquisa::Lista(lista) =
-        ler_resposta_html(&resultado("00001", 1, 10, "1.234")).unwrap()
+        ler_resposta_html(&HtmlServido::de_teste(&resultado("00001", 1, 10, "1.234"))).unwrap()
     else {
         panic!("esperada lista");
     };
@@ -208,8 +222,10 @@ fn lista_completa_nao_tem_linhas_ausentes() {
 
 #[test]
 fn linha_invalida_da_tabela_e_erro_de_resultado() {
-    let html = resultado("1", 1, 3, "3")
-        .replace("acao=procedimento_trabalhar", "acao=documento_imprimir_web");
+    let html = HtmlServido::de_teste(
+        &resultado("1", 1, 3, "3")
+            .replace("acao=procedimento_trabalhar", "acao=documento_imprimir_web"),
+    );
     assert_eq!(
         ler_resposta_html(&html),
         Err(ErroRespostaDaPesquisa::Resultado(
@@ -224,7 +240,9 @@ fn linha_invalida_da_tabela_e_erro_de_resultado() {
 fn inicio_e_fim_acima_de_999_tambem_exigem_o_separador() {
     // Só o total acima de 999 foi observado (quatro dígitos); posições sem o
     // separador falham fechado em vez de virar outra leitura.
-    let html = resultado("1", 1231, 1234, "1.234").replace("1.231 - 1.234", "1231 - 1234");
+    let html = HtmlServido::de_teste(
+        &resultado("1", 1231, 1234, "1.234").replace("1.231 - 1.234", "1231 - 1234"),
+    );
     assert_eq!(
         ler_resposta_html(&html),
         Err(ErroRespostaDaPesquisa::NumeroDaBarraDeContagemForaDoFormato)
@@ -243,7 +261,7 @@ fn aviso_de_sem_resultado_com_barra_de_contagem_e_ambiguo() {
         "fixture sem o marcador esperado"
     );
     assert_eq!(
-        ler_resposta_html(&html),
+        ler_resposta_html(&HtmlServido::de_teste(&html)),
         Err(ErroRespostaDaPesquisa::AvisoDeSemResultadoEBarraDeContagemNaMesmaResposta)
     );
 }
@@ -251,10 +269,8 @@ fn aviso_de_sem_resultado_com_barra_de_contagem_e_ambiguo() {
 #[test]
 fn lista_numa_pagina_le_n_resultados_como_faixa_inteira() {
     for n in [2, 9] {
-        let RespostaDaPesquisa::Lista(lista) = ler_resposta_html(&resultado_numa_pagina(
-            "00001",
-            n,
-            &format!("{n} resultados"),
+        let RespostaDaPesquisa::Lista(lista) = ler_resposta_html(&HtmlServido::de_teste(
+            &resultado_numa_pagina("00001", n, &format!("{n} resultados")),
         ))
         .unwrap() else {
             panic!("esperada lista");
@@ -275,22 +291,36 @@ fn barra_numa_pagina_fora_da_forma_observada_e_recusada() {
         "2 Resultados",
     ] {
         assert_eq!(
-            ler_resposta_html(&resultado_numa_pagina("00001", 2, barra)),
+            ler_resposta_html(&HtmlServido::de_teste(&resultado_numa_pagina(
+                "00001", 2, barra
+            ))),
             Err(ErroRespostaDaPesquisa::TextoDaBarraDeContagemForaDoFormato),
             "{barra:?}"
         );
     }
     assert_eq!(
-        ler_resposta_html(&resultado_numa_pagina("00001", 2, "02 resultados")),
+        ler_resposta_html(&HtmlServido::de_teste(&resultado_numa_pagina(
+            "00001",
+            2,
+            "02 resultados"
+        ))),
         Err(ErroRespostaDaPesquisa::NumeroDaBarraDeContagemForaDoFormato)
     );
     assert_eq!(
-        ler_resposta_html(&resultado_numa_pagina("00001", 2, "0 resultados")),
+        ler_resposta_html(&HtmlServido::de_teste(&resultado_numa_pagina(
+            "00001",
+            2,
+            "0 resultados"
+        ))),
         Err(ErroRespostaDaPesquisa::FaixaDaBarraDeContagemImpossivel)
     );
     // "N resultados" não escreve a faixa: a contagem tem de bater.
     assert_eq!(
-        ler_resposta_html(&resultado_numa_pagina("00001", 2, "3 resultados")),
+        ler_resposta_html(&HtmlServido::de_teste(&resultado_numa_pagina(
+            "00001",
+            2,
+            "3 resultados"
+        ))),
         Err(ErroRespostaDaPesquisa::LinhasDaTabelaDiferentesDaFaixaDaBarra)
     );
 }

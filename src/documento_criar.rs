@@ -27,8 +27,6 @@ pub(crate) enum ErroCriar {
     /// O tokenizador de atributos recusou a tag.
     Atributo(#[source] crate::html_atributos::ErroAtributoHtml),
     ListaForaDaForma,
-    /// O tokenizador HTML recusou a lista de tipos.
-    ListaNaoInterpretada(#[source] tl::ParseError),
     TipoAusente,
     TipoAmbiguo,
     NaoAplicado,
@@ -39,17 +37,16 @@ pub(crate) enum ErroCriar {
     NavegacaoNaoComprovadaPorScript(#[source] guarda_navegacao::ErroGuardaDeNavegacao),
     EnderecoDoTipoNaoReconhecido(EnderecoRecusado),
     CadastroForaDaForma,
-    /// O tokenizador HTML recusou a tela do cadastro.
-    CadastroNaoInterpretado(#[source] tl::ParseError),
     TipoDoCadastroDiferente,
     DescricaoNaoOferecida,
     NivelNaoOferecido,
     CampoObrigatorioNaoAtendido,
 }
 /// Apenas nomes publicados em table#tblSeries; nunca interpreta JS como código.
-pub(crate) fn tipos_oferecidos(html: &str) -> Result<Vec<String>, ErroCriar> {
-    let dom =
-        tl::parse(html, tl::ParserOptions::default()).map_err(ErroCriar::ListaNaoInterpretada)?;
+pub(crate) fn tipos_oferecidos(
+    html: &crate::tela_html::HtmlServido,
+) -> Result<Vec<String>, ErroCriar> {
+    let dom = crate::tela_html::interpretar(html);
     let tabelas = nos_com_id(&dom, "tblSeries").map_err(ErroCriar::Atributo)?;
     let [tabela] = tabelas.as_slice() else {
         return Err(ErroCriar::ListaForaDaForma);
@@ -230,7 +227,9 @@ fn link_de_tipo_interno(href: &str, onclick: Option<&str>) -> bool {
 /// Reconhece só o corpo literal observado da função, com duas instruções
 /// (reescrita do id e submit da lista). Texto de JS não é executado.
 /// O parâmetro chama `id` (4.1) ou `idSerie` (SEI 5: PEN, UFRJ e GO).
-fn script_prova_escolha(html: &str) -> Result<(), guarda_navegacao::ErroGuardaDeNavegacao> {
+fn script_prova_escolha(
+    html: &crate::tela_html::HtmlServido,
+) -> Result<(), guarda_navegacao::ErroGuardaDeNavegacao> {
     let corpo = |parametro: &str| {
         format!(
             "functionescolher({parametro}){{document.getElementById('hdnIdSerie').value={parametro};document.getElementById('frmDocumentoEscolherTipo').submit();}}"
@@ -249,9 +248,8 @@ fn script_prova_escolha(html: &str) -> Result<(), guarda_navegacao::ErroGuardaDe
 /// A lista inicial pode mostrar apenas tipos recentes. O frontend 4.0/4.1
 /// declara o botão "Exibir todos" por exibirSeries('T'), que altera apenas
 /// o filtro da sessão. Nunca executar JS ou inferir a função pelo botão.
-pub(crate) fn filtro_de_todos(html: &str) -> Result<bool, ErroCriar> {
-    let dom =
-        tl::parse(html, tl::ParserOptions::default()).map_err(ErroCriar::ListaNaoInterpretada)?;
+pub(crate) fn filtro_de_todos(html: &crate::tela_html::HtmlServido) -> Result<bool, ErroCriar> {
+    let dom = crate::tela_html::interpretar(html);
     let faixas = guarda_script::faixas_inertes(&dom).ok_or(ErroCriar::ListaForaDaForma)?;
     let ocultas = guarda_script::faixas_ocultas(&dom).ok_or(ErroCriar::ListaForaDaForma)?;
     let botoes = nos_com_id(&dom, "ancExibirSeries")
@@ -315,12 +313,11 @@ pub(crate) fn filtro_de_todos(html: &str) -> Result<bool, ErroCriar> {
 /// O tipo externo (escolher(-1)) não é documento interno.
 pub(crate) fn escolha_do_tipo(
     instalacao: &Instalacao,
-    html: &str,
+    html: &crate::tela_html::HtmlServido,
     id_procedimento: &str,
     tipo: &str,
 ) -> Result<EscolhaDoDocumento, ErroCriar> {
-    let dom =
-        tl::parse(html, tl::ParserOptions::default()).map_err(ErroCriar::ListaNaoInterpretada)?;
+    let dom = crate::tela_html::interpretar(html);
     let tabelas = nos_com_id(&dom, "tblSeries").map_err(ErroCriar::Atributo)?;
     let [tabela] = tabelas.as_slice() else {
         return Err(ErroCriar::ListaForaDaForma);
@@ -406,6 +403,8 @@ pub(crate) fn cadastro_redirecionado(
 
 #[cfg(test)]
 mod tests;
+#[cfg(test)]
+mod tests_cadastro_obrigatorio;
 #[cfg(test)]
 mod tests_scripts_inertes;
 #[cfg(test)]

@@ -101,8 +101,6 @@ pub(crate) enum ErroMarcadores {
     MarcadoresAlemDoTotalDeclarado,
     CabecalhoDosMarcadoresNaoReconhecido,
     HtmlDosMarcadoresNaoInterpretado,
-    /// O parser de HTML recusou a tela de marcadores.
-    HtmlDosMarcadoresRecusadoPeloParser(#[source] tl::ParseError),
     /// O número da legenda dos marcadores não é um inteiro decimal.
     NumeroDaLegendaIlegivel(#[source] std::num::ParseIntError),
     LegendaDosMarcadoresForaDaFormaObservada,

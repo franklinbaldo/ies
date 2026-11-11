@@ -99,3 +99,35 @@ fn guarda_reconhece_as_formas_proibidas() {
     let fonte = "fn a() {}\n#[cfg(test)]\nmod tests { x.attributes() }";
     assert!(!codigo_de_producao(fonte).contains(".attributes()"));
 }
+
+/// O parser só é chamado em `src/tela_html.rs` (#751): trocá-lo (#676)
+/// mexe num arquivo. A falha dele não existe para quem lê a tela: o
+/// `HtmlServido` cabe no parser, e nenhum erro de "HTML não interpretado"
+/// volta a ser declarado.
+#[test]
+fn so_tela_html_chama_o_parser() {
+    let raiz = Path::new(env!("CARGO_MANIFEST_DIR"));
+    let mut arquivos = Vec::new();
+    arquivos_rs(&raiz.join("src"), &mut arquivos);
+    let violacoes: Vec<_> = arquivos
+        .iter()
+        .filter(|c| !eh_teste_ou_tokenizador(c) && !c.ends_with("src/tela_html.rs"))
+        .filter(|c| {
+            let fonte = fs::read_to_string(c).unwrap();
+            let codigo = codigo_de_producao(&fonte);
+            codigo.contains("tl::parse(") || codigo.contains("tl::ParseError")
+        })
+        .map(|c| c.strip_prefix(raiz).unwrap_or(c).display().to_string())
+        .collect();
+    assert!(violacoes.is_empty(), "{violacoes:#?}");
+    let erro_do_parser = arquivos
+        .iter()
+        .filter(|c| {
+            fs::read_to_string(c)
+                .unwrap()
+                .contains("ErroHtmlNaoInterpretado")
+        })
+        .map(|c| c.strip_prefix(raiz).unwrap_or(c).display().to_string())
+        .collect::<Vec<_>>();
+    assert!(erro_do_parser.is_empty(), "{erro_do_parser:#?}");
+}

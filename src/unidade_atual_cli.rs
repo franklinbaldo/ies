@@ -4,7 +4,7 @@ use crate::indice_local::{self, IndiceLocal};
 use crate::{configuracao, relogin_cli, transporte};
 use serde_json::json;
 
-pub(crate) fn unidade_validada(html: &str) -> Result<String, ErroCaixa> {
+pub(crate) fn unidade_validada(html: &crate::tela_html::HtmlServido) -> Result<String, ErroCaixa> {
     // Visão resumida ou detalhada: a sessão fica na última visão usada.
     crate::controle_reconhecido::unidade_do_controle(html)
 }
@@ -70,7 +70,7 @@ mod tests {
         let html =
             "<form id='frmLogin'><input name='txtUsuario'></form><a id='lnkInfraUnidade'>PPI</a>";
         assert_eq!(
-            unidade_validada(html),
+            unidade_validada(&crate::tela_html::HtmlServido::de_teste(html)),
             Err(ErroCaixa::TabelaAusente {
                 categoria: Categoria::Recebidos
             })
@@ -79,10 +79,12 @@ mod tests {
 
     #[test]
     fn uma_tabela_ausente_impede_afirmar_unidade_ativa() {
-        let html = "<a id='lnkInfraUnidade'>PPI</a>\
-                    <table id='tblProcessosRecebidos'><caption>0 registros:</caption></table>";
+        let html = crate::tela_html::HtmlServido::de_teste(
+            "<a id='lnkInfraUnidade'>PPI</a>\
+                    <table id='tblProcessosRecebidos'><caption>0 registros:</caption></table>",
+        );
         assert_eq!(
-            unidade_validada(html),
+            unidade_validada(&html),
             Err(ErroCaixa::TabelaAusente {
                 categoria: Categoria::Gerados
             })
@@ -91,10 +93,12 @@ mod tests {
 
     #[test]
     fn controle_com_duas_tabelas_reconhecidas_retorna_unidade_sem_paginar() {
-        let html = "<a id='lnkInfraUnidade'>PPI</a>\
+        let html = crate::tela_html::HtmlServido::de_teste(
+            "<a id='lnkInfraUnidade'>PPI</a>\
                     <table id='tblProcessosRecebidos'><caption>0 registros:</caption></table>\
-                    <table id='tblProcessosGerados'><caption>0 registros:</caption></table>";
-        assert_eq!(unidade_validada(html), Ok("PPI".to_owned()));
+                    <table id='tblProcessosGerados'><caption>0 registros:</caption></table>",
+        );
+        assert_eq!(unidade_validada(&html), Ok("PPI".to_owned()));
     }
 }
 

@@ -4,10 +4,8 @@
 use crate::html_atributos::atributos;
 
 /// Shim do contrato. A implementação reconhece formulário SIP ou módulo próprio.
-pub(crate) fn e_tela_login(html: &str) -> bool {
-    let Ok(dom) = tl::parse(html, tl::ParserOptions::default()) else {
-        return false;
-    };
+pub(crate) fn e_tela_login(html: &crate::tela_html::HtmlServido) -> bool {
+    let dom = crate::tela_html::interpretar(html);
     let parser = dom.parser();
     let Some(forms) = dom.query_selector("form") else {
         return false;
@@ -67,8 +65,10 @@ mod tests {
 
     #[test]
     fn sip_com_usuario_e_form_identificado_eh_login() {
-        let html = "<form id='frmLogin'><input name='txtUsuario'></form>";
-        assert!(e_tela_login(html));
+        let html = crate::tela_html::HtmlServido::de_teste(
+            "<form id='frmLogin'><input name='txtUsuario'></form>",
+        );
+        assert!(e_tela_login(&html));
     }
 
     #[test]
@@ -78,28 +78,39 @@ mod tests {
             "<form novalidate name='frmLogin'><input autofocus id='txtUsuario'></form>",
             "<form novalidate action='login.php'><input required name='txtUsuario'></form>",
         ] {
-            assert!(e_tela_login(html), "{html}");
+            assert!(
+                e_tela_login(&crate::tela_html::HtmlServido::de_teste(html)),
+                "{html}"
+            );
         }
     }
 
     #[test]
     fn formulario_de_modulo_proprio_com_usuario_aninhado_eh_login() {
-        let html = "<form name='frmLogin'><div><input name='txtUsuario'></div></form>";
-        assert!(e_tela_login(html));
+        let html = crate::tela_html::HtmlServido::de_teste(
+            "<form name='frmLogin'><div><input name='txtUsuario'></div></form>",
+        );
+        assert!(e_tela_login(&html));
     }
 
     #[test]
     fn action_de_login_com_usuario_eh_login_sem_id() {
-        let html = "<form action='/sip/login.php'><input id='txtUsuario'></form>";
-        assert!(e_tela_login(html));
+        let html = crate::tela_html::HtmlServido::de_teste(
+            "<form action='/sip/login.php'><input id='txtUsuario'></form>",
+        );
+        assert!(e_tela_login(&html));
     }
 
     #[test]
     fn formulario_de_assinatura_ou_usuario_fora_do_form_nao_eh_login() {
         let assinatura = "<form id='frmAssinar'><input name='pwdSenha'></form>";
         let separado = "<input name='txtUsuario'><form id='frmLogin'></form>";
-        assert!(!e_tela_login(assinatura));
-        assert!(!e_tela_login(separado));
-        assert!(!e_tela_login(""));
+        assert!(!e_tela_login(&crate::tela_html::HtmlServido::de_teste(
+            assinatura
+        )));
+        assert!(!e_tela_login(&crate::tela_html::HtmlServido::de_teste(
+            separado
+        )));
+        assert!(!e_tela_login(&crate::tela_html::HtmlServido::de_teste("")));
     }
 }

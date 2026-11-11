@@ -25,8 +25,6 @@ pub(crate) enum FalhaDaLupa {
     LinkForaDaInstalacao,
     CharsetInesperado,
     FormularioInesperado,
-    /// O parser de HTML recusou a página recebida.
-    HtmlNaoInterpretado(#[source] tl::ParseError),
     /// O formulário da lupa não foi localizado na página.
     FormularioAusente(#[source] crate::formulario_web::ErroSubmissaoFormulario),
     /// A submissão do formulário da lupa não pôde ser derivada.
@@ -80,7 +78,7 @@ fn obter<T: TransporteLupa>(
     cookie: &str,
     origem: &str,
     requisicoes: &mut usize,
-) -> Result<(String, String), FalhaDaLupa> {
+) -> Result<(crate::tela_html::HtmlServido, String), FalhaDaLupa> {
     validar_url_de_leitura(url, origem)?;
     *requisicoes += 1;
     let resposta = t.get(url, cookie).map_err(FalhaDaLupa::Transporte)?;
@@ -199,9 +197,11 @@ fn literais_do_script(script: &str) -> Vec<String> {
 
 /// URL publicada em controle da tela; na lupa GO, também em literal
 /// estático de script da tela de cadastro, sem executar JavaScript.
-pub(super) fn candidatos(html: &str, acao: AcaoDoSei) -> Result<Vec<String>, FalhaDaLupa> {
-    let dom = tl::parse(html, tl::ParserOptions::default())
-        .map_err(|e| FalhaDaLupa::Tela(ErroLupa::HtmlNaoInterpretado(e)))?;
+pub(super) fn candidatos(
+    html: &crate::tela_html::HtmlServido,
+    acao: AcaoDoSei,
+) -> Result<Vec<String>, FalhaDaLupa> {
+    let dom = crate::tela_html::interpretar(html);
     let parser = dom.parser();
     let mut urls = Vec::new();
     for seletor in ["a", "button", "input"] {
@@ -264,7 +264,7 @@ fn destino_de_candidatos(
 }
 
 pub(super) fn destino(
-    html: &str,
+    html: &crate::tela_html::HtmlServido,
     url_da_tela: &str,
     origem: &str,
     acao: AcaoDoSei,
@@ -272,9 +272,12 @@ pub(super) fn destino(
     destino_de_candidatos(candidatos(html, acao)?, url_da_tela, origem, acao)
 }
 
-fn botao_novo(html: &str, url: &str, origem: &str) -> Result<String, FalhaDaLupa> {
-    let dom =
-        tl::parse(html, tl::ParserOptions::default()).map_err(FalhaDaLupa::HtmlNaoInterpretado)?;
+fn botao_novo(
+    html: &crate::tela_html::HtmlServido,
+    url: &str,
+    origem: &str,
+) -> Result<String, FalhaDaLupa> {
+    let dom = crate::tela_html::interpretar(html);
     let parser = dom.parser();
     let achados =
         crate::html_atributos::nos_com_id(&dom, "btnNovo").map_err(FalhaDaLupa::Atributo)?;

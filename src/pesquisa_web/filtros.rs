@@ -169,8 +169,11 @@ mod tests {
     }
     #[test]
     fn tipo_exato_e_recusa_de_ausencia() {
-        let html = "<form><select name='selTipoProcedimentoPesquisa'><option value='null'>-</option><option value='7'>Administrativo</option><option value='8'>Judicial</option></select><input name='txtDataInicio' type='text'></form>";
-        let dom = tl::parse(html, tl::ParserOptions::default()).unwrap();
+        let html = crate::tela_html::HtmlServido::de_teste(
+            "<form><select name='selTipoProcedimentoPesquisa'><option value='null'>-</option><option value='7'>Administrativo</option><option value='8'>Judicial</option></select><input name='txtDataInicio' type='text'></form>",
+        );
+        let servido = html;
+        let dom = crate::tela_html::interpretar(&servido);
         let form = dom.query_selector("form").unwrap().next().unwrap();
         let form = form.get(dom.parser()).unwrap().as_tag().unwrap();
         let filtros = FiltrosDaPesquisa {

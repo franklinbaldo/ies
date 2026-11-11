@@ -15,7 +15,7 @@ use std::io::Read;
 /// Tela do GET com o que o POST seguinte precisa: URL exata, tipo e instalação.
 pub(crate) struct TelaDoControle {
     pub(crate) url: String,
-    pub(crate) html: String,
+    pub(crate) html: crate::tela_html::HtmlServido,
     pub(crate) mime: String,
     pub(crate) instalacao: Instalacao,
 }

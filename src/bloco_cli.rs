@@ -32,8 +32,6 @@ pub(crate) enum FalhaLeitura {
     HtmlDeBlocosInvalido,
     IdentidadeDoBlocoAmbigua,
     ListaParcialNaoExcluiColisao,
-    /// O parser HTML recusou a lista de blocos.
-    HtmlDeBlocosRecusadoPeloParser(#[source] tl::ParseError),
 }
 /// Lista ou detalhe de bloco, já tipados.
 pub(crate) enum Leitura {

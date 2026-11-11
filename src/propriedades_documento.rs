@@ -55,10 +55,6 @@ pub(crate) enum ErroPropriedadesDocumento {
     LinkAnexoCadastroInvalido(#[source] crate::arvore_processo::ErroConteudoNaArvore),
     AnexoDoCadastroDivergente,
     BarraCadastroDocumentoIlegivel(#[source] crate::arvore_processo::ErroBarraDoDocumento),
-    /// O parser HTML recusou a barra do documento.
-    BarraDoCadastroRecusadaPeloParser(#[source] tl::ParseError),
-    /// O parser HTML recusou a página do cadastro.
-    HtmlDoCadastroNaoInterpretado(#[source] tl::ParseError),
     CadastroDocumentoIlegivel,
     CampoCadastroDocumentoAusente,
     CampoCadastroDocumentoRepetido,
@@ -138,8 +134,7 @@ pub(crate) fn ler_link(
     else {
         return Ok(None);
     };
-    let dom = tl::parse(&barra, tl::ParserOptions::default())
-        .map_err(ErroPropriedadesDocumento::BarraDoCadastroRecusadaPeloParser)?;
+    let dom = crate::tela_html::interpretar(&barra);
     let mut encontrado = None;
     for no in dom.query_selector("a").into_iter().flatten() {
         let Some(tag) = no.get(dom.parser()).and_then(tl::Node::as_tag) else {
@@ -178,12 +173,11 @@ pub(crate) fn ler_link(
 }
 /// Lê o cadastro pelo formulário servido, nunca o submete.
 pub(crate) fn ler_formulario(
-    html: &str,
+    html: &crate::tela_html::HtmlServido,
     documento: &str,
     processo: &str,
 ) -> Result<PropriedadesLidas, ErroPropriedadesDocumento> {
-    let dom = tl::parse(html, tl::ParserOptions::default())
-        .map_err(ErroPropriedadesDocumento::HtmlDoCadastroNaoInterpretado)?;
+    let dom = crate::tela_html::interpretar(html);
     let parser = dom.parser();
     let nos =
         nos_com_id(&dom, "frmDocumentoCadastro").map_err(ErroPropriedadesDocumento::Atributo)?;
@@ -344,7 +338,8 @@ mod tests {
         // com lblSerieTitulo vazio e selSerie selecionando Anexo,
         // quando executo ies documento DOC --com-propriedades --json,
         // entao o tipo publicado e Anexo, nao tipo_cadastro_documento_vazio.
-        let html = r#"<form id="frmDocumentoCadastro">
+        let html = crate::tela_html::HtmlServido::de_teste(
+            r#"<form id="frmDocumentoCadastro">
             <input id="hdnIdDocumento" value="21">
             <input id="hdnIdProcedimento" value="10">
             <label id="lblSerieTitulo"></label>
@@ -357,8 +352,9 @@ mod tests {
             <input id="txtNomeArvore" value="Anexo externo">
             <textarea id="txaObservacoes"></textarea>
             <input name="rdoNivelAcesso" value="0" checked>
-        </form>"#;
-        let lida = ler_formulario(html, "21", "10").unwrap();
+        </form>"#,
+        );
+        let lida = ler_formulario(&html, "21", "10").unwrap();
         assert_eq!(lida.tipo, "Anexo");
         assert_eq!(lida.descricao, "Backup de teste");
         assert_eq!(lida.nivel_de_acesso, Nivel::Publico);
@@ -367,20 +363,22 @@ mod tests {
     #[test]
     fn dado_formulario_observado_quando_lido_entao_preserva_campos() {
         // Caso Todos tests/paginas_reais/documento_alterar.html @323eb01.
-        let html = r#"<form id="frmDocumentoCadastro" method="post">
+        let html = crate::tela_html::HtmlServido::de_teste(
+            r#"<form id="frmDocumentoCadastro" method="post">
             <input id="hdnIdDocumento" value="21"><input id="hdnIdProcedimento" value="10">
             <label id="lblSerieTitulo">Ofício</label>
             <input id="txtDescricao" value="Revisão">
             <input id="txtNomeArvore" value="Ofício 0000101">
             <textarea id="txaObservacoes">texto livre</textarea>
             <input name="rdoNivelAcesso" value="0" checked>
-            <input name="rdoNivelAcesso" value="1"></form>"#;
-        let lida = ler_formulario(html, "21", "10").unwrap();
+            <input name="rdoNivelAcesso" value="1"></form>"#,
+        );
+        let lida = ler_formulario(&html, "21", "10").unwrap();
         assert_eq!(
             (lida.tipo.as_str(), lida.descricao.as_str()),
             ("Ofício", "Revisão")
         );
         assert_eq!(lida.nivel_de_acesso, Nivel::Publico);
-        assert!(ler_formulario(html, "21", "11").is_err());
+        assert!(ler_formulario(&html, "21", "11").is_err());
     }
 }

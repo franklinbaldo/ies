@@ -35,7 +35,7 @@ use crate::visao_do_controle::EnvioDoControle as _;
 /// A tela servida e conferida: HTML, URL, charset e o que ela publica.
 struct TelaLida {
     url: String,
-    html: String,
+    html: crate::tela_html::HtmlServido,
     codificacao: CodificacaoDaTela,
     conferida: TelaDeEnvio,
 }
@@ -43,7 +43,7 @@ struct TelaLida {
 /// Mesmo formulário usado para observar e, quando autorizado, limpar.
 struct AnotacaoLida {
     presente: bool,
-    html: String,
+    html: crate::tela_html::HtmlServido,
     codificacao: CodificacaoDaTela,
 }
 

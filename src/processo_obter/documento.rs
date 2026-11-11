@@ -147,7 +147,7 @@ pub(crate) struct DocumentoNaArvoreAberto {
     pub(crate) processo: ProcessoNaArvore,
     pub(crate) unidade: Option<String>,
     pub(crate) resolvido_por: ResolvidoPor,
-    pub(crate) html: String,
+    pub(crate) html: crate::tela_html::HtmlServido,
     pub(crate) requisicoes: u8,
 }
 
@@ -349,7 +349,7 @@ pub(super) fn localizar<'a>(
 
 /// O nó já conferido na árvore lida e o que a abertura soube.
 pub(super) struct NoLido<'a> {
-    pub(super) html: &'a str,
+    pub(super) html: &'a crate::tela_html::HtmlServido,
     pub(super) no: &'a DocumentoNaArvore,
     pub(super) processo: &'a ProcessoNaArvore,
     pub(super) unidade: Option<String>,

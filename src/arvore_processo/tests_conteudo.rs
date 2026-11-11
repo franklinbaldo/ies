@@ -6,6 +6,7 @@
 use super::tests::{NUP, arvore, no_documento, no_processo};
 use super::tests_tela::{instalacao, tela_do_processo};
 use super::*;
+use crate::tela_html::HtmlServido;
 
 pub(crate) const HASH_CONTEUDO: &str =
     "ffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffff";
@@ -171,7 +172,7 @@ fn recusas_do_link_do_conteudo() {
 #[test]
 fn tela_do_documento_devolve_o_processo_da_arvore() {
     let src = src_da_arvore_do_documento("10", "22");
-    let html = tela_do_processo("U", std::slice::from_ref(&src));
+    let html = HtmlServido::de_teste(&tela_do_processo("U", std::slice::from_ref(&src)));
     let (tela, processo) = ler_tela_do_documento(&instalacao(), &html, "22", None).unwrap();
     assert_eq!(processo, "10");
     assert_eq!(tela.unidade, "U");
@@ -184,7 +185,7 @@ fn tela_do_documento_devolve_o_processo_da_arvore() {
 #[test]
 fn tela_que_nao_seleciona_o_documento_pedido_e_recusada() {
     let ler = |src: String| {
-        let html = tela_do_processo("U", &[src]);
+        let html = HtmlServido::de_teste(&tela_do_processo("U", &[src]));
         ler_tela_do_documento(&instalacao(), &html, "22", None).map(|(_, p)| p)
     };
     assert_eq!(

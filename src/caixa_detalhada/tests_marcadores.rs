@@ -4,6 +4,7 @@
 //! hashes inventados.
 use super::tests_colunas::{ler, rotulo, tabela};
 use super::*;
+use crate::tela_html::HtmlServido;
 use serde_json::json;
 
 const HASH: &str = "5555555555555555555555555555555555555555555555555555555555555555";
@@ -138,7 +139,7 @@ fn colheita_da_pagina_d_com_marcadores_continua_dando_o_link() {
         ancora("7", "31", "amarelo", "", "A"),
         ancora("7", "32", "azul", "", "B")
     );
-    let html = tabela(&[rotulo("Marcadores")], &[&celula(&conteudo)]);
+    let html = HtmlServido::de_teste(&tabela(&[rotulo("Marcadores")], &[&celula(&conteudo)]));
     let linhas = linhas_com_link(&html).unwrap();
     assert_eq!(linhas.len(), 1);
     assert_eq!(linhas[0].id, "7");

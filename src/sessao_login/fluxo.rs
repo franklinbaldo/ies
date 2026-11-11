@@ -46,7 +46,7 @@ struct SessaoObtida {
 
 /// HTML e `Content-Type` do Controle já lido, para a colheita do índice.
 struct ControleObtido {
-    html: String,
+    html: crate::tela_html::HtmlServido,
     mime: String,
 }
 
@@ -73,7 +73,7 @@ fn como_web(resposta: RespostaHttp) -> RespostaWeb<Cursor<Vec<u8>>> {
 
 /// Unidade do Controle, pela mesma leitura da caixa (duas tabelas e
 /// `lnkInfraUnidade` único).
-fn unidade_do_controle(html: &str) -> Result<String, ErroCaixa> {
+fn unidade_do_controle(html: &crate::tela_html::HtmlServido) -> Result<String, ErroCaixa> {
     // A conta pode abrir na visão detalhada herdada do último uso (SEI 5.x).
     crate::controle_reconhecido::unidade_do_controle(html)
 }
@@ -179,7 +179,7 @@ fn proximo(atual: &str, resposta: &RespostaHttp, host: &str) -> Result<String, E
 
 /// HTML e `Content-Type` de uma resposta 200; outro status vira a recusa
 /// do transporte (com status e mensagem do SEI).
-fn html_200(resposta: RespostaHttp) -> Result<(String, String), ErroLogin> {
+fn html_200(resposta: RespostaHttp) -> Result<(crate::tela_html::HtmlServido, String), ErroLogin> {
     let web = como_web(resposta);
     let mime = web.mime.clone();
     if web.status_code != 200 {
@@ -191,7 +191,7 @@ fn html_200(resposta: RespostaHttp) -> Result<(String, String), ErroLogin> {
         ));
     }
     let html =
-        crate::transporte::corpo::decode_http_body(web.corpo.get_ref(), &mime).map_err(|erro| {
+        crate::tela_html::HtmlServido::do_corpo(web.corpo.get_ref(), &mime).map_err(|erro| {
             ErroLogin::Transporte(FalhaTransporte::CorpoNaoDecodificavelNoCharsetDeclarado(
                 erro,
             ))
@@ -203,7 +203,7 @@ fn html_200(resposta: RespostaHttp) -> Result<(String, String), ErroLogin> {
 /// `None` se a URL não é a do Controle.
 fn como_controle(
     url: &str,
-    (html, mime): (&str, &str),
+    (html, mime): (&crate::tela_html::HtmlServido, &str),
     origem: &str,
     pote: &PoteDeCookies,
 ) -> Option<Result<SessaoObtida, ErroLogin>> {
@@ -234,7 +234,7 @@ fn tela_inicial<T: TransporteDeLogin>(
     transporte: &mut T,
     pote: &mut PoteDeCookies,
     host: &str,
-) -> Result<(String, String, String), ErroLogin> {
+) -> Result<(String, crate::tela_html::HtmlServido, String), ErroLogin> {
     let (url, resposta) = navegar(transporte, pote, host, format!("https://{host}/"))?;
     let (html, mime) = html_200(resposta)?;
     if tela::captcha_exigido(&html) {

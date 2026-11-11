@@ -38,8 +38,6 @@ pub(crate) enum ErroCancelar {
     CharsetNaoSuportado,
     Formulario(#[source] ErroSubmissaoFormulario),
     FormularioDeOutroDocumento,
-    /// O HTML do formulário de cancelamento não pôde ser interpretado.
-    HtmlDoFormularioNaoInterpretado(#[source] tl::ParseError),
     /// O endereço do formulário não aponta para o processo aberto.
     EnderecoDoProcessoRecusado(#[source] crate::arvore_processo::endereco::EnderecoRecusado),
     /// O endereço do formulário não aponta para o documento pedido.

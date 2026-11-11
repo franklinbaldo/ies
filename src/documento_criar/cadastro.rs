@@ -27,13 +27,12 @@ fn controle_oferecido(
 
 /// Verifica a identidade do cadastro antes de qualquer POST de criação.
 pub(crate) fn conferir_cadastro(
-    html: &str,
+    html: &crate::tela_html::HtmlServido,
     tipo: &str,
     descricao: Option<&str>,
     nivel: Option<&str>,
 ) -> Result<(), ErroCriar> {
-    let dom = tl::parse(html, tl::ParserOptions::default())
-        .map_err(ErroCriar::CadastroNaoInterpretado)?;
+    let dom = crate::tela_html::interpretar(html);
     let formularios = nos_com_id(&dom, "frmDocumentoCadastro").map_err(ErroCriar::Atributo)?;
     let [formulario] = formularios.as_slice() else {
         return Err(ErroCriar::CadastroForaDaForma);

@@ -18,7 +18,6 @@ pub(crate) enum ErroTela {
     Atributo(#[source] crate::html_atributos::ErroAtributoHtml),
     /// O tokenizador HTML recusou a tela.
     NaoInterpretada,
-    HtmlNaoInterpretado(#[source] tl::ParseError),
     FormularioAusente(#[source] ErroSubmissaoFormulario),
     OutroProcesso,
     /// A consulta do `action` não se lê em pares `chave=valor`.
@@ -53,9 +52,11 @@ pub(crate) const OPERACAO: OperacaoDeFormulario = OperacaoDeFormulario {
 };
 
 /// Confere os controles antes de derivar um único POST.
-pub(crate) fn conferir_formulario(html: &str, id: &str) -> Result<(), ErroTela> {
-    let dom =
-        tl::parse(html, tl::ParserOptions::default()).map_err(ErroTela::HtmlNaoInterpretado)?;
+pub(crate) fn conferir_formulario(
+    html: &crate::tela_html::HtmlServido,
+    id: &str,
+) -> Result<(), ErroTela> {
+    let dom = crate::tela_html::interpretar(html);
     let form =
         localizar_formulario(&dom, OPERACAO.formulario).map_err(ErroTela::FormularioAusente)?;
     let atributo = |tag: &tl::HTMLTag<'_>, nome: &'static str| {

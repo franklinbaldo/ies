@@ -7,11 +7,14 @@ use super::*;
 use crate::acao_do_sei::AcaoDoSei;
 use crate::arvore_processo::tests::NUP;
 use crate::colheita_do_controle::Colheita;
+use crate::tela_html::HtmlServido;
 
 /// O que um comando anterior (login, listagem) deixou ao ler o Controle.
 fn colhido(amb: &Ambiente, linhas: &[(&str, &str)]) {
-    Colheita::com_geracao(&amb.indice, &instalacao(), &geracao(), &url_controle())
-        .colher(&controle(linhas), Some("text/html; charset=iso-8859-1"));
+    Colheita::com_geracao(&amb.indice, &instalacao(), &geracao(), &url_controle()).colher(
+        &HtmlServido::de_teste(&controle(linhas)),
+        Some("text/html; charset=iso-8859-1"),
+    );
 }
 
 fn trabalho_guardado(amb: &Ambiente, id: &str) -> Option<String> {

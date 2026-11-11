@@ -30,11 +30,13 @@ pub(super) const PAGINAR_BLOCOS: OperacaoDeFormulario = OperacaoDeFormulario {
 };
 
 /// Prova que o formulário serviu exatamente a opção de destino. Sem executar JS.
-pub(super) fn conferir_indice_da_pagina(html: &str, indice: &str) -> Result<(), FalhaLeitura> {
+pub(super) fn conferir_indice_da_pagina(
+    html: &crate::tela_html::HtmlServido,
+    indice: &str,
+) -> Result<(), FalhaLeitura> {
     use crate::html_atributos::valor_do_atributo;
     let ilegivel = || FalhaLeitura::HtmlDeBlocosInvalido;
-    let dom = tl::parse(html, tl::ParserOptions::default())
-        .map_err(FalhaLeitura::HtmlDeBlocosRecusadoPeloParser)?;
+    let dom = crate::tela_html::interpretar(html);
     let form = crate::formulario_web::localizar_formulario(&dom, "frmBlocoLista")?;
     let mut achados = 0;
     for no in form
@@ -79,7 +81,7 @@ pub(super) fn conferir_indice_da_pagina(html: &str, indice: &str) -> Result<(), 
 /// Abre apenas a segunda página a partir dos controles publicados na primeira.
 pub(super) fn ler_pagina_dois<V: EnvioDoControle>(
     lista: &ListaComLinks,
-    html: &str,
+    html: &crate::tela_html::HtmlServido,
     url_lista: &str,
     codificacao: Option<CodificacaoDaTela>,
     instalacao: &Instalacao,

@@ -68,14 +68,12 @@ pub(crate) enum ErroLogin {
     Transporte(#[from] FalhaTransporte),
     BotaoDeEnvioDoLoginNaoReconhecido,
     LinkDoControleDeProcessosNaoReconhecido,
-    LinkDoControleNaoInterpretado(#[source] tl::ParseError),
     OrgaoComMaisDeUmaOpcaoNaTelaDeLogin,
     OrgaoNaoEncontradoNaTelaDeLogin,
     SelecaoDeOrgaoAusenteNaTelaDeLogin,
     SelecaoDeOrgaoRepetidaNaTelaDeLogin,
     TelaAposOLoginNaoReconhecida,
     TelaDeLoginNaoReconhecida,
-    TelaDeLoginNaoInterpretada(#[source] tl::ParseError),
 }
 
 impl ErroLogin {
@@ -121,15 +119,13 @@ impl ErroLogin {
             | Self::UnidadeExibidaDiferenteDaSolicitada
             | Self::BotaoDeEnvioDoLoginNaoReconhecido
             | Self::LinkDoControleDeProcessosNaoReconhecido
-            | Self::LinkDoControleNaoInterpretado(_)
             | Self::OrgaoComMaisDeUmaOpcaoNaTelaDeLogin
             | Self::OrgaoNaoEncontradoNaTelaDeLogin
             | Self::SelecaoDeOrgaoAusenteNaTelaDeLogin
             | Self::SelecaoDeOrgaoRepetidaNaTelaDeLogin
             | Self::TelaAposOLoginNaoReconhecida
             | Self::Atributo(_)
-            | Self::TelaDeLoginNaoReconhecida
-            | Self::TelaDeLoginNaoInterpretada(_) => false,
+            | Self::TelaDeLoginNaoReconhecida => false,
         }
     }
 }

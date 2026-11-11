@@ -1,4 +1,5 @@
 use super::*;
+use crate::tela_html::HtmlServido;
 
 fn lista_41() -> String {
     // Caso: Todos tests/test_comentarios_010.py @323eb01 (UFRJ SEI 4.1).
@@ -32,7 +33,7 @@ fn lista_50() -> String {
 }
 
 fn lidos(html: &str) -> ComentariosLidos {
-    match ler_tela(html).expect("HTML sintético reconhecido") {
+    match ler_tela(&HtmlServido::de_teste(html)).expect("HTML sintético reconhecido") {
         TelaDosComentarios::Lista(lidos) => lidos,
         TelaDosComentarios::CadastroSemComentarios => panic!("lista esperada"),
     }
@@ -65,23 +66,28 @@ fn lista_de_5x_usa_coluna_texto_e_protocolo_sem_duplicar_linha() {
 #[test]
 fn cadastro_de_lista_vazia_nao_se_confunde_com_tela_desconhecida() {
     // Caso: Todos tests/test_comentarios_010.py @323eb01.
-    let html = r#"<form id="frmComentarioCadastro">
+    let html = HtmlServido::de_teste(
+        r#"<form id="frmComentarioCadastro">
       <textarea name="txaDescricao"></textarea>
       <input name="sbmCadastrarComentario" type="submit" value="Salvar">
-      </form>"#;
+      </form>"#,
+    );
     assert_eq!(
-        ler_tela(html),
+        ler_tela(&html),
         Ok(TelaDosComentarios::CadastroSemComentarios)
     );
     assert_eq!(
-        ler_tela("<form id='frmComentarioCadastro'></form>"),
+        ler_tela(&HtmlServido::de_teste(
+            "<form id='frmComentarioCadastro'></form>"
+        )),
         Err(ErroComentarios::TelaDeComentariosNaoReconhecida)
     );
 }
 
 #[test]
 fn tabela_ausente_nao_significa_lista_vazia() {
-    let html = lista_41().replace("<table id=\"tblComentarios\">", "<table>");
+    let html =
+        HtmlServido::de_teste(&lista_41().replace("<table id=\"tblComentarios\">", "<table>"));
     assert_eq!(
         ler_tela(&html),
         Err(ErroComentarios::TabelaDeComentariosAusente)
@@ -91,7 +97,7 @@ fn tabela_ausente_nao_significa_lista_vazia() {
 #[test]
 fn total_maior_que_uma_pagina_e_lista_incompleta() {
     // Caso: Todos tests/test_comentarios_010.py @323eb01.
-    let html = lista_41().replace("(1 registro)", "(2 registros)");
+    let html = HtmlServido::de_teste(&lista_41().replace("(1 registro)", "(2 registros)"));
     assert_eq!(ler_tela(&html), Err(ErroComentarios::ListaIncompleta));
 }
 
@@ -100,9 +106,11 @@ fn dois_comentarios_com_mesmo_id_sao_recusados() {
     let linha = r#"<tr><td><input type="checkbox" value="42"></td>
             <td>16/10/2026 10:00:00</td><td>ADC</td><td>u</td><td></td></tr>
             <tr class="trComentario"><td colspan="5">Outro</td></tr>"#;
-    let html = lista_41()
-        .replace("(1 registro)", "(2 registros)")
-        .replace("</tbody>", &format!("{linha}</tbody>"));
+    let html = HtmlServido::de_teste(
+        &lista_41()
+            .replace("(1 registro)", "(2 registros)")
+            .replace("</tbody>", &format!("{linha}</tbody>")),
+    );
     assert_eq!(
         ler_tela(&html),
         Err(ErroComentarios::IdDoComentarioRepetido)
@@ -111,7 +119,8 @@ fn dois_comentarios_com_mesmo_id_sao_recusados() {
 
 #[test]
 fn linha_de_4x_sem_texto_e_recusada() {
-    let html = lista_41().replace("class=\"trComentario\"", "class=\"outra\"");
+    let html =
+        HtmlServido::de_teste(&lista_41().replace("class=\"trComentario\"", "class=\"outra\""));
     assert_eq!(
         ler_tela(&html),
         Err(ErroComentarios::LinhaDoComentarioInvalida)
@@ -120,26 +129,28 @@ fn linha_de_4x_sem_texto_e_recusada() {
 
 #[test]
 fn visao_ausente_ou_repetida_e_recusada() {
-    let html = lista_41().replace("value=\"P\"", "value=\"X\"");
+    let html = HtmlServido::de_teste(&lista_41().replace("value=\"P\"", "value=\"X\""));
     assert_eq!(ler_tela(&html), Err(ErroComentarios::VisaoNaoPublicada));
-    let html = lista_41().replace(
+    let html = HtmlServido::de_teste(&lista_41().replace(
         "<input name=\"hdnVisualizacao\"",
         "<input name=\"hdnVisualizacao\" value=\"T\"><input name=\"hdnVisualizacao\"",
-    );
+    ));
     assert_eq!(ler_tela(&html), Err(ErroComentarios::VisaoNaoPublicada));
 }
 
 #[test]
 fn id_do_checkbox_deve_ser_decimal_e_inequivoco() {
     assert_eq!(
-        ler_tela(&lista_41().replace("value=\"42\"", "value=\"42?\"")),
+        ler_tela(&HtmlServido::de_teste(
+            &lista_41().replace("value=\"42\"", "value=\"42?\"")
+        )),
         Err(ErroComentarios::LinhaDoComentarioInvalida)
     );
     assert_eq!(
-        ler_tela(&lista_41().replace(
+        ler_tela(&HtmlServido::de_teste(&lista_41().replace(
             "<input type=\"checkbox\" value=\"42\">",
             "<input type=\"checkbox\" value=\"42\" value=\"43\">"
-        )),
+        ))),
         // A tag ilegível sobe como causa.
         Err(ErroComentarios::AtributoDosComentariosIlegivel(
             crate::html_atributos::ErroAtributoHtml::AtributoRepetidoNaTag { atributo: "value" }
@@ -207,24 +218,28 @@ fn barra_sem_comentarios_nao_inventa_endereco() {
 #[test]
 fn cadastro_com_envio_em_botao_e_reconhecido() {
     // Caso: SEI publica o envio como `<button name="sbmCadastrarComentario">` (32 gravações).
-    let html = r#"<form id="frmComentarioCadastro">
+    let html = HtmlServido::de_teste(
+        r#"<form id="frmComentarioCadastro">
       <textarea name="txaDescricao"></textarea>
       <button type="submit" accesskey="S" name="sbmCadastrarComentario" value="Salvar" class="infraButton">Salvar</button>
-      </form>"#;
+      </form>"#,
+    );
     assert_eq!(
-        ler_tela(html),
+        ler_tela(&html),
         Ok(TelaDosComentarios::CadastroSemComentarios)
     );
 }
 
 #[test]
 fn cadastro_com_botao_de_outro_nome_e_recusado() {
-    let html = r#"<form id="frmComentarioCadastro">
+    let html = HtmlServido::de_teste(
+        r#"<form id="frmComentarioCadastro">
       <textarea name="txaDescricao"></textarea>
       <button type="submit" name="outro">Salvar</button>
-      </form>"#;
+      </form>"#,
+    );
     assert_eq!(
-        ler_tela(html),
+        ler_tela(&html),
         Err(ErroComentarios::TelaDeComentariosNaoReconhecida)
     );
 }
@@ -262,7 +277,8 @@ fn separador_com_texto_ou_classe_parecida_e_recusado() {
     let classe_parecida =
         r#"<tr class="trSeparadorComentarioExtra"><td colspan="5">&nbsp;</td></tr>"#;
     for linha in [com_texto, classe_parecida] {
-        let html = lista_41().replace("</tbody>", &format!("{linha}</tbody>"));
+        let html =
+            HtmlServido::de_teste(&lista_41().replace("</tbody>", &format!("{linha}</tbody>")));
         assert_eq!(
             ler_tela(&html),
             Err(ErroComentarios::LinhaDoComentarioInvalida),

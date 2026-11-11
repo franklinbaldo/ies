@@ -3,12 +3,18 @@
 use super::tests_apoio::{tela_das_propriedades, tela_restrita};
 use super::*;
 use crate::html_atributos::com_booleano_antes_dos_atributos;
+use crate::tela_html::HtmlServido;
 
 const NUP: &str = "00001.000001/2026-01";
 const ID: &str = "10";
 
 fn ler(html: &str) -> Result<PropriedadesLidas, super::ErroPropriedades> {
-    ler_propriedades(html, NUP, ID, FonteDasPropriedades::Alterar)
+    ler_propriedades(
+        &HtmlServido::de_teste(html),
+        NUP,
+        ID,
+        FonteDasPropriedades::Alterar,
+    )
 }
 
 fn padrao() -> String {
@@ -51,7 +57,13 @@ fn booleano_antes_dos_atributos_nao_muda_a_leitura() {
 
 #[test]
 fn fonte_consultar_e_publicada() {
-    let lidas = ler_propriedades(&padrao(), NUP, ID, FonteDasPropriedades::Consultar).unwrap();
+    let lidas = ler_propriedades(
+        &HtmlServido::de_teste(&padrao()),
+        NUP,
+        ID,
+        FonteDasPropriedades::Consultar,
+    )
+    .unwrap();
     assert_eq!(lidas.fonte, FonteDasPropriedades::Consultar);
 }
 
@@ -93,7 +105,7 @@ fn sigiloso_pelo_valor_2() {
 fn identidade_e_conferida() {
     assert_eq!(
         ler_propriedades(
-            &padrao(),
+            &HtmlServido::de_teste(&padrao()),
             "00009.000009/2026-09",
             ID,
             FonteDasPropriedades::Alterar
@@ -101,7 +113,12 @@ fn identidade_e_conferida() {
         Err(super::ErroPropriedades::NumeroDasPropriedadesDiferenteDoSolicitado)
     );
     assert_eq!(
-        ler_propriedades(&padrao(), NUP, "11", FonteDasPropriedades::Alterar),
+        ler_propriedades(
+            &HtmlServido::de_teste(&padrao()),
+            NUP,
+            "11",
+            FonteDasPropriedades::Alterar
+        ),
         Err(super::ErroPropriedades::IdDasPropriedadesDiferenteDoAberto)
     );
     let sem = trocar(

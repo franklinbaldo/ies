@@ -39,8 +39,11 @@ fn html_invalido(_: impl Sized) -> ErroPaginaDoControle {
 }
 
 /// Índice (a partir de 0) que a tela publica em `hdn{T}PaginaAtual`.
-fn pagina_atual(html: &str, categoria: Categoria) -> Result<usize, ErroPaginaDoControle> {
-    let dom = tl::parse(html, tl::ParserOptions::default()).map_err(html_invalido)?;
+fn pagina_atual(
+    html: &crate::tela_html::HtmlServido,
+    categoria: Categoria,
+) -> Result<usize, ErroPaginaDoControle> {
+    let dom = crate::tela_html::interpretar(html);
     let ilegivel = || ErroPaginaDoControle::PaginaAtualDaTabelaIlegivel { categoria };
     let nos = nos_com_id(&dom, campo_da_pagina(categoria)).map_err(html_invalido)?;
     let [no] = nos.as_slice() else {
@@ -67,7 +70,7 @@ fn pagina_atual(html: &str, categoria: Categoria) -> Result<usize, ErroPaginaDoC
 
 /// Tabela sem linhas: só a página 1 (vazia) existe.
 fn plano_sem_linhas(
-    html: &str,
+    html: &crate::tela_html::HtmlServido,
     categoria: Categoria,
     atual: usize,
     pagina: usize,
@@ -115,7 +118,7 @@ pub(crate) fn tamanho_da_pagina(atual: usize, faixa: FaixaNaPagina) -> Option<us
 
 /// Calcula, sem rede, se e como pedir a página `pagina` (≥ 1).
 pub(crate) fn planejar(
-    html: &str,
+    html: &crate::tela_html::HtmlServido,
     categoria: Categoria,
     pagina: usize,
 ) -> Result<PlanoDaPagina, ErroPaginaDoControle> {

@@ -167,10 +167,8 @@ pub(super) fn fonte_do_script(html: &str, inicio: usize) -> Option<&str> {
 /// A submissão HTTP é derivada do formulário servido e seu aceite exige
 /// 302 causal e releitura independente. Interpretar JavaScript para tentar
 /// simular a cadeia dos callbacks não é parte desse contrato.
-pub(super) fn cadastro_oferece_salvar(html: &str) -> bool {
-    let Ok(dom) = tl::parse(html, tl::ParserOptions::default()) else {
-        return false;
-    };
+pub(super) fn cadastro_oferece_salvar(html: &crate::tela_html::HtmlServido) -> bool {
+    let dom = crate::tela_html::interpretar(html);
     let Some(faixas) = faixas_inertes(&dom) else {
         return false;
     };

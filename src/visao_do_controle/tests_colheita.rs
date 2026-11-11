@@ -6,6 +6,7 @@ use super::tests::{EnvioRoteirizado, TelaD, TelaR, cookie, instalacao, tela_atua
 use super::*;
 use crate::dominio::Categoria;
 use crate::formulario_web::{RespostaDoPost, SubmissaoDerivada};
+use crate::tela_html::HtmlServido;
 use crate::transporte::RespostaWeb;
 use crate::transporte::sessao::CookieDaSessao;
 use std::io::Cursor;
@@ -32,9 +33,9 @@ impl EnvioDoControle for Vendo {
     ) -> Result<RespostaWeb<Self::Corpo>, FalhaTransporte> {
         self.envio.get(url, cookie)
     }
-    fn colher_controle(&mut self, html: &str, mime: Option<&str>) {
+    fn colher_controle(&mut self, html: &HtmlServido, mime: Option<&str>) {
         assert_eq!(mime, Some("text/html; charset=iso-8859-1"));
-        self.vistas.push(html.to_owned());
+        self.vistas.push(html.as_str().to_owned());
     }
 }
 
@@ -101,6 +102,6 @@ fn recebidos_da_d_com_pagina_n_colhe_a_r_e_a_pagina_n() {
         &mut envio,
     );
     assert_eq!(envio.envio.registro.len(), 2);
-    assert_eq!(resultado.unwrap(), segunda.html());
+    assert_eq!(resultado.unwrap(), HtmlServido::de_teste(&segunda.html()));
     assert_eq!(envio.vistas, [r.html(), segunda.html()]);
 }

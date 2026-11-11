@@ -56,9 +56,11 @@ pub(crate) const CAMPOS_DO_ENVIO: [(&str, &str); 3] =
 /// Confere a tela servida antes de qualquer POST: lista fechada de
 /// controles enviáveis, o processo, "Somente concluir" marcado e nada da
 /// reabertura programada preenchido.
-pub(crate) fn conferir_tela_de_conclusao(html: &str, id: &str) -> Result<(), ErroTelaDeConclusao> {
-    let dom = tl::parse(html, tl::ParserOptions::default())
-        .map_err(ErroTelaDeConclusao::TelaDeConclusaoNaoInterpretada)?;
+pub(crate) fn conferir_tela_de_conclusao(
+    html: &crate::tela_html::HtmlServido,
+    id: &str,
+) -> Result<(), ErroTelaDeConclusao> {
+    let dom = crate::tela_html::interpretar(html);
     let parser = dom.parser();
     let form = localizar_formulario(&dom, FORMULARIO_DE_CONCLUSAO)
         .map_err(ErroTelaDeConclusao::FormularioDeConclusaoAusente)?;

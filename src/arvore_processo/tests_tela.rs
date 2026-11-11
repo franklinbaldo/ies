@@ -3,6 +3,7 @@
 use super::tela::TelaDoProcesso;
 use super::*;
 use crate::instalacao::Instalacao;
+use crate::tela_html::HtmlServido;
 use std::fmt::Write as _;
 
 pub(crate) const HASH_ARVORE: &str =
@@ -34,7 +35,7 @@ pub(crate) fn tela_do_processo(unidade: &str, iframes: &[String]) -> String {
 }
 
 fn ler(html: &str, unidade: Option<&str>) -> Result<TelaDoProcesso, super::ErroTelaDoProcesso> {
-    ler_tela_do_processo(&instalacao(), html, "10", unidade)
+    ler_tela_do_processo(&instalacao(), &HtmlServido::de_teste(html), "10", unidade)
 }
 
 #[test]
@@ -122,7 +123,7 @@ fn arvore_vazia_com_validacao_de_acesso_e_erro_proprio() {
 fn ler_documento(src: &str) -> Result<(TelaDoProcesso, String), super::ErroTelaDoProcesso> {
     super::ler_tela_do_documento(
         &instalacao(),
-        &tela_do_processo("U", &[src.to_owned()]),
+        &HtmlServido::de_teste(&tela_do_processo("U", &[src.to_owned()])),
         "21",
         None,
     )

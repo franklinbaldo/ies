@@ -12,7 +12,6 @@ pub(crate) enum ErroHistorico {
     CabecalhosHtmlDoHistoricoRepetidos,
     HistoricoAusente,
     HistoricoInvalido,
-    HtmlDoHistoricoInvalido(#[source] tl::ParseError),
     LinhaInvalida,
     NumeroDoHistoricoInvalido(#[source] crate::processo::NumeroProcessoInvalido),
     AtributoDoHistoricoIlegivel(#[source] crate::html_atributos::ErroAtributoHtml),
@@ -67,8 +66,8 @@ fn titulo_do_historico(
 
 #[cfg(test)]
 pub fn numero_do_historico(html: &str) -> Result<String, ErroHistorico> {
-    let dom = tl::parse(html, tl::ParserOptions::default())
-        .map_err(ErroHistorico::HtmlDoHistoricoInvalido)?;
+    let servido = crate::tela_html::HtmlServido::de_teste(html);
+    let dom = crate::tela_html::interpretar(&servido);
     let parser = dom.parser();
     let titulo = titulo_do_historico(&dom, parser)?;
     let (_, protocolo) = titulo
@@ -79,10 +78,12 @@ pub fn numero_do_historico(html: &str) -> Result<String, ErroHistorico> {
     Ok(numero.as_str().to_owned())
 }
 
-pub fn ler_historico(html: &str, numero: &str) -> Result<DetalheProcesso, ErroHistorico> {
+pub fn ler_historico(
+    html: &crate::tela_html::HtmlServido,
+    numero: &str,
+) -> Result<DetalheProcesso, ErroHistorico> {
     let numero = NumeroProcesso::novo(numero).map_err(ErroHistorico::NumeroDoHistoricoInvalido)?;
-    let dom = tl::parse(html, tl::ParserOptions::default())
-        .map_err(ErroHistorico::HtmlDoHistoricoInvalido)?;
+    let dom = crate::tela_html::interpretar(html);
     let parser = dom.parser();
     let titulo = titulo_do_historico(&dom, parser)?;
     // O protocolo é opaco. Não fragmentar por pontuação nem remover zeros.
@@ -161,7 +162,11 @@ mod tests {
 
     #[test]
     fn interpreta_historico_sem_inventar_identificadores() {
-        let resultado = ler_historico(&fixture("202600005002487"), "202600005002487").unwrap();
+        let resultado = ler_historico(
+            &crate::tela_html::HtmlServido::de_teste(&fixture("202600005002487")),
+            "202600005002487",
+        )
+        .unwrap();
         assert_eq!(resultado.andamentos.len(), 1);
         assert_eq!(resultado.andamentos[0].usuario.as_deref(), Some("usuario"));
         assert!(resultado.id_interno.is_none());
@@ -171,7 +176,11 @@ mod tests {
     fn booleano_antes_do_id_nao_esconde_a_tabela_do_historico() {
         let html =
             crate::html_atributos::com_booleano_antes_dos_atributos(&fixture("202600005002487"));
-        let resultado = ler_historico(&html, "202600005002487").unwrap();
+        let resultado = ler_historico(
+            &crate::tela_html::HtmlServido::de_teste(&html),
+            "202600005002487",
+        )
+        .unwrap();
         assert_eq!(resultado.andamentos.len(), 1);
     }
 
@@ -186,7 +195,10 @@ mod tests {
             let html = fixture(protocolo);
             assert_eq!(numero_do_historico(&html).unwrap(), protocolo);
             assert_eq!(
-                ler_historico(&html, protocolo).unwrap().numero.as_str(),
+                ler_historico(&crate::tela_html::HtmlServido::de_teste(&html), protocolo)
+                    .unwrap()
+                    .numero
+                    .as_str(),
                 protocolo
             );
         }
@@ -194,13 +206,17 @@ mod tests {
 
     #[test]
     fn historico_nao_confunde_prefixos_de_protocolo() {
-        let html = fixture("AB-C");
+        let html = crate::tela_html::HtmlServido::de_teste(&fixture("AB-C"));
         assert_eq!(
             ler_historico(&html, "ABC").unwrap_err(),
             ErroHistorico::NumeroDoHistoricoDiferenteDoSolicitado
         );
         assert_eq!(
-            ler_historico(&fixture("000123"), "123").unwrap_err(),
+            ler_historico(
+                &crate::tela_html::HtmlServido::de_teste(&fixture("000123")),
+                "123"
+            )
+            .unwrap_err(),
             ErroHistorico::NumeroDoHistoricoDiferenteDoSolicitado
         );
     }
@@ -208,12 +224,18 @@ mod tests {
     #[test]
     fn recusa_outro_processo_e_tabela_incompleta() {
         assert_eq!(
-            ler_historico(&fixture("202600005002487"), "202600005002488").unwrap_err(),
+            ler_historico(
+                &crate::tela_html::HtmlServido::de_teste(&fixture("202600005002487")),
+                "202600005002488"
+            )
+            .unwrap_err(),
             ErroHistorico::NumeroDoHistoricoDiferenteDoSolicitado
         );
-        let invalido = "<title>Histórico do Processo 202600005002487</title>        <table id='tblHistorico'><tr><td>12/07/2026</td></tr></table>";
+        let invalido = crate::tela_html::HtmlServido::de_teste(
+            "<title>Histórico do Processo 202600005002487</title>        <table id='tblHistorico'><tr><td>12/07/2026</td></tr></table>",
+        );
         assert_eq!(
-            ler_historico(invalido, "202600005002487").unwrap_err(),
+            ler_historico(&invalido, "202600005002487").unwrap_err(),
             ErroHistorico::LinhaInvalida
         );
     }
@@ -221,10 +243,10 @@ mod tests {
     #[test]
     fn duas_tabelas_de_historico_falham_sem_omitir_andamentos() {
         let numero = "000123";
-        let html = format!(
+        let html = crate::tela_html::HtmlServido::de_teste(&format!(
             "{}<table id='tblHistorico'><tr><td>13/07/2026</td><td>U</td><td>X</td><td>Outro andamento</td></tr></table>",
             fixture(numero)
-        );
+        ));
         let erro = ler_historico(&html, numero).unwrap_err();
         assert_eq!(erro, ErroHistorico::TabelasDoHistoricoRepetidas);
     }
@@ -232,7 +254,10 @@ mod tests {
     #[test]
     fn tabela_com_id_de_historico_em_div_e_table_e_ambigua() {
         let numero = "000123";
-        let html = format!("<div id='tblHistorico'>navegação</div>{}", fixture(numero));
+        let html = crate::tela_html::HtmlServido::de_teste(&format!(
+            "<div id='tblHistorico'>navegação</div>{}",
+            fixture(numero)
+        ));
         assert_eq!(
             ler_historico(&html, numero).unwrap_err(),
             ErroHistorico::TabelasDoHistoricoRepetidas
@@ -247,7 +272,13 @@ mod tests {
               <tr><td>12/07/2026</td><td>U</td><td>X</td><td>Movimento</td></tr>
             </table></body></html>";
         assert_eq!(numero_do_historico(html).unwrap(), "000123");
-        assert_eq!(ler_historico(html, "000123").unwrap().andamentos.len(), 1);
+        assert_eq!(
+            ler_historico(&crate::tela_html::HtmlServido::de_teste(html), "000123")
+                .unwrap()
+                .andamentos
+                .len(),
+            1
+        );
     }
 
     #[test]
@@ -257,7 +288,7 @@ mod tests {
             </svg></body></html>";
         assert_eq!(numero_do_historico(html), Err(ErroHistorico::TituloAusente));
         assert_eq!(
-            ler_historico(html, "000123"),
+            ler_historico(&crate::tela_html::HtmlServido::de_teste(html), "000123"),
             Err(ErroHistorico::TituloAusente)
         );
     }
@@ -272,7 +303,7 @@ mod tests {
             Err(ErroHistorico::TitulosDoHistoricoRepetidos)
         );
         assert_eq!(
-            ler_historico(titulos, "000123"),
+            ler_historico(&crate::tela_html::HtmlServido::de_teste(titulos), "000123"),
             Err(ErroHistorico::TitulosDoHistoricoRepetidos)
         );
         let cabecalhos = "<html>
@@ -283,7 +314,10 @@ mod tests {
             Err(ErroHistorico::CabecalhosHtmlDoHistoricoRepetidos)
         );
         assert_eq!(
-            ler_historico(cabecalhos, "000123"),
+            ler_historico(
+                &crate::tela_html::HtmlServido::de_teste(cabecalhos),
+                "000123"
+            ),
             Err(ErroHistorico::CabecalhosHtmlDoHistoricoRepetidos)
         );
     }

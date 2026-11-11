@@ -179,7 +179,7 @@ pub(crate) mod testes {
             atual: Ok(v(n)),
             foto: Some(FotoDaVersao {
                 versao: v(n),
-                html: html.into(),
+                html: crate::tela_html::HtmlServido::de_teste(html),
             }),
         });
         d.numero = numero.into();

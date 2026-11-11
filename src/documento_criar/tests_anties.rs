@@ -1,6 +1,7 @@
 //! Fronteira tipada IES ↔ anti-IES: a lista vem de uma resposta HTTP real.
 //! Teste técnico da seleção BDD-246-01/03, não um teste da CLI completa.
 use super::{ErroCriar, EscolhaDoDocumento, conferir_tipo, escolha_do_tipo, tipos_oferecidos};
+use crate::tela_html::HtmlServido;
 use anti_ies::atender_http;
 use iesei::banco_cassettes::iniciar;
 use iesei::documentos_simulados::{Processo, Tipo, registrar_processo, registrar_tipo};
@@ -53,12 +54,12 @@ fn lista_renderizada_pelo_anti_ies_e_consumida_pelo_seletor_do_ies() {
     servidor.join().unwrap();
     assert!(resposta.starts_with("HTTP/1.1 200 OK"));
     let (_, html) = resposta.split_once("\r\n\r\n").unwrap();
-    let tipos = tipos_oferecidos(html).unwrap();
+    let tipos = tipos_oferecidos(&HtmlServido::de_teste(html)).unwrap();
     assert_eq!(tipos, ["Despacho"]);
     let instalacao =
         crate::instalacao::Instalacao::interpretar("https://simulado.invalid/sei").unwrap();
     assert_eq!(
-        escolha_do_tipo(&instalacao, html, "10", "Despacho"),
+        escolha_do_tipo(&instalacao, &HtmlServido::de_teste(html), "10", "Despacho"),
         Ok(EscolhaDoDocumento::Formulario("291".into())),
     );
     assert_eq!(conferir_tipo("Despacho", &tipos), Ok(()));
@@ -145,9 +146,13 @@ fn bdd_246_cadastro_e_arvore_antes_depois_consumidos_pelo_ies() {
     let (_, html_trabalho) = trabalho.split_once("\r\n\r\n").unwrap();
     let origem =
         crate::instalacao::Instalacao::interpretar("https://simulado.invalid/sei").unwrap();
-    let tela =
-        crate::arvore_processo::ler_tela_do_processo(&origem, html_trabalho, "10", Some("TESTE"))
-            .unwrap();
+    let tela = crate::arvore_processo::ler_tela_do_processo(
+        &origem,
+        &HtmlServido::de_teste(html_trabalho),
+        "10",
+        Some("TESTE"),
+    )
+    .unwrap();
     assert!(tela.arvore.as_str().contains("procedimento_visualizar"));
 
     let resposta_antes = consultar("GET", raiz, "");
@@ -159,14 +164,25 @@ fn bdd_246_cadastro_e_arvore_antes_depois_consumidos_pelo_ies() {
 
     let lista = consultar("GET", escolha, "");
     let (_, html_lista) = lista.split_once("\r\n\r\n").unwrap();
-    assert_eq!(super::tipos_oferecidos(html_lista).unwrap(), ["Despacho"]);
+    assert_eq!(
+        super::tipos_oferecidos(&HtmlServido::de_teste(html_lista)).unwrap(),
+        ["Despacho"]
+    );
     let navegacao = consultar("POST", escolha, "hdnIdSerie=291");
     assert!(navegacao.starts_with("HTTP/1.1 302 Found"));
     let formulario = consultar("GET", cadastro, "");
     assert!(formulario.starts_with("HTTP/1.1 200 OK"));
     let (_, html_cadastro) = formulario.split_once("\r\n\r\n").unwrap();
-    super::conferir_cadastro(html_cadastro, "Despacho", Some("Novo"), Some("publico")).unwrap();
-    assert!(super::guarda_script::cadastro_oferece_salvar(html_cadastro));
+    super::conferir_cadastro(
+        &HtmlServido::de_teste(html_cadastro),
+        "Despacho",
+        Some("Novo"),
+        Some("publico"),
+    )
+    .unwrap();
+    assert!(super::guarda_script::cadastro_oferece_salvar(
+        &HtmlServido::de_teste(html_cadastro)
+    ));
 
     let sem_criacao = consultar("GET", raiz, "");
     let (_, html_sem_criacao) = sem_criacao.split_once("\r\n\r\n").unwrap();
@@ -232,7 +248,7 @@ fn formularios_servidos_pelo_anti_ies_produzem_submissoes_reais_do_ies() {
         &origem,
         &TelaServida {
             url: &url_lista,
-            html: html_lista,
+            html: &HtmlServido::de_teste(html_lista),
             codificacao: CodificacaoDaTela::Utf8,
         },
         Some("TESTE"),
@@ -267,7 +283,7 @@ fn formularios_servidos_pelo_anti_ies_produzem_submissoes_reais_do_ies() {
         &origem,
         &TelaServida {
             url: &url_cadastro,
-            html: html_cadastro,
+            html: &HtmlServido::de_teste(html_cadastro),
             codificacao: CodificacaoDaTela::Utf8,
         },
         Some("TESTE"),
@@ -345,8 +361,9 @@ fn filtro_de_todos_http_e_derivacao_do_formulario_ies() {
     let alvo = "/sei/controlador.php?acao=documento_escolher_tipo&id_procedimento=10";
     let resposta = solicitar("GET", alvo, "");
     let (_, html_curto) = resposta.split_once("\r\n\r\n").unwrap();
-    assert_eq!(tipos_oferecidos(html_curto).unwrap(), ["Despacho"]);
-    assert!(super::filtro_de_todos(html_curto).unwrap());
+    let html_curto = HtmlServido::de_teste(html_curto);
+    assert_eq!(tipos_oferecidos(&html_curto).unwrap(), ["Despacho"]);
+    assert!(super::filtro_de_todos(&html_curto).unwrap());
 
     let origem =
         crate::instalacao::Instalacao::interpretar("https://simulado.invalid/sei").unwrap();
@@ -359,7 +376,7 @@ fn filtro_de_todos_http_e_derivacao_do_formulario_ies() {
         &origem,
         &TelaServida {
             url: &url,
-            html: html_curto,
+            html: &html_curto,
             codificacao: CodificacaoDaTela::Utf8,
         },
         Some("TESTE"),
@@ -378,12 +395,13 @@ fn filtro_de_todos_http_e_derivacao_do_formulario_ies() {
     );
     assert!(resposta.starts_with("HTTP/1.1 200 OK"));
     let (_, html_completo) = resposta.split_once("\r\n\r\n").unwrap();
+    let html_completo = HtmlServido::de_teste(html_completo);
     assert_eq!(
-        tipos_oferecidos(html_completo).unwrap(),
+        tipos_oferecidos(&html_completo).unwrap(),
         ["Despacho", "Parecer"]
     );
     assert_eq!(
-        escolha_do_tipo(&origem, html_completo, "10", "Parecer"),
+        escolha_do_tipo(&origem, &html_completo, "10", "Parecer"),
         Ok(EscolhaDoDocumento::Formulario("292".into()))
     );
     servidor.join().unwrap();

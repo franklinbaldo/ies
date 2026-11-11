@@ -43,7 +43,6 @@ pub(crate) enum ErroBloco {
     PaginaDeBlocosNaoImplementada,
     BlocoNaoEncontradoNaPagina,
     CabecalhoDeBlocosNaoReconhecido,
-    HtmlDeBlocosInvalido(#[source] tl::ParseError),
     TotalDaLegendaIlegivel(#[source] std::num::ParseIntError),
     InicioDaFaixaIlegivel(#[source] std::num::ParseIntError),
     FimDaFaixaIlegivel(#[source] std::num::ParseIntError),
@@ -288,9 +287,11 @@ fn ler_linhas(
     Ok((itens, links))
 }
 
-pub(crate) fn ler_lista(html: &str, tipo: TipoBloco) -> Result<ListaComLinks, ErroBloco> {
-    let dom =
-        tl::parse(html, tl::ParserOptions::default()).map_err(ErroBloco::HtmlDeBlocosInvalido)?;
+pub(crate) fn ler_lista(
+    html: &crate::tela_html::HtmlServido,
+    tipo: TipoBloco,
+) -> Result<ListaComLinks, ErroBloco> {
+    let dom = crate::tela_html::interpretar(html);
     let parser = dom.parser();
     let tabelas = nos_com_id(&dom, "tblBlocos").map_err(ErroBloco::Atributo)?;
     let tabela = match tabelas.as_slice() {
@@ -382,11 +383,10 @@ pub(crate) fn resolver_link(
 pub(crate) fn link_do_menu(
     instalacao: &Instalacao,
     url: &str,
-    html: &str,
+    html: &crate::tela_html::HtmlServido,
     tipo: TipoBloco,
 ) -> Result<String, ErroBloco> {
-    let dom =
-        tl::parse(html, tl::ParserOptions::default()).map_err(ErroBloco::HtmlDeBlocosInvalido)?;
+    let dom = crate::tela_html::interpretar(html);
     let parser = dom.parser();
     let mut candidatos = Vec::new();
     for no in dom.query_selector("a").into_iter().flatten() {
@@ -428,10 +428,10 @@ mod tests {
     fn bloco_com_colunas_fora_de_ordem_e_numeros_opacos() {
         // Caso de Todos tests/paginas_reais/menu_blocos.html @323eb01
         let l = ler_lista(
-            &pagina(
+            &crate::tela_html::HtmlServido::de_teste(&pagina(
                 &linha("2195", "Gerado", "Teste de Bloco"),
                 "Lista de Blocos (1 registros):",
-            ),
+            )),
             TipoBloco::Assinatura,
         )
         .unwrap();
@@ -451,7 +451,10 @@ mod tests {
         let um = linha("2195", "Gerado", "Exemplo");
         assert_eq!(
             ler_lista(
-                &pagina(&(um.clone() + &um), "Lista (2 registros):"),
+                &crate::tela_html::HtmlServido::de_teste(&pagina(
+                    &(um.clone() + &um),
+                    "Lista (2 registros):"
+                )),
                 TipoBloco::Interno
             )
             .err()
@@ -459,19 +462,22 @@ mod tests {
             ErroBloco::NumeroDoBlocoRepetido
         );
         assert_eq!(
-            ler_lista(&pagina(&um, "Lista (3 registros):"), TipoBloco::Interno)
-                .err()
-                .unwrap(),
+            ler_lista(
+                &crate::tela_html::HtmlServido::de_teste(&pagina(&um, "Lista (3 registros):")),
+                TipoBloco::Interno
+            )
+            .err()
+            .unwrap(),
             ErroBloco::FaixaDeBlocosIncoerente
         );
     }
     #[test]
     fn faixa_de_pagina_e_observada_nao_inferida() {
         let l = ler_lista(
-            &pagina(
+            &crate::tela_html::HtmlServido::de_teste(&pagina(
                 &linha("2195", "Gerado", "X"),
                 "Lista (100 registros - 51 a 51):",
-            ),
+            )),
             TipoBloco::Reuniao,
         )
         .unwrap();

@@ -65,14 +65,14 @@ pub(crate) fn selecionar(
     reason = "serde_json::Value: leitura ausente dá Null e a escrita é em objeto json! local; projeção de saída a substituir em #733"
 )]
 pub(crate) fn publicar_lista(
-    html: &str,
+    html: &crate::tela_html::HtmlServido,
     unidade: Option<&str>,
     categoria: CategoriaLista,
     json_mode: bool,
     destino: Option<&Path>,
     (nota, indice): (Option<&NotaDoRelogin>, &IndiceLocal),
 ) -> anyhow::Result<()> {
-    let leitura = paginas::juntar(&[html.to_owned()], unidade)?;
+    let leitura = paginas::juntar(std::slice::from_ref(html), unidade)?;
     let mut modelo = selecionar(&leitura, categoria, "web")?;
     if let Some(caminho) = destino {
         let bytes = arquivo_caixa::gravar(caminho, &modelo)?;
@@ -145,22 +145,24 @@ mod tests {
     use crate::paginas;
 
     fn leitura(recebidos_total: usize) -> Leitura {
-        let html = format!(
+        let html = crate::tela_html::HtmlServido::de_teste(&format!(
             "<a id='lnkInfraUnidade'>PPI</a>\
              <table id='tblProcessosRecebidos'>\
              <caption>{recebidos_total} registros - 1 a 1):</caption>\
              <tr id='P1'><td><a class='processoVisualizado'>R-0001</a></td></tr></table>\
              <table id='tblProcessosGerados'><caption>1 registros - 1 a 1):</caption>\
              <tr id='P2'><td><a class='processoVisualizado'>G-0002</a></td></tr></table>"
-        );
+        ));
         paginas::juntar(&[html], None).unwrap()
     }
 
     #[test]
     fn categoria_nao_publica_processos_sem_unidade_exibida() {
-        let html = "<table id='tblProcessosRecebidos'><caption>0 registros:</caption></table>\
-                    <table id='tblProcessosGerados'><caption>0 registros:</caption></table>";
-        let leitura = paginas::juntar(&[html.to_owned()], None).unwrap();
+        let html = crate::tela_html::HtmlServido::de_teste(
+            "<table id='tblProcessosRecebidos'><caption>0 registros:</caption></table>\
+                    <table id='tblProcessosGerados'><caption>0 registros:</caption></table>",
+        );
+        let leitura = paginas::juntar(&[html], None).unwrap();
         assert_eq!(leitura.unidade, None);
         assert_eq!(
             selecionar(&leitura, CategoriaLista::Gerados, "web"),
@@ -216,11 +218,13 @@ mod tests {
 
     #[test]
     fn categoria_com_legenda_sem_faixa_e_total_maior_e_recusada() {
-        let html = "<a id='lnkInfraUnidade'>PPI</a>\
+        let html = crate::tela_html::HtmlServido::de_teste(
+            "<a id='lnkInfraUnidade'>PPI</a>\
              <table id='tblProcessosRecebidos'><caption>5 registros:</caption>\
              <tr id='P1'><td><a class='processoVisualizado'>R-0001</a></td></tr></table>\
-             <table id='tblProcessosGerados'><caption>0 registros:</caption></table>";
-        let leitura = paginas::juntar(&[html.to_owned()], None).unwrap();
+             <table id='tblProcessosGerados'><caption>0 registros:</caption></table>",
+        );
+        let leitura = paginas::juntar(&[html], None).unwrap();
         let _erro = selecionar(&leitura, CategoriaLista::Recebidos, "web").unwrap_err();
         assert!(selecionar(&leitura, CategoriaLista::Gerados, "web").is_ok());
     }
@@ -270,10 +274,12 @@ mod tests {
         unidade: Option<&str>,
         categoria: CategoriaLista,
     ) -> (anyhow::Result<()>, Option<Value>) {
-        let html = "<a id='lnkInfraUnidade'>PPI</a>\
+        let html = crate::tela_html::HtmlServido::de_teste(
+            "<a id='lnkInfraUnidade'>PPI</a>\
              <table id='tblProcessosRecebidos'><caption>(3 registros - 1 a 1):</caption>\
              <tr id='P1'><td><a class='processoVisualizado'>R-0001</a></td></tr></table>\
-             <table id='tblProcessosGerados'><caption>0 registros:</caption></table>";
+             <table id='tblProcessosGerados'><caption>0 registros:</caption></table>",
+        );
         let caminho = std::env::temp_dir().join(format!(
             "ies-lista-{}-{}.json",
             std::process::id(),
@@ -284,7 +290,7 @@ mod tests {
         ));
         let indice = IndiceLocal::desligado();
         let rodape = (None, &indice);
-        let codigo = publicar_lista(html, unidade, categoria, true, Some(&caminho), rodape);
+        let codigo = publicar_lista(&html, unidade, categoria, true, Some(&caminho), rodape);
         let valor = std::fs::read(&caminho)
             .ok()
             .map(|bytes| serde_json::from_slice(&bytes).unwrap());

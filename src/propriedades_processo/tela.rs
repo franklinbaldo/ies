@@ -14,14 +14,13 @@ type Tag<'p> = &'p tl::HTMLTag<'p>;
 /// Lê a tela e confere a identidade (NUP e id, comparação opaca) antes de
 /// qualquer outro campo.
 pub(crate) fn ler_propriedades(
-    html: &str,
+    html: &crate::tela_html::HtmlServido,
     nup: &str,
     id: &str,
     fonte: FonteDasPropriedades,
 ) -> Result<PropriedadesLidas, ErroPropriedades> {
     let ilegivel = || ErroPropriedades::HtmlDasPropriedadesNaoInterpretado;
-    let dom = tl::parse(html, tl::ParserOptions::default())
-        .map_err(ErroPropriedades::HtmlDasPropriedadesRecusadoPeloParser)?;
+    let dom = crate::tela_html::interpretar(html);
     let parser = dom.parser();
     let formulario = match nos_com_id(&dom, FORMULARIO)
         .map_err(ErroPropriedades::Atributo)?

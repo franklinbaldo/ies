@@ -28,7 +28,6 @@ pub enum ErroVersao {
     VersaoPedidaAusenteNoHistorico,
     ColunasHistoricoInesperadas,
     HistoricoDocumentoAusente,
-    HistoricoDocumentoNaoInterpretado(#[source] tl::ParseError),
     HistoricoDocumentoComAtributoIlegivel(#[source] crate::html_atributos::ErroAtributoHtml),
     HistoricosDocumentoDuplicados,
     LegendasHistoricoVersoesRepetidas,
@@ -259,15 +258,14 @@ fn legenda_unica(tabela: &tl::HTMLTag<'_>, parser: &tl::Parser<'_>) -> Result<St
 /// Interpreta uma lista observada. O total declarado é facultativo, mas, quando
 /// disponível na tabela de origem, é obrigatório conferir a cobertura.
 pub fn interpretar_historico(
-    html: &str,
+    html: &crate::tela_html::HtmlServido,
     id_interno: &str,
     total_declarado: Option<usize>,
 ) -> Result<HistoricoDocumento, ErroVersao> {
     if id_interno.is_empty() || !id_interno.bytes().all(|b| b.is_ascii_digit()) {
         return Err(ErroVersao::DocumentoDivergente);
     }
-    let dom = tl::parse(html, tl::ParserOptions::default())
-        .map_err(ErroVersao::HistoricoDocumentoNaoInterpretado)?;
+    let dom = crate::tela_html::interpretar(html);
     let parser = dom.parser();
     let mut tabela = None;
     for handle in nos_por_elemento_e_classe(&dom, None, "table", "infraTable")
@@ -314,6 +312,7 @@ mod testes_anti_ies;
 #[cfg(test)]
 pub(crate) mod testes {
     use super::*;
+    use crate::tela_html::HtmlServido;
     fn pagina(numeros: &[u32], ids: &[&str]) -> String {
         use std::fmt::Write as _;
         let mut linhas = String::new();
@@ -360,7 +359,12 @@ pub(crate) mod testes {
 
     #[test]
     fn forma_servida_com_id_repetido_e_ancora_de_recuperar_e_lida() {
-        let h = interpretar_historico(&pagina_servida("42", "42", &[2, 1]), "42", None).unwrap();
+        let h = interpretar_historico(
+            &HtmlServido::de_teste(&pagina_servida("42", "42", &[2, 1])),
+            "42",
+            None,
+        )
+        .unwrap();
         assert_eq!(h.atual().unwrap().numero(), 2);
         assert_eq!(h.len(), 2);
         let v1 = h.selecionar(VersaoDocumento::nova(1).unwrap()).unwrap();
@@ -373,14 +377,18 @@ pub(crate) mod testes {
     #[test]
     fn id_repetido_com_valores_diferentes_e_recusado() {
         assert_eq!(
-            interpretar_historico(&pagina_servida("42", "43", &[1]), "42", None),
+            interpretar_historico(
+                &HtmlServido::de_teste(&pagina_servida("42", "43", &[1])),
+                "42",
+                None
+            ),
             Err(ErroVersao::LinkInseguro)
         );
         // Uma âncora a mais que não é fragmento continua ambígua.
-        let extra = pagina_servida("42", "42", &[1]).replace(
+        let extra = HtmlServido::de_teste(&pagina_servida("42", "42", &[1]).replace(
             "&nbsp;</td></tr>",
             "<a href=\"controlador.php?acao=outra\">x</a></td></tr>",
-        );
+        ));
         assert_eq!(
             interpretar_historico(&extra, "42", None),
             Err(ErroVersao::LinkVersaoAusenteOuAmbiguo)
@@ -389,16 +397,20 @@ pub(crate) mod testes {
 
     #[test]
     fn booleano_antes_de_class_e_href_nao_esconde_versoes() {
-        let html = crate::html_atributos::com_booleano_antes_dos_atributos(&pagina(
-            &[1, 4],
-            &["42", "42"],
+        let html = HtmlServido::de_teste(&crate::html_atributos::com_booleano_antes_dos_atributos(
+            &pagina(&[1, 4], &["42", "42"]),
         ));
         let h = interpretar_historico(&html, "42", Some(2)).unwrap();
         assert_eq!(h.atual().unwrap().numero(), 4);
     }
     #[test]
     fn atual_e_nao_contiguas() {
-        let h = interpretar_historico(&pagina(&[1, 4], &["42", "42"]), "42", Some(2)).unwrap();
+        let h = interpretar_historico(
+            &HtmlServido::de_teste(&pagina(&[1, 4], &["42", "42"])),
+            "42",
+            Some(2),
+        )
+        .unwrap();
         assert_eq!(h.atual().unwrap().numero(), 4);
         assert_eq!(
             h.selecionar(VersaoDocumento::nova(2).unwrap()),
@@ -408,15 +420,23 @@ pub(crate) mod testes {
     #[test]
     fn recusa_duplicada_e_documento_trocado() {
         assert_eq!(
-            interpretar_historico(&pagina(&[1, 1], &["42", "42"]), "42", None),
+            interpretar_historico(
+                &HtmlServido::de_teste(&pagina(&[1, 1], &["42", "42"])),
+                "42",
+                None
+            ),
             Err(ErroVersao::VersaoDocumentoDuplicada)
         );
         assert_eq!(
-            interpretar_historico(&pagina(&[1], &["43"]), "42", None),
+            interpretar_historico(&HtmlServido::de_teste(&pagina(&[1], &["43"])), "42", None),
             Err(ErroVersao::DocumentoDivergente)
         );
         assert_eq!(
-            interpretar_historico(&pagina(&[1], &["42"]), "42", Some(2)),
+            interpretar_historico(
+                &HtmlServido::de_teste(&pagina(&[1], &["42"])),
+                "42",
+                Some(2)
+            ),
             Err(ErroVersao::ListaIncompleta)
         );
     }
@@ -426,10 +446,10 @@ pub(crate) mod testes {
             VersaoDocumento::nova(0),
             Err(ErroVersao::VersaoDocumentoInvalida)
         );
-        let html = pagina(&[1], &["42"]).replace(
+        let html = HtmlServido::de_teste(&pagina(&[1], &["42"]).replace(
             "acao=documento_visualizar",
             "acao=documento_visualizar&amp;acao=editor_montar",
-        );
+        ));
         assert_eq!(
             interpretar_historico(&html, "42", None),
             Err(ErroVersao::AcaoDoLinkNaoLida(
@@ -440,10 +460,10 @@ pub(crate) mod testes {
 
     #[test]
     fn par_sem_igual_no_link_da_versao_e_recusado_com_a_causa() {
-        let html = pagina(&[1], &["42"]).replace(
+        let html = HtmlServido::de_teste(&pagina(&[1], &["42"]).replace(
             "acao=documento_visualizar",
             "acao=documento_visualizar&amp;solto",
-        );
+        ));
         assert_eq!(
             interpretar_historico(&html, "42", None),
             Err(ErroVersao::ConsultaDoLinkIlegivel(
@@ -467,7 +487,7 @@ pub(crate) mod testes {
         );
         for html in [duplicada, extra] {
             assert_eq!(
-                interpretar_historico(&html, "42", None),
+                interpretar_historico(&HtmlServido::de_teste(&html), "42", None),
                 Err(ErroVersao::LegendasHistoricoVersoesRepetidas)
             );
         }

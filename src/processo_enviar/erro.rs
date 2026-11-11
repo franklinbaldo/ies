@@ -19,7 +19,6 @@ pub(crate) enum ErroTelaDeEnvio {
     CampoNaoPrevistoNaTelaDeEnvio,
     FormularioDeEnvioAusente(#[source] crate::formulario_web::ErroSubmissaoFormulario),
     TelaDeEnvioNaoInterpretada,
-    ParseDaTelaDeEnvioFalhou(#[source] tl::ParseError),
     TelaDeEnvioComAtributoIlegivel(#[from] crate::html_atributos::ErroAtributoHtml),
 }
 
@@ -35,7 +34,6 @@ pub(crate) enum FalhaDaConsulta {
     RespostaDoAutocompletarNaoXml,
     AtributoDoItemIlegivel(#[from] crate::html_atributos::ErroAtributoHtml),
     RespostaDoAutocompletarForaDaFormaObservada,
-    ParseDaRespostaDoAutocompletarFalhou(#[source] tl::ParseError),
 }
 
 #[derive(Clone, Debug, PartialEq, Eq, thiserror::Error)]

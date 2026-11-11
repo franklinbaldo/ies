@@ -89,7 +89,7 @@ pub(crate) struct PedidoDeTroca<'a> {
 /// Uma tela do Controle recebida, para a sessão e a colheita do índice.
 pub(crate) struct ControleLido {
     pub(crate) url: String,
-    pub(crate) html: String,
+    pub(crate) html: crate::tela_html::HtmlServido,
     pub(crate) mime: String,
 }
 

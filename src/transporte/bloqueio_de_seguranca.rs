@@ -33,10 +33,8 @@ fn normalizado(texto: &str) -> String {
 }
 
 /// `true` só para a página de bloqueio; o 403 genérico não é.
-pub(crate) fn e_bloqueio_de_seguranca(html: &str) -> bool {
-    let Ok(dom) = tl::parse(html, tl::ParserOptions::default()) else {
-        return false;
-    };
+pub(crate) fn e_bloqueio_de_seguranca(html: &crate::tela_html::HtmlServido) -> bool {
+    let dom = crate::tela_html::interpretar(html);
     let parser = dom.parser();
     let primeiro = |elemento: &str| dom.query_selector(elemento).and_then(|mut nos| nos.next());
     let titulo = primeiro("title").map(|h| normalizado(&texto_visivel(h, parser)));

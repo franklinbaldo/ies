@@ -11,10 +11,10 @@ fn html_invalido(_: impl Sized) -> super::ErroVisaoDoControle {
 
 /// Valores de `value` dos elementos com o `id` dado, na ordem do documento.
 pub(super) fn valores_ocultos(
-    html: &str,
+    html: &crate::tela_html::HtmlServido,
     id: &str,
 ) -> Result<Vec<String>, super::ErroVisaoDoControle> {
-    let dom = tl::parse(html, tl::ParserOptions::default()).map_err(html_invalido)?;
+    let dom = crate::tela_html::interpretar(html);
     let parser = dom.parser();
     let mut valores = Vec::new();
     for no in nos_com_id(&dom, id).map_err(html_invalido)? {
@@ -46,7 +46,7 @@ pub(super) struct PosicaoDetalhada {
 
 /// Lê a posição da tela D já interpretada em `leitura`.
 pub(super) fn posicao(
-    html: &str,
+    html: &crate::tela_html::HtmlServido,
     leitura: &LeituraDetalhada,
 ) -> Result<PosicaoDetalhada, super::ErroVisaoDoControle> {
     let indices = valores_ocultos(html, "hdnDetalhadoPaginaAtual")?;

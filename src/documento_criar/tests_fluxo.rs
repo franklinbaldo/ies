@@ -3,6 +3,7 @@
 
 use super::*;
 use crate::formulario_web::CodificacaoDaTela;
+use crate::tela_html::HtmlServido;
 
 fn cadastro() -> String {
     let hash = "a".repeat(64);
@@ -25,9 +26,10 @@ fn derivar(
         "https://sei.exemplo.gov.br/sei/controlador.php?acao=documento_gerar&infra_hash={}",
         "b".repeat(64)
     );
+    let html = HtmlServido::de_teste(html);
     let tela = TelaServida {
         url: &url,
-        html,
+        html: &html,
         codificacao: CodificacaoDaTela::Iso88591,
     };
     let instalacao = Instalacao::interpretar("https://sei.exemplo.gov.br/sei").unwrap();
@@ -71,9 +73,10 @@ fn derivar_escolha(
         "https://sei.exemplo.gov.br/sei/controlador.php?acao=documento_escolher_tipo&infra_hash={}",
         "b".repeat(64)
     );
+    let html = HtmlServido::de_teste(html);
     let tela = TelaServida {
         url: &url,
-        html,
+        html: &html,
         codificacao: CodificacaoDaTela::Iso88591,
     };
     let instalacao = Instalacao::interpretar("https://sei.exemplo.gov.br/sei").unwrap();
@@ -123,7 +126,7 @@ fn exibir_todos_deriva_um_unico_post_de_filtro_e_nao_de_criacao() {
     );
     let servida = TelaServida {
         url: &url,
-        html: &html,
+        html: &HtmlServido::de_teste(&html),
         codificacao: CodificacaoDaTela::Iso88591,
     };
     let instalacao = Instalacao::interpretar("https://sei.exemplo.gov.br/sei").unwrap();
@@ -149,12 +152,14 @@ fn cadastro_ignora_required_de_controles_inativos() {
         "<div hidden><input name=\"campoOculto\" required></div>",
         "<template><input name=\"campoTemplate\" required></template>",
     ] {
-        let html = cadastro()
-            .replace(
-                "<form ",
-                "<label id=\"lblSerieTitulo\">Despacho</label><form ",
-            )
-            .replace("</form>", &format!("{conteudo}</form>"));
+        let html = HtmlServido::de_teste(
+            &cadastro()
+                .replace(
+                    "<form ",
+                    "<label id=\"lblSerieTitulo\">Despacho</label><form ",
+                )
+                .replace("</form>", &format!("{conteudo}</form>")),
+        );
         assert_eq!(
             conferir_cadastro(&html, "Despacho", None, Some("publico")),
             Ok(()),

@@ -8,13 +8,12 @@ use crate::instalacao::Instalacao;
 /// Somente um vínculo inequívoco entre o `id_anexo` listado e o href servido.
 pub(crate) fn ler_anexo_publicado(
     instalacao: &Instalacao,
-    html: &str,
+    html: &crate::tela_html::HtmlServido,
     documento: &str,
     processo: &str,
 ) -> Result<Option<EnderecoDoConteudo>, ErroPropriedadesDocumento> {
     let _ = ler_formulario(html, documento, processo)?;
-    let dom = tl::parse(html, tl::ParserOptions::default())
-        .map_err(ErroPropriedadesDocumento::HtmlDoCadastroNaoInterpretado)?;
+    let dom = crate::tela_html::interpretar(html);
     let parser = dom.parser();
     let nos =
         nos_com_id(&dom, "frmDocumentoCadastro").map_err(ErroPropriedadesDocumento::Atributo)?;

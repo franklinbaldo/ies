@@ -3,6 +3,7 @@
 use super::tests::{OPERACAO, instalacao, tela_iso, url_servida};
 use super::*;
 use crate::html_atributos::{ErroAtributoHtml, com_booleano_antes_dos_atributos};
+use crate::tela_html::HtmlServido;
 
 fn pagina(interior: &str) -> String {
     format!(
@@ -25,7 +26,7 @@ fn derivar(
     derivar_submissao(
         &OPERACAO,
         &instalacao(),
-        &tela_iso(&url, html),
+        &tela_iso(&url, &HtmlServido::de_teste(html)),
         Some("UNIDADE TESTE"),
         campos,
     )

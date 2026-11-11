@@ -8,8 +8,6 @@ use super::recibo::ReciboUpload;
 pub(crate) enum FalhaAnexo {
     /// O tokenizador de atributos recusou a tag.
     Atributo(#[source] crate::html_atributos::ErroAtributoHtml),
-    /// O tokenizador HTML recusou a tela inteira.
-    HtmlNaoAnalisavel(#[source] tl::ParseError),
     /// `new infraUpload(...)` sem a URL literal como segundo argumento.
     UrlDoUploadIlegivel,
     /// A URL de upload não é `controlador.php?acao=documento_upload_anexo&...`.
@@ -196,9 +194,8 @@ fn corpo_do_script(html: &str, inicio: usize) -> Option<&str> {
 
 /// Interpreta apenas declarações literais em script inline ativo da tela.
 /// Não executa JS, não inventa URL e não aceita colunas de template inerte.
-pub(crate) fn ler_plano(html: &str) -> Result<PlanoAnexo, FalhaAnexo> {
-    let dom =
-        tl::parse(html, tl::ParserOptions::default()).map_err(FalhaAnexo::HtmlNaoAnalisavel)?;
+pub(crate) fn ler_plano(html: &crate::tela_html::HtmlServido) -> Result<PlanoAnexo, FalhaAnexo> {
+    let dom = crate::tela_html::interpretar(html);
     let tags = |seletor: &str| -> Vec<&tl::HTMLTag<'_>> {
         dom.query_selector(seletor)
             .into_iter()
@@ -294,7 +291,8 @@ objTabelaAnexos = new infraTabelaDinamica('tblAnexos','hdnAnexos',false,false);
     fn dado_cadastro_unb_4_quando_recebo_upload_entao_gera_linha_da_tabela() {
         // Dado a ordem da funcaoConclusao capturada no Todos/UnB,
         // quando monto hdnAnexos, então preservo todas as colunas observadas.
-        let plano = ler_plano(&tela("", COLUNAS)).expect("cadastro UnB 4");
+        let plano = ler_plano(&crate::tela_html::HtmlServido::de_teste(&tela("", COLUNAS)))
+            .expect("cadastro UnB 4");
         assert!(plano.url_upload().contains("acao=documento_upload_anexo"));
         assert_eq!(
             plano.linha_do_anexo(&recibo()),
@@ -306,7 +304,10 @@ objTabelaAnexos = new infraTabelaDinamica('tblAnexos','hdnAnexos',false,false);
     fn dado_sei_5_quando_terceiro_argumento_booleano_entao_mesmo_plano() {
         // PEN3 SEI 5.0.4 publica new infraUpload(..., true).
         for terceiro in [", true", ", false"] {
-            let plano = ler_plano(&tela(terceiro, COLUNAS)).expect("cadastro SEI 5");
+            let plano = ler_plano(&crate::tela_html::HtmlServido::de_teste(&tela(
+                terceiro, COLUNAS,
+            )))
+            .expect("cadastro SEI 5");
             assert_eq!(
                 plano.linha_do_anexo(&recibo()).unwrap().split('±').count(),
                 7
@@ -317,7 +318,8 @@ objTabelaAnexos = new infraTabelaDinamica('tblAnexos','hdnAnexos',false,false);
     #[test]
     fn dado_colunas_reordenadas_quando_recibo_entao_respeita_a_tela() {
         let colunas = "'Unidade2',arr['nome'],arr['nome_upload'],infraFormatarTamanhoBytes(arr['tamanho']),arr['data_hora']";
-        let plano = ler_plano(&tela("", colunas)).expect("ordem da tela");
+        let plano = ler_plano(&crate::tela_html::HtmlServido::de_teste(&tela("", colunas)))
+            .expect("ordem da tela");
         assert_eq!(
             plano.linha_do_anexo(&recibo()),
             Ok("Unidade2±prova.pdf±temp-42±0.07 Kb±11/10/2026 11:07:50".to_owned())
@@ -340,7 +342,7 @@ objTabelaAnexos = new infraTabelaDinamica('tblAnexos','hdnAnexos',false,false);
         .enumerate()
         {
             assert_eq!(
-                ler_plano(&tela).map(|_| ()),
+                ler_plano(&crate::tela_html::HtmlServido::de_teste(&tela)).map(|_| ()),
                 Err(esperado),
                 "indice {indice}"
             );
@@ -356,7 +358,7 @@ objTabelaAnexos = new infraTabelaDinamica('tblAnexos','hdnAnexos',false,false);
             "arr['nome'",
         ] {
             assert!(matches!(
-                ler_plano(&tela("", colunas)),
+                ler_plano(&crate::tela_html::HtmlServido::de_teste(&tela("", colunas))),
                 Err(FalhaAnexo::LinhaInvalida)
             ));
         }
@@ -364,7 +366,8 @@ objTabelaAnexos = new infraTabelaDinamica('tblAnexos','hdnAnexos',false,false);
 
     #[test]
     fn dado_recibo_com_separador_quando_monto_linha_entao_recuso() {
-        let plano = ler_plano(&tela("", COLUNAS)).expect("cadastro");
+        let plano = ler_plano(&crate::tela_html::HtmlServido::de_teste(&tela("", COLUNAS)))
+            .expect("cadastro");
         let mut resposta = recibo();
         resposta.nome = "prova±outro.pdf".to_owned();
         assert_eq!(
@@ -375,7 +378,10 @@ objTabelaAnexos = new infraTabelaDinamica('tblAnexos','hdnAnexos',false,false);
 
     #[test]
     fn dado_only_template_quando_leio_entao_nao_invento_upload() {
-        let falso = format!("<template>{}</template>", tela("", COLUNAS));
+        let falso = crate::tela_html::HtmlServido::de_teste(&format!(
+            "<template>{}</template>",
+            tela("", COLUNAS)
+        ));
         assert_eq!(
             ler_plano(&falso).map(|_| ()),
             Err(FalhaAnexo::UploadDaTelaNaoEhUnico)

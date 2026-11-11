@@ -17,8 +17,6 @@ pub(crate) enum ErroTelaDeAssinatura {
     CampoDeSenhaAusenteNaTela,
     CampoNaoPrevistoNaTelaDeAssinatura,
     FormularioDeAssinaturaAusente(#[source] crate::formulario_web::ErroSubmissaoFormulario),
-    /// O parser de HTML recusou a tela de assinatura.
-    HtmlDaTelaDeAssinaturaRecusadoPeloParser(#[source] tl::ParseError),
     TelaDeAssinaturaNaoInterpretada,
     TelaDeAssinaturaComAtributoIlegivel(#[from] crate::html_atributos::ErroAtributoHtml),
 }

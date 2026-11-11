@@ -1,4 +1,5 @@
 use super::{Atribuicao, ErroAtribuir, ler_tela, planejar};
+use crate::tela_html::HtmlServido;
 const ID: &str = "50693";
 const HTML: &str = r#"<html><body>
 <form id="frmAtividadeAtribuir" method="post"
@@ -19,7 +20,7 @@ const HTML: &str = r#"<html><body>
 // Caso de Todos tests/test_ciclo_atribuir_010.py @323eb01
 #[test]
 fn tela_servida_identifica_usuarios_e_valores_do_select() {
-    let tela = ler_tela(HTML, ID).unwrap();
+    let tela = ler_tela(&HtmlServido::de_teste(HTML), ID).unwrap();
     assert_eq!(tela.usuarios.len(), 4);
     assert_eq!(tela.usuarios[1].login, "aluno2");
     assert_eq!(tela.usuarios[1].id, "100000035");
@@ -28,7 +29,7 @@ fn tela_servida_identifica_usuarios_e_valores_do_select() {
 // Caso de Todos tests/test_ciclo_atribuir_010.py @323eb01: exato, não prefixo.
 #[test]
 fn login_exato_nao_se_confunde_com_prefixo_ou_nome() {
-    let tela = ler_tela(HTML, ID).unwrap();
+    let tela = ler_tela(&HtmlServido::de_teste(HTML), ID).unwrap();
     assert_eq!(
         planejar(&tela, Some("aluno2"), Atribuicao::Usuario("aluno20")),
         Ok("100000035".into())
@@ -50,7 +51,7 @@ fn login_exato_nao_se_confunde_com_prefixo_ou_nome() {
 // Caso de Todos tests/test_ciclo_atribuir_010.py @323eb01: remover envia null.
 #[test]
 fn remover_escolhe_item_nulo_sem_escrita_desnecessaria() {
-    let tela = ler_tela(HTML, ID).unwrap();
+    let tela = ler_tela(&HtmlServido::de_teste(HTML), ID).unwrap();
     assert_eq!(
         planejar(&tela, None, Atribuicao::Usuario("aluno2")),
         Ok("null".into())
@@ -65,7 +66,7 @@ fn remover_escolhe_item_nulo_sem_escrita_desnecessaria() {
 // situação não observada fica em `fluxo` (`UnidadeNaoPublicadaNaArvore` etc.).
 #[test]
 fn situacao_ja_aplicada_nao_escreve() {
-    let tela = ler_tela(HTML, ID).unwrap();
+    let tela = ler_tela(&HtmlServido::de_teste(HTML), ID).unwrap();
     assert_eq!(
         planejar(&tela, Some("aluno2"), Atribuicao::Usuario("aluno2")),
         Err(ErroAtribuir::AtribuicaoJaAplicada)
@@ -77,10 +78,10 @@ fn situacao_ja_aplicada_nao_escreve() {
 fn protocolo_de_outro_processo_nao_e_aceito() {
     assert_eq!(
         ler_tela(
-            &HTML.replace(
+            &HtmlServido::de_teste(&HTML.replace(
                 "name=\"hdnIdProtocolo\" value=\"50693\"",
                 "name=\"hdnIdProtocolo\" value=\"999\""
-            ),
+            )),
             ID
         ),
         Err(ErroAtribuir::TelaDaAtribuicaoForaDaForma)
@@ -89,7 +90,7 @@ fn protocolo_de_outro_processo_nao_e_aceito() {
 
 #[test]
 fn opcoes_repetidas_geram_ambiguidade_sem_escolher_a_primeira() {
-    let html = HTML.replace("<option value=\"100000035\">aluno2 - aluno2</option>", "<option value=\"100000035\">aluno2 - aluno2</option><option value=\"100000077\">aluno2 - Outro Nome</option>");
+    let html = HtmlServido::de_teste(&HTML.replace("<option value=\"100000035\">aluno2 - aluno2</option>", "<option value=\"100000035\">aluno2 - aluno2</option><option value=\"100000077\">aluno2 - Outro Nome</option>"));
     let tela = ler_tela(&html, ID).unwrap();
     assert_eq!(
         planejar(&tela, Some("aluno2"), Atribuicao::Usuario("aluno20")),
@@ -100,10 +101,10 @@ fn opcoes_repetidas_geram_ambiguidade_sem_escolher_a_primeira() {
 // Caso de Todos tests/test_ciclo_atribuir_010.py @323eb01: null disabled.
 #[test]
 fn opcao_nula_desabilitada_nao_permissa_envio() {
-    let html = HTML.replace(
+    let html = HtmlServido::de_teste(&HTML.replace(
         "value=\"null\" selected",
         "value=\"null\" selected disabled",
-    );
+    ));
     assert_eq!(
         ler_tela(&html, ID),
         Err(ErroAtribuir::TelaDaAtribuicaoForaDaForma)
@@ -113,12 +114,17 @@ fn opcao_nula_desabilitada_nao_permissa_envio() {
 #[test]
 fn formulario_get_e_select_multiple_sao_recusados() {
     assert_eq!(
-        ler_tela(&HTML.replace("method=\"post\"", "method=\"get\""), ID),
+        ler_tela(
+            &HtmlServido::de_teste(&HTML.replace("method=\"post\"", "method=\"get\"")),
+            ID
+        ),
         Err(ErroAtribuir::TelaDaAtribuicaoForaDaForma)
     );
     assert_eq!(
         ler_tela(
-            &HTML.replace("name=\"selAtribuicao\"", "name=\"selAtribuicao\" multiple"),
+            &HtmlServido::de_teste(
+                &HTML.replace("name=\"selAtribuicao\"", "name=\"selAtribuicao\" multiple")
+            ),
             ID
         ),
         Err(ErroAtribuir::TelaDaAtribuicaoForaDaForma)
@@ -129,10 +135,10 @@ fn formulario_get_e_select_multiple_sao_recusados() {
 /// escolher pelo login poderia atribuir a outra pessoa.
 #[test]
 fn mesmo_id_publicado_para_logins_distintos_e_recusado() {
-    let html = HTML.replace(
+    let html = HtmlServido::de_teste(&HTML.replace(
         "<option value=\"100000036\">aluno20 - aluno20</option>",
         "<option value=\"100000035\">aluno20 - aluno20</option>",
-    );
+    ));
     assert_eq!(
         ler_tela(&html, ID),
         Err(ErroAtribuir::TelaDaAtribuicaoForaDaForma)
@@ -152,7 +158,7 @@ fn preparar(
     );
     let servida = crate::formulario_web::TelaServida {
         url: &url,
-        html: HTML,
+        html: &HtmlServido::de_teste(HTML),
         codificacao: crate::pagina_do_controle::codificacao_da_tela(
             "text/html; charset=iso-8859-1",
         )
@@ -219,7 +225,7 @@ fn derivacao_recusa_formulario_com_encoding_alheio_sem_enviar() {
             &instalacao,
             &crate::formulario_web::TelaServida {
                 url: &url,
-                html: &html,
+                html: &HtmlServido::de_teste(&html),
                 codificacao: crate::pagina_do_controle::codificacao_da_tela(
                     "text/html; charset=iso-8859-1",
                 )
@@ -262,7 +268,7 @@ fn formulario_com_controles_inertes_nao_e_oferta_de_atribuicao() {
     ];
     for (indice, html) in casos.iter().enumerate() {
         assert_eq!(
-            ler_tela(html, ID),
+            ler_tela(&HtmlServido::de_teste(html), ID),
             Err(ErroAtribuir::TelaDaAtribuicaoForaDaForma),
             "controle inerte no cenário {indice} deve recusar a escrita",
         );

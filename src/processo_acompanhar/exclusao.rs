@@ -8,7 +8,7 @@ use crate::instalacao::Instalacao;
 /// Confere formulário, linha e literal do script observado para o processo.
 pub(super) fn destino_oferecido(
     instalacao: &Instalacao,
-    html: &str,
+    html: &crate::tela_html::HtmlServido,
     id_procedimento: &str,
     id_alvo: &str,
 ) -> Result<String, ErroAcompanhar> {
@@ -16,8 +16,7 @@ pub(super) fn destino_oferecido(
     if !id_alvo.bytes().all(|b| b.is_ascii_digit()) || id_alvo.is_empty() {
         return Err(recusada());
     }
-    let dom = tl::parse(html, tl::ParserOptions::default())
-        .map_err(ErroAcompanhar::HtmlDaTelaDeExclusaoRecusadoPeloParser)?;
+    let dom = crate::tela_html::interpretar(html);
     let parser = dom.parser();
     let form = crate::formulario_web::localizar_formulario(&dom, "frmGerenciarAcompanhamento")
         .map_err(ErroAcompanhar::Formulario)?;

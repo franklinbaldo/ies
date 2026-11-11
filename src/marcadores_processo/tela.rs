@@ -29,12 +29,11 @@ const LINHA: ErroMarcadores = ErroMarcadores::LinhaDoMarcadorForaDaFormaObservad
 /// Lê a tela e confere a identidade (NUP e id, comparação opaca) antes de
 /// qualquer linha.
 pub(crate) fn ler_marcadores(
-    html: &str,
+    html: &crate::tela_html::HtmlServido,
     nup: &str,
     id: &str,
 ) -> Result<TelaDosMarcadores, ErroMarcadores> {
-    let dom = tl::parse(html, tl::ParserOptions::default())
-        .map_err(ErroMarcadores::HtmlDosMarcadoresRecusadoPeloParser)?;
+    let dom = crate::tela_html::interpretar(html);
     let parser = dom.parser();
     conferir_identidade(&dom, nup, id)?;
     let tabela = match nos_com_id(&dom, "tblMarcadores")

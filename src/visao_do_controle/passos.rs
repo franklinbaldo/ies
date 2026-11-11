@@ -10,7 +10,9 @@ use crate::controle_contexto::{ContextoPagina, contexto_da_pagina};
 use crate::formulario_web::localizar_formulario;
 use crate::pagina_do_controle::{ErroPaginaDoControle, campos_do_usuario};
 
-pub(super) fn contexto(html: &str) -> Result<ContextoPagina, ErroVisaoDoControle> {
+pub(super) fn contexto(
+    html: &crate::tela_html::HtmlServido,
+) -> Result<ContextoPagina, ErroVisaoDoControle> {
     contexto_da_pagina(html).map_err(ErroVisaoDoControle::Caixa)
 }
 
@@ -30,9 +32,10 @@ pub(super) fn unidade_da_tela(
 }
 
 /// Controles de usuário que o `submit()` repete, com os valores servidos.
-fn campos_do_formulario(html: &str) -> Result<Vec<(String, String)>, ErroVisaoDoControle> {
-    let dom = tl::parse(html, tl::ParserOptions::default())
-        .map_err(ErroVisaoDoControle::HtmlDoFormularioDoControleRecusadoPeloParser)?;
+fn campos_do_formulario(
+    html: &crate::tela_html::HtmlServido,
+) -> Result<Vec<(String, String)>, ErroVisaoDoControle> {
+    let dom = crate::tela_html::interpretar(html);
     let form = localizar_formulario(&dom, TROCAR_VISAO_DO_CONTROLE.formulario)?;
     campos_do_usuario(form, dom.parser(), CAMPOS_USUARIO).map_err(ErroVisaoDoControle::Formulario)
 }
@@ -71,10 +74,10 @@ pub(super) fn trocar<V: EnvioDoControle>(
 }
 
 pub(super) fn ler_detalhada(
-    html: &str,
+    html: &crate::tela_html::HtmlServido,
     unidade: &str,
 ) -> Result<LeituraDetalhada, ErroVisaoDoControle> {
-    ler_paginas(&[html.to_owned()], Some(unidade)).map_err(ErroVisaoDoControle::Detalhada)
+    ler_paginas(std::slice::from_ref(html), Some(unidade)).map_err(ErroVisaoDoControle::Detalhada)
 }
 
 /// `infraAcaoPaginar('=', indice, 'Detalhado')`: um POST a partir da tela D;

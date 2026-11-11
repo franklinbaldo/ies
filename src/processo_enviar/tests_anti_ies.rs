@@ -9,6 +9,7 @@ use crate::arvore_processo::{AbertoEm, ler_arvore};
 use crate::formulario_web::{
     CodificacaoDaTela, TelaServida, derivar_consulta_ajax, derivar_submissao,
 };
+use crate::tela_html::HtmlServido;
 use iesei::banco_cassettes::iniciar;
 use iesei::instalacao::Instalacao as OrigemSimulada;
 use iesei::processos::{Destino, ProcessoSimulado, guardar, ler};
@@ -79,15 +80,18 @@ fn formulario_real_do_ies_tramita_e_confere_estado_do_anti_ies() {
     let caminho_anotacao = format!("/sei/{}", anotacao_publicada.split_once("/sei/").unwrap().1);
     let anotacao_antes =
         anti_ies::processo_envio::responder("GET", &caminho_anotacao, "", &banco, &origem, cenario);
-    assert!(super::anotacoes::anotacao_presente(&anotacao_antes.corpo, id).unwrap());
+    assert!(
+        super::anotacoes::anotacao_presente(&HtmlServido::de_teste(&anotacao_antes.corpo), id)
+            .unwrap()
+    );
     let formulario =
         anti_ies::processo_envio::responder("GET", &alvo, "", &banco, &origem, cenario);
     assert_eq!(formulario.estado, anti_ies::Estado::Ok);
-    let tela = conferir_tela_de_envio(&formulario.corpo, id).unwrap();
+    let tela = conferir_tela_de_envio(&HtmlServido::de_teste(&formulario.corpo), id).unwrap();
     assert!(tela.remover_anotacoes_oferecida);
     let servida = TelaServida {
         url: envio_publicado.as_str(),
-        html: &formulario.corpo,
+        html: &HtmlServido::de_teste(&formulario.corpo),
         codificacao: CodificacaoDaTela::Iso88591,
     };
     let consulta = derivar_consulta_ajax(
@@ -108,7 +112,7 @@ fn formulario_real_do_ies_tramita_e_confere_estado_do_anti_ies() {
         &origem,
         cenario,
     );
-    let itens = itens_do_autocompletar(&resposta_ajax.corpo).unwrap();
+    let itens = itens_do_autocompletar(&HtmlServido::de_teste(&resposta_ajax.corpo)).unwrap();
     let escolhido = escolher_destino("DESTINO", &itens).unwrap();
     let campos = campos_do_envio(&tela, &escolhido, true, true);
     let pares: Vec<_> = campos.iter().map(|(k, v)| (*k, v.as_str())).collect();
@@ -130,7 +134,10 @@ fn formulario_real_do_ies_tramita_e_confere_estado_do_anti_ies() {
     assert_eq!(depois.anotacao_origem.as_deref(), Some(""));
     let anotacao_depois =
         anti_ies::processo_envio::responder("GET", &caminho_anotacao, "", &banco, &origem, cenario);
-    assert!(!super::anotacoes::anotacao_presente(&anotacao_depois.corpo, id).unwrap());
+    assert!(
+        !super::anotacoes::anotacao_presente(&HtmlServido::de_teste(&anotacao_depois.corpo), id)
+            .unwrap()
+    );
     let html_arvore = anti_ies::processo_envio::navegacao(
         "GET",
         "/sei/controlador.php?acao=procedimento_visualizar&id_procedimento=10",
@@ -240,7 +247,7 @@ fn leitor_real_da_caixa_reflete_tramitacao_no_controle_r_sintetico() {
             cenario,
         );
         assert_eq!(resposta.estado, anti_ies::Estado::Ok);
-        crate::caixa::parse_html(&resposta.corpo).unwrap()
+        crate::caixa::parse_html(&HtmlServido::de_teste(&resposta.corpo)).unwrap()
     };
     let antes = consultar(&banco);
     assert_eq!(antes.recebidos.processos.len(), 1);
@@ -418,8 +425,13 @@ fn leitor_ies_rele_unidade_da_tela_pesquisada_apos_envio() {
         )
         .unwrap();
         assert_eq!(resposta.estado, anti_ies::Estado::Ok);
-        crate::arvore_processo::ler_tela_do_processo(&instalacao, &resposta.corpo, "10", None)
-            .unwrap()
+        crate::arvore_processo::ler_tela_do_processo(
+            &instalacao,
+            &HtmlServido::de_teste(&resposta.corpo),
+            "10",
+            None,
+        )
+        .unwrap()
     };
     assert_eq!(tela(&banco).unidade, "ORIGEM");
     let previa = anti_ies::processo_envio::responder(

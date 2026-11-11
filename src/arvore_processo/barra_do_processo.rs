@@ -179,7 +179,6 @@ pub(crate) fn ler_link_dos_comentarios(
 #[derive(Clone, Debug, PartialEq, Eq, thiserror::Error)]
 #[error("{self:?}")]
 pub(crate) enum ErroBarraDoProcesso {
-    ParseDaBarraDoProcessoFalhou(#[source] tl::ParseError),
     DeclaracaoDaBarraIlegivel(#[source] super::ErroArvore),
     LinhaDaBarraIlegivel(#[source] super::ErroArvore),
     /// O tokenizador de atributos recusou a tag.
@@ -209,8 +208,7 @@ pub(super) fn ancoras_da_barra(html: &str) -> Result<Vec<AncoraDaBarra>, ErroBar
     let Some(texto) = barra_da_raiz(html)? else {
         return Ok(Vec::new());
     };
-    let dom = tl::parse(&texto, tl::ParserOptions::default())
-        .map_err(ErroBarraDoProcesso::ParseDaBarraDoProcessoFalhou)?;
+    let dom = crate::tela_html::interpretar(&texto);
     let parser = dom.parser();
     let mut ancoras = Vec::new();
     for no in dom.query_selector("a").into_iter().flatten() {
@@ -235,7 +233,7 @@ pub(super) fn ancoras_da_barra(html: &str) -> Result<Vec<AncoraDaBarra>, ErroBar
 }
 
 /// O texto da barra do nó `PROCESSO`; duas barras para ele são recusa.
-fn barra_da_raiz(html: &str) -> Result<Option<String>, ErroBarraDoProcesso> {
+fn barra_da_raiz(html: &str) -> Result<Option<crate::tela_html::HtmlServido>, ErroBarraDoProcesso> {
     let mut raiz = None;
     for linha in html.split('\n') {
         if let Some((i, argumentos)) =

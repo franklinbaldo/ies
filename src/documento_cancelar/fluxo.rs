@@ -214,8 +214,7 @@ pub(super) fn conferir_formulario(
     documento: &str,
 ) -> Result<(), ErroCancelar> {
     use crate::arvore_processo::endereco::conferir_endereco_relativo_por;
-    let dom = tl::parse(tela.html, tl::ParserOptions::default())
-        .map_err(ErroCancelar::HtmlDoFormularioNaoInterpretado)?;
+    let dom = crate::tela_html::interpretar(tela.html);
     let form = localizar_formulario(&dom, CANCELAR.formulario).map_err(ErroCancelar::Formulario)?;
     let action = valor_do_atributo(form, "action")
         .map_err(|f| ErroCancelar::Formulario(ErroSubmissaoFormulario::AtributoHtml(f)))?

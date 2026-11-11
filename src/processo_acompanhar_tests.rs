@@ -1,4 +1,5 @@
 use super::*;
+use crate::tela_html::HtmlServido;
 
 const ID: &str = "12345";
 fn cadastro(grupos: &str) -> String {
@@ -33,10 +34,10 @@ fn a(id: &str, grupo: &str, obs: &str) -> Acompanhamento {
 #[test]
 fn grupos_da_tela_observada_e_nome_exato() {
     // Caso de todos tests/test_processo_acompanhar_010.py @323eb01.
-    let html = cadastro(
+    let html = HtmlServido::de_teste(&cadastro(
         r#"<option value="null">&nbsp;</option>
        <option value="19">acomp fiel</option><option value="64">Boas-Vindas</option>"#,
-    );
+    ));
     let grupos = grupos_do_cadastro(&html, ID).unwrap();
     assert_eq!(
         escolher_grupo(&grupos, Some("acomp fiel")).unwrap().valor,
@@ -52,13 +53,13 @@ fn grupos_da_tela_observada_e_nome_exato() {
 fn recusa_cadastro_de_outro_processo_e_acao_duplicada() {
     let html = cadastro(r#"<option value="19">G</option>"#);
     assert_eq!(
-        grupos_do_cadastro(&html, "999"),
+        grupos_do_cadastro(&HtmlServido::de_teste(&html), "999"),
         Err(ErroAcompanhar::CadastroDeOutroProcesso)
     );
-    let duplicado = html.replace(
+    let duplicado = HtmlServido::de_teste(&html.replace(
         "acao=acompanhamento_cadastrar",
         "acao=acompanhamento_cadastrar&amp;acao=acompanhamento_cadastrar",
-    );
+    ));
     assert_eq!(
         grupos_do_cadastro(&duplicado, ID),
         Err(ErroAcompanhar::ChaveDoCadastroIlegivel(
@@ -70,20 +71,20 @@ fn recusa_cadastro_de_outro_processo_e_acao_duplicada() {
 #[test]
 fn action_com_par_sem_igual_recusa_com_a_causa() {
     let html = cadastro(r#"<option value="19">G</option>"#);
-    let com_lixo = html.replace(
+    let com_lixo = HtmlServido::de_teste(&html.replace(
         "acao=acompanhamento_cadastrar&amp;id_procedimento",
         "acao=acompanhamento_cadastrar&amp;lixo&amp;id_procedimento",
-    );
+    ));
     assert_eq!(
         grupos_do_cadastro(&com_lixo, ID),
         Err(ErroAcompanhar::ConsultaDoCadastroIlegivel(
             ErroConsultaDoControlador::ParSemIgual
         ))
     );
-    let id_repetido = html.replace(
+    let id_repetido = HtmlServido::de_teste(&html.replace(
         "id_procedimento=12345",
         "id_procedimento=12345&amp;id_procedimento=12345",
-    );
+    ));
     assert_eq!(
         grupos_do_cadastro(&id_repetido, ID),
         Err(ErroAcompanhar::ChaveDoCadastroIlegivel(
@@ -95,7 +96,9 @@ fn action_com_par_sem_igual_recusa_com_a_causa() {
 }
 #[test]
 fn grupos_ambiguos_e_ausentes_recusados() {
-    let html = cadastro(r#"<option value="1">Mesmo</option><option value="2">Mesmo</option>"#);
+    let html = HtmlServido::de_teste(&cadastro(
+        r#"<option value="1">Mesmo</option><option value="2">Mesmo</option>"#,
+    ));
     let grupos = grupos_do_cadastro(&html, ID).unwrap();
     assert_eq!(
         escolher_grupo(&grupos, Some("Mesmo")),
@@ -110,18 +113,21 @@ fn grupos_ambiguos_e_ausentes_recusados() {
 fn lista_sem_tabela_nao_prova_vazia() {
     // Caso de todos tests/test_processo_acompanhar_010.py @323eb01.
     assert_eq!(
-        acompanhamentos_da_lista("<html>cortada</html>"),
+        acompanhamentos_da_lista(&HtmlServido::de_teste("<html>cortada</html>")),
         Err(ErroAcompanhar::ListaNaoPublicada)
     );
-    assert_eq!(acompanhamentos_da_lista(&tabela("")), Ok(vec![]));
+    assert_eq!(
+        acompanhamentos_da_lista(&HtmlServido::de_teste(&tabela(""))),
+        Ok(vec![])
+    );
 }
 #[test]
 fn lista_identidades_duplicadas_falha_fechado() {
-    let html = tabela(&format!(
+    let html = HtmlServido::de_teste(&tabela(&format!(
         "{}{}",
         linha("831", "Grupo", "O1"),
         linha("831", "G2", "O2")
-    ));
+    )));
     assert_eq!(
         acompanhamentos_da_lista(&html),
         Err(ErroAcompanhar::IdDeAcompanhamentoRepetido)
@@ -165,7 +171,11 @@ fn reconciliacao_so_aceita_uma_alteracao_precisa() {
 }
 #[test]
 fn lista_realista_com_entidades() {
-    let html = tabela(&linha("831", "Boas-Vindas", "Prazos &amp; revisões"));
+    let html = HtmlServido::de_teste(&tabela(&linha(
+        "831",
+        "Boas-Vindas",
+        "Prazos &amp; revisões",
+    )));
     let lida = acompanhamentos_da_lista(&html).unwrap();
     assert_eq!(lida[0], a("831", "Boas-Vindas", "Prazos & revisões"));
 }
@@ -192,7 +202,7 @@ fn submissao_inclusao_reflete_grupo_exato_oculto_e_botao() {
     );
     let tela = TelaServida {
         url: &url,
-        html: &html,
+        html: &HtmlServido::de_teste(&html),
         codificacao: CodificacaoDaTela::Iso88591,
     };
     let instalacao = Instalacao::interpretar("https://sei.exemplo.gov.br/sei").unwrap();
@@ -238,7 +248,7 @@ fn submissao_inclusao_nao_inventa_grupo_ou_endereco() {
     let instalacao = Instalacao::interpretar("https://sei.exemplo.gov.br/sei").unwrap();
     let tela = TelaServida {
         url: &url,
-        html: &html,
+        html: &HtmlServido::de_teste(&html),
         codificacao: CodificacaoDaTela::Iso88591,
     };
     assert!(matches!(
@@ -287,7 +297,7 @@ fn submissao_inclusao_recusa_hash_duplicado_e_processo_divergente() {
             &instalacao,
             &TelaServida {
                 url: &url,
-                html,
+                html: &HtmlServido::de_teste(html),
                 codificacao: CodificacaoDaTela::Iso88591,
             },
             ID,

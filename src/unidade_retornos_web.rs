@@ -26,8 +26,6 @@ pub(crate) enum ErroLeituraRetornos {
     MesDosRetornosInacessivel,
     MesDaCliInvalido,
     UnidadeDiferenteDaSolicitada,
-    /// O parser de HTML recusou a tela do calendário dos retornos.
-    HtmlDoCalendarioNaoInterpretado(#[source] tl::ParseError),
     ConsultaDoLinkIlegivel(#[source] ErroConsultaDoControlador),
     ChaveDoLinkIlegivel(#[source] ErroChaveDaConsulta),
 }
@@ -49,8 +47,7 @@ impl ErroLeituraRetornos {
             | Self::Atributo(_)
             | Self::UnidadeDiferenteDaSolicitada
             | Self::ConsultaDoLinkIlegivel(_)
-            | Self::ChaveDoLinkIlegivel(_)
-            | Self::HtmlDoCalendarioNaoInterpretado(_) => false,
+            | Self::ChaveDoLinkIlegivel(_) => false,
         }
     }
 }
@@ -199,12 +196,11 @@ fn conferir_link(
 /// Somente links de retorno da propria pagina servida. Outros links de menu
 /// sao ignorados; links suspeitos da operacao sao erro, nao alternativas.
 fn links(
-    html: &str,
+    html: &crate::tela_html::HtmlServido,
     servida: &str,
     instalacao: &Instalacao,
 ) -> Result<Vec<Link>, ErroLeituraRetornos> {
-    let dom = tl::parse(html, tl::ParserOptions::default())
-        .map_err(ErroLeituraRetornos::HtmlDoCalendarioNaoInterpretado)?;
+    let dom = crate::tela_html::interpretar(html);
     let parser = dom.parser();
     let mut saida = Vec::new();
     for no in dom.query_selector("a").into_iter().flatten() {
@@ -233,7 +229,11 @@ fn links(
     Ok(saida)
 }
 
-fn menu(html: &str, servida: &str, instalacao: &Instalacao) -> Result<String, ErroLeituraRetornos> {
+fn menu(
+    html: &crate::tela_html::HtmlServido,
+    servida: &str,
+    instalacao: &Instalacao,
+) -> Result<String, ErroLeituraRetornos> {
     let todos = links(html, servida, instalacao)?;
     match todos.len() {
         0 => Err(ErroLeituraRetornos::LinkDeRetornosAusente),
@@ -276,12 +276,11 @@ fn mes_inteiro(links: &[Link]) -> Result<((u16, u8), &str), ErroLeituraRetornos>
 /// O SEI e a unica fonte da data observada; ausencia de diaHoje nao
 /// autoriza usar a data UTC como se fosse data do SEI.
 fn hoje_na_tela(
-    html: &str,
+    html: &crate::tela_html::HtmlServido,
     servida: &str,
     instalacao: &Instalacao,
 ) -> Result<Option<(u16, u8)>, ErroLeituraRetornos> {
-    let dom = tl::parse(html, tl::ParserOptions::default())
-        .map_err(ErroLeituraRetornos::HtmlDoCalendarioNaoInterpretado)?;
+    let dom = crate::tela_html::interpretar(html);
     let parser = dom.parser();
     let mut marcado = None;
     let mut celulas_marcadas = 0;
@@ -364,7 +363,7 @@ fn data_utc_agora() -> Option<(u16, u8, u8)> {
 /// a URL. Duas ancoras com href identico significam um unico destino.
 /// Um GET para cada transicao, sem retry ou restauracao de tela.
 fn navegar_ate_mes<F>(
-    tela: &mut String,
+    tela: &mut crate::tela_html::HtmlServido,
     servida: &mut String,
     instalacao: &Instalacao,
     alvo: (u16, u8),
@@ -372,7 +371,7 @@ fn navegar_ate_mes<F>(
     requisicoes: &mut u8,
 ) -> Result<(), ErroLeituraRetornos>
 where
-    F: FnMut(&str) -> Result<String, ErroLeituraRetornos>,
+    F: FnMut(&str) -> Result<crate::tela_html::HtmlServido, ErroLeituraRetornos>,
 {
     let mut vistos = HashSet::new();
     for _ in 0..=24 {
@@ -422,13 +421,13 @@ pub(crate) struct Leitura {
 /// Mes adjacente: mais um GET por passo. Sem POST nem retry.
 pub(crate) fn ler_com<F>(
     controle_url: &str,
-    controle_html: &str,
+    controle_html: &crate::tela_html::HtmlServido,
     instalacao: &Instalacao,
     mes: Option<(u16, u8)>,
     get: F,
 ) -> Result<Leitura, ErroLeituraRetornos>
 where
-    F: FnMut(&str) -> Result<String, ErroLeituraRetornos>,
+    F: FnMut(&str) -> Result<crate::tela_html::HtmlServido, ErroLeituraRetornos>,
 {
     // Nao consulta o relogio quando o pedido ja indicou o mes.
     let hoje_utc = if mes.is_some() {
@@ -444,14 +443,14 @@ where
 /// virada do dia, no mes vizinho. Nao atribui o relogio UTC ao SEI.
 fn ler_com_data_utc<F>(
     controle_url: &str,
-    controle_html: &str,
+    controle_html: &crate::tela_html::HtmlServido,
     instalacao: &Instalacao,
     mes: Option<(u16, u8)>,
     hoje_utc: (u16, u8, u8),
     mut get: F,
 ) -> Result<Leitura, ErroLeituraRetornos>
 where
-    F: FnMut(&str) -> Result<String, ErroLeituraRetornos>,
+    F: FnMut(&str) -> Result<crate::tela_html::HtmlServido, ErroLeituraRetornos>,
 {
     let url = menu(controle_html, controle_url, instalacao)?;
     let mut tela = get(&url)?;
@@ -525,9 +524,18 @@ pub(crate) fn conferir_calendario_gravado(
     url_servida: &str,
     instalacao: &Instalacao,
 ) -> Result<(bool, bool), ErroLeituraRetornos> {
-    let candidatos = links(html, url_servida, instalacao)?;
+    let candidatos = links(
+        &crate::tela_html::HtmlServido::de_teste(html),
+        url_servida,
+        instalacao,
+    )?;
     let (mes, _) = mes_inteiro(&candidatos)?;
-    let marcado = hoje_na_tela(html, url_servida, instalacao)?.is_some();
+    let marcado = hoje_na_tela(
+        &crate::tela_html::HtmlServido::de_teste(html),
+        url_servida,
+        instalacao,
+    )?
+    .is_some();
     let anterior = mes_vizinho(mes, -1);
     let proximo = mes_vizinho(mes, 1);
     let vizinho = candidatos.iter().any(|link| {
