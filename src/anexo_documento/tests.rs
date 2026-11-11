@@ -84,6 +84,30 @@ fn pdf_sem_saida_publica_metadados_e_hash_sem_texto() {
     assert_eq!(a.conteudo, ConteudoDoAnexo::Nenhum);
 }
 
+#[cfg(unix)]
+#[test]
+fn pasta_do_anexo_com_ancestral_regular_preserva_causa_e_nao_grava() {
+    let raiz = pasta();
+    let sentinela = raiz.join("arquivo-regular");
+    std::fs::write(&sentinela, b"intacto").unwrap();
+    let destino = sentinela.join("subdiretorio");
+
+    assert_eq!(
+        ler_anexo(
+            pdf(&[]),
+            "0000101",
+            LimiteDoAnexo::default(),
+            DestinoDoAnexo::Diretorio(&destino)
+        ),
+        Err(ErroAnexo::GravacaoDoParcialFalhou(
+            FalhaDaGravacao::DiretorioNaoConsultado(io::ErrorKind::NotADirectory)
+        ))
+    );
+    assert_eq!(std::fs::read(&sentinela).unwrap(), b"intacto");
+    assert_eq!(std::fs::read_dir(&raiz).unwrap().count(), 1);
+    std::fs::remove_dir_all(raiz).unwrap();
+}
+
 #[test]
 fn pdf_com_saida_vai_para_parcial_0600_e_so_conclui_sem_sobrescrever() {
     let dir = pasta();
