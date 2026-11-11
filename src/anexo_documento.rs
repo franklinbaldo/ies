@@ -460,15 +460,14 @@ fn abrir_parcial(
     let politica = Politica::exclusiva()
         .diretorio_do_usuario()
         .com_limite(conferido.limite);
-    if !dir.is_dir() {
-        return Err(ErroAnexo::DiretorioAusente);
-    }
     let parcial = Parcial::abrir(&dir.join(&nome), politica).map_err(|falha| match falha {
         FalhaDaGravacao::SemNomeDeArquivo
         | FalhaDaGravacao::DiretorioAusente
-        | FalhaDaGravacao::DiretorioNaoConsultado(_)
-        | FalhaDaGravacao::NivelDoCaminhoNaoEhDiretorio
-        | FalhaDaGravacao::NivelDoCaminhoIlegivel(_) => ErroAnexo::DiretorioAusente,
+        | FalhaDaGravacao::NivelDoCaminhoNaoEhDiretorio => ErroAnexo::DiretorioAusente,
+        falha @ (FalhaDaGravacao::DiretorioNaoConsultado(_)
+        | FalhaDaGravacao::NivelDoCaminhoIlegivel(_)) => {
+            ErroAnexo::GravacaoDoParcialFalhou(falha)
+        }
         FalhaDaGravacao::DestinoJaExiste => ErroAnexo::ArquivoJaExiste,
         // Diretório do usuário: a peça não confere o modo.
         #[cfg(unix)]
