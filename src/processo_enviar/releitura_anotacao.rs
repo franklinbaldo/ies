@@ -30,7 +30,8 @@ pub(super) fn observar_anotacao_depois<V: EnvioDoProcesso>(
 ) -> Result<bool, ErroEnviar> {
     let (html, _) = obter_tela_das_anotacoes(rede, cookie, link)?;
     anotacoes::anotacao_presente(&html, id)
-        .map_err(|causa| ErroEnviar::from(ErroDasAnotacoes::from(causa)))
+        .map_err(ErroDasAnotacoes::from)
+        .map_err(ErroEnviar::from)
 }
 
 /// Limpeza só é comprovada por campo vazio do mesmo processo.
