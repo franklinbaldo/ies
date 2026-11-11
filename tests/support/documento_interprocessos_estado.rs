@@ -177,43 +177,13 @@ fn semear_pasta_pendente(banco: &Connection, origem: &Instalacao) {
     .unwrap();
 }
 
-pub(super) fn estado(com_segundo: bool, modo: EstadoExtra) -> (Connection, Instalacao) {
-    let mut banco = Connection::open_in_memory().unwrap();
-    banco_cassettes::iniciar(&banco).unwrap();
-    let origem = Instalacao::interpretar(ORIGEM).unwrap();
-    banco_cassettes::guardar(
-        &mut banco,
-        CENARIO,
-        &ControleResumido {
-            instalacao: origem.clone(),
-            unidade: UnidadeExibida::nova("TESTE").unwrap(),
-            recebidos: TabelaObservada::<Linha>::nova(Some(0), None, vec![]).unwrap(),
-            gerados: TabelaObservada::<Linha>::nova(Some(0), None, vec![]).unwrap(),
-        },
-    )
-    .unwrap();
-    // O NUP da recusa precisa ser navegável: sem processo cadastrado o
-    // anti-IES devolve 503 na pesquisa e testa apenas transporte, não
-    // o BDD-60-05. A árvore mantém somente DOC_A sob NUP_A.
-    processos::guardar(
-        &mut banco,
-        &origem,
-        CENARIO,
-        &ProcessoSimulado {
-            id: "7".into(),
-            numero: NUP_A.into(),
-            unidade_origem: "TESTE".into(),
-            aberto_em: if matches!(modo, EstadoExtra::SemListaNaUnidade) {
-                vec!["OUTRA".into()]
-            } else {
-                vec!["TESTE".into()]
-            },
-            anotacao_origem: None,
-            destinos: vec![],
-        },
-    )
-    .unwrap();
-    semear_segundo_processo_se_necessario(&mut banco, &origem, modo);
+/// Cadastra os documentos canônicos do cenário em estado descartável.
+fn semear_documentos_iniciais(
+    banco: &mut Connection,
+    origem: &Instalacao,
+    com_segundo: bool,
+    modo: EstadoExtra,
+) {
     for (id, processo, nup, numero, corpo) in [
         (
             "42",
@@ -252,6 +222,47 @@ pub(super) fn estado(com_segundo: bool, modo: EstadoExtra) -> (Connection, Insta
         )
         .unwrap();
     }
+
+}
+
+pub(super) fn estado(com_segundo: bool, modo: EstadoExtra) -> (Connection, Instalacao) {
+    let mut banco = Connection::open_in_memory().unwrap();
+    banco_cassettes::iniciar(&banco).unwrap();
+    let origem = Instalacao::interpretar(ORIGEM).unwrap();
+    banco_cassettes::guardar(
+        &mut banco,
+        CENARIO,
+        &ControleResumido {
+            instalacao: origem.clone(),
+            unidade: UnidadeExibida::nova("TESTE").unwrap(),
+            recebidos: TabelaObservada::<Linha>::nova(Some(0), None, vec![]).unwrap(),
+            gerados: TabelaObservada::<Linha>::nova(Some(0), None, vec![]).unwrap(),
+        },
+    )
+    .unwrap();
+    // O NUP da recusa precisa ser navegável: sem processo cadastrado o
+    // anti-IES devolve 503 na pesquisa e testa apenas transporte, não
+    // o BDD-60-05. A árvore mantém somente DOC_A sob NUP_A.
+    processos::guardar(
+        &mut banco,
+        &origem,
+        CENARIO,
+        &ProcessoSimulado {
+            id: "7".into(),
+            numero: NUP_A.into(),
+            unidade_origem: "TESTE".into(),
+            aberto_em: if matches!(modo, EstadoExtra::SemListaNaUnidade) {
+                vec!["OUTRA".into()]
+            } else {
+                vec!["TESTE".into()]
+            },
+            anotacao_origem: None,
+            destinos: vec![],
+        },
+    )
+    .unwrap();
+    semear_segundo_processo_se_necessario(&mut banco, &origem, modo);
+    semear_documentos_iniciais(&mut banco, &origem, com_segundo, modo);
 
     match modo {
         EstadoExtra::Nenhum
