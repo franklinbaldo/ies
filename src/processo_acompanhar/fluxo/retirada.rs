@@ -48,24 +48,24 @@ pub(super) fn confirmar_remocao<V: EnvioDoProcesso>(
             }),
         _ => false,
     };
-    let depois = rede.get_sem_seguir(link, cookie).ok().and_then(|res| {
-        if res.resposta.status_code == 302 {
-            // Sem comprovação da última linha removida, nunca afirmar êxito.
-            return None;
-        }
-        decodificar_resposta(res.resposta)
-            .ok()
-            .and_then(|html| acompanhamentos_da_lista(&html).ok())
-    });
+    // A releitura é obrigatória mesmo que o POST tenha falhado; não repetir a escrita.
+    let resposta = rede
+        .get_sem_seguir(link, cookie)
+        .map_err(ErroAcompanhar::ReleituraDaRetiradaFalhou)?;
+    if resposta.resposta.status_code == 302 {
+        // 302 não comprova a ausência exata da linha removida.
+        return Err(ErroAcompanhar::RedirecionamentoDeAcompanhamentoInesperado);
+    }
+    let html = decodificar_resposta(resposta.resposta)
+        .map_err(ErroAcompanhar::ReleituraDaRetiradaFalhou)?;
+    let depois = acompanhamentos_da_lista(&html)?;
     let confirmado = aceite
-        && depois.as_deref().is_some_and(|linhas| {
-            super::super::conferir_remocao(
-                antes,
-                linhas,
-                plano.id_de_remocao.as_deref().unwrap_or_default(),
-            )
-            .is_ok()
-        });
+        && super::super::conferir_remocao(
+            antes,
+            &depois,
+            plano.id_de_remocao.as_deref().unwrap_or_default(),
+        )
+        .is_ok();
     if !confirmado {
         return Err(ErroAcompanhar::AcompanhamentoNaoConfirmado);
     }
