@@ -1,5 +1,5 @@
 //! A tela do Nível de detalhe do anti-IES reflete somente o SQLite da
-//! instalação/cenário. A gravação depende de outra fatia, não há POST fictício.
+//! instalação/cenário. O POST atualiza esse estado; nenhuma escrita sai do simulador.
 use crate::{Estado, Resposta, escapar, protocolo_sintetico};
 use iesei::colunas_detalhe::{self, Coluna, Configuracao, Erro};
 use iesei::instalacao::Instalacao;
