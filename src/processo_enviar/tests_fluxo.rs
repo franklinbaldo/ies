@@ -296,7 +296,7 @@ fn botao_de_anotacao_com_name_repetido_preserva_causa_sem_escrever() {
     );
     let amb = ambiente();
     let (resultado, pedidos) = rodar_com(&amb, respostas, |sessao, nup, indice, rede| {
-        enviar_processo(
+        super::enviar_processo(
             sessao,
             &super::PedidoDoEnvio {
                 nup,
