@@ -9,6 +9,7 @@ use super::literais::{
     Literal, concatenacao_vazia_da_barra, indice_da_barra, ler_barra, ler_declaracao,
 };
 use crate::acao_do_sei::AcaoDoSei;
+use crate::consulta_do_controlador::menciona_acao;
 use crate::formulario_web::decodificar_atributo;
 use crate::html_atributos::{ErroAtributoHtml, atributos};
 use crate::instalacao::Instalacao;
@@ -100,7 +101,7 @@ pub(crate) fn ler_barra_do_documento(
             }
         };
         if let Some(href) = valor("href")?
-            && acao_do_href(&href) == Some(AcaoDoSei::DocumentoVersaoListar)
+            && menciona_acao(&href, AcaoDoSei::DocumentoVersaoListar)
         {
             links.push(href);
         }
@@ -150,15 +151,6 @@ pub(crate) fn ler_barra_do_documento(
         versoes: Some(EnderecoDasVersoes(url)),
         edicao,
     })
-}
-
-/// O primeiro `acao=` da consulta (a conferência recusa dois).
-fn acao_do_href(href: &str) -> Option<AcaoDoSei> {
-    let (_, consulta) = href.split_once('?')?;
-    consulta
-        .split('&')
-        .find_map(|par| par.strip_prefix("acao="))
-        .and_then(AcaoDoSei::ler)
 }
 
 /// O texto da barra do nó `DOCUMENTO` de id `id`; duas barras são recusa.
