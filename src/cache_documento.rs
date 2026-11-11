@@ -420,6 +420,43 @@ mod tests {
         fs::remove_file(raiz).unwrap();
     }
 
+    // Contraprova da #719: a publicação por hard link também precisa
+    // preservar o motivo de E/S. Um ancestral é arquivo, não diretório.
+    #[cfg(unix)]
+    #[test]
+    fn publicar_parcial_preserva_erro_de_hard_link() {
+        let raiz = std::env::temp_dir().join(format!(
+            "ies-cache-publicar-causa-{}-{}",
+            std::process::id(),
+            std::time::SystemTime::now()
+                .duration_since(std::time::UNIX_EPOCH)
+                .unwrap()
+                .as_nanos()
+        ));
+        fs::create_dir(&raiz).unwrap();
+        let ancestral = raiz.join("ies");
+        fs::write(&ancestral, b"sentinela").unwrap();
+        let parcial = raiz.join("parcial.pdf");
+        let pdf = b"%PDF-1.7 sintético";
+        fs::write(&parcial, pdf).unwrap();
+        let erro = publicar_parcial(
+            &parcial,
+            &raiz,
+            "sei.exemplo",
+            "0007",
+            &sha256(pdf),
+            "pdf",
+        )
+        .unwrap_err();
+        assert_eq!(
+            erro,
+            FalhaCache::ArquivoDoCacheInacessivel(std::io::ErrorKind::NotADirectory)
+        );
+        assert_eq!(fs::read(&ancestral).unwrap(), b"sentinela");
+        assert_eq!(fs::read(&parcial).unwrap(), pdf);
+        fs::remove_dir_all(raiz).unwrap();
+    }
+
     // O erro tipado da gravação privada já existe; o cache não deve
     // substituí-lo por `Gravacao` quando o diretório é inseguro.
     #[cfg(unix)]
