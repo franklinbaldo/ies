@@ -140,6 +140,14 @@ pub(crate) enum ErroVisaoDoControle {
     LinkDoNivelDeDetalheNaoReconhecido,
     LinksDoNivelDeDetalheRepetidos,
     VisaoDoControleNaoReconhecida,
+    /// O valor da página atual não cabe no tipo do paginador.
+    PaginaAtualDaVisaoDetalhadaNaoCabeNoTipo(#[source] std::num::ParseIntError),
+    /// O parser HTML recusou a tela do nível de detalhe.
+    HtmlDoNivelDeDetalheRecusadoPeloParser(#[source] tl::ParseError),
+    /// O parser HTML recusou o formulário de troca de visão.
+    HtmlDoFormularioDoControleRecusadoPeloParser(#[source] tl::ParseError),
+    /// Chave ou valor da consulta do nível recusado pelo transporte.
+    ConsultaDoNivelRecusadaPeloTransporte(#[source] FalhaTransporte),
 }
 
 impl ErroVisaoDoControle {
@@ -156,6 +164,10 @@ impl ErroVisaoDoControle {
             | Self::VisaoNaoTrocadaAposEnvio { .. }
             | Self::UnidadeAlteradaAoTrocarVisao
             | Self::PaginaAtualDaVisaoDetalhadaIlegivel
+            | Self::PaginaAtualDaVisaoDetalhadaNaoCabeNoTipo(_)
+            | Self::HtmlDoNivelDeDetalheRecusadoPeloParser(_)
+            | Self::HtmlDoFormularioDoControleRecusadoPeloParser(_)
+            | Self::ConsultaDoNivelRecusadaPeloTransporte(_)
             | Self::PaginaAtualDaVisaoDetalhadaIncompativelComAFaixa
             | Self::PaginaForaDoIntervalo { .. }
             | Self::PaginadorDaVisaoDetalhadaNaoPublicado

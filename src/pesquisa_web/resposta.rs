@@ -39,7 +39,7 @@ pub(crate) enum RespostaDaPesquisa {
 }
 
 /// um erro por fato verificável da resposta 200.
-#[derive(Clone, Copy, Debug, PartialEq, Eq, thiserror::Error)]
+#[derive(Clone, Debug, PartialEq, Eq, thiserror::Error)]
 #[error("{self:?}")]
 pub(crate) enum ErroRespostaDaPesquisa {
     RespostaDaPesquisaNaoReconhecida,
@@ -56,7 +56,7 @@ pub(crate) enum ErroRespostaDaPesquisa {
     AtributoHtml(#[from] ErroAtributoHtml),
     BarraDeContagemDaPesquisaAusente,
     BarrasDeContagemDaPesquisaRepetidas,
-    HtmlDaRespostaDaPesquisaNaoInterpretado,
+    HtmlDaRespostaDaPesquisaNaoInterpretado(#[source] tl::ParseError),
 }
 
 /// Número da barra: grupos de 3 dígitos separados por `.` (o primeiro com
@@ -141,7 +141,7 @@ pub(crate) fn classificar_resposta<T>(
     ler: impl FnOnce(&str) -> Result<Vec<T>, ErroRespostaDaPesquisa>,
 ) -> Result<Classificada<T>, ErroRespostaDaPesquisa> {
     let dom = tl::parse(html, tl::ParserOptions::default())
-        .map_err(|_| ErroRespostaDaPesquisa::HtmlDaRespostaDaPesquisaNaoInterpretado)?;
+        .map_err(ErroRespostaDaPesquisa::HtmlDaRespostaDaPesquisaNaoInterpretado)?;
     let tabelas = nos_por_elemento_e_classe(&dom, None, "table", "pesquisaResultado")?;
     let avisos = nos_por_elemento_e_classe(&dom, None, "div", "pesquisaSemResultado")?;
     let barras = nos_por_elemento_e_classe(&dom, None, "div", "pesquisaBarraD")?;

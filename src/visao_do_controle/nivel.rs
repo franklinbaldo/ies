@@ -75,9 +75,10 @@ pub(super) fn link_do_nivel_de_detalhe(
     tela: &TelaAtual,
 ) -> Result<String, super::ErroVisaoDoControle> {
     let invalido = super::ErroVisaoDoControle::LinkDoNivelDeDetalheNaoReconhecido;
-    let dom = tl::parse(&tela.html, tl::ParserOptions::default()).map_err(|_| invalido.clone())?;
+    let dom = tl::parse(&tela.html, tl::ParserOptions::default())
+        .map_err(super::ErroVisaoDoControle::HtmlDoNivelDeDetalheRecusadoPeloParser)?;
     let parser = dom.parser();
-    let nos = nos_com_id(&dom, "ancNivelDetalhe").map_err(|_| invalido.clone())?;
+    let nos = nos_com_id(&dom, "ancNivelDetalhe").map_err(super::ErroVisaoDoControle::Atributo)?;
     let no = match nos.as_slice() {
         [] => return Err(ErroVisaoDoControle::LinkDoNivelDeDetalheAusente),
         [no] => *no,
@@ -105,8 +106,10 @@ pub(super) fn link_do_nivel_de_detalhe(
     let (mut acoes, mut hashes) = (0, 0);
     for par in consulta.split('&') {
         let (nome, valor) = par.split_once('=').ok_or_else(|| invalido.clone())?;
-        conferir_chave_de_consulta(nome).map_err(|_| invalido.clone())?;
-        conferir_valor_de_consulta(valor).map_err(|_| invalido.clone())?;
+        conferir_chave_de_consulta(nome)
+            .map_err(super::ErroVisaoDoControle::ConsultaDoNivelRecusadaPeloTransporte)?;
+        conferir_valor_de_consulta(valor)
+            .map_err(super::ErroVisaoDoControle::ConsultaDoNivelRecusadaPeloTransporte)?;
         match nome {
             "acao" if valor == AcaoDoSei::ProcedimentoConfigurarDetalhe.como_na_url() => acoes += 1,
             "infra_hash" if valor.len() == 64 && valor.bytes().all(|b| b.is_ascii_hexdigit()) => {

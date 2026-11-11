@@ -51,6 +51,12 @@ pub(crate) enum FalhaAnexar {
     /// O cookie privado da sessão não pôde ser lido.
     Cookie(CookieIlegivel),
     NaoConfirmado(EtapaNaoComprovada),
+    /// A releitura da árvore do principal falhou após o POST.
+    NaoConfirmadoNaArvoreDoPrincipal(#[source] ErroProcessoObter),
+    /// A releitura da lista após o POST falhou no transporte.
+    NaoConfirmadoNaListaAposPost(#[source] FalhaDaTela),
+    /// A lista relida após o POST não tem a forma observada.
+    NaoConfirmadoNaTelaDaListaAposPost(#[source] ErroTelaDeAnexacao),
     Abertura(ErroProcessoObter),
     Barra(ErroAnexarNaBarra),
     LinkNaoPublicado,
@@ -132,7 +138,7 @@ fn comprovar_na_arvore<V: EnvioDoProcesso>(
         indice,
         rede,
     )
-    .map_err(|_| FalhaAnexar::NaoConfirmado(EtapaNaoComprovada::ArvoreDoPrincipal))?;
+    .map_err(FalhaAnexar::NaoConfirmadoNaArvoreDoPrincipal)?;
     let depois = &lido.arvore.anexados;
     if !depois
         .iter()

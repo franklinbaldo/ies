@@ -95,7 +95,7 @@ pub(crate) struct PropriedadesLidas {
 }
 
 /// Falhas do link na barra e da tela: um erro por fato.
-#[derive(Clone, Copy, Debug, PartialEq, Eq, thiserror::Error)]
+#[derive(Clone, Debug, PartialEq, Eq, thiserror::Error)]
 #[error("{self:?}")]
 pub(crate) enum ErroPropriedades {
     /// O tokenizador de atributos recusou a tag.
@@ -117,6 +117,8 @@ pub(crate) enum ErroPropriedades {
     DataDeGeracaoForaDaFormaObservada,
     FormulariosDasPropriedadesRepetidos,
     HtmlDasPropriedadesNaoInterpretado,
+    /// O parser HTML recusou a tela das propriedades.
+    HtmlDasPropriedadesRecusadoPeloParser(#[source] tl::ParseError),
     InteressadoForaDaFormaObservada,
     NivelDeAcessoForaDaFormaObservada,
     OpcoesMarcadasRepetidas,

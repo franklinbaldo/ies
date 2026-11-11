@@ -29,7 +29,7 @@ pub(crate) enum ErroAtributoDeRelacionamento {
 #[error("{self:?}")]
 pub(crate) enum ErroTelaDeRelacionamentos {
     Atributo(#[from] ErroAtributoDeRelacionamento),
-    HtmlDeRelacionamentosNaoInterpretado,
+    HtmlDeRelacionamentosNaoInterpretado(#[source] tl::ParseError),
     FormularioDeRelacionamentosNaoLocalizado(#[source] ErroSubmissaoFormulario),
     TabelaDeRelacionamentosAusenteOuRepetida,
     NumeroDoRelacionadoAusente,
@@ -38,11 +38,11 @@ pub(crate) enum ErroTelaDeRelacionamentos {
 }
 
 /// A resposta XML da consulta `protocolo_RI1023` do destino.
-#[derive(Clone, Copy, Debug, PartialEq, Eq, thiserror::Error)]
+#[derive(Clone, Debug, PartialEq, Eq, thiserror::Error)]
 #[error("{self:?}")]
 pub(crate) enum ErroDestinoDaConsulta {
     Atributo(#[from] ErroAtributoDeRelacionamento),
-    RespostaDaConsultaNaoInterpretada,
+    RespostaDaConsultaNaoInterpretada(#[source] tl::ParseError),
     ProcessoDeDestinoNaoEncontrado,
     DestinoDaConsultaAmbiguo,
     DestinoARelacionarNaoIdentificado,
@@ -85,7 +85,7 @@ fn id_do_processo(href: &str) -> Option<&str> {
 /// Só a linha da tabela própria do formulário é evidência da relação.
 pub(super) fn ler_linhas(html: &str) -> Result<Vec<Relacionamento>, ErroTelaDeRelacionamentos> {
     let dom = tl::parse(html, tl::ParserOptions::default())
-        .map_err(|_| ErroTelaDeRelacionamentos::HtmlDeRelacionamentosNaoInterpretado)?;
+        .map_err(ErroTelaDeRelacionamentos::HtmlDeRelacionamentosNaoInterpretado)?;
     let parser = dom.parser();
     let form = localizar_formulario(&dom, "frmProcedimentoListarRelacionamentos")
         .map_err(ErroTelaDeRelacionamentos::FormularioDeRelacionamentosNaoLocalizado)?;
@@ -205,7 +205,7 @@ pub(super) fn url_complementar(html: &str) -> Option<String> {
 /// Só devolve identidade observada nos complementos únicos da resposta.
 pub(super) fn ler_destino(xml: &str) -> Result<DestinoConsultado, ErroDestinoDaConsulta> {
     let dom = tl::parse(xml, tl::ParserOptions::default())
-        .map_err(|_| ErroDestinoDaConsulta::RespostaDaConsultaNaoInterpretada)?;
+        .map_err(ErroDestinoDaConsulta::RespostaDaConsultaNaoInterpretada)?;
     let parser = dom.parser();
     if dom
         .query_selector("erros")

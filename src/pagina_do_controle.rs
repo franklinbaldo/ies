@@ -62,6 +62,14 @@ pub(crate) enum ErroPaginaDoControle {
     PaginaAtualDaTabelaIlegivel {
         categoria: Categoria,
     },
+    /// O valor da página atual não cabe no tipo do paginador.
+    PaginaAtualDaTabelaNaoCabeNoTipo {
+        categoria: Categoria,
+        #[source]
+        erro: std::num::ParseIntError,
+    },
+    /// O parser HTML recusou a tela de envio.
+    HtmlDaTelaDeEnvioRecusadoPeloParser(#[source] tl::ParseError),
     CamposDePaginaAtualDaTabelaRepetidos {
         categoria: Categoria,
     },
@@ -101,6 +109,8 @@ impl ErroPaginaDoControle {
             Self::PaginaExigeVisaoResumida
             | Self::CharsetDaTelaNaoSuportado
             | Self::PaginaAtualDaTabelaIlegivel { .. }
+            | Self::PaginaAtualDaTabelaNaoCabeNoTipo { .. }
+            | Self::HtmlDaTelaDeEnvioRecusadoPeloParser(_)
             | Self::CamposDePaginaAtualDaTabelaRepetidos { .. }
             | Self::PaginaAtualDaTabelaIncompativelComAFaixa { .. }
             | Self::PaginaForaDoIntervalo { .. }

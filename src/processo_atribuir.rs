@@ -55,6 +55,10 @@ pub(crate) enum ErroAtribuir {
     CharsetDaTelaNaoSuportado,
     Formulario(#[from] ErroSubmissaoFormulario),
     TelaDaAtribuicaoForaDaForma,
+    /// O parser HTML recusou a tela de atribuição.
+    HtmlDaAtribuicaoRecusadoPeloParser(#[source] tl::ParseError),
+    /// O formulário de atribuição não foi localizado na tela.
+    FormularioDaAtribuicaoNaoLocalizado(#[source] crate::formulario_web::ErroSubmissaoFormulario),
 }
 
 fn valor(tag: &tl::HTMLTag<'_>, nome: &'static str) -> Result<Option<String>, ErroAtribuir> {
@@ -64,7 +68,7 @@ fn valor(tag: &tl::HTMLTag<'_>, nome: &'static str) -> Result<Option<String>, Er
         .transpose()
 }
 fn presente(tag: &tl::HTMLTag<'_>, nome: &str) -> Result<bool, ErroAtribuir> {
-    atributo_presente(tag, nome).map_err(|_| ErroAtribuir::TelaDaAtribuicaoForaDaForma)
+    atributo_presente(tag, nome).map_err(ErroAtribuir::Atributo)
 }
 
 /// Confere a URL assinada servida sem a publicar nem fabricar outra.
@@ -155,10 +159,10 @@ fn ler_opcoes(
 /// Confere a forma observada: POST, identidade, lista simples e opção null.
 pub(crate) fn ler_tela(html: &str, id: &str) -> Result<TelaDaAtribuicao, ErroAtribuir> {
     let dom = tl::parse(html, tl::ParserOptions::default())
-        .map_err(|_| ErroAtribuir::TelaDaAtribuicaoForaDaForma)?;
+        .map_err(ErroAtribuir::HtmlDaAtribuicaoRecusadoPeloParser)?;
     let parser = dom.parser();
     let form = localizar_formulario(&dom, FORMULARIO)
-        .map_err(|_| ErroAtribuir::TelaDaAtribuicaoForaDaForma)?;
+        .map_err(ErroAtribuir::FormularioDaAtribuicaoNaoLocalizado)?;
     if valor(form, "method")?.as_deref() != Some("post")
         || presente(form, "disabled")?
         || presente(form, "hidden")?

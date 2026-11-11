@@ -28,6 +28,8 @@ pub(crate) enum FalhaLeitura {
     Submissao(#[from] ErroSubmissaoFormulario),
     UnidadeInesperada,
     HtmlDeBlocosInvalido,
+    /// O parser HTML recusou a lista de blocos.
+    HtmlDeBlocosRecusadoPeloParser(#[source] tl::ParseError),
 }
 /// Lista ou detalhe de bloco, já tipados.
 pub(crate) enum Leitura {
