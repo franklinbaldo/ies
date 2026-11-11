@@ -3,7 +3,7 @@
 use super::*;
 
 #[test]
-fn atributo_repetido_no_botao_recusa_antes_de_qualquer_post() {
+fn atributo_repetido_no_botao_recusa_antes_do_post_mutador() {
     let mut previa = args(false);
     previa.push("--remover-anotacoes");
     let (saidas, pedidos, depois) = executar_com_ensaio_local(
@@ -29,9 +29,18 @@ fn atributo_repetido_no_botao_recusa_antes_de_qualquer_post() {
         1,
         "uma única leitura da anotação: {pedidos:?}"
     );
-    assert!(
-        pedidos.iter().all(|p| !p.starts_with("POST ")),
-        "nenhum POST autorizado após o HTML ambíguo: {pedidos:?}"
+    let esperado = [
+        "GET procedimento_controlar",
+        "POST protocolo_pesquisa_rapida",
+        "GET procedimento_trabalhar",
+        "GET procedimento_visualizar",
+        "GET procedimento_enviar",
+        "GET anotacao_registrar",
+    ];
+    assert_eq!(
+        pedidos.iter().map(String::as_str).collect::<Vec<_>>(),
+        esperado,
+        "consulta HTTP pode usar POST; nenhum POST mutador é autorizado"
     );
     assert_eq!(depois.aberto_em, ["ORIGEM"]);
     assert_eq!(depois.anotacao_origem.as_deref(), Some("Nota da origem"));
