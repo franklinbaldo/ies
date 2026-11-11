@@ -25,7 +25,7 @@ fn bdd_60_05_cli_recusa_historico_cancelado_apos_arvore_sem_fallback() {
             "a lista cancelada não pode produzir versão: stderr={} trilha={trilha:?}",
             String::from_utf8_lossy(&saida.stderr)
         );
-        falha_cli::falha_por(&saida, "Documento", "Status");
+        falha_por_cli::falha_por(&saida, "Documento", "Status");
         assert!(
             trilha
                 .iter()

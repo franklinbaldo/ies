@@ -84,22 +84,17 @@ mod processo_comentarios_cli;
 mod processo_comentarios_web;
 mod processo_concluir;
 mod processo_concluir_cli;
-#[allow(dead_code)] // núcleo isolado: o fluxo Web ainda não está ligado
 #[path = "processo_criar/cadastro.rs"]
 mod processo_criar_cadastro;
 mod processo_criar_cli;
-#[allow(dead_code)] // fluxo Web a integrar pela CLI
 #[path = "processo_criar/fluxo.rs"]
 mod processo_criar_fluxo;
 #[path = "processo_criar/hipotese.rs"]
 mod processo_criar_hipotese;
-#[allow(dead_code)]
 #[path = "processo_criar/interessados.rs"]
 mod processo_criar_interessados;
-#[allow(dead_code)] // etapa isolada da #245; conectar ao despacho na etapa do fluxo
 #[path = "processo_criar/lista.rs"]
 mod processo_criar_lista;
-#[allow(dead_code)] // link do menu validado offline; fluxo Web pendente
 #[path = "processo_criar/menu.rs"]
 mod processo_criar_menu;
 mod processo_enviar;

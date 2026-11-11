@@ -12,7 +12,7 @@ fn bdd_88_03_cli_nao_inventa_versao_ausente_do_historico() {
         5,
     );
     assert_eq!(saida.status.code(), Some(1));
-    falha_cli::falha_por(&saida, "Documento", "Versoes");
+    falha_por_cli::falha_por(&saida, "Documento", "Versoes");
     assert!(!pasta.0.join("0011519.v2.html").exists());
 }
 
@@ -41,7 +41,7 @@ fn bdd_88_03_cli_documento_nao_acessivel_na_sessao() {
         Some(0),
         "documento ausente virou sucesso"
     );
-    falha_cli::falha_por(&saida, "Documento", "Processo");
+    falha_por_cli::falha_por(&saida, "Documento", "Processo");
     assert!(!destino.join("0011519.v1.html").exists());
 }
 
@@ -64,7 +64,7 @@ fn bdd_88_03_cli_recusa_versao_sem_acesso_na_sessao() {
     // nenhum POST modificador e nenhuma foto da versão não acessível.
     let saida = executar_com_restricao(&pasta, &args, 6, true, true);
     assert_eq!(saida.status.code(), Some(1), "não recusou versão restrita");
-    falha_cli::falha_por(&saida, "Documento", "Status");
+    falha_por_cli::falha_por(&saida, "Documento", "Status");
     assert!(!destino.join("0011519.v1.html").exists());
 
     let humano = executar_com_restricao(
@@ -136,6 +136,6 @@ fn bdd_88_03_cli_recusa_sessao_sem_acesso_antes_da_pesquisa() {
     // não há pesquisa nem leitura do histórico, muito menos foto.
     let saida = executar_com_sessao(&pasta, &args, 1, true, false, true);
     assert_eq!(saida.status.code(), Some(1));
-    falha_cli::falha_por(&saida, "Documento", "Status");
+    falha_por_cli::falha_por(&saida, "Documento", "Status");
     assert!(!destino.join("0011519.v1.html").exists());
 }

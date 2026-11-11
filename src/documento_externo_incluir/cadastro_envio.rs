@@ -23,11 +23,12 @@ const CADASTRAR_EXTERNO: OperacaoDeFormulario = OperacaoDeFormulario {
     },
 };
 
-#[derive(Debug)]
+#[derive(Debug, thiserror::Error)]
+#[error("{self:?}")]
 pub(crate) enum FalhaCadastroEnvio {
     ReciboSemData,
-    Anexo(FalhaAnexo),
-    Formulario(ErroSubmissaoFormulario),
+    Anexo(#[source] FalhaAnexo),
+    Formulario(#[source] ErroSubmissaoFormulario),
 }
 
 pub(crate) fn preparar_cadastro_definitivo(

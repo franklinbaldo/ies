@@ -5,6 +5,8 @@
 mod apoio;
 #[path = "support/falha.rs"]
 mod falha_cli;
+#[path = "support/falha_por.rs"]
+mod falha_por_cli;
 use apoio::{
     DOC_A, DOC_B, NUP_A, NUP_B, executar, executar_cancelado, executar_numero_repetido,
     executar_revogado_ao_visualizar, executar_sem_src, json,
@@ -61,7 +63,7 @@ fn bdd_60_06_lote_nao_aceita_documento_sem_identidade_comprovada() {
         Some(0),
         "não pode usar o conteúdo de A como B"
     );
-    falha_cli::falha_por(&saida, "Documento", "Processo");
+    falha_por_cli::falha_por(&saida, "Documento", "Processo");
     assert!(
         trilha
             .iter()
@@ -89,7 +91,7 @@ fn bdd_60_05_cli_recusa_documento_de_outro_processo() {
         "recusa de identidade, não falha genérica de sessão: stderr={} trilha={trilha:?}",
         String::from_utf8_lossy(&saida.stderr)
     );
-    falha_cli::falha_por(&saida, "Documento", "NumeroSeiAusenteDaArvoreDoProcesso");
+    falha_por_cli::falha_por(&saida, "Documento", "NumeroSeiAusenteDaArvoreDoProcesso");
     assert!(
         trilha
             .iter()
@@ -196,7 +198,7 @@ fn bdd_60_05_documento_sem_src_recusa_e_oculta_somente_quando_solicitado() {
         "deve recusar o conteúdo não publicado: stderr={} trilha={trilha:?}",
         String::from_utf8_lossy(&saida.stderr)
     );
-    falha_cli::falha_por(&saida, "Documento", "ConteudoNaoPublicadoNaArvore");
+    falha_por_cli::falha_por(&saida, "Documento", "ConteudoNaoPublicadoNaArvore");
     assert!(
         trilha
             .iter()
@@ -260,7 +262,7 @@ fn bdd_60_05_cli_cancelado_nao_reaproveita_corpo_nem_e_ocultado() {
             "cancelamento não é documento legível nem omissão: stderr={} trilha={trilha:?}",
             String::from_utf8_lossy(&saida.stderr)
         );
-        falha_cli::falha_por(&saida, "Documento", "DocumentoCancelado");
+        falha_por_cli::falha_por(&saida, "Documento", "DocumentoCancelado");
         assert!(
             !trilha
                 .iter()
@@ -376,7 +378,7 @@ fn bdd_60_05_cli_numero_repetido_na_arvore_recusa_sem_fallback() {
             "ambiguidade não pode escolher corpo: stderr={} trilha={trilha:?}",
             String::from_utf8_lossy(&saida.stderr)
         );
-        falha_cli::falha_por(&saida, "Documento", "NumeroSeiRepetidoNaArvore");
+        falha_por_cli::falha_por(&saida, "Documento", "NumeroSeiRepetidoNaArvore");
         assert!(
             !trilha.iter().any(|p| p == "GET documento_visualizar"),
             "a recusa deve ocorrer antes de baixar qualquer corpo: {trilha:?}"
@@ -410,7 +412,7 @@ fn bdd_60_05_cli_recusa_url_revogada_apos_arvore_sem_tentar_alternativa() {
         "a URL revogada não deve produzir documento: stderr={} trilha={trilha:?}",
         String::from_utf8_lossy(&saida.stderr)
     );
-    falha_cli::falha_por(&saida, "Documento", "Status");
+    falha_por_cli::falha_por(&saida, "Documento", "Status");
     assert_eq!(
         trilha
             .iter()
@@ -435,3 +437,6 @@ fn bdd_60_05_cli_recusa_url_revogada_apos_arvore_sem_tentar_alternativa() {
 
 #[path = "aies_documento_interprocessos_cli/recusa_humana_contexto.rs"]
 mod recusa_humana_contexto;
+
+#[path = "aies_documento_interprocessos_cli/pasta_pendente.rs"]
+mod pasta_pendente;

@@ -38,18 +38,6 @@ impl NumeroProcesso {
     }
 }
 
-/// A situação é local à unidade, nunca um atributo global do processo.
-// A projeção ainda é serializada, mas o leitor não preenche atuações por unidade (#56).
-#[allow(dead_code)]
-#[derive(Debug, Clone, PartialEq, Eq, Serialize)]
-#[serde(rename_all = "snake_case")]
-pub enum SituacaoUnidade {
-    PendenteRecebimento,
-    Aberto,
-    Concluido,
-    Desconhecido,
-}
-
 /// Não inventar identidade técnica de andamento a partir da ordem ou da data.
 #[derive(Debug, Clone, PartialEq, Eq, Serialize)]
 pub struct Andamento {
@@ -60,17 +48,10 @@ pub struct Andamento {
 }
 
 #[derive(Debug, Clone, PartialEq, Eq, Serialize)]
-pub struct AtuacaoNaUnidade {
-    pub unidade: String,
-    pub situacao: SituacaoUnidade,
-}
-
-#[derive(Debug, Clone, PartialEq, Eq, Serialize)]
 pub struct DetalheProcesso {
     pub numero: NumeroProcesso,
     #[serde(skip_serializing_if = "Option::is_none")]
     pub id_interno: Option<String>,
-    pub atuacoes: Vec<AtuacaoNaUnidade>,
     pub andamentos: Vec<Andamento>,
 }
 
@@ -79,7 +60,6 @@ impl DetalheProcesso {
         Self {
             numero,
             id_interno: None,
-            atuacoes: Vec::new(),
             andamentos: Vec::new(),
         }
     }
@@ -88,31 +68,6 @@ impl DetalheProcesso {
 #[cfg(test)]
 mod tests {
     use super::*;
-
-    #[test]
-    fn situacoes_de_unidade_nao_sao_um_estado_global() {
-        let mut processo =
-            DetalheProcesso::novo(NumeroProcesso::novo("23106.000001/2026-01").unwrap());
-        processo.atuacoes = vec![
-            AtuacaoNaUnidade {
-                unidade: "A".into(),
-                situacao: SituacaoUnidade::Aberto,
-            },
-            AtuacaoNaUnidade {
-                unidade: "B".into(),
-                situacao: SituacaoUnidade::Concluido,
-            },
-            AtuacaoNaUnidade {
-                unidade: "C".into(),
-                situacao: SituacaoUnidade::PendenteRecebimento,
-            },
-        ];
-        assert_eq!(processo.atuacoes.len(), 3);
-        let saida = serde_json::to_value(&processo).unwrap();
-        assert!(saida.get("aberto").is_none());
-        assert!(saida.get("id_interno").is_none());
-        assert_eq!(saida["atuacoes"][2]["situacao"], "pendente_recebimento");
-    }
 
     #[test]
     fn andamento_sem_id_inventado() {

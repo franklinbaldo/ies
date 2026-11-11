@@ -68,7 +68,7 @@ fn encaminhar_com_trilha(
     destino.flush().unwrap();
 }
 
-fn executar_ciencia_processo(pasta: &Pasta, args: &[&str]) -> (Output, Vec<String>) {
+pub(super) fn executar_ciencia_processo(pasta: &Pasta, args: &[&str]) -> (Output, Vec<String>) {
     use std::sync::atomic::{AtomicBool, Ordering};
     use std::sync::{Arc, Mutex};
     let (cert, identidade) = certificado(&pasta.0);

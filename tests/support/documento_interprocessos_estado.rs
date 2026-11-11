@@ -47,6 +47,7 @@ pub(super) enum EstadoExtra {
     SemListaNaUnidade,
     CanceladoAntesDaLista,
     PdfNumeroDuplicado,
+    PastaPendente,
 }
 
 fn semear_numero_repetido(banco: &mut Connection, origem: &Instalacao) {
@@ -160,6 +161,69 @@ fn semear_segundo_processo_se_necessario(
     .unwrap();
 }
 
+fn semear_pasta_pendente(banco: &Connection, origem: &Instalacao) {
+    use iesei::pastas_incompletas::{self, PastaPendente};
+    // DOC_A é visível; os protocolos da pasta ainda não estão carregados.
+    pastas_incompletas::guardar(
+        banco,
+        origem,
+        CENARIO,
+        "7",
+        &PastaPendente {
+            indice: 1,
+            protocolo_declarado: "900".into(),
+        },
+    )
+    .unwrap();
+}
+
+/// Cadastra os documentos canônicos do cenário em estado descartável.
+fn semear_documentos_iniciais(
+    banco: &mut Connection,
+    origem: &Instalacao,
+    com_segundo: bool,
+    modo: EstadoExtra,
+) {
+    for (id, processo, nup, numero, corpo) in [
+        (
+            "42",
+            "7",
+            NUP_A,
+            DOC_A,
+            "Conteudo exclusivo do primeiro processo",
+        ),
+        (
+            "43",
+            "8",
+            NUP_B,
+            DOC_B,
+            "Conteudo exclusivo do segundo processo",
+        ),
+    ]
+    .into_iter()
+    .take(if com_segundo { 2 } else { 1 })
+    {
+        documento_versoes::guardar(
+            banco,
+            CENARIO,
+            &DocumentoSimulado {
+                instalacao: origem.clone(),
+                id_documento: id.into(),
+                id_procedimento: processo.into(),
+                numero_processo: nup.into(),
+                numero: if id == "43" && matches!(modo, EstadoExtra::NumeroIgualEmOutroProcesso) {
+                    DOC_A.into()
+                } else {
+                    numero.into()
+                },
+                tipo: "Despacho".into(),
+                revisoes: revisoes_para(id, modo, corpo),
+            },
+        )
+        .unwrap();
+    }
+}
+
 pub(super) fn estado(com_segundo: bool, modo: EstadoExtra) -> (Connection, Instalacao) {
     let mut banco = Connection::open_in_memory().unwrap();
     banco_cassettes::iniciar(&banco).unwrap();
@@ -197,44 +261,7 @@ pub(super) fn estado(com_segundo: bool, modo: EstadoExtra) -> (Connection, Insta
     )
     .unwrap();
     semear_segundo_processo_se_necessario(&mut banco, &origem, modo);
-    for (id, processo, nup, numero, corpo) in [
-        (
-            "42",
-            "7",
-            NUP_A,
-            DOC_A,
-            "Conteudo exclusivo do primeiro processo",
-        ),
-        (
-            "43",
-            "8",
-            NUP_B,
-            DOC_B,
-            "Conteudo exclusivo do segundo processo",
-        ),
-    ]
-    .into_iter()
-    .take(if com_segundo { 2 } else { 1 })
-    {
-        documento_versoes::guardar(
-            &mut banco,
-            CENARIO,
-            &DocumentoSimulado {
-                instalacao: origem.clone(),
-                id_documento: id.into(),
-                id_procedimento: processo.into(),
-                numero_processo: nup.into(),
-                numero: if id == "43" && matches!(modo, EstadoExtra::NumeroIgualEmOutroProcesso) {
-                    DOC_A.into()
-                } else {
-                    numero.into()
-                },
-                tipo: "Despacho".into(),
-                revisoes: revisoes_para(id, modo, corpo),
-            },
-        )
-        .unwrap();
-    }
+    semear_documentos_iniciais(&mut banco, &origem, com_segundo, modo);
 
     match modo {
         EstadoExtra::Nenhum
@@ -263,6 +290,7 @@ pub(super) fn estado(com_segundo: bool, modo: EstadoExtra) -> (Connection, Insta
         }
         EstadoExtra::NumeroRepetido => semear_numero_repetido(&mut banco, &origem),
         EstadoExtra::PdfNumeroDuplicado => semear_pdf_numero_repetido(&banco, &origem),
+        EstadoExtra::PastaPendente => semear_pasta_pendente(&banco, &origem),
     }
     (banco, origem)
 }

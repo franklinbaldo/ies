@@ -9,7 +9,9 @@ use std::time::{SystemTime, UNIX_EPOCH};
 
 #[path = "support/falha.rs"]
 mod falha_cli;
-use falha_cli::falha_por;
+#[path = "support/falha_por.rs"]
+mod falha_por_cli;
+use falha_por_cli::falha_por;
 
 const ORIGEM: &str = "https://sei.exemplo/sei";
 

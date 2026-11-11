@@ -112,12 +112,6 @@ pub(crate) enum ErroIncluirExterno {
     Confirmacao(#[from] FalhaConfirmacao),
 }
 
-impl ErroIncluirExterno {
-    pub(crate) fn temporario_possivel(&self) -> bool {
-        matches!(self, Self::Confirmacao(e) if e.temporario_possivel())
-    }
-}
-
 fn conferir_destino(
     instalacao: &Instalacao,
     location: &str,

@@ -23,7 +23,7 @@ fn bdd_60_05_cli_recusa_sessao_revogada_depois_da_arvore() {
             "negação da sessão não deve virar documento: stderr={} trilha={trilha:?}",
             String::from_utf8_lossy(&saida.stderr)
         );
-        falha_cli::falha_por(&saida, "Documento", "Status");
+        falha_por_cli::falha_por(&saida, "Documento", "Status");
         assert_eq!(
             trilha
                 .iter()

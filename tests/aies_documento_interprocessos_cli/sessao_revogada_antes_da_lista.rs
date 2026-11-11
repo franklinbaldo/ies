@@ -25,7 +25,7 @@ fn bdd_60_05_cli_recusa_sessao_revogada_antes_da_lista_sem_fallback() {
             "sessão revogada não deve entregar versão: stderr={} trilha={trilha:?}",
             String::from_utf8_lossy(&saida.stderr)
         );
-        falha_cli::falha_por(&saida, "Documento", "Status");
+        falha_por_cli::falha_por(&saida, "Documento", "Status");
         assert!(
             trilha
                 .iter()

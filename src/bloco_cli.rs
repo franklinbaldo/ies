@@ -15,6 +15,8 @@ use crate::visao_do_controle::{EnvioDoControle, EnvioHttps};
 use crate::{Bloco, BlocoAcao, Cli};
 use serde_json::{Value, json};
 mod paginacao;
+mod resolucao;
+pub(crate) use resolucao::ler_bloco_por_numero_via;
 
 #[derive(Debug, thiserror::Error)]
 #[error("{self:?}")]
@@ -28,6 +30,8 @@ pub(crate) enum FalhaLeitura {
     Submissao(#[from] ErroSubmissaoFormulario),
     UnidadeInesperada,
     HtmlDeBlocosInvalido,
+    IdentidadeDoBlocoAmbigua,
+    ListaParcialNaoExcluiColisao,
 }
 /// Lista ou detalhe de bloco, já tipados.
 pub(crate) enum Leitura {
@@ -171,21 +175,30 @@ fn executar_leitura(
     let arquivos = configuracao::arquivos_de_acesso()?;
     let sessao =
         ReferenciasDaSessao::ler(&arquivos.url_controle, &arquivos.origem, &arquivos.cookie)?;
-    let valor = ler_via(
-        &sessao,
-        cli.unidade.as_deref(),
-        tipo,
-        numero,
-        pagina,
-        &mut EnvioHttps,
-    )?;
+    let valor = if let Some(numero) = numero {
+        let lido =
+            ler_bloco_por_numero_via(&sessao, cli.unidade.as_deref(), numero, &mut EnvioHttps)?;
+        let Leitura::Detalhe(detalhe) = lido.leitura else {
+            return Err(FalhaLeitura::HtmlDeBlocosInvalido.into());
+        };
+        json!({"unidade":lido.unidade,"origem":"web","requisicoes":lido.requisicoes,"bloco":detalhe})
+    } else {
+        ler_via(
+            &sessao,
+            cli.unidade.as_deref(),
+            tipo,
+            numero,
+            pagina,
+            &mut EnvioHttps,
+        )?
+    };
     if cli.json {
         println!("{}", serde_json::to_string_pretty(&valor)?);
     } else if let Some(bloco) = valor.get("bloco") {
         println!(
             "IES: bloco {} ({}) — {} item(ns) observados; {} GET(s).",
             bloco["numero"],
-            tipo.rotulo(),
+            bloco["tipo"].as_str().unwrap_or("não identificado"),
             bloco["itens"].as_array().map_or(0, Vec::len),
             valor["requisicoes"]
         );

@@ -18,7 +18,7 @@ fn bdd_60_05_cli_recusa_numero_sem_zeros_mesmo_com_ocultacao() {
             "numero da arvore nao pode substituir numero pedido: stderr={} trilha={trilha:?}",
             String::from_utf8_lossy(&saida.stderr)
         );
-        falha_cli::falha_por(&saida, "Documento", "NumeroSeiDaArvoreDiferenteDoPedido");
+        falha_por_cli::falha_por(&saida, "Documento", "NumeroSeiDaArvoreDiferenteDoPedido");
         assert_eq!(
             trilha
                 .iter()

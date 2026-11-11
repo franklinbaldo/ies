@@ -14,6 +14,8 @@ use rusqlite::Connection;
 use serde_json::Value;
 #[path = "support/falha.rs"]
 mod falha_cli;
+#[path = "support/falha_por.rs"]
+mod falha_por_cli;
 use falha_cli::falha;
 use std::fs;
 use std::io::{Read, Write};
@@ -467,3 +469,6 @@ mod testes_ciencia_processo;
 
 #[path = "aies_documento_cli/testes_bloco_incluir.rs"]
 mod testes_bloco_incluir;
+
+#[path = "aies_documento_cli/testes_bloco_incluir_processo.rs"]
+mod testes_bloco_incluir_processo;
