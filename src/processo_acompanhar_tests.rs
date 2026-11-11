@@ -221,9 +221,7 @@ fn submissao_inclusao_nao_inventa_grupo_ou_endereco() {
             Some("inexistente"),
             ""
         ),
-        Err(super::fluxo::ErroPrevia::Estrutura(
-            ErroAcompanhar::GrupoNaoOferecido
-        ))
+        Err(ErroAcompanhar::GrupoNaoOferecido)
     ));
     let externo = url.replace("sei.exemplo.gov.br", "outro.exemplo.gov.br");
     assert!(

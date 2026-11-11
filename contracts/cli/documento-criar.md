@@ -46,40 +46,40 @@ Uma escrita comprovada exige **exatamente um novo documento** (id
 dos documentos anteriores. O `id_documento` da resposta não substitui
 o número SEI da árvore. Se o POST puder ter sido enviado e a verificação
 falhar, ou se a mudança for ambígua, saída 1
-(`ErroPreviaCriacao::NaoConfirmadoNoEnvio`/`NaoConfirmadoNaReleitura`,
+(`ErroConfirmacaoDaCriacao::NaoConfirmadoNoEnvio`/`NaoConfirmadoNaReleitura`,
 com o contexto `TentativaDeCriacao { requisicoes }`).
 
 ## Recusas tipadas
 
 | Erro (stderr) | Critério |
 | --- | --- |
-| `ErroPreviaCriacao::ProcessoNaoAbertoNaUnidade` | A situação conferida não inclui a unidade ativa |
+| `ErroDocumentoCriar::ProcessoNaoAbertoNaUnidade` | A situação conferida não inclui a unidade ativa |
 | `ErroCriar::TipoAusente` | Não há opção exata na lista completa |
 | `ErroCriar::TipoAmbiguo` | Mais de uma opção com o mesmo nome |
 | `ErroCriar::ListaForaDaForma` | `tblSeries` ou links não interpretáveis |
 | `ErroCriar::CadastroForaDaForma` | Cadastro ou tipo aberto inconsistente |
 | `ErroCriar::NaoAplicado` | Verificação concluiu que não surgiu documento |
-| `ErroPreviaCriacao::NaoConfirmadoNoEnvio`, `ErroPreviaCriacao::NaoConfirmadoNaReleitura` | Resposta ou árvore não permite conferir unicidade e identidade |
+| `ErroDocumentoCriar::Confirmacao(ErroConfirmacaoDaCriacao::NaoConfirmadoNoEnvio)`, `ErroDocumentoCriar::Confirmacao(ErroConfirmacaoDaCriacao::NaoConfirmadoNaReleitura)` | Resposta ou árvore não permite conferir unicidade e identidade |
 | `ErroLinkIncluirDocumento::Barra(ErroBarraDoProcesso::BarraDoProcessoForaDaFormaObservada)` | A barra da raiz não tem estrutura interpretável |
 | `ErroLinkIncluirDocumento::Barra(ErroBarraDoProcesso::BarrasDoProcessoRepetidasNaArvore)` | A barra da raiz aparece duas vezes |
 | `ErroLinkIncluirDocumento::LinkRepetido` | A barra publica mais de uma ação de incluir |
 | `ErroLinkIncluirDocumento::EnderecoNaoReconhecido` | O link de inclusão não é a URL relativa assinada esperada |
 | `ErroLinkIncluirDocumento::EnderecoDeOutroProcesso` | O link de inclusão aponta para outra identidade |
-| `ErroPreviaCriacao::LinkNaoPublicado` | A unidade não publicou a opção de incluir |
-| `ErroPreviaCriacao::UnidadeNaoPublicada` | A tela não identifica a unidade de trabalho |
-| `ErroPreviaCriacao::SituacaoNaoLida` | A árvore não publicou a situação segura para gravação |
+| `ErroDocumentoCriar::LinkNaoPublicado` | A unidade não publicou a opção de incluir |
+| `ErroDocumentoCriar::UnidadeNaoPublicada` | A tela não identifica a unidade de trabalho |
+| `ErroDocumentoCriar::SituacaoNaoLida` | A árvore não publicou a situação segura para gravação |
 | `ErroCriar::LinkDoTipoNaoNavegavel` | O onclick/script não comprova exatamente a navegação segura por formulário |
 | `ErroCriar::EnderecoDoTipoNaoReconhecido` | URL do tipo ausente, inválida ou vinculada a outro processo |
 | `ErroCriar::TipoDoCadastroDiferente` | A tela aberta não identifica o tipo pedido |
 | `ErroCriar::DescricaoNaoOferecida` | A descrição solicitada não tem controle utilizável |
 | `ErroCriar::NivelNaoOferecido` | O nível solicitado não aparece habilitado |
 | `ErroCriar::CampoObrigatorioNaoAtendido` | O cadastro publica controle HTML obrigatório que a CLI não consegue preencher com valor observado |
-| `ErroPreviaCriacao::TelaRedirecionada` | A tela de leitura devolveu 302 não seguido |
-| `ErroPreviaCriacao::NivelNaoInformado` | Confirmação exige --nivel publico explícito; não presumir nível |
-| `ErroPreviaCriacao::NivelRestritoSemHipotese` | Nível não público exige resolver a hipótese legal antes da escrita |
-| `ErroPreviaCriacao::SubmissaoNaoComprovada` | Cadastro não contém a regra observada de submissão |
-| `ErroPreviaCriacao::ArvoreIncompleta` | Pasta fechada impede comparação de documentos |
-| `ErroPreviaCriacao::FotoInicialInconsistente` | Antes do POST, a árvore contém IDs de documento repetidos/vazios ou ID de processo ausente; nenhuma escrita é enviada |
+| `ErroDocumentoCriar::TelaRedirecionada` | A tela de leitura devolveu 302 não seguido |
+| `ErroNivelDeConfirmacao::NivelNaoInformado` | Confirmação exige --nivel publico explícito; não presumir nível |
+| `ErroNivelDeConfirmacao::NivelRestritoSemHipotese` | Nível não público exige resolver a hipótese legal antes da escrita |
+| `ErroDocumentoCriar::SubmissaoNaoComprovada` | Cadastro não contém a regra observada de submissão |
+| `ErroDocumentoCriar::ArvoreIncompleta` | Pasta fechada impede comparação de documentos |
+| `ErroDocumentoCriar::Confirmacao(ErroConfirmacaoDaCriacao::FotoInicialInconsistente)` | Antes do POST, a árvore contém IDs de documento repetidos/vazios ou ID de processo ausente; nenhuma escrita é enviada |
 | `TipoDeDocumentoVazio` | O tipo informado está vazio |
 | erro do clap (saída 2) | Falha de validação de entrada |
 
@@ -131,7 +131,7 @@ observada de `hdnFlagDocumentoCadastro` em `script` ativo;
 e script duplicado não autorizam a escrita. Os quatro casos são
 testados com transporte injetável e exatamente 5 GET / 0 POST.
 Formas não reconhecidas recusam com
-`ErroPreviaCriacao::SubmissaoNaoComprovada` antes do POST.
+`ErroDocumentoCriar::SubmissaoNaoComprovada` antes do POST.
 
 As causas da prévia, escolha e barra de inclusão são compostas por
 `thiserror` (`#[from]`), sem mapeamento manual de subcódigos. A saída
@@ -167,7 +167,7 @@ isolada, inclusive em um script sintético mínimo, não comprova a
 submissão e é recusada antes da escrita. Também recusa `if(false)`,
 funções não relacionadas, aninhamentos, strings, templates, comentários,
 `script[src]` e redefinições ambíguas. Forma não observada:
-`ErroPreviaCriacao::SubmissaoNaoComprovada`, **antes do POST**.
+`ErroDocumentoCriar::SubmissaoNaoComprovada`, **antes do POST**.
 
 RED observado no [CI 42158719053](https://github.com/franklinbaldo/ies/actions/runs/42158719053):
 1 teste novo falhou, 1.659 passaram, 18 ignorados; orçamento adversarial
@@ -185,7 +185,7 @@ cadastro ofereceu uma ação de criação. A captura SEI 4.0.9 do Todos
 conferida **antes do POST** juntamente com a função `submeter()` completa.
 Sem botão, com tipo/callback divergente, desabilitado ou com outro botão
 `btnSalvar` contraditório, a confirmação recusa com
-`ErroPreviaCriacao::SubmissaoNaoComprovada`, após os **5 GET de prévia e
+`ErroDocumentoCriar::SubmissaoNaoComprovada`, após os **5 GET de prévia e
 sem POST criador**, nos testes sintéticos. A função JS não é executada;
 atributos são lidos por `html_atributos`. Testes positivos aceitam dois
 botões iguais, como na captura. Além do atributo `disabled` direto,
@@ -205,7 +205,7 @@ O botão `btnSalvar` e uma função `submeter()` separadamente não
 autorizam a escrita. A guarda exige uma única `confirmarDados()`
 com chamada `submeter()` dentro de `if (OnSubmitForm())`,
 além de `submeter()` completo. Recusas por cadeia ausente, alterada
-ou duplicada geram `ErroPreviaCriacao::SubmissaoNaoComprovada` antes do
+ou duplicada geram `ErroDocumentoCriar::SubmissaoNaoComprovada` antes do
 POST. Testes adversariais: 5 GET/0 POST; confirmação positiva: 6 GET,
 1 POST e verificação por leitura. Não se executa JS.
 

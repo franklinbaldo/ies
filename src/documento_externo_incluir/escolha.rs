@@ -9,10 +9,11 @@ pub(crate) enum EscolhaExterna {
     Formulario,
 }
 
-#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+#[derive(Clone, Copy, Debug, PartialEq, Eq, thiserror::Error)]
+#[error("{self:?}")]
 pub(crate) enum ErroEscolhaExterna {
     /// O tokenizador de atributos recusou a tag.
-    Atributo(crate::html_atributos::ErroAtributoHtml),
+    Atributo(#[source] crate::html_atributos::ErroAtributoHtml),
     NaoOferecido,
     Ambiguo,
     ForaDaForma,

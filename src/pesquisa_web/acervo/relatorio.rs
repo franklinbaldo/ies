@@ -89,10 +89,10 @@ fn totais(s: &mut String, registros: &[Registro]) {
 }
 
 fn recusas(s: &mut String, registros: &[Registro]) {
-    let mut por: BTreeMap<&'static str, Vec<String>> = BTreeMap::new();
+    let mut por: BTreeMap<String, Vec<String>> = BTreeMap::new();
     for r in registros {
-        if let Resultado::Recusado(sub) = r.resultado {
-            por.entry(sub).or_default().push(format!(
+        if let Resultado::Recusado(sub) = &r.resultado {
+            por.entry(sub.clone()).or_default().push(format!(
                 "`{}#{}` ({})",
                 r.card,
                 r.passo,

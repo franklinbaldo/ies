@@ -80,6 +80,11 @@ fn publicar(json_mode: bool, previa: &PreviaDocumental) {
             "Documento {} incluído e conferido no bloco de assinatura {}. Requisições: {}",
             previa.documento, previa.bloco, previa.requisicoes
         );
+    } else if previa.presente_antes == Some(true) {
+        println!(
+            "Documento {} já está no bloco de assinatura {}; nenhuma alteração necessária. Requisições: {}",
+            previa.documento, previa.bloco, previa.requisicoes
+        );
     } else {
         let antes = match previa.presente_antes {
             Some(true) => "já está no bloco; nada a incluir",

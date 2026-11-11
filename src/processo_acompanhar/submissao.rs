@@ -1,7 +1,7 @@
 //! Derivação pura do POST de inclusão de Acompanhamento Especial (#254).
 //! Não faz I/O: o formulário e a URL devem vir da MESMA resposta servida.
 //! Caso do Todos `tests/test_processo_acompanhar_010.py` @323eb01.
-use super::fluxo::ErroPrevia;
+use super::ErroAcompanhar;
 use super::{escolher_grupo, grupos_do_cadastro};
 use crate::formulario_web::{
     ConferenciaDaUnidade, EfeitoAvaliado, EnvioDoFormulario, EstadoDoProcesso,
@@ -35,7 +35,7 @@ pub(crate) fn derivar_inclusao(
     unidade: &str,
     grupo: Option<&str>,
     observacao: &str,
-) -> Result<SubmissaoDerivada, ErroPrevia> {
+) -> Result<SubmissaoDerivada, ErroAcompanhar> {
     let grupos = grupos_do_cadastro(tela.html, id_procedimento)?;
     let escolhido = escolher_grupo(&grupos, grupo)?;
     derivar_submissao(
@@ -48,7 +48,7 @@ pub(crate) fn derivar_inclusao(
             ("txaObservacao", observacao),
         ],
     )
-    .map_err(ErroPrevia::Formulario)
+    .map_err(ErroAcompanhar::Formulario)
 }
 
 /// Exclusão pelo `submit()` do formulário observado na lista. Sem botão.
@@ -73,7 +73,7 @@ pub(crate) fn derivar_exclusao(
     unidade: &str,
     id_alvo: &str,
     action_observada: &str,
-) -> Result<SubmissaoDerivada, ErroPrevia> {
+) -> Result<SubmissaoDerivada, ErroAcompanhar> {
     crate::formulario_web::derivar_submissao_com_action(
         &EXCLUIR,
         instalacao,
@@ -82,5 +82,5 @@ pub(crate) fn derivar_exclusao(
         &[("hdnInfraItemId", id_alvo)],
         Some(action_observada),
     )
-    .map_err(ErroPrevia::Formulario)
+    .map_err(ErroAcompanhar::Formulario)
 }

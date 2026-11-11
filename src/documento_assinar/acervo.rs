@@ -17,7 +17,6 @@ use crate::arvore_processo::{
 };
 use crate::cassette::acervo::{INSTALACOES, gravacao, percorrer, publicar};
 use crate::cassette::html_da_resposta;
-use crate::erro_publico::Rotulo as _;
 use crate::formulario_web::{CodificacaoDaTela, TelaServida, derivar_submissao};
 use crate::instalacao::Instalacao;
 use std::collections::BTreeMap;
@@ -52,7 +51,7 @@ fn tela(
 ) -> (String, Option<TelaDeAssinatura>) {
     let lida = match conferir_tela_de_assinatura(html, doc) {
         Ok(lida) => lida,
-        Err(erro) => return (format!("`{}`", erro.rotulo()), None),
+        Err(erro) => return (format!("`{erro:?}`"), None),
     };
     let Some(cargo) = lida.cargo_da_tela.clone() else {
         return ("conferida, sem cargo sugerido".into(), Some(lida));
@@ -75,7 +74,7 @@ fn tela(
             "conferida e derivada ({} campos)",
             s.nomes_dos_campos().len()
         ),
-        Err(erro) => format!("`{}`", erro.rotulo()),
+        Err(erro) => format!("`{erro:?}`"),
     };
     (classe, Some(lida))
 }
@@ -165,7 +164,7 @@ fn replay_de_documento_assinar_no_acervo() {
                     }
                     let classe = match ler_link_de_assinar(&inst, &h, &doc, &processo) {
                         Ok(_) => "link lido e conferido".to_owned(),
-                        Err(erro) => format!("`{}`", erro.rotulo()),
+                        Err(erro) => format!("`{erro:?}`"),
                     };
                     somar(&mut contagem, "link na tela do documento", classe, nome);
                 }

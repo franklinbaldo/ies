@@ -19,7 +19,6 @@ use crate::arvore_processo::{
 };
 use crate::cassette::acervo::{INSTALACOES, gravacao, percorrer, publicar};
 use crate::cassette::html_da_resposta;
-use crate::erro_publico::Rotulo as _;
 use crate::formulario_web::{
     CodificacaoDaTela, RespostaDoPost, TelaServida, derivar_consulta_ajax, derivar_submissao,
 };
@@ -55,7 +54,7 @@ fn barra(
 ) -> String {
     let oferece = match ler_enviar_da_barra(inst, html, id) {
         Ok(link) => link.is_some(),
-        Err(erro) => return format!("`{}`", erro.rotulo()),
+        Err(erro) => return format!("`{erro:?}`"),
     };
     let (Some(u), Some(l)) = (unidade, lida) else {
         return format!(
@@ -231,7 +230,7 @@ fn replay_de_processo_enviar_no_acervo() {
                             tela = Some(nova);
                             classe
                         }
-                        Err(erro) => format!("`{}`", erro.rotulo()),
+                        Err(erro) => format!("`{erro:?}`"),
                     };
                     somar(&mut contagem, "tela de envio", classe, nome);
                 }
@@ -254,7 +253,7 @@ fn replay_de_processo_enviar_no_acervo() {
                                 }
                                 format!("{de}: {n}")
                             }
-                            Err(falha) => format!("{de}: `{}`", falha.rotulo()),
+                            Err(falha) => format!("{de}: `{falha:?}`"),
                         };
                     somar(&mut contagem, "resposta da consulta", classe, nome);
                 }

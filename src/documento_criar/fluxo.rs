@@ -1,6 +1,6 @@
 //! Prévia Web e confirmação de documento interno (#246).
 //! O formulário é derivado da tela servida, sem executar JS nem repetir escrita.
-use super::confirmacao::{FotoDaCriacao, postar_e_verificar};
+use super::confirmacao::{ErroConfirmacaoDaCriacao, FotoDaCriacao, postar_e_verificar};
 use super::guarda_script::cadastro_oferece_salvar;
 use super::{
     ErroCriar, EscolhaDoDocumento, cadastro_redirecionado, conferir_cadastro, conferir_tipo,
@@ -102,7 +102,7 @@ pub(crate) struct ResultadoCriacao {
 
 #[derive(Debug, PartialEq, Eq, thiserror::Error)]
 #[error("{self:?}")]
-pub(crate) enum ErroPreviaCriacao {
+pub(crate) enum ErroDocumentoCriar {
     /// O cookie privado da sessão não pôde ser lido.
     Cookie(#[from] CookieIlegivel),
     Abertura(#[from] ErroProcessoObter),
@@ -117,40 +117,44 @@ pub(crate) enum ErroPreviaCriacao {
     SessaoEncerrada(#[source] crate::erro_publico::SessaoEncerrada),
     Tipo(#[from] ErroCriar),
     Formulario(#[from] ErroSubmissaoFormulario),
-    NivelNaoInformado,
-    NivelRestritoSemHipotese,
+    Nivel(#[from] ErroNivelDeConfirmacao),
     SubmissaoNaoComprovada,
     ArvoreIncompleta,
-    FotoInicialInconsistente,
-    NaoConfirmado,
-    /// O POST pode ter produzido efeito mesmo com falha HTTP ou de rede;
-    /// preservar sua causa sem autorizar uma segunda tentativa.
-    NaoConfirmadoNoEnvio(ErroSubmissaoFormulario),
-    /// O GET de reconciliação falhou após o POST; preservar a causa
-    /// observada, sem inferir que o documento deixou de ser criado.
-    NaoConfirmadoNaReleitura(ErroProcessoObter),
+    Confirmacao(#[from] ErroConfirmacaoDaCriacao),
 }
 
 /// A falha da tela é traduzida para uma causa específica desta operação.
 /// O transporte mantém a causa original; redirecionamento e login são fatos.
-fn erro_da_tela(falha: FalhaDaTela) -> ErroPreviaCriacao {
+fn erro_da_tela(falha: FalhaDaTela) -> ErroDocumentoCriar {
     match falha {
-        FalhaDaTela::Transporte(falha) => ErroPreviaCriacao::TelaTransporte(falha),
-        FalhaDaTela::Redirecionada => ErroPreviaCriacao::TelaRedirecionada,
+        FalhaDaTela::Transporte(falha) => ErroDocumentoCriar::TelaTransporte(falha),
+        FalhaDaTela::Redirecionada => ErroDocumentoCriar::TelaRedirecionada,
         FalhaDaTela::SessaoEncerrada(crate::erro_publico::SessaoEncerrada) => {
-            ErroPreviaCriacao::SessaoEncerrada(crate::erro_publico::SessaoEncerrada)
+            ErroDocumentoCriar::SessaoEncerrada(crate::erro_publico::SessaoEncerrada)
         }
     }
 }
 
 /// Pre-condicao independente da sessao: a operacao ainda so resolve nivel publico.
 /// Uma unica regra atende tanto a fronteira CLI quanto o nucleo de escrita.
-pub(crate) fn validar_nivel_de_confirmacao(nivel: Option<&str>) -> Result<(), ErroPreviaCriacao> {
+pub(crate) fn validar_nivel_de_confirmacao(
+    nivel: Option<&str>,
+) -> Result<(), ErroNivelDeConfirmacao> {
     match nivel {
         Some("publico") => Ok(()),
-        None => Err(ErroPreviaCriacao::NivelNaoInformado),
-        _ => Err(ErroPreviaCriacao::NivelRestritoSemHipotese),
+        None => Err(ErroNivelDeConfirmacao::NivelNaoInformado),
+        _ => Err(ErroNivelDeConfirmacao::NivelRestritoSemHipotese),
     }
+}
+
+/// `--confirmar` sem nível público explícito: recusado antes da sessão.
+#[derive(Debug, PartialEq, Eq, thiserror::Error)]
+#[error("{self:?}")]
+pub(crate) enum ErroNivelDeConfirmacao {
+    /// Confirmação exige `--nivel publico` explícito; não presumir nível.
+    NivelNaoInformado,
+    /// Nível não público exige resolver a hipótese legal antes da escrita.
+    NivelRestritoSemHipotese,
 }
 
 /// Abertura do processo, seleção e cadastro; na confirmação, um único POST
@@ -162,7 +166,7 @@ pub(crate) fn executar_criacao<V: EnvioDoProcesso>(
     indice: &IndiceLocal,
     envio: &mut V,
     confirmar: bool,
-) -> Result<ResultadoCriacao, ErroPreviaCriacao> {
+) -> Result<ResultadoCriacao, ErroDocumentoCriar> {
     // A operação já sabe que não pode criar sem nível explícito ou sem
     // hipótese legal resolvida. Não abrir sequer o processo: GET pode ter
     // efeito de recebimento e não serve a uma escrita que será recusada.
@@ -170,7 +174,7 @@ pub(crate) fn executar_criacao<V: EnvioDoProcesso>(
         validar_nivel_de_confirmacao(pedido.nivel)?;
     }
     let instalacao =
-        Instalacao::interpretar(sessao.origem).ok_or(ErroPreviaCriacao::OrigemNaoAutorizada)?;
+        Instalacao::interpretar(sessao.origem).ok_or(ErroDocumentoCriar::OrigemNaoAutorizada)?;
     let mut rede = Contador::novo(envio);
     let (aberto, acoes) = abrir_para_escrever(
         sessao,
@@ -180,13 +184,13 @@ pub(crate) fn executar_criacao<V: EnvioDoProcesso>(
     )?;
     let unidade = aberto
         .unidade
-        .ok_or(ErroPreviaCriacao::UnidadeNaoPublicada)?;
-    let abertas =
-        siglas_abertas(&aberto.arvore.aberto_em).map_err(|_| ErroPreviaCriacao::SituacaoNaoLida)?;
+        .ok_or(ErroDocumentoCriar::UnidadeNaoPublicada)?;
+    let abertas = siglas_abertas(&aberto.arvore.aberto_em)
+        .map_err(|_| ErroDocumentoCriar::SituacaoNaoLida)?;
     if !abertas.contains(&unidade) {
-        return Err(ErroPreviaCriacao::ProcessoNaoAbertoNaUnidade);
+        return Err(ErroDocumentoCriar::ProcessoNaoAbertoNaUnidade);
     }
-    let link = acoes.incluir?.ok_or(ErroPreviaCriacao::LinkNaoPublicado)?;
+    let link = acoes.incluir?.ok_or(ErroDocumentoCriar::LinkNaoPublicado)?;
     let cookie = ler_cookie(sessao)?;
     let (mut html_lista, mime_lista) =
         obter_tela(&mut rede, &cookie, link.as_str()).map_err(erro_da_tela)?;
@@ -196,7 +200,7 @@ pub(crate) fn executar_criacao<V: EnvioDoProcesso>(
     // outra série com o mesmo nome pode estar oculta pelo filtro.
     if filtro_de_todos(&html_lista)? {
         let codificacao =
-            codificacao_da_tela(&mime_lista).ok_or(ErroPreviaCriacao::SubmissaoNaoComprovada)?;
+            codificacao_da_tela(&mime_lista).ok_or(ErroDocumentoCriar::SubmissaoNaoComprovada)?;
         let servida = TelaServida {
             url: link.as_str(),
             html: &html_lista,
@@ -215,7 +219,7 @@ pub(crate) fn executar_criacao<V: EnvioDoProcesso>(
         // A evidência conhecida é o HTML da lista completa. Nunca seguir
         // 302 desconhecido nem repetir o POST da mudança de filtro.
         let RespostaDoEnvio::Html(completa) = resposta else {
-            return Err(ErroPreviaCriacao::SubmissaoNaoComprovada);
+            return Err(ErroDocumentoCriar::SubmissaoNaoComprovada);
         };
         html_lista = completa;
         tipos = tipos_oferecidos(&html_lista)?;
@@ -231,7 +235,7 @@ pub(crate) fn executar_criacao<V: EnvioDoProcesso>(
         EscolhaDoDocumento::Link(url) => url,
         EscolhaDoDocumento::Formulario(id_serie) => {
             let codificacao = codificacao_da_tela(&mime_lista)
-                .ok_or(ErroPreviaCriacao::SubmissaoNaoComprovada)?;
+                .ok_or(ErroDocumentoCriar::SubmissaoNaoComprovada)?;
             let servida = TelaServida {
                 url: link.as_str(),
                 html: &html_lista,
@@ -250,13 +254,13 @@ pub(crate) fn executar_criacao<V: EnvioDoProcesso>(
                 rede.post(post, cookie)
             })?;
             let RespostaDoEnvio::Redirecionamento(redirect) = resposta else {
-                return Err(ErroPreviaCriacao::SubmissaoNaoComprovada);
+                return Err(ErroDocumentoCriar::SubmissaoNaoComprovada);
             };
             cadastro_redirecionado(
                 &instalacao,
                 redirect
                     .localizacao()
-                    .ok_or(ErroPreviaCriacao::SubmissaoNaoComprovada)?,
+                    .ok_or(ErroDocumentoCriar::SubmissaoNaoComprovada)?,
                 &aberto.arvore.processo.id,
             )?
         }
@@ -285,14 +289,14 @@ pub(crate) fn executar_criacao<V: EnvioDoProcesso>(
         Some("publico"),
     )?;
     if !cadastro_oferece_salvar(&html_cadastro) {
-        return Err(ErroPreviaCriacao::SubmissaoNaoComprovada);
+        return Err(ErroDocumentoCriar::SubmissaoNaoComprovada);
     }
     // Pasta fechada oculta documentos: impossível provar uma criação única.
     if aberto.arvore.pastas_nao_carregadas {
-        return Err(ErroPreviaCriacao::ArvoreIncompleta);
+        return Err(ErroDocumentoCriar::ArvoreIncompleta);
     }
     let codificacao =
-        codificacao_da_tela(&mime_cadastro).ok_or(ErroPreviaCriacao::SubmissaoNaoComprovada)?;
+        codificacao_da_tela(&mime_cadastro).ok_or(ErroDocumentoCriar::SubmissaoNaoComprovada)?;
     let servida = TelaServida {
         url: &url_do_cadastro,
         html: &html_cadastro,

@@ -125,9 +125,9 @@ cookie, senha ou argumento secreto. Saídas: 0 prévia/sem efeito/confirmado,
 | `FalhaRelacionar::RemocaoNaoOferecida` | A linha do relacionamento existe, mas não traz `acaoRemover('id')` |
 | `FalhaRelacionar::DestinoDaConsultaDivergente` | O XML identificou protocolo que não equivale ao pedido completo (letras e números) |
 | `FalhaRelacionar::ConsultaNaoXml` | A consulta retornou resposta HTTP 200 com mídia diferente de XML |
-| `FalhaRelacionar::Estrutura("acao_excluir_relacionamento_nao_declarada")` | Handler `acaoRemover` não prova action única com campo e submit |
-| `FalhaRelacionar::Estrutura("id_da_origem_na_action_ausente")` | Link de origem não oferece id para conferir a action |
-| `FalhaRelacionar::Estrutura("action_de_remocao_de_outro_processo")` | Script de remoção aponta para outro processo |
+| `FalhaRelacionar::AcaoExcluirRelacionamentoNaoDeclarada` | Handler `acaoRemover` não prova action única com campo e submit |
+| `FalhaRelacionar::IdDaOrigemNaActionAusente` | Link de origem não oferece id para conferir a action |
+| `FalhaRelacionar::ActionDeRemocaoDeOutroProcesso` | Script de remoção aponta para outro processo |
 | `NaoConfirmado` | POST mutador feito ou aceito, mas não comprovou causalmente o efeito; saída 1 |
 
 Outros subcódigos já definidos pelo transporte, abertura e primitivo de

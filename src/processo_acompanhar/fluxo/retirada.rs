@@ -14,17 +14,17 @@ pub(super) fn confirmar_remocao<V: EnvioDoProcesso>(
     antes: &[Acompanhamento],
     mut plano: Previa,
     submissao: SubmissaoDerivada,
-) -> Result<Previa, ErroPrevia> {
+) -> Result<Previa, ErroAcompanhar> {
     let mut enviado = false;
     let resposta = enviar_submissao_via(submissao, sessao.cookie, |formulario, cookie| {
         enviado = true;
         rede.post(formulario, cookie)
     });
     if !enviado {
-        return Err(ErroPrevia::Formulario(
+        return Err(ErroAcompanhar::Formulario(
             resposta
                 .err()
-                .ok_or(ErroPrevia::TelaDeAcompanhamentoInesperada)?,
+                .ok_or(ErroAcompanhar::TelaDeAcompanhamentoInesperada)?,
         ));
     }
     let aceite = match &resposta {
@@ -66,7 +66,7 @@ pub(super) fn confirmar_remocao<V: EnvioDoProcesso>(
             .is_ok()
         });
     if !confirmado {
-        return Err(ErroPrevia::NaoConfirmado);
+        return Err(ErroAcompanhar::AcompanhamentoNaoConfirmado);
     }
     plano.estado = EstadoDoAcompanhamento::Removido;
     plano.requisicoes = rede.feitas();
