@@ -35,7 +35,6 @@ pub enum FalhaTransporte {
     /// A consulta AJAX não declarou `application/xml` nem `text/xml`.
     TipoDeConteudoNaoXml,
     ArquivoPrivadoAusenteOuInacessivel,
-    #[cfg_attr(not(unix), allow(dead_code))]
     ArquivoPrivadoComPermissoesInseguras,
     CaminhoDeArquivoNaoEhArquivo,
     ArquivoPrivadoLinkSimbolico,

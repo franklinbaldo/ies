@@ -2,26 +2,16 @@
 //! O limite da instalação só será aplicado depois de observado no cadastro.
 
 // Núcleo de protocolo separado: ainda sem transmissão ou cadastro remoto.
-#[allow(dead_code)] // #332: plano de hdnAnexos será ligado ao cadastro depois da prévia Web.
 pub(crate) mod anexo;
-#[allow(dead_code)] // #332: observação do cadastro será conectada à prévia Web.
 pub(crate) mod cadastro;
-#[allow(dead_code)] // #332: cadastro definitivo offline, sem integração de POST.
 pub(crate) mod cadastro_envio;
-#[allow(dead_code)] // #332: sequência sob ensaio, confirmação pública ainda fechada.
 pub(crate) mod confirmacao;
-#[allow(dead_code)] // #332: seleção externa será ligada à prévia Web.
 pub(crate) mod escolha;
-#[allow(dead_code)] // #332: prévia remota será chamada pela CLI.
 pub(crate) mod fluxo;
-#[allow(dead_code)] // #332: conectada à CLI após validar upload real em treinamento.
 pub(crate) mod fluxo_confirmar;
-#[allow(dead_code)]
 // #332: corpo multipart só será enviado após validar o formulário em treinamento.
 pub(crate) mod multipart;
-#[allow(dead_code)] // #332: será consumido pelo fluxo de upload após a prévia em treinamento.
 pub(crate) mod recibo;
-#[allow(dead_code)] // #332: transporte de upload à espera de ensaio autenticado em treinamento.
 pub(crate) mod upload;
 
 /// Soma ao total os bytes lidos; estouro de `u64` é leitura impossível.

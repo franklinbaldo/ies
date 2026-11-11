@@ -18,7 +18,7 @@ fn bdd_60_05_cli_recusa_titulo_divergente_apos_arvore_sem_fallback() {
         "a CLI não pode aceitar o título trocado: stderr={} trilha={trilha:?}",
         String::from_utf8_lossy(&saida.stderr)
     );
-    falha_cli::falha_por(&saida, "Documento", "TituloDeOutroDocumento");
+    falha_por_cli::falha_por(&saida, "Documento", "TituloDeOutroDocumento");
     assert_eq!(
         trilha
             .iter()

@@ -114,7 +114,6 @@ pub(crate) enum FalhaDaGravacao {
     NomesDeTemporarioEsgotados,
     /// O diretório real do destino é gravável por grupo ou outros
     /// (`mode & 0o022`) sem o sticky bit (`0o1000`). Só no Unix.
-    #[cfg_attr(not(unix), allow(dead_code))]
     DiretorioGravavelPorOutros,
     DestinoJaExiste,
     DestinoNaoEhArquivoRegular,
@@ -302,7 +301,6 @@ impl Parcial {
         Ok(())
     }
 
-    #[cfg_attr(not(test), allow(dead_code))]
     pub(crate) fn temporario(&self) -> &Path {
         &self.temporario
     }

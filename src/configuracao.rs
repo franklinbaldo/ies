@@ -137,7 +137,6 @@ enum FalhaConfiguracaoLocal {
     NaoRegular,
     AcimaDoLimite,
     // Só construída na conferência de permissões Unix.
-    #[cfg_attr(not(unix), allow(dead_code))]
     PermissoesAbertas,
     LeituraFalhou,
     JsonInvalido,
@@ -267,7 +266,6 @@ pub enum ErroArquivoPrivado {
     LinkSimbolico(ArquivoPrivado),
     NaoRegular(ArquivoPrivado),
     Vazio(ArquivoPrivado),
-    #[cfg_attr(not(unix), allow(dead_code))]
     PermissoesInseguras(ArquivoPrivado),
     MetadadosNaoLidos(ArquivoPrivado),
 }

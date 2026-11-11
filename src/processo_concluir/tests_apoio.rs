@@ -352,7 +352,6 @@ pub(crate) fn tela() -> Vec<String> {
     vec![pela_tela(ID)]
 }
 
-#[allow(dead_code)]
 pub(crate) fn links() -> (String, String, String) {
     (
         absoluta(&link_de_concluir(ID)),

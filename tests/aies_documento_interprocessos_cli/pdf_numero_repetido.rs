@@ -25,7 +25,7 @@ fn bdd_60_05_cli_numero_repetido_entre_pdf_e_interno_recusa_sem_fallback() {
              stderr={} trilha={trilha:?}",
             String::from_utf8_lossy(&saida.stderr)
         );
-        falha_cli::falha_por(&saida, "Documento", "NumeroSeiRepetidoNaArvore");
+        falha_por_cli::falha_por(&saida, "Documento", "NumeroSeiRepetidoNaArvore");
         assert!(
             trilha.iter().any(|p| p == "GET procedimento_visualizar"),
             "a ambiguidade deve surgir da árvore: {trilha:?}"

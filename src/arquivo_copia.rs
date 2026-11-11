@@ -65,7 +65,7 @@ mod testes {
     use std::path::PathBuf;
     use std::time::{SystemTime, UNIX_EPOCH};
 
-    #[cfg_attr(not(unix), allow(dead_code))]
+    #[cfg(unix)]
     fn pasta() -> PathBuf {
         let path = std::env::temp_dir().join(format!(
             "ies-copia-privada-{}-{}",

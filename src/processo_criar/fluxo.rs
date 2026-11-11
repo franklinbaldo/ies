@@ -485,7 +485,6 @@ mod tests_hipotese;
 #[path = "acervo.rs"]
 mod acervo;
 
-#[allow(dead_code)] // etapa offline da #245; ligação ao transporte em próxima fatia.
 #[path = "reconciliacao.rs"]
 mod reconciliacao;
 
