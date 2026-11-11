@@ -308,6 +308,9 @@ fn executar(modo: Modo) {
         .then(|| pdf_apos_anexacao::baixar(&pasta, arquivos, porta, "antes"));
     let processo_antes =
         matches!(modo, Modo::PdfAposAnexacao).then(|| ler_processo(&pasta, arquivos, porta));
+    if matches!(modo, Modo::PdfAposAnexacao) {
+        pdf_apos_anexacao::recusar_nup_alheio(&pasta, arquivos, porta, "antes");
+    }
     let comando: &[&str] = match modo {
         Modo::Aceite | Modo::PdfAposAnexacao | Modo::RespostaIncerta => &[
             "--json",
@@ -335,6 +338,7 @@ fn executar(modo: Modo) {
             &bytes_antes,
             &bytes_depois,
         );
+        pdf_apos_anexacao::recusar_nup_alheio(&pasta, arquivos, porta, "depois");
     }
     parar.store(true, Ordering::SeqCst);
     tunel.join().unwrap();
@@ -433,6 +437,16 @@ fn conferir_resultados(
         assert!(leitura["anexados"].as_array().is_none_or(Vec::is_empty));
     }
     assert_eq!(total, i64::from(tem_anexado));
+    if modo == Modo::PdfAposAnexacao {
+        assert_eq!(
+            pedidos
+                .iter()
+                .filter(|e| e.as_str() == "GET documento_download_anexo")
+                .count(),
+            2,
+            "somente as duas leituras autorizadas baixam o PDF: {pedidos:?}"
+        );
+    }
     assert_eq!(
         pedidos
             .iter()
