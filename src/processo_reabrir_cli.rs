@@ -35,10 +35,9 @@ fn reabrir(cli: &Cli, nup: &NumeroProcesso, confirmar: bool) -> anyhow::Result<(
         };
         let feito = reabrir_processo(sessao, &pedido, indice, &mut EnvioHttps)?;
         if cli.json {
-            println!(
-                "{}",
-                serde_json::to_string_pretty(&resultado_reabertura(&feito))?
-            );
+            let mut valor = serde_json::to_value(resultado_reabertura(&feito))?;
+            crate::indice_local::anexar_avisos(&mut valor, indice);
+            println!("{}", serde_json::to_string_pretty(&valor)?);
         } else {
             println!("{}", humano(&feito));
         }

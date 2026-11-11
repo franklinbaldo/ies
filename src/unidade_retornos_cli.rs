@@ -1,6 +1,6 @@
 //! Borda da CLI "ies unidade retornos" (leitura, nunca POST).
 use crate::colheita_do_controle::Colheita;
-use crate::indice_local::IndiceLocal;
+use crate::indice_local::{self, IndiceLocal};
 use crate::transporte::{self, sessao::ReferenciasDaSessao};
 use crate::unidade_retornos_web::{self, ErroLeituraRetornos};
 use crate::{configuracao, controle_reconhecido, relogin_cli};
@@ -13,8 +13,10 @@ pub(super) fn listar(
     alvo: Option<(u16, u8)>,
 ) -> anyhow::Result<()> {
     let arquivos = configuracao::arquivos_de_acesso()?;
+    let indice = IndiceLocal::da_configuracao(&arquivos);
     let ((atual, resultado), nota) = relogin_cli::ler(
         &arquivos,
+        &indice,
         unidade,
         ErroLeituraRetornos::sessao_encerrada,
         || {
@@ -31,7 +33,6 @@ pub(super) fn listar(
             if unidade.is_some_and(|esperada| esperada != unidade_atual) {
                 return Err(ErroLeituraRetornos::UnidadeDiferenteDaSolicitada);
             }
-            let indice = IndiceLocal::da_configuracao(&arquivos);
             Colheita::das_referencias(&indice, &sessao)
                 .colher(&controle.html, Some(&controle.mime));
             let resultado = unidade_retornos_web::ler_com(
@@ -73,9 +74,11 @@ pub(super) fn listar(
             campos.insert("faixa_observada".to_owned(), faixa);
         }
         relogin_cli::anotar(&mut valor, nota.as_ref());
+        indice_local::anexar_avisos(&mut valor, &indice);
         println!("{valor}");
     } else {
         relogin_cli::avisar(false, nota.as_ref());
+        indice_local::avisar_no_texto(&indice);
         println!(
             "Retornos da unidade {atual} em {}: {} observado(s); {requisicoes} requisicao(oes).",
             resultado.mes, quantidade

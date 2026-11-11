@@ -93,10 +93,9 @@ fn enviar(
             }
         })?;
         if cli.json {
-            println!(
-                "{}",
-                serde_json::to_string_pretty(&resultado_envio(&feito))?
-            );
+            let mut valor = serde_json::to_value(resultado_envio(&feito))?;
+            crate::indice_local::anexar_avisos(&mut valor, indice);
+            println!("{}", serde_json::to_string_pretty(&valor)?);
         } else {
             println!("{}", humano(&feito));
         }

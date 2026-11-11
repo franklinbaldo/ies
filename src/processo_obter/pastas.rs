@@ -143,7 +143,7 @@ pub(super) fn pelo_link_guardado<V: EnvioDoProcesso>(
     if let Lida::Html { html, .. } = rede.get(link.url())? {
         match aberta_inteira(contexto, &html, id) {
             Ok(aberta) => {
-                let _ = contexto
+                contexto
                     .indice
                     .registrar_processo(instalacao, contexto.nup, id);
                 contexto.aprender_link(AcaoDoSei::ProcedimentoVisualizar, &objeto, link.url());

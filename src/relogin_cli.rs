@@ -15,9 +15,11 @@ pub(crate) use crate::sessao_login::relogin::{FalhaDaLeitura, NotaDoRelogin};
 
 /// A leitura com o relogin único: credenciais só de `IES_CREDENCIAIS_FILE`
 /// (ausente: comportamento sem relogin), lock do `ies login` e a contagem
-/// de todos os pedidos do processo.
+/// de todos os pedidos do processo. O relogin colhe no `indice` do comando,
+/// que publica os avisos dele na saída.
 pub(crate) fn ler<T, E>(
     arquivos: &ArquivosDeAcesso,
+    indice: &IndiceLocal,
     unidade: Option<&str>,
     sessao_encerrada: fn(&E) -> bool,
     ler: impl FnMut() -> Result<T, E>,
@@ -25,13 +27,12 @@ pub(crate) fn ler<T, E>(
     let credenciais = std::env::var_os("IES_CREDENCIAIS_FILE")
         .filter(|valor| !valor.is_empty())
         .map(PathBuf::from);
-    let indice = IndiceLocal::da_configuracao(arquivos);
     let contexto = ContextoDoRelogin {
         arquivos,
         credenciais: credenciais.as_deref(),
         unidade_esperada: unidade,
         espera_do_lock: crate::sessao_login_cli::ESPERA_DO_LOCK,
-        indice: &indice,
+        indice,
     };
     ler_com_relogin(
         &contexto,

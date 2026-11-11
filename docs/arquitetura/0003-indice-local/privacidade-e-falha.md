@@ -35,9 +35,15 @@ valem enquanto a sessão viver.
 Arquivo corrompido, permissão, disco cheio, versão futura ou lock
 além do `busy_timeout` **nunca** derrubam um comando: a primeira falha
 desliga o índice daquele processo, e as consultas passam a devolver
-`None` e as gravações a não fazer nada. A API não propaga erro do banco;
-`RegistroRecusado` só descreve entrada inválida, e o chamador pode
-ignorá-la.
+`None` e as gravações a não fazer nada. A API não propaga erro do banco,
+mas não o descarta (#786): `IndiceLocal` guarda cada falha como
+`FalhaDoIndice` (`Banco` com o `ErroAberturaDoIndice` inteiro,
+`RegistroRecusado` da entrada inválida, `EstadoDoAceiteForaDoConjunto`), e
+a CLI a publica em `avisos` (JSON, omitida quando vazia) ou numa linha
+`Aviso do índice` em stderr. A forma publicada tem o nome da variante, o
+`kind` do sistema ou o código estendido do SQLite, nunca o caminho nem a
+mensagem do SQLite. `IES_SEM_INDICE` não é falha. `entrada_por_id` devolve
+`Option<AceiteDaEntrada>`: `None` é só "sem registro vigente".
 
 - Cada operação abre a conexão, roda **uma transação minúscula** e
   fecha. Nenhuma transação atravessa HTTP: o chamador consulta, faz a

@@ -51,33 +51,37 @@ pub(crate) fn tentar_anotar(cli: &Cli) -> Option<anyhow::Result<()>> {
             &mut EnvioHttps,
         )?;
         if *remover {
-            exibir_retirada(&preview, *confirmar, cli.json);
+            exibir_retirada(&preview, *confirmar, cli.json, indice);
         } else if texto.is_none() {
-            exibir_consulta(&preview, cli.json);
+            exibir_consulta(&preview, cli.json, indice);
         } else {
-            exibir_registro(&preview, *confirmar, cli.json);
+            exibir_registro(&preview, *confirmar, cli.json, indice);
         }
         Ok(())
     }))
 }
 
 /// A saída de registro é uma operação de apresentação, separada do despacho.
-fn exibir_registro(preview: &processo_anotar::Previa, confirmar: bool, modo_json: bool) {
+fn exibir_registro(
+    preview: &processo_anotar::Previa,
+    confirmar: bool,
+    modo_json: bool,
+    indice: &crate::indice_local::IndiceLocal,
+) {
     if modo_json {
-        println!(
-            "{}",
-            json!({
-                "nup": preview.nup,
-                "id_procedimento": preview.id_procedimento,
-                "unidade": preview.unidade,
-                "texto": preview.texto,
-                "anotacao_antes": preview.anotacao_antes,
-                "confirmado": confirmar,
-                "alterado": preview.alterado,
-                "origem": "web",
-                "requisicoes": preview.requisicoes,
-            })
-        );
+        let mut valor = json!({
+            "nup": preview.nup,
+            "id_procedimento": preview.id_procedimento,
+            "unidade": preview.unidade,
+            "texto": preview.texto,
+            "anotacao_antes": preview.anotacao_antes,
+            "confirmado": confirmar,
+            "alterado": preview.alterado,
+            "origem": "web",
+            "requisicoes": preview.requisicoes,
+        });
+        crate::indice_local::anexar_avisos(&mut valor, indice);
+        println!("{valor}");
     } else if preview.alterado {
         println!(
             "Anotação registrada e conferida no processo {} ({}): {:?}. Requisições: {}.",
@@ -96,23 +100,27 @@ fn exibir_registro(preview: &processo_anotar::Previa, confirmar: bool, modo_json
 }
 
 /// A retirada distingue uma prévia da ausência confirmada por releitura.
-fn exibir_retirada(preview: &processo_anotar::Previa, confirmar: bool, modo_json: bool) {
+fn exibir_retirada(
+    preview: &processo_anotar::Previa,
+    confirmar: bool,
+    modo_json: bool,
+    indice: &crate::indice_local::IndiceLocal,
+) {
     if modo_json {
-        println!(
-            "{}",
-            json!({
-                "nup": preview.nup,
-                "id_procedimento": preview.id_procedimento,
-                "unidade": preview.unidade,
-                "texto": "",
-                "anotacao_antes": preview.anotacao_antes,
-                "remover": true,
-                "confirmado": confirmar,
-                "alterado": preview.alterado,
-                "origem": "web",
-                "requisicoes": preview.requisicoes,
-            })
-        );
+        let mut valor = json!({
+            "nup": preview.nup,
+            "id_procedimento": preview.id_procedimento,
+            "unidade": preview.unidade,
+            "texto": "",
+            "anotacao_antes": preview.anotacao_antes,
+            "remover": true,
+            "confirmado": confirmar,
+            "alterado": preview.alterado,
+            "origem": "web",
+            "requisicoes": preview.requisicoes,
+        });
+        crate::indice_local::anexar_avisos(&mut valor, indice);
+        println!("{valor}");
     } else if preview.alterado {
         println!(
             "Anotação retirada e ausência conferida no processo {} ({}). Requisições: {}.",
@@ -133,21 +141,24 @@ fn exibir_retirada(preview: &processo_anotar::Previa, confirmar: bool, modo_json
 
 /// A ausência só é publicada após o formulário do próprio processo confirmar
 /// explicitamente uma textarea vazia. Formulário ausente falha antes daqui.
-fn exibir_consulta(preview: &processo_anotar::Previa, modo_json: bool) {
+fn exibir_consulta(
+    preview: &processo_anotar::Previa,
+    modo_json: bool,
+    indice: &crate::indice_local::IndiceLocal,
+) {
     let anotacao = (!preview.anotacao_antes.is_empty()).then_some(preview.anotacao_antes.as_str());
     if modo_json {
-        println!(
-            "{}",
-            json!({
-                "nup": preview.nup,
-                "id_procedimento": preview.id_procedimento,
-                "unidade": preview.unidade,
-                "anotacao": anotacao,
-                "alterado": false,
-                "origem": "web",
-                "requisicoes": preview.requisicoes,
-            })
-        );
+        let mut valor = json!({
+            "nup": preview.nup,
+            "id_procedimento": preview.id_procedimento,
+            "unidade": preview.unidade,
+            "anotacao": anotacao,
+            "alterado": false,
+            "origem": "web",
+            "requisicoes": preview.requisicoes,
+        });
+        crate::indice_local::anexar_avisos(&mut valor, indice);
+        println!("{valor}");
     } else if let Some(texto) = anotacao {
         println!(
             "Anotação atual do processo {} ({}): {texto:?}. Nenhuma alteração realizada. Requisições: {}.",

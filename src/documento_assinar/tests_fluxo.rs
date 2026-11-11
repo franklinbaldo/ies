@@ -198,7 +198,7 @@ fn confirmar_envia_um_post_com_a_senha_e_confere_a_caneta() {
 fn indice_quente_nao_confirma_assinatura_ausente_na_arvore_relida() {
     let amb = ambiente();
     let inst = crate::instalacao::Instalacao::interpretar(ORIGEM).unwrap();
-    amb.indice.registrar_processo(&inst, NUP, ID).unwrap();
+    amb.indice.registrar_processo(&inst, NUP, ID);
     amb.indice.registrar_entrada_por_id(&inst, false);
     let credenciais = credenciais();
     let respostas = com(

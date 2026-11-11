@@ -2,7 +2,7 @@
 //! NUP inválido sai com 2 antes de qualquer arquivo; prévia sem escrita;
 //! com `--confirmar`, uma escrita conferida por leitura; efeito incerto, 3.
 //! A saída nunca traz URL, `infra_hash` ou cookie.
-use crate::indice_local::IndiceLocal;
+use crate::indice_local::{self, IndiceLocal};
 use crate::processo::NumeroProcesso;
 use crate::processo_concluir::{
     DesfechoDaConclusao, PedidoDaConclusao, ProcessoConcluido, concluir_processo,
@@ -25,9 +25,11 @@ pub(crate) fn tentar_concluir(cli: &Cli) -> Option<anyhow::Result<()>> {
 }
 
 /// Lê os arquivos da sessão e chama `executar` com ela e o índice; a falha
-/// de configuração ou de sessão sobe até o `main`, sem rede.
+/// de configuração ou de sessão sobe até o `main`, sem rede. Com `--json`,
+/// `executar` põe os avisos do índice na saída (`anexar_avisos`); sem ele,
+/// as linhas `Aviso do índice` saem aqui, em `stderr`, depois do sucesso.
 pub(crate) fn com_sessao(
-    _cli: &Cli,
+    cli: &Cli,
     executar: impl FnOnce(&SessaoDoProcesso<'_>, &IndiceLocal) -> anyhow::Result<()>,
 ) -> anyhow::Result<()> {
     let arquivos = configuracao::arquivos_de_acesso()?;
@@ -41,7 +43,13 @@ pub(crate) fn com_sessao(
         origem: referencias.origem(),
         cookie: referencias.cookie(),
     };
-    executar(&sessao, &IndiceLocal::da_configuracao(&arquivos))
+    let indice = IndiceLocal::da_configuracao(&arquivos);
+    executar(&sessao, &indice)?;
+    // Na falha, `stderr` começa pelo erro (#695): os avisos só no sucesso.
+    if !cli.json {
+        indice_local::avisar_no_texto(&indice);
+    }
+    Ok(())
 }
 
 fn concluir(cli: &Cli, nup: &NumeroProcesso, confirmar: bool) -> anyhow::Result<()> {
@@ -64,10 +72,9 @@ fn concluir_na_sessao(
     };
     let feito = concluir_processo(sessao, &pedido, indice, &mut EnvioHttps)?;
     if cli.json {
-        println!(
-            "{}",
-            serde_json::to_string_pretty(&resultado_conclusao(&feito))?
-        );
+        let mut valor = serde_json::to_value(resultado_conclusao(&feito))?;
+        indice_local::anexar_avisos(&mut valor, indice);
+        println!("{}", serde_json::to_string_pretty(&valor)?);
     } else {
         println!("{}", humano(&feito));
     }

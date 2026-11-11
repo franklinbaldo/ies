@@ -40,7 +40,7 @@ pub(crate) fn tentar_atribuir(cli: &Cli) -> Option<anyhow::Result<()>> {
             confirmar: *confirmar,
         };
         let feito = executar_previa(sessao, &pedido, indice, &mut EnvioHttps)?;
-        publicar_previa(cli.json, &feito);
+        publicar_previa(cli.json, &feito, indice);
         Ok(())
     }))
 }
@@ -101,9 +101,15 @@ pub(crate) fn texto_humano(feito: &ProcessoAtribuido) -> String {
     linhas.join("\n")
 }
 
-fn publicar_previa(json_mode: bool, feito: &ProcessoAtribuido) {
+fn publicar_previa(
+    json_mode: bool,
+    feito: &ProcessoAtribuido,
+    indice: &crate::indice_local::IndiceLocal,
+) {
     if json_mode {
-        println!("{}", json_da_previa(feito));
+        let mut valor = json_da_previa(feito);
+        crate::indice_local::anexar_avisos(&mut valor, indice);
+        println!("{valor}");
     } else {
         println!("{}", texto_humano(feito));
     }

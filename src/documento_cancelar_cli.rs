@@ -30,10 +30,9 @@ pub(crate) fn tentar_cancelar(cli: &Cli) -> Option<anyhow::Result<()>> {
         };
         let feito = cancelar_documento(sessao, &pedido, indice, &mut EnvioHttps)?;
         if cli.json {
-            println!(
-                "{}",
-                serde_json::to_string_pretty(&resultado_cancelamento(&feito))?
-            );
+            let mut valor = serde_json::to_value(resultado_cancelamento(&feito))?;
+            crate::indice_local::anexar_avisos(&mut valor, indice);
+            println!("{}", serde_json::to_string_pretty(&valor)?);
         } else if feito.resultado.cancelado() {
             println!(
                 "Documento {} cancelado e conferido pela árvore. Requisições: {}.",

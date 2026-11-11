@@ -8,7 +8,7 @@ use crate::transporte::StatusHttpRecusado;
 
 fn com_link_da_arvore(amb: &Ambiente) {
     let (inst, g) = (instalacao(), geracao());
-    amb.indice.registrar_processo(&inst, NUP, ID).unwrap();
+    amb.indice.registrar_processo(&inst, NUP, ID);
     amb.indice
         .registrar_link(
             &inst,
@@ -104,21 +104,24 @@ fn link_expirado_recusado_pelo_servidor_nao_volta_do_cache() {
 fn recusa_da_entrada_por_id_e_registrada_e_para_sem_outra_requisicao() {
     let amb = ambiente();
     let inst = instalacao();
-    amb.indice.registrar_processo(&inst, NUP, ID).unwrap();
+    amb.indice.registrar_processo(&inst, NUP, ID);
     let (r, pedidos) = rodar(&amb, None, vec![r302(LOGIN_RECUSA)]);
     assert_eq!(
         r.unwrap_err(),
         super::ErroProcessoObter::EntradaPorIdRecusada
     );
     assert_eq!(pedidos, [get(&url_entrada(ID))]);
-    assert_eq!(amb.indice.entrada_por_id(&inst), Some(false));
+    assert_eq!(
+        amb.indice.entrada_por_id(&inst),
+        Some(crate::indice_local::AceiteDaEntrada::Recusada)
+    );
 }
 
 #[test]
 fn entrada_recusada_antes_nao_e_tentada() {
     let amb = ambiente();
     let inst = instalacao();
-    amb.indice.registrar_processo(&inst, NUP, ID).unwrap();
+    amb.indice.registrar_processo(&inst, NUP, ID);
     amb.indice.registrar_entrada_por_id(&inst, false);
     let (r, pedidos) = rodar(
         &amb,
@@ -137,7 +140,7 @@ fn entrada_recusada_antes_nao_e_tentada() {
 fn entrada_por_id_com_sessao_vencida_e_erro_sem_recusa_registrada() {
     let amb = ambiente();
     let inst = instalacao();
-    amb.indice.registrar_processo(&inst, NUP, ID).unwrap();
+    amb.indice.registrar_processo(&inst, NUP, ID);
     let (r, pedidos) = rodar(&amb, None, vec![r302(LOGIN)]);
     assert_eq!(
         r.unwrap_err(),
@@ -151,7 +154,7 @@ fn entrada_por_id_com_sessao_vencida_e_erro_sem_recusa_registrada() {
 fn entrada_por_id_para_outro_id_esquece_o_processo_e_segue() {
     let amb = ambiente();
     let inst = instalacao();
-    amb.indice.registrar_processo(&inst, NUP, ID).unwrap();
+    amb.indice.registrar_processo(&inst, NUP, ID);
     let (r, pedidos) = rodar(
         &amb,
         None,

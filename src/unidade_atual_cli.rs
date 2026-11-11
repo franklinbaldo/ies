@@ -1,5 +1,6 @@
 //! Leitor do rótulo da unidade ativa, sem paginação nem mudança de sessão.
 use crate::erro_web::ErroCaixa;
+use crate::indice_local::{self, IndiceLocal};
 use crate::{configuracao, relogin_cli, transporte};
 use serde_json::json;
 
@@ -22,9 +23,11 @@ pub(super) fn mostrar_unidade_atual(
     json_mode: bool,
 ) -> anyhow::Result<()> {
     let arquivos = configuracao::arquivos_de_acesso()?;
+    let indice = IndiceLocal::da_configuracao(&arquivos);
     // Cada tentativa relê a sessão num retrato coerente (#222).
     let ((sessao, tela), nota) = relogin_cli::ler(
         &arquivos,
+        &indice,
         unidade_esperada,
         crate::transporte::FalhaTransporte::sessao_encerrada,
         || {
@@ -38,7 +41,6 @@ pub(super) fn mostrar_unidade_atual(
     )
     .map_err(relogin_cli::subir)?;
     // A colheita usa a geração do cookie que obteve a tela.
-    let indice = crate::indice_local::IndiceLocal::da_configuracao(&arquivos);
     crate::colheita_do_controle::Colheita::das_referencias(&indice, &sessao)
         .colher(&tela.html, Some(&tela.mime));
     let unidade = unidade_validada(&tela.html)?;
@@ -48,9 +50,11 @@ pub(super) fn mostrar_unidade_atual(
     if json_mode {
         let mut valor = dados_publicos_unidade(&unidade);
         relogin_cli::anotar_com_total(&mut valor, nota.as_ref());
+        indice_local::anexar_avisos(&mut valor, &indice);
         println!("{valor}");
     } else {
         relogin_cli::avisar(json_mode, nota.as_ref());
+        indice_local::avisar_no_texto(&indice);
         println!("Unidade exibida na sessão SEI: {unidade}");
     }
     Ok(())

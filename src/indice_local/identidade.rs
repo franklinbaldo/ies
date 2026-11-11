@@ -2,7 +2,7 @@
 //! instalação. O NUP é opaco (comparação exata); a observação nova que
 //! conflita com as antigas as substitui.
 use super::IndiceLocal;
-use super::validacao::{RegistroRecusado, conferir_id_procedimento, conferir_nup};
+use super::validacao::{conferir_id_procedimento, conferir_nup};
 use crate::instalacao::Instalacao;
 use rusqlite::OptionalExtension;
 
@@ -39,15 +39,18 @@ impl IndiceLocal {
     }
 
     /// Nova observação: apaga, na mesma transação, a linha do mesmo NUP e a
-    /// do mesmo id antes de gravar.
+    /// do mesmo id antes de gravar. Entrada inválida não grava e fica nos
+    /// avisos (`RegistroRecusado`).
     pub(crate) fn registrar_processo(
         &self,
         instalacao: &Instalacao,
         nup: &str,
         id_procedimento: &str,
-    ) -> Result<(), RegistroRecusado> {
-        conferir_nup(nup)?;
-        conferir_id_procedimento(id_procedimento)?;
+    ) {
+        let conferido = conferir_nup(nup).and_then(|()| conferir_id_procedimento(id_procedimento));
+        if !self.anotar_recusa(conferido) {
+            return;
+        }
         let origem = instalacao.url_base();
         self.executar((), |banco, agora| {
             banco.execute(
@@ -61,7 +64,6 @@ impl IndiceLocal {
             )?;
             Ok(())
         });
-        Ok(())
     }
 
     /// O servidor divergiu: esquece o NUP.
