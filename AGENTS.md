@@ -278,6 +278,8 @@ O que falta implementar e em que ordem está na
   os dos outros você lê. Peça compartilhada exige mudança mínima na
   sua PR e explicação, sem tocar em branch alheio.
 - `xtask` só tem verificadores de infraestrutura, sem dependências.
+- PR integra na `main` **por squash**: um commit por PR, com a mensagem
+  do fato. RED, `style:` e pedidos de inspeção ficam na PR (#776).
 - Antes de qualquer PR:
   `uvx --from prek==0.5.7 prek run --hook-stage pre-push --all-files`
   (o [CI completo](.github/workflows/ci.yml) reproduz os mesmos gates
