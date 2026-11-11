@@ -38,6 +38,13 @@ auxiliar, não critério autossuficiente de paridade. Novos testes de
 comportamento SEI priorizam cassettes; testes locais de tipos, parser,
 formatação e lógica permanecem válidos quando necessários.
 
+**Aceite para toda a equipe:** o GitHub Actions deve executar o replay
+pertinente no head final de cada PR, e não apenas inspecionar hashes.
+`inspecionar-cassettes.yml` é só inspeção, não prova de paridade.
+🦅 confere o confronto independente IES/anti-IES com as respostas originais;
+🐘 e 🦡 só integram após CI e replay aplicável verdes. Nenhum agente usa
+Jatobá nesse fluxo. Não há meta de contagem de requisições.
+
 **Prioridade atual:** identificar e eliminar antipatterns reais, conforme
 [issue-mãe #716](https://github.com/franklinbaldo/ies/issues/716)
 e [roadmap #56](https://github.com/franklinbaldo/ies/issues/56).
