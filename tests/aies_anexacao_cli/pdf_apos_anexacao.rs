@@ -1,4 +1,4 @@
-//! BDD-60-05: a CLI Rust mantém a identidade do PDF antes/depois da anexação.
+//! Regressão técnica #496: a CLI Rust mantém a identidade do PDF após anexação.
 //! A variação com PASTA/AGUARDE tem prova HTTP separada; aqui a árvore é completa.
 //! Hipótese sintética, não reprodução da transição em cassettes UnB/GO.
 use super::{ANEXADO, CENARIO, Modo, PRINCIPAL, Pasta, cli};
@@ -98,6 +98,6 @@ pub(super) fn conferir(antes: &Output, depois: &Output, pdf_antes: &[u8], pdf_de
 }
 
 #[test]
-fn bdd_60_05_pdf_nao_troca_identidade_apos_anexacao_na_mesma_arvore() {
+fn regressao_496_pdf_nao_troca_identidade_apos_anexacao_na_mesma_arvore() {
     super::executar(Modo::PdfAposAnexacao);
 }
