@@ -226,6 +226,36 @@ pub(super) fn executar_versao_revogada_ao_visualizar(args: &[&str]) -> (Output, 
 mod transicoes;
 use transicoes::{aplicar_transicao, conferir_estado_apos_cli};
 
+fn conferir_consulta_informativa(mut comando: Command) {
+    let primeira = comando
+        .args([
+            "--json",
+            "processo",
+            NUP_A,
+            "--sem-andamentos",
+            "--sem-propriedades",
+            "--sem-marcadores",
+        ])
+        .output()
+        .expect("consulta informativa anterior");
+    assert_eq!(
+        primeira.status.code(),
+        Some(0),
+        "processo com pasta pendente: {}",
+        String::from_utf8_lossy(&primeira.stderr)
+    );
+    let observado: Value = serde_json::from_slice(&primeira.stdout).unwrap();
+    assert_eq!(observado["numero"], NUP_A);
+    assert_eq!(observado["documentos_incluidos"], false);
+    assert_eq!(observado["documentos"], serde_json::json!([]));
+    assert!(
+        observado["aviso_leitura_parcial"]
+            .as_str()
+            .is_some_and(|aviso| aviso.contains("leitura parcial")),
+        "lista vazia não significa ausência: {observado}"
+    );
+}
+
 fn executar_com_estado(
     com_segundo: bool,
     modo: EstadoExtra,
@@ -317,33 +347,7 @@ fn executar_com_estado(
         cli
     };
     if matches!(modo, EstadoExtra::PastaPendente) {
-        let primeira = comando()
-            .args([
-                "--json",
-                "processo",
-                NUP_A,
-                "--sem-andamentos",
-                "--sem-propriedades",
-                "--sem-marcadores",
-            ])
-            .output()
-            .expect("consulta informativa anterior");
-        assert_eq!(
-            primeira.status.code(),
-            Some(0),
-            "processo com pasta pendente: {}",
-            String::from_utf8_lossy(&primeira.stderr)
-        );
-        let observado: Value = serde_json::from_slice(&primeira.stdout).unwrap();
-        assert_eq!(observado["numero"], NUP_A);
-        assert_eq!(observado["documentos_incluidos"], false);
-        assert_eq!(observado["documentos"], serde_json::json!([]));
-        assert!(
-            observado["aviso_leitura_parcial"]
-                .as_str()
-                .is_some_and(|aviso| aviso.contains("leitura parcial")),
-            "lista vazia não significa ausência: {observado}"
-        );
+        conferir_consulta_informativa(comando());
     }
     let saida = comando().args(args).output().expect("binário ies");
     parar.store(true, Ordering::Release);
