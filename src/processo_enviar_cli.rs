@@ -148,6 +148,7 @@ struct ResultadoEnvio<'a> {
     aberto_em: &'a [String],
     alterado: bool,
     confirmado: bool,
+    #[serde(skip_serializing_if = "Option::is_none")]
     depois: Option<&'a [String]>,
     depois_esperado: Vec<String>,
     destino: DestinoPublico<'a>,

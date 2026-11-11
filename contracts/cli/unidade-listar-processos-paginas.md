@@ -17,16 +17,16 @@ processos que a tela mostra, o `total_declarado` e a `faixa_observada`,
 na [forma única](unidade-recebidos-gerados.md):
 
 ```json
-{"categoria": "recebidos", "total_declarado": 114, "faixa_observada": [1, 100], "processos": [...]}
+{"categoria": "recebidos", "total_declarado": 114, "faixa_observada": {"inicio": 1, "fim": 100}, "processos": [...]}
 ```
 
 - A faixa vem da legenda (`(114 registros - 1 a 100):`). Com legenda sem
   intervalo e linhas iguais ao total (`3 registros:`, ou `1 registro:` e
   `(1 registro):` no singular, este na UFRJ), a faixa é `1..total`.
-  Tabela com zero registros publica `faixa_observada: []`.
+  Tabela com zero registros não publica a chave `faixa_observada`.
 - **Lista vazia sem tabela** (GO 5.0.3, unidade sem processos, replay de
   04/11/2026): o SEI omite `tbl{T}`. A lista é publicada com
-  `total_declarado: 0`, `faixa_observada: []` e nenhum processo **só**
+  `total_declarado: 0`, sem a chave `faixa_observada` e nenhum processo **só**
   com a prova estrutural inteira: visão R e `lnkInfraUnidade`
   identificados; `div{T}AreaTabela`, `div{T}AreaPaginacaoSuperior` e
   `div{T}AreaPaginacaoInferior` únicas e só com espaços; `hdn{T}NroItens`

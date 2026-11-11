@@ -7,12 +7,13 @@ use crate::paginas::{FaixaObservada, Leitura};
 use serde::Serialize;
 use serde_json::{Value, json};
 
-/// `[inicio, fim]` das posições lidas, ou `[]` para zero linhas: dado
-/// observado da legenda, nunca afirmação de lista integral.
-pub(crate) fn faixa_json(faixa: FaixaObservada) -> Value {
+/// `{"inicio", "fim"}` das posições lidas; `None` para zero linhas, e então
+/// a chave `faixa_observada` é omitida (nem `null`, nem `[]`). Dado observado
+/// da legenda, nunca afirmação de lista integral.
+pub(crate) fn faixa_json(faixa: FaixaObservada) -> Option<Value> {
     match faixa {
-        FaixaObservada::SemLinhas => json!([]),
-        FaixaObservada::Lidas { inicio, fim } => json!([inicio, fim]),
+        FaixaObservada::SemLinhas => None,
+        FaixaObservada::Lidas { inicio, fim } => Some(json!({"inicio": inicio, "fim": fim})),
     }
 }
 
@@ -28,13 +29,17 @@ pub(crate) struct ListaObservada<'a, P: Serialize> {
 
 /// Forma comum de toda lista da caixa (contracts/cli/unidade-recebidos-gerados.md).
 pub(crate) fn lista_json<P: Serialize>(lista: &ListaObservada<'_, P>) -> Value {
-    json!({
+    let mut objeto = json!({
         "unidade": lista.unidade,
         "origem": lista.origem,
         "total_declarado": lista.total_declarado,
-        "faixa_observada": faixa_json(lista.faixa_observada),
         "processos": lista.processos,
-    })
+    });
+    if let (Some(campos), Some(faixa)) = (objeto.as_object_mut(), faixa_json(lista.faixa_observada))
+    {
+        campos.insert("faixa_observada".to_owned(), faixa);
+    }
+    objeto
 }
 
 /// A lista de uma categoria da visão resumida, com `categoria` dada pela leitura.
@@ -95,8 +100,8 @@ mod tests {
             assert!(lista.get("completa").is_none());
             assert!(lista.get("linhas_lidas").is_none());
             assert!(lista.get("paginas_lidas").is_none());
-            // Zero linhas é a lista vazia observada, não `null`.
-            assert_eq!(lista["faixa_observada"], json!([]));
+            // Zero linhas: a chave some, sem `null` nem `[]` no lugar.
+            assert!(lista.get("faixa_observada").is_none());
         }
     }
 
@@ -110,7 +115,8 @@ mod tests {
         let listas = json(&leitura, "web").unwrap();
         let listas = listas.as_array().expect("array de listas");
         assert_eq!(listas.len(), 2);
-        let forma = BTreeSet::from([
+        // Recebidos tem linha lida; gerados tem zero linhas e não tem a faixa.
+        let com_faixa = BTreeSet::from([
             "categoria",
             "faixa_observada",
             "origem",
@@ -118,14 +124,23 @@ mod tests {
             "total_declarado",
             "unidade",
         ]);
-        for (lista, categoria) in listas.iter().zip(["recebidos", "gerados"]) {
-            assert_eq!(chaves(lista), forma);
+        let sem_faixa = BTreeSet::from([
+            "categoria",
+            "origem",
+            "processos",
+            "total_declarado",
+            "unidade",
+        ]);
+        let esperadas = [("recebidos", &com_faixa), ("gerados", &sem_faixa)];
+        for (lista, (categoria, forma)) in listas.iter().zip(esperadas) {
+            assert_eq!(chaves(lista), *forma);
             assert_eq!(lista["categoria"], categoria);
             assert_eq!(lista["unidade"], "PPI");
             assert_eq!(lista["origem"], "web");
         }
         assert_eq!(listas[0]["total_declarado"], 5);
-        assert_eq!(listas[0]["faixa_observada"], json!([1, 1]));
+        assert_eq!(listas[0]["faixa_observada"], json!({"inicio": 1, "fim": 1}));
+        assert!(listas[1].get("faixa_observada").is_none());
         assert_eq!(listas[0]["processos"][0]["numero"], "N-1");
         assert_eq!(
             listas[1],

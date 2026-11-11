@@ -57,12 +57,8 @@ pub(super) fn listar(
     )
     .map_err(relogin_cli::subir)?;
     let quantidade = resultado.itens.len();
-    // Zero retornos é a lista vazia observada, não ausência de faixa.
-    let faixa = if quantidade == 0 {
-        json!([])
-    } else {
-        json!([1, quantidade])
-    };
+    // Zero retornos: a faixa lida não existe e a chave é omitida.
+    let faixa = (quantidade > 0).then(|| json!({"inicio": 1, "fim": quantidade}));
     let requisicoes = relogin_cli::somar(resultado.requisicoes, nota.as_ref());
     if json_mode {
         let mut valor = json!({
@@ -70,10 +66,12 @@ pub(super) fn listar(
             "origem":"web",
             "mes":resultado.mes,
             "total_declarado":quantidade,
-            "faixa_observada":faixa,
             "retornos": resultado.itens,
             "requisicoes":requisicoes,
         });
+        if let (Some(campos), Some(faixa)) = (valor.as_object_mut(), faixa) {
+            campos.insert("faixa_observada".to_owned(), faixa);
+        }
         relogin_cli::anotar(&mut valor, nota.as_ref());
         println!("{valor}");
     } else {

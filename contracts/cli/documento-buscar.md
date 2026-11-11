@@ -79,7 +79,7 @@ Todas têm `resultado`, `termo` (aparado), `unidade` (do Controle),
   link do documento é `documento_download_anexo` (e não
   `documento_visualizar`).
 - **200 com `div.pesquisaSemResultado`**: `{"resultado":"sem_resultado",
-  "total_declarado":0,"faixa_observada":null,"documentos":[]}`. Resposta
+  "total_declarado":0,"documentos":[]}` (sem `faixa_observada`). Resposta
   observada para esta conta/unidade, **não** prova de inexistência.
 
 ## Linha de documento (forma observada)

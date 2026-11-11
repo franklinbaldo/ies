@@ -104,7 +104,6 @@ pub(crate) fn json_da_busca(termo: &str, busca: &BuscaRealizada<RespostaDeDocume
         RespostaDeDocumentos::SemResultado => json!({
             "resultado": "sem_resultado",
             "total_declarado": 0,
-            "faixa_observada": null,
             "documentos": [],
         }),
     };

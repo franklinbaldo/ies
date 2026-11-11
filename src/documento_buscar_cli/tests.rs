@@ -96,7 +96,7 @@ fn sem_resultado_publica_total_zero_sem_faixa() {
         json_da_busca("0001", &busca(RespostaDeDocumentos::SemResultado, 3)),
         com(
             base("sem_resultado", 3),
-            &json!({"total_declarado": 0, "faixa_observada": null, "documentos": []})
+            &json!({"total_declarado": 0, "documentos": []})
         )
     );
 }

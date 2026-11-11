@@ -76,7 +76,7 @@ pelo tokenizador de atributos, sem regex e sem JavaScript:
 responde **302** para o formulário de adicionar marcador
 (`andamento_marcador_cadastrar`) assinado **do mesmo processo**. O 302
 não é seguido e vira `"marcadores": []`, `marcadores_total_declarado: 0`
-e `marcadores_faixa_observada: null`, sem requisição a mais. Um 302 para
+e sem a chave `marcadores_faixa_observada`, sem requisição a mais. Um 302 para
 `andamento_marcador_cadastrar` de outro processo continua recusa
 (`redirecionamento_nao_reconhecido`).
 
@@ -124,8 +124,8 @@ o [contrato das propriedades](processo-obter-propriedades.md).
 "marcadores_faixa_observada": {"inicio": 1, "fim": 2}
 ```
 
-Lidos, `"marcadores"` sai de `nao_lidos`; a faixa é `null` com zero
-linhas. `--sem-marcadores`: nenhum pedido; as chaves `marcadores*` somem,
+Lidos, `"marcadores"` sai de `nao_lidos`; a chave `marcadores_faixa_observada`
+some com zero linhas. `--sem-marcadores`: nenhum pedido; as chaves `marcadores*` somem,
 `"marcadores"` fica em `nao_lidos` e o motivo é
 `"omitidos_por_sem_marcadores"`. Texto humano: uma linha por marcador
 (`- <id>#<nome> [<cor>]: <texto>`).

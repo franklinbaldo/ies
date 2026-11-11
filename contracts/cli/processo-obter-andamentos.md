@@ -96,8 +96,9 @@ A legenda da tabela é `Lista de Andamentos (N registro):` ou
 `legenda_dos_andamentos_fora_da_forma_observada`, ausente é
 `legenda_dos_andamentos_ausente`. Linhas além de N são
 `AndamentosAlemDoTotalDeclarado`. Linhas aquém de N saem com
-`total_declarado: N` e `faixa_observada: {"inicio": 1, "fim": linhas}`:
-o IES nunca alega completude além do lido. Nenhum paginador foi visto
+`total_declarado: N` e `faixa_observada: {"inicio": 1, "fim": linhas}`;
+com zero linhas a chave `faixa_observada` é omitida. O IES nunca alega
+completude além do lido. Nenhum paginador foi visto
 até 75 linhas ao vivo (GO). No [replay do acervo](../../docs/validacao-replay/2026-11-04-processo-obter-acervo.md)
 (120 páginas, sete instalações, a maior com 57 linhas na UFRJ) a
 `divInfraAreaPaginacaoSuperior` vem sempre vazia e as linhas igualam N.

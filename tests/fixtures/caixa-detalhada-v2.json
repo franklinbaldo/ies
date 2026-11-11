@@ -6,10 +6,10 @@
       "prioridade",
       "observacao"
     ],
-    "faixa_observada": [
-      1,
-      2
-    ],
+    "faixa_observada": {
+      "fim": 2,
+      "inicio": 1
+    },
     "origem": "web",
     "processos": [
       {

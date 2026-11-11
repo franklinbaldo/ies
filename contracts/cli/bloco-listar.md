@@ -25,7 +25,7 @@ ao primeiro GET consomem zero pedidos. A saída declara o número de GETs
 realmente feitos apenas nos sucessos. Sessão ativa é pré-requisito.
 
 O modelo da lista publica `tipo`, `total_declarado`,
-`faixa_observada` e `itens`. Cada item contém `numero`, `tipo`,
+`faixa_observada` (`{"inicio", "fim"}`, omitida com zero linhas) e `itens`. Cada item contém `numero`, `tipo`,
 `estado` e `descricao`. A tela de lista não mostra quantidade de itens
 por bloco: o campo não existe na saída (nenhum `null`), e a quantidade vem
 só do detalhe ([`ies bloco N`](bloco-obter.md)). Não deduz número de

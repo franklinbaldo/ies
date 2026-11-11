@@ -27,7 +27,7 @@ Toda saída JSON de caixa publica listas com a mesma forma, a mesma que
 
 ```json
 {"unidade": "TESTE", "origem": "web", "categoria": "recebidos",
- "total_declarado": 114, "faixa_observada": [1, 100],
+ "total_declarado": 114, "faixa_observada": {"inicio": 1, "fim": 100},
  "processos": [{"id": "42", "numero": "000042/2026",
                 "visualizado": true, "sigiloso": false}]}
 ```
@@ -38,8 +38,8 @@ Toda saída JSON de caixa publica listas com a mesma forma, a mesma que
   da sessão, não uma categoria do SEI: sua tabela única mistura as duas
   listas sem indicar a categoria de cada linha, e o IES não a infere.
 - `total_declarado`: total da legenda (sempre número; legenda sem total
-  falha com `TotalNaoDeclaradoNaLegenda`); `faixa_observada`: `[inicio, fim]`
-  das posições lidas, ou `[]` com zero registros. Cobertura não confirmada
+  falha com `TotalNaoDeclaradoNaLegenda`); `faixa_observada`: `{"inicio", "fim"}`
+  das posições lidas; com zero registros a chave é omitida. Cobertura não confirmada
   pela legenda falha com `LegendaSemFaixaComTotalDiferenteDasLinhas`.
   Nunca `completa`, nunca `null`.
 - `unidade`: rótulo publicado em `lnkInfraUnidade` (contexto observado,

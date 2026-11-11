@@ -21,7 +21,7 @@ mais `colunas_ausentes`:
 
 ```json
 [{"unidade": "TESTE", "origem": "web",
-  "total_declarado": 332, "faixa_observada": [1, 100],
+  "total_declarado": 332, "faixa_observada": {"inicio": 1, "fim": 100},
   "colunas_ausentes": ["anotacao", "especificacao", "prioridade",
                        "observacao", "ultima_movimentacao", "marcadores"],
   "processos": [{"id": "42", "numero": "000042/2026", "visualizado": true,

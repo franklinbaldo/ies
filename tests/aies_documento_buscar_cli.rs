@@ -362,7 +362,7 @@ fn bdd_61_03_cli_sem_resultado_observado_na_unidade() {
     assert_eq!(json["origem"], "web");
     assert_eq!(json["requisicoes"], 3);
     assert_eq!(json["total_declarado"], 0);
-    assert!(json["faixa_observada"].is_null());
+    assert!(json.get("faixa_observada").is_none());
     assert_eq!(json["documentos"].as_array().unwrap().len(), 0);
 }
 

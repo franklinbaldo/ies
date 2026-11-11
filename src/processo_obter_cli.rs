@@ -56,13 +56,16 @@ fn inserir_marcadores(objeto: &mut serde_json::Map<String, Value>, lidos: &Marca
             })
         })
         .collect();
+    // Zero marcadores: a faixa lida não existe e a chave é omitida.
     let faixa = (!itens.is_empty()).then(|| json!({"inicio": 1, "fim": itens.len()}));
     objeto.insert("marcadores".to_owned(), Value::Array(itens));
     objeto.insert(
         "marcadores_total_declarado".to_owned(),
         json!(lidos.total_declarado),
     );
-    objeto.insert("marcadores_faixa_observada".to_owned(), json!(faixa));
+    if let Some(faixa) = faixa {
+        objeto.insert("marcadores_faixa_observada".to_owned(), faixa);
+    }
 }
 
 /// Linhas do texto humano dos marcadores: uma por marcador.
@@ -125,6 +128,8 @@ fn humano_das_propriedades(propriedades: &Propriedades, texto: &mut String) {
 }
 
 fn json_dos_andamentos(lidos: &AndamentosLidos) -> Value {
+    // Zero andamentos: a faixa lida não existe e a chave é omitida.
+    let faixa = (!lidos.itens.is_empty()).then(|| json!({"inicio": 1, "fim": lidos.itens.len()}));
     let itens: Vec<Value> = lidos
         .itens
         .iter()
@@ -137,12 +142,15 @@ fn json_dos_andamentos(lidos: &AndamentosLidos) -> Value {
             })
         })
         .collect();
-    json!({
+    let mut objeto = json!({
         "tipo": lidos.tipo.como_texto(),
         "total_declarado": lidos.total_declarado,
-        "faixa_observada": {"inicio": 1, "fim": lidos.itens.len()},
         "itens": itens,
-    })
+    });
+    if let (Some(campos), Some(faixa)) = (objeto.as_object_mut(), faixa) {
+        campos.insert("faixa_observada".to_owned(), faixa);
+    }
+    objeto
 }
 
 /// A verificação mais fraca entre as pastas conferidas (`por_contagem` <

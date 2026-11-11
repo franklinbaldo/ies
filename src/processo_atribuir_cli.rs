@@ -51,12 +51,10 @@ pub(crate) fn json_da_previa(feito: &ProcessoAtribuido) -> serde_json::Value {
         EstadoDaAtribuicao::Previa => (false, false),
         EstadoDaAtribuicao::AlteracaoConfirmada => (true, true),
     };
-    json!({
+    let mut valor = json!({
         "nup": feito.nup,
         "id_procedimento": feito.id_procedimento,
         "unidade": feito.unidade,
-        // Contrato: texto vazio quando a unidade não tinha atribuição.
-        "usuario_atual": feito.usuario_atual.as_deref().unwrap_or(""),
         "usuario_pedido": feito.usuario_pedido,
         "remover": feito.usuario_pedido.is_none(),
         "valor_da_opcao": feito.valor_da_opcao,
@@ -64,7 +62,12 @@ pub(crate) fn json_da_previa(feito: &ProcessoAtribuido) -> serde_json::Value {
         "alterado": alterado,
         "origem": "web",
         "requisicoes": feito.requisicoes
-    })
+    });
+    // Sem atribuição, a chave é omitida: nunca texto vazio como sentinela.
+    if let (Some(campos), Some(login)) = (valor.as_object_mut(), feito.usuario_atual.as_deref()) {
+        campos.insert("usuario_atual".to_owned(), json!(login));
+    }
+    valor
 }
 
 /// O texto depende do mesmo estado tipado que os dois campos JSON.

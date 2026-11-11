@@ -54,7 +54,7 @@ presentes.
 
 JSON: `unidade`, `mes` no formato `AAAA-MM`,
 `origem: "web"`, `total_declarado`, `faixa_observada`
-(`[]` se vazio, senao `[1, n]`), `retornos` (array) e
+(`{"inicio": 1, "fim": n}`; a chave é omitida se vazio), `retornos` (array) e
 `requisicoes`. Cada retorno publica `situacao`, `numero`, `unidade`,
 `data_programada`, `data_retorno` e `prazo_restante`. Celula vazia e
 fato lido, nunca `null`: `data_retorno` vira `"pendente"` (ainda nao
