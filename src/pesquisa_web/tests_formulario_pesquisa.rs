@@ -178,7 +178,9 @@ fn orgao_sem_selecao_servida_ou_opcao_sem_valor_e_recusado_sem_inventar_orgao() 
     let entidade = select_de_orgao("<option value='1&desconhecida;' selected>A</option>");
     assert_eq!(
         regra(&pagina(&interior(&entidade))),
-        ErroRegraDoFormularioDePesquisa::EntidadeHtmlDesconhecidaNaRegra
+        ErroRegraDoFormularioDePesquisa::AtributoHtml(
+            crate::html_atributos::ErroAtributoHtml::EntidadeHtmlDesconhecida,
+        )
     );
 }
 

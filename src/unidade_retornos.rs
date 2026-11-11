@@ -52,7 +52,7 @@ impl Serialize for PrazoRestante {
 #[error("{self:?}")]
 pub(crate) enum ErroRetornos {
     /// O tokenizador de atributos recusou a tag.
-    Atributo(#[source] crate::html_atributos::ErroAtributoHtml),
+    Atributo(#[from] crate::html_atributos::ErroAtributoHtml),
     TelaDeRetornosDesconhecida,
     ParseDaTelaDeRetornosFalhou(#[source] tl::ParseError),
     PaginadorDosRetornosIlegivel(#[source] crate::erro_web::ErroCaixa),
@@ -62,10 +62,6 @@ pub(crate) enum ErroRetornos {
     ColunaDataDeRetornoAusente,
     /// A tabela não tem a coluna "Prazo Restante".
     ColunaPrazoRestanteAusente,
-}
-
-fn atributo(tag: &tl::HTMLTag<'_>, nome: &'static str) -> Result<Option<String>, ErroRetornos> {
-    valor_do_atributo(tag, nome).map_err(ErroRetornos::Atributo)
 }
 
 fn texto(tag: &tl::HTMLTag<'_>, parser: &tl::Parser<'_>) -> String {
@@ -253,7 +249,7 @@ pub(crate) fn extrair_retornos(html: &str) -> Result<Vec<Retorno>, ErroRetornos>
         let Some(tabela) = no.get(parser).and_then(tl::Node::as_tag) else {
             continue;
         };
-        let Some(summary) = atributo(tabela, "summary")? else {
+        let Some(summary) = valor_do_atributo(tabela, "summary")? else {
             continue;
         };
         let Some(situacao) = situacao_da_tabela(&summary) else {
@@ -279,7 +275,7 @@ pub(crate) fn extrair_retornos(html: &str) -> Result<Vec<Retorno>, ErroRetornos>
         let Some(area) = no.get(parser).and_then(tl::Node::as_tag) else {
             continue;
         };
-        let situacao = match atributo(area, "id")?.as_deref() {
+        let situacao = match valor_do_atributo(area, "id")?.as_deref() {
             Some("divAguardandoAreaTabela") => "aguardando",
             Some("divDevolverAreaTabela") => "devolver",
             _ => continue,
@@ -296,7 +292,7 @@ pub(crate) fn extrair_retornos(html: &str) -> Result<Vec<Retorno>, ErroRetornos>
                 let Some(tabela) = no.get(parser).and_then(tl::Node::as_tag) else {
                     continue;
                 };
-                if let Some(summary) = atributo(tabela, "summary")?
+                if let Some(summary) = valor_do_atributo(tabela, "summary")?
                     && let Some(tipo) = situacao_da_tabela(&summary)
                 {
                     reconhecidas.push(tipo);

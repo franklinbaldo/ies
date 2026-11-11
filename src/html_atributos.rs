@@ -5,8 +5,9 @@
 //! `class` com a mesma chave corrompida. O `tl` continua responsável pela
 //! árvore (aninhamento e seleção por elemento); todo atributo lido fora dos
 //! testes passa por este módulo, que tokeniza `HTMLTag::raw()` seguindo os
-//! estados WHATWG de nome e valor de atributo. Valores saem brutos: decodificar
-//! entidades continua sendo decisão de quem lê.
+//! estados WHATWG de nome e valor de atributo. `valor_do_atributo` devolve o
+//! valor bruto; `valor_decodificado` resolve as entidades HTML e recusa as
+//! desconhecidas (#751).
 mod busca;
 mod tokenizador;
 
@@ -15,6 +16,8 @@ pub(crate) use busca::{
     nos_por_elemento_e_classe_em_todas_as_ocorrencias,
 };
 pub(crate) use tokenizador::tokenizar_tag_de_abertura;
+
+use crate::formulario_web::decodificar_atributo;
 
 /// Falha ao interpretar a tag de abertura servida; nunca é tratada como
 /// atributo ausente pelo chamador.
@@ -31,6 +34,8 @@ pub(crate) enum ErroAtributoHtml {
     AtributoRepetidoNaTag { atributo: &'static str },
     /// Os bytes da fonte da tag não são UTF-8 válido.
     FonteDaTagNaoEhUtf8(#[source] std::str::Utf8Error),
+    /// O valor tem uma entidade `&nome;` que o decodificador não conhece.
+    EntidadeHtmlDesconhecida,
 }
 
 /// Atributos na ordem da fonte, com nomes em minúsculas ASCII e valores
@@ -133,6 +138,17 @@ pub(crate) fn valor_do_atributo(
     nome: &'static str,
 ) -> Result<Option<String>, ErroAtributoHtml> {
     Ok(atributos(tag)?.valor(nome)?.map(str::to_owned))
+}
+
+/// Valor de `nome` em `tag` com as entidades HTML resolvidas.
+pub(crate) fn valor_decodificado(
+    tag: &tl::HTMLTag<'_>,
+    nome: &'static str,
+) -> Result<Option<String>, ErroAtributoHtml> {
+    atributos(tag)?
+        .valor(nome)?
+        .map(|bruto| decodificar_atributo(bruto).ok_or(ErroAtributoHtml::EntidadeHtmlDesconhecida))
+        .transpose()
 }
 
 /// Presença de atributo booleano em `tag`.

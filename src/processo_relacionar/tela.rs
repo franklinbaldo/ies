@@ -1,8 +1,10 @@
 //! Tela de relacionamentos do SEI 4.0 (PEN1): leitura estrutural, sem JS
 //! executado e sem regex; todos os atributos passam por `html_atributos`.
 use crate::acao_do_sei::AcaoDoSei;
-use crate::formulario_web::{ErroSubmissaoFormulario, decodificar_atributo, localizar_formulario};
-use crate::html_atributos::{ErroAtributoHtml, valor_do_atributo};
+use crate::consulta_do_controlador::ConsultaDoControlador;
+use crate::formulario_web::{ErroSubmissaoFormulario, localizar_formulario};
+use crate::html_atributos::{ErroAtributoHtml, valor_decodificado};
+use ErroAtributoDeRelacionamento::AtributoDaTelaIlegivel;
 use std::collections::HashSet;
 
 #[derive(Debug, PartialEq, Eq)]
@@ -20,8 +22,7 @@ pub(super) struct DestinoConsultado {
 #[derive(Clone, Copy, Debug, PartialEq, Eq, thiserror::Error)]
 #[error("{self:?}")]
 pub(crate) enum ErroAtributoDeRelacionamento {
-    AtributoDaTelaAmbiguo(#[source] ErroAtributoHtml),
-    EntidadeHtmlNaoInterpretada,
+    AtributoDaTelaIlegivel(#[from] ErroAtributoHtml),
 }
 
 /// A lista `frmProcedimentoListarRelacionamentos` fora da forma observada.
@@ -48,38 +49,14 @@ pub(crate) enum ErroDestinoDaConsulta {
     DestinoARelacionarNaoIdentificado,
 }
 
-fn atributo(
-    tag: &tl::HTMLTag<'_>,
-    nome: &'static str,
-) -> Result<Option<String>, ErroAtributoDeRelacionamento> {
-    valor_do_atributo(tag, nome)
-        .map_err(ErroAtributoDeRelacionamento::AtributoDaTelaAmbiguo)?
-        .map(|raw| {
-            decodificar_atributo(&raw)
-                .ok_or(ErroAtributoDeRelacionamento::EntidadeHtmlNaoInterpretada)
-        })
-        .transpose()
-}
 fn id_do_processo(href: &str) -> Option<&str> {
     let query = href.strip_prefix("controlador.php?")?;
-    let mut acao = 0;
-    let mut ids = Vec::new();
-    for parte in query.split('&') {
-        let (nome, valor) = parte.split_once('=')?;
-        match nome {
-            "acao" if AcaoDoSei::ler(valor) == Some(AcaoDoSei::ProcedimentoTrabalhar) => acao += 1,
-            "id_procedimento" if !valor.is_empty() && valor.bytes().all(|c| c.is_ascii_digit()) => {
-                ids.push(valor);
-            }
-            "acao" | "id_procedimento" => return None,
-            _ => (),
-        }
-    }
-    if let (1, [id]) = (acao, ids.as_slice()) {
-        Some(*id)
-    } else {
-        None
-    }
+    let query = ConsultaDoControlador::ler(query).ok()?;
+    let id = query.unico("id_procedimento").ok()?;
+    (query.acao() == Ok(AcaoDoSei::ProcedimentoTrabalhar)
+        && !id.is_empty()
+        && id.bytes().all(|c| c.is_ascii_digit()))
+    .then_some(id)
 }
 
 /// Só a linha da tabela própria do formulário é evidência da relação.
@@ -97,7 +74,10 @@ pub(super) fn ler_linhas(html: &str) -> Result<Vec<Relacionamento>, ErroTelaDeRe
         .filter_map(tl::Node::as_tag)
     {
         if tag.name().as_utf8_str().eq_ignore_ascii_case("table")
-            && atributo(tag, "summary")?.as_deref() == Some("Lista de Processos Relacionados")
+            && valor_decodificado(tag, "summary")
+                .map_err(AtributoDaTelaIlegivel)?
+                .as_deref()
+                == Some("Lista de Processos Relacionados")
         {
             tabelas.push(tag);
         }
@@ -119,7 +99,10 @@ pub(super) fn ler_linhas(html: &str) -> Result<Vec<Relacionamento>, ErroTelaDeRe
                 if !campo.name().as_utf8_str().eq_ignore_ascii_case("input") {
                     continue;
                 }
-                match atributo(campo, "id")?.as_deref() {
+                match valor_decodificado(campo, "id")
+                    .map_err(AtributoDaTelaIlegivel)?
+                    .as_deref()
+                {
                     Some("txtProtocolo") => protocolo += 1,
                     Some("hdnIdProtocolo") => id_protocolo += 1,
                     _ => {}
@@ -150,7 +133,8 @@ pub(super) fn ler_linhas(html: &str) -> Result<Vec<Relacionamento>, ErroTelaDeRe
             .filter_map(tl::Node::as_tag)
             .filter(|tag| tag.name().as_utf8_str().eq_ignore_ascii_case("a"))
         {
-            if let Some(href) = atributo(ancora, "href")?
+            if let Some(href) =
+                valor_decodificado(ancora, "href").map_err(AtributoDaTelaIlegivel)?
                 && let Some(id) = id_do_processo(&href)
             {
                 let nup =
@@ -160,9 +144,7 @@ pub(super) fn ler_linhas(html: &str) -> Result<Vec<Relacionamento>, ErroTelaDeRe
                 }
                 processos.push((id.to_owned(), nup.trim().to_owned()));
             }
-            if let Some(acao) = atributo(ancora, "onclick")? {
-                remocoes.push(acao);
-            }
+            remocoes.extend(valor_decodificado(ancora, "onclick").map_err(AtributoDaTelaIlegivel)?);
         }
         match processos.as_slice() {
             [] => {}
@@ -227,7 +209,10 @@ pub(super) fn ler_destino(xml: &str) -> Result<DestinoConsultado, ErroDestinoDaC
             .into_owned()
             .trim()
             .to_owned();
-        match atributo(tag, "nome")?.as_deref() {
+        match valor_decodificado(tag, "nome")
+            .map_err(AtributoDaTelaIlegivel)?
+            .as_deref()
+        {
             Some("IdProcedimento") => id.push(valor),
             Some("ProtocoloProcedimentoFormatado") => numero.push(valor),
             Some("NomeTipoProcedimento") => tipos.push(valor),

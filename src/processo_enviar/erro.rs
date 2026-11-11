@@ -20,7 +20,7 @@ pub(crate) enum ErroTelaDeEnvio {
     FormularioDeEnvioAusente(#[source] crate::formulario_web::ErroSubmissaoFormulario),
     TelaDeEnvioNaoInterpretada,
     ParseDaTelaDeEnvioFalhou(#[source] tl::ParseError),
-    TelaDeEnvioComAtributoIlegivel(#[source] crate::html_atributos::ErroAtributoHtml),
+    TelaDeEnvioComAtributoIlegivel(#[from] crate::html_atributos::ErroAtributoHtml),
 }
 
 /// Por que a consulta do autocomplete não deu a lista de unidades.

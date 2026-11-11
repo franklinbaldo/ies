@@ -28,13 +28,6 @@ pub(crate) enum ErroControleDoFormulario {
     AtributoHtml(#[from] ErroAtributoHtml),
 }
 
-fn atributo(
-    tag: &tl::HTMLTag<'_>,
-    nome: &'static str,
-) -> Result<Option<String>, ErroControleDoFormulario> {
-    valor_do_atributo(tag, nome).map_err(ErroControleDoFormulario::AtributoHtml)
-}
-
 fn decodificado(bruto: &str, campo: &str) -> Result<String, ErroControleDoFormulario> {
     decodificar_atributo(bruto).ok_or_else(|| {
         ErroControleDoFormulario::EntidadeHtmlDesconhecidaNoControle {
@@ -59,7 +52,7 @@ fn opcao_selecionada(
         .filter(|t| t.name().as_utf8_str().eq_ignore_ascii_case("option"))
     {
         if atributo_presente(opcao, "selected")? {
-            escolhidas.push(atributo(opcao, "value")?);
+            escolhidas.push(valor_do_atributo(opcao, "value")?);
         }
     }
     let campo_owned = || campo.to_owned();
@@ -105,12 +98,12 @@ pub(crate) fn campos_do_usuario(
         {
             continue;
         }
-        let Some(bruto) = atributo(tag, "name")?.filter(|n| !n.is_empty()) else {
+        let Some(bruto) = valor_do_atributo(tag, "name")?.filter(|n| !n.is_empty()) else {
             continue;
         };
         let nome = decodificado(&bruto, &bruto)?;
-        let tipo =
-            atributo(tag, "type")?.map_or_else(|| "text".to_owned(), |t| t.to_ascii_lowercase());
+        let tipo = valor_do_atributo(tag, "type")?
+            .map_or_else(|| "text".to_owned(), |t| t.to_ascii_lowercase());
         let valor = match (elemento.as_str(), tipo.as_str()) {
             ("input", "hidden" | "submit" | "button" | "reset" | "image") | ("button", _) => {
                 continue;
@@ -126,7 +119,7 @@ pub(crate) fn campos_do_usuario(
                 continue;
             }
             ("input", "text") if nome == "txtBloco" => {
-                decodificado(&atributo(tag, "value")?.unwrap_or_default(), &nome)?
+                decodificado(&valor_do_atributo(tag, "value")?.unwrap_or_default(), &nome)?
             }
             ("select", _)
                 if permitidos.contains(&nome.as_str()) && !atributo_presente(tag, "multiple")? =>

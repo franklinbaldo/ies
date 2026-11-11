@@ -7,11 +7,6 @@ use crate::html_atributos::{nos_com_id, valor_do_atributo};
 mod vazia;
 pub(crate) use vazia::lista_vazia_comprovada;
 
-/// Lido da fonte da tag; tag ilegível não vira atributo ausente.
-fn atributo(tag: &tl::HTMLTag<'_>, nome: &'static str) -> Result<Option<String>, ErroCaixa> {
-    valor_do_atributo(tag, nome).map_err(ErroCaixa::AtributoDaCaixaIlegivel)
-}
-
 pub(crate) fn total_da_legenda(texto: &str) -> Option<usize> {
     // O tl mantém algumas entidades HTML como texto literal.
     let texto = texto
@@ -109,7 +104,7 @@ fn ler_linhas(
         let Some(tag) = linha.get(parser).and_then(tl::Node::as_tag) else {
             continue;
         };
-        let Some(id) = atributo(tag, "id")? else {
+        let Some(id) = valor_do_atributo(tag, "id")? else {
             // Cabeçalhos e avisos podem aparecer entre as linhas.
             continue;
         };
@@ -125,7 +120,7 @@ fn ler_linhas(
             let Some(a) = link.get(parser).and_then(tl::Node::as_tag) else {
                 continue;
             };
-            let classes = atributo(a, "class")?.unwrap_or_default();
+            let classes = valor_do_atributo(a, "class")?.unwrap_or_default();
             let estado = estado_do_link(&classes).map_err(|ClassesDeEstadoDiferentesNoLink| {
                 ErroCaixa::ClassesDeEstadoDiferentesNoLinkDoProcesso {
                     categoria,
@@ -153,7 +148,7 @@ fn ler_linhas(
                         visualizado: estado.visualizado,
                         sigiloso: estado.sigiloso,
                     },
-                    atributo(a, "href")?,
+                    valor_do_atributo(a, "href")?,
                 ));
             }
         }

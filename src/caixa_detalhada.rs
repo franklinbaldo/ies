@@ -79,7 +79,7 @@ pub(crate) enum ErroDetalhada {
     ColunaDaVisaoDetalhadaRepetida,
     FaixaDetalhadaInvalida,
     HtmlDetalhadoNaoInterpretado(#[source] tl::ParseError),
-    AtributoDaDetalhadaIlegivel(#[source] crate::html_atributos::ErroAtributoHtml),
+    AtributoDaDetalhadaIlegivel(#[from] crate::html_atributos::ErroAtributoHtml),
     /// O total declarado na página não é um inteiro decimal.
     TotalNaoNumerico(#[source] std::num::ParseIntError),
     /// Um número da faixa exibida não é um inteiro decimal.
@@ -208,18 +208,13 @@ fn eh_link_do_processo(href: &str, id: &str) -> bool {
     ) && ids == [id]
 }
 
-/// Lido da fonte da tag; tag ilegível não vira atributo ausente.
-fn atributo(tag: &tl::HTMLTag<'_>, nome: &'static str) -> Result<Option<String>, ErroDetalhada> {
-    valor_do_atributo(tag, nome).map_err(ErroDetalhada::AtributoDaDetalhadaIlegivel)
-}
-
 fn ler_linha(
     dom: &tl::VDom<'_>,
     tag: &tl::HTMLTag<'_>,
     papeis: &[colunas::PapelDaColuna],
 ) -> Result<Option<(ProcessoDetalhado, String)>, ErroDetalhada> {
     let parser = dom.parser();
-    let Some(id) = atributo(tag, "id")? else {
+    let Some(id) = valor_do_atributo(tag, "id")? else {
         return Ok(None);
     };
     let Some(id) = id.strip_prefix('P') else {
@@ -261,14 +256,14 @@ fn ler_linha(
             continue;
         };
         let Some(href) =
-            atributo(link, "href")?.filter(|href| eh_link_do_processo(href, id.as_str()))
+            valor_do_atributo(link, "href")?.filter(|href| eh_link_do_processo(href, id.as_str()))
         else {
             continue;
         };
         if escolhido.is_some() {
             return Err(ErroDetalhada::LinksDoProcessoDetalhadoRepetidos);
         }
-        let classe = atributo(link, "class")?.unwrap_or_default();
+        let classe = valor_do_atributo(link, "class")?.unwrap_or_default();
         let estado = crate::classe_link_processo::estado_do_link(&classe)
             .map_err(ErroDetalhada::ClassesDeEstadoDiferentesNoLink)?
             .ok_or(ErroDetalhada::EstadoDoLinkDoProcessoAusente)?;

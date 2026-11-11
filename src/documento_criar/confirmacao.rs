@@ -2,6 +2,7 @@
 //! O transporte é injetável; a confirmação nunca repete a submissão.
 use crate::acao_do_sei::AcaoDoSei;
 use crate::arvore_processo::{ArvoreLida, DocumentoNaArvore};
+use crate::consulta_do_controlador::ConsultaDoControlador;
 use crate::documento_criar::{ErroCriar, conferir_criacao};
 use crate::formulario_web::{ErroSubmissaoFormulario, RespostaDoPost, SubmissaoDerivada};
 use crate::formulario_web::{RespostaDoEnvio, enviar_submissao_via};
@@ -63,22 +64,14 @@ pub(crate) fn redirecionamento_do_mesmo_controlador(
         // explicitamente o documento, sem perder a exigência de identidade.
         // A resposta precisa identificar o próprio documento observado na
         // árvore, não apenas navegar para qualquer ação do controlador.
-        let mut acoes = consulta
-            .split('&')
-            .filter_map(|campo| campo.strip_prefix("acao="));
-        let mut ids = consulta
-            .split('&')
-            .filter_map(|campo| campo.strip_prefix("id_documento="));
-        matches!(
-            acoes.next().and_then(AcaoDoSei::ler),
-            Some(
-                AcaoDoSei::DocumentoVisualizar
+        ConsultaDoControlador::ler(consulta).is_ok_and(|consulta| {
+            matches!(
+                consulta.acao(),
+                Ok(AcaoDoSei::DocumentoVisualizar
                     | AcaoDoSei::ArvoreVisualizar
-                    | AcaoDoSei::ProcedimentoVisualizar
-            )
-        ) && acoes.next().is_none()
-            && ids.next() == Some(id_novo)
-            && ids.next().is_none()
+                    | AcaoDoSei::ProcedimentoVisualizar)
+            ) && consulta.unico("id_documento") == Ok(id_novo)
+        })
     })
 }
 
