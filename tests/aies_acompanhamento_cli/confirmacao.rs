@@ -1,8 +1,8 @@
-//! Confirmação BDD-348-02: CLI real, um POST, releitura independente e mensagem humana.
+//! Confirmação: CLI real, um POST, releitura independente e mensagem humana.
 use super::*;
 
 #[test]
-fn bdd_348_02_confirmar_retira_so_g_com_um_post_e_segunda_cli() {
+fn confirmar_retira_so_g_com_um_post_e_segunda_cli() {
     let (saida, eventos, depois, segunda_cli) = executar_com(EstadoInicial::GrupoG, true);
     assert_eq!(
         saida.status.code(),
@@ -43,10 +43,10 @@ fn bdd_348_02_confirmar_retira_so_g_com_um_post_e_segunda_cli() {
 }
 
 #[test]
-fn bdd_348_02_releitura_503_apos_post_nao_reenvia_e_retorna_saida_1() {
+fn releitura_503_apos_post_preserva_causa_sem_reenvio() {
     let (saida, eventos, depois, segunda_cli) =
         executar_com_falha(EstadoInicial::GrupoG, true, true);
-    falha(&saida, "AcompanhamentoNaoConfirmado");
+    falha(&saida, "ReleituraDaRetiradaFalhou");
     assert_eq!(
         eventos
             .iter()
@@ -67,7 +67,7 @@ fn bdd_348_02_releitura_503_apos_post_nao_reenvia_e_retorna_saida_1() {
 }
 
 #[test]
-fn bdd_348_02_saida_humana_retirada_confirmada_nao_anuncia_previa() {
+fn saida_humana_retirada_confirmada_nao_anuncia_previa() {
     let (saida, eventos, depois, _) =
         executar_com_falha_modo(EstadoInicial::GrupoG, true, false, true);
     assert_eq!(
