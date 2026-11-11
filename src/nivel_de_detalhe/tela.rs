@@ -2,6 +2,9 @@
 //! Nada é salvo: `sbmSalvar` não é enviado por este módulo.
 use super::{ColunaDoDetalhe, NivelDeDetalhe, OpcaoDoDetalhe};
 use crate::acao_do_sei::AcaoDoSei;
+use crate::consulta_do_controlador::{
+    ConsultaDoControlador, ErroChaveDaConsulta, ErroConsultaDoControlador,
+};
 use crate::formulario_web::{ErroSubmissaoFormulario, decodificar_atributo, localizar_formulario};
 use crate::html_atributos::{ErroAtributoHtml, atributo_presente, valor_do_atributo};
 use std::collections::HashMap;
@@ -14,6 +17,10 @@ pub(crate) const FORMULARIO_DO_NIVEL_DE_DETALHE: &str = "frmAcessoExternoCancela
 #[error("{self:?}")]
 pub(crate) enum ErroNivelDeDetalhe {
     AcaoDoFormularioDoNivelDeDetalheDiferente,
+    /// A `action` do formulário não se deixa ler em pares `chave=valor`.
+    ConsultaDoFormularioIlegivel(#[source] ErroConsultaDoControlador),
+    /// A `acao` do formulário não é única nem conhecida.
+    AcaoDoFormularioNaoLida(#[source] ErroChaveDaConsulta),
     /// O formulário não publica nenhuma das 12 caixas do catálogo.
     /// Uma caixa do catálogo ausente não é erro: sai com `disponivel: false`.
     NenhumaOpcaoDoDetalhePublicada,
@@ -50,11 +57,9 @@ fn conferir_acao(form: &tl::HTMLTag<'_>) -> Result<(), E> {
     let bruto = valor_do_atributo(form, "action")?.ok_or_else(diferente)?;
     let acao = decodificar_atributo(&bruto).ok_or_else(diferente)?;
     let (_, consulta) = acao.split_once('?').ok_or_else(diferente)?;
-    let acoes: Vec<_> = consulta
-        .split('&')
-        .filter_map(|par| par.strip_prefix("acao="))
-        .collect();
-    if acoes == [AcaoDoSei::ProcedimentoConfigurarDetalhe.como_na_url()] {
+    let pares = ConsultaDoControlador::ler(consulta).map_err(E::ConsultaDoFormularioIlegivel)?;
+    let lida = pares.acao().map_err(E::AcaoDoFormularioNaoLida)?;
+    if lida == AcaoDoSei::ProcedimentoConfigurarDetalhe {
         Ok(())
     } else {
         Err(diferente())

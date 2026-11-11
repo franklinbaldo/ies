@@ -137,7 +137,31 @@ fn opcoes_faltando_repetidas_extras_ou_com_rotulo_trocado_sao_recusadas() {
     );
     assert_eq!(
         ler_nivel_de_detalhe(&acao),
-        Err(ErroNivelDeDetalhe::AcaoDoFormularioDoNivelDeDetalheDiferente)
+        Err(ErroNivelDeDetalhe::AcaoDoFormularioNaoLida(
+            crate::consulta_do_controlador::ErroChaveDaConsulta::AcaoDesconhecida
+        ))
+    );
+    let repetida = base.replacen(
+        "acao=procedimento_configurar_detalhe&amp;",
+        "acao=procedimento_configurar_detalhe&amp;acao=procedimento_configurar_detalhe&amp;",
+        1,
+    );
+    assert_eq!(
+        ler_nivel_de_detalhe(&repetida),
+        Err(ErroNivelDeDetalhe::AcaoDoFormularioNaoLida(
+            crate::consulta_do_controlador::ErroChaveDaConsulta::Repetida { chave: "acao" }
+        ))
+    );
+    let solta = base.replacen(
+        "acao=procedimento_configurar_detalhe&amp;",
+        "acao=procedimento_configurar_detalhe&amp;solta&amp;",
+        1,
+    );
+    assert_eq!(
+        ler_nivel_de_detalhe(&solta),
+        Err(ErroNivelDeDetalhe::ConsultaDoFormularioIlegivel(
+            crate::consulta_do_controlador::ErroConsultaDoControlador::ParSemIgual
+        ))
     );
     assert_eq!(
         ler_nivel_de_detalhe("<html><form id='x'></form></html>"),

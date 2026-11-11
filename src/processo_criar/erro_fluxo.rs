@@ -92,6 +92,10 @@ pub(crate) enum ErroCriar {
     Lista(ErroListaDeTipos),
     Cadastro(ErroCadastro),
     Formulario,
+    /// A URL do retorno da criação não se lê em pares `chave=valor`.
+    ConsultaDoRetornoIlegivel(#[source] crate::consulta_do_controlador::ErroConsultaDoControlador),
+    /// O retorno da criação não tem exatamente um `id_procedimento`.
+    IdDoRetornoIlegivel(#[source] crate::consulta_do_controlador::ErroChaveDaConsulta),
     TipoSemIdentificador,
     EscolhaInesperada,
     Interessado(ErroInteressado),

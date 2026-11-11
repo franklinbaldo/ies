@@ -1,6 +1,7 @@
 //! Casos sintéticos da issue #245: oráculo de cenário Todos
 //! `tests/test_processo_criar_escolher_tipo_010.py`, sem portar a arquitetura.
 use super::*;
+use crate::consulta_do_controlador::ErroChaveDaConsulta;
 use crate::processo_concluir::tests_apoio::NUP;
 use crate::processo_concluir::tests_apoio::{
     UNIDADE, ambiente, arvore, controle, ok, r302, rodar_com, trabalhar,
@@ -366,7 +367,14 @@ fn lista_40_com_identidade_duplicada_recusa_sem_abrir_cadastro() {
             rede,
         )
     });
-    assert_eq!(resultado, Err(ErroCriar::TipoSemIdentificador));
+    assert_eq!(
+        resultado,
+        Err(ErroCriar::Lista(ErroListaDeTipos::ChaveDoCadastroIlegivel(
+            ErroChaveDaConsulta::Repetida {
+                chave: "id_tipo_procedimento"
+            }
+        )))
+    );
     assert_eq!(requests.len(), 2);
     assert!(requests.iter().all(|req| req.metodo == "GET"));
 }
@@ -390,7 +398,12 @@ fn lista_40_com_duas_acoes_recusa_sem_abrir_cadastro() {
             rede,
         )
     });
-    assert_eq!(resultado, Err(ErroCriar::Formulario));
+    assert_eq!(
+        resultado,
+        Err(ErroCriar::Lista(ErroListaDeTipos::ChaveDoCadastroIlegivel(
+            ErroChaveDaConsulta::Repetida { chave: "acao" }
+        )))
+    );
     assert_eq!(requests.len(), 2);
     assert!(requests.iter().all(|req| req.metodo == "GET"));
 }

@@ -202,7 +202,11 @@ fn tela_que_nao_seleciona_o_documento_pedido_e_recusada() {
     );
     assert_eq!(
         ler(dois),
-        Err(ErroTelaDoProcesso::EnderecoDaArvoreNaoReconhecido)
+        Err(ErroTelaDoProcesso::IdDoProcessoNaArvore(
+            crate::consulta_do_controlador::ErroChaveDaConsulta::Repetida {
+                chave: "id_procedimento"
+            }
+        ))
     );
 }
 

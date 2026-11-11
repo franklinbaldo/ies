@@ -61,7 +61,36 @@ fn recusa_cadastro_de_outro_processo_e_acao_duplicada() {
     );
     assert_eq!(
         grupos_do_cadastro(&duplicado, ID),
-        Err(ErroAcompanhar::CadastroDeOutroProcesso)
+        Err(ErroAcompanhar::ChaveDoCadastroIlegivel(
+            ErroChaveDaConsulta::Repetida { chave: "acao" }
+        ))
+    );
+}
+
+#[test]
+fn action_com_par_sem_igual_recusa_com_a_causa() {
+    let html = cadastro(r#"<option value="19">G</option>"#);
+    let com_lixo = html.replace(
+        "acao=acompanhamento_cadastrar&amp;id_procedimento",
+        "acao=acompanhamento_cadastrar&amp;lixo&amp;id_procedimento",
+    );
+    assert_eq!(
+        grupos_do_cadastro(&com_lixo, ID),
+        Err(ErroAcompanhar::ConsultaDoCadastroIlegivel(
+            ErroConsultaDoControlador::ParSemIgual
+        ))
+    );
+    let id_repetido = html.replace(
+        "id_procedimento=12345",
+        "id_procedimento=12345&amp;id_procedimento=12345",
+    );
+    assert_eq!(
+        grupos_do_cadastro(&id_repetido, ID),
+        Err(ErroAcompanhar::ChaveDoCadastroIlegivel(
+            ErroChaveDaConsulta::Repetida {
+                chave: "id_procedimento"
+            }
+        ))
     );
 }
 #[test]

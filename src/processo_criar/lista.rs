@@ -3,6 +3,9 @@
 //! Issue #245: o POST de escolher tipo na 4.1/5.0 abre cadastro;
 //! não é a escrita de criação de processo.
 use crate::acao_do_sei::AcaoDoSei;
+use crate::consulta_do_controlador::{
+    ConsultaDoControlador, ErroChaveDaConsulta, ErroConsultaDoControlador,
+};
 use crate::html_atributos::{atributo_presente, nos_com_id, valor_do_atributo};
 
 #[derive(Debug, Clone, PartialEq, Eq, thiserror::Error)]
@@ -16,6 +19,11 @@ pub(crate) enum ErroListaDeTipos {
     AtributoDaListaDeTiposIlegivel(#[source] crate::html_atributos::ErroAtributoHtml),
     TabelaDeTiposAusenteOuRepetida,
     TipoDeProcessoAmbiguo,
+    /// A consulta do link de cadastro não se lê em pares `chave=valor`.
+    ConsultaDoCadastroIlegivel(#[source] ErroConsultaDoControlador),
+    /// O link de cadastro não tem exatamente uma `acao` reconhecida nem um
+    /// `id_tipo_procedimento` único.
+    ChaveDoCadastroIlegivel(#[source] ErroChaveDaConsulta),
 }
 
 #[derive(Debug, Clone, PartialEq, Eq)]
@@ -48,22 +56,23 @@ fn escolher_literal(js: &str) -> Option<String> {
     (!id.is_empty() && id.bytes().all(|b| b.is_ascii_digit())).then(|| id.to_owned())
 }
 
-fn link_do_cadastro(href: &str) -> Option<String> {
-    let query = href.split_once('?')?.1.split('#').next()?;
-    let mut acao = 0;
-    let mut id = 0;
-    for (chave, valor) in query.split('&').filter_map(|par| par.split_once('=')) {
-        if chave == "acao" && AcaoDoSei::ler(valor) == Some(AcaoDoSei::ProcedimentoGerar) {
-            acao += 1;
-        }
-        if chave == "id_tipo_procedimento"
-            && !valor.is_empty()
-            && valor.bytes().all(|b| b.is_ascii_digit())
-        {
-            id += 1;
-        }
-    }
-    (acao == 1 && id == 1).then(|| href.to_owned())
+/// Link de cadastro: a consulta é lida inteira, com uma `acao` reconhecida
+/// e um `id_tipo_procedimento` numérico. Sem `?`, não é link de cadastro.
+fn link_do_cadastro(href: &str) -> Result<Option<String>, ErroListaDeTipos> {
+    let Some((_, consulta)) = href.split_once('?') else {
+        return Ok(None);
+    };
+    let consulta = consulta.split('#').next().unwrap_or_default();
+    let consulta = ConsultaDoControlador::ler(consulta)
+        .map_err(ErroListaDeTipos::ConsultaDoCadastroIlegivel)?;
+    let acao = consulta
+        .acao()
+        .map_err(ErroListaDeTipos::ChaveDoCadastroIlegivel)?;
+    let id = consulta
+        .unico("id_tipo_procedimento")
+        .map_err(ErroListaDeTipos::ChaveDoCadastroIlegivel)?;
+    let numerico = !id.is_empty() && id.bytes().all(|b| b.is_ascii_digit());
+    Ok((acao == AcaoDoSei::ProcedimentoGerar && numerico).then(|| href.to_owned()))
 }
 
 /// Compara o nome apresentado pelo SEI, sem escolher um candidato por
@@ -118,10 +127,8 @@ pub(crate) fn tipo_na_lista(html: &str, pedido: &str) -> Result<TipoEscolhido, E
             .map_err(ErroListaDeTipos::AtributoDaListaDeTiposIlegivel)?;
         let desabilitada = atributo_presente(ancora, "disabled")
             .map_err(ErroListaDeTipos::AtributoDaListaDeTiposIlegivel)?;
-        let escolha = match (
-            href.as_deref().and_then(link_do_cadastro),
-            onclick.as_deref().and_then(escolher_literal),
-        ) {
+        let link = href.as_deref().map(link_do_cadastro).transpose()?.flatten();
+        let escolha = match (link, onclick.as_deref().and_then(escolher_literal)) {
             (Some(link), None) => Some(EscolhaDoTipo::Link(link)),
             (None, Some(id)) if href.as_deref().is_none_or(|v| v == "#") => {
                 Some(EscolhaDoTipo::Formulario(id))
@@ -234,6 +241,24 @@ mod tests {
             tipo_na_lista(&html, "Ensaio"),
             Err(ErroListaDeTipos::TabelaDeTiposAusenteOuRepetida)
         );
+    }
+
+    #[test]
+    fn link_com_duas_acoes_nao_vira_escolha() {
+        let html = tela(
+            "<a class='ancoraOpcao' href='controlador.php?acao=procedimento_gerar&amp;acao=procedimento_excluir&amp;id_tipo_procedimento=12'>Ensaio</a>",
+            true,
+        );
+        assert!(tipo_na_lista(&html, "Ensaio").is_err());
+    }
+
+    #[test]
+    fn link_com_par_sem_igual_nao_vira_escolha() {
+        let html = tela(
+            "<a class='ancoraOpcao' href='controlador.php?acao=procedimento_gerar&amp;id_tipo_procedimento=12&amp;lixo'>Ensaio</a>",
+            true,
+        );
+        assert!(tipo_na_lista(&html, "Ensaio").is_err());
     }
 
     #[test]

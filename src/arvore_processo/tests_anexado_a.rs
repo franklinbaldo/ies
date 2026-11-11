@@ -141,6 +141,18 @@ fn link_do_pai_fora_da_forma_e_recusa() {
 }
 
 #[test]
+fn par_sem_igual_no_link_do_pai_e_recusa_com_a_causa() {
+    let href = href_do_pai(ID_PAI, "10").replace("&infra_sistema", "&lixo&infra_sistema");
+    let html = arvore_do_anexado("10", NUP, &html_do_anexado(&href, NUP_PAI));
+    assert_eq!(
+        ler(&html),
+        Err(super::ErroArvore::ConsultaDoVinculoIlegivel(
+            crate::consulta_do_controlador::ErroConsultaDoControlador::ParSemIgual
+        ))
+    );
+}
+
+#[test]
 fn links_ou_html_repetidos_e_html_nao_literal_sao_recusa() {
     let link = html_do_anexado(&href_do_pai(ID_PAI, "10"), NUP_PAI);
     let dois = arvore_do_anexado("10", NUP, &format!("{link}{link}"));

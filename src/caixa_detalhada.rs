@@ -6,6 +6,7 @@ mod colunas;
 use crate::acao_do_sei::AcaoDoSei;
 use crate::controle_contexto::{ContextoPagina, contexto_da_pagina};
 use crate::dominio::{Categoria, IdProcedimento};
+use crate::formulario_web::decodificar_atributo;
 use crate::html_atributos::{nos_com_id, valor_do_atributo};
 use crate::nivel_de_detalhe::ColunaDoDetalhe;
 use crate::processo::NumeroProcesso;
@@ -87,6 +88,10 @@ pub(crate) enum ErroDetalhada {
     /// O controle da página recusou o HTML recebido.
     ControleDaPaginaNaoInterpretado(#[source] crate::erro_web::ErroCaixa),
     IdentificadorDetalhadoInvalido(#[source] crate::erro_web::ErroCaixa),
+    /// A consulta do marcador da célula não se deixa ler em pares.
+    ConsultaDoMarcadorIlegivel(#[source] crate::consulta_do_controlador::ErroConsultaDoControlador),
+    /// `acao` ou `id_procedimento` do marcador ausente ou repetido.
+    ChaveDoMarcadorDetalhado(#[source] crate::consulta_do_controlador::ErroChaveDaConsulta),
     IdentificadorDetalhadoRepetido,
     ItensNaoPrevistosNaCelulaDetalhada,
     LegendaDetalhadaAusente,
@@ -186,7 +191,6 @@ fn faixa(
 }
 
 fn eh_link_do_processo(href: &str, id: &str) -> bool {
-    let href = href.replace("&amp;", "&");
     let Some(query) = href.strip_prefix("controlador.php?") else {
         return false;
     };
@@ -255,9 +259,9 @@ fn ler_linha(
         let Some(link) = link.get(parser).and_then(tl::Node::as_tag) else {
             continue;
         };
-        let Some(href) =
-            valor_do_atributo(link, "href")?.filter(|href| eh_link_do_processo(href, id.as_str()))
-        else {
+        let Some(href) = valor_do_atributo(link, "href")?.filter(|bruto| {
+            decodificar_atributo(bruto).is_some_and(|href| eh_link_do_processo(&href, id.as_str()))
+        }) else {
             continue;
         };
         if escolhido.is_some() {

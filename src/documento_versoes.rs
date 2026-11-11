@@ -1,6 +1,7 @@
 //! Histórico Web observado: nunca constrói links nem abre editor.
 use crate::acao_do_sei::AcaoDoSei;
-use crate::html_atributos::{nos_por_elemento_e_classe, valor_do_atributo};
+use crate::consulta_do_controlador::ConsultaDoControlador;
+use crate::html_atributos::{nos_por_elemento_e_classe, valor_decodificado};
 use std::collections::HashSet;
 use std::num::NonZeroU32;
 
@@ -14,6 +15,14 @@ pub enum ErroVersao {
     /// O número da versão não cabe em u32; guarda o tipo do erro de conversão.
     NumeroDaVersaoIlegivel(std::num::IntErrorKind),
     LinkInseguro,
+    /// A consulta do link não se deixa ler em pares.
+    ConsultaDoLinkIlegivel(#[source] crate::consulta_do_controlador::ErroConsultaDoControlador),
+    /// A `acao` do link não é única nem conhecida.
+    AcaoDoLinkNaoLida(#[source] crate::consulta_do_controlador::ErroChaveDaConsulta),
+    /// A `versao` do link não é única.
+    VersaoDoLinkNaoLida(#[source] crate::consulta_do_controlador::ErroChaveDaConsulta),
+    /// O `infra_hash` do link não é único.
+    HashDoLinkNaoLido(#[source] crate::consulta_do_controlador::ErroChaveDaConsulta),
     DocumentoDivergente,
     ListaIncompleta,
     VersaoPedidaAusenteNoHistorico,
@@ -98,43 +107,34 @@ fn conferir_link(href: &str, id: &str, versao: VersaoDocumento) -> Result<(), Er
     let query = href
         .strip_prefix("controlador.php?")
         .ok_or(ErroVersao::LinkInseguro)?;
-    let mut acao = None;
-    let mut id_observado = None;
-    let mut versao_observada = None;
-    let mut hash = None;
-    let parametros = query.replace("&amp;", "&");
-    for parte in parametros.split('&') {
-        let (chave, valor) = parte.split_once('=').ok_or(ErroVersao::LinkInseguro)?;
-        if chave.is_empty()
-            || !chave.bytes().all(|b| b.is_ascii_lowercase() || b == b'_')
-            || valor.bytes().any(|b| b <= 32 || b >= 127)
-        {
-            return Err(ErroVersao::LinkInseguro);
-        }
-        let slot = match chave {
-            "acao" => &mut acao,
-            "id_documento" => &mut id_observado,
-            "versao" => &mut versao_observada,
-            "infra_hash" => &mut hash,
-            _ => continue,
-        };
-        // `id_documento` servido duas vezes com o mesmo valor (sete
-        // instalações); valores diferentes ou outra chave repetida: recusa.
-        match slot.replace(valor) {
-            Some(anterior) if chave == "id_documento" && anterior == valor => {}
-            Some(_) => return Err(ErroVersao::LinkInseguro),
-            None => {}
-        }
+    if query.bytes().any(|b| b <= 32 || b >= 127) {
+        return Err(ErroVersao::LinkInseguro);
     }
-    if acao.and_then(AcaoDoSei::ler) != Some(AcaoDoSei::DocumentoVisualizar)
-        || versao_observada != Some(versao.numero().to_string().as_str())
+    let pares = ConsultaDoControlador::ler(query).map_err(ErroVersao::ConsultaDoLinkIlegivel)?;
+    let acao = pares.acao().map_err(ErroVersao::AcaoDoLinkNaoLida)?;
+    let versao_observada = pares
+        .unico("versao")
+        .map_err(ErroVersao::VersaoDoLinkNaoLida)?;
+    // `id_documento` servido duas vezes com o mesmo valor (sete
+    // instalações); valores diferentes: recusa.
+    let ids: Vec<&str> = pares.valores("id_documento").collect();
+    let id_observado = match ids.as_slice() {
+        [] => None,
+        [primeiro, resto @ ..] if resto.iter().all(|v| v == primeiro) => Some(*primeiro),
+        _ => return Err(ErroVersao::LinkInseguro),
+    };
+    let hash = pares
+        .unico("infra_hash")
+        .map_err(ErroVersao::HashDoLinkNaoLido)?;
+    if acao != AcaoDoSei::DocumentoVisualizar
+        || versao_observada != versao.numero().to_string().as_str()
     {
         return Err(ErroVersao::LinkInseguro);
     }
     if id_observado != Some(id) {
         return Err(ErroVersao::DocumentoDivergente);
     }
-    if !hash.is_some_and(|h| h.len() == 64 && h.bytes().all(|b| b.is_ascii_hexdigit())) {
+    if hash.len() != 64 || !hash.bytes().all(|b| b.is_ascii_hexdigit()) {
         return Err(ErroVersao::LinkInseguro);
     }
     Ok(())
@@ -208,7 +208,7 @@ fn linhas_do_historico(
             // Âncora de fragmento (`#ID-N`, "Recuperar Versão" com o link no
             // `onclick`) não é link de versão e nunca é seguida.
             let href =
-                valor_do_atributo(a, "href").map_err(ErroVersao::LinkVersaoComAtributoIlegivel)?;
+                valor_decodificado(a, "href").map_err(ErroVersao::LinkVersaoComAtributoIlegivel)?;
             links.extend(href.filter(|h| !h.starts_with('#')));
         }
         let Ok([link]) = <[String; 1]>::try_from(links) else {
@@ -432,7 +432,23 @@ pub(crate) mod testes {
         );
         assert_eq!(
             interpretar_historico(&html, "42", None),
-            Err(ErroVersao::LinkInseguro)
+            Err(ErroVersao::AcaoDoLinkNaoLida(
+                crate::consulta_do_controlador::ErroChaveDaConsulta::Repetida { chave: "acao" }
+            ))
+        );
+    }
+
+    #[test]
+    fn par_sem_igual_no_link_da_versao_e_recusado_com_a_causa() {
+        let html = pagina(&[1], &["42"]).replace(
+            "acao=documento_visualizar",
+            "acao=documento_visualizar&amp;solto",
+        );
+        assert_eq!(
+            interpretar_historico(&html, "42", None),
+            Err(ErroVersao::ConsultaDoLinkIlegivel(
+                crate::consulta_do_controlador::ErroConsultaDoControlador::ParSemIgual
+            ))
         );
     }
 

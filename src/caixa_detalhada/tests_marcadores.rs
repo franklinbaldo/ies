@@ -149,3 +149,30 @@ fn colheita_da_pagina_d_com_marcadores_continua_dando_o_link() {
             .is_some_and(|h| h.contains("acao=procedimento_trabalhar"))
     );
 }
+
+#[test]
+fn link_do_marcador_com_par_sem_igual_e_recusado_com_a_causa() {
+    let boa = ancora("7", "31", "azul", "", "M");
+    let com_lixo = boa.replace("&infra_sistema", "&lixo&infra_sistema");
+    assert_eq!(
+        com_marcadores(&com_lixo).map(|_| ()),
+        Err(ErroDetalhada::ConsultaDoMarcadorIlegivel(
+            crate::consulta_do_controlador::ErroConsultaDoControlador::ParSemIgual
+        ))
+    );
+}
+
+#[test]
+fn link_do_marcador_com_acao_repetida_tem_a_causa() {
+    let boa = ancora("7", "31", "azul", "", "M");
+    let repetida = boa.replace(
+        "&infra_sistema",
+        "&acao=andamento_marcador_gerenciar&infra_sistema",
+    );
+    assert_eq!(
+        com_marcadores(&repetida).map(|_| ()),
+        Err(ErroDetalhada::ChaveDoMarcadorDetalhado(
+            crate::consulta_do_controlador::ErroChaveDaConsulta::Repetida { chave: "acao" }
+        ))
+    );
+}

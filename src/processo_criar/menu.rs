@@ -2,7 +2,7 @@
 //! Não inferir URL, não executar JS e não seguir redirecionamento.
 use crate::acao_do_sei::AcaoDoSei;
 use crate::consulta_do_controlador::{
-    ConsultaDoControlador, ErroConsultaDoControlador, menciona_acao,
+    ConsultaDoControlador, ErroChaveDaConsulta, ErroConsultaDoControlador, menciona_acao,
 };
 use crate::formulario_web::decodificar_atributo;
 use crate::html_atributos::valor_do_atributo;
@@ -18,6 +18,10 @@ pub(crate) enum ErroMenu {
     LinkDeIniciarProcessoRepetido,
     HtmlDoMenuNaoAnalisavel(#[source] tl::ParseError),
     ConsultaDoLinkRecusada(#[source] crate::transporte::FalhaTransporte),
+    /// A consulta do link não se lê em pares `chave=valor`.
+    ConsultaDoLinkIlegivel(#[source] ErroConsultaDoControlador),
+    /// `acao` ou `infra_hash` do link não tem exatamente um valor aceito.
+    ChaveDoLinkIlegivel(#[source] ErroChaveDaConsulta),
 }
 
 /// O href literal do menu; apenas o padrão relativo demonstrado pelo SEI.
@@ -72,13 +76,16 @@ pub(crate) fn link_de_iniciar(
         ErroConsultaDoControlador::RecusadaPeloTransporte(falha) => {
             ErroMenu::ConsultaDoLinkRecusada(falha)
         }
-        ErroConsultaDoControlador::ParSemIgual => ErroMenu::LinkDeIniciarProcessoNaoReconhecido,
+        outro @ ErroConsultaDoControlador::ParSemIgual => ErroMenu::ConsultaDoLinkIlegivel(outro),
     })?;
-    if consulta.acao() != Ok(AcaoDoSei::ProcedimentoEscolherTipo)
+    let acao = consulta.acao().map_err(ErroMenu::ChaveDoLinkIlegivel)?;
+    let hash = consulta
+        .unico("infra_hash")
+        .map_err(ErroMenu::ChaveDoLinkIlegivel)?;
+    if acao != AcaoDoSei::ProcedimentoEscolherTipo
         || consulta.valores("acao_ajax").next().is_some()
-        || !consulta
-            .unico("infra_hash")
-            .is_ok_and(|hash| hash.len() == 64 && hash.bytes().all(|b| b.is_ascii_hexdigit()))
+        || hash.len() != 64
+        || !hash.bytes().all(|b| b.is_ascii_hexdigit())
     {
         return Err(ErroMenu::LinkDeIniciarProcessoNaoReconhecido);
     }
@@ -152,6 +159,31 @@ mod tests {
     }
 
     #[test]
+    fn recusa_com_a_causa_da_consulta() {
+        let (url, instalacao) = base();
+        let escolher = AcaoDoSei::ProcedimentoEscolherTipo.como_na_url();
+        let hash = "a".repeat(64);
+        let duas_acoes = format!(
+            "<a href='controlador.php?acao={escolher}&amp;acao=procedimento_gerar&amp;infra_hash={hash}'>Iniciar</a>"
+        );
+        assert_eq!(
+            link_de_iniciar(&instalacao, url, &duas_acoes),
+            Err(ErroMenu::ChaveDoLinkIlegivel(
+                ErroChaveDaConsulta::Repetida { chave: "acao" }
+            ))
+        );
+        let par_sem_igual = format!(
+            "<a href='controlador.php?acao={escolher}&amp;lixo&amp;infra_hash={hash}'>Iniciar</a>"
+        );
+        assert_eq!(
+            link_de_iniciar(&instalacao, url, &par_sem_igual),
+            Err(ErroMenu::ConsultaDoLinkIlegivel(
+                ErroConsultaDoControlador::ParSemIgual
+            ))
+        );
+    }
+
+    #[test]
     fn recusa_link_externo_ou_sem_assinatura() {
         let (url, instalacao) = base();
         let externo = format!(
@@ -169,7 +201,11 @@ mod tests {
         );
         assert_eq!(
             link_de_iniciar(&instalacao, url, &sem_assinatura),
-            Err(ErroMenu::LinkDeIniciarProcessoNaoReconhecido)
+            Err(ErroMenu::ChaveDoLinkIlegivel(
+                ErroChaveDaConsulta::Ausente {
+                    chave: "infra_hash"
+                }
+            ))
         );
     }
 }

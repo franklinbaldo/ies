@@ -1,6 +1,7 @@
 //! Molde sintético da `UnB`, sem URLs assinadas de contas reais.
 //! Caso: `todos tests/test_ciclo_sobrestar_010.py` @323eb01.
 use super::tela::{ErroTela, conferir_formulario};
+use crate::consulta_do_controlador::{ErroChaveDaConsulta, ErroConsultaDoControlador};
 const ID: &str = "10";
 pub(super) fn formulario() -> String {
     format!(
@@ -44,6 +45,28 @@ fn formulario_de_outro_processo_ou_id_repetido_recusado() {
         Err(ErroTela::CampoInesperado)
     );
 }
+#[test]
+fn action_com_par_sem_igual_ou_id_repetido_recusa_com_a_causa() {
+    let origem = formulario();
+    assert_eq!(
+        conferir_formulario(&origem.replace("&infra_hash=", "&lixo&infra_hash="), ID),
+        Err(ErroTela::ConsultaDaActionIlegivel(
+            ErroConsultaDoControlador::ParSemIgual
+        ))
+    );
+    assert_eq!(
+        conferir_formulario(
+            &origem.replace("&infra_hash=", "&id_procedimento=10&infra_hash="),
+            ID
+        ),
+        Err(ErroTela::ChaveDaActionIlegivel(
+            ErroChaveDaConsulta::Repetida {
+                chave: "id_procedimento"
+            }
+        ))
+    );
+}
+
 #[test]
 fn opcao_de_sobrestar_desconhecida_recusada() {
     assert_eq!(

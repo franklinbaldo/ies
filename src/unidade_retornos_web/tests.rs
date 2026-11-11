@@ -1,4 +1,5 @@
 use super::*;
+use crate::consulta_do_controlador::{ErroChaveDaConsulta, ErroConsultaDoControlador};
 
 const ORIGEM: &str = "https://sei.treinamento.unb.br/sei";
 const CONTROLE: &str =
@@ -246,6 +247,27 @@ fn link_em_outro_host_e_recusado_antes_do_get() {
     ));
     assert_eq!(chamados, 0);
 }
+#[test]
+fn link_de_retorno_com_causa_de_consulta_ou_chave_repetida() {
+    let conferir = |complemento: &str| conferir_link(&href(complemento), CONTROLE, &instalacao());
+    assert!(matches!(
+        conferir("acao=retorno_programado_listar"),
+        Err(ErroLeituraRetornos::ChaveDoLinkIlegivel(
+            ErroChaveDaConsulta::Repetida { chave: "acao" }
+        ))
+    ));
+    assert!(matches!(
+        conferir("lixo"),
+        Err(ErroLeituraRetornos::ConsultaDoLinkIlegivel(
+            ErroConsultaDoControlador::ParSemIgual
+        ))
+    ));
+    assert!(matches!(
+        conferir("data_inicial=01/10/2026&data_inicial=01/10/2026"),
+        Err(ErroLeituraRetornos::LinkDeRetornosForaDaInstalacao)
+    ));
+}
+
 #[test]
 fn menu_repetido_nao_dispara_get() {
     let controle = format!("{}{}", controle(), controle());

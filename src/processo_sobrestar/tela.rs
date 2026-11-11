@@ -1,7 +1,9 @@
 //! Conferência estrutural do formulário de sobrestamento observado na `UnB` (#269).
 //! Fonte: `Todos tests/test_ciclo_sobrestar_010.py` @323eb01.
 use crate::acao_do_sei::AcaoDoSei;
-use crate::consulta_do_controlador::ConsultaDoControlador;
+use crate::consulta_do_controlador::{
+    ConsultaDoControlador, ErroChaveDaConsulta, ErroConsultaDoControlador,
+};
 use crate::formulario_web::{
     ConferenciaDaUnidade, EfeitoAvaliado, EnvioDoFormulario, ErroSubmissaoFormulario,
     EstadoDoProcesso, OperacaoDeFormulario, ResultadoDoEnvio, localizar_formulario,
@@ -19,6 +21,10 @@ pub(crate) enum ErroTela {
     HtmlNaoInterpretado(#[source] tl::ParseError),
     FormularioAusente(#[source] ErroSubmissaoFormulario),
     OutroProcesso,
+    /// A consulta do `action` não se lê em pares `chave=valor`.
+    ConsultaDaActionIlegivel(#[source] ErroConsultaDoControlador),
+    /// O `action` não tem exatamente um `id_procedimento`.
+    ChaveDaActionIlegivel(#[source] ErroChaveDaConsulta),
     OpcaoNaoOferecida,
     DestinoPreenchido,
     CampoInesperado,
@@ -61,16 +67,7 @@ pub(crate) fn conferir_formulario(html: &str, id: &str) -> Result<(), ErroTela> 
     let action = atributo(form, "action")?.ok_or(ErroTela::OutroProcesso)?;
     let action =
         crate::formulario_web::decodificar_atributo(&action).ok_or(ErroTela::NaoInterpretada)?;
-    let ids: Vec<_> = action
-        .split_once('?')
-        .map(|(_, consulta)| consulta)
-        .unwrap_or_default()
-        .split('&')
-        .filter_map(|par| par.strip_prefix("id_procedimento="))
-        .collect();
-    if ids.as_slice() != [id] {
-        return Err(ErroTela::OutroProcesso);
-    }
+    conferir_processo_da_action(&action, id)?;
     if !atributo(form, "method")?.is_some_and(|v| v.eq_ignore_ascii_case("post")) {
         return Err(ErroTela::CampoInesperado);
     }
@@ -207,6 +204,22 @@ fn conferir_campo(
             _ => Err(ErroTela::CampoInesperado),
         }
     }
+}
+
+/// O `action` aponta para o processo `id`, com `id_procedimento` uma vez só.
+fn conferir_processo_da_action(action: &str, id: &str) -> Result<(), ErroTela> {
+    let Some((_, consulta)) = action.split_once('?') else {
+        return Err(ErroTela::OutroProcesso);
+    };
+    let consulta =
+        ConsultaDoControlador::ler(consulta).map_err(ErroTela::ConsultaDaActionIlegivel)?;
+    let processo = consulta
+        .unico("id_procedimento")
+        .map_err(ErroTela::ChaveDaActionIlegivel)?;
+    if processo != id {
+        return Err(ErroTela::OutroProcesso);
+    }
+    Ok(())
 }
 
 /// Aceite da resposta HTTP 302 da sobrestada: mesmo processo, ação e origem.

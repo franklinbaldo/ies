@@ -83,6 +83,27 @@ fn tela_sem_tabela_e_nao_observada_e_nao_lista_vazia() {
 }
 
 #[test]
+fn acao_e_id_do_formulario_ilegiveis_levam_a_causa() {
+    let html = tela_dos_marcadores(NUP, ID);
+    let gerenciar = "action=\"controlador.php?acao=andamento_marcador_gerenciar&";
+    assert_eq!(
+        erro(&html.replace(gerenciar, &format!("{gerenciar}solto&"))),
+        ErroMarcadores::ConsultaDoFormularioIlegivel(
+            crate::consulta_do_controlador::ErroConsultaDoControlador::ParSemIgual
+        )
+    );
+    assert_eq!(
+        erro(&html.replace(
+            gerenciar,
+            &format!("{gerenciar}acao=andamento_marcador_gerenciar&")
+        )),
+        ErroMarcadores::AcaoDoFormularioNaoLida(
+            crate::consulta_do_controlador::ErroChaveDaConsulta::Repetida { chave: "acao" }
+        )
+    );
+}
+
+#[test]
 fn identidade_vem_antes_de_qualquer_linha() {
     let html = tela_dos_marcadores(NUP, ID);
     assert_eq!(

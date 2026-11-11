@@ -148,6 +148,10 @@ pub(crate) enum ErroVisaoDoControle {
     HtmlDoFormularioDoControleRecusadoPeloParser(#[source] tl::ParseError),
     /// Chave ou valor da consulta do nível recusado pelo transporte.
     ConsultaDoNivelRecusadaPeloTransporte(#[source] FalhaTransporte),
+    /// A consulta do link do nível não se lê em pares `chave=valor`.
+    ConsultaDoNivelIlegivel(#[source] crate::consulta_do_controlador::ErroConsultaDoControlador),
+    /// `acao` ou `infra_hash` do link do nível sem exatamente um valor aceito.
+    ChaveDoNivelIlegivel(#[source] crate::consulta_do_controlador::ErroChaveDaConsulta),
 }
 
 impl ErroVisaoDoControle {
@@ -168,6 +172,8 @@ impl ErroVisaoDoControle {
             | Self::HtmlDoNivelDeDetalheRecusadoPeloParser(_)
             | Self::HtmlDoFormularioDoControleRecusadoPeloParser(_)
             | Self::ConsultaDoNivelRecusadaPeloTransporte(_)
+            | Self::ConsultaDoNivelIlegivel(_)
+            | Self::ChaveDoNivelIlegivel(_)
             | Self::PaginaAtualDaVisaoDetalhadaIncompativelComAFaixa
             | Self::PaginaForaDoIntervalo { .. }
             | Self::PaginadorDaVisaoDetalhadaNaoPublicado

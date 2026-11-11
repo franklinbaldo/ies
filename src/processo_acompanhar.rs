@@ -3,6 +3,9 @@
 //! pela resposta HTTP. Casos do Todos `tests/test_processo_acompanhar_010.py` @323eb01.
 
 use crate::acao_do_sei::AcaoDoSei;
+use crate::consulta_do_controlador::{
+    ConsultaDoControlador, ErroChaveDaConsulta, ErroConsultaDoControlador,
+};
 use crate::html_atributos::{atributo_presente, valor_do_atributo};
 
 mod exclusao;
@@ -34,6 +37,10 @@ pub(crate) enum ErroAcompanhar {
     Atributo(#[source] crate::html_atributos::ErroAtributoHtml),
     CadastroNaoPublicado,
     CadastroDeOutroProcesso,
+    /// A action do cadastro não se lê em pares `chave=valor`.
+    ConsultaDoCadastroIlegivel(#[source] ErroConsultaDoControlador),
+    /// A action do cadastro não tem exatamente um `acao` nem um `id_procedimento`.
+    ChaveDoCadastroIlegivel(#[source] ErroChaveDaConsulta),
     GruposNaoPublicados,
     GrupoNaoOferecido,
     GrupoAmbiguo,
@@ -119,14 +126,7 @@ pub(crate) fn grupos_do_cadastro(
     let action = campo(form, "action")?.ok_or(ErroAcompanhar::CadastroNaoPublicado)?;
     let action = crate::formulario_web::decodificar_atributo(&action)
         .ok_or(ErroAcompanhar::HtmlDeAcompanhamentoInvalido)?;
-    if !parametro_unico(
-        &action,
-        "acao",
-        AcaoDoSei::AcompanhamentoCadastrar.como_na_url(),
-    ) || !parametro_unico(&action, "id_procedimento", id_procedimento)
-    {
-        return Err(ErroAcompanhar::CadastroDeOutroProcesso);
-    }
+    conferir_action_do_cadastro(&action, id_procedimento)?;
     let mut protocolos = Vec::new();
     let mut selects = Vec::new();
     for no in form.children().all(parser) {
@@ -174,16 +174,23 @@ pub(crate) fn grupos_do_cadastro(
     Ok(grupos)
 }
 
-fn parametro_unico(url: &str, nome: &str, valor: &str) -> bool {
-    url.split_once('?').is_some_and(|(_, query)| {
-        query
-            .split('&')
-            .filter_map(|par| par.split_once('='))
-            .filter(|(chave, _)| *chave == nome)
-            .map(|(_, v)| v)
-            .collect::<Vec<_>>()
-            == [valor]
-    })
+/// A action do cadastro é este processo e esta ação, cada um uma vez na consulta.
+fn conferir_action_do_cadastro(action: &str, id_procedimento: &str) -> Result<(), ErroAcompanhar> {
+    let Some((_, consulta)) = action.split_once('?') else {
+        return Err(ErroAcompanhar::CadastroDeOutroProcesso);
+    };
+    let consulta =
+        ConsultaDoControlador::ler(consulta).map_err(ErroAcompanhar::ConsultaDoCadastroIlegivel)?;
+    let acao = consulta
+        .unico("acao")
+        .map_err(ErroAcompanhar::ChaveDoCadastroIlegivel)?;
+    let id = consulta
+        .unico("id_procedimento")
+        .map_err(ErroAcompanhar::ChaveDoCadastroIlegivel)?;
+    if acao != AcaoDoSei::AcompanhamentoCadastrar.como_na_url() || id != id_procedimento {
+        return Err(ErroAcompanhar::CadastroDeOutroProcesso);
+    }
+    Ok(())
 }
 
 /// Casa APENAS pelo nome exato. O branco seleciona a opção vazia publicada.
