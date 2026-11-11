@@ -248,14 +248,8 @@ pub(crate) fn preparar_previa<V: EnvioDoProcesso>(
         html: &cadastro,
         codificacao,
     };
-    let recarregado = recarregar_tipo(
-        &instalacao,
-        sessao,
-        &mut rede,
-        &servida,
-        &unidade,
-        &id_tipo,
-    )?;
+    let recarregado =
+        recarregar_tipo(&instalacao, sessao, &mut rede, &servida, &unidade, &id_tipo)?;
     let observado = observar_cadastro(&recarregado, tipo, pdf.tamanho_bytes)
         .map_err(ErroIncluirExterno::CadastroNaoConferido)?;
     if observado.id_tipo != id_tipo {
