@@ -1,4 +1,4 @@
-//! Cenários técnicos auxiliares do BDD-332-03/04; transporte exclusivamente sintético.
+//! Regressões da confirmação externa; transporte exclusivamente sintético.
 use super::*;
 use crate::arvore_processo::{Cancelamento, NaturezaDoDocumento};
 use crate::documento_externo_incluir::cadastro::observar_cadastro;
@@ -180,8 +180,8 @@ fn html_generico_e_arvore_nova_nao_provam_autoria() {
 }
 
 #[test]
-fn bdd_332_03_nao_confirma_documento_interno_com_mesmo_rotulo() {
-    // BDD-332-03 exige documento EXTERNO comprovado pela releitura.
+fn documento_interno_com_mesmo_rotulo_nao_confirma_externo() {
+    // A releitura precisa comprovar que o documento é EXTERNO.
     // Rótulo/Número novos, isoladamente, não comprovam sua natureza.
     // Ícone ausente ou fora da forma não chega aqui: a leitura da árvore recusa.
     let (html, instalacao) = contexto();
