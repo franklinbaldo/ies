@@ -159,6 +159,37 @@ fn tela_de_troca_fora_da_forma_e_recusada() {
 }
 
 #[test]
+fn atributos_repetidos_preservam_a_causa_da_recusa_na_troca() {
+    use crate::html_atributos::ErroAtributoHtml;
+
+    // Contraprovas sintéticas: as cassettes da troca não registram
+    // um rádio ou filtro com o atributo value repetido.
+    let linha_repetida = tela().replacen(
+        &format!("value=\"{ID_B}\" onclick="),
+        &format!("value=\"{ID_B}\" value=\"{ID_C}\" onclick="),
+        1,
+    );
+    assert!(matches!(
+        ler_tela_de_troca(&linha_repetida),
+        Err(super::ErroTroca::AtributoDaLinhaDeUnidadeIlegivel(
+            ErroAtributoHtml::AtributoRepetidoNaTag { atributo: "value" }
+        ))
+    ));
+
+    let filtro_repetido = tela().replacen(
+        "id=\"txtInfraSiglaUnidade\" name=\"txtInfraSiglaUnidade\" class=\"infraText\" value=\"\"",
+        "id=\"txtInfraSiglaUnidade\" name=\"txtInfraSiglaUnidade\" class=\"infraText\" value=\"\" value=\"outra\"",
+        1,
+    );
+    assert!(matches!(
+        ler_tela_de_troca(&filtro_repetido),
+        Err(super::ErroTroca::AtributoDaTelaDeTrocaIlegivel(
+            ErroAtributoHtml::AtributoRepetidoNaTag { atributo: "value" }
+        ))
+    ));
+}
+
+#[test]
 fn escolha_e_exata_e_recusa_ausente_e_ambigua() {
     let tela = ler_tela_de_troca(&tela()).unwrap();
     assert_eq!(escolher(&tela, "PR-B").unwrap().id_unidade, ID_B);
