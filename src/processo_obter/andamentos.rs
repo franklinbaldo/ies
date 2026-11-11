@@ -163,7 +163,7 @@ fn ver_completo<V: EnvioDoProcesso>(
         &VER_HISTORICO_COMPLETO,
         &contexto.instalacao,
         &tela,
-        unidade,
+        Some(unidade),
         &[(CAMPO_TIPO, "P")],
     )
     .map_err(HistoricoNaoPedido::Formulario)?;

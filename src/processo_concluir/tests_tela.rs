@@ -26,7 +26,7 @@ fn tela_observada_passa_e_o_corpo_e_o_do_navegador() {
         &CONCLUIR_PROCESSO,
         &instalacao(),
         &tela,
-        UNIDADE,
+        Some(UNIDADE),
         &CAMPOS_DO_ENVIO,
     )
     .unwrap();

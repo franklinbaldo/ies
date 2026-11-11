@@ -65,7 +65,7 @@ pub(crate) fn preparar_cadastro_definitivo(
         &CADASTRAR_EXTERNO,
         instalacao,
         tela,
-        unidade,
+        Some(unidade),
         &[
             ("hdnFlagDocumentoCadastro", "2"),
             ("hdnAnexos", &linha),

@@ -112,7 +112,7 @@ pub(super) fn validar<V: EnvioDoProcesso>(
         &OPERACAO,
         &contexto.instalacao,
         &tela,
-        contexto.unidade_pedida.unwrap_or(""),
+        contexto.unidade_pedida,
         &[("txtSenha", credenciais.senha())],
     )
     .map_err(ErroValidacaoAcesso::from)?;

@@ -141,7 +141,7 @@ fn derivar_pela_tela<V: EnvioDoProcesso>(
         &CONCLUIR_PROCESSO,
         instalacao,
         &tela,
-        unidade,
+        Some(unidade),
         &CAMPOS_DO_ENVIO,
     )
     .map_err(ErroConcluir::Formulario)

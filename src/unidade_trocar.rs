@@ -171,7 +171,7 @@ pub(crate) fn trocar_unidade<V: EnvioDaTroca>(
         &TROCAR_UNIDADE,
         sessao.instalacao,
         &tela_servida,
-        &antes,
+        Some(antes.as_str()),
         &campos_do_envio(&tela, &escolhida),
     )?;
     troca.campos_do_envio = Some(submissao.nomes_dos_campos().to_vec());

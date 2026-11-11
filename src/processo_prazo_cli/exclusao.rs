@@ -237,7 +237,7 @@ fn escrever_e_verificar<V: EnvioDoProcesso>(
         &EXCLUIR_PRAZO,
         &instalacao,
         &servida,
-        &dados.unidade,
+        Some(dados.unidade.as_str()),
         &[("hdnInfraItemId", dados.id_controle.as_str())],
         Some(&url_declarada),
     )

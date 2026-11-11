@@ -138,7 +138,7 @@ pub(crate) fn cancelar_documento<V: EnvioDoProcesso>(
         &CANCELAR,
         &instalacao,
         &tela,
-        &unidade,
+        Some(unidade.as_str()),
         &[("txaMotivo", motivo)],
     )
     .map_err(ErroCancelar::Formulario)?;

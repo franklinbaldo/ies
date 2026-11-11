@@ -211,7 +211,7 @@ pub(crate) fn executar_criacao<V: EnvioDoProcesso>(
             &FILTRAR_TIPOS,
             &instalacao,
             &servida,
-            &unidade,
+            Some(unidade.as_str()),
             &[("hdnFiltroSerie", "T")],
         )?;
         let resposta = enviar_submissao_via(submissao, sessao.cookie, |post, cookie| {
@@ -246,7 +246,7 @@ pub(crate) fn executar_criacao<V: EnvioDoProcesso>(
                 &ESCOLHER_TIPO,
                 &instalacao,
                 &servida,
-                &unidade,
+                Some(unidade.as_str()),
                 &[("hdnIdSerie", id_serie.as_str())],
             )?;
             // Escolher o tipo só navega ao cadastro. 302 não é seguido
@@ -307,7 +307,13 @@ pub(crate) fn executar_criacao<V: EnvioDoProcesso>(
     if let Some(descricao) = pedido.descricao {
         campos.push(("txtDescricao", descricao));
     }
-    let submissao = derivar_submissao(&CADASTRAR, &instalacao, &servida, &previa.unidade, &campos)?;
+    let submissao = derivar_submissao(
+        &CADASTRAR,
+        &instalacao,
+        &servida,
+        Some(previa.unidade.as_str()),
+        &campos,
+    )?;
     // O POST é consumido exatamente uma vez. Independentemente da resposta,
     // a conferência seguinte é uma nova leitura do processo, jamais retry.
     let foto_antes = FotoDaCriacao::da_arvore(&aberto.arvore);

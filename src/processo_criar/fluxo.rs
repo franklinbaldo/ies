@@ -146,7 +146,7 @@ fn enviada<V: EnvioDoControle>(
         html: &tela.html,
         codificacao,
     };
-    let submissao = derivar_submissao(operacao, instalacao, &servida, unidade, campos)
+    let submissao = derivar_submissao(operacao, instalacao, &servida, Some(unidade), campos)
         .map_err(ErroCriar::Submissao)?;
     let mut tentou = false;
     let resultado = enviar_submissao_via(submissao, cookie, |s, c| {
@@ -340,8 +340,14 @@ pub(crate) fn criar_com_contagem<V: EnvioDoControle>(
         campos.push(("hdnInteressadosProcedimento", codificados.as_str()));
     }
     // Derive o POST inclusive na prévia, sem executar JS e sem escrita.
-    let submissao = derivar_submissao(&CADASTRAR, &instalacao, &servida, &feito.unidade, &campos)
-        .map_err(ErroCriar::Submissao)?;
+    let submissao = derivar_submissao(
+        &CADASTRAR,
+        &instalacao,
+        &servida,
+        Some(feito.unidade.as_str()),
+        &campos,
+    )
+    .map_err(ErroCriar::Submissao)?;
     if !pedido.confirmar {
         return Ok(feito);
     }
