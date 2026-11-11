@@ -115,22 +115,21 @@ fn previa<E: EnvioDoProcesso>(
         Operacao::Retirar => "retirar",
     };
     if cli.json {
-        println!(
-            "{}",
-            json!({
-                "nup": nup.as_str(),
-                "id_procedimento": aberto.arvore.processo.id,
-                "unidade": unidade,
-                "marcador": format!("{}#{}", rotulo.id, rotulo.nome),
-                "acao": acao,
-                "origem": "web",
-                "confirmado": confirmar,
-                "alterado": false,
-                "nada_a_fazer": nada_a_fazer,
-                "retirada_possivel": false, // Sem formulário de remoção validado, não prometer ação.
-                "requisicoes": n,
-            })
-        );
+        let mut valor = json!({
+            "nup": nup.as_str(),
+            "id_procedimento": aberto.arvore.processo.id,
+            "unidade": unidade,
+            "marcador": format!("{}#{}", rotulo.id, rotulo.nome),
+            "acao": acao,
+            "origem": "web",
+            "confirmado": confirmar,
+            "alterado": false,
+            "nada_a_fazer": nada_a_fazer,
+            "retirada_possivel": false, // Sem formulário de remoção validado, não prometer ação.
+            "requisicoes": n,
+        });
+        crate::indice_local::anexar_avisos(&mut valor, indice);
+        println!("{valor}");
     } else if nada_a_fazer {
         println!(
             "Processo {}: nada a fazer com {} ({}). Requisições: {}.",

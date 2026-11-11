@@ -9,12 +9,14 @@
 //!   sessão (e unidade) em que foram vistas.
 //!
 //! Falha do banco nunca derruba um comando: o índice se desliga e tudo segue
-//! como se ele não existisse (`None` nas consultas, nada nas gravações).
+//! como se ele não existisse (`None` nas consultas, nada nas gravações), mas
+//! a causa fica guardada em [`IndiceLocal::avisos`] para a saída do comando.
 //! Nenhuma requisição é feita para alimentá-lo e nenhuma transação atravessa
 //! HTTP: cada chamada abre, roda uma transação minúscula e fecha.
 mod abertura;
 mod documentos;
 mod entrada_por_id;
+mod falhas;
 mod identidade;
 mod links;
 mod observacoes;
@@ -28,6 +30,8 @@ mod tests_documentos;
 #[cfg(test)]
 mod tests_entrada;
 #[cfg(test)]
+mod tests_falhas;
+#[cfg(test)]
 mod tests_links;
 
 use crate::configuracao::ArquivosDeAcesso;
@@ -38,9 +42,13 @@ use std::path::{Path, PathBuf};
 
 // Lido por `ies processo NUP`; alimentado também pela colheita do Controle.
 pub(crate) use documentos::DocumentoGuardado;
-pub(crate) use entrada_por_id::{url_da_entrada_por_id, url_da_entrada_por_id_com_documento};
+pub(crate) use entrada_por_id::{
+    AceiteDaEntrada, url_da_entrada_por_id, url_da_entrada_por_id_com_documento,
+};
+pub(crate) use falhas::{FalhaDoIndice, anexar_avisos, avisar_no_texto};
 pub(crate) use links::{ChaveDoLink, unidade_dos_links};
 pub(crate) use unidades::{ListaGuardada, UnidadeGuardada, filtrar_lista};
+#[cfg(test)]
 pub(crate) use validacao::RegistroRecusado;
 
 /// Nome do banco ao lado do `IES_URL_CONTROLE_FILE`.
@@ -55,6 +63,8 @@ pub(crate) struct IndiceLocal {
     ligado: Cell<bool>,
     pronto: Cell<bool>,
     relogio: Relogio,
+    /// O que o índice detectou e não derrubou o comando, na ordem.
+    falhas: Cell<Vec<FalhaDoIndice>>,
 }
 
 /// Nem o caminho (diz onde a sessão mora) nem dados.
@@ -104,6 +114,7 @@ impl IndiceLocal {
             ligado: Cell::new(true),
             pronto: Cell::new(false),
             relogio: Box::new(agora_do_sistema),
+            falhas: Cell::default(),
         }
     }
 
@@ -113,6 +124,7 @@ impl IndiceLocal {
             ligado: Cell::new(false),
             pronto: Cell::new(false),
             relogio: Box::new(agora_do_sistema),
+            falhas: Cell::default(),
         }
     }
 
@@ -176,8 +188,9 @@ impl IndiceLocal {
     }
 
     /// Roda `operacao` numa transação minúscula; qualquer falha do banco
-    /// desliga o índice e devolve `padrao`. Nunca atravessa HTTP: o chamador
-    /// consulta, faz a requisição e só depois registra.
+    /// desliga o índice, guarda a causa em `falhas` e devolve `padrao`. Nunca
+    /// atravessa HTTP: o chamador consulta, faz a requisição e só depois
+    /// registra.
     fn executar<T>(
         &self,
         padrao: T,
@@ -194,9 +207,11 @@ impl IndiceLocal {
             transacao.commit()?;
             Ok(valor)
         });
-        // O índice é cache: a falha desliga-o e o comando segue com `padrao`.
-        resultado.unwrap_or_else(|_: abertura::ErroAberturaDoIndice| {
+        // O índice é cache: a falha desliga-o e o comando segue com `padrao`;
+        // a causa vai para os avisos da saída.
+        resultado.unwrap_or_else(|erro| {
             self.ligado.set(false);
+            self.anotar(FalhaDoIndice::Banco(erro));
             padrao
         })
     }

@@ -14,7 +14,7 @@ use crate::colheita_do_controle::Colheita;
 use crate::formulario_web::{
     ErroSubmissaoFormulario, TelaServida, derivar_submissao, derivar_submissao_guardada,
 };
-use crate::indice_local::{IndiceLocal, unidade_dos_links, url_da_entrada_por_id};
+use crate::indice_local::{AceiteDaEntrada, IndiceLocal, unidade_dos_links, url_da_entrada_por_id};
 use crate::instalacao::Instalacao;
 use crate::pagina_do_controle::codificacao_da_tela;
 use crate::pesquisa_web::erro_busca::ErroBuscaDeProcesso;
@@ -160,17 +160,15 @@ pub(super) fn abrir_processo<V: EnvioDoProcesso>(
     let (arvore_lida, unidade, resolvido_por) = aberto;
     // Cada anexado da árvore conferida: par NUP ↔ id aprendido sem requisição.
     for anexado in &arvore_lida.arvore.anexados {
-        let _ = contexto
+        contexto
             .indice
             .registrar_processo(&contexto.instalacao, &anexado.nup, &anexado.id);
     }
     // Aberto um anexado: o pai e o link dele, para o passo 1b.
     if let Some(pai) = &arvore_lida.arvore.anexado_a {
-        let _ = contexto.indice.registrar_processo(
-            &contexto.instalacao,
-            &pai.numero,
-            &pai.id_procedimento,
-        );
+        contexto
+            .indice
+            .registrar_processo(&contexto.instalacao, &pai.numero, &pai.id_procedimento);
         contexto.aprender_link(
             AcaoDoSei::ProcedimentoTrabalhar,
             &pai.id_procedimento,
@@ -180,7 +178,7 @@ pub(super) fn abrir_processo<V: EnvioDoProcesso>(
     // Cada movido com destino conferido: o par e o link assinado do destino.
     let destinos = arvore_lida.arvore.documentos_movidos.iter();
     for destino in destinos.filter_map(|m| m.destino.as_ref()) {
-        let _ = contexto.indice.registrar_processo(
+        contexto.indice.registrar_processo(
             &contexto.instalacao,
             &destino.numero,
             &destino.id_procedimento,
@@ -202,7 +200,7 @@ fn entrada_por_id<V: EnvioDoProcesso>(contexto: &Contexto<'_>, rede: &mut Rede<'
     let Some(id) = contexto.indice.id_por_nup(instalacao, contexto.nup) else {
         return Ok(None);
     };
-    if contexto.indice.entrada_por_id(instalacao) == Some(false) {
+    if contexto.indice.entrada_por_id(instalacao) == Some(AceiteDaEntrada::Recusada) {
         return Ok(None);
     }
     let Some(url) = url_da_entrada_por_id(instalacao, &id) else {

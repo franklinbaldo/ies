@@ -397,10 +397,8 @@ fn redirect_para_o_login_e_sessao_encerrada_e_tipo_fora_da_lista_e_recusado() {
 fn externo_pelo_link_da_arvore_guardado_em_duas() {
     let amb = ambiente();
     let (inst, g) = (instalacao(), geracao());
-    amb.indice.registrar_processo(&inst, NUP, ID).unwrap();
-    amb.indice
-        .registrar_documentos(&inst, ID, &[(DOC, ID_DOC)])
-        .unwrap();
+    amb.indice.registrar_processo(&inst, NUP, ID);
+    amb.indice.registrar_documentos(&inst, ID, &[(DOC, ID_DOC)]);
     amb.indice
         .registrar_link(
             &inst,

@@ -5,7 +5,7 @@
 //! (processo-obter-propriedades.md) e marcadores
 //! (processo-obter-marcadores.md). Nunca URL, hash ou HTML.
 use crate::arvore_processo::{PastaNaArvore, VerificacaoDaPasta};
-use crate::indice_local::IndiceLocal;
+use crate::indice_local::{self, IndiceLocal};
 use crate::processo::NumeroProcesso;
 use crate::processo_obter::{
     Andamentos, ErroProcessoObter, Marcadores, PedidoDeAndamentos, PedidoDoProcesso,
@@ -269,9 +269,11 @@ fn obter(cli: &Cli, comando: &Processo, nup: &NumeroProcesso) -> anyhow::Result<
         unidade_exigida: false,
         leitura_das_pastas: crate::processo_obter::LeituraDasPastas::Informativa,
     };
-    // Cada tentativa relê a sessão e o índice: depois do relogin, a nova.
+    let indice = IndiceLocal::da_configuracao(&arquivos);
+    // Cada tentativa relê a sessão: depois do relogin, a nova.
     let (mut aberto, nota) = relogin_cli::ler(
         &arquivos,
+        &indice,
         cli.unidade.as_deref(),
         ErroProcessoObter::sessao_encerrada,
         || {
@@ -286,7 +288,6 @@ fn obter(cli: &Cli, comando: &Processo, nup: &NumeroProcesso) -> anyhow::Result<
                 origem: referencias.origem(),
                 cookie: referencias.cookie(),
             };
-            let indice = IndiceLocal::da_configuracao(&arquivos);
             crate::processo_obter::consulta_parcial::obter_processo_informativo(
                 &sessao,
                 &pedido,
@@ -302,9 +303,11 @@ fn obter(cli: &Cli, comando: &Processo, nup: &NumeroProcesso) -> anyhow::Result<
     if cli.json {
         let mut valor = json_do_processo(nup, &aberto, comando.sem_documentos);
         relogin_cli::anotar(&mut valor, nota.as_ref());
+        indice_local::anexar_avisos(&mut valor, &indice);
         println!("{}", serde_json::to_string_pretty(&valor)?);
     } else {
         relogin_cli::avisar(cli.json, nota.as_ref());
+        indice_local::avisar_no_texto(&indice);
         println!("{}", humano(nup, &aberto, comando.sem_documentos));
     }
     Ok(())

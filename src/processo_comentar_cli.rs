@@ -39,18 +39,17 @@ pub(crate) fn tentar_comentar(cli: &Cli) -> Option<anyhow::Result<()>> {
             &mut EnvioHttps,
         )?;
         if cli.json {
-            println!(
-                "{}",
-                json!({
-                    "nup": preview.numero,
-                    "id_procedimento": preview.id_procedimento,
-                    "texto": preview.texto,
-                    "confirmado": preview.confirmado,
-                    "alterado": preview.confirmado,
-                    "origem": "web",
-                    "requisicoes": preview.requisicoes,
-                })
-            );
+            let mut valor = json!({
+                "nup": preview.numero,
+                "id_procedimento": preview.id_procedimento,
+                "texto": preview.texto,
+                "confirmado": preview.confirmado,
+                "alterado": preview.confirmado,
+                "origem": "web",
+                "requisicoes": preview.requisicoes,
+            });
+            crate::indice_local::anexar_avisos(&mut valor, indice);
+            println!("{valor}");
         } else if preview.confirmado {
             println!(
                 "Comentário confirmado por releitura no processo {}. Requisições: {}.",

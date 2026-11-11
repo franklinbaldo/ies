@@ -325,16 +325,15 @@ pub(super) fn confirmar(
         match executar(cli, sessao, indice, numero, previa) {
             Resultado::Confirmado(versao) => {
                 if cli.json {
-                    println!(
-                        "{}",
-                        json!({
-                            "documento": numero.as_str(),
-                            "confirmado": true,
-                            "versao_criada": versao,
-                            "releitura_confirmada": true,
-                            "assinaturas_apos": 0
-                        })
-                    );
+                    let mut valor = json!({
+                        "documento": numero.as_str(),
+                        "confirmado": true,
+                        "versao_criada": versao,
+                        "releitura_confirmada": true,
+                        "assinaturas_apos": 0
+                    });
+                    crate::indice_local::anexar_avisos(&mut valor, indice);
+                    println!("{valor}");
                 } else {
                     println!(
                         "IES: documento {} salvo na versão {versao}, conferida por releitura.",

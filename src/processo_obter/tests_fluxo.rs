@@ -124,7 +124,7 @@ fn caminho_3_pesquisa_rapida_guardada() {
 fn caminho_2_entrada_por_id_registra_o_aceite() {
     let amb = ambiente();
     let inst = instalacao();
-    amb.indice.registrar_processo(&inst, NUP, ID).unwrap();
+    amb.indice.registrar_processo(&inst, NUP, ID);
     let (r, pedidos) = rodar(
         &amb,
         None,
@@ -143,14 +143,17 @@ fn caminho_2_entrada_por_id_registra_o_aceite() {
             get(&url_arvore(ID))
         ]
     );
-    assert_eq!(amb.indice.entrada_por_id(&inst), Some(true));
+    assert_eq!(
+        amb.indice.entrada_por_id(&inst),
+        Some(crate::indice_local::AceiteDaEntrada::Aceita)
+    );
 }
 
 #[test]
 fn caminho_1_link_da_arvore_numa_requisicao_sem_unidade() {
     let amb = ambiente();
     let (inst, g) = (instalacao(), geracao());
-    amb.indice.registrar_processo(&inst, NUP, ID).unwrap();
+    amb.indice.registrar_processo(&inst, NUP, ID);
     amb.indice
         .registrar_link(
             &inst,
@@ -185,7 +188,7 @@ fn segunda_execucao_na_mesma_sessao_custa_uma_requisicao() {
 fn com_unidade_o_link_da_arvore_e_pulado() {
     let amb = ambiente();
     let (inst, g) = (instalacao(), geracao());
-    amb.indice.registrar_processo(&inst, NUP, ID).unwrap();
+    amb.indice.registrar_processo(&inst, NUP, ID);
     amb.indice
         .registrar_link(
             &inst,

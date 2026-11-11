@@ -139,7 +139,15 @@ fn previsualizar(
     } else {
         tela
     };
-    publicar_previa(cli, nup, pedido, &aberto, &tela, rede.feitas(), confirmar);
+    publicar_previa(
+        cli,
+        nup,
+        pedido,
+        (&aberto, indice),
+        &tela,
+        rede.feitas(),
+        confirmar,
+    );
     Ok(())
 }
 
@@ -148,7 +156,7 @@ fn publicar_previa(
     cli: &Cli,
     nup: &NumeroProcesso,
     pedido: &PedidoDePrazo,
-    aberto: &ProcessoAberto,
+    (aberto, indice): (&ProcessoAberto, &IndiceLocal),
     tela: &TelaDoPrazo,
     requisicoes: u8,
     confirmado: bool,
@@ -188,6 +196,7 @@ fn publicar_previa(
         }
     }
     if cli.json {
+        crate::indice_local::anexar_avisos(&mut resultado, indice);
         println!("{resultado}");
     } else {
         println!("Processo {} — prazo atual: {}", nup.as_str(), atual);

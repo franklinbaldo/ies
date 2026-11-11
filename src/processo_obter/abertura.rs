@@ -95,10 +95,11 @@ impl Contexto<'_> {
         })
     }
 
-    /// Guarda o link sem editar; recusa do índice é ignorada (ADR 0003).
+    /// Guarda o link sem editar; a recusa do índice não para o comando e
+    /// fica nos avisos (ADR 0003).
     pub(super) fn aprender_link(&self, acao: AcaoDoSei, objeto: &str, url: &str) {
         if let Some(chave) = self.chave(acao, objeto) {
-            let _ = self.indice.registrar_link(&self.instalacao, chave, url);
+            self.indice.guardar_link(&self.instalacao, chave, url);
         }
     }
 
@@ -119,9 +120,8 @@ impl Contexto<'_> {
             .iter()
             .filter_map(|d| Some((d.numero_sei.as_deref()?, d.id.as_str())))
             .collect();
-        let _ =
-            self.indice
-                .registrar_documentos(&self.instalacao, &arvore.processo.id, &documentos);
+        self.indice
+            .registrar_documentos(&self.instalacao, &arvore.processo.id, &documentos);
     }
 
     /// O `action` da pesquisa rápida publicado nesta tela, se houver.
@@ -428,7 +428,7 @@ pub(super) fn concluir(
     url_da_arvore: &str,
 ) {
     let id = &arvore.processo.id;
-    let _ = contexto
+    contexto
         .indice
         .registrar_processo(&contexto.instalacao, contexto.nup, id);
     if let Some(trabalho) = trabalho {
