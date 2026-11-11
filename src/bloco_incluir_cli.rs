@@ -1,8 +1,13 @@
 //! CLI de `ies bloco incluir BLOCO --documento DOC | --processo NUP [--confirmar]`
 //! (#381; contracts/cli/bloco-incluir.md). BDD-381-01/02: prévia e confirmação
-//! causal documental; `--processo` permanece não implementado.
+//! causal documental e BDD-381-04: prévia processual sem escrita.
 //! Erros sobem até o `main` (#695).
 use crate::bloco_incluir::{PedidoDaInclusao, PreviaDocumental, prever_documento};
+use crate::bloco::TipoBloco;
+use crate::bloco_cli::{FalhaLeitura, Leitura, ler_bloco_por_numero_via};
+use crate::processo::{NumeroProcesso, NumeroProcessoInvalido};
+use crate::processo_concluir::escrita::{Contador, leitura};
+use crate::processo_obter::{ErroProcessoObter, obter_processo};
 use crate::documento::NumeroDocumento;
 use crate::indice_local::IndiceLocal;
 use crate::processo_obter::SessaoDoProcesso;
@@ -25,8 +30,11 @@ pub(crate) fn executar(
     processo: Option<&str>,
     confirmar: bool,
 ) -> anyhow::Result<()> {
-    if processo.is_some() {
-        return Err(AindaNaoImplementado::InclusaoDeProcesso.into());
+    if let Some(nup) = processo {
+        if confirmar {
+            return Err(AindaNaoImplementado::InclusaoDeProcesso.into());
+        }
+        return prever_processo(cli, bloco, nup);
     }
     let documento = documento.ok_or(AindaNaoImplementado::InclusaoDeProcesso)?;
     let arquivos = configuracao::arquivos_de_acesso()?;
@@ -96,4 +104,81 @@ fn publicar(json_mode: bool, previa: &PreviaDocumental) {
             previa.documento, previa.bloco, previa.requisicoes
         );
     }
+}
+
+/// Causas tipadas de prévia processual, sem novo catálogo de subcódigos.
+#[derive(Debug, thiserror::Error)]
+#[error("{self:?}")]
+enum ErroPreviaProcessual {
+    Nup(#[from] NumeroProcessoInvalido),
+    Bloco(#[from] FalhaLeitura),
+    Processo(#[from] ErroProcessoObter),
+    TipoInadequado,
+    PertencimentoNaoComprovado,
+    IdentidadeDoProcessoDivergente,
+}
+
+/// Primeira fatia do processo: apenas leitura do bloco e abertura do NUP.
+/// A confirmação permanece bloqueada até BDD-381-05.
+fn prever_processo(cli: &Cli, bloco: &str, nup_bruto: &str) -> anyhow::Result<()> {
+    let nup = NumeroProcesso::novo(nup_bruto)?;
+    let arquivos = configuracao::arquivos_de_acesso()?;
+    let referencias =
+        ReferenciasDaSessao::ler(&arquivos.url_controle, &arquivos.origem, &arquivos.cookie)?;
+    let sessao = SessaoDoProcesso {
+        url_do_controle: referencias.url_do_controle(),
+        origem: referencias.origem(),
+        cookie: referencias.cookie(),
+    };
+    let mut envio = EnvioHttps;
+    let mut rede = Contador::novo(&mut envio);
+    let lido = ler_bloco_por_numero_via(
+        &referencias,
+        cli.unidade.as_deref(),
+        bloco,
+        &mut rede,
+    )?;
+    let Leitura::Detalhe(detalhe) = lido.leitura else {
+        unreachable!("número identifica detalhe");
+    };
+    if !matches!(detalhe.tipo, TipoBloco::Interno | TipoBloco::Reuniao) {
+        return Err(ErroPreviaProcessual::TipoInadequado.into());
+    }
+    let aberto = obter_processo(
+        &sessao,
+        &leitura(&nup, cli.unidade.as_deref(), false),
+        &IndiceLocal::da_configuracao(&arquivos),
+        &mut rede,
+    )?;
+    if aberto.arvore.processo.nup != nup.as_str() {
+        return Err(ErroPreviaProcessual::IdentidadeDoProcessoDivergente.into());
+    }
+    let presente = detalhe.itens.iter().any(|item| item.processo == nup.as_str());
+    if !presente && detalhe.itens.len() != detalhe.total_declarado {
+        return Err(ErroPreviaProcessual::PertencimentoNaoComprovado.into());
+    }
+    if cli.json {
+        println!("{}", json!({
+            "bloco": bloco,
+            "tipo_bloco": detalhe.tipo.rotulo(),
+            "alvo": {"processo": nup.as_str()},
+            "confirmado": false,
+            "alterado": false,
+            "presente_antes": presente,
+            "presente_depois": null,
+            "origem": "web",
+            "requisicoes": rede.feitas(),
+        }));
+    } else if presente {
+        println!(
+            "Processo {} já está no bloco {} ({}); nenhuma inclusão necessária. Requisições: {}",
+            nup.as_str(), bloco, detalhe.tipo.rotulo(), rede.feitas()
+        );
+    } else {
+        println!(
+            "Prévia: processo {} ausente do bloco {} ({}). Para incluir, repita com --confirmar quando a confirmação estiver disponível. Requisições: {}",
+            nup.as_str(), bloco, detalhe.tipo.rotulo(), rede.feitas()
+        );
+    }
+    Ok(())
 }
