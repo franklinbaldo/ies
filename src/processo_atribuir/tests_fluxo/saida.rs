@@ -83,7 +83,7 @@ fn redirect_historico_sem_id_expoe_incerteza_em_vez_de_confirmacao() {
             ErroProcessoAtribuir::NaoConfirmadoNaAtribuicao {
                 falha_do_envio: None,
                 leitura: None,
-                atribuicao_relida: Some(usuario.unwrap_or("").to_owned()),
+                atribuicao_relida: Ok(usuario.unwrap_or("").to_owned()),
                 requisicoes: 6
             }
         );

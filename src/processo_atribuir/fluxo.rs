@@ -49,10 +49,21 @@ pub(crate) struct ProcessoAtribuido {
 pub(crate) enum ErroProcessoAtribuir {
     Abertura(#[from] ErroProcessoObter),
     UnidadeDaSessaoNaoPublicada,
-    SituacaoDaAtribuicaoNaoObservada {
+    /// A árvore publicou outras unidades, mas não a da sessão autenticada.
+    UnidadeNaoPublicadaNaArvore {
         unidade: String,
-        aberto_em: Option<Vec<String>>,
-        motivo: Option<&'static str>,
+        unidades_da_arvore: Vec<String>,
+        requisicoes: u8,
+    },
+    /// A árvore está sobrestada e não publica a situação da unidade.
+    ArvoreSobrestadaSemSituacaoDaUnidade {
+        unidade: String,
+        requisicoes: u8,
+    },
+    /// A árvore não foi lida, e o motivo da leitura fica registrado.
+    SituacaoDaArvoreNaoLida {
+        unidade: String,
+        motivo: &'static str,
         requisicoes: u8,
     },
     AtribuicaoNaoOferecidaNaBarra,
@@ -64,10 +75,19 @@ pub(crate) enum ErroProcessoAtribuir {
     OrigemNaoAutorizada,
     Preparacao(#[from] ErroAtribuir),
     Formulario(#[from] ErroSubmissaoFormulario),
+    /// A releitura da árvore não leu a unidade da sessão.
+    ReleituraNaoLida {
+        requisicoes: u8,
+    },
+    /// A releitura da árvore mostrou outro processo.
+    ReleituraDeOutroProcesso {
+        requisicoes: u8,
+    },
     NaoConfirmadoNaAtribuicao {
         falha_do_envio: Option<Box<ErroSubmissaoFormulario>>,
         leitura: Option<Box<ErroProcessoObter>>,
-        atribuicao_relida: Option<String>,
+        /// `Ok(login)` (vazio = remoção observada) ou o motivo da releitura.
+        atribuicao_relida: Result<String, Box<ErroProcessoAtribuir>>,
         requisicoes: u8,
     },
 }
@@ -86,9 +106,7 @@ pub(crate) fn executar_previa<V: EnvioDoProcesso>(
         .unidade
         .as_deref()
         .ok_or(ErroProcessoAtribuir::UnidadeDaSessaoNaoPublicada)?;
-    let atual = atribuicao_observada(&aberto.arvore.aberto_em, unidade).ok_or_else(|| {
-        diagnostico_unidade_nao_observada(&aberto.arvore.aberto_em, unidade, rede.feitas())
-    })?;
+    let atual = situacao_da_unidade(&aberto.arvore.aberto_em, unidade, rede.feitas())?;
     // A árvore já informa quando a operação não alteraria nada.
     // Rejeitar antes de abrir o formulário evita um GET desnecessário,
     // inclusive nas confirmações injetáveis, sem mudar o estado remoto.
@@ -126,7 +144,7 @@ pub(crate) fn executar_previa<V: EnvioDoProcesso>(
         &aberto.arvore.processo.id,
         unidade,
         pedido.usuario,
-        Some(atual),
+        atual,
     )?;
     let mut feito = ProcessoAtribuido {
         nup: pedido.nup.as_str().to_owned(),
@@ -172,26 +190,14 @@ pub(crate) fn executar_previa<V: EnvioDoProcesso>(
     };
 
     // A leitura de prova faz GET novo, nunca reutiliza o estado anterior.
-    let verificado = obter_processo(
-        sessao,
-        &leitura(pedido.nup, pedido.unidade, false),
-        indice,
-        &mut rede,
-    );
+    let (atribuicao_relida, leitura) = reler_situacao(sessao, pedido, indice, &mut rede, &feito);
     feito.requisicoes = rede.feitas();
-    let (atribuicao_relida, leitura) = match verificado {
-        Ok(lido) if lido.arvore.processo.id == feito.id_procedimento => (
-            atribuicao_observada(&lido.arvore.aberto_em, &feito.unidade).map(str::to_owned),
-            None,
-        ),
-        Ok(_) => (None, None),
-        Err(erro) => (None, Some(erro)),
-    };
     // A unidade precisa estar publicada: ausência da unidade NÃO significa
     // remoção da atribuição. Divergência após POST é efeito incerto (3).
-    if !resposta_permite_confirmar
-        || atribuicao_relida.as_deref() != Some(pedido.usuario.unwrap_or(""))
-    {
+    let confirmada = atribuicao_relida
+        .as_ref()
+        .is_ok_and(|relida| relida.as_str() == pedido.usuario.unwrap_or(""));
+    if !resposta_permite_confirmar || !confirmada {
         return Err(ErroProcessoAtribuir::NaoConfirmadoNaAtribuicao {
             falha_do_envio: falha_do_envio.map(Box::new),
             leitura: leitura.map(Box::new),
@@ -203,37 +209,79 @@ pub(crate) fn executar_previa<V: EnvioDoProcesso>(
     Ok(feito)
 }
 
-/// Falhar fechado: a unidade da tela não pode ser substituída por uma
-/// unidade da árvore. O diagnóstico só informa os fatos que foram lidos.
-fn diagnostico_unidade_nao_observada(
-    aberto_em: &AbertoEm,
-    unidade: &str,
-    requisicoes: u8,
-) -> ErroProcessoAtribuir {
-    let (siglas, motivo) = match aberto_em {
-        AbertoEm::Unidades(unidades) => (
-            Some(unidades.iter().map(|u| u.sigla.clone()).collect()),
+/// Relê o processo depois do POST e devolve a situação da unidade da sessão,
+/// ou o motivo de não ter sido possível lê-la.
+fn reler_situacao<V: EnvioDoProcesso>(
+    sessao: &SessaoDoProcesso<'_>,
+    pedido: &PedidoDaAtribuicao<'_>,
+    indice: &IndiceLocal,
+    rede: &mut Contador<'_, V>,
+    feito: &ProcessoAtribuido,
+) -> (
+    Result<String, Box<ErroProcessoAtribuir>>,
+    Option<ErroProcessoObter>,
+) {
+    let verificado = obter_processo(
+        sessao,
+        &leitura(pedido.nup, pedido.unidade, false),
+        indice,
+        rede,
+    );
+    // A contagem inclui o GET de prova, feito mesmo quando a releitura falha.
+    let requisicoes = rede.feitas();
+    match verificado {
+        Ok(lido) if lido.arvore.processo.id == feito.id_procedimento => (
+            situacao_da_unidade(&lido.arvore.aberto_em, &feito.unidade, requisicoes)
+                .map(str::to_owned)
+                .map_err(Box::new),
             None,
         ),
-        AbertoEm::Sobrestado(_) => (None, Some("raiz_publica_o_sobrestamento")),
-        AbertoEm::NaoLido(motivo) => (None, Some(motivo.como_texto())),
-    };
-    ErroProcessoAtribuir::SituacaoDaAtribuicaoNaoObservada {
-        unidade: unidade.to_owned(),
-        aberto_em: siglas,
-        motivo,
-        requisicoes,
+        Ok(_) => (
+            Err(Box::new(ErroProcessoAtribuir::ReleituraDeOutroProcesso {
+                requisicoes,
+            })),
+            None,
+        ),
+        Err(erro) => (
+            Err(Box::new(ErroProcessoAtribuir::ReleituraNaoLida {
+                requisicoes,
+            })),
+            Some(erro),
+        ),
     }
 }
 
-/// None significa que a árvore não publicou a situação da unidade.
-fn atribuicao_observada<'a>(aberto_em: &'a AbertoEm, unidade: &str) -> Option<&'a str> {
+/// Falhar fechado: a unidade da tela não pode ser substituída por uma
+/// unidade da árvore. Cada causa de ausência tem o seu erro tipado.
+fn situacao_da_unidade<'a>(
+    aberto_em: &'a AbertoEm,
+    unidade: &str,
+    requisicoes: u8,
+) -> Result<&'a str, ErroProcessoAtribuir> {
     match aberto_em {
-        AbertoEm::Unidades(unidades) => unidades
-            .iter()
-            .find(|u| u.sigla == unidade)
-            .map(|u| u.atribuido_a.as_ref().map_or("", |a| a.sigla.as_str())),
-        AbertoEm::Sobrestado(_) | AbertoEm::NaoLido(_) => None,
+        AbertoEm::Unidades(unidades) => {
+            let achada = unidades
+                .iter()
+                .find(|u| u.sigla == unidade)
+                .ok_or_else(|| ErroProcessoAtribuir::UnidadeNaoPublicadaNaArvore {
+                    unidade: unidade.to_owned(),
+                    unidades_da_arvore: unidades.iter().map(|u| u.sigla.clone()).collect(),
+                    requisicoes,
+                })?;
+            // Unidade sem atribuição é um fato publicado pela árvore, não ausência.
+            Ok(achada.atribuido_a.as_ref().map_or("", |a| a.sigla.as_str()))
+        }
+        AbertoEm::Sobrestado(_) => {
+            Err(ErroProcessoAtribuir::ArvoreSobrestadaSemSituacaoDaUnidade {
+                unidade: unidade.to_owned(),
+                requisicoes,
+            })
+        }
+        AbertoEm::NaoLido(motivo) => Err(ErroProcessoAtribuir::SituacaoDaArvoreNaoLida {
+            unidade: unidade.to_owned(),
+            motivo: motivo.como_texto(),
+            requisicoes,
+        }),
     }
 }
 

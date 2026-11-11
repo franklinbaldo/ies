@@ -37,9 +37,12 @@ pub(crate) enum FalhaDoPrazo {
     NaoConfirmado(Option<ErroSubmissaoFormulario>),
     /// O processo não oferece a leitura independente do prazo.
     LeituraIndependenteNaoOferecida,
-    /// O Controle da unidade não publicou a lista de prazos.
-    ListaDePrazosNaoPublicada,
+    /// O Controle da unidade não publicou um link de lista de prazos aceito.
+    LinkDaListaDePrazos(#[source] exclusao::ErroLinkDaLista),
+    /// A lista não traz o processo: não há controle a excluir.
     ProcessoForaDaListaDePrazos,
+    /// A unidade da sessão não foi publicada pela tela do processo.
+    UnidadeDaSessaoNaoPublicada,
     /// A lista de prazos fora da forma observada ou sem um único controle
     /// do processo.
     ListaDePrazos(#[source] exclusao::ErroListaDePrazos),
@@ -51,8 +54,10 @@ pub(crate) enum FalhaDoPrazo {
     ProcessoRelidoNaoAbriu(#[source] crate::processo_obter::ErroProcessoObter),
     /// O prazo relido depois do POST não tem forma legível.
     PrazoRelidoIlegivel(#[source] crate::processo_prazo::ErroPrazo),
-    /// A lista não publicou a ação de exclusão.
-    AcaoDeExclusaoNaoPublicada,
+    /// A lista não publicou uma ação de exclusão derivável.
+    AcaoDeExclusao(#[source] exclusao::ErroAcaoDeExclusao),
+    /// O link do prazo, relido depois do POST, não pôde ser lido.
+    LinkDePrazoRelidoIlegivel(#[source] crate::arvore_processo::ErroLinkPrazo),
 }
 
 pub(crate) fn tentar_prazo(cli: &Cli) -> Option<anyhow::Result<()>> {

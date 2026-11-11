@@ -50,9 +50,10 @@ antes da operação e ação oferecida. Informa `tipo_bloco`,
 `alvo`, `presente_antes` e a necessidade de inclusão, sem gravar.
 O item já comprovadamente presente tem resultado idempotente
 `alterado:false`, mesmo com `--confirmar`, sem POST/GET mutador.
-O item **não observado** não equivale a ausente: não declarar prévia
-de inclusão como se a lista estivesse vazia. Quando não se consegue
-verificar pertencimento, recusar a confirmação com motivo verificável.
+Quando o detalhe do bloco não é completo e não contém o alvo, o pertencimento
+não é verificável: a prévia e a confirmação falham com
+`DetalheIncompletoSemDocumento` (saída 1), sem escrita. Ausência
+não é afirmada a partir de lista parcial.
 
 A leitura `ies bloco N` é ampliada na mesma fatia de prévia
 processual para resolver detalhes de **assinatura, interno e reunião**
@@ -98,11 +99,12 @@ sem URLs assinadas, senhas, cookies ou `infra_hash`:
 {"bloco": "12", "tipo_bloco": "assinatura",
  "alvo": {"documento": "0011505"},
  "confirmado": false, "alterado": false,
- "presente_antes": false, "presente_depois": null}
+ "presente_antes": false, "presente_depois": false}
 ```
 
-Para processo, `alvo` traz `{"processo": "NUP"}`. `null` significa
-**não observado**. Com inclusão comprovada, `confirmado:true`,
+Para processo, `alvo` traz `{"processo": "NUP"}`. Todos os campos
+booleanos têm sempre valor; não há `null`. Sem escrita, `presente_depois`
+repete o pertencimento lido antes. Com inclusão comprovada, `confirmado:true`,
 `alterado:true`, `presente_depois:true` (releitura independente).
 Se já presente, `alterado:false` e nenhuma nova escrita. `confirmado`
 representa a solicitação do usuário; não é prova autônoma de efeito.
@@ -111,7 +113,8 @@ Na prévia, apresentar que a confirmação é necessária.
 Causas observáveis são erros tipados preservados até a
 fronteira (ADR 0005), sem catálogo/subcódigo novo: alvo ambiguamente
 identificado, bloco de tipo inadequado, item já presente, ação ou
-formulário não oferecido, recusa da instalação e leitura insuficiente.
+formulário não oferecido, recusa da instalação, leitura insuficiente
+(`DetalheIncompletoSemDocumento`) e processo sem pertencimento comprovado.
 Falha antes da escrita: saída 1, sem mutação. Após tentativa de
 escrita sem prova suficiente: **saída 1** com um erro tipado de
 efeito incerto (a confirmação documental corresponde ao BDD-381-02),

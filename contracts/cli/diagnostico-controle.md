@@ -32,7 +32,7 @@ hashes, URLs nem detalhes de outros usuários, somente
 `autenticacao_remota: nao_auditada`. Falhas (saída 1, stderr): o erro
 tipado da configuração ou do transporte e os erros de
 `FalhaControleWeb` (`ControleNaoReconhecido`,
-`IdentidadeUnidadeNaoObservada`, `UnidadeExibidaDiferenteDaSolicitada`),
+`IdentificacaoDaUnidadeAusenteNoControle`, `UnidadeExibidaDiferenteDaSolicitada`),
 sem classificar mensagens por regex.
 
 Isso não é login automático, teste de permissões para operações

@@ -40,7 +40,9 @@ pub(super) fn e_texto(mime: &str) -> bool {
 #[error("{self:?}")]
 pub(crate) enum ErroDisposicao {
     AspasSemFechamento,
-    TipoDeDisposicaoNaoObservado,
+    TipoDeDisposicaoNaoReconhecido,
+    NomeDeArquivoAusente,
+    NomeDeArquivoVazioAposSaneamento,
     ParametroSemIgual,
     NomeDeArquivoRepetido,
     NomeSimplesForaDaForma,
@@ -49,18 +51,18 @@ pub(crate) enum ErroDisposicao {
     /// O par hexadecimal não cabe num byte.
     ByteDoPercentualNaoRepresentavel(#[source] std::num::TryFromIntError),
     CharsetDoNomeEstendidoNaoAceito,
-    NomeEstendidoUtf8Invalido(#[source] std::string::FromUtf8Error),
+    NomeEstendidoUtf8Invalido(#[source] std::str::Utf8Error),
 }
 
 /// Disposição e nome original saneado.
-pub(super) fn ler_disposicao(valor: &str) -> Result<(Disposicao, Option<String>), ErroDisposicao> {
+pub(super) fn ler_disposicao(valor: &str) -> Result<(Disposicao, String), ErroDisposicao> {
     let partes = dividir(valor)?;
     let mut partes = partes.into_iter();
     let tipo = partes.next().unwrap_or_default();
     let disposicao = match tipo.trim().to_ascii_lowercase().as_str() {
         "inline" => Disposicao::Inline,
         "attachment" => Disposicao::Attachment,
-        _ => return Err(ErroDisposicao::TipoDeDisposicaoNaoObservado),
+        _ => return Err(ErroDisposicao::TipoDeDisposicaoNaoReconhecido),
     };
     let (mut simples, mut estendido) = (None, None);
     for parte in partes {
@@ -87,10 +89,11 @@ pub(super) fn ler_disposicao(valor: &str) -> Result<(Disposicao, Option<String>)
             estendido_rfc5987(valor)?
         });
     }
-    Ok((
-        disposicao,
-        estendido.or(simples).and_then(|n| sanear_nome(&n)),
-    ))
+    let nome = estendido
+        .or(simples)
+        .ok_or(ErroDisposicao::NomeDeArquivoAusente)?;
+    let nome = sanear_nome(&nome).ok_or(ErroDisposicao::NomeDeArquivoVazioAposSaneamento)?;
+    Ok((disposicao, nome))
 }
 
 /// Divide por `;` fora de aspas; aspas sem fim são recusa.
@@ -167,7 +170,8 @@ fn estendido_rfc5987(valor: &str) -> Result<String, ErroDisposicao> {
         }
     }
     match charset.to_ascii_lowercase().as_str() {
-        "utf-8" => String::from_utf8(bytes).map_err(ErroDisposicao::NomeEstendidoUtf8Invalido),
+        "utf-8" => String::from_utf8(bytes)
+            .map_err(|erro| ErroDisposicao::NomeEstendidoUtf8Invalido(erro.utf8_error())),
         "iso-8859-1" => Ok(bytes.into_iter().map(char::from).collect()),
         _ => Err(ErroDisposicao::CharsetDoNomeEstendidoNaoAceito),
     }

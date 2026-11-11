@@ -63,7 +63,7 @@ enum ErroSalvarNoSei {
     VersaoAlterada,
     BaseAlterada,
     /// A base não é UTF-8; guarda a causa da conversão.
-    BaseNaoUtf8(#[source] std::string::FromUtf8Error),
+    BaseNaoUtf8(#[source] std::str::Utf8Error),
     /// O número da versão seguinte não é válido; guarda a causa.
     ProximaVersaoInvalida(#[source] ErroVersao),
     /// O número da versão base não é válido; guarda a causa.
@@ -92,7 +92,9 @@ fn ler_par(
             ausente,
         )
         .map_err(ErroSalvarNoSei::Local)
-        .and_then(|bytes| String::from_utf8(bytes).map_err(ErroSalvarNoSei::BaseNaoUtf8))
+        .and_then(|bytes| {
+            String::from_utf8(bytes).map_err(|erro| ErroSalvarNoSei::BaseNaoUtf8(erro.utf8_error()))
+        })
     };
     Ok((
         ler(n, ErroCopia::BaseVersaoAusente)?,
@@ -349,7 +351,10 @@ pub(super) fn confirmar(
 
 #[cfg(test)]
 mod testes_moldura {
-    use super::corpos_da_edicao;
+    use super::{ErroSalvarNoSei, corpos_da_edicao, ler_par};
+    use crate::documento::NumeroDocumento;
+    use crate::documento_versoes::VersaoDocumento;
+    use std::error::Error;
 
     const BASE: &str = "<html><head><title>Documento</title></head><body><main id='corpoEditavel'><p>Antes</p></main><div>Versão 3</div></body></html>";
 
@@ -371,5 +376,41 @@ mod testes_moldura {
             corpos_da_edicao(BASE, &edicao),
             Ok(("<p>Antes</p>", "<p>Depois</p>"))
         ));
+    }
+
+    #[cfg(unix)]
+    #[test]
+    fn base_utf8_invalida_preserva_causa_sem_expor_conteudo_privado() {
+        use std::os::unix::fs::PermissionsExt;
+        use std::sync::atomic::{AtomicUsize, Ordering};
+
+        static PROXIMA: AtomicUsize = AtomicUsize::new(0);
+        let pasta = std::env::temp_dir().join(format!(
+            "ies-utf8-base-{}-{}",
+            std::process::id(),
+            PROXIMA.fetch_add(1, Ordering::Relaxed)
+        ));
+        std::fs::create_dir(&pasta).unwrap();
+        let numero = NumeroDocumento::novo("719").unwrap();
+        let arquivo = pasta.join("719.v1.html");
+        let sigilo = b"SIGILO_MINUTA_719_\xff";
+        std::fs::write(&arquivo, sigilo).unwrap();
+        std::fs::set_permissions(&arquivo, std::fs::Permissions::from_mode(0o600)).unwrap();
+
+        let erro = ler_par(&pasta, &numero, VersaoDocumento::nova(1).unwrap()).unwrap_err();
+        std::fs::remove_file(&arquivo).unwrap();
+        std::fs::remove_dir(&pasta).unwrap();
+
+        assert!(matches!(erro, ErroSalvarNoSei::BaseNaoUtf8(_)));
+        let fonte = erro.source().expect("fonte do UTF-8");
+        assert!(
+            fonte.is::<std::str::Utf8Error>(),
+            "a causa não deve reter o Vec privado"
+        );
+        let exibido = format!("{erro:?}\n{erro}\n{fonte:?}\n{fonte}");
+        assert!(
+            !exibido.contains(&format!("{sigilo:?}")) && !exibido.contains("SIGILO_MINUTA_719_"),
+            "nenhum formato público do erro deve conter bytes da minuta"
+        );
     }
 }

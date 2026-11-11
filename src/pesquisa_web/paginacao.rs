@@ -39,7 +39,10 @@ pub(crate) enum ErroPaginacaoDaPesquisa {
         solicitada: u32,
         paginas: u64,
     },
-    RegraDeNavegacaoDaPesquisaNaoObservada,
+    /// A resposta da página 1 não foi entregue para derivar a página N.
+    HtmlDaRespostaParaPaginarAusente,
+    /// O HTML recebido não contém as linhas literais de navegação (`navegar`).
+    RegraDeNavegacaoAusenteNoHtml,
     PaginadorDaPesquisaNaoPublicado,
     ProtocoloDaTelaDeResultadoDiferenteDoPesquisado,
     RedirecionamentoAoPaginarAPesquisa,
@@ -135,10 +138,9 @@ pub(crate) fn planejar_pagina_por(
     if u64::from(solicitada) > paginas {
         return Err(fora(paginas));
     }
-    let html =
-        html_da_resposta.ok_or(ErroPaginacaoDaPesquisa::RegraDeNavegacaoDaPesquisaNaoObservada)?;
+    let html = html_da_resposta.ok_or(ErroPaginacaoDaPesquisa::HtmlDaRespostaParaPaginarAusente)?;
     if !REGRA_DE_NAVEGAR.iter().all(|linha| html.contains(linha)) {
-        return Err(ErroPaginacaoDaPesquisa::RegraDeNavegacaoDaPesquisaNaoObservada);
+        return Err(ErroPaginacaoDaPesquisa::RegraDeNavegacaoAusenteNoHtml);
     }
     conferir_links_de_navegar(html, tamanho, total)?;
     let inicio = (u64::from(solicitada) - 1) * tamanho;

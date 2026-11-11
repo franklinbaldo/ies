@@ -49,7 +49,6 @@ pub(crate) enum ErroAtribuir {
     Atributo(#[source] crate::html_atributos::ErroAtributoHtml),
     UsuarioNaoAtribuivel,
     UsuarioAmbiguo,
-    SituacaoNaoObservada,
     AtribuicaoJaAplicada,
     CharsetDaTelaNaoSuportado,
     Formulario(#[from] ErroSubmissaoFormulario),
@@ -250,13 +249,12 @@ pub(crate) fn ler_tela(html: &str, id: &str) -> Result<TelaDaAtribuicao, ErroAtr
 }
 
 /// Valor exato da opção: nenhum POST é feito aqui.
-/// atual=None significa não observado, e não ausência de atribuição.
+/// `atual` é a situação já lida da árvore; quem a lê recusa antes de chegar aqui.
 pub(crate) fn planejar(
     tela: &TelaDaAtribuicao,
     login: Option<&str>,
-    atual: Option<&str>,
+    atual: &str,
 ) -> Result<String, ErroAtribuir> {
-    let atual = atual.ok_or(ErroAtribuir::SituacaoNaoObservada)?;
     let Some(login) = login else {
         if atual.is_empty() {
             return Err(ErroAtribuir::AtribuicaoJaAplicada);
@@ -285,7 +283,7 @@ pub(crate) fn preparar_submissao(
     id: &str,
     unidade: &str,
     login: Option<&str>,
-    atual: Option<&str>,
+    atual: &str,
 ) -> Result<(String, SubmissaoDerivada), ErroAtribuir> {
     let tela = ler_tela(servida.html, id)?;
     let valor = planejar(&tela, login, atual)?;

@@ -240,7 +240,7 @@ pub(crate) fn pesquisar_a_partir_do_controle_filtrado<A: AlvoDaPesquisa, V: Envi
     };
     // 4. POST de `navegar(inicio)` derivado da tela de resultado.
     let html = html.ok_or(ErroBuscaDeProcesso::Paginacao(
-        ErroPaginacaoDaPesquisa::RegraDeNavegacaoDaPesquisaNaoObservada,
+        ErroPaginacaoDaPesquisa::HtmlDaRespostaParaPaginarAusente,
     ))?;
     conferir_protocolo_servido(&html, termo)?;
     let tela_do_resultado = TelaAtual {

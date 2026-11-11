@@ -7,7 +7,7 @@ use serde_json::{Value, json};
 #[error("{self:?}")]
 pub(crate) enum FalhaControleWeb {
     ControleNaoReconhecido(ErroCaixa),
-    IdentidadeUnidadeNaoObservada,
+    IdentificacaoDaUnidadeAusenteNoControle,
     UnidadeExibidaDiferenteDaSolicitada,
 }
 /// A tela precisa conter Controle de Processos e unidade única, não apenas HTTP 200.
@@ -16,7 +16,7 @@ pub(crate) fn projetar(html: &str) -> Result<Value, FalhaControleWeb> {
     let unidade =
         crate::controle_reconhecido::unidade_do_controle(html).map_err(|erro| match erro {
             ErroCaixa::IdentificacaoDaUnidadeAusenteNoControle => {
-                FalhaControleWeb::IdentidadeUnidadeNaoObservada
+                FalhaControleWeb::IdentificacaoDaUnidadeAusenteNoControle
             }
             outro @ (ErroCaixa::TabelaAusente { .. }
             | ErroCaixa::TabelasDaCategoriaRepetidas { .. }
@@ -185,7 +185,7 @@ mod testes {
                     <table id='tblProcessosGerados'><caption>0 registros:</caption></table>";
         assert_eq!(
             projetar(html),
-            Err(FalhaControleWeb::IdentidadeUnidadeNaoObservada)
+            Err(FalhaControleWeb::IdentificacaoDaUnidadeAusenteNoControle)
         );
     }
 }

@@ -49,7 +49,7 @@ fn arvore(html: &str, interacao: &serde_json::Value, json: &serde_json::Value) -
     lida.documentos
         .iter()
         .map(|d| {
-            let icone = d.natureza.icone.as_deref().unwrap_or("?");
+            let icone = d.natureza.icone.as_str();
             let forma = match ler_conteudo_na_arvore(&instalacao, html, &d.id) {
                 Ok(ConteudoNaArvore::Visualizar(_)) => "documento_visualizar".to_owned(),
                 Ok(ConteudoNaArvore::DownloadDeAnexo(_)) => "documento_download_anexo".to_owned(),
