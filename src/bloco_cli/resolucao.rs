@@ -24,6 +24,7 @@ pub(crate) fn ler_bloco_por_numero_via<V: EnvioDoControle>(
     }
     let cookie = sessao.cookie().valor()?;
     let mut identidade: Option<(TipoBloco, String, String)> = None;
+    let mut lista_parcial_sem_numero = false;
     for tipo in [
         TipoBloco::Assinatura,
         TipoBloco::Interno,
@@ -53,10 +54,17 @@ pub(crate) fn ler_bloco_por_numero_via<V: EnvioDoControle>(
             )?;
             identidade = Some((tipo, url, item.estado.clone()));
         } else if lista.lista.itens.len() != lista.lista.total_declarado {
-            return Err(FalhaLeitura::ListaParcialNaoExcluiColisao);
+            lista_parcial_sem_numero = true;
         }
     }
-    let (tipo, url, estado) = identidade.ok_or(FalhaLeitura::BlocoNaoIdentificadoNasListas)?;
+    let Some((tipo, url, estado)) = identidade else {
+        // Respeita o contrato antigo: o número não foi observado na página.
+        return Err(ErroBloco::BlocoNaoEncontradoNaPagina.into());
+    };
+    if lista_parcial_sem_numero {
+        // Encontrar em A não exclui que a parte não lida de B também o tenha.
+        return Err(FalhaLeitura::ListaParcialNaoExcluiColisao);
+    }
     requisicoes += 1;
     let resposta = envio.get(&url, cookie)?;
     let html = transporte::decodificar_resposta(resposta)?;
