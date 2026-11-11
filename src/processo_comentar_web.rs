@@ -109,7 +109,22 @@ pub(crate) struct Previa {
     pub(crate) confirmado: bool,
 }
 
-/// Encontra exatamente um link de Novo Comentário publicado no HTML da lista.
+/// Verdadeiro se a URL é a ação `comentario_cadastrar` (campo exato da consulta).
+fn e_link_do_cadastro(url: &str) -> bool {
+    url.split(['?', '&'])
+        .any(|campo| campo == "acao=comentario_cadastrar")
+}
+
+/// O `onclick` que o SEI publica no botão Novo: exatamente `location.href='<url>'`.
+fn url_do_botao_de_cadastro(onclick: &str) -> Option<&str> {
+    let url = onclick
+        .strip_prefix("location.href='")?
+        .strip_suffix('\'')?;
+    e_link_do_cadastro(url).then_some(url)
+}
+
+/// Encontra exatamente um link de Novo Comentário publicado no HTML da lista,
+/// seja `<a href>` seja `<button onclick="location.href='…'">`.
 /// A URL é conferida pela política canônica do controlador e pela identidade.
 fn link_do_cadastro(instalacao: &Instalacao, html: &str, id: &str) -> Result<String, ErroComentar> {
     let fora = || ErroComentar::ListaForaDaForma;
@@ -126,11 +141,23 @@ fn link_do_cadastro(instalacao: &Instalacao, html: &str, id: &str) -> Result<Str
             .map_err(ErroComentar::AtributoDaLinkIlegivel)?;
         if let Some(href) = href {
             let href = decodificar_atributo(href).ok_or_else(fora)?;
-            if href
-                .split(['?', '&'])
-                .any(|campo| campo == "acao=comentario_cadastrar")
-            {
+            if e_link_do_cadastro(&href) {
                 links.push(href);
+            }
+        }
+    }
+    for no in dom.query_selector("button").into_iter().flatten() {
+        let tag = no
+            .get(dom.parser())
+            .and_then(tl::Node::as_tag)
+            .ok_or_else(fora)?;
+        let onclick = atributos(tag)
+            .and_then(|a| a.valor("onclick"))
+            .map_err(ErroComentar::AtributoDaLinkIlegivel)?;
+        if let Some(onclick) = onclick {
+            let onclick = decodificar_atributo(onclick).ok_or_else(fora)?;
+            if let Some(url) = url_do_botao_de_cadastro(&onclick) {
+                links.push(url.to_owned());
             }
         }
     }
@@ -292,3 +319,8 @@ pub(crate) fn prever<V: EnvioDoProcesso>(
         confirmado: confirmar_escrita,
     })
 }
+
+#[cfg(test)]
+mod acervo;
+#[cfg(test)]
+mod tests;

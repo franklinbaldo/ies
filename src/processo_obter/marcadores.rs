@@ -9,16 +9,18 @@ use super::abertura::{ArvoreAberta, Contexto, Lida, Rede, fora_de_palpite};
 use super::{EnvioDoProcesso, ErroProcessoObter, Marcadores};
 use crate::acao_do_sei::AcaoDoSei;
 use crate::arvore_processo::endereco::conferir_endereco_relativo;
+use crate::instalacao::Instalacao;
 use crate::marcadores_processo::{MarcadoresLidos, TelaDosMarcadores, ler_marcadores};
 
 /// 302 para `andamento_marcador_cadastrar` assinado do mesmo processo:
-/// a tela não tem o que listar. Nunca é seguido.
-fn sem_marcadores(contexto: &Contexto<'_>, local: Option<&str>, id: &str) -> bool {
+/// a tela não tem o que listar. Nunca é seguido. Também usado pelo replay
+/// do acervo, sem cópia desta regra.
+pub(crate) fn sem_marcadores(instalacao: &Instalacao, local: Option<&str>, id: &str) -> bool {
     let Some(local) = local else { return false };
-    let base = format!("{}/", contexto.instalacao.url_base());
+    let base = format!("{}/", instalacao.url_base());
     let relativo = local.strip_prefix(base.as_str()).unwrap_or(local);
     conferir_endereco_relativo(
-        &contexto.instalacao,
+        instalacao,
         relativo,
         AcaoDoSei::AndamentoMarcadorCadastrar,
         id,
@@ -92,7 +94,9 @@ fn pelo_guardado<V: EnvioDoProcesso>(
             }
             Err(erro) => Err(ErroProcessoObter::Marcadores(erro)),
         },
-        Lida::Redirecionamento(local) if sem_marcadores(contexto, local.as_deref(), id) => {
+        Lida::Redirecionamento(local)
+            if sem_marcadores(&contexto.instalacao, local.as_deref(), id) =>
+        {
             Ok(Some((url, vazia())))
         }
         Lida::Login | Lida::Redirecionamento(_) => {
@@ -113,7 +117,9 @@ fn pelo_link_da_barra<V: EnvioDoProcesso>(
         Lida::Html { html, .. } => {
             ler_marcadores(&html, contexto.nup, id).map_err(ErroProcessoObter::Marcadores)
         }
-        Lida::Redirecionamento(local) if sem_marcadores(contexto, local.as_deref(), id) => {
+        Lida::Redirecionamento(local)
+            if sem_marcadores(&contexto.instalacao, local.as_deref(), id) =>
+        {
             Ok(vazia())
         }
         Lida::Redirecionamento(local) => Err(fora_de_palpite(local.as_deref())),

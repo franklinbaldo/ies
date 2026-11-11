@@ -44,15 +44,29 @@ const REMOVER: OperacaoDeFormulario = OperacaoDeFormulario {
     },
 };
 
-/// Extrai SOMENTE a URL literal assinada atribuída pelo handler da mesma tela.
-/// Não executa JS, não troca host, não cria destino a partir de padrões.
-fn action_de_remocao(html: &str, id: &str) -> Result<String, ErroMarcar> {
-    let script = html
+/// Corpo servido de `function acaoRemover(id,desc)`: do fim da assinatura até a
+/// próxima palavra `function` do script (ou o fim do script). Delimitado por
+/// `function` e não por chaves, porque o SEI põe `{`/`}` dentro de strings do
+/// corpo; a função seguinte, `acaoRemocaoMultipla`, atribui a mesma ação e
+/// não pertence a este corpo. Se o corpo cortar errado, a recusa é fechada:
+/// some a atribuição (Ausente) ou sobra outra (Ambigua).
+fn corpo_de_acao_remover(html: &str) -> Result<&str, ErroMarcar> {
+    let apos_assinatura = html
         .split_once("function acaoRemover(id,desc)")
         .ok_or(ErroMarcar::AcaoDeRemocaoAusente)?
         .1;
+    Ok(apos_assinatura
+        .split_once("function")
+        .map_or(apos_assinatura, |(corpo, _)| corpo))
+}
+
+/// Extrai SOMENTE a URL literal assinada atribuída pelo handler da mesma tela.
+/// Não executa JS, não troca host, não cria destino a partir de padrões.
+/// Exige exatamente uma atribuição de `action` dentro do corpo de `acaoRemover`.
+pub(super) fn action_de_remocao(html: &str, id: &str) -> Result<String, ErroMarcar> {
+    let corpo = corpo_de_acao_remover(html)?;
     let inicio = "document.getElementById('frmGerenciarMarcador').action='";
-    let url = script
+    let url = corpo
         .split_once(inicio)
         .ok_or(ErroMarcar::AcaoDeRemocaoAusente)?
         .1
@@ -62,13 +76,13 @@ fn action_de_remocao(html: &str, id: &str) -> Result<String, ErroMarcar> {
     if !html.contains(&format!("acaoRemover('{id}',")) || url.is_empty() {
         return Err(ErroMarcar::AcaoDeRemocaoAusente);
     }
-    if script.matches(inicio).count() != 1 {
+    if corpo.matches(inicio).count() != 1 {
         return Err(ErroMarcar::AcaoDeRemocaoAmbigua);
     }
     Ok(url.to_owned())
 }
 
-fn aceite_da_remocao(redir: &Redirecionamento302, id: &str) -> bool {
+pub(super) fn aceite_da_remocao(redir: &Redirecionamento302, id: &str) -> bool {
     let Some(consulta) = redir
         .localizacao()
         .and_then(|url| consulta_do_controlador(url, redir.url_do_envio()))
