@@ -33,6 +33,7 @@ pub(crate) enum FalhaDaConsulta {
     Transporte(#[from] FalhaTransporte),
     /// 200 sem `application/xml`/`text/xml` (tela de login, outra página).
     RespostaDoAutocompletarNaoXml,
+    AtributoDoItemIlegivel(#[from] crate::html_atributos::ErroAtributoHtml),
     RespostaDoAutocompletarForaDaFormaObservada,
     ParseDaRespostaDoAutocompletarFalhou(#[source] tl::ParseError),
 }
