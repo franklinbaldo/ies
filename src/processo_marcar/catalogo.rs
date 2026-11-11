@@ -163,7 +163,7 @@ fn submissao_cadastro<V: EnvioDoProcesso>(
         &ADICIONAR,
         &instalacao,
         &tela,
-        unidade,
+        Some(unidade),
         &[
             ("hdnIdMarcador", &rotulo.id),
             ("txaTexto", texto.unwrap_or("")),

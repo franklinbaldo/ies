@@ -359,7 +359,7 @@ fn confirmar_documento<V: EnvioDoProcesso>(
         &INCLUIR_DOCUMENTO,
         &instalacao,
         &servida,
-        "",
+        None,
         &[
             ("selBloco", bloco),
             (tela.nome_da_caixa, &aberto.id_documento),

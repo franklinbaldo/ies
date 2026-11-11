@@ -47,7 +47,7 @@ pub(crate) fn derivar_pagina(
         &OBTER_PAGINA_DO_CONTROLE,
         instalacao,
         tela,
-        unidade,
+        Some(unidade),
         &campos,
     )
     .map_err(ErroPaginaDoControle::Submissao)

@@ -144,8 +144,13 @@ impl<V: EnvioDoControle> Sessao<'_, V> {
             html: &tela.html,
             codificacao,
         };
-        let submissao =
-            derivar_submissao(operacao, self.instalacao, &servida, self.unidade, campos)?;
+        let submissao = derivar_submissao(
+            operacao,
+            self.instalacao,
+            &servida,
+            Some(self.unidade),
+            campos,
+        )?;
         let url = submissao.url().to_owned();
         let mime = RefCell::new(String::new());
         let envio = &mut *self.envio;

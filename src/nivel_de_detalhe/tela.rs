@@ -76,6 +76,7 @@ pub(crate) fn ler_nivel_de_detalhe(html: &str) -> Result<NivelDeDetalhe, ErroNiv
             ErroSubmissaoFormulario::AtributoHtml(falha) => E::AtributoHtml(falha),
             outro @ (ErroSubmissaoFormulario::EfeitoDaOperacaoNaoAvaliado
             | ErroSubmissaoFormulario::UnidadeDaTelaDiferenteDaSolicitada
+            | ErroSubmissaoFormulario::UnidadeNaoInformada
             | ErroSubmissaoFormulario::MetodoDoFormularioDiferenteDePost
             | ErroSubmissaoFormulario::EnctypeDoFormularioNaoUrlencoded
             | ErroSubmissaoFormulario::AcceptCharsetPublicadoNoFormulario

@@ -130,7 +130,7 @@ pub(crate) fn executar<V: EnvioDoProcesso>(
             &REGISTRAR_ANOTACAO,
             &instalacao,
             &servida,
-            "",
+            None,
             &[("txaDescricao", if remover { "" } else { texto })],
         )?;
         let mut enviada = false;

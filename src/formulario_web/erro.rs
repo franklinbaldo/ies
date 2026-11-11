@@ -7,6 +7,8 @@ use crate::transporte::{FalhaTransporte, FatoDaResposta, StatusHttpRecusado};
 pub(crate) enum ErroSubmissaoFormulario {
     EfeitoDaOperacaoNaoAvaliado,
     UnidadeDaTelaDiferenteDaSolicitada,
+    /// A tela exige conferir a unidade e nenhuma foi informada.
+    UnidadeNaoInformada,
     FormulariosComMesmoIdentificadorNaTela,
     MetodoDoFormularioDiferenteDePost,
     EnctypeDoFormularioNaoUrlencoded,
@@ -68,6 +70,7 @@ impl ErroSubmissaoFormulario {
             Self::Transporte(erro) => erro.sessao_encerrada(),
             Self::EfeitoDaOperacaoNaoAvaliado
             | Self::UnidadeDaTelaDiferenteDaSolicitada
+            | Self::UnidadeNaoInformada
             | Self::FormulariosComMesmoIdentificadorNaTela
             | Self::MetodoDoFormularioDiferenteDePost
             | Self::EnctypeDoFormularioNaoUrlencoded
@@ -107,6 +110,7 @@ impl ErroSubmissaoFormulario {
             Self::Transporte(falha) => falha.status_http(),
             Self::EfeitoDaOperacaoNaoAvaliado
             | Self::UnidadeDaTelaDiferenteDaSolicitada
+            | Self::UnidadeNaoInformada
             | Self::FormulariosComMesmoIdentificadorNaTela
             | Self::MetodoDoFormularioDiferenteDePost
             | Self::EnctypeDoFormularioNaoUrlencoded

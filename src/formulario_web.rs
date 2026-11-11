@@ -303,7 +303,7 @@ pub(crate) fn derivar_submissao(
     operacao: &OperacaoDeFormulario,
     instalacao: &Instalacao,
     tela: &TelaServida<'_>,
-    unidade_solicitada: &str,
+    unidade_solicitada: Option<&str>,
     campos: &[(&str, &str)],
 ) -> Result<SubmissaoDerivada, ErroSubmissaoFormulario> {
     derivar_submissao_com_action(operacao, instalacao, tela, unidade_solicitada, campos, None)
@@ -316,7 +316,7 @@ pub(crate) fn derivar_submissao_com_action(
     operacao: &OperacaoDeFormulario,
     instalacao: &Instalacao,
     tela: &TelaServida<'_>,
-    unidade_solicitada: &str,
+    unidade_solicitada: Option<&str>,
     campos: &[(&str, &str)],
     url_declarada: Option<&str>,
 ) -> Result<SubmissaoDerivada, ErroSubmissaoFormulario> {

@@ -287,7 +287,7 @@ fn executar(
             html: &editor,
             codificacao: CodificacaoDaTela::Utf8,
         },
-        cli.unidade.as_deref().unwrap_or(""),
+        cli.unidade.as_deref(),
         &[("txaEditor_1", editada), ("confirmar_assinaturas", "1")],
     );
     let envio_unico = match envio_unico {

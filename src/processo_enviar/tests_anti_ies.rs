@@ -112,7 +112,8 @@ fn formulario_real_do_ies_tramita_e_confere_estado_do_anti_ies() {
     let escolhido = escolher_destino("DESTINO", &itens).unwrap();
     let campos = campos_do_envio(&tela, &escolhido, true, true);
     let pares: Vec<_> = campos.iter().map(|(k, v)| (*k, v.as_str())).collect();
-    let submissao = derivar_submissao(&ENVIAR_PROCESSO, &instalacao, &servida, "", &pares).unwrap();
+    let submissao =
+        derivar_submissao(&ENVIAR_PROCESSO, &instalacao, &servida, None, &pares).unwrap();
     let caminho = format!("/sei/{}", submissao.url().split_once("/sei/").unwrap().1);
     assert_eq!(ler(&banco, &origem, cenario, id).unwrap().unwrap(), antes);
     let corpo = String::from_utf8(submissao.corpo().to_vec()).unwrap();

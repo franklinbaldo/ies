@@ -112,7 +112,7 @@ pub(super) fn ler_pagina_dois<V: EnvioDoControle>(
         &PAGINAR_BLOCOS,
         instalacao,
         &tela,
-        "",
+        None,
         &[
             ("hdnInfraPaginaAtual", indice),
             ("selInfraPaginacaoSuperior", indice),
