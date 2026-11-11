@@ -208,6 +208,18 @@ enum RespostaDeReleitura {
     SemTabela,
 }
 
+fn resposta_injetada(resposta: RespostaDeReleitura) -> &'static [u8] {
+    match resposta {
+        RespostaDeReleitura::Http503 =>
+            b"HTTP/1.1 503 Service Unavailable\r\nContent-Length: 0\r\nConnection: close\r\n\r\n",
+        RespostaDeReleitura::Redirecionamento302 =>
+            b"HTTP/1.1 302 Found\r\nContent-Length: 0\r\nConnection: close\r\n\r\n",
+        RespostaDeReleitura::SemTabela =>
+            b"HTTP/1.1 200 OK\r\nContent-Type: text/html; charset=utf-8\r\nContent-Length: 13\r\nConnection: close\r\n\r\n<html></html>",
+        RespostaDeReleitura::Normal => unreachable!(),
+    }
+}
+
 fn executar_com_falha_modo(
     estado: EstadoInicial,
     confirmar: bool,
@@ -276,16 +288,7 @@ fn executar_com_resposta_modo(
             if interceptar {
                 leitura_interceptada = true;
                 eventos_proxy.lock().unwrap().push(evento);
-                let resposta: &[u8] = match resposta_na_releitura {
-                    RespostaDeReleitura::Http503 =>
-                        b"HTTP/1.1 503 Service Unavailable\r\nContent-Length: 0\r\nConnection: close\r\n\r\n",
-                    RespostaDeReleitura::Redirecionamento302 =>
-                        b"HTTP/1.1 302 Found\r\nContent-Length: 0\r\nConnection: close\r\n\r\n",
-                    RespostaDeReleitura::SemTabela =>
-                        b"HTTP/1.1 200 OK\r\nContent-Type: text/html; charset=utf-8\r\nContent-Length: 13\r\nConnection: close\r\n\r\n<html></html>",
-                    RespostaDeReleitura::Normal => unreachable!(),
-                };
-                canal.write_all(resposta).unwrap();
+                canal.write_all(resposta_injetada(resposta_na_releitura)).unwrap();
                 canal.flush().unwrap();
                 continue;
             }
