@@ -149,7 +149,10 @@ enum FalhaConfiguracaoLocal {
     // Só construída na conferência de permissões Unix.
     #[cfg(unix)]
     PermissoesAbertas,
-    LeituraFalhou,
+    /// Só Unix: o caminho passou a apontar para outro arquivo (inode ou
+    /// dispositivo) entre a abertura e a conferência.
+    #[cfg(unix)]
+    ArquivoTrocadoDuranteALeitura,
     /// Erro do sistema ao abrir, consultar ou ler o arquivo (o motivo).
     ErroDeIoNaLeitura(std::io::ErrorKind),
     JsonInvalido(serde_json::error::Category),
@@ -168,8 +171,11 @@ impl From<FalhaConfiguracaoLocal> for ErroConfiguracao {
             | FalhaConfiguracaoLocal::MetadadosNaoLidos
             | FalhaConfiguracaoLocal::NaoRegular
             | FalhaConfiguracaoLocal::AcimaDoLimite
-            | FalhaConfiguracaoLocal::LeituraFalhou
             | FalhaConfiguracaoLocal::ErroDeIoNaLeitura(_) => {
+                Self::ArquivoDeConfiguracaoNaoPodeSerLido
+            }
+            #[cfg(unix)]
+            FalhaConfiguracaoLocal::ArquivoTrocadoDuranteALeitura => {
                 Self::ArquivoDeConfiguracaoNaoPodeSerLido
             }
         }
@@ -227,7 +233,7 @@ fn ler_configuracao_local(
             || no_caminho.ino() != aberto.ino()
             || no_caminho.dev() != aberto.dev()
         {
-            return Err(FalhaConfiguracaoLocal::LeituraFalhou);
+            return Err(FalhaConfiguracaoLocal::ArquivoTrocadoDuranteALeitura);
         }
         if aberto.permissions().mode() & 0o077 != 0 {
             return Err(FalhaConfiguracaoLocal::PermissoesAbertas);
