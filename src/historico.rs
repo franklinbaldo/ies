@@ -130,14 +130,17 @@ pub fn ler_historico(html: &str, numero: &str) -> Result<DetalheProcesso, ErroHi
         if cells.is_empty() {
             continue;
         }
-        if cells.len() != 4 || cells[0].is_empty() || cells[3].is_empty() {
+        let Ok([ocorrido_em, unidade, usuario, descricao]) = <[String; 4]>::try_from(cells) else {
+            return Err(ErroHistorico::LinhaInvalida);
+        };
+        if ocorrido_em.is_empty() || descricao.is_empty() {
             return Err(ErroHistorico::LinhaInvalida);
         }
         detalhe.andamentos.push(Andamento {
-            ocorrido_em: Some(cells[0].clone()),
-            unidade: (!cells[1].is_empty()).then(|| cells[1].clone()),
-            usuario: (!cells[2].is_empty()).then(|| cells[2].clone()),
-            descricao: cells[3].clone(),
+            ocorrido_em: Some(ocorrido_em),
+            unidade: (!unidade.is_empty()).then_some(unidade),
+            usuario: (!usuario.is_empty()).then_some(usuario),
+            descricao,
         });
     }
     if detalhe.andamentos.is_empty() {

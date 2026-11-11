@@ -64,11 +64,10 @@ fn link_oferecido(
     if ocorrencias.next().is_some() {
         return Err(ErroValidacaoAcesso::ModalNaoReconhecida);
     }
-    let restante = &html[inicio..];
-    let fim = restante
-        .find('\'')
+    let (_, restante) = html.split_at(inicio);
+    let (relativo, _) = restante
+        .split_once('\'')
         .ok_or(ErroValidacaoAcesso::ModalNaoReconhecida)?;
-    let relativo = &restante[..fim];
     conferir_endereco_relativo(&contexto.instalacao, relativo, OPERACAO.acao, id)
         .map_err(|_| ErroValidacaoAcesso::ModalNaoReconhecida)
 }

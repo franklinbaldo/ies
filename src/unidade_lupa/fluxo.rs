@@ -194,7 +194,9 @@ fn literais_do_script(script: &str) -> Vec<String> {
             }
         }
         if let Some(fim) = fim {
-            let literal = &script[inicio..fim];
+            let Some(literal) = script.get(inicio..fim) else {
+                continue;
+            };
             if !literal.contains('\\') && literal.contains("controlador.php?") {
                 urls.push(literal.to_owned());
             }

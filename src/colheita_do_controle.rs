@@ -179,7 +179,7 @@ fn linhas_conferidas(alvo: &Alvo<'_>, html: &str) -> Vec<(LinhaDoControle, Strin
     }
     let unicas: Vec<bool> = linhas
         .iter()
-        .map(|l| nups[l.numero.as_str()] == 1 && ids[l.id.as_str()] == 1)
+        .map(|l| nups.get(l.numero.as_str()) == Some(&1) && ids.get(l.id.as_str()) == Some(&1))
         .collect();
     linhas
         .into_iter()

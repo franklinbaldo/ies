@@ -241,11 +241,11 @@ pub(crate) fn acompanhamentos_da_lista(html: &str) -> Result<Vec<Acompanhamento>
         if td.is_empty() {
             continue;
         }
-        if td.len() != 6 {
+        let [selecao, grupo, observacao, _, _, _] = td.as_slice() else {
             return Err(ErroAcompanhar::LinhaDeAcompanhamentoInvalida);
-        }
+        };
         let mut ids = Vec::new();
-        for item in td[0].children().all(parser) {
+        for item in selecao.children().all(parser) {
             let Some(tag) = item.as_tag() else { continue };
             if tag.name() != "input" {
                 continue;
@@ -263,8 +263,8 @@ pub(crate) fn acompanhamentos_da_lista(html: &str) -> Result<Vec<Acompanhamento>
         }
         linhas.push(Acompanhamento {
             id,
-            grupo: texto(&td[1].inner_text(parser)),
-            observacao: texto(&td[2].inner_text(parser)),
+            grupo: texto(&grupo.inner_text(parser)),
+            observacao: texto(&observacao.inner_text(parser)),
         });
     }
     if !cabecalho {

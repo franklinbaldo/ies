@@ -189,12 +189,10 @@ fn eh_link_do_processo(href: &str, id: &str) -> bool {
         .iter()
         .filter_map(|s| s.strip_prefix("id_procedimento="))
         .collect();
-    acoes.len() == 1
-        && matches!(
-            acoes[0],
-            "procedimento_trabalhar" | "procedimento_visualizar"
-        )
-        && ids == [id]
+    matches!(
+        acoes.as_slice(),
+        ["procedimento_trabalhar" | "procedimento_visualizar"]
+    ) && ids == [id]
 }
 
 /// Lido da fonte da tag; tag ilegível não vira atributo ausente.

@@ -69,10 +69,10 @@ fn link_da_lista(html: &str, origem: &str) -> Option<String> {
             .split('&')
             .filter_map(|parte| parte.strip_prefix("infra_hash="))
             .collect();
-        if hashes.len() != 1
-            || hashes[0].len() != 64
-            || !hashes[0].bytes().all(|byte| byte.is_ascii_hexdigit())
-        {
+        let [hash] = hashes.as_slice() else {
+            return None;
+        };
+        if hash.len() != 64 || !hash.bytes().all(|byte| byte.is_ascii_hexdigit()) {
             return None;
         }
         encontrados.push(url);
@@ -132,9 +132,9 @@ fn action_de_exclusao(html: &str) -> Option<String> {
     let prefixo = "controlador.php?acao=controle_prazo_excluir";
     let mut encontradas: Vec<&str> = Vec::new();
     for (inicio, _) in html.match_indices(prefixo) {
-        let resto = &html[inicio..];
+        let (_, resto) = html.split_at(inicio);
         let fim = resto.find(['\'', '"', ' ', '<', '>', '\n'])?;
-        let url = &resto[..fim];
+        let (url, _) = resto.split_at(fim);
         if !encontradas.contains(&url) {
             encontradas.push(url);
         }

@@ -65,38 +65,40 @@ fn ate(resto: &str, fim: fn(char) -> bool) -> usize {
 
 fn redigir(texto: &str) -> String {
     let mut saida = String::with_capacity(texto.len());
-    let mut i = 0;
-    while let Some(c) = texto[i..].chars().next() {
-        let resto = &texto[i..];
+    let mut resto = texto;
+    while let Some(c) = resto.chars().next() {
         if ESQUEMAS.iter().any(|e| comeca_com_sem_caixa(resto, e)) {
             saida.push_str("<url>");
-            i += ate(resto, fim_de_url);
+            (_, resto) = resto.split_at(ate(resto, fim_de_url));
             continue;
         }
         if let Some(nome) = NOMES_SECRETOS
             .iter()
             .find(|nome| comeca_com_sem_caixa(resto, nome))
         {
-            // O nome sai como veio; só o valor é redigido.
-            saida.push_str(&resto[..nome.len()]);
+            // O nome sai como veio; só o valor é redigido. O nome é ASCII:
+            // sem fronteira de caractere, o resto inteiro é redigido.
+            let Some((cru, valor)) = resto.split_at_checked(nome.len()) else {
+                saida.push_str("<redigido>");
+                break;
+            };
+            saida.push_str(cru);
             saida.push_str("<redigido>");
-            i += nome.len() + ate(&resto[nome.len()..], fim_de_valor);
+            (_, resto) = valor.split_at(ate(valor, fim_de_valor));
             continue;
         }
         if c.is_ascii_hexdigit() {
-            let sequencia = resto
-                .find(|d: char| !d.is_ascii_hexdigit())
-                .unwrap_or(resto.len());
-            if sequencia >= MIN_HEX {
+            let (sequencia, depois) = resto.split_at(ate(resto, |d| !d.is_ascii_hexdigit()));
+            if sequencia.len() >= MIN_HEX {
                 saida.push_str("<hex>");
             } else {
-                saida.push_str(&resto[..sequencia]);
+                saida.push_str(sequencia);
             }
-            i += sequencia;
+            resto = depois;
             continue;
         }
         saida.push(c);
-        i += c.len_utf8();
+        (_, resto) = resto.split_at(c.len_utf8());
     }
     saida
 }

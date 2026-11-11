@@ -95,10 +95,10 @@ fn texto_do_tooltip(onmouseover: &str) -> Result<String, ErroDetalhada> {
         .ok_or(FORA)?;
     let mut texto = String::new();
     let mut caracteres = resto.char_indices();
-    while let Some((posicao, caractere)) = caracteres.next() {
+    while let Some((_, caractere)) = caracteres.next() {
         match caractere {
             '\'' => {
-                return if &resto[posicao + 1..] == ");" {
+                return if caracteres.as_str() == ");" {
                     Ok(texto)
                 } else {
                     Err(FORA)

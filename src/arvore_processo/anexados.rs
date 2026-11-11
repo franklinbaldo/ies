@@ -60,7 +60,10 @@ fn endereco_observado(url: &str, pai: &str, id: &str) -> bool {
         if valor != esperado {
             return false;
         }
-        vistos[posicao] += 1;
+        let Some(visto) = vistos.get_mut(posicao) else {
+            return false;
+        };
+        *visto += 1;
     }
     vistos == [1, 1, 1]
 }

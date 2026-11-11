@@ -92,13 +92,13 @@ fn ler_url_upload(fonte: &str) -> Result<String, FalhaAnexo> {
         return Err(FalhaAnexo::FormaNaoObservada);
     }
     let argumentos: Vec<&str> = argumentos.split(',').map(str::trim).collect();
-    if !(argumentos.len() == 2 || argumentos.len() == 3)
-        || argumentos[0] != "'frmAnexos'"
-        || (argumentos.len() == 3 && !matches!(argumentos[2], "true" | "false"))
-    {
+    let ["'frmAnexos'", url, ..] = argumentos.as_slice() else {
+        return Err(FalhaAnexo::FormaNaoObservada);
+    };
+    if !matches!(argumentos.as_slice(), [_, _] | [_, _, "true" | "false"]) {
         return Err(FalhaAnexo::FormaNaoObservada);
     }
-    let url = argumentos[1]
+    let url = url
         .strip_prefix('\'')
         .and_then(|texto| texto.strip_suffix('\''))
         .ok_or(FalhaAnexo::FormaNaoObservada)?;
@@ -134,7 +134,12 @@ fn separar_colunas(fonte: &str) -> Result<Vec<&str>, FalhaAnexo> {
             '(' => parenteses = parenteses.checked_add(1).ok_or(FalhaAnexo::LinhaInvalida)?,
             ')' => parenteses = parenteses.checked_sub(1).ok_or(FalhaAnexo::LinhaInvalida)?,
             ',' if parenteses == 0 => {
-                colunas.push(fonte[inicio..indice].trim());
+                colunas.push(
+                    fonte
+                        .get(inicio..indice)
+                        .ok_or(FalhaAnexo::LinhaInvalida)?
+                        .trim(),
+                );
                 inicio = indice + 1;
             }
             _ => {}
@@ -143,7 +148,7 @@ fn separar_colunas(fonte: &str) -> Result<Vec<&str>, FalhaAnexo> {
     if aspas.is_some() || escape || parenteses != 0 {
         return Err(FalhaAnexo::LinhaInvalida);
     }
-    colunas.push(fonte[inicio..].trim());
+    colunas.push(fonte.get(inicio..).ok_or(FalhaAnexo::LinhaInvalida)?.trim());
     if colunas.is_empty() || colunas.iter().any(|coluna| coluna.is_empty()) {
         return Err(FalhaAnexo::LinhaInvalida);
     }
@@ -226,12 +231,17 @@ pub(crate) fn ler_plano(html: &str) -> Result<PlanoAnexo, FalhaAnexo> {
             continue;
         }
         let fonte = corpo_do_script(html, inicio).ok_or(FalhaAnexo::FormaNaoObservada)?;
-        for (inicio, _) in fonte.match_indices("new infraUpload(") {
-            let restante = &fonte[inicio + "new infraUpload(".len()..];
-            uploads.push(ler_url_upload(restante)?);
+        let depois_de = |inicio: usize, chamada: &str| {
+            let (_, daqui) = fonte.split_at(inicio);
+            daqui
+                .strip_prefix(chamada)
+                .ok_or(FalhaAnexo::FormaNaoObservada)
+        };
+        for (inicio, chamada) in fonte.match_indices("new infraUpload(") {
+            uploads.push(ler_url_upload(depois_de(inicio, chamada)?)?);
         }
-        for (inicio, _) in fonte.match_indices("objTabelaAnexos.adicionar([") {
-            let restante = &fonte[inicio + "objTabelaAnexos.adicionar([".len()..];
+        for (inicio, chamada) in fonte.match_indices("objTabelaAnexos.adicionar([") {
+            let restante = depois_de(inicio, chamada)?;
             let (colunas, _) = restante
                 .split_once("]);")
                 .ok_or(FalhaAnexo::LinhaInvalida)?;

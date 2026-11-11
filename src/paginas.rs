@@ -301,14 +301,14 @@ pub struct Leitura {
 }
 
 pub fn juntar(paginas: &[String], unidade_esperada: Option<&str>) -> Result<Leitura, ErroCaixa> {
-    if paginas.is_empty() {
+    let Some(primeira) = paginas.first() else {
         return Err(ErroCaixa::SemPaginas);
-    }
+    };
     if paginas.len() > 200 || paginas.iter().map(String::len).sum::<usize>() > 48_000_000 {
         return Err(ErroCaixa::LimitePaginas);
     }
-    let contexto_inicial = contexto_da_pagina(&paginas[0])?;
-    if contexto_inicial.eh_resumida() && controles_de_paginacao(&paginas[0])? {
+    let contexto_inicial = contexto_da_pagina(primeira)?;
+    if contexto_inicial.eh_resumida() && controles_de_paginacao(primeira)? {
         return Err(ErroCaixa::VisaoResumidaComPaginacao);
     }
     for html in paginas {

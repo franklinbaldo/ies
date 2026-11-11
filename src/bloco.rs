@@ -235,14 +235,16 @@ fn ler_linhas(
         if td.len() != nomes.len() {
             return Err(ErroBloco::LinhaDeBlocoForaDaForma);
         }
-        let numero = td[indice_numero].inner_text(parser).into_owned();
+        let celula = |i: usize| td.get(i).copied().ok_or(ErroBloco::LinhaDeBlocoForaDaForma);
+        let coluna_numero = celula(indice_numero)?;
+        let numero = coluna_numero.inner_text(parser).into_owned();
         if numero.is_empty() || !numero.bytes().all(|b| b.is_ascii_digit()) {
             return Err(ErroBloco::NumeroDoBlocoInvalido);
         }
         if !vistos.insert(numero.clone()) {
             return Err(ErroBloco::NumeroDoBlocoRepetido);
         }
-        let mut hrefs = td[indice_numero]
+        let mut hrefs = coluna_numero
             .query_selector(parser, "a")
             .ok_or(ErroBloco::LinkDeBlocosNaoReconhecido)?
             .filter_map(|n| n.get(parser))
@@ -268,8 +270,8 @@ fn ler_linhas(
         itens.push(BlocoLido {
             numero,
             tipo,
-            estado: texto_tag(td[indice_estado], parser),
-            descricao: texto_tag(td[indice_descricao], parser),
+            estado: texto_tag(celula(indice_estado)?, parser),
+            descricao: texto_tag(celula(indice_descricao)?, parser),
             quantidade_itens: None,
         });
     }

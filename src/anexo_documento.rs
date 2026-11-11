@@ -235,12 +235,13 @@ pub(crate) fn ler_anexo<R: Read>(
         if tamanho > conferido.limite {
             return Err(ErroAnexo::AcimaDoLimite);
         }
-        conferir_token(&bloco[..lido], &mut token_lido)?;
-        hasher.update(&bloco[..lido]);
+        let (lidos, _) = bloco.split_at(lido.min(bloco.len()));
+        conferir_token(lidos, &mut token_lido)?;
+        hasher.update(lidos);
         if let Some(aberto) = &mut arquivo {
             aberto
                 .parcial
-                .escrever(&bloco[..lido])
+                .escrever(lidos)
                 .map_err(|falha| match falha {
                     crate::arquivo_privado::FalhaDaGravacao::AcimaDoLimite => {
                         ErroAnexo::AcimaDoLimite
@@ -249,7 +250,7 @@ pub(crate) fn ler_anexo<R: Read>(
                 })?;
         }
         if texto {
-            guardado.extend_from_slice(&bloco[..lido]);
+            guardado.extend_from_slice(lidos);
         }
     }
     if tamanho == 0 {
@@ -289,10 +290,10 @@ pub(crate) fn ler_anexo<R: Read>(
 fn conferir_token(bytes: &[u8], lidos: &mut usize) -> Result<(), ErroAnexo> {
     const TOKEN: &[u8] = b"infra_hash";
     for &byte in bytes {
-        if byte == TOKEN[*lidos] {
+        if TOKEN.get(*lidos) == Some(&byte) {
             *lidos += 1;
         } else {
-            *lidos = usize::from(byte == TOKEN[0]);
+            *lidos = usize::from(TOKEN.first() == Some(&byte));
         }
         if *lidos == TOKEN.len() {
             return Err(ErroAnexo::ConteudoComLinkAssinado);

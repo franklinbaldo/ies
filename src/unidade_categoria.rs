@@ -59,6 +59,10 @@ pub(crate) fn selecionar(
 
 /// Publica ou exporta a lista da categoria a partir do HTML obtido,
 /// com a conferência de `--unidade` da leitura da caixa.
+#[expect(
+    clippy::indexing_slicing,
+    reason = "serde_json::Value: leitura ausente dá Null e a escrita é em objeto json! local; projeção de saída a substituir em #733"
+)]
 pub(crate) fn publicar_lista(
     html: &str,
     unidade: Option<&str>,

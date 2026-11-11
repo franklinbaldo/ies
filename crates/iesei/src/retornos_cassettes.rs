@@ -98,7 +98,7 @@ pub fn periodos(
     saida.sort_by_key(|periodo| (periodo.ano, periodo.mes));
     if saida
         .windows(2)
-        .any(|par| (par[0].ano, par[0].mes) == (par[1].ano, par[1].mes))
+        .any(|par| matches!(par, [a, b] if (a.ano, a.mes) == (b.ano, b.mes)))
     {
         return Err(ErroRetornosCassettes::DadoInvalido);
     }

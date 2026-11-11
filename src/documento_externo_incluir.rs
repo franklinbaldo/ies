@@ -180,7 +180,7 @@ fn inspecionar_pdf_com_arquivo(
         if limite_observado.is_some_and(|limite| total > limite) {
             return Err(FalhaPdf::AcimaDoLimite);
         }
-        digest.update(&bloco[..lidos]);
+        digest.update(bloco.split_at(lidos.min(bloco.len())).0);
     }
     // Conferir o mesmo descritor após o hash: tamanho igual não prova
     // imutabilidade, pois outro processo pode regravar bytes no meio da leitura.

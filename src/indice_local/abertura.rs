@@ -257,10 +257,8 @@ fn migrar(conexao: &mut Connection) -> Result<(), Falha> {
     let transacao = conexao.transaction_with_behavior(rusqlite::TransactionBehavior::Immediate)?;
     let versao: i64 = transacao.pragma_query_value(None, "user_version", |l| l.get(0))?;
     let inicio = usize::try_from(versao).map_err(|_| Falha)?;
-    if inicio > MIGRACOES.len() {
-        return Err(Falha);
-    }
-    for migracao in &MIGRACOES[inicio..] {
+    let pendentes = MIGRACOES.get(inicio..).ok_or(Falha)?;
+    for migracao in pendentes {
         transacao.execute_batch(migracao)?;
     }
     if inicio < MIGRACOES.len() {

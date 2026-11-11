@@ -98,7 +98,11 @@ pub(crate) fn tentar_obter(cli: &Cli) -> Option<anyhow::Result<()>> {
     }
     let numeros = &comando.numeros;
     for (i, numero) in numeros.iter().enumerate() {
-        if numeros[..i].iter().any(|n| n.as_str() == numero.as_str()) {
+        if numeros
+            .iter()
+            .take(i)
+            .any(|n| n.as_str() == numero.as_str())
+        {
             crate::uso_invalido::recusar(crate::uso_invalido::UsoInvalido::NumeroSeiRepetido);
         }
     }
@@ -361,6 +365,10 @@ fn apresentar_metadados(d: &DocumentoObtido) {
     }
 }
 
+#[expect(
+    clippy::indexing_slicing,
+    reason = "serde_json::Value: leitura ausente dá Null e a escrita é em objeto json! local; projeção de saída a substituir em #733"
+)]
 fn publicar(
     json_mode: bool,
     lidos: lote::LoteLido,

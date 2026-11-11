@@ -298,6 +298,38 @@ fn filtrar_movidos(incluidos: bool, movidos: Vec<DocumentoMovido>) -> Vec<Docume
     if incluidos { movidos } else { Vec::new() }
 }
 
+/// A barra de um documento de pasta (`Nos[i].acoes = ...`). `true` se a
+/// linha era essa barra e já foi aplicada ao documento.
+fn aplicar_barra_de_pasta(
+    linha: &str,
+    de_pasta: &std::collections::HashMap<usize, usize>,
+    documentos: &mut [DocumentoLido],
+) -> Result<bool, ErroArvore> {
+    // A concatenação vazia não muda a barra já lida do documento.
+    if let Some(i) = literais::concatenacao_vazia_da_barra(linha) {
+        if let Some(&posicao) = de_pasta.get(&i)
+            && documentos
+                .get(posicao)
+                .is_none_or(|documento| documento.barra == Barra::NaoLida)
+        {
+            return Err(ErroArvore::BarraDeNoForaDaFormaObservada);
+        }
+        return Ok(true);
+    }
+    let Some(posicao) = literais::indice_da_barra(linha).and_then(|i| de_pasta.get(&i)) else {
+        return Ok(false);
+    };
+    let Some((_, barra)) = ler_barra(linha)? else {
+        return Err(ErroArvore::BarraDeNoForaDaFormaObservada);
+    };
+    let documento = documentos
+        .get_mut(*posicao)
+        .ok_or(ErroArvore::BarraDeNoForaDaFormaObservada)?;
+    documento.barra =
+        pastas::identidade_da_barra(&barra)?.map_or(Barra::SemIdentidade, Barra::Identidade);
+    Ok(true)
+}
+
 pub(crate) fn ler_arvore_com_modo(
     html: &str,
     nup_pedido: &str,
@@ -318,23 +350,7 @@ pub(crate) fn ler_arvore_com_modo(
             protocolos.push(declarados);
             continue;
         }
-        // A concatenação vazia não muda a barra já lida do documento.
-        if let Some(i) = literais::concatenacao_vazia_da_barra(linha) {
-            if let Some(&posicao) = de_pasta.get(&i)
-                && documentos[posicao].barra == Barra::NaoLida
-            {
-                return Err(ErroArvore::BarraDeNoForaDaFormaObservada);
-            }
-            continue;
-        }
-        if let Some(i) = literais::indice_da_barra(linha)
-            && let Some(&posicao) = de_pasta.get(&i)
-        {
-            let Some((_, barra)) = ler_barra(linha)? else {
-                return Err(ErroArvore::BarraDeNoForaDaFormaObservada);
-            };
-            documentos[posicao].barra = pastas::identidade_da_barra(&barra)?
-                .map_or(Barra::SemIdentidade, Barra::Identidade);
+        if aplicar_barra_de_pasta(linha, &de_pasta, &mut documentos)? {
             continue;
         }
         let Some((indice, argumentos)) = ler_declaracao(linha)? else {
