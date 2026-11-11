@@ -353,11 +353,9 @@ pub fn navegacao(
     };
     // Entrada sem hash medida na UnB (somente a forma exata por id):
     // o servidor devolve um 302 assinado; GET da tela só depois dele.
-    let sem_assinatura = alvo
-        .split_once('?')
-        .is_some_and(|(_, consulta)| {
-            consulta == format!("acao=procedimento_trabalhar&id_procedimento={id}")
-        });
+    let sem_assinatura = alvo.split_once('?').is_some_and(|(_, consulta)| {
+        consulta == format!("acao=procedimento_trabalhar&id_procedimento={id}")
+    });
     if acao == "procedimento_trabalhar" && sem_assinatura {
         return Some(Resposta::redirecionar(format!(
             "controlador.php?acao=procedimento_trabalhar&id_procedimento={id}&infra_sistema=100000100&infra_unidade_atual=110000001&infra_hash={}",
