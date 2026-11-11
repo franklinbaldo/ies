@@ -51,6 +51,8 @@ pub(crate) enum FalhaAnexar {
     /// O cookie privado da sessão não pôde ser lido.
     Cookie(CookieIlegivel),
     NaoConfirmado(EtapaNaoComprovada),
+    /// Um POST de anexação foi tentado, mas a resposta falhou sem prova do efeito.
+    NaoConfirmadoNoPost(#[source] ErroSubmissaoFormulario),
     /// A releitura da árvore do principal falhou após o POST.
     NaoConfirmadoNaArvoreDoPrincipal(#[source] ErroProcessoObter),
     /// A releitura da lista após o POST falhou no transporte.
