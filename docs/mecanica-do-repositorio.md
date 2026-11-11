@@ -60,7 +60,10 @@ força das regras que ficaram lá.
 ## Fatia WIP
 
 - **Fatia WIP entra na `main`.** Ao fim da sessão, a fatia com gates
-  verdes é integrada e a PR fecha; a issue segue aberta, e a próxima
+  verdes é integrada **por squash** (`merge_method: squash`) e a PR
+  fecha. O commit único descreve o fato que mudou; RED, `style:`
+  de Rustfmt e pedidos de inspeção de cassettes ficam na PR e não
+  chegam à `main`, que segue bisectável (#776); a issue segue aberta, e a próxima
   sessão abre PR nova a partir da `main`. Testes **novos** da fatia que
   ainda não passam levam `#[ignore = "wip #<issue>: <o que falta>"]`; a
   sessão seguinte começa tirando os da sua issue. O hook `wip-ignores`
