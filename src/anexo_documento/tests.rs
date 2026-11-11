@@ -436,6 +436,7 @@ fn limite_do_ambiente() {
 #[test]
 fn erro_utf8_nao_expoe_corpo_ou_nome_original_em_debug_ou_display() {
     use std::error::Error;
+    use std::fmt::Write as _;
 
     // Mesmos bytes sintéticos no corpo e no filename* decodificado.
     let sigilo = b"SIGILO_ANEXO_719_\xff";
@@ -462,7 +463,7 @@ fn erro_utf8_nao_expoe_corpo_ou_nome_original_em_debug_ou_display() {
         let mut causa = erro.source();
         let mut achou_utf8 = false;
         while let Some(proxima) = causa {
-            mensagem.push_str(&format!("\n{proxima:?}\n{proxima}"));
+            write!(&mut mensagem, "\n{proxima:?}\n{proxima}").unwrap();
             achou_utf8 |= proxima.is::<std::str::Utf8Error>();
             causa = proxima.source();
         }
