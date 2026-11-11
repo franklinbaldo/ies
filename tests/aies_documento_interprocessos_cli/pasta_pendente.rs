@@ -36,13 +36,16 @@ fn regressao_496_documento_em_arvore_parcial_recusa_sem_falso_ausente() {
             "processo informativo e documento estrito devem ler a árvore: {trilha:?}"
         );
         assert!(
-            !trilha.iter().any(|evento| evento == "GET documento_visualizar"),
+            !trilha
+                .iter()
+                .any(|evento| evento == "GET documento_visualizar"),
             "documento alheio nunca deve ser baixado após a leitura parcial: {trilha:?}"
         );
         assert!(
             trilha
                 .iter()
-                .all(|evento| evento.starts_with("GET ") || evento == "POST protocolo_pesquisa_rapida"),
+                .all(|evento| evento.starts_with("GET ")
+                    || evento == "POST protocolo_pesquisa_rapida"),
             "somente leitura e pesquisa, nenhuma escrita ou retry: {trilha:?}"
         );
     }
