@@ -341,7 +341,12 @@ fn bdd_333_04_remocao_incerta_preserva_destino_comprovado_na_saida_json() {
     assert_eq!(
         erro,
         super::ErroEnviar::NaoConfirmadoNaRemocaoDeAnotacoes {
-            depois: Some(vec![DESTINO.into()])
+            depois: Some(vec![DESTINO.into()]),
+            causa: Box::new(super::ErroEnviar::Anotacoes(
+                super::anotacoes::ErroDasAnotacoes::TelaDasAnotacoes(
+                    crate::transporte::FalhaTransporte::Rede,
+                ),
+            )),
         }
     );
     assert_eq!(
