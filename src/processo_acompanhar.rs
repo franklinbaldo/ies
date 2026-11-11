@@ -42,6 +42,8 @@ pub(crate) enum ErroAcompanhar {
     NenhumAcompanhamento,
     EscolhaDeAcompanhamentoAmbigua,
     AcompanhamentoNaoConfirmado,
+    /// GET/decodificação falhou após POST único; efeito permanece incerto.
+    ReleituraDaRetiradaFalhou(#[source] crate::transporte::FalhaTransporte),
     ExclusaoNaoOferecida,
     ColunasDeAcompanhamentosInvalidas,
     FormulariosDeAcompanhamentoRepetidos,
