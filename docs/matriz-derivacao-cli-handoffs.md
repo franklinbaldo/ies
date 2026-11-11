@@ -4,6 +4,12 @@ title: Matriz de derivação das fatias WIP da CLI
 description: Notas de handoff das fatias parciais de processo, separadas da matriz principal
 ---
 
+> **Arquivo histórico (11/11/2026):** referências a BDD/Gherkin e
+> cenários numerados abaixo descrevem a migração antiga. Não são
+> condições de trabalho nem gates. O método atual é E2E via cassettes,
+> conforme [AGENTS.md](../AGENTS.md) e [ciclo](anti-ies/ciclo-cassettes.md).
+
+
 # Matriz — fatias WIP de processo
 
 Complementa a [matriz principal](matriz-derivacao-cli.md). Cada seção
