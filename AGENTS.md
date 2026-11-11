@@ -26,6 +26,10 @@ fatiamento e exceções de plataforma não são erros. Respeitar os BDDs
 públicos existentes, as três provas independentes, a ausência de retry
 e todos os limites de segurança. Fatias já em curso continuam sujeitas
 ao CI e à integração normal, mas não abrem nova frente prioritária.
+Para ablação **sem mudança de comportamento público**, usar testes técnicos
+sem inventar BDD interno; se alterar a CLI, 🐘 prepara o cenário BDD
+público antes da implementação. A exigência de BDD dos itens 2–4
+abaixo refere-se às capacidades e alterações observáveis da CLI.
 
 ## Equipe de agentes e avatares
 
