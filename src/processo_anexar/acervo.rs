@@ -112,7 +112,10 @@ fn fatos_da_fonte(html: &str) -> FatosDoFormulario {
         anexados.windows(2).all(|par| par[0] != par[1]),
         "ID original duplicado"
     );
-    FatosDoFormulario { controles, anexados }
+    FatosDoFormulario {
+        controles,
+        anexados,
+    }
 }
 
 /// Consulta o anti-IES por HTTP local, sem usar a saída do IES como oráculo.
