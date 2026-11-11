@@ -158,7 +158,7 @@ pub fn verificar_sessao_local_de_arquivos(
 pub(crate) fn ler_limitado<R: Read>(leitor: R, limite: usize) -> Result<Vec<u8>, FalhaTransporte> {
     let mut bytes = Vec::new();
     leitor
-        .take(limite as u64 + 1)
+        .take(u64::try_from(limite).map_or(u64::MAX, |limite| limite.saturating_add(1)))
         .read_to_end(&mut bytes)
         .map_err(|erro| resposta_http::falha_de_leitura(&erro))?;
     if bytes.len() > limite {

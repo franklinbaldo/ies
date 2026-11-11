@@ -154,10 +154,7 @@ fn buscar(
     if cli.json {
         let mut valor = json_da_busca(termo, &busca);
         relogin_cli::anotar(&mut valor, nota.as_ref());
-        println!(
-            "{}",
-            serde_json::to_string_pretty(&valor).expect("JSON serializável")
-        );
+        println!("{}", serde_json::to_string_pretty(&valor)?);
     } else {
         relogin_cli::avisar(cli.json, nota.as_ref());
         println!("{}", humano(termo, &busca));

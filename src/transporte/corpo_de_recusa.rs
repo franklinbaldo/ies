@@ -47,7 +47,10 @@ pub(crate) fn mensagem<R: Read>(corpo: R, mime: &str) -> Option<String> {
 pub(crate) fn ler_ate_o_limite<R: Read>(corpo: R) -> Option<Vec<u8>> {
     let mut bytes = Vec::new();
     // `take` limita o que se pede ao leitor: nenhum byte além de `LIMITE`.
-    corpo.take(LIMITE as u64).read_to_end(&mut bytes).ok()?;
+    corpo
+        .take(u64::try_from(LIMITE).unwrap_or(u64::MAX))
+        .read_to_end(&mut bytes)
+        .ok()?;
     Some(bytes)
 }
 

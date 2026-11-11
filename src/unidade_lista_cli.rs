@@ -77,6 +77,14 @@ pub(crate) fn json_da_detalhada(leitura: &LeituraDetalhada, origem: &str) -> ser
     serde_json::Value::Array(vec![lista])
 }
 
+/// A caixa detalhada não chegou à saída.
+#[derive(Debug, thiserror::Error)]
+#[error("{self:?}")]
+pub(crate) enum ErroSaidaDaCaixaDetalhada {
+    Arquivo(#[from] arquivo_caixa::ErroArquivoCaixa),
+    Serializacao(#[from] serde_json::Error),
+}
+
 /// D é modo de exibição da sessão, não categoria: uma lista, `categoria: null`.
 pub(crate) fn mostrar_caixa_detalhada(
     leitura: &LeituraDetalhada,
@@ -84,7 +92,7 @@ pub(crate) fn mostrar_caixa_detalhada(
     json_mode: bool,
     destino: Option<&Path>,
     nota: Option<&NotaDoRelogin>,
-) -> Result<(), arquivo_caixa::ErroArquivoCaixa> {
+) -> Result<(), ErroSaidaDaCaixaDetalhada> {
     let mut saida = json_da_detalhada(leitura, origem);
     if let Some(caminho) = destino {
         // O arquivo guarda só a lista; `relogin` vai na linha de stdout.
@@ -105,10 +113,7 @@ pub(crate) fn mostrar_caixa_detalhada(
     }
     if json_mode {
         relogin_cli::anotar_com_total(&mut saida, nota);
-        println!(
-            "{}",
-            serde_json::to_string_pretty(&saida).expect("JSON serializável")
-        );
+        println!("{}", serde_json::to_string_pretty(&saida)?);
     } else {
         relogin_cli::avisar(json_mode, nota);
         println!("{}", humano_da_detalhada(leitura));

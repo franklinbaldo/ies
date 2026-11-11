@@ -434,10 +434,7 @@ fn obter(cli: &Cli, comando: &Processo, nup: &NumeroProcesso) -> anyhow::Result<
     if cli.json {
         let mut valor = json_do_processo(nup, &aberto, comando.sem_documentos);
         relogin_cli::anotar(&mut valor, nota.as_ref());
-        println!(
-            "{}",
-            serde_json::to_string_pretty(&valor).expect("JSON serializável")
-        );
+        println!("{}", serde_json::to_string_pretty(&valor)?);
     } else {
         relogin_cli::avisar(cli.json, nota.as_ref());
         println!("{}", humano(nup, &aberto, comando.sem_documentos));

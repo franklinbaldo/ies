@@ -263,7 +263,8 @@ impl Parcial {
     }
 
     pub(crate) fn escrever(&mut self, bytes: &[u8]) -> Result<(), FalhaDaGravacao> {
-        let total = self.escritos.saturating_add(bytes.len() as u64);
+        let total = u64::try_from(bytes.len())
+            .map_or(u64::MAX, |novos| self.escritos.saturating_add(novos));
         if self.politica.limite.is_some_and(|limite| total > limite) {
             return Err(FalhaDaGravacao::AcimaDoLimite);
         }
