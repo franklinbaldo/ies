@@ -87,10 +87,7 @@ pub(crate) fn ler_barra_do_documento(
         };
         let lidos = atributos(tag).map_err(ErroBarraDoDocumento::AtributoDeLinkDaBarra)?;
         let valor = |nome| -> Result<Option<String>, ErroBarraDoDocumento> {
-            match lidos
-                .valor(nome)
-                .map_err(ErroBarraDoDocumento::AtributoDeLinkDaBarra)?
-            {
+            match lidos.valor(nome) {
                 Some(bruto) => decodificar_atributo(bruto)
                     .map(Some)
                     .ok_or(ErroBarraDoDocumento::BarraDoDocumentoForaDaFormaObservada),

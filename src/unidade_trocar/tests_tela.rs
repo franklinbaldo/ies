@@ -160,34 +160,22 @@ fn tela_de_troca_fora_da_forma_e_recusada() {
 }
 
 #[test]
-fn atributos_repetidos_preservam_a_causa_da_recusa_na_troca() {
-    use crate::html_atributos::ErroAtributoHtml;
-
-    // Contraprovas sintéticas: as cassettes da troca não registram
-    // um rádio ou filtro com o atributo value repetido.
+fn atributo_repetido_na_troca_vale_o_primeiro() {
+    // Como no navegador: a repetição do value não muda a leitura.
+    let original = ler_tela_de_troca(&HtmlServido::de_teste(&tela())).unwrap();
     let linha_repetida = HtmlServido::de_teste(&tela().replacen(
         &format!("value=\"{ID_B}\" onclick="),
         &format!("value=\"{ID_B}\" value=\"{ID_C}\" onclick="),
         1,
     ));
-    assert!(matches!(
-        ler_tela_de_troca(&linha_repetida),
-        Err(super::ErroTroca::AtributoDaLinhaDeUnidadeIlegivel(
-            ErroAtributoHtml::AtributoRepetidoNaTag { atributo: "value" }
-        ))
-    ));
+    assert_eq!(ler_tela_de_troca(&linha_repetida).unwrap(), original);
 
     let filtro_repetido = HtmlServido::de_teste(&tela().replacen(
         "id=\"txtInfraSiglaUnidade\" name=\"txtInfraSiglaUnidade\" class=\"infraText\" value=\"\"",
         "id=\"txtInfraSiglaUnidade\" name=\"txtInfraSiglaUnidade\" class=\"infraText\" value=\"\" value=\"outra\"",
         1,
     ));
-    assert!(matches!(
-        ler_tela_de_troca(&filtro_repetido),
-        Err(super::ErroTroca::AtributoDaTelaDeTrocaIlegivel(
-            ErroAtributoHtml::AtributoRepetidoNaTag { atributo: "value" }
-        ))
-    ));
+    assert_eq!(ler_tela_de_troca(&filtro_repetido).unwrap(), original);
 }
 
 #[test]

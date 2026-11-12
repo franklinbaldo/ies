@@ -430,9 +430,6 @@ fn bdd_333_02_nao_confirmado_depois_do_post_nao_repete_escrita() {
 #[path = "aies_processo_enviar_cli/autocomplete.rs"]
 mod autocomplete;
 
-#[path = "aies_processo_enviar_cli/recusa_anotacao.rs"]
-mod recusa_anotacao;
-
 #[path = "aies_processo_enviar_cli/ensaio.rs"]
 mod ensaio;
 use ensaio::EnsaioRemocao;

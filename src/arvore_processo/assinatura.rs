@@ -100,10 +100,7 @@ fn acoes_de_assinar(
             continue;
         };
         let lidos = atributos(tag).map_err(ErroAssinaturaNaArvore::Atributo)?;
-        if let Some(bruto) = lidos
-            .valor("onclick")
-            .map_err(ErroAssinaturaNaArvore::Atributo)?
-        {
+        if let Some(bruto) = lidos.valor("onclick") {
             let onclick = decodificar_atributo(bruto).ok_or_else(fora)?;
             contagem += usize::from(onclick == ONCLICK);
         }

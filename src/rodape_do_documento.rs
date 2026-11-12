@@ -19,7 +19,7 @@ pub(crate) fn versao_do_rodape(html: &crate::tela_html::HtmlServido) -> Option<V
             continue;
         };
         let lidos = atributos(tag).ok()?;
-        if lidos.valor("unselectable").ok()? != Some("on") {
+        if lidos.valor("unselectable") != Some("on") {
             continue;
         }
         let texto = html_escape::decode_html_entities(&no.inner_text(parser)).into_owned();

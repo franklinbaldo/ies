@@ -120,7 +120,7 @@ fn assinaturas_no_editor(html: &crate::tela_html::HtmlServido) -> Option<u32> {
         let node = handle.get(parser)?;
         let tag = node.as_tag()?;
         let attrs = crate::html_atributos::atributos(tag).ok()?;
-        if attrs.valor("id").ok()? == Some("assinaturasAtuais") {
+        if attrs.valor("id") == Some("assinaturasAtuais") {
             if contagem.is_some() {
                 return None;
             }

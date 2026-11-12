@@ -11,11 +11,10 @@ fn nomes(fonte: &str) -> Vec<String> {
         .collect()
 }
 
-fn valor(fonte: &str, nome: &'static str) -> Option<String> {
+fn valor(fonte: &str, nome: &str) -> Option<String> {
     tokenizar_tag_de_abertura(fonte)
         .unwrap()
         .valor(nome)
-        .unwrap()
         .map(str::to_owned)
 }
 
@@ -109,9 +108,9 @@ fn nomes_em_maiusculas_viram_minusculos_e_valores_ficam_brutos() {
 #[test]
 fn sem_igual_e_igual_vazio_sao_distintos() {
     let atributos = tokenizar_tag_de_abertura("<option selected value=''>").unwrap();
-    assert_eq!(atributos.valor("selected"), Ok(None));
-    assert_eq!(atributos.valor("value"), Ok(Some("")));
-    assert_eq!(atributos.valor("id"), Ok(None));
+    assert_eq!(atributos.valor("selected"), None);
+    assert_eq!(atributos.valor("value"), Some(""));
+    assert_eq!(atributos.valor("id"), None);
 }
 
 #[test]
@@ -128,13 +127,10 @@ fn aspas_coladas_ao_proximo_nome_iniciam_novo_atributo() {
 }
 
 #[test]
-fn repetido_nao_escolhe_primeiro_nem_ultimo() {
+fn repetido_vale_o_primeiro_como_no_navegador() {
     let atributos =
         tokenizar_tag_de_abertura("<input name='a' NAME='b' disabled disabled>").unwrap();
-    assert_eq!(
-        atributos.valor("name"),
-        Err(ErroAtributoHtml::AtributoRepetidoNaTag { atributo: "name" })
-    );
+    assert_eq!(atributos.valor("name"), Some("a"));
     assert_eq!(atributos.ocorrencias("name"), 2);
     assert!(atributos.presente("disabled"));
 }
@@ -173,8 +169,8 @@ fn tag_sem_maior_que_ou_sem_inicio_e_erro_tipado() {
 #[test]
 fn tem_classe_separa_por_espaco_html() {
     let atributos = tokenizar_tag_de_abertura("<a hidden class='x\tprotocoloNormal  y'>").unwrap();
-    assert_eq!(atributos.tem_classe("protocoloNormal"), Ok(true));
-    assert_eq!(atributos.tem_classe("protocolo"), Ok(false));
+    assert!(atributos.tem_classe("protocoloNormal"));
+    assert!(!atributos.tem_classe("protocolo"));
 }
 
 #[test]

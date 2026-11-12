@@ -32,7 +32,7 @@ pub(crate) fn ler_vinculo_de_anexacao(
             continue;
         };
         let lidos = atributos(tag).map_err(ErroArvore::Atributo)?;
-        let Some(href) = lidos.valor("href").map_err(ErroArvore::Atributo)? else {
+        let Some(href) = lidos.valor("href") else {
             continue;
         };
         if !pares(href).any(|(chave, _)| chave == CHAVE_DO_ANEXADO) {

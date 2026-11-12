@@ -4,8 +4,7 @@
 //! parênteses e o número SEI à direita; snippet; metadados.
 use super::{DocumentoEncontrado, ErroDocumentoDaPesquisa};
 use crate::html_atributos::{
-    atributos, nos_por_elemento_e_classe, nos_por_elemento_e_classe_em_todas_as_ocorrencias,
-    valor_decodificado, valor_do_atributo,
+    atributos, nos_por_elemento_e_classe, valor_decodificado, valor_do_atributo,
 };
 use crate::pesquisa_web::documento_da_linha::{documento_do_processo, documento_visualizado};
 use crate::pesquisa_web::{ErroResultadoPesquisa, validar_href_de_processo};
@@ -77,7 +76,7 @@ fn links(
     dom: &tl::VDom<'_>,
     raiz: &Tag<'_>,
 ) -> Result<Vec<tl::NodeHandle>, ErroDocumentoDaPesquisa> {
-    nos_por_elemento_e_classe_em_todas_as_ocorrencias(dom, Some(raiz), "a", "protocoloNormal")
+    nos_por_elemento_e_classe(dom, Some(raiz), "a", "protocoloNormal")
         .map_err(ErroDocumentoDaPesquisa::AtributoHtml)
 }
 
@@ -88,8 +87,7 @@ fn arvore_da_linha(
     linha: &Tag<'_>,
     href_do_processo: &str,
 ) -> Result<usize, ErroDocumentoDaPesquisa> {
-    let arvores =
-        nos_por_elemento_e_classe_em_todas_as_ocorrencias(dom, Some(linha), "a", "arvore")?;
+    let arvores = nos_por_elemento_e_classe(dom, Some(linha), "a", "arvore")?;
     let arvore = match arvores.as_slice() {
         [] => return Ok(0),
         [arvore] => tag(*arvore, dom.parser())?,
@@ -262,7 +260,7 @@ pub(crate) fn ler_documentos(
     let mut registros: Vec<(&Tag<'_>, Vec<&Tag<'_>>)> = Vec::new();
     for no in nos {
         let linha = tag(no, parser)?;
-        let titulo = atributos(linha).and_then(|a| a.tem_classe("pesquisaTituloRegistro"))?;
+        let titulo = atributos(linha)?.tem_classe("pesquisaTituloRegistro");
         if titulo {
             registros.push((linha, Vec::new()));
         } else {

@@ -206,12 +206,8 @@ fn ler_itens(
         if caixas.is_empty() {
             let da_linha =
                 atributos(tr).map_err(ErroComentarios::AtributoDosComentariosIlegivel)?;
-            let classe = da_linha
-                .tem_classe("trComentario")
-                .map_err(ErroComentarios::AtributoDosComentariosIlegivel)?;
-            let separador = da_linha
-                .tem_classe("trSeparadorComentario")
-                .map_err(ErroComentarios::AtributoDosComentariosIlegivel)?;
+            let classe = da_linha.tem_classe("trComentario");
+            let separador = da_linha.tem_classe("trSeparadorComentario");
             if let (true, true, [celula]) = (aguardando_texto, classe, celulas.as_slice()) {
                 let ultimo = itens
                     .last_mut()

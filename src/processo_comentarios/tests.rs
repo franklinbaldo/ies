@@ -146,15 +146,13 @@ fn id_do_checkbox_deve_ser_decimal_e_inequivoco() {
         )),
         Err(ErroComentarios::LinhaDoComentarioInvalida)
     );
+    // Repetido na tag, vale o primeiro, como no navegador.
     assert_eq!(
         ler_tela(&HtmlServido::de_teste(&lista_41().replace(
             "<input type=\"checkbox\" value=\"42\">",
             "<input type=\"checkbox\" value=\"42\" value=\"43\">"
         ))),
-        // A tag ilegível sobe como causa.
-        Err(ErroComentarios::AtributoDosComentariosIlegivel(
-            crate::html_atributos::ErroAtributoHtml::AtributoRepetidoNaTag { atributo: "value" }
-        ))
+        ler_tela(&HtmlServido::de_teste(&lista_41()))
     );
 }
 

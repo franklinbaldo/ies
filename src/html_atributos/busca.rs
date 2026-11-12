@@ -5,7 +5,7 @@ use super::{ErroAtributoHtml, atributos};
 
 /// `id` exatamente igual; repetir `id` na mesma tag é recusado.
 fn tem_id(tag: &tl::HTMLTag<'_>, id: &str) -> Result<bool, ErroAtributoHtml> {
-    Ok(atributos(tag)?.valor("id")? == Some(id))
+    Ok(atributos(tag)?.valor("id") == Some(id))
 }
 
 fn filtrar_por_id(
@@ -59,38 +59,6 @@ pub(crate) fn nos_por_elemento_e_classe(
     elemento: &str,
     classe: &str,
 ) -> Result<Vec<tl::NodeHandle>, ErroAtributoHtml> {
-    filtrar_por_classe(dom, raiz, elemento, classe, Repeticao::Recusada)
-}
-
-/// Como `nos_por_elemento_e_classe`, aceitando `class` repetido quando
-/// **todas** as ocorrências contêm `classe`: a `UnB` 4.0.9 repete
-/// `class="protocoloNormal"` idêntico no link da pesquisa, e a PEN3 e a PEN4
-/// 5.0.4 servem `class="protocoloNormal processoVisitado" …
-/// class="protocoloNormal"` no link do processo já visitado (pesquisa de
-/// processos e de documentos); uma ocorrência sem ela é erro.
-pub(crate) fn nos_por_elemento_e_classe_em_todas_as_ocorrencias(
-    dom: &tl::VDom<'_>,
-    raiz: Option<&tl::HTMLTag<'_>>,
-    elemento: &str,
-    classe: &str,
-) -> Result<Vec<tl::NodeHandle>, ErroAtributoHtml> {
-    filtrar_por_classe(dom, raiz, elemento, classe, Repeticao::ContendoAClasse)
-}
-
-/// O que fazer com o atributo `class` repetido na mesma tag.
-#[derive(Clone, Copy)]
-enum Repeticao {
-    Recusada,
-    ContendoAClasse,
-}
-
-fn filtrar_por_classe(
-    dom: &tl::VDom<'_>,
-    raiz: Option<&tl::HTMLTag<'_>>,
-    elemento: &str,
-    classe: &str,
-    repeticao: Repeticao,
-) -> Result<Vec<tl::NodeHandle>, ErroAtributoHtml> {
     let parser = dom.parser();
     let candidatos: Vec<tl::NodeHandle> = match raiz {
         Some(raiz) => raiz
@@ -105,12 +73,7 @@ fn filtrar_por_classe(
         let Some(tag) = candidato.get(parser).and_then(tl::Node::as_tag) else {
             continue;
         };
-        let lidos = atributos(tag)?;
-        let tem = match repeticao {
-            Repeticao::Recusada => lidos.tem_classe(classe)?,
-            Repeticao::ContendoAClasse => lidos.tem_classe_em_todas_as_ocorrencias(classe)?,
-        };
-        if tem {
+        if atributos(tag)?.tem_classe(classe) {
             achados.push(candidato);
         }
     }

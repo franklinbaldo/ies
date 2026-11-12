@@ -159,7 +159,7 @@ fn destino_do_html(
             continue;
         };
         let lidos = atributos(tag).map_err(ErroArvore::Atributo)?;
-        let Some(href) = lidos.valor("href").map_err(ErroArvore::Atributo)? else {
+        let Some(href) = lidos.valor("href") else {
             continue;
         };
         if achado.is_some() {

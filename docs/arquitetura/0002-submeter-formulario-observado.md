@@ -240,7 +240,7 @@ UnB, `processo-busca-unb.json` do ZIP público (SHA-1
   com essa chave os índices de `id`/classe e o `inner_html`.
   **Corrigido** em `src/html_atributos.rs`: tokenizador próprio da tag
   de abertura (`HTMLTag::raw()`), com nomes em minúsculas, valores
-  brutos, atributo repetido recusado (`AtributoRepetidoNaTag`) e tag
+  brutos, atributo repetido valendo o primeiro, como no navegador (#676), e tag
   ilegível como `AtributoHtml(_)`. O `tl` segue dono da árvore. Testes:
   `formulario_web/tests_atributos.rs`, regressões por leitor (booleano
   `itemscope` antes de cada atributo) e a guarda

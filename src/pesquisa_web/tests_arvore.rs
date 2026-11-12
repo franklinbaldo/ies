@@ -48,7 +48,8 @@ fn duas_arvores_na_mesma_linha_sao_recusadas() {
 }
 
 #[test]
-fn class_repetido_com_valores_diferentes_continua_recusado() {
+fn class_repetido_vale_o_primeiro() {
+    // Como no navegador: a segunda ocorrência de class não conta.
     let html = HtmlServido::de_teste(&tabela(&linha(1).replacen(
         "title=\"Tipo\" class=\"protocoloNormal\"",
         "title=\"Tipo\" class=\"outra\"",
@@ -56,9 +57,7 @@ fn class_repetido_com_valores_diferentes_continua_recusado() {
     )));
     assert_eq!(
         ler_resultados(&html),
-        Err(ErroResultadoPesquisa::Atributo(
-            crate::html_atributos::ErroAtributoHtml::AtributoRepetidoNaTag { atributo: "class" }
-        ))
+        ler_resultados(&HtmlServido::de_teste(&tabela(&linha(1))))
     );
 }
 
@@ -151,10 +150,9 @@ fn processo_visitado_com_class_repetido_contendo_a_classe_e_lido() {
         "target=\"_blank\" class=\"processoVisitado\" ",
         1,
     );
+    // Vale o primeiro class, como no navegador: sem a classe, não é o link.
     assert_eq!(
         ler_resultados(&HtmlServido::de_teste(&tabela(&sem_a_classe))),
-        Err(ErroResultadoPesquisa::Atributo(
-            crate::html_atributos::ErroAtributoHtml::AtributoRepetidoNaTag { atributo: "class" }
-        ))
+        Err(ErroResultadoPesquisa::LinhaDePesquisaSemLinkDoProcesso)
     );
 }

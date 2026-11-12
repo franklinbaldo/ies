@@ -4,10 +4,7 @@ use crate::acao_do_sei::AcaoDoSei;
 use crate::consulta_do_controlador::{
     ConsultaDoControlador, ErroChaveDaConsulta, ErroConsultaDoControlador, menciona_acao,
 };
-use crate::html_atributos::{
-    nos_por_elemento_e_classe, nos_por_elemento_e_classe_em_todas_as_ocorrencias,
-    valor_decodificado,
-};
+use crate::html_atributos::{nos_por_elemento_e_classe, valor_decodificado};
 use crate::processo::{NumeroProcesso, NumeroProcessoInvalido};
 use serde::Serialize;
 use std::collections::HashSet;
@@ -90,9 +87,8 @@ fn contar_arvore_da_linha(
     href_do_processo: &str,
 ) -> Result<usize, ErroResultadoPesquisa> {
     // O `a.protocoloNormal` da mesma linha repete `class`: leitura tolerante.
-    let arvores =
-        nos_por_elemento_e_classe_em_todas_as_ocorrencias(dom, Some(linha), "a", "arvore")
-            .map_err(ErroResultadoPesquisa::Atributo)?;
+    let arvores = nos_por_elemento_e_classe(dom, Some(linha), "a", "arvore")
+        .map_err(ErroResultadoPesquisa::Atributo)?;
     let arvore = match arvores.as_slice() {
         [] => return Ok(0),
         [arvore] => *arvore,
@@ -146,13 +142,8 @@ pub fn ler_resultados(
             .get(parser)
             .and_then(tl::Node::as_tag)
             .ok_or(ErroResultadoPesquisa::LinhaDePesquisaSemLinkDoProcesso)?;
-        let links = nos_por_elemento_e_classe_em_todas_as_ocorrencias(
-            &dom,
-            Some(tag),
-            "a",
-            "protocoloNormal",
-        )
-        .map_err(ErroResultadoPesquisa::Atributo)?;
+        let links = nos_por_elemento_e_classe(&dom, Some(tag), "a", "protocoloNormal")
+            .map_err(ErroResultadoPesquisa::Atributo)?;
         // Links que só abrem um documento (acerto em documento, Goiás) não
         // disputam o lugar do link do processo.
         let (candidatos, documentos) = documento_da_linha::separar(parser, links)?;
@@ -193,14 +184,9 @@ pub fn ler_resultados(
     // A seleção por classe das linhas pode omitir links reais se a versão
     // do SEI mudar o HTML. Nunca devolver subconjunto silencioso como se
     // representasse todos os links observáveis da tabela de resultados.
-    let links_da_tabela = nos_por_elemento_e_classe_em_todas_as_ocorrencias(
-        &dom,
-        Some(tabela),
-        "a",
-        "protocoloNormal",
-    )
-    .map_err(ErroResultadoPesquisa::Atributo)?
-    .len();
+    let links_da_tabela = nos_por_elemento_e_classe(&dom, Some(tabela), "a", "protocoloNormal")
+        .map_err(ErroResultadoPesquisa::Atributo)?
+        .len();
     if links_da_tabela != resultados.len() + links_de_documento {
         return Err(ErroResultadoPesquisa::LinkDeProcessoForaDaLinhaDePesquisa);
     }

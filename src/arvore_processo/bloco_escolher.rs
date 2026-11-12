@@ -44,7 +44,7 @@ pub(crate) fn ler_bloco_escolher_da_barra(
             continue;
         };
         let lidos = atributos(tag).map_err(ErroBlocoNaBarra::Atributo)?;
-        let Some(bruto) = lidos.valor("href").map_err(ErroBlocoNaBarra::Atributo)? else {
+        let Some(bruto) = lidos.valor("href") else {
             continue;
         };
         let href = decodificar_atributo(bruto).ok_or_else(fora)?;
