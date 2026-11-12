@@ -4,7 +4,6 @@ use crate::arvore_processo::{
     AbertoEm, EnderecoDeEscrita, ErroAcaoSobrestar, ErroEnderecoDeRetomar, MotivoAbertoEm,
 };
 use crate::formulario_web::ErroSubmissaoFormulario;
-use crate::processo_concluir::escrita::CookieIlegivel;
 use crate::transporte::FalhaTransporte;
 mod fluxo;
 use crate::indice_local::IndiceLocal;
@@ -80,8 +79,6 @@ impl EstadoDaMudanca {
 #[derive(Clone, Debug, PartialEq, Eq, thiserror::Error)]
 #[error("{self:?}")]
 pub(crate) enum ErroSobrestamento {
-    /// O cookie privado da sessão não pôde ser lido.
-    Cookie(#[from] CookieIlegivel),
     Abertura(#[from] ErroProcessoObter),
     UnidadeNaoPublicada,
     SituacaoNaoLida(MotivoAbertoEm),
@@ -115,7 +112,7 @@ pub(crate) fn preparar<V: EnvioDoProcesso>(
     indice: &IndiceLocal,
     envio: &mut V,
 ) -> Result<Previa, ErroSobrestamento> {
-    preparar_com_acao(sessao, nup, unidade, acao, indice, envio).map(|(previa, _)| previa)
+    preparar_com_acao(sessao, nup, unidade, acao, indice, envio).map(|(previa, _, _)| previa)
 }
 
 pub(super) fn preparar_com_acao<V: EnvioDoProcesso>(
@@ -125,7 +122,14 @@ pub(super) fn preparar_com_acao<V: EnvioDoProcesso>(
     acao: Acao,
     indice: &IndiceLocal,
     envio: &mut V,
-) -> Result<(Previa, EnderecoDeEscrita), ErroSobrestamento> {
+) -> Result<
+    (
+        Previa,
+        EnderecoDeEscrita,
+        crate::transporte::sessao::CookieLido,
+    ),
+    ErroSobrestamento,
+> {
     let pedido = leitura(nup, unidade, true);
     let (aberto, acoes) = abrir_para_escrever(sessao, &pedido, indice, envio)?;
     let atual = aberto
@@ -167,6 +171,7 @@ pub(super) fn preparar_com_acao<V: EnvioDoProcesso>(
             estado: EstadoDaMudanca::Previa,
         },
         endereco,
+        acoes.cookie,
     ))
 }
 

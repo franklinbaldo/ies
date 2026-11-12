@@ -6,7 +6,8 @@
 use super::ErroLogin;
 use super::erro::ErroDeIo;
 use crate::arquivo_privado::{
-    ErroDaTrava, FalhaDaGravacao, Parcial, Politica, TravaDeArquivo, travar_com_espera,
+    ErroArquivoPrivado, ErroDaTrava, FalhaDaGravacao, Parcial, Politica, TravaDeArquivo,
+    travar_com_espera,
 };
 use crate::configuracao::{ArquivoPrivado, ArquivosDeAcesso};
 use sha2::{Digest, Sha256};
@@ -75,7 +76,7 @@ pub(crate) fn geracao_da_sessao(cookie: &str) -> String {
 /// também para a sessão preparada fora do `ies login` (sem marcador).
 pub(crate) fn geracao_gravada(arquivos: &ArquivosDeAcesso) -> Option<String> {
     let ler = |caminho: &Path| {
-        crate::transporte::arquivo_privado(caminho, 8_192)
+        crate::arquivo_privado::ler(caminho, 8_192)
             .ok()
             .map(|texto| texto.trim().to_owned())
             .filter(|texto| !texto.is_empty())
@@ -102,14 +103,14 @@ struct Marcador {
 // coerente (`ReferenciasDaSessao`, #222) o confere por `marcador_confere`.
 fn ler_marcador(arquivos: &ArquivosDeAcesso) -> Result<Option<Marcador>, ErroMarcadorDaSessao> {
     let caminho = caminho_ao_lado(&arquivos.url_controle, ".geracao");
-    match crate::transporte::arquivo_privado(&caminho, 4096) {
+    match crate::arquivo_privado::ler(&caminho, 4096) {
         Ok(texto) => serde_json::from_str(&texto).map(Some).map_err(|erro| {
             ErroMarcadorDaSessao::ForaDoFormato {
                 linha: erro.line(),
                 coluna: erro.column(),
             }
         }),
-        Err(crate::transporte::FalhaTransporte::ArquivoPrivadoAusenteOuInacessivel(_)) => Ok(None),
+        Err(ErroArquivoPrivado::Ausente) => Ok(None),
         Err(falha) => Err(ErroMarcadorDaSessao::Ilegivel(falha)),
     }
 }
@@ -119,7 +120,7 @@ fn ler_marcador(arquivos: &ArquivosDeAcesso) -> Result<Option<Marcador>, ErroMar
 #[derive(Clone, Debug, PartialEq, Eq, thiserror::Error)]
 #[error("{self:?}")]
 pub(crate) enum ErroMarcadorDaSessao {
-    Ilegivel(#[source] crate::transporte::FalhaTransporte),
+    Ilegivel(#[source] ErroArquivoPrivado),
     ForaDoFormato { linha: usize, coluna: usize },
 }
 

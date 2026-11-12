@@ -161,7 +161,9 @@ rodar de novo resolve). Todas as requisições do comando e a colheita do
 `caminho_credenciais_nao_informado`, `CampoDasCredenciaisAusente`,
 `CampoDasCredenciaisRepetido`, `CampoDasCredenciaisVazio`,
 `LinhaDasCredenciaisSemCampoConhecido`, os de arquivo privado
-(`arquivo_privado_*`), `LoginEmAndamentoEmOutroProcesso`,
+(`ArquivoDeCredenciais`, `OrigemIlegivel`, `ArquivoDaSessao`, cada um com
+o `ErroArquivoPrivado` do arquivo), `OrigemNaoAutorizada`,
+`LoginEmAndamentoEmOutroProcesso`,
 `ArquivoDeLockDoLoginInacessivel`, `controle_web_nao_reconhecido`
 (sessão existente), `redirecionamento_do_login_sem_localizacao`,
 `LocalizacaoDeRedirecionamentoNaoInterpretavel`,

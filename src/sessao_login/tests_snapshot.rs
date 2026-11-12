@@ -8,6 +8,7 @@ use super::gravacao;
 use super::tests_apoio::*;
 use super::tests_colheita::controle_com_linha;
 use crate::acao_do_sei::AcaoDoSei;
+use crate::arquivo_privado::ErroArquivoPrivado;
 use crate::colheita_do_controle::Colheita;
 use crate::indice_local::{ChaveDoLink, IndiceLocal};
 use crate::instalacao::Instalacao;
@@ -192,14 +193,19 @@ fn retrato_recusa_link_no_nome_final_de_cada_arquivo_da_sessao() {
     logar(&ambiente, &url_do_controle(), COOKIE_A);
     let geracao = ambiente.geracao();
     let arquivos = &ambiente.arquivos;
-    for nome in [&geracao, &arquivos.url_controle, &arquivos.origem] {
+    let link = ErroArquivoPrivado::LinkSimbolico;
+    for (nome, esperada) in [
+        (&geracao, FalhaTransporte::MarcadorDaSessaoIlegivel(link)),
+        (
+            &arquivos.url_controle,
+            FalhaTransporte::UrlDoControleIlegivel(link),
+        ),
+        (&arquivos.origem, FalhaTransporte::OrigemIlegivel(link)),
+    ] {
         let copia = ambiente.dir.join("copia");
         std::fs::rename(nome, &copia).unwrap();
         std::os::unix::fs::symlink(&copia, nome).unwrap();
-        assert_eq!(
-            ler(&ambiente, || {}).err(),
-            Some(FalhaTransporte::ArquivoPrivadoLinkSimbolico)
-        );
+        assert_eq!(ler(&ambiente, || {}).err(), Some(esperada));
         std::fs::remove_file(nome).unwrap();
         std::fs::rename(&copia, nome).unwrap();
     }
@@ -208,7 +214,9 @@ fn retrato_recusa_link_no_nome_final_de_cada_arquivo_da_sessao() {
     std::os::unix::fs::symlink(&copia, &arquivos.cookie).unwrap();
     assert_eq!(
         ler(&ambiente, || {}).unwrap().cookie().valor(),
-        Err(FalhaTransporte::ArquivoPrivadoLinkSimbolico)
+        Err(FalhaTransporte::CookieDaSessaoIlegivel(
+            ErroArquivoPrivado::LinkSimbolico
+        ))
     );
     std::fs::remove_file(&arquivos.cookie).unwrap();
     std::fs::rename(&copia, &arquivos.cookie).unwrap();

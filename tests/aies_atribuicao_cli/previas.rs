@@ -96,7 +96,7 @@ fn confirmar_publico_sem_sessao_recusa_sem_rede() {
             .env("HOME", "/arquivo/inexistente/ies-home")
             .output()
             .unwrap();
-        falha(&saida, "ArquivoPrivadoAusenteOuInacessivel");
+        falha_por(&saida, "UrlDoControleIlegivel", "Ausente");
     }
     let saida = Command::new(env!("CARGO_BIN_EXE_ies"))
         .args([
@@ -113,7 +113,7 @@ fn confirmar_publico_sem_sessao_recusa_sem_rede() {
         .env("HOME", "/arquivo/inexistente/ies-home")
         .output()
         .unwrap();
-    falha(&saida, "ArquivoPrivadoAusenteOuInacessivel");
+    falha_por(&saida, "UrlDoControleIlegivel", "Ausente");
 }
 
 #[test]

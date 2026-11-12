@@ -204,7 +204,7 @@ fn salvar_configuracao_aceita_dir_link_recusa_dir_aberto_e_nao_sobrescreve() {
 #[test]
 fn arquivo_privado_que_falha_e_identificado_pelo_papel() {
     use super::{
-        ArquivoPrivado, ArquivosDeAcesso, ErroArquivoPrivado, verificar_arquivos_privados,
+        ArquivoPrivado, ArquivosDeAcesso, ErroArquivoDeAcesso, verificar_arquivos_privados,
     };
     let pasta = Pasta::nova();
     let privado = |nome: &str| {
@@ -229,7 +229,7 @@ fn arquivo_privado_que_falha_e_identificado_pelo_papel() {
     };
     assert_eq!(
         verificar_arquivos_privados(&sem_cookie),
-        Err(ErroArquivoPrivado::Ausente(ArquivoPrivado::Cookie))
+        Err(ErroArquivoDeAcesso::Ausente(ArquivoPrivado::Cookie))
     );
     let relativa = ArquivosDeAcesso {
         url_controle: PathBuf::from("url"),
@@ -237,14 +237,14 @@ fn arquivo_privado_que_falha_e_identificado_pelo_papel() {
     };
     assert_eq!(
         verificar_arquivos_privados(&relativa),
-        Err(ErroArquivoPrivado::CaminhoNaoAbsoluto(
+        Err(ErroArquivoDeAcesso::CaminhoNaoAbsoluto(
             ArquivoPrivado::UrlControle
         ))
     );
     fs::write(&completos.origem, "").unwrap();
     assert_eq!(
         verificar_arquivos_privados(&completos),
-        Err(ErroArquivoPrivado::Vazio(ArquivoPrivado::Origem))
+        Err(ErroArquivoDeAcesso::Vazio(ArquivoPrivado::Origem))
     );
 }
 
@@ -252,7 +252,7 @@ fn arquivo_privado_que_falha_e_identificado_pelo_papel() {
 #[test]
 fn metadados_de_arquivo_privado_preservam_causa_de_ancestral_regular() {
     use super::{
-        ArquivoPrivado, ArquivosDeAcesso, ErroArquivoPrivado, verificar_arquivos_privados,
+        ArquivoPrivado, ArquivosDeAcesso, ErroArquivoDeAcesso, verificar_arquivos_privados,
     };
     let pasta = Pasta::nova();
     let url = pasta.0.join("url");
@@ -266,7 +266,7 @@ fn metadados_de_arquivo_privado_preservam_causa_de_ancestral_regular() {
     };
     assert_eq!(
         verificar_arquivos_privados(&arquivos),
-        Err(ErroArquivoPrivado::MetadadosNaoLidos(
+        Err(ErroArquivoDeAcesso::MetadadosNaoLidos(
             ArquivoPrivado::Cookie,
             std::io::ErrorKind::NotADirectory
         ))

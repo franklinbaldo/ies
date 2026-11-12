@@ -3,7 +3,6 @@
 //! `envio_post`. Todo pedido passa pelo `cliente_https` único (com proxy).
 use crate::acao_do_sei::AcaoDoSei;
 use crate::instalacao::Instalacao;
-use std::fs;
 use std::io::Read;
 use std::path::Path;
 
@@ -79,74 +78,16 @@ pub(crate) fn validar_origem(url: &str, origem: &str) -> Result<(), FalhaTranspo
     Ok(())
 }
 
-pub(crate) fn arquivo_privado(path: &Path, limite: u64) -> Result<String, FalhaTransporte> {
-    // A checagem do caminho fornece erros específicos; a decisão de
-    // segurança usa o descritor aberto, não metadados sujeitos a TOCTOU.
-    let observado = fs::symlink_metadata(path)
-        .map_err(|erro| FalhaTransporte::ArquivoPrivadoAusenteOuInacessivel(erro.kind()))?;
-    if observado.file_type().is_symlink() {
-        return Err(FalhaTransporte::ArquivoPrivadoLinkSimbolico);
-    }
-    if !observado.is_file() {
-        return Err(FalhaTransporte::CaminhoDeArquivoNaoEhArquivo);
-    }
-
-    let mut options = fs::OpenOptions::new();
-    options.read(true);
-    #[cfg(target_os = "linux")]
-    {
-        use std::os::unix::fs::OpenOptionsExt;
-        // O_NOFOLLOW impede a troca do último componente por symlink.
-        // O_NONBLOCK impede que a troca por FIFO bloqueie a leitura.
-        options.custom_flags(0o400_000 | 0o4_000);
-    }
-    let arquivo = options.open(path).map_err(|erro| {
-        if cfg!(target_os = "linux") && erro.raw_os_error() == Some(40) {
-            FalhaTransporte::ArquivoPrivadoLinkSimbolico
-        } else {
-            FalhaTransporte::ArquivoPrivadoNaoPodeSerLido(erro.kind())
-        }
-    })?;
-    let metadata = arquivo
-        .metadata()
-        .map_err(|erro| FalhaTransporte::ArquivoPrivadoNaoPodeSerLido(erro.kind()))?;
-    if !metadata.is_file() {
-        return Err(FalhaTransporte::CaminhoDeArquivoNaoEhArquivo);
-    }
-    if metadata.len() == 0 {
-        return Err(FalhaTransporte::ArquivoPrivadoVazio);
-    }
-    if metadata.len() > limite {
-        return Err(FalhaTransporte::ArquivoPrivadoAcimaDoLimite);
-    }
-    #[cfg(unix)]
-    {
-        use std::os::unix::fs::PermissionsExt;
-        if metadata.permissions().mode() & 0o077 != 0 {
-            return Err(FalhaTransporte::ArquivoPrivadoComPermissoesInseguras);
-        }
-    }
-    let mut bytes = Vec::new();
-    arquivo
-        .take(limite + 1)
-        .read_to_end(&mut bytes)
-        .map_err(|erro| FalhaTransporte::ArquivoPrivadoNaoPodeSerLido(erro.kind()))?;
-    if u64::try_from(bytes.len()).is_ok_and(|tamanho| tamanho > limite) {
-        return Err(FalhaTransporte::ArquivoPrivadoAcimaDoLimite);
-    }
-    if bytes.is_empty() {
-        return Err(FalhaTransporte::ArquivoPrivadoVazio);
-    }
-    String::from_utf8(bytes)
-        .map_err(|erro| FalhaTransporte::ArquivoPrivadoNaoUtf8(erro.utf8_error()))
-}
-
 pub(crate) fn validar_cookie(cookie: &str) -> Result<(), FalhaTransporte> {
-    if cookie.is_empty() || cookie.contains(':') || !cookie.bytes().all(|b| (32..=126).contains(&b))
-    {
+    if !cookie_no_formato(cookie) {
         return Err(FalhaTransporte::CookieInvalido);
     }
     Ok(())
+}
+
+/// Não vazio, sem `:` e só ASCII visível ou espaço: o valor do cabeçalho.
+pub(crate) fn cookie_no_formato(cookie: &str) -> bool {
+    !cookie.is_empty() && !cookie.contains(':') && cookie.bytes().all(|b| (32..=126).contains(&b))
 }
 
 /// Pré-validação offline: usa exatamente as regras do transporte Web,

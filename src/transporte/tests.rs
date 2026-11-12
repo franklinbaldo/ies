@@ -1,4 +1,5 @@
 use super::*;
+use std::fs;
 use std::io::Cursor;
 
 fn url(host: &str) -> String {
@@ -107,11 +108,11 @@ fn links_simbolicos_para_arquivos_privados_nao_podem_ser_lidos() {
     let atalho = raiz.join("cookie-atalho");
     symlink(&original, &atalho).unwrap();
     assert_eq!(
-        arquivo_privado(&atalho, 8_192),
-        Err(FalhaTransporte::ArquivoPrivadoLinkSimbolico)
+        crate::arquivo_privado::ler(&atalho, 8_192),
+        Err(crate::arquivo_privado::ErroArquivoPrivado::LinkSimbolico)
     );
     assert_eq!(
-        arquivo_privado(&original, 8_192),
+        crate::arquivo_privado::ler(&original, 8_192),
         Ok("PHPSESSID=DEMONSTRACAO".to_owned())
     );
     fs::remove_dir_all(raiz).unwrap();
@@ -141,7 +142,9 @@ fn url_assinada_via_link_simbolico_falha_antes_de_consultar_rede() {
             &raiz.join("cookie-nao-existe"),
             &raiz.join("origem-nao-existe"),
         ),
-        Err(FalhaTransporte::ArquivoPrivadoLinkSimbolico)
+        Err(FalhaTransporte::UrlDoControleIlegivel(
+            crate::arquivo_privado::ErroArquivoPrivado::LinkSimbolico
+        ))
     );
     fs::remove_dir_all(raiz).unwrap();
 }
@@ -163,15 +166,18 @@ fn descritor_revalida_permissoes_e_limite_de_conteudo() {
     fs::write(&arquivo, "CONTEUDO").unwrap();
     fs::set_permissions(&arquivo, fs::Permissions::from_mode(0o644)).unwrap();
     assert_eq!(
-        arquivo_privado(&arquivo, 128),
-        Err(FalhaTransporte::ArquivoPrivadoComPermissoesInseguras)
+        crate::arquivo_privado::ler(&arquivo, 128),
+        Err(crate::arquivo_privado::ErroArquivoPrivado::PermissoesAbertas)
     );
     fs::set_permissions(&arquivo, fs::Permissions::from_mode(0o600)).unwrap();
     assert_eq!(
-        arquivo_privado(&arquivo, 4),
-        Err(FalhaTransporte::ArquivoPrivadoAcimaDoLimite)
+        crate::arquivo_privado::ler(&arquivo, 4),
+        Err(crate::arquivo_privado::ErroArquivoPrivado::AcimaDoLimite)
     );
-    assert_eq!(arquivo_privado(&arquivo, 128), Ok("CONTEUDO".to_owned()));
+    assert_eq!(
+        crate::arquivo_privado::ler(&arquivo, 128),
+        Ok("CONTEUDO".to_owned())
+    );
     fs::remove_dir_all(&pasta).unwrap();
 }
 

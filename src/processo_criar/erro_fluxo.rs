@@ -1,5 +1,6 @@
 //! Erros tipados do fluxo de criação; o envio e a releitura preservam as causas.
 use super::reconciliacao;
+use crate::arquivo_privado::ErroArquivoPrivado;
 use crate::formulario_web::ErroSubmissaoFormulario;
 use crate::processo_criar_cadastro::ErroCadastro;
 use crate::processo_criar_hipotese::ErroHipotese;
@@ -83,8 +84,12 @@ pub(crate) enum ErroCriar {
     Submissao(ErroSubmissaoFormulario),
     /// Origem ou cookie da sessão local ilegíveis, antes da rede.
     SessaoLocalIlegivel,
-    /// Cookie da sessão recusado pelo transporte, antes da rede.
-    CookieDaSessaoIlegivel(#[source] FalhaTransporte),
+    /// O arquivo do cookie da sessão não foi lido, antes da rede.
+    CookieDaSessaoIlegivel(#[source] ErroArquivoPrivado),
+    /// O cookie da sessão está fora do formato do cabeçalho `Cookie`.
+    CookieForaDoFormato,
+    /// A URL do Controle não é da origem autorizada: o cookie não foi aberto.
+    ControleForaDaOrigem(#[source] FalhaTransporte),
     UnidadeDiferente,
     /// O Controle foi lido, mas a unidade publicada não pôde ser extraída.
     UnidadeDoControleIlegivel(#[source] crate::erro_web::ErroCaixa),

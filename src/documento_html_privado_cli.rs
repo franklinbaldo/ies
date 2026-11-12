@@ -1,16 +1,14 @@
 //! Leitura opt-in de HTML privado previamente obtido da interface Web.
 //! Nunca estabelece sessão nem executa GET, POST ou escrita no SEI.
 use crate::uso_invalido::{UsoInvalido, recusar};
-use crate::{
-    Cli, Documento, Domain, arquivo_texto_documento, documento, documento_web, transporte,
-};
+use crate::{Cli, Documento, Domain, arquivo_texto_documento, documento, documento_web};
 use serde_json::json;
 use std::path::Path;
 
 #[derive(Debug, Clone, PartialEq, Eq, thiserror::Error)]
 #[error("{self:?}")]
 enum ErroHtmlPrivado {
-    Fonte(#[from] transporte::FalhaTransporte),
+    Fonte(#[from] crate::arquivo_privado::ErroArquivoPrivado),
     /// O arquivo não cabe no limite do HTML interpretado.
     HtmlAcimaDoLimite(#[from] crate::tela_html::HtmlAcimaDoLimite),
     Titulo(#[from] documento_web::ErroTituloDocumento),
@@ -71,7 +69,7 @@ pub(super) fn tentar_ler(cli: &Cli) -> Option<anyhow::Result<()>> {
         let numero =
             conferir_comando(documento, cli.unidade.as_deref()).unwrap_or_else(|uso| recusar(uso));
         let html = crate::tela_html::HtmlServido::novo(
-            transporte::arquivo_privado(arquivo, 8_000_000).map_err(ErroHtmlPrivado::Fonte)?,
+            crate::arquivo_privado::ler(arquivo, 8_000_000).map_err(ErroHtmlPrivado::Fonte)?,
         )?;
         let (identidade, texto) = selecionar(&html, &numero)?;
         let exportado = documento

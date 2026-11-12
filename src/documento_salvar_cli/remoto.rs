@@ -59,7 +59,6 @@ enum ErroSalvarNoSei {
     /// Só a instalação sintética (`sei.test`) tem o editor observado.
     InstalacaoSemEditorObservado,
     LeituraDoDocumento(#[source] ErroDocumentoObter),
-    Cookie(#[source] crate::transporte::FalhaTransporte),
     VersaoAlterada,
     BaseAlterada,
     /// A base não é UTF-8; guarda a causa da conversão.
@@ -265,10 +264,7 @@ fn executar(
         lido.id_documento,
         acao = AcaoDoSei::EditorMontar.como_na_url()
     );
-    let cookie = match sessao.cookie.valor() {
-        Ok(cookie) => cookie,
-        Err(falha) => return Resultado::Recusado(ErroSalvarNoSei::Cookie(falha)),
-    };
+    let cookie: &str = &lido.cookie;
     let editor = match envio.get(&url, cookie).and_then(decodificar_resposta) {
         Ok(editor) => editor,
         Err(falha) => return Resultado::Recusado(ErroSalvarNoSei::EditorNaoServido(falha)),

@@ -17,9 +17,8 @@ use crate::indice_local::IndiceLocal;
 use crate::instalacao::Instalacao;
 use crate::pagina_do_controle::codificacao_da_tela;
 use crate::processo::NumeroProcesso;
-use crate::processo_concluir::escrita::CookieIlegivel;
 use crate::processo_concluir::escrita::{
-    Contador, FalhaDaTela, leitura, ler_cookie, obter_tela, siglas_abertas,
+    Contador, FalhaDaTela, leitura, obter_tela, siglas_abertas,
 };
 use crate::processo_obter::{
     EnvioDoProcesso, ErroProcessoObter, SessaoDoProcesso, abrir_para_escrever, obter_processo,
@@ -104,8 +103,6 @@ pub(crate) struct ResultadoCriacao {
 #[derive(Debug, PartialEq, Eq, thiserror::Error)]
 #[error("{self:?}")]
 pub(crate) enum ErroDocumentoCriar {
-    /// O cookie privado da sessão não pôde ser lido.
-    Cookie(#[from] CookieIlegivel),
     Abertura(#[from] ErroProcessoObter),
     OrigemNaoAutorizada,
     UnidadeNaoPublicada,
@@ -192,7 +189,7 @@ pub(crate) fn executar_criacao<V: EnvioDoProcesso>(
         return Err(ErroDocumentoCriar::ProcessoNaoAbertoNaUnidade);
     }
     let link = acoes.incluir?.ok_or(ErroDocumentoCriar::LinkNaoPublicado)?;
-    let cookie = ler_cookie(sessao)?;
+    let cookie = acoes.cookie.clone();
     let (mut html_lista, mime_lista) =
         obter_tela(&mut rede, &cookie, link.as_str()).map_err(erro_da_tela)?;
     let mut tipos = tipos_oferecidos(&html_lista)?;

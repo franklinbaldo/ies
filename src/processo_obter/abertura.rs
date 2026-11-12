@@ -30,7 +30,7 @@ use crate::pesquisa_web::redirecionamento::{
 use crate::processo_comentarios::{EnderecoDosComentarios, ErroLinkDosComentarios};
 use crate::propriedades_processo::{EnderecoDasPropriedades, ErroPropriedades};
 use crate::transporte::contagem::ContagemDeRequisicoes;
-use crate::transporte::sessao::CookieDaSessao;
+use crate::transporte::sessao::{CookieDaSessao, CookieLido};
 use crate::transporte::{FalhaTransporte, decodificar_resposta};
 
 /// `form#frmProtocoloPesquisaRapida` (`UnB`, GO, PEN1): POST para o `action`
@@ -280,7 +280,7 @@ pub(super) fn ler_arvore_da_pagina_com_modo(
 /// Cookie lido uma vez e as requisições feitas (inclusive as que falharam).
 pub(super) struct Rede<'v, V> {
     pub(super) envio: &'v mut V,
-    pub(super) cookie: String,
+    pub(super) cookie: CookieLido,
     pub(super) requisicoes: ContagemDeRequisicoes,
 }
 

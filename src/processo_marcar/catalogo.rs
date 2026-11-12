@@ -18,7 +18,7 @@ use crate::indice_local::IndiceLocal;
 use crate::instalacao::Instalacao;
 use crate::pagina_do_controle::codificacao_da_tela;
 use crate::processo::NumeroProcesso;
-use crate::processo_concluir::escrita::{Contador, FalhaDaTela, ler_cookie, obter_tela};
+use crate::processo_concluir::escrita::{Contador, FalhaDaTela, obter_tela};
 use crate::processo_obter::{
     EnvioDoProcesso, Marcadores, PedidoDeAndamentos, PedidoDoProcesso, SessaoDoProcesso,
     abrir_para_escrever,
@@ -132,7 +132,7 @@ pub(super) fn rotulo_oferecido(
 }
 
 fn submissao_cadastro<V: EnvioDoProcesso>(
-    sessao: &SessaoDoProcesso<'_>,
+    (origem, cookie): (&str, &str),
     rede: &mut Contador<'_, V>,
     link: &str,
     id: &str,
@@ -140,11 +140,10 @@ fn submissao_cadastro<V: EnvioDoProcesso>(
     rotulo: &Rotulo,
     texto: Option<&str>,
 ) -> anyhow::Result<crate::formulario_web::SubmissaoDerivada> {
-    let cookie = ler_cookie(sessao)?;
-    let instalacao = Instalacao::interpretar(sessao.origem)
+    let instalacao = Instalacao::interpretar(origem)
         .ok_or_else(|| recusa(ErroMarcar::OrigemNaoInterpretada, rede.feitas()))?;
-    let url = destino_cadastro(rede, &cookie, link, &instalacao, id)?;
-    let (html, mime) = match obter_tela(rede, &cookie, &url) {
+    let url = destino_cadastro(rede, cookie, link, &instalacao, id)?;
+    let (html, mime) = match obter_tela(rede, cookie, &url) {
         Ok(tela) => tela,
         Err(FalhaDaTela::Transporte(erro)) => return Err(erro.into()),
         Err(FalhaDaTela::Redirecionada | FalhaDaTela::SessaoEncerrada(_)) => {
@@ -269,7 +268,7 @@ pub(crate) fn executar_atribuicao<V: EnvioDoProcesso>(
         .marcadores?
         .ok_or_else(|| recusa(ErroMarcar::LinkDeMarcadoresNaoPublicado, rede.feitas()))?;
     let submissao = submissao_cadastro(
-        sessao,
+        (sessao.origem, &acoes.cookie),
         &mut rede,
         link.as_str(),
         &aberto.arvore.processo.id,

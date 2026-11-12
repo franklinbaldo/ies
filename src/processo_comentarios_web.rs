@@ -6,8 +6,7 @@ use crate::processo_comentarios::{
     ComentarioLido, ErroComentarios, ErroLinkDosComentarios, TelaDosComentarios,
     VisaoDosComentarios,
 };
-use crate::processo_concluir::escrita::CookieIlegivel;
-use crate::processo_concluir::escrita::{Contador, FalhaDaTela, leitura, ler_cookie, obter_tela};
+use crate::processo_concluir::escrita::{Contador, FalhaDaTela, leitura, obter_tela};
 use crate::processo_obter::{
     EnvioDoProcesso, ErroProcessoObter, SessaoDoProcesso, abrir_para_escrever,
 };
@@ -27,7 +26,6 @@ pub(crate) struct Resultado {
 pub(crate) enum ErroProcessoComentarios {
     Abertura(#[from] ErroProcessoObter),
     Barra(#[from] ErroLinkDosComentarios),
-    Cookie(#[from] CookieIlegivel),
     Transporte(#[from] FalhaTransporte),
     Leitura(#[from] ErroComentarios),
     ComentariosNaoOferecidos,
@@ -52,7 +50,7 @@ pub(crate) fn ler<V: EnvioDoProcesso>(
     let endereco = acoes
         .comentarios?
         .ok_or(ErroProcessoComentarios::ComentariosNaoOferecidos)?;
-    let cookie = ler_cookie(sessao)?;
+    let cookie = acoes.cookie.clone();
     let (html, _) =
         obter_tela(&mut rede, &cookie, endereco.as_str()).map_err(|falha| match falha {
             FalhaDaTela::Transporte(erro) => ErroProcessoComentarios::Transporte(erro),

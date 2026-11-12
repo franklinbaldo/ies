@@ -8,6 +8,9 @@ use std::process::{Command, Output};
 #[path = "support/falha.rs"]
 mod falha_cli;
 use falha_cli::falha;
+#[path = "support/falha_por.rs"]
+mod falha_por_cli;
+use falha_por_cli::falha_por;
 
 fn sem_sessao(args: &[&str], credenciais: Option<&str>) -> Output {
     let mut comando = Command::new(env!("CARGO_BIN_EXE_ies"));
@@ -52,7 +55,7 @@ fn sem_configuracao_falha_fechado_sem_rede() {
         let mut args = vec!["documento", "assinar", "0000101", "--json"];
         args.extend_from_slice(extra);
         let saida = sem_sessao(&args, Some("/nao/existe/credenciais"));
-        falha(&saida, "ArquivoPrivadoAusenteOuInacessivel");
+        falha_por(&saida, "UrlDoControleIlegivel", "Ausente");
     }
 }
 

@@ -8,7 +8,7 @@ use crate::arvore_processo::{FormaDaReabertura, ler_endereco_de_reabrir};
 use crate::indice_local::IndiceLocal;
 use crate::instalacao::Instalacao;
 use crate::processo_concluir::escrita::{
-    Contador, FalhaDaTela, leitura, ler_cookie, obter_tela, pela_funcao, siglas_abertas, verificar,
+    Contador, FalhaDaTela, leitura, obter_tela, pela_funcao, siglas_abertas, verificar,
 };
 use crate::processo_concluir::{FalhaDoEnvio, VerificacaoPorLeitura};
 use crate::processo_obter::{
@@ -52,7 +52,7 @@ pub(crate) fn reabrir_processo<V: EnvioDoProcesso>(
             }
             (Some(acao), false) => {
                 if pedido.confirmar {
-                    let cookie = ler_cookie(sessao)?;
+                    let cookie = acoes.cookie.clone();
                     let (html, _) = obter_tela(&mut rede, &cookie, acao.tela_do_no.as_str())
                         .map_err(|falha| match falha {
                             FalhaDaTela::Transporte(falha) => {

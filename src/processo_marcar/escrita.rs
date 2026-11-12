@@ -16,7 +16,7 @@ use crate::indice_local::IndiceLocal;
 use crate::instalacao::Instalacao;
 use crate::pagina_do_controle::codificacao_da_tela;
 use crate::processo::NumeroProcesso;
-use crate::processo_concluir::escrita::{Contador, FalhaDaTela, ler_cookie, obter_tela};
+use crate::processo_concluir::escrita::{Contador, FalhaDaTela, obter_tela};
 use crate::processo_obter::{
     EnvioDoProcesso, Marcadores, PedidoDeAndamentos, PedidoDoProcesso, SessaoDoProcesso,
     abrir_para_escrever,
@@ -176,9 +176,9 @@ fn preparar_submissao<V: EnvioDoProcesso>(
     link: &str,
     unidade: &str,
     rotulo: &Rotulo,
+    cookie: &str,
 ) -> anyhow::Result<crate::formulario_web::SubmissaoDerivada> {
-    let cookie = ler_cookie(sessao)?;
-    let (html, mime) = match obter_tela(rede, &cookie, link) {
+    let (html, mime) = match obter_tela(rede, cookie, link) {
         Ok(tela) => tela,
         Err(FalhaDaTela::Transporte(erro)) => return Err(erro.into()),
         Err(FalhaDaTela::Redirecionada | FalhaDaTela::SessaoEncerrada(_)) => {
@@ -253,7 +253,14 @@ pub(crate) fn confirmar_retirada<V: EnvioDoProcesso>(
     let link = acoes
         .marcadores?
         .ok_or_else(|| recusa(ErroMarcar::LinkDeMarcadoresNaoPublicado, rede.feitas()))?;
-    let submissao = preparar_submissao(sessao, &mut rede, link.as_str(), unidade, rotulo)?;
+    let submissao = preparar_submissao(
+        sessao,
+        &mut rede,
+        link.as_str(),
+        unidade,
+        rotulo,
+        &acoes.cookie,
+    )?;
     let mut tentativa = false;
     let resposta = enviar_submissao_via(submissao, sessao.cookie, |submissao, cookie| {
         tentativa = true;

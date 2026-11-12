@@ -51,7 +51,7 @@ pub(crate) fn abrir_para_escrever<V: EnvioDoProcesso>(
     let instalacao = Instalacao::interpretar(sessao.origem).ok_or(
         ErroProcessoObter::Transporte(FalhaTransporte::OrigemNaoAutorizada),
     )?;
-    let cookie = sessao.cookie.valor()?.to_owned();
+    let cookie = sessao.cookie.lido()?;
     let contexto = Contexto {
         instalacao,
         nup: pedido.nup.as_str(),
@@ -124,6 +124,7 @@ pub(crate) fn abrir_para_escrever<V: EnvioDoProcesso>(
         andamento: arvore_lida.andamento,
         relacionar: arvore_lida.relacionar,
         acompanhar: arvore_lida.acompanhar,
+        cookie: rede.cookie.clone(),
     };
     Ok((aberto, acoes))
 }

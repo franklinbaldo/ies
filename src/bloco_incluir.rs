@@ -18,9 +18,7 @@ use crate::formulario_web::{
 use crate::indice_local::IndiceLocal;
 use crate::instalacao::Instalacao;
 use crate::pagina_do_controle::codificacao_da_tela;
-use crate::processo_concluir::escrita::{
-    Contador, CookieIlegivel, FalhaDaTela, ler_cookie, obter_tela,
-};
+use crate::processo_concluir::escrita::{Contador, FalhaDaTela, obter_tela};
 use crate::processo_obter::{
     DocumentoNaArvoreAberto, EnvioDoProcesso, ErroDocumentoObter, PedidoDoAnexo, PedidoDoDocumento,
     SessaoDoProcesso, abrir_documento_na_arvore,
@@ -104,7 +102,6 @@ pub(crate) enum ErroIncluir {
     Barra(#[from] ErroBlocoNaBarra),
     /// A barra do documento não oferece "Incluir em Bloco de Assinatura".
     AcaoNaoOferecidaNaBarra,
-    Cookie(#[from] CookieIlegivel),
     Tela(#[from] FalhaDaTela),
     /// `selBloco` não oferece o bloco pedido.
     BlocoNaoOferecido,
@@ -276,7 +273,7 @@ pub(crate) fn prever_documento<V: EnvioDoProcesso>(
         &aberto.processo.id,
     )?
     .ok_or(ErroIncluir::AcaoNaoOferecidaNaBarra)?;
-    let cookie = ler_cookie(sessao)?;
+    let cookie = aberto.cookie.clone();
     let (html, mime) = obter_tela(&mut rede, &cookie, link.as_str())?;
     let tela = ler_tela_de_escolha(&html)?;
     let caixa = caixa_do_documento(&tela, bloco, &aberto)?;

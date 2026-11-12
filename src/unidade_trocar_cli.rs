@@ -11,7 +11,7 @@ use crate::indice_local::IndiceLocal;
 use crate::instalacao::Instalacao;
 use crate::transporte::FalhaTransporte;
 use crate::transporte::contagem::ContagemDeRequisicoes;
-use crate::transporte::sessao::{CookieDaSessao, ReferenciasDaSessao};
+use crate::transporte::sessao::ReferenciasDaSessao;
 use crate::unidade_trocar::{
     ControleLido, EnvioDaTroca, EnvioHttpsDaTroca, ErroTroca, PedidoDeTroca, SessaoDaTroca, Troca,
     trocar_unidade,
@@ -74,7 +74,7 @@ pub(crate) struct TrocaNaoFeita {
 #[error("{self:?}")]
 pub(crate) struct TrocaFeitaSemRegravarSessao {
     #[source]
-    pub(crate) causa: FalhaAplicarTroca,
+    pub(crate) causa: crate::sessao_login::ErroLogin,
     pub(crate) depois: String,
     pub(crate) requisicoes: u32,
 }
@@ -140,14 +140,6 @@ pub(crate) fn trocar(
     )
 }
 
-/// Causas diferentes permanecem tipadas.
-#[derive(Debug, PartialEq, Eq, thiserror::Error)]
-#[error("{self:?}")]
-pub(crate) enum FalhaAplicarTroca {
-    Cookie(#[source] FalhaTransporte),
-    Gravacao(#[source] crate::sessao_login::ErroLogin),
-}
-
 /// Depois da troca verificada: grava a URL do Controle novo (e o
 /// marcador) como a da sessão, apaga os links assinados da instalação e
 /// colhe o Controle novo com a chave da unidade nova. O cookie é o do
@@ -157,12 +149,10 @@ pub(crate) fn aplicar_troca(
     arquivos: &ArquivosDeAcesso,
     indice: &IndiceLocal,
     instalacao: &Instalacao,
-    cookie: &CookieDaSessao,
+    cookie: &str,
     novo: &ControleLido,
-) -> Result<Option<usize>, FalhaAplicarTroca> {
-    let cookie = cookie.valor().map_err(FalhaAplicarTroca::Cookie)?;
-    crate::sessao_login::regravar_url_do_controle(arquivos, &novo.url, cookie)
-        .map_err(FalhaAplicarTroca::Gravacao)?;
+) -> Result<Option<usize>, crate::sessao_login::ErroLogin> {
+    crate::sessao_login::regravar_url_do_controle(arquivos, &novo.url, cookie)?;
     let descartados = indice.esquecer_links_da_instalacao(instalacao);
     crate::colheita_do_controle::Colheita::do_cookie(indice, instalacao, cookie, &novo.url)
         .colher(&novo.html, Some(&novo.mime));
@@ -178,7 +168,7 @@ fn concluir(
     pedidos: u32,
 ) -> anyhow::Result<()> {
     let descartados = if let Some(novo) = &troca.controle_novo {
-        aplicar_troca(arquivos, indice, instalacao, sessao.cookie(), novo).map_err(|causa| {
+        aplicar_troca(arquivos, indice, instalacao, &troca.cookie, novo).map_err(|causa| {
             TrocaFeitaSemRegravarSessao {
                 causa,
                 depois: troca.pedida.clone(),

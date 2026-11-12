@@ -49,7 +49,7 @@ fn comando_sem_sessao_falha_fechado() {
     assert_eq!(saida.stdout, b"");
     let erro = String::from_utf8_lossy(&saida.stderr);
     assert!(
-        erro.starts_with("Error: ArquivoPrivadoAusenteOuInacessivel"),
+        erro.starts_with("Error: UrlDoControleIlegivel(Ausente)"),
         "{erro}"
     );
 }

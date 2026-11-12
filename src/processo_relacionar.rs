@@ -22,8 +22,7 @@ use crate::indice_local::IndiceLocal;
 use crate::instalacao::Instalacao;
 use crate::pagina_do_controle::codificacao_da_tela;
 use crate::processo::NumeroProcesso;
-use crate::processo_concluir::escrita::CookieIlegivel;
-use crate::processo_concluir::escrita::{Contador, FalhaDaTela, leitura, ler_cookie, obter_tela};
+use crate::processo_concluir::escrita::{Contador, FalhaDaTela, leitura, obter_tela};
 use crate::processo_obter::{
     EnvioDoProcesso, ErroProcessoObter, SessaoDoProcesso, abrir_para_escrever,
 };
@@ -46,8 +45,6 @@ const CONSULTA: ConsultaAjax = ConsultaAjax {
 #[derive(Debug, thiserror::Error)]
 #[error("{self:?}")]
 pub(crate) enum FalhaRelacionar {
-    /// O cookie privado da sessão não pôde ser lido.
-    Cookie(CookieIlegivel),
     /// Caminho de escrita implementado offline, mas ainda sem validação live.
     Abertura(ErroProcessoObter),
     Barra(ErroRelacionarNaBarra),
@@ -218,7 +215,7 @@ pub(crate) fn prever<V: EnvioDoProcesso>(
         .relacionar
         .map_err(FalhaRelacionar::Barra)?
         .ok_or(FalhaRelacionar::LinkNaoPublicado)?;
-    let cookie = ler_cookie(sessao)?;
+    let cookie = acoes.cookie.clone();
     let (html, mime) = obter_tela(&mut rede, &cookie, link.as_str()).map_err(|e| match e {
         FalhaDaTela::Transporte(falha) => FalhaRelacionar::Tela(falha),
         FalhaDaTela::Redirecionada => FalhaRelacionar::TelaRedirecionada,
@@ -345,10 +342,4 @@ pub(crate) fn prever<V: EnvioDoProcesso>(
         previa.requisicoes = rede.feitas();
     }
     Ok(previa)
-}
-
-impl From<CookieIlegivel> for FalhaRelacionar {
-    fn from(erro: CookieIlegivel) -> Self {
-        Self::Cookie(erro)
-    }
 }

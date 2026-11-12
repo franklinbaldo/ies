@@ -54,24 +54,14 @@ fn falhas_da_aplicacao_preservam_a_causa_tipificada() {
         mime: "text/html; charset=iso-8859-1".into(),
     };
 
-    let cookie_ausente = CookieDaSessao::ler(&dir.join("cookie-inexistente"));
-    assert!(matches!(
-        aplicar_troca(&arquivos, &indice, &instalacao, &cookie_ausente, &novo),
-        Err(FalhaAplicarTroca::Cookie(
-            FalhaTransporte::ArquivoPrivadoAusenteOuInacessivel(_)
-        ))
-    ));
-
     std::fs::create_dir(&arquivos.url_controle).unwrap();
     assert!(matches!(
-        aplicar_troca(
-            &arquivos,
-            &indice,
-            &instalacao,
-            &CookieDaSessao::sintetico(COOKIE),
-            &novo
-        ),
-        Err(FalhaAplicarTroca::Gravacao(_))
+        aplicar_troca(&arquivos, &indice, &instalacao, COOKIE, &novo),
+        Err(
+            crate::sessao_login::ErroLogin::DestinoDaSessaoNaoEhArquivoRegular(
+                crate::configuracao::ArquivoPrivado::UrlControle
+            )
+        )
     ));
     std::fs::remove_dir_all(dir).unwrap();
 }
@@ -121,13 +111,7 @@ fn troca_regrava_sessao_e_nada_da_unidade_anterior_e_reaproveitado() {
         mime: "text/html; charset=iso-8859-1".into(),
     };
     assert_eq!(
-        aplicar_troca(
-            &arquivos,
-            &indice,
-            &instalacao,
-            &CookieDaSessao::sintetico(COOKIE),
-            &novo,
-        ),
+        aplicar_troca(&arquivos, &indice, &instalacao, COOKIE, &novo,),
         Ok(Some(2))
     );
     let gravada = std::fs::read_to_string(&arquivos.url_controle).unwrap();
@@ -175,6 +159,7 @@ fn sucesso_publica_escopo_da_sessao_e_so_nomes_dos_campos() {
         confirmado: true,
         controle_inicial: lido(url_controle(ID_A)),
         controle_novo: Some(lido(url_limpa(ID_B))),
+        cookie: crate::transporte::sessao::CookieLido::sintetico(COOKIE),
     };
     let valor = json_de_sucesso(&troca, Some(4), 5);
     assert_eq!(valor["depois"], "PR-B");

@@ -2,7 +2,6 @@
 //! (contracts/cli/documento-assinar.md). Um erro por fato.
 use crate::arvore_processo::{Assinante, ErroAssinaturaNaArvore, ErroLinkDeAssinar};
 use crate::formulario_web::ErroSubmissaoFormulario;
-use crate::processo_concluir::escrita::CookieIlegivel;
 use crate::processo_obter::ErroDocumentoObter;
 use crate::sessao_login::ErroLogin;
 use crate::transporte::FalhaTransporte;
@@ -44,8 +43,6 @@ pub(crate) enum VerificacaoDaAssinatura {
 #[derive(Clone, Debug, PartialEq, Eq, thiserror::Error)]
 #[error("{self:?}")]
 pub(crate) enum ErroAssinar {
-    /// O cookie privado da sessão não pôde ser lido.
-    Cookie(#[from] CookieIlegivel),
     /// A abertura do documento (a de `ies documento DOC`) falhou.
     Abertura(#[from] ErroDocumentoObter),
     /// Credenciais (`IES_CREDENCIAIS_FILE`) ilegíveis: nada foi pedido.

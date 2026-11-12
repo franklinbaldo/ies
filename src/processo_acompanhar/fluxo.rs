@@ -12,7 +12,7 @@ use crate::formulario_web::{
 use crate::indice_local::IndiceLocal;
 use crate::instalacao::Instalacao;
 use crate::processo::NumeroProcesso;
-use crate::processo_concluir::escrita::{Contador, leitura, ler_cookie};
+use crate::processo_concluir::escrita::{Contador, leitura};
 use crate::processo_obter::{EnvioDoProcesso, SessaoDoProcesso, abrir_para_escrever};
 use crate::transporte::decodificar_resposta;
 use crate::visao_do_controle::EnvioDoControle as _;
@@ -272,7 +272,7 @@ pub(crate) fn previa<V: EnvioDoProcesso>(
     let unidade = aberto.unidade.ok_or(ErroAcompanhar::UnidadeNaoPublicada)?;
     let id = aberto.arvore.processo.id;
     let link = acoes.acompanhar?.ok_or(ErroAcompanhar::LinkNaoPublicado)?;
-    let cookie = ler_cookie(sessao)?;
+    let cookie = acoes.cookie.clone();
     let LeituraDoGerenciador {
         antes,
         url_cadastro,
