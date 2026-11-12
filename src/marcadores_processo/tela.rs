@@ -1,8 +1,8 @@
 //! A tela "Marcadores do Processo" (`andamento_marcador_gerenciar`), lida
 //! sem envio: `btnAdicionar`, `btnRemover`, `acaoRemover` e o `action` do
 //! `form#frmGerenciarMarcador` nunca participam além da conferência de
-//! identidade. Atributos pelo tokenizador de `html_atributos`; aninhamento
-//! pelo `tl`; sem regex e sem JavaScript.
+//! identidade. Atributos e aninhamento pela árvore
+//! `tela_html`; sem regex e sem JavaScript.
 use super::{ErroMarcadores, MarcadorDoProcesso, MarcadoresLidos, TelaDosMarcadores};
 use crate::acao_do_sei::AcaoDoSei;
 use crate::consulta_do_controlador::ConsultaDoControlador;

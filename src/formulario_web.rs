@@ -337,7 +337,6 @@ pub(crate) fn derivar_submissao_com_action(
             FalhaTransporte::OrigemNaoAutorizada,
         ));
     }
-    // tl só recusa entradas acima de u32::MAX bytes, já barradas acima.
     let dom = crate::tela_html::arvore(tela.html);
     match operacao.unidade {
         ConferenciaDaUnidade::NaTelaDoFormulario => conferir_unidade(&dom, unidade_solicitada)?,

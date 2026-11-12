@@ -1,6 +1,6 @@
 //! Tela de Anexação de Processos do SEI, sem rede nem escrita.
 //! Oráculo: Todos src/todos/anexacao.py @323eb01 (`UnB` 4.0.9).
-//! Nenhum JavaScript executado, atributos só via `html_atributos`.
+//! Nenhum JavaScript executado, atributos só pela árvore `tela_html`.
 use crate::formulario_web::ErroSubmissaoFormulario;
 use crate::formulario_web::localizar_formulario;
 use crate::resposta_ajax::{ErroXml, RespostaAjax};

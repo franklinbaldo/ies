@@ -1,4 +1,4 @@
-//! RED/GREEN do defeito do `tl` 0.7.8 na derivação: um booleano sem valor
+//! Regressão do `tl` 0.7.8 (removido na #676) na derivação: um booleano sem valor
 //! antes de `disabled`, `name`, `type` ou `value` não pode abrir o formulário.
 use super::tests::{OPERACAO, instalacao, tela_iso, url_servida};
 use super::*;

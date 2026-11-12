@@ -73,8 +73,8 @@ pub(crate) fn tipos_oferecidos(
     Ok(tipos)
 }
 /// Nome do tipo como o texto o publica, espaços colapsados. O U+00A0 fica:
-/// o SEI 5 publica "Nome&nbsp;(Formulário)", e o `tl` só decodificava
-/// a entidade depois de colapsar os espaços.
+/// o SEI 5 publica "Nome&nbsp;(Formulário)", e o nome segue com o espaço
+/// inseparável, como se lia antes da #676.
 fn nome_visivel(texto: &str) -> String {
     texto
         .split(|c: char| c.is_whitespace() && c != '\u{a0}')

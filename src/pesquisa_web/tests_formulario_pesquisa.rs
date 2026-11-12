@@ -198,8 +198,8 @@ fn entidade_desconhecida_no_orgao_fica_literal_como_no_navegador() {
 }
 
 /// Forma bruta servida nas quatro instalações: `multiple` sem valor antes
-/// de `id`. O defeito do tl 0.7.8 (`id` lido como `d`) foi corrigido pelo
-/// tokenizador `html_atributos`; o `select` continua localizado pelo
+/// de `id`. Regressão do `tl` 0.7.8 (`id` lido como `d`), removido na #676; o
+/// `select` continua localizado pelo
 /// `name`, que é o nome efetivamente serializado no POST.
 #[test]
 fn forma_bruta_observada_do_select_com_multiple_sem_valor_e_lida() {

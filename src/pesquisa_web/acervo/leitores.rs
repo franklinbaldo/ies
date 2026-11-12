@@ -312,7 +312,7 @@ pub(super) enum Opcao {
 }
 
 /// O rádio `rdoPesquisarEm` marcado na tela de resultado (por
-/// `html_atributos`): exatamente um de `#optProcessos` e `#optDocumentos`.
+/// árvore `tela_html`): exatamente um de `#optProcessos` e `#optDocumentos`.
 fn opcao_marcada(html: &str) -> Opcao {
     let servido = HtmlServido::de_teste(html);
     let dom = crate::tela_html::arvore(&servido);

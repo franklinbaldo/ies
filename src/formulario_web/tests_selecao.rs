@@ -112,7 +112,7 @@ fn texto_com_mesmo_nome_de_select_multiple_nao_herda_a_excecao() {
 
 #[test]
 fn select_multiple_desabilitado_nao_e_publicado() {
-    // A forma `multiple disabled` (corrompida pelo mapa do tl 0.7.8) está
+    // A forma `multiple disabled` (regressão do `tl` 0.7.8) está
     // coberta em `tests_atributos`; aqui `disabled` vem por último.
     let desabilitado = MULTIPLO.replace(" multiple>", " multiple='multiple' disabled>");
     assert_eq!(

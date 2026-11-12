@@ -1,5 +1,5 @@
 //! Tela de relacionamentos do SEI 4.0 (PEN1): leitura estrutural, sem JS
-//! executado e sem regex; todos os atributos passam por `html_atributos`.
+//! executado e sem regex; atributos lidos da árvore `tela_html`.
 use crate::acao_do_sei::AcaoDoSei;
 use crate::consulta_do_controlador::ConsultaDoControlador;
 use crate::formulario_web::{ErroSubmissaoFormulario, localizar_formulario};

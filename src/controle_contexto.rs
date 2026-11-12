@@ -49,8 +49,6 @@ impl ContextoPagina {
     }
 }
 
-// `id`, `value` e `href` vêm da fonte da tag: o índice de `id` do tl 0.7.8
-// usa a chave corrompida após atributo booleano sem valor.
 fn primeiro_com_id<'d>(
     dom: &'d crate::tela_html::Documento,
     id: &str,
@@ -154,7 +152,7 @@ fn par_de_barras_equivalentes(dom: &crate::tela_html::Documento) -> bool {
         let Some(link) = achados.next() else {
             return false;
         };
-        // tl mantém a barra desktop dentro da móvel neste HTML observado;
+        // A barra desktop fica dentro da móvel neste HTML observado;
         // ambas as ocorrências precisam pertencer ao par, sem terceiro link.
         if let Some(outro) = achados.next() {
             if id != "divInfraBarraSistemaMovel" || achados.next().is_some() {
