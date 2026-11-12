@@ -1,0 +1,15 @@
+id: 30-opcao-any
+language: rust
+message: 'Option de atributo: into_iter().any(f) vira is_some_and(f)'
+severity: hint
+rule:
+  all:
+    - pattern: '$O.atributo($K).into_iter().any($F)'
+    - not:
+        inside:
+          stopBy: end
+          kind: mod_item
+          follows:
+            kind: attribute_item
+            regex: 'cfg\(test\)'
+fix: '$O.atributo($K).is_some_and($F)'

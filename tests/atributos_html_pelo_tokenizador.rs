@@ -61,6 +61,14 @@ fn seletor_por_id_ou_classe(codigo: &str) -> bool {
     })
 }
 
+/// `src/tela_html.rs` e o módulo da árvore, `src/tela_html/`.
+fn e_tela_html(caminho: &Path) -> bool {
+    caminho.ends_with("src/tela_html.rs")
+        || caminho
+            .parent()
+            .is_some_and(|pasta| pasta.ends_with("src/tela_html"))
+}
+
 #[test]
 fn nenhum_codigo_de_producao_le_atributos_pelo_tl() {
     let raiz = Path::new(env!("CARGO_MANIFEST_DIR"));
@@ -102,10 +110,10 @@ fn guarda_reconhece_as_formas_proibidas() {
     assert!(!codigo_de_producao(fonte).contains(".attributes()"));
 }
 
-/// O parser só é chamado em `src/tela_html.rs` (#751): trocá-lo (#676)
-/// mexe num arquivo. A falha dele não existe para quem lê a tela: o
-/// `HtmlServido` cabe no parser, e nenhum erro de "HTML não interpretado"
-/// volta a ser declarado.
+/// Os parsers só são chamados em `src/tela_html.rs` (#751) e, o html5ever,
+/// na sua árvore em `src/tela_html/` (#676): trocá-los mexe num ponto só.
+/// A falha do `tl` não existe para quem lê a tela: o `HtmlServido` cabe no
+/// parser, e nenhum erro de "HTML não interpretado" volta a ser declarado.
 #[test]
 fn so_tela_html_chama_o_parser() {
     let raiz = Path::new(env!("CARGO_MANIFEST_DIR"));
@@ -113,11 +121,13 @@ fn so_tela_html_chama_o_parser() {
     arquivos_rs(&raiz.join("src"), &mut arquivos);
     let violacoes: Vec<_> = arquivos
         .iter()
-        .filter(|c| !eh_teste_ou_tokenizador(c) && !c.ends_with("src/tela_html.rs"))
+        .filter(|c| !eh_teste_ou_tokenizador(c) && !e_tela_html(c))
         .filter(|c| {
             let fonte = fs::read_to_string(c).unwrap();
             let codigo = codigo_de_producao(&fonte);
-            codigo.contains("tl::parse(") || codigo.contains("tl::ParseError")
+            codigo.contains("tl::parse(")
+                || codigo.contains("tl::ParseError")
+                || codigo.contains("html5ever::")
         })
         .map(|c| c.strip_prefix(raiz).unwrap_or(c).display().to_string())
         .collect();

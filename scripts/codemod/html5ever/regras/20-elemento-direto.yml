@@ -1,0 +1,27 @@
+id: 20-elemento-direto
+language: rust
+message: 'Some(x).is_some_and(|y| corpo) deixado pelas regras 07 e 18b: o corpo usa x no lugar de y.'
+severity: hint
+rule:
+  any:
+    - pattern: 'Some($X).is_some_and(|$Y| { $B })'
+    - pattern: Some($X).is_some_and(|$Y| $B)
+  not:
+    inside:
+      stopBy: end
+      kind: mod_item
+      follows:
+        kind: attribute_item
+        regex: 'cfg\(test\)'
+rewriters:
+  - id: renomear
+    rule:
+      kind: identifier
+      pattern: $Y
+    fix: $X
+transform:
+  CORPO:
+    rewrite:
+      rewriters: [renomear]
+      source: $B
+fix: $CORPO

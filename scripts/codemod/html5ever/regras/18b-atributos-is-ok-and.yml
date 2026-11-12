@@ -1,0 +1,14 @@
+id: 18b-atributos-is-ok-and
+language: rust
+message: 'Tag sempre legível em is_ok_and.'
+severity: hint
+rule:
+  pattern: atributos($T).is_ok_and(|$A| $B)
+  not:
+    inside:
+      stopBy: end
+      kind: mod_item
+      follows:
+        kind: attribute_item
+        regex: 'cfg\(test\)'
+fix: 'Some($T).is_some_and(|$A| $B)'

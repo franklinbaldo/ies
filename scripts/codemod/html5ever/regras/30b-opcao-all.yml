@@ -1,0 +1,15 @@
+id: 30b-opcao-all
+language: rust
+message: 'Option de atributo: into_iter().all(f) vira is_none_or(f)'
+severity: hint
+rule:
+  all:
+    - pattern: '$O.atributo($K).into_iter().all($F)'
+    - not:
+        inside:
+          stopBy: end
+          kind: mod_item
+          follows:
+            kind: attribute_item
+            regex: 'cfg\(test\)'
+fix: '$O.atributo($K).is_none_or($F)'

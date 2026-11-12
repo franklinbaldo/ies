@@ -3,6 +3,9 @@
 
 use crate::transporte::corpo::{ErroCorpoHttp, legivel};
 
+mod documento;
+pub(crate) use documento::arvore;
+
 /// Bytes UTF-8 que um corpo de até `MAX_HTML_BYTES` bytes rende: em
 /// ISO-8859-1 cada byte vira um caractere de até dois bytes.
 const LIMITE_DO_TEXTO: usize = 2 * crate::MAX_HTML_BYTES;

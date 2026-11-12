@@ -1,0 +1,27 @@
+id: 31-atributo-emprestado
+language: rust
+message: 'Valor de atributo usado só por as_deref(): sem to_owned'
+severity: hint
+rule:
+  all:
+    - pattern: 'let $V = $T.atributo($K).map(str::to_owned);'
+    - not:
+        precedes:
+          stopBy: end
+          has:
+            stopBy: end
+            all:
+              - kind: identifier
+              - pattern: $V
+              - not:
+                  inside:
+                    stopBy: end
+                    pattern: $V.as_deref()
+    - not:
+        inside:
+          stopBy: end
+          kind: mod_item
+          follows:
+            kind: attribute_item
+            regex: 'cfg\(test\)'
+fix: 'let $V = $T.atributo($K);'

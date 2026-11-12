@@ -1,0 +1,18 @@
+id: 18a2-atributos-let-else-expressao
+language: rust
+message: 'Tag sempre legível: os atributos são o próprio elemento.'
+severity: hint
+rule:
+  pattern: let Ok($A) = atributos($T) else { $$$B };
+  not:
+    inside:
+      stopBy: end
+      kind: mod_item
+      follows:
+        kind: attribute_item
+        regex: 'cfg\(test\)'
+constraints:
+  T:
+    not:
+      kind: identifier
+fix: 'let $A = $T;'

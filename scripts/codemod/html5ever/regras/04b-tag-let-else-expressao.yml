@@ -1,0 +1,18 @@
+id: 04b-tag-let-else-expressao
+language: rust
+message: 'Ramo impossível no let-else (continue, return).'
+severity: hint
+rule:
+  pattern: let Some($X) = $H.get($P).and_then(tl::Node::as_tag) else { $$$B };
+  not:
+    inside:
+      stopBy: end
+      kind: mod_item
+      follows:
+        kind: attribute_item
+        regex: 'cfg\(test\)'
+constraints:
+  H:
+    not:
+      kind: identifier
+fix: 'let $X = $H;'

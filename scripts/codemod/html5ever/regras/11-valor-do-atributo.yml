@@ -1,0 +1,18 @@
+id: 11-valor-do-atributo
+language: rust
+message: 'Valor de atributo (html5ever já decodifica; o primeiro vale).'
+severity: hint
+rule:
+  any:
+    - pattern: valor_do_atributo($T, $K).map_err($E)?
+    - pattern: valor_do_atributo($T, $K)?
+    - pattern: valor_decodificado($T, $K).map_err($E)?
+    - pattern: valor_decodificado($T, $K)?
+  not:
+    inside:
+      stopBy: end
+      kind: mod_item
+      follows:
+        kind: attribute_item
+        regex: 'cfg\(test\)'
+fix: '$T.atributo($K).map(str::to_owned)'

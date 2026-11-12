@@ -21,6 +21,7 @@ time = { version = "0.3", features = ["parsing", "macros"] }
 thiserror = "2"
 anyhow = "1"
 tl = "0.7.8"
+html5ever = "0.40.1"
 
 # Só os testes leem cassettes (ZIP do acervo, corpos em base64 e SHA-1 do
 # card): o binário de produção não liga `zip`, `base64` nem `sha1`.

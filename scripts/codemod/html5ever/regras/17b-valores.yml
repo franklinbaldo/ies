@@ -1,0 +1,20 @@
+id: 17b-valores
+language: rust
+message: 'Só em função que chama atributos(): Atributo repetido vale o primeiro, como no navegador (#808).'
+severity: hint
+rule:
+  pattern: $A.valores($K)
+  inside:
+    stopBy: end
+    kind: function_item
+    has:
+      stopBy: end
+      pattern: atributos($T)
+  not:
+    inside:
+      stopBy: end
+      kind: mod_item
+      follows:
+        kind: attribute_item
+        regex: 'cfg\(test\)'
+fix: '$A.atributo($K).into_iter()'

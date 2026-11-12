@@ -1,0 +1,14 @@
+id: 99-parser-local
+language: rust
+message: 'Sem parser: o elemento acessa o próprio documento.'
+severity: hint
+rule:
+  pattern: let $P = $D.parser();
+  not:
+    inside:
+      stopBy: end
+      kind: mod_item
+      follows:
+        kind: attribute_item
+        regex: 'cfg\(test\)'
+fix: '/* ies-codemod: remover linha */'
