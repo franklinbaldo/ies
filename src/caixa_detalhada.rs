@@ -263,9 +263,7 @@ fn ler_linha(
         let Some(bruto) = valor_do_atributo(link, "href")? else {
             continue;
         };
-        let Some(href) = decodificar_atributo(&bruto) else {
-            continue;
-        };
+        let href = decodificar_atributo(&bruto);
         if !menciona_processo(&href) {
             continue;
         }

@@ -295,12 +295,14 @@ fn data_de_geracao_ausente_vazia_ou_fora_da_forma_e_recusa() {
 }
 
 #[test]
-fn entidade_desconhecida_e_recusa() {
+fn entidade_desconhecida_fica_literal_como_no_navegador() {
     let html = trocar("&amp; teste", "&desconhecida; teste");
+    let escapada = trocar("&amp; teste", "&amp;desconhecida; teste");
     assert_eq!(
-        ler(&html),
-        Err(super::ErroPropriedades::TextoDasPropriedadesNaoDecodificado)
+        ler(&html).unwrap().especificacao,
+        "Especificação sintética &desconhecida; teste"
     );
+    assert_eq!(ler(&html), ler(&escapada));
 }
 
 #[test]

@@ -217,12 +217,7 @@ pub(super) fn ancoras_da_barra(html: &str) -> Result<Vec<AncoraDaBarra>, ErroBar
         };
         let lidos = atributos(tag).map_err(ErroBarraDoProcesso::Atributo)?;
         let decodificado = |nome: &'static str| -> Result<Option<String>, ErroBarraDoProcesso> {
-            match lidos.valor(nome) {
-                None => Ok(None),
-                Some(bruto) => decodificar_atributo(bruto)
-                    .map(Some)
-                    .ok_or(ErroBarraDoProcesso::BarraDoProcessoForaDaFormaObservada),
-            }
+            Ok(lidos.valor(nome).map(decodificar_atributo))
         };
         ancoras.push(AncoraDaBarra {
             href: decodificado("href")?,

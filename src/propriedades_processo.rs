@@ -116,7 +116,6 @@ pub(crate) enum ErroPropriedades {
     CodigoDoAssuntoNaoInterpretado,
     DataDeGeracaoAusente,
     NivelDeAcessoNaoMarcado,
-    TextoDasPropriedadesNaoDecodificado,
     AssuntoForaDaFormaObservada,
     CampoDasPropriedadesAusente,
     CampoDasPropriedadesRepetido,

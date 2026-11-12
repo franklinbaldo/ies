@@ -145,8 +145,7 @@ pub(crate) fn link_do_controle(
         let bruto = valor_do_atributo(tag, "onclick")
             .map_err(ErroLogin::Atributo)?
             .ok_or(ErroLogin::LinkDoControleDeProcessosNaoReconhecido)?;
-        let onclick = decodificar_atributo(&bruto)
-            .ok_or(ErroLogin::LinkDoControleDeProcessosNaoReconhecido)?;
+        let onclick = decodificar_atributo(&bruto);
         let url = url_do_onclick(&onclick)
             .ok_or(ErroLogin::LinkDoControleDeProcessosNaoReconhecido)?
             .to_owned();
@@ -162,7 +161,7 @@ fn atributo_decodificado(tag: &tl::HTMLTag<'_>, nome: &'static str) -> Option<St
     valor_do_atributo(tag, nome)
         .ok()
         .flatten()
-        .and_then(|bruto| decodificar_atributo(&bruto))
+        .map(|bruto| decodificar_atributo(&bruto))
 }
 
 /// `onsubmit="return acaoLogin(N);"` com o script servido gravando o
@@ -171,7 +170,7 @@ fn hdn_acao_do_onsubmit(form: &tl::HTMLTag<'_>, html: &str) -> Result<String, Er
     let bruto = valor_do_atributo(form, "onsubmit")
         .map_err(ErroLogin::Atributo)?
         .ok_or(ErroLogin::OnsubmitDoLoginAusente)?;
-    let onsubmit = decodificar_atributo(&bruto).ok_or(ErroLogin::OnsubmitDoLoginForaDoFormato)?;
+    let onsubmit = decodificar_atributo(&bruto);
     let argumento = onsubmit
         .trim()
         .strip_prefix("return acaoLogin(")

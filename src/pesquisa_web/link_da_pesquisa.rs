@@ -77,7 +77,6 @@ pub(crate) fn link_da_pesquisa(
 /// O único `href` (decodificado) de `<a>` cuja consulta tem
 /// `acao=protocolo_pesquisar`; `protocolo_pesquisa_rapida` não conta.
 fn href_publicado(html: &crate::tela_html::HtmlServido) -> Result<String, ErroLinkDaPesquisa> {
-    let nao = || ErroLinkDaPesquisa::LinkDaPesquisaNaoReconhecido;
     let dom = crate::tela_html::interpretar(html);
     let parser = dom.parser();
     let mut achados = Vec::new();
@@ -89,13 +88,7 @@ fn href_publicado(html: &crate::tela_html::HtmlServido) -> Result<String, ErroLi
         else {
             continue;
         };
-        let Some(href) = decodificar_atributo(&bruto) else {
-            // Entidade desconhecida só importa se puder ser o menu da pesquisa.
-            if bruto.contains(AcaoDoSei::ProtocoloPesquisar.como_na_url()) {
-                return Err(nao());
-            }
-            continue;
-        };
+        let href = decodificar_atributo(&bruto);
         let publica = menciona_acao(&href, AcaoDoSei::ProtocoloPesquisar);
         if publica {
             achados.push(href);

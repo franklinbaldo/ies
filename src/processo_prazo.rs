@@ -132,7 +132,7 @@ pub(crate) fn ler_tela(
 /// com o `id_procedimento` pedido; outro destino recusa antes de qualquer escrita.
 fn conferir_destino(form: &tl::HTMLTag<'_>, id_procedimento: &str) -> Result<(), ErroPrazo> {
     let action = crate::html_atributos::valor_do_atributo(form, "action")?
-        .and_then(|bruto| crate::formulario_web::decodificar_atributo(&bruto))
+        .map(|bruto| crate::formulario_web::decodificar_atributo(&bruto))
         .ok_or(ErroPrazo::FormularioDeOutroDestino)?;
     let (caminho, consulta) = action
         .split_once('?')

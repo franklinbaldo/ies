@@ -97,7 +97,7 @@ fn conferir_identidade(dom: &tl::VDom<'_>, nup: &str, id: &str) -> Result<(), Er
     let [titulo] = titulos.as_slice() else {
         return Err(ErroMarcadores::TelaDosMarcadoresAusente);
     };
-    let titulo = texto(titulo, parser).map_err(|_| ErroMarcadores::TelaDosMarcadoresAusente)?;
+    let titulo = texto(titulo, parser);
     let numero = titulo
         .strip_prefix(TITULO)
         .ok_or(ErroMarcadores::TelaDosMarcadoresAusente)?;
@@ -143,7 +143,7 @@ fn legenda(tabela: Tag<'_>, parser: &tl::Parser<'_>) -> Result<usize, ErroMarcad
     let [caption] = descendentes(tabela, parser, "caption")[..] else {
         return Err(fora());
     };
-    let legenda = texto(caption, parser)?;
+    let legenda = texto(caption, parser);
     if !legenda.starts_with("Marcadores (") {
         return Err(fora());
     }
@@ -171,8 +171,8 @@ fn rotulo_do_th(
     }
     let rotulos = nos_por_elemento_e_classe_em(th, parser, "div", "infraDivRotuloOrdenacao")?;
     match rotulos.as_slice() {
-        [] => texto(th, parser),
-        [div] => texto(div, parser),
+        [] => Ok(texto(th, parser)),
+        [div] => Ok(texto(div, parser)),
         _ => Err(fora()),
     }
 }
@@ -227,7 +227,7 @@ fn linha(
     }
     // Marcador: o texto da célula; o ícone dá a cor; os `title`, quando
     // presentes, repetem o nome.
-    let nome = texto(marcador, parser)?;
+    let nome = texto(marcador, parser);
     if nome.is_empty() {
         return Err(LINHA);
     }
@@ -242,8 +242,8 @@ fn linha(
             return Err(LINHA);
         }
     }
-    let texto_lido = texto(texto_td, parser)?;
-    let data_hora = texto(data_hora, parser)?;
+    let texto_lido = texto(texto_td, parser);
+    let data_hora = texto(data_hora, parser);
     if !eh_data_hora(&data_hora) {
         return Err(LINHA);
     }
@@ -259,13 +259,11 @@ fn linha(
 
 /// Célula vazia: `None`; senão, exatamente um `a.ancoraSigla` com todo o texto.
 fn sigla(celula: Tag<'_>, parser: &tl::Parser<'_>) -> Result<Option<String>, ErroMarcadores> {
-    let completo = texto(celula, parser)?;
+    let completo = texto(celula, parser);
     let ancoras = nos_por_elemento_e_classe_em(celula, parser, "a", "ancoraSigla")?;
     match ancoras.as_slice() {
         [] if completo.is_empty() => Ok(None),
-        [ancora] if !completo.is_empty() && texto(ancora, parser)? == completo => {
-            Ok(Some(completo))
-        }
+        [ancora] if !completo.is_empty() && texto(ancora, parser) == completo => Ok(Some(completo)),
         _ => Err(LINHA),
     }
 }
@@ -297,10 +295,8 @@ fn eh_data_hora(texto: &str) -> bool {
 
 /// Entidades decodificadas (`&nbsp;` como espaço inseparável).
 /// Texto visível, entidades decodificadas e espaços colapsados.
-fn texto(tag: Tag<'_>, parser: &tl::Parser<'_>) -> Result<String, ErroMarcadores> {
-    decodificar_atributo(&tag.inner_text(parser))
-        .map(|t| texto_colapsado(&t))
-        .ok_or(LINHA)
+fn texto(tag: Tag<'_>, parser: &tl::Parser<'_>) -> String {
+    texto_colapsado(&decodificar_atributo(&tag.inner_text(parser)))
 }
 
 /// Descendentes `elemento` de `raiz`, na ordem do documento.

@@ -78,7 +78,7 @@ fn link_do_gerado(
             let href = valor_do_atributo(ancora, "href")
                 .map_err(ErroCriar::Atributo)?
                 .ok_or_else(erro)?;
-            let href = decodificar_atributo(&href).ok_or_else(erro)?;
+            let href = decodificar_atributo(&href);
             if encontrado.replace(href).is_some() {
                 return Err(ErroCriar::Fotografia(
                     reconciliacao::ErroFotografia::LinksDoCandidatoRepetidos,

@@ -141,7 +141,7 @@ fn link_do_cadastro(
             .map_err(ErroComentar::AtributoDaLinkIlegivel)?
             .valor("href");
         if let Some(href) = href {
-            let href = decodificar_atributo(href).ok_or_else(fora)?;
+            let href = decodificar_atributo(href);
             if e_link_do_cadastro(&href) {
                 links.push(href);
             }
@@ -156,7 +156,7 @@ fn link_do_cadastro(
             .map_err(ErroComentar::AtributoDaLinkIlegivel)?
             .valor("onclick");
         if let Some(onclick) = onclick {
-            let onclick = decodificar_atributo(onclick).ok_or_else(fora)?;
+            let onclick = decodificar_atributo(onclick);
             if let Some(url) = url_do_botao_de_cadastro(&onclick) {
                 links.push(url.to_owned());
             }

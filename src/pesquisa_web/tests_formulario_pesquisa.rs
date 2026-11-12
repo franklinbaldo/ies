@@ -176,12 +176,24 @@ fn orgao_sem_selecao_servida_ou_opcao_sem_valor_e_recusado_sem_inventar_orgao() 
         regra(&pagina(&interior(&sem_valor))),
         ErroRegraDoFormularioDePesquisa::OpcaoDeOrgaoSelecionadaSemValorNaTela
     );
+}
+
+#[test]
+fn entidade_desconhecida_no_orgao_fica_literal_como_no_navegador() {
     let entidade = select_de_orgao("<option value='1&desconhecida;' selected>A</option>");
+    let escapada = select_de_orgao("<option value='1&amp;desconhecida;' selected>A</option>");
+    let submissao = derivar(&pagina(&interior(&entidade))).unwrap();
     assert_eq!(
-        regra(&pagina(&interior(&entidade))),
-        ErroRegraDoFormularioDePesquisa::AtributoHtml(
-            crate::html_atributos::ErroAtributoHtml::EntidadeHtmlDesconhecida,
-        )
+        String::from_utf8(submissao.corpo().to_vec()).unwrap(),
+        "hdnInfraTipoPagina=1&sbmPesquisar=Pesquisar&rdoPesquisarEm=P\
+         &selOrgaoPesquisa%5B%5D=1%26desconhecida%3B\
+         &hdnIdUnidade=&hdnIdAssunto=&hdnIdAssinante=&hdnIdContato=\
+         &txtProtocoloPesquisa=0001\
+         &hdnIdUsuarioGerador1=&hdnIdUsuarioGerador2=&hdnIdUsuarioGerador3=&hdnInicio=0"
+    );
+    assert_eq!(
+        derivar(&pagina(&interior(&escapada))).unwrap().corpo(),
+        submissao.corpo()
     );
 }
 

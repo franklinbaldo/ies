@@ -54,7 +54,7 @@ pub(crate) fn texto_colapsado(texto: &str) -> String {
 fn conferir_acao(form: &tl::HTMLTag<'_>) -> Result<(), E> {
     let diferente = || E::AcaoDoFormularioDoNivelDeDetalheDiferente;
     let bruto = valor_do_atributo(form, "action")?.ok_or_else(diferente)?;
-    let acao = decodificar_atributo(&bruto).ok_or_else(diferente)?;
+    let acao = decodificar_atributo(&bruto);
     let (_, consulta) = acao.split_once('?').ok_or_else(diferente)?;
     let pares = ConsultaDoControlador::ler(consulta).map_err(E::ConsultaDoFormularioIlegivel)?;
     let lida = pares.acao().map_err(E::AcaoDoFormularioNaoLida)?;
@@ -89,7 +89,6 @@ pub(crate) fn ler_nivel_de_detalhe(
             | ErroSubmissaoFormulario::AcaoDoFormularioForaDaInstalacao
             | ErroSubmissaoFormulario::AcaoDoFormularioDiferenteDaOperacao
             | ErroSubmissaoFormulario::AcaoDoFormularioSemInfraHashUnico
-            | ErroSubmissaoFormulario::EntidadeHtmlDesconhecidaNoAtributo { .. }
             | ErroSubmissaoFormulario::CampoOcultoAusenteNoFormulario { .. }
             | ErroSubmissaoFormulario::CampoOcultoRepetidoNoFormulario { .. }
             | ErroSubmissaoFormulario::HdnAcaoPublicadoSemRegraDaOperacao

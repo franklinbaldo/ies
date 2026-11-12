@@ -59,7 +59,7 @@ pub(super) fn link_do_processo_no_controle(
             let Some(href) = valor_do_atributo(link, "href").map_err(ilegivel)? else {
                 continue;
             };
-            let href = decodificar_atributo(&href).ok_or_else(|| ilegivel(()))?;
+            let href = decodificar_atributo(&href);
             if !href.starts_with("controlador.php?acao=procedimento_trabalhar&") {
                 continue;
             }

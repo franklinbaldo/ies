@@ -217,7 +217,7 @@ fn ancora(tag: &tl::HTMLTag<'_>, parser: &tl::Parser<'_>) -> Option<Peca> {
         return None;
     }
     let (alt, title) = (lidos.valor("alt")?, lidos.valor("title")?);
-    let nome = decodificar_atributo(alt)?;
+    let nome = decodificar_atributo(alt);
     if alt != title || nome.is_empty() || nome.trim() != nome {
         return None;
     }

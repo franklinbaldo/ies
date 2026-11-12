@@ -29,8 +29,6 @@ pub(crate) enum ErroAtributoHtml {
     ValorEntreAspasSemFechamento,
     /// Os bytes da fonte da tag não são UTF-8 válido.
     FonteDaTagNaoEhUtf8(#[source] std::str::Utf8Error),
-    /// O valor tem uma entidade `&nome;` que o decodificador não conhece.
-    EntidadeHtmlDesconhecida,
 }
 
 /// Atributos na ordem da fonte, com nomes em minúsculas ASCII e valores
@@ -119,10 +117,7 @@ pub(crate) fn valor_decodificado(
     tag: &tl::HTMLTag<'_>,
     nome: &str,
 ) -> Result<Option<String>, ErroAtributoHtml> {
-    atributos(tag)?
-        .valor(nome)
-        .map(|bruto| decodificar_atributo(bruto).ok_or(ErroAtributoHtml::EntidadeHtmlDesconhecida))
-        .transpose()
+    Ok(atributos(tag)?.valor(nome).map(decodificar_atributo))
 }
 
 /// Presença de atributo booleano em `tag`.

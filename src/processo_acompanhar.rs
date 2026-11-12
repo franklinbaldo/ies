@@ -117,8 +117,7 @@ pub(crate) fn grupos_do_cadastro(
         _ => return Err(ErroAcompanhar::FormulariosDeAcompanhamentoRepetidos),
     };
     let action = campo(form, "action")?.ok_or(ErroAcompanhar::CadastroNaoPublicado)?;
-    let action = crate::formulario_web::decodificar_atributo(&action)
-        .ok_or(ErroAcompanhar::HtmlDeAcompanhamentoInvalido)?;
+    let action = crate::formulario_web::decodificar_atributo(&action);
     conferir_action_do_cadastro(&action, id_procedimento)?;
     let mut protocolos = Vec::new();
     let mut selects = Vec::new();

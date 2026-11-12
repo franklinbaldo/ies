@@ -22,7 +22,6 @@ pub(crate) enum ErroDasAnotacoes {
 #[derive(Clone, Debug, PartialEq, Eq, thiserror::Error)]
 #[error("{self:?}")]
 pub(crate) enum ErroLeituraDaAnotacao {
-    TelaDeAnotacoesNaoInterpretada,
     TelaDeAnotacoesComAtributoIlegivel(#[source] crate::html_atributos::ErroAtributoHtml),
     FormularioDeAnotacoesAusente(#[source] crate::formulario_web::ErroSubmissaoFormulario),
     AnotacaoDeOutroProcesso,
@@ -87,13 +86,9 @@ pub(crate) fn texto_anotacao(
     let valor = |tag: &tl::HTMLTag<'_>,
                  nome: &'static str|
      -> Result<Option<String>, ErroLeituraDaAnotacao> {
-        valor_do_atributo(tag, nome)
+        Ok(valor_do_atributo(tag, nome)
             .map_err(ErroLeituraDaAnotacao::TelaDeAnotacoesComAtributoIlegivel)?
-            .map(|bruto| {
-                decodificar_atributo(&bruto)
-                    .ok_or(ErroLeituraDaAnotacao::TelaDeAnotacoesNaoInterpretada)
-            })
-            .transpose()
+            .map(|bruto| decodificar_atributo(&bruto)))
     };
     let mut ids = Vec::new();
     let mut descricoes = Vec::new();

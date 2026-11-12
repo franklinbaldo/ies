@@ -61,7 +61,7 @@ pub(super) fn link_de_adicionar(
             let relativo = onclick
                 .strip_prefix("location.href='")?
                 .strip_suffix('\'')?;
-            decodificar_atributo(relativo)
+            Some(decodificar_atributo(relativo))
         })
         .ok_or(ErroMarcar::DestinoDoCadastroAusente)
 }
@@ -124,7 +124,7 @@ pub(super) fn rotulo_oferecido(
     }
     if nomes
         .iter()
-        .any(|nome| decodificar_atributo(nome).as_deref() != Some(rotulo.nome.as_str()))
+        .any(|nome| decodificar_atributo(nome) != rotulo.nome.as_str())
     {
         return Err(ErroMarcar::NomeDoMarcadorDiferenteDoCatalogo);
     }

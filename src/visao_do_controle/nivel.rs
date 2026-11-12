@@ -88,7 +88,7 @@ pub(super) fn link_do_nivel_de_detalhe(
         .ok_or_else(|| invalido.clone())?;
     let onclick = valor_do_atributo(tag, "onclick")
         .map_err(super::ErroVisaoDoControle::Atributo)?
-        .and_then(|v| decodificar_atributo(&v))
+        .map(|v| decodificar_atributo(&v))
         .ok_or_else(|| invalido.clone())?;
     let resto = onclick
         .strip_prefix("acaoConfigurarDetalhe('")
