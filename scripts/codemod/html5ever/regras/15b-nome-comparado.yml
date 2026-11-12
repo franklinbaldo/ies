@@ -1,0 +1,14 @@
+id: 15b-nome-comparado
+language: rust
+message: 'Nome do elemento comparado direto com texto.'
+severity: hint
+rule:
+  pattern: $T.name() == $S
+  not:
+    inside:
+      stopBy: end
+      kind: mod_item
+      follows:
+        kind: attribute_item
+        regex: 'cfg\(test\)'
+fix: '$T.nome() == $S'

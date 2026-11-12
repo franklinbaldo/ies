@@ -1,0 +1,18 @@
+id: 18a-atributos-let-else
+language: rust
+message: 'let-else de atributos(): o nome some e os usos passam ao elemento (o let)'
+severity: hint
+rule:
+  all:
+    - pattern: 'let Ok($X) = atributos($H) else { $$$B };'
+    - not:
+        inside:
+          stopBy: end
+          kind: mod_item
+          follows:
+            kind: attribute_item
+            regex: 'cfg\(test\)'
+constraints:
+  H:
+    kind: identifier
+fix: '/* ies-codemod: remover linha */'

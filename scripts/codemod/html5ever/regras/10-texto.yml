@@ -1,0 +1,16 @@
+id: 10-texto
+language: rust
+message: 'inner_text vira texto (String).'
+severity: hint
+rule:
+  any:
+    - pattern: $N.inner_text($P).into_owned()
+    - pattern: $N.inner_text($P)
+  not:
+    inside:
+      stopBy: end
+      kind: mod_item
+      follows:
+        kind: attribute_item
+        regex: 'cfg\(test\)'
+fix: '$N.texto()'

@@ -1,0 +1,24 @@
+id: 02-tag-ok-or-let-usos
+language: rust
+message: 'let de um handle resolvido com ok_or: o nome some e os usos passam ao handle (usos)'
+severity: hint
+rule:
+  all:
+    - kind: identifier
+    - pattern: $X
+    - inside:
+        stopBy: end
+        follows:
+          stopBy: end
+          pattern: 'let $X = $H.get($P).and_then(tl::Node::as_tag).ok_or($E)?;'
+    - not:
+        inside:
+          stopBy: end
+          kind: mod_item
+          follows:
+            kind: attribute_item
+            regex: 'cfg\(test\)'
+constraints:
+  H:
+    kind: identifier
+fix: '$H'

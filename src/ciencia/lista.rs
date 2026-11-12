@@ -1,7 +1,6 @@
 //! Lista de Ciências relida depois do GET mutador: a atividade do aceite
 //! tem de aparecer uma única vez no `table#tblAndamentos` publicado.
 use super::{ErroCiencia, identificador};
-use crate::html_atributos::{nos_com_id, valor_do_atributo};
 use crate::legenda::ler_legenda;
 
 /// Verifica a atividade no único `table#tblAndamentos` da Lista de Ciências
@@ -15,54 +14,24 @@ pub(crate) fn atividade_na_lista(
     if !identificador(atividade) {
         return Err(ErroCiencia::ListaDeCienciasForaDaFormaObservada);
     }
-    let dom = crate::tela_html::interpretar(html);
-    let parser = dom.parser();
-    let tabelas = nos_com_id(&dom, "tblAndamentos").map_err(ErroCiencia::Atributo)?;
-    let [unica] = tabelas.as_slice() else {
+    let dom = crate::tela_html::arvore(html);
+    let tabelas = dom.com_id("tblAndamentos").collect::<Vec<_>>();
+    let [tabela] = tabelas.as_slice() else {
         return Err(ErroCiencia::ListaDeCienciasForaDaFormaObservada);
     };
-    let tabela = unica
-        .get(parser)
-        .and_then(tl::Node::as_tag)
-        .ok_or(ErroCiencia::ListaDeCienciasForaDaFormaObservada)?;
-    if tabela.name().as_utf8_str() != "table" {
+    if tabela.nome() != "table" {
         return Err(ErroCiencia::ListaDeCienciasForaDaFormaObservada);
     }
-    // O SEI depende de JavaScript ativo. Mesmo que o parser HTML indexe
-    // a tabela ou o checkbox dentro de <template> ou <noscript>, o navegador
-    // não os usa como a Lista de Ciências publicada quando JS está ativo.
-    // Recusar tanto os ancestrais da tabela como os fragmentos descendentes:
-    // uma atividade antiga num nó inerte não prova o efeito do GET atual.
+    // O SEI depende de JavaScript ativo: como no navegador, o conteúdo de
+    // <template> fica fora da árvore e o de <noscript> é texto, então uma
+    // tabela sob eles não é achada. Um deles dentro da tabela recusa a
+    // lista: uma atividade antiga num nó inerte não prova o efeito do GET.
     for seletor in ["template", "noscript"] {
-        let ancestral_inerte = dom
-            .query_selector(seletor)
-            .into_iter()
-            .flatten()
-            .filter_map(|no| no.get(parser).and_then(tl::Node::as_tag))
-            .any(|inerte| {
-                inerte
-                    .query_selector(parser, "table")
-                    .into_iter()
-                    .flatten()
-                    .any(|no| no == *unica)
-            });
-        let descendente_inerte = tabela
-            .query_selector(parser, seletor)
-            .into_iter()
-            .flatten()
-            .next()
-            .is_some();
-        if ancestral_inerte || descendente_inerte {
+        if tabela.elementos(seletor).next().is_some() {
             return Err(ErroCiencia::ListaDeCienciasForaDaFormaObservada);
         }
     }
-    let legendas: Vec<String> = tabela
-        .query_selector(parser, "caption")
-        .into_iter()
-        .flatten()
-        .filter_map(|no| no.get(parser))
-        .map(|no| no.inner_text(parser).into_owned())
-        .collect();
+    let legendas: Vec<String> = tabela.elementos("caption").map(|no| no.texto()).collect();
     let [legenda] = legendas.as_slice() else {
         return Err(ErroCiencia::ListaDeCienciasForaDaFormaObservada);
     };
@@ -75,16 +44,13 @@ pub(crate) fn atividade_na_lista(
         ler_legenda(legenda)?;
     }
     let mut ocorrencias = 0;
-    for no in tabela.query_selector(parser, "input").into_iter().flatten() {
-        let Some(tag) = no.get(parser).and_then(tl::Node::as_tag) else {
-            return Err(ErroCiencia::ListaDeCienciasForaDaFormaObservada);
-        };
-        let tipo = valor_do_atributo(tag, "type").map_err(ErroCiencia::Atributo)?;
-        if tipo.as_deref() != Some("checkbox") {
+    for no in tabela.elementos("input") {
+        let tipo = no.atributo("type");
+        if tipo != Some("checkbox") {
             continue;
         }
-        let nome = valor_do_atributo(tag, "name").map_err(ErroCiencia::Atributo)?;
-        let valor = valor_do_atributo(tag, "value").map_err(ErroCiencia::Atributo)?;
+        let nome = no.atributo("name").map(str::to_owned);
+        let valor = no.atributo("value");
         let Some(nome) = nome else {
             return Err(ErroCiencia::ListaDeCienciasForaDaFormaObservada);
         };
@@ -94,7 +60,7 @@ pub(crate) fn atividade_na_lista(
         if !resto.bytes().all(|c| c.is_ascii_digit()) {
             return Err(ErroCiencia::ListaDeCienciasForaDaFormaObservada);
         }
-        if valor.as_deref() == Some(atividade) {
+        if valor == Some(atividade) {
             ocorrencias += 1;
         }
     }

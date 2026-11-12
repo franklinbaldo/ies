@@ -1,0 +1,14 @@
+id: 05-tag-filter-map
+language: rust
+message: 'filter_map que só resolvia o handle some.'
+severity: hint
+rule:
+  pattern: $R.filter_map(|$N| $N.get($P).and_then(tl::Node::as_tag))
+  not:
+    inside:
+      stopBy: end
+      kind: mod_item
+      follows:
+        kind: attribute_item
+        regex: 'cfg\(test\)'
+fix: '$R'

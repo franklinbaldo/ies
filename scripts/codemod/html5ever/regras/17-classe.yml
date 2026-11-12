@@ -1,0 +1,16 @@
+id: 17-classe
+language: rust
+message: 'Classe pela tokenização própria.'
+severity: hint
+rule:
+  any:
+    - pattern: atributos($T).map_err($E)?.tem_classe($C)
+    - pattern: atributos($T)?.tem_classe($C)
+  not:
+    inside:
+      stopBy: end
+      kind: mod_item
+      follows:
+        kind: attribute_item
+        regex: 'cfg\(test\)'
+fix: '$T.tem_classe($C)'

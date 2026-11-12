@@ -1,0 +1,20 @@
+id: 08-seletor-no-elemento
+language: rust
+message: 'Seletor por nome de elemento, a partir de uma tag.'
+severity: hint
+rule:
+  any:
+    - pattern: $T.query_selector($P, $S).into_iter().flatten()
+    - pattern: $T.query_selector($P, $S).ok_or($E)?
+    - pattern: $T.query_selector($P, $S)?
+  not:
+    inside:
+      stopBy: end
+      kind: mod_item
+      follows:
+        kind: attribute_item
+        regex: 'cfg\(test\)'
+constraints:
+  S:
+    regex: '^"[a-z][a-z0-9]*"$'
+fix: '$T.elementos($S)'
