@@ -143,7 +143,7 @@ pub(crate) fn redirecionamento_esperado(
         matches!(
             consulta.acao(),
             Ok(AcaoDoSei::ArvoreVisualizar | AcaoDoSei::Principal)
-        ) && consulta.unico("acao_origem") == Ok(AcaoDoSei::ProcedimentoConcluir.como_na_url())
+        ) && consulta.acao_de_origem() == Ok(AcaoDoSei::ProcedimentoConcluir)
             && consulta.unico("id_procedimento") == Ok(id)
     })
 }

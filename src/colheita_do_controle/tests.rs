@@ -4,6 +4,7 @@
 //! válidas e inválidas, e o conteúdo **exato** do índice depois. Hosts,
 //! hashes, ids e números inventados; sem rede.
 use super::*;
+use crate::acao_do_sei::AcaoDoSei;
 use crate::configuracao::ArquivosDeAcesso;
 use crate::tela_html::HtmlServido;
 use std::fmt::Write as _;
@@ -157,12 +158,12 @@ pub(crate) fn processo(nup: &str, id: &str) -> [String; 3] {
     [ORIGEM.to_owned(), nup.to_owned(), id.to_owned()]
 }
 
-pub(crate) fn link(acao: &str, objeto: &str, url: &str) -> [String; 6] {
+pub(crate) fn link(acao: AcaoDoSei, objeto: &str, url: &str) -> [String; 6] {
     [
         ORIGEM.to_owned(),
         geracao(),
         UNIDADE_ID.to_owned(),
-        acao.to_owned(),
+        acao.como_na_url().to_owned(),
         objeto.to_owned(),
         url.to_owned(),
     ]
@@ -172,12 +173,12 @@ pub(crate) fn link(acao: &str, objeto: &str, url: &str) -> [String; 6] {
 pub(crate) fn links_do_menu() -> [[String; 6]; 2] {
     [
         link(
-            "protocolo_pesquisa_rapida",
+            AcaoDoSei::ProtocoloPesquisaRapida,
             "",
             &format!("{ORIGEM}/{}", action_rapida().replace("&amp;", "&")),
         ),
         link(
-            "protocolo_pesquisar",
+            AcaoDoSei::ProtocoloPesquisar,
             "",
             &format!("{ORIGEM}/{}", href_da_pesquisa().replace("&amp;", "&")),
         ),
@@ -226,16 +227,8 @@ fn visao_r_grava_so_as_linhas_conferidas_e_os_links_do_menu() {
     assert_eq!(
         links,
         [
-            link(
-                AcaoDoSei::ProcedimentoTrabalhar.como_na_url(),
-                "10",
-                &trabalho("10", 'c')
-            ),
-            link(
-                AcaoDoSei::ProcedimentoTrabalhar.como_na_url(),
-                "11",
-                &trabalho("11", 'd')
-            ),
+            link(AcaoDoSei::ProcedimentoTrabalhar, "10", &trabalho("10", 'c')),
+            link(AcaoDoSei::ProcedimentoTrabalhar, "11", &trabalho("11", 'd')),
             rapida,
             pesquisa,
         ]
@@ -264,16 +257,8 @@ fn visao_d_grava_as_linhas_conferidas() {
     assert_eq!(
         links,
         [
-            link(
-                AcaoDoSei::ProcedimentoTrabalhar.como_na_url(),
-                "30",
-                &trabalho("30", 'f')
-            ),
-            link(
-                AcaoDoSei::ProcedimentoTrabalhar.como_na_url(),
-                "33",
-                &trabalho("33", 'f')
-            ),
+            link(AcaoDoSei::ProcedimentoTrabalhar, "30", &trabalho("30", 'f')),
+            link(AcaoDoSei::ProcedimentoTrabalhar, "33", &trabalho("33", 'f')),
             rapida,
             pesquisa,
         ]
@@ -295,11 +280,7 @@ fn id_em_duas_linhas_pula_as_duas() {
     assert_eq!(processos, [processo("NUP-Z", "41")]);
     assert_eq!(
         links[0],
-        link(
-            AcaoDoSei::ProcedimentoTrabalhar.como_na_url(),
-            "41",
-            &trabalho("41", 'c')
-        )
+        link(AcaoDoSei::ProcedimentoTrabalhar, "41", &trabalho("41", 'c'))
     );
     assert_eq!(links.len(), 3);
 }

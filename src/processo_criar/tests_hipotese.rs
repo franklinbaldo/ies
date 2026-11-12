@@ -1,6 +1,7 @@
 //! #245 — cenários sintéticos derivados do cadastro do Todos @323eb01.
 //! O AJAX apenas consulta hipóteses. Nunca cria processo.
 use super::*;
+use crate::acao_do_sei::AcaoDoSei;
 use crate::processo_concluir::tests_apoio::{
     UNIDADE, ambiente, arvore, controle, ok, r302, rodar_com, trabalhar,
 };
@@ -14,7 +15,7 @@ fn arvore_verificadora() -> String {
     arvore(
         &[UNIDADE],
         &[acao_da_barra(&link_das_propriedades(
-            "procedimento_alterar",
+            AcaoDoSei::ProcedimentoAlterar,
             "10",
         ))],
     )

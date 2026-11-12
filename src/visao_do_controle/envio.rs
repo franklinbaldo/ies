@@ -1,6 +1,7 @@
 //! Envio injetável das requisições da troca de visão: cada chamada de
 //! `post`/`get` é uma requisição real única (sem retry); os testes contam
 //! e conferem a sequência.
+use crate::acao_do_sei::AcaoDoSei;
 use crate::formulario_web::{
     OperacaoDeFormulario, RespostaDoEnvio, RespostaDoPost, SubmissaoDerivada, TelaServida,
     derivar_submissao, enviar_submissao_via,
@@ -163,7 +164,7 @@ impl<V: EnvioDoControle> Sessao<'_, V> {
             RespostaDoEnvio::Html(html) => {
                 let mime = mime.into_inner();
                 // Só os envios de `frmProcedimentoControlar` devolvem o Controle.
-                if operacao.acao == crate::acao_do_sei::AcaoDoSei::ProcedimentoControlar {
+                if operacao.acao == AcaoDoSei::ProcedimentoControlar {
                     self.envio.colher_controle(&html, Some(&mime));
                 }
                 Ok(TelaAtual { url, html, mime })

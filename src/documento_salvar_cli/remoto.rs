@@ -160,7 +160,8 @@ fn verificar_publicacao(envio: &mut EnvioHttps, dados: &ConferenciaPublicacao<'_
         respondeu,
     } = dados;
     let url = format!(
-        "{origem}/controlador.php?acao=documento_visualizar&id_documento={id_documento}&versao={versao_nova}"
+        "{origem}/controlador.php?acao={acao}&id_documento={id_documento}&versao={versao_nova}",
+        acao = AcaoDoSei::DocumentoVisualizar.como_na_url()
     );
     let Ok(html) = envio.get(&url, cookie).and_then(decodificar_resposta) else {
         return Resultado::Incerto;
@@ -265,8 +266,10 @@ fn executar(
         Err(falha) => return Resultado::Recusado(falha),
     };
     let url = format!(
-        "{}/controlador.php?acao=editor_montar&id_documento={}",
-        sessao.origem, lido.id_documento
+        "{}/controlador.php?acao={acao}&id_documento={}",
+        sessao.origem,
+        lido.id_documento,
+        acao = AcaoDoSei::EditorMontar.como_na_url()
     );
     let cookie = match sessao.cookie.valor() {
         Ok(cookie) => cookie,

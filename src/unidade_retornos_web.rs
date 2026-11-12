@@ -173,7 +173,7 @@ fn conferir_link(
     let hash = leitura
         .unico("infra_hash")
         .map_err(ErroLeituraRetornos::ChaveDoLinkIlegivel)?;
-    if acao != "retorno_programado_listar"
+    if AcaoDoSei::ler(acao) != Some(AcaoDoSei::RetornoProgramadoListar)
         || leitura.valores("acao_ajax").next().is_some()
         || hash.len() != 64
         || !hash.bytes().all(|b| b.is_ascii_hexdigit())

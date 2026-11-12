@@ -7,6 +7,7 @@ use super::{
     fluxo::{ErroIncluirExterno, preparar_previa},
     recibo::{FalhaUpload, ReciboUpload},
 };
+use crate::acao_do_sei::AcaoDoSei;
 use crate::consulta_do_controlador::{ConsultaDoControlador, ErroConsultaDoControlador};
 use crate::formulario_web::{CodificacaoDaTela, TelaServida, enviar_submissao_via};
 use crate::indice_local::IndiceLocal;
@@ -70,7 +71,7 @@ pub(crate) fn conferir_upload(
         [informado] if *informado == processo => {}
         _ => return Err(ErroIncluirExterno::UploadParaOutroProcesso),
     }
-    if consulta.unico("acao") != Ok("documento_upload_anexo")
+    if consulta.acao() != Ok(AcaoDoSei::DocumentoUploadAnexo)
         || consulta.valores("acao_ajax").next().is_some()
         || !consulta
             .unico("infra_hash")

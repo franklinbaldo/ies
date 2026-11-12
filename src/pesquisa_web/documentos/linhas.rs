@@ -3,6 +3,7 @@
 //! com o link do processo (com `id_documento`), o do documento entre
 //! parênteses e o número SEI à direita; snippet; metadados.
 use super::{DocumentoEncontrado, ErroDocumentoDaPesquisa};
+use crate::acao_do_sei::AcaoDoSei;
 use crate::html_atributos::{
     atributos, nos_por_elemento_e_classe, valor_decodificado, valor_do_atributo,
 };
@@ -48,7 +49,10 @@ fn anexo_baixado(href: &str) -> bool {
             .collect()
     };
     let decimal = |v: &str| !v.is_empty() && v.bytes().all(|b| b.is_ascii_digit());
-    valores("acao=") == ["documento_download_anexo"]
+    valores("acao=")
+        .into_iter()
+        .map(AcaoDoSei::ler)
+        .eq([Some(AcaoDoSei::DocumentoDownloadAnexo)])
         && matches!(valores("id_anexo=").as_slice(), [id] if decimal(id))
 }
 

@@ -1,0 +1,29 @@
+id: 33-acao-no-format
+language: rust
+message: 'O texto da ação só aparece na URL formatada.'
+severity: hint
+rule:
+  pattern: $M
+  kind: macro_invocation
+  regex: '^format!'
+  has:
+    stopBy: end
+    kind: string_literal
+    regex: '\{acao\}'
+  not:
+    regex: 'acao = '
+  inside:
+    stopBy: end
+    kind: function_item
+    has:
+      field: parameters
+      has:
+        kind: parameter
+        regex: '^acao: crate::acao_do_sei::AcaoDoSei$'
+transform:
+  COM_ARGUMENTO:
+    replace:
+      source: $M
+      replace: ',?\s*\)$'
+      by: ', acao = acao.como_na_url())'
+fix: $COM_ARGUMENTO

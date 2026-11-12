@@ -1,0 +1,37 @@
+id: 20-literal-comparado-VALOR
+language: rust
+message: 'A ação em texto vira a variante; o texto lido passa por ler.'
+severity: hint
+rule:
+  pattern: $A == "VALOR"
+  not:
+    inside:
+      stopBy: end
+      kind: mod_item
+      follows:
+        kind: attribute_item
+        regex: 'cfg\((all\()?test\b'
+constraints:
+  A:
+    kind: identifier
+    regex: '^acao'
+fix: 'crate::acao_do_sei::AcaoDoSei::ler($A) == Some(crate::acao_do_sei::AcaoDoSei::VARIANTE)'
+---
+id: 20b-literal-diferente-VALOR
+language: rust
+message: 'A ação em texto vira a variante; o texto lido passa por ler.'
+severity: hint
+rule:
+  pattern: $A != "VALOR"
+  not:
+    inside:
+      stopBy: end
+      kind: mod_item
+      follows:
+        kind: attribute_item
+        regex: 'cfg\((all\()?test\b'
+constraints:
+  A:
+    kind: identifier
+    regex: '^acao'
+fix: 'crate::acao_do_sei::AcaoDoSei::ler($A) != Some(crate::acao_do_sei::AcaoDoSei::VARIANTE)'

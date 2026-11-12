@@ -14,8 +14,7 @@ pub(super) fn id_do_link(link: &str) -> Option<&str> {
 /// Exige exatamente uma ocorrência do parâmetro acao, com valor literal
 /// esperado. Uma segunda ação diferente também torna a URL ambígua.
 fn acao_unica(consulta: &str, esperada: AcaoDoSei) -> bool {
-    ConsultaDoControlador::ler(consulta)
-        .is_ok_and(|consulta| consulta.unico("acao") == Ok(esperada.como_na_url()))
+    ConsultaDoControlador::ler(consulta).is_ok_and(|consulta| consulta.acao() == Ok(esperada))
 }
 
 pub(super) fn resolver_link(

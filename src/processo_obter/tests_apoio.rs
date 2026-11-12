@@ -3,6 +3,7 @@
 //! `tr#P{id}` e `frmProtocoloPesquisaRapida`, 302 da pesquisa rápida de GO,
 //! tela do processo e árvore). Hosts, hashes, ids e números inventados.
 use super::*;
+use crate::acao_do_sei::AcaoDoSei;
 use crate::arvore_processo::tests::{NUP, arvore, no_documento, no_processo};
 use crate::arvore_processo::tests_tela::{src_da_arvore, tela_do_processo};
 use crate::formulario_web::SubmissaoDerivada;
@@ -178,7 +179,7 @@ pub(super) fn historico(tipo: char, total: u64, linhas: usize) -> String {
 
 /// Árvore com o histórico (forma GO) e, na barra do processo, o link
 /// `acao` das propriedades.
-pub(super) fn arvore_com_propriedades(id: &str, nup: &str, acao: &str) -> String {
+pub(super) fn arvore_com_propriedades(id: &str, nup: &str, acao: AcaoDoSei) -> String {
     use crate::propriedades_processo::tests_apoio::{
         acao_da_barra, barra, com_barra, link_das_propriedades,
     };
@@ -187,7 +188,7 @@ pub(super) fn arvore_com_propriedades(id: &str, nup: &str, acao: &str) -> String
 }
 
 /// URL absoluta das propriedades publicada pela barra sintética.
-pub(super) fn url_propriedades(acao: &str, id: &str) -> String {
+pub(super) fn url_propriedades(acao: AcaoDoSei, id: &str) -> String {
     absoluta(&crate::propriedades_processo::tests_apoio::link_das_propriedades(acao, id))
 }
 
@@ -357,11 +358,7 @@ pub(super) fn geracao() -> String {
     crate::sessao_login::geracao_da_sessao(COOKIE)
 }
 
-pub(super) fn chave<'a>(
-    geracao: &'a str,
-    acao: crate::acao_do_sei::AcaoDoSei,
-    alvo: &'a str,
-) -> ChaveDoLink<'a> {
+pub(super) fn chave<'a>(geracao: &'a str, acao: AcaoDoSei, alvo: &'a str) -> ChaveDoLink<'a> {
     ChaveDoLink {
         geracao_sessao: geracao,
         unidade: ID_UNIDADE,

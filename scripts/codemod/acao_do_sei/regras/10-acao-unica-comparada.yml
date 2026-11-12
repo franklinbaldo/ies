@@ -1,0 +1,29 @@
+id: 10-acao-unica-comparada
+language: rust
+message: 'A única acao= é lida no enum e comparada com a variante.'
+severity: hint
+rule:
+  pattern: $C.unico("acao") == Ok($V.como_na_url())
+  not:
+    inside:
+      stopBy: end
+      kind: mod_item
+      follows:
+        kind: attribute_item
+        regex: 'cfg\((all\()?test\b'
+fix: '$C.acao() == Ok($V)'
+---
+id: 10b-acao-unica-diferente
+language: rust
+message: 'A única acao= é lida no enum e comparada com a variante.'
+severity: hint
+rule:
+  pattern: $C.unico("acao") != Ok($V.como_na_url())
+  not:
+    inside:
+      stopBy: end
+      kind: mod_item
+      follows:
+        kind: attribute_item
+        regex: 'cfg\((all\()?test\b'
+fix: '$C.acao() != Ok($V)'

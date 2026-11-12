@@ -93,7 +93,7 @@ pub(super) fn aceite_da_remocao(redir: &Redirecionamento302, id: &str) -> bool {
         return false;
     };
     consulta.acao() == Ok(AcaoDoSei::AndamentoMarcadorGerenciar)
-        && consulta.unico("acao_origem") == Ok(AcaoDoSei::AndamentoMarcadorRemover.como_na_url())
+        && consulta.acao_de_origem() == Ok(AcaoDoSei::AndamentoMarcadorRemover)
         && consulta.unico("id_procedimento") == Ok(id)
 }
 

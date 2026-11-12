@@ -10,6 +10,7 @@
 use super::IndiceLocal;
 use super::falhas::FalhaDoIndice;
 use super::validacao::conferir_id_procedimento;
+use crate::acao_do_sei::AcaoDoSei;
 use crate::instalacao::Instalacao;
 use rusqlite::OptionalExtension;
 
@@ -30,8 +31,9 @@ pub(crate) fn url_da_entrada_por_id(
 ) -> Option<String> {
     conferir_id_procedimento(id_procedimento).ok()?;
     Some(format!(
-        "{}/controlador.php?acao=procedimento_trabalhar&id_procedimento={id_procedimento}",
-        instalacao.url_base()
+        "{}/controlador.php?acao={acao}&id_procedimento={id_procedimento}",
+        instalacao.url_base(),
+        acao = AcaoDoSei::ProcedimentoTrabalhar.como_na_url()
     ))
 }
 

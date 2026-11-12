@@ -1,11 +1,13 @@
 //! Casos sintéticos inspirados em Todos `test_ciclo_ciencia_010.py` e
 //! `test_documento_ciente_010.py` @323eb01. Sem cookies nem URLs assinadas.
 use super::{AlvoDaCiencia as Alvo, ErroCiencia, atividade_do_aceite, atividade_na_lista};
+use crate::acao_do_sei::AcaoDoSei;
 use crate::tela_html::HtmlServido;
 
-fn aceite(acao: &str, id: &str, escopo: &str, atividade: &str) -> String {
+fn aceite(acao: AcaoDoSei, id: &str, escopo: &str, atividade: &str) -> String {
     format!(
-        "<html><script>function inicializar(){{\n atualizarArvore('controlador.php?acao={acao}&id_procedimento={id}&{escopo}&id_atividade={atividade}#ID-{atividade}');\n}}</script></html>"
+        "<html><script>function inicializar(){{\n atualizarArvore('controlador.php?acao={acao}&id_procedimento={id}&{escopo}&id_atividade={atividade}#ID-{atividade}');\n}}</script></html>",
+        acao = acao.como_na_url()
     )
 }
 
@@ -24,7 +26,7 @@ fn documento() -> Alvo<'static> {
 
 fn aceite_processo(atividade: &str) -> String {
     aceite(
-        "procedimento_visualizar",
+        AcaoDoSei::ProcedimentoVisualizar,
         "10",
         "procedimento_visualizar_ciencias=1",
         atividade,
@@ -33,7 +35,7 @@ fn aceite_processo(atividade: &str) -> String {
 
 fn aceite_documento(atividade: &str) -> String {
     aceite(
-        "procedimento_visualizar",
+        AcaoDoSei::ProcedimentoVisualizar,
         "10",
         "documento_visualizar_ciencias=1&id_documento=21",
         atividade,
@@ -84,7 +86,7 @@ fn aceite_nao_pode_ser_de_outro_processo_documento_ou_tipo() {
     assert_eq!(
         atividade_do_aceite(
             &HtmlServido::de_teste(&aceite(
-                "procedimento_visualizar",
+                AcaoDoSei::ProcedimentoVisualizar,
                 "11",
                 "procedimento_visualizar_ciencias=1",
                 "42"
@@ -96,7 +98,7 @@ fn aceite_nao_pode_ser_de_outro_processo_documento_ou_tipo() {
     assert_eq!(
         atividade_do_aceite(
             &HtmlServido::de_teste(&aceite(
-                "procedimento_visualizar",
+                AcaoDoSei::ProcedimentoVisualizar,
                 "10",
                 "documento_visualizar_ciencias=1&id_documento=22",
                 "42"

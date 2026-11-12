@@ -31,7 +31,7 @@ fn nup_invalido_na_linha_vira_aviso_e_nao_grava_o_par() {
     let (processos, links) = indice.conteudo();
     assert_eq!(processos, [processo("NUP-A", "10")]);
     let [rapida, pesquisa] = links_do_menu();
-    let acao = AcaoDoSei::ProcedimentoTrabalhar.como_na_url();
+    let acao = AcaoDoSei::ProcedimentoTrabalhar;
     assert_eq!(
         links,
         [

@@ -176,7 +176,7 @@ fn redirecionamento_esperado(localizacao: Option<&str>, url: &str, id: &str) -> 
         return false;
     };
     consulta.acao() == Ok(AcaoDoSei::ArvoreVisualizar)
-        && consulta.unico("acao_origem") == Ok(AcaoDoSei::AnotacaoRegistrar.como_na_url())
+        && consulta.acao_de_origem() == Ok(AcaoDoSei::AnotacaoRegistrar)
         && consulta.unico("id_procedimento") == Ok(id)
 }
 #[cfg(test)]
