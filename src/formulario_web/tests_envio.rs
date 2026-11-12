@@ -36,7 +36,8 @@ impl Drop for Pasta {
     }
 }
 
-fn cookie(modo: u32) -> (Pasta, PathBuf) {
+/// O cookie da sessão num arquivo privado (`0600` no Unix).
+fn cookie() -> (Pasta, PathBuf) {
     use std::sync::atomic::{AtomicUsize, Ordering};
     static N: AtomicUsize = AtomicUsize::new(0);
     let pasta = std::env::temp_dir().join(format!(
@@ -50,10 +51,8 @@ fn cookie(modo: u32) -> (Pasta, PathBuf) {
     #[cfg(unix)]
     {
         use std::os::unix::fs::PermissionsExt;
-        fs::set_permissions(&arquivo, fs::Permissions::from_mode(modo)).unwrap();
+        fs::set_permissions(&arquivo, fs::Permissions::from_mode(0o600)).unwrap();
     }
-    #[cfg(not(unix))]
-    let _ = modo;
     (Pasta(pasta), arquivo)
 }
 
@@ -77,7 +76,7 @@ fn html(
 }
 
 fn enviar_com(status_code: i32, html_: &str) -> (Result<String, ErroSubmissaoFormulario>, usize) {
-    let (_pasta, arquivo) = cookie(0o600);
+    let (_pasta, arquivo) = cookie();
     let chamadas = Cell::new(0);
     let r = enviar_submissao_via(submissao(), &CookieDaSessao::ler(&arquivo), |_, _| {
         chamadas.set(chamadas.get() + 1);
@@ -105,7 +104,7 @@ fn marcador_com_booleano_antes_da_classe_e_reconhecido() {
 
 #[test]
 fn closure_recebe_post_corpo_cabecalhos_e_cookie_da_sessao() {
-    let (_pasta, arquivo) = cookie(0o600);
+    let (_pasta, arquivo) = cookie();
     let r = enviar_submissao_via(submissao(), &CookieDaSessao::ler(&arquivo), |s, cookie| {
         assert_eq!(SubmissaoDerivada::METODO, "POST");
         assert_eq!(
@@ -171,7 +170,7 @@ fn resposta_200_sem_marcador_de_resultado_e_recusada() {
 
 #[test]
 fn falha_de_rede_nao_repete_o_envio() {
-    let (_pasta, arquivo) = cookie(0o600);
+    let (_pasta, arquivo) = cookie();
     let chamadas = Cell::new(0);
     let r = enviar_submissao_via::<Cursor<Vec<u8>>, _>(
         submissao(),
@@ -191,7 +190,9 @@ fn falha_de_rede_nao_repete_o_envio() {
 #[cfg(unix)]
 #[test]
 fn cookie_com_permissao_insegura_impede_qualquer_envio() {
-    let (_pasta, arquivo) = cookie(0o644);
+    use std::os::unix::fs::PermissionsExt;
+    let (_pasta, arquivo) = cookie();
+    fs::set_permissions(&arquivo, fs::Permissions::from_mode(0o644)).unwrap();
     let chamadas = Cell::new(0);
     let r = enviar_submissao_via(submissao(), &CookieDaSessao::ler(&arquivo), |_, _| {
         chamadas.set(chamadas.get() + 1);
@@ -217,7 +218,7 @@ fn enviar_com_redirecionamento(
     status: u16,
     localizacao: Option<&str>,
 ) -> (Result<RespostaDoEnvio, ErroSubmissaoFormulario>, usize) {
-    let (_pasta, arquivo) = cookie(0o600);
+    let (_pasta, arquivo) = cookie();
     let chamadas = Cell::new(0);
     let r = enviar_submissao_via(submissao(), &CookieDaSessao::ler(&arquivo), |_, _| {
         chamadas.set(chamadas.get() + 1);

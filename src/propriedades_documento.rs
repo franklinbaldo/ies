@@ -166,15 +166,16 @@ pub(crate) fn ler_link(
     Ok(encontrado)
 }
 /// Lê o cadastro pelo formulário servido, nunca o submete.
-pub(crate) fn ler_formulario(
-    html: &crate::tela_html::HtmlServido,
+/// O `frmDocumentoCadastro` único da tela, conferido como o cadastro do
+/// `documento` no `processo` pedidos (`hdnIdDocumento`, `hdnIdProcedimento`).
+fn cadastro_do_documento<'p>(
+    dom: &'p tl::VDom<'p>,
     documento: &str,
     processo: &str,
-) -> Result<PropriedadesLidas, ErroPropriedadesDocumento> {
-    let dom = crate::tela_html::interpretar(html);
+) -> Result<Tag<'p>, ErroPropriedadesDocumento> {
     let parser = dom.parser();
     let nos =
-        nos_com_id(&dom, "frmDocumentoCadastro").map_err(ErroPropriedadesDocumento::Atributo)?;
+        nos_com_id(dom, "frmDocumentoCadastro").map_err(ErroPropriedadesDocumento::Atributo)?;
     let form = match nos.as_slice() {
         [unico] => unico
             .get(parser)
@@ -190,6 +191,17 @@ pub(crate) fn ler_formulario(
     {
         return Err(ErroPropriedadesDocumento::IdentidadeCadastroDocumentoDivergente);
     }
+    Ok(form)
+}
+
+pub(crate) fn ler_formulario(
+    html: &crate::tela_html::HtmlServido,
+    documento: &str,
+    processo: &str,
+) -> Result<PropriedadesLidas, ErroPropriedadesDocumento> {
+    let dom = crate::tela_html::interpretar(html);
+    let parser = dom.parser();
+    let form = cadastro_do_documento(&dom, documento, processo)?;
     let tipo = texto(campo(form, parser, "lblSerieTitulo")?, parser);
     let tipo = if tipo.trim().is_empty() {
         // Cadastro do externo no SEI 4.0.9: o rótulo é vazio, mas o tipo
