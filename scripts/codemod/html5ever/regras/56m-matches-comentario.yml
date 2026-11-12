@@ -1,0 +1,15 @@
+id: 56m-matches-comentario
+language: rust
+message: "matches!(n, tl::Node::Comment(_)) vira matches!(n, crate::tela_html::No::Comentario)"
+severity: hint
+rule:
+  all:
+    - pattern: "matches!($N, tl::Node::Comment(_))"
+    - not:
+        inside:
+          stopBy: end
+          kind: mod_item
+          follows:
+            kind: attribute_item
+            regex: 'cfg\(test\)'
+fix: "matches!($N, crate::tela_html::No::Comentario)"

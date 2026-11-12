@@ -1,7 +1,6 @@
 //! Histórico Web observado: nunca constrói links nem abre editor.
 use crate::acao_do_sei::AcaoDoSei;
 use crate::consulta_do_controlador::ConsultaDoControlador;
-use crate::html_atributos::{nos_por_elemento_e_classe, valor_decodificado};
 use crate::legenda::ler_legenda;
 use std::collections::HashSet;
 use std::num::NonZeroU32;
@@ -30,11 +29,9 @@ pub enum ErroVersao {
     VersaoPedidaAusenteNoHistorico,
     ColunasHistoricoInesperadas,
     HistoricoDocumentoAusente,
-    HistoricoDocumentoComAtributoIlegivel(#[source] crate::html_atributos::ErroAtributoHtml),
     HistoricosDocumentoDuplicados,
     LegendasHistoricoVersoesRepetidas,
     LinkVersaoAusenteOuAmbiguo,
-    LinkVersaoComAtributoIlegivel(#[source] crate::html_atributos::ErroAtributoHtml),
     VersaoDocumentoDuplicada,
     VersaoDocumentoInvalida,
 }
@@ -95,11 +92,8 @@ impl HistoricoDocumento {
     }
 }
 
-fn texto(no: &tl::Node<'_>, parser: &tl::Parser<'_>) -> String {
-    no.inner_text(parser)
-        .split_whitespace()
-        .collect::<Vec<_>>()
-        .join(" ")
+fn texto(no: crate::tela_html::Elemento<'_>) -> String {
+    no.texto().split_whitespace().collect::<Vec<_>>().join(" ")
 }
 
 // Não normalizar chaves percent-encoded, pontos ou campos repetidos:
@@ -142,26 +136,16 @@ fn conferir_link(href: &str, id: &str, versao: VersaoDocumento) -> Result<(), Er
 }
 
 fn linhas_do_historico(
-    tabela: &tl::HTMLTag<'_>,
-    parser: &tl::Parser<'_>,
+    tabela: crate::tela_html::Elemento<'_>,
     id_interno: &str,
 ) -> Result<Vec<EntradaVersao>, ErroVersao> {
     let mut cabecalho = false;
     let mut entradas = Vec::new();
     let mut encontrados = HashSet::new();
-    for tr_handle in tabela.query_selector(parser, "tr").into_iter().flatten() {
-        let tr = tr_handle
-            .get(parser)
-            .and_then(tl::Node::as_tag)
-            .ok_or(ErroVersao::LinhaIncompleta)?;
-        let cols: Vec<_> = tr
-            .query_selector(parser, "th")
-            .into_iter()
-            .flatten()
-            .filter_map(|h| h.get(parser))
-            .collect();
+    for tr_handle in tabela.elementos("tr") {
+        let cols: Vec<_> = tr_handle.elementos("th").collect();
         if !cols.is_empty() {
-            let titulos: Vec<_> = cols.iter().map(|n| texto(n, parser)).collect();
+            let titulos: Vec<_> = cols.iter().copied().map(texto).collect();
             if cabecalho
                 || titulos
                     != [
@@ -178,12 +162,7 @@ fn linhas_do_historico(
             cabecalho = true;
             continue;
         }
-        let celulas: Vec<_> = tr
-            .query_selector(parser, "td")
-            .into_iter()
-            .flatten()
-            .filter_map(|h| h.get(parser))
-            .collect();
+        let celulas: Vec<_> = tr_handle.elementos("td").collect();
         if celulas.is_empty() {
             continue;
         }
@@ -192,32 +171,23 @@ fn linhas_do_historico(
         else {
             return Err(ErroVersao::LinhaIncompleta);
         };
-        let numero = VersaoDocumento::interpretar(&texto(versao, parser))?;
+        let numero = VersaoDocumento::interpretar(&texto(*versao))?;
         if !encontrados.insert(numero) {
             return Err(ErroVersao::VersaoDocumentoDuplicada);
         }
-        let td = acoes.as_tag().ok_or(ErroVersao::LinhaIncompleta)?;
         let mut links = Vec::new();
-        for a in td
-            .query_selector(parser, "a")
-            .into_iter()
-            .flatten()
-            .filter_map(|h| h.get(parser))
-            .filter_map(tl::Node::as_tag)
-        {
+        for a in acoes.elementos("a") {
             // `href` lido da fonte da tag; tag ilegível não some da contagem.
             // Âncora de fragmento (`#ID-N`, "Recuperar Versão" com o link no
             // `onclick`) não é link de versão e nunca é seguida.
-            let href =
-                valor_decodificado(a, "href").map_err(ErroVersao::LinkVersaoComAtributoIlegivel)?;
+            let href = a.atributo("href").map(str::to_owned);
             links.extend(href.filter(|h| !h.starts_with('#')));
         }
         let Ok([link]) = <[String; 1]>::try_from(links) else {
             return Err(ErroVersao::LinkVersaoAusenteOuAmbiguo);
         };
         conferir_link(&link, id_interno, numero)?;
-        let [usuario, unidade, modificacao] =
-            [usuario, unidade, modificacao].map(|n| texto(n, parser));
+        let [usuario, unidade, modificacao] = [*usuario, *unidade, *modificacao].map(texto);
         if [&usuario, &unidade, &modificacao]
             .iter()
             .any(|s| s.is_empty())
@@ -242,19 +212,13 @@ fn linhas_do_historico(
 }
 
 /// Caption única é requisito de identidade e contagem da tabela Web.
-fn legenda_unica(tabela: &tl::HTMLTag<'_>, parser: &tl::Parser<'_>) -> Result<String, ErroVersao> {
-    let mut legendas = tabela
-        .query_selector(parser, "caption")
-        .into_iter()
-        .flatten();
+fn legenda_unica(tabela: crate::tela_html::Elemento<'_>) -> Result<String, ErroVersao> {
+    let mut legendas = tabela.elementos("caption");
     let primeira = legendas.next().ok_or(ErroVersao::ListaIncompleta)?;
     if legendas.next().is_some() {
         return Err(ErroVersao::LegendasHistoricoVersoesRepetidas);
     }
-    primeira
-        .get(parser)
-        .map(|no| texto(no, parser))
-        .ok_or(ErroVersao::ListaIncompleta)
+    Ok(texto(primeira))
 }
 
 /// Interpreta uma lista observada. O total declarado é facultativo, mas, quando
@@ -267,36 +231,24 @@ pub fn interpretar_historico(
     if id_interno.is_empty() || !id_interno.bytes().all(|b| b.is_ascii_digit()) {
         return Err(ErroVersao::DocumentoDivergente);
     }
-    let dom = crate::tela_html::interpretar(html);
-    let parser = dom.parser();
+    let dom = crate::tela_html::arvore(html);
     let mut tabela = None;
-    for handle in nos_por_elemento_e_classe(&dom, None, "table", "infraTable")
-        .map_err(ErroVersao::HistoricoDocumentoComAtributoIlegivel)?
+    for handle in dom
+        .elementos("table")
+        .filter(|elemento| elemento.tem_classe("infraTable"))
     {
-        let no = handle
-            .get(parser)
-            .ok_or(ErroVersao::HistoricoDocumentoAusente)?;
-        let tag = no.as_tag().ok_or(ErroVersao::HistoricoDocumentoAusente)?;
-        let captions: Vec<_> = tag
-            .query_selector(parser, "caption")
-            .into_iter()
-            .flatten()
-            .filter_map(|h| h.get(parser))
-            .collect();
-        if captions
-            .iter()
-            .any(|c| texto(c, parser).contains("Versões"))
-        {
+        let captions: Vec<_> = handle.elementos("caption").collect();
+        if captions.iter().any(|c| texto(*c).contains("Versões")) {
             if tabela.is_some() {
                 return Err(ErroVersao::HistoricosDocumentoDuplicados);
             }
-            tabela = Some(tag);
+            tabela = Some(handle);
         }
     }
     let tabela = tabela.ok_or(ErroVersao::HistoricoDocumentoAusente)?;
-    let legenda = legenda_unica(tabela, parser)?;
+    let legenda = legenda_unica(tabela)?;
     let declaradas = ler_legenda(&legenda)?.total;
-    let entradas = linhas_do_historico(tabela, parser, id_interno)?;
+    let entradas = linhas_do_historico(tabela, id_interno)?;
     if declaradas != entradas.len() || total_declarado.is_some_and(|n| n != declaradas) {
         return Err(ErroVersao::ListaIncompleta);
     }

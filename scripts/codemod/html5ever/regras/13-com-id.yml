@@ -5,7 +5,9 @@ severity: hint
 rule:
   any:
     - pattern: nos_com_id(&$D, $I).map_err($E)?
+    - pattern: 'crate::html_atributos::nos_com_id(&$D, $I).map_err($E)?'
     - pattern: nos_com_id(&$D, $I)?
+    - pattern: 'crate::html_atributos::nos_com_id(&$D, $I)?'
   not:
     inside:
       stopBy: end

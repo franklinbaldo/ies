@@ -113,18 +113,14 @@ enum Resultado {
 /// A contagem é informação explícita no editor sintético, não heurística
 /// sobre a presença de blocos de assinatura no HTML da versão.
 fn assinaturas_no_editor(html: &crate::tela_html::HtmlServido) -> Option<u32> {
-    let dom = crate::tela_html::interpretar(html);
-    let parser = dom.parser();
+    let dom = crate::tela_html::arvore(html);
     let mut contagem = None;
-    for handle in dom.query_selector("output")? {
-        let node = handle.get(parser)?;
-        let tag = node.as_tag()?;
-        let attrs = crate::html_atributos::atributos(tag).ok()?;
-        if attrs.valor("id") == Some("assinaturasAtuais") {
+    for handle in dom.elementos("output") {
+        if handle.atributo("id") == Some("assinaturasAtuais") {
             if contagem.is_some() {
                 return None;
             }
-            contagem = Some(node.inner_text(parser).parse().ok()?);
+            contagem = Some(handle.texto().parse().ok()?);
         }
     }
     contagem

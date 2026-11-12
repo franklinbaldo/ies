@@ -1,0 +1,17 @@
+id: 11h-map-sem-decodificar
+language: rust
+message: 'atributo(k).map(str::to_owned).map(|v| f(&decodificar_atributo(&v))): f direto sobre o valor já decodificado'
+severity: hint
+rule:
+  all:
+    - any:
+        - pattern: '$T.atributo($K).map(str::to_owned).map(|$V| $F(&decodificar_atributo(&$V)))'
+        - pattern: '$T.atributo($K).map(str::to_owned).map(|$V| $F(&crate::formulario_web::decodificar_atributo(&$V)))'
+    - not:
+        inside:
+          stopBy: end
+          kind: mod_item
+          follows:
+            kind: attribute_item
+            regex: 'cfg\(test\)'
+fix: '$T.atributo($K).map($F)'

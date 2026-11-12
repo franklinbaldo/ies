@@ -10,9 +10,30 @@ rule:
         stopBy: end
         follows:
           stopBy: end
-          pattern: 'let $Y = decodificar_atributo(&$B);'
+          any:
+            - pattern: 'let $Y = decodificar_atributo(&$B);'
+            - pattern: 'let $Y = crate::formulario_web::decodificar_atributo(&$B);'
     - not:
         pattern: $B
+    - inside:
+        stopBy: end
+        follows:
+          stopBy: end
+          kind: let_declaration
+          all:
+            - has:
+                field: pattern
+                any:
+                  - pattern: $B
+                  - has:
+                      stopBy: end
+                      pattern: $B
+            - has:
+                field: value
+                stopBy: end
+                any:
+                  - pattern: $T.atributo($K)
+                  - pattern: $T.texto()
     - not:
         inside:
           stopBy: end

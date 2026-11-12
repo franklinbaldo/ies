@@ -5,7 +5,9 @@ severity: hint
 rule:
   any:
     - pattern: atributo_presente($T, $K).map_err($E)?
+    - pattern: 'crate::html_atributos::atributo_presente($T, $K).map_err($E)?'
     - pattern: atributo_presente($T, $K)?
+    - pattern: 'crate::html_atributos::atributo_presente($T, $K)?'
   not:
     inside:
       stopBy: end

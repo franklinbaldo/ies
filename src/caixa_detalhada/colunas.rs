@@ -2,8 +2,6 @@
 //! estáveis de [`ColunaDoDetalhe`]. Cabeçalho desconhecido é recusa: uma
 //! mudança de layout não pode embaralhar campos.
 use super::ErroDetalhada;
-use crate::formulario_web::decodificar_atributo;
-use crate::html_atributos::{nos_por_elemento_e_classe, valor_do_atributo};
 use crate::nivel_de_detalhe::{CabecalhoDaColuna, ColunaDoDetalhe, texto_colapsado};
 use serde::Serialize;
 use serde::ser::{SerializeMap, Serializer};
@@ -50,58 +48,43 @@ impl Serialize for ColunasDaLinha {
 }
 
 /// Texto visível com entidades conhecidas decodificadas e espaços colapsados.
-fn texto(tag: &tl::HTMLTag<'_>, parser: &tl::Parser<'_>) -> String {
-    let bruto = tag.inner_text(parser);
-    let decodificado = decodificar_atributo(&bruto);
-    texto_colapsado(&decodificado)
+fn texto(tag: crate::tela_html::Elemento<'_>) -> String {
+    let bruto = tag.texto();
+    texto_colapsado(&bruto)
 }
 
 fn tags<'d>(
-    dom: &'d tl::VDom<'d>,
-    raiz: &tl::HTMLTag<'_>,
+    raiz: crate::tela_html::Elemento<'d>,
     elemento: &str,
     classe: &str,
-) -> Result<Vec<&'d tl::HTMLTag<'d>>, ErroDetalhada> {
-    let parser = dom.parser();
-    Ok(nos_por_elemento_e_classe(dom, Some(raiz), elemento, classe)
-        .map_err(ErroDetalhada::AtributoDaDetalhadaIlegivel)?
-        .into_iter()
-        .filter_map(|n| n.get(parser).and_then(tl::Node::as_tag))
-        .collect())
+) -> Vec<crate::tela_html::Elemento<'d>> {
+    raiz.elementos(elemento)
+        .filter(|elemento| elemento.tem_classe(classe))
+        .collect()
 }
 
 /// Rótulo de um cabeçalho só de ícone: `aria-label` (SEI 5.0.x) ou o
 /// argumento de `return infraTooltipMostrar('…');` (`UnB` 4.0.9); os dois,
 /// quando presentes, têm de coincidir.
-fn rotulo_do_icone(
-    rotulo: &tl::HTMLTag<'_>,
-    parser: &tl::Parser<'_>,
-) -> Result<Option<String>, ErroDetalhada> {
-    let imagens: Vec<_> = rotulo
-        .query_selector(parser, "img")
-        .into_iter()
-        .flatten()
-        .filter_map(|n| n.get(parser).and_then(tl::Node::as_tag))
-        .collect();
+fn rotulo_do_icone(rotulo: crate::tela_html::Elemento<'_>) -> Option<String> {
+    let imagens: Vec<_> = rotulo.elementos("img").collect();
     let [imagem] = imagens.as_slice() else {
-        return Ok(None);
+        return None;
     };
-    let aria = valor_do_atributo(imagem, "aria-label")
-        .map_err(ErroDetalhada::AtributoDaDetalhadaIlegivel)?
-        .map(|v| texto_colapsado(&decodificar_atributo(&v)));
-    let dica = valor_do_atributo(imagem, "onmouseover")
-        .map_err(ErroDetalhada::AtributoDaDetalhadaIlegivel)?
-        .map(|v| decodificar_atributo(&v))
+    let aria = imagem.atributo("aria-label").map(texto_colapsado);
+    let dica = imagem
+        .atributo("onmouseover")
+        .map(str::to_owned)
         .and_then(|v| {
             let resto = v.strip_prefix("return infraTooltipMostrar('")?;
             let resto = resto.strip_suffix(';').unwrap_or(resto);
             Some(texto_colapsado(resto.strip_suffix("')")?))
         });
-    Ok(match (aria, dica) {
+    match (aria, dica) {
         (Some(a), Some(d)) if a != d => None,
         (Some(a), _) => Some(a),
         (None, d) => d,
-    })
+    }
 }
 
 fn papel_do_rotulo(rotulo: &str) -> Result<PapelDaColuna, ErroDetalhada> {
@@ -113,11 +96,10 @@ fn papel_do_rotulo(rotulo: &str) -> Result<PapelDaColuna, ErroDetalhada> {
         .ok_or(ErroDetalhada::CabecalhoDaVisaoDetalhadaNaoReconhecido)
 }
 
-fn papel(dom: &tl::VDom<'_>, th: &tl::HTMLTag<'_>) -> Result<PapelDaColuna, ErroDetalhada> {
-    let parser = dom.parser();
-    match tags(dom, th, "div", "infraDivRotuloOrdenacao")?.as_slice() {
+fn papel(th: crate::tela_html::Elemento<'_>) -> Result<PapelDaColuna, ErroDetalhada> {
+    match tags(th, "div", "infraDivRotuloOrdenacao").as_slice() {
         [] => {
-            let rotulo = texto(th, parser);
+            let rotulo = texto(th);
             if rotulo.is_empty() {
                 Ok(PapelDaColuna::SemRotulo)
             } else {
@@ -125,11 +107,11 @@ fn papel(dom: &tl::VDom<'_>, th: &tl::HTMLTag<'_>) -> Result<PapelDaColuna, Erro
             }
         }
         [div] => {
-            let rotulo = texto(div, parser);
+            let rotulo = texto(*div);
             if !rotulo.is_empty() {
                 return papel_do_rotulo(&rotulo);
             }
-            rotulo_do_icone(div, parser)?
+            rotulo_do_icone(*div)
                 .ok_or(ErroDetalhada::CabecalhoDaVisaoDetalhadaNaoReconhecido)
                 .and_then(|rotulo| papel_do_rotulo(&rotulo))
         }
@@ -140,18 +122,11 @@ fn papel(dom: &tl::VDom<'_>, th: &tl::HTMLTag<'_>) -> Result<PapelDaColuna, Erro
 /// Rótulo e papel de cada `th`, na ordem do documento: Processo único,
 /// cada coluna configurada no máximo uma vez.
 pub(super) fn papeis_do_cabecalho(
-    dom: &tl::VDom<'_>,
-    tabela: &tl::HTMLTag<'_>,
+    tabela: crate::tela_html::Elemento<'_>,
 ) -> Result<Vec<PapelDaColuna>, ErroDetalhada> {
-    let parser = dom.parser();
     let mut papeis = Vec::new();
-    for th in tabela
-        .query_selector(parser, "th")
-        .into_iter()
-        .flatten()
-        .filter_map(|n| n.get(parser).and_then(tl::Node::as_tag))
-    {
-        let novo = papel(dom, th)?;
+    for th in tabela.elementos("th") {
+        let novo = papel(th)?;
         if novo != PapelDaColuna::SemRotulo && papeis.contains(&novo) {
             return Err(if novo == PapelDaColuna::Processo {
                 ErroDetalhada::CabecalhoProcessoDetalhadoRepetido
@@ -170,15 +145,13 @@ pub(super) fn papeis_do_cabecalho(
 /// Valor da célula `td` da coluna configurada; `data-label`, quando
 /// publicado (SEI 5.0.x), precisa ser o cabeçalho da coluna.
 pub(super) fn valor_da_celula(
-    dom: &tl::VDom<'_>,
-    celula: &tl::HTMLTag<'_>,
+    celula: crate::tela_html::Elemento<'_>,
     coluna: ColunaDoDetalhe,
     id_procedimento: &str,
 ) -> Result<ValorDaColuna, ErroDetalhada> {
-    let parser = dom.parser();
-    let rotulo = valor_do_atributo(celula, "data-label")
-        .map_err(ErroDetalhada::AtributoDaDetalhadaIlegivel)?
-        .map(|v| texto_colapsado(&decodificar_atributo(&v)))
+    let rotulo = celula
+        .atributo("data-label")
+        .map(texto_colapsado)
         .filter(|v| !v.is_empty());
     let (CabecalhoDaColuna::Texto(cabecalho) | CabecalhoDaColuna::Icone(cabecalho)) =
         coluna.cabecalho();
@@ -186,14 +159,14 @@ pub(super) fn valor_da_celula(
         return Err(ErroDetalhada::RotuloDaCelulaDiferenteDoCabecalho);
     }
     if coluna == ColunaDoDetalhe::Marcadores {
-        return super::celula_marcadores::marcadores_da_celula(celula, parser, id_procedimento)
+        return super::celula_marcadores::marcadores_da_celula(celula, id_procedimento)
             .map(ValorDaColuna::Marcadores);
     }
-    let completo = texto(celula, parser);
+    let completo = texto(celula);
     if coluna.tem_itens() {
-        let itens: Vec<String> = tags(dom, celula, "div", "divRotuloItemCelula")?
+        let itens: Vec<String> = tags(celula, "div", "divRotuloItemCelula")
             .into_iter()
-            .map(|div| texto(div, parser))
+            .map(texto)
             .filter(|item| !item.is_empty())
             .collect();
         // Os itens podem vir colados (sem espaço entre os `div`): compara sem espaços.
@@ -203,7 +176,7 @@ pub(super) fn valor_da_celula(
         }
         return Ok(ValorDaColuna::Itens(itens));
     }
-    if !tags(dom, celula, "div", "divItemCelula")?.is_empty() {
+    if !tags(celula, "div", "divItemCelula").is_empty() {
         return Err(ErroDetalhada::ItensNaoPrevistosNaCelulaDetalhada);
     }
     Ok(ValorDaColuna::Texto(

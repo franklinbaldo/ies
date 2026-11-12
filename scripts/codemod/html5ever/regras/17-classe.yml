@@ -4,8 +4,12 @@ message: 'Classe pela tokenização própria.'
 severity: hint
 rule:
   any:
-    - pattern: atributos($T).map_err($E)?.tem_classe($C)
-    - pattern: atributos($T)?.tem_classe($C)
+    - any:
+        - pattern: 'atributos($T).map_err($E)?.tem_classe($C)'
+        - pattern: 'crate::html_atributos::atributos($T).map_err($E)?.tem_classe($C)'
+    - any:
+        - pattern: 'atributos($T)?.tem_classe($C)'
+        - pattern: 'crate::html_atributos::atributos($T)?.tem_classe($C)'
   not:
     inside:
       stopBy: end

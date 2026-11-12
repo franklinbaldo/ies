@@ -1,0 +1,20 @@
+id: 18fa-atributos-map-err
+language: rust
+message: 'let a = atributos(t).map_err(e)?: a tag sempre é legível (o let)'
+severity: hint
+rule:
+  all:
+    - any:
+        - pattern: 'let $X = atributos($H).map_err($E)?;'
+        - pattern: 'let $X = crate::html_atributos::atributos($H).map_err($E)?;'
+    - not:
+        inside:
+          stopBy: end
+          kind: mod_item
+          follows:
+            kind: attribute_item
+            regex: 'cfg\(test\)'
+constraints:
+  H:
+    kind: identifier
+fix: '/* ies-codemod: remover linha */'

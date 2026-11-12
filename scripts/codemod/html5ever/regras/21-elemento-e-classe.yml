@@ -4,8 +4,8 @@ message: 'Elementos por nome e classe, no documento.'
 severity: hint
 rule:
   any:
-    - pattern: nos_por_elemento_e_classe($D, None, $N, $C).map_err($E)?
-    - pattern: nos_por_elemento_e_classe($D, None, $N, $C)?
+    - pattern: nos_por_elemento_e_classe(&$D, None, $N, $C).map_err($E)?
+    - pattern: nos_por_elemento_e_classe(&$D, None, $N, $C)?
   not:
     inside:
       stopBy: end

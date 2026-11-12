@@ -4,7 +4,9 @@ message: 'decodificar_atributo de valor lido por atributo(): o valor já vem dec
 severity: hint
 rule:
   all:
-    - pattern: 'decodificar_atributo(&$B)'
+    - any:
+        - pattern: 'decodificar_atributo(&$B)'
+        - pattern: 'crate::formulario_web::decodificar_atributo(&$B)'
     - inside:
         stopBy: end
         follows:
@@ -21,7 +23,9 @@ rule:
             - has:
                 field: value
                 stopBy: end
-                pattern: $T.atributo($K)
+                any:
+                  - pattern: $T.atributo($K)
+                  - pattern: $T.texto()
     - not:
         inside:
           stopBy: end

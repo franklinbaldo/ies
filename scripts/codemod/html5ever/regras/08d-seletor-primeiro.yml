@@ -1,0 +1,18 @@
+id: 08d-seletor-primeiro
+language: rust
+message: 'query_selector(nome).and_then(|mut i| i.next()): o primeiro elemento'
+severity: hint
+rule:
+  all:
+    - pattern: '$T.query_selector($P, $S).and_then(|mut $I| $I.next())'
+    - not:
+        inside:
+          stopBy: end
+          kind: mod_item
+          follows:
+            kind: attribute_item
+            regex: 'cfg\(test\)'
+constraints:
+  S:
+    regex: '^"[a-z][a-z0-9]*"$'
+fix: '$T.elementos($S).next()'

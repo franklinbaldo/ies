@@ -1,0 +1,31 @@
+id: 07a-no-ok-or-let-usos
+language: rust
+message: 'let x = h.get(parser).ok_or(e)?: o nó sempre existe (usos)'
+severity: hint
+rule:
+  all:
+    - kind: identifier
+    - pattern: $X
+    - inside:
+        stopBy: end
+        follows:
+          stopBy: end
+          any:
+            - pattern: 'let $X = $H.get($P).$M($E)?;'
+    - not:
+        pattern: $H
+    - not:
+        inside:
+          stopBy: end
+          kind: mod_item
+          follows:
+            kind: attribute_item
+            regex: 'cfg\(test\)'
+constraints:
+  H:
+    kind: identifier
+  P:
+    regex: '^(parser|.*\.parser\(\))$'
+  M:
+    regex: '^ok_or(_else)?$'
+fix: '$H'

@@ -4,9 +4,15 @@ message: "O parâmetro tl::Parser sai: o elemento acessa o próprio documento"
 severity: hint
 rule:
   all:
-    - pattern:
-        context: "fn f($P: &tl::Parser<$L>) {}"
-        selector: parameter
+    - any:
+        - pattern:
+            context: "fn f($P: &tl::Parser<$L>) {}"
+            selector: parameter
+        - all:
+            - kind: parameter
+            - has:
+                field: type
+                regex: "^&'[a-z_]+ tl::Parser<"
     - not:
         inside:
           stopBy: end

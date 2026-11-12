@@ -4,19 +4,29 @@
 //! o primeiro valendo em repetição. A árvore é nossa, numa arena; nenhum
 //! tipo do html5ever sai deste módulo.
 
+mod construtor;
+
+use construtor::Construtor;
 use html5ever::tendril::{StrTendril, TendrilSink};
-use html5ever::tree_builder::{ElementFlags, NodeOrText, QuirksMode, TreeSink};
-use html5ever::{Attribute, LocalName, QualName, ns};
-use std::borrow::Cow;
-use std::cell::{Ref, RefCell};
-use std::sync::LazyLock;
+use html5ever::{Attribute, QualName, ns};
 
 /// Índice da raiz (o documento) na arena.
 const RAIZ: usize = 0;
 
-/// A árvore inteira de uma tela.
+/// A árvore inteira de uma tela, ou de um trecho lido como o `innerHTML`
+/// de um `body`.
 pub(crate) struct Documento {
-    nos: Vec<No>,
+    nos: Vec<Vertice>,
+    /// O documento, ou o elemento que contém o trecho.
+    raiz: usize,
+}
+
+/// Um nó filho: elemento, texto (já decodificado) ou comentário.
+#[derive(Clone, Copy)]
+pub(crate) enum No<'d> {
+    Elemento(Elemento<'d>),
+    Texto(&'d str),
+    Comentario,
 }
 
 /// Um elemento da árvore, com acesso ao documento que o contém.
@@ -27,7 +37,7 @@ pub(crate) struct Elemento<'d> {
     dados: &'d DadosDoElemento,
 }
 
-struct No {
+struct Vertice {
     pai: Option<usize>,
     filhos: Vec<usize>,
     conteudo: Conteudo,
@@ -54,17 +64,73 @@ pub(crate) fn arvore(html: &super::HtmlServido) -> Documento {
         .one(html.as_str())
 }
 
+/// Um trecho de HTML (como o que um script põe em `innerHTML`), lido no
+/// contexto de um `body`, como o navegador o leria.
+pub(crate) fn fragmento(html: &super::HtmlServido) -> Documento {
+    let corpo = QualName::new(None, ns!(html), html5ever::local_name!("body"));
+    html5ever::parse_fragment(
+        Construtor::de_fragmento(),
+        html5ever::ParseOpts::default(),
+        corpo,
+        Vec::new(),
+        true,
+    )
+    .one(html.as_str())
+}
+
+impl<'d> No<'d> {
+    /// O texto, se o nó é texto.
+    pub(crate) fn como_texto(self) -> Option<&'d str> {
+        match self {
+            No::Texto(texto) => Some(texto),
+            No::Elemento(_) | No::Comentario => None,
+        }
+    }
+}
+
 impl Documento {
+    /// Os nós do primeiro nível.
+    pub(crate) fn nos(&self) -> impl Iterator<Item = No<'_>> {
+        self.nos_de(self.raiz)
+    }
+
     /// Os elementos de nome `nome`, na ordem do documento.
-    pub(crate) fn elementos<'d>(&'d self, nome: &'d str) -> impl Iterator<Item = Elemento<'d>> {
-        self.descendentes(RAIZ)
+    pub(crate) fn elementos<'d, 'n>(
+        &'d self,
+        nome: &'n str,
+    ) -> impl Iterator<Item = Elemento<'d>> + use<'d, 'n> {
+        self.descendentes(self.raiz)
             .filter(move |elemento| elemento.nome() == nome)
     }
 
     /// Os elementos cujo `id` é `id`, na ordem do documento.
-    pub(crate) fn com_id<'d>(&'d self, id: &'d str) -> impl Iterator<Item = Elemento<'d>> {
-        self.descendentes(RAIZ)
+    pub(crate) fn com_id<'d, 'i>(
+        &'d self,
+        id: &'i str,
+    ) -> impl Iterator<Item = Elemento<'d>> + use<'d, 'i> {
+        self.descendentes(self.raiz)
             .filter(move |elemento| elemento.atributo("id") == Some(id))
+    }
+
+    fn nos_de(&self, indice: usize) -> impl Iterator<Item = No<'_>> {
+        self.nos
+            .get(indice)
+            .into_iter()
+            .flat_map(|vertice| vertice.filhos.iter())
+            .filter_map(|&filho| self.no(filho))
+    }
+
+    fn no(&self, indice: usize) -> Option<No<'_>> {
+        match &self.nos.get(indice)?.conteudo {
+            Conteudo::Elemento(dados) => Some(No::Elemento(Elemento {
+                documento: self,
+                indice,
+                dados,
+            })),
+            Conteudo::Texto(texto) => Some(No::Texto(texto)),
+            Conteudo::Comentario => Some(No::Comentario),
+            Conteudo::Raiz => None,
+        }
     }
 
     fn elemento(&self, indice: usize) -> Option<Elemento<'_>> {
@@ -115,8 +181,25 @@ impl<'d> Elemento<'d> {
             .map(|atributo| &*atributo.value)
     }
 
+    /// O atributo existe, com qualquer valor (atributo booleano).
+    pub(crate) fn presente(self, nome: &str) -> bool {
+        self.atributo(nome).is_some()
+    }
+
+    /// `class` contém `classe` entre os separadores de espaço do HTML.
+    pub(crate) fn tem_classe(self, classe: &str) -> bool {
+        self.atributo("class").is_some_and(|valor| {
+            valor
+                .split(['\t', '\n', '\u{c}', '\r', ' '])
+                .any(|nome| nome == classe)
+        })
+    }
+
     /// Os elementos descendentes de nome `nome`, na ordem do documento.
-    pub(crate) fn elementos(self, nome: &'d str) -> impl Iterator<Item = Elemento<'d>> {
+    pub(crate) fn elementos<'n>(
+        self,
+        nome: &'n str,
+    ) -> impl Iterator<Item = Elemento<'d>> + use<'d, 'n> {
         self.documento
             .descendentes(self.indice)
             .filter(move |elemento| elemento.nome() == nome)
@@ -133,6 +216,16 @@ impl<'d> Elemento<'d> {
             .filter_map(move |&indice| documento.elemento(indice))
     }
 
+    /// Os nós filhos (elementos, textos e comentários), na ordem.
+    pub(crate) fn nos(self) -> impl Iterator<Item = No<'d>> {
+        self.documento.nos_de(self.indice)
+    }
+
+    /// Quantos atributos o elemento tem (repetidos contam uma vez).
+    pub(crate) fn total_de_atributos(self) -> usize {
+        self.dados.atributos.len()
+    }
+
     /// O texto de todos os descendentes, concatenado (`textContent`).
     pub(crate) fn texto(&self) -> String {
         self.documento
@@ -145,219 +238,9 @@ impl<'d> Elemento<'d> {
     }
 }
 
-/// O `TreeSink` que monta a arena durante a leitura.
-struct Construtor {
-    nos: RefCell<Vec<No>>,
-}
-
-/// Nome devolvido ao html5ever para um nó que não é elemento: ele nunca
-/// pergunta, mas o tipo exige uma resposta.
-static SEM_NOME: LazyLock<QualName> =
-    LazyLock::new(|| QualName::new(None, ns!(), LocalName::from("")));
-
-impl Default for Construtor {
-    fn default() -> Self {
-        Self {
-            nos: RefCell::new(vec![No::novo(Conteudo::Raiz)]),
-        }
-    }
-}
-
-impl No {
-    fn novo(conteudo: Conteudo) -> Self {
-        Self {
-            pai: None,
-            filhos: Vec::new(),
-            conteudo,
-        }
-    }
-}
-
-impl Construtor {
-    fn criar(&self, conteudo: Conteudo) -> usize {
-        let mut nos = self.nos.borrow_mut();
-        nos.push(No::novo(conteudo));
-        nos.len() - 1
-    }
-
-    /// Tira `filho` da lista do pai atual, se houver.
-    fn desligar(nos: &mut [No], filho: usize) {
-        let Some(pai) = nos.get(filho).and_then(|no| no.pai) else {
-            return;
-        };
-        if let Some(no) = nos.get_mut(pai) {
-            no.filhos.retain(|&f| f != filho);
-        }
-        if let Some(no) = nos.get_mut(filho) {
-            no.pai = None;
-        }
-    }
-
-    /// Insere `novo` em `pai`, antes de `antes_de` ou no fim; texto logo
-    /// após texto é concatenado, como pede o `TreeSink`.
-    fn inserir(&self, pai: usize, antes_de: Option<usize>, novo: NodeOrText<usize>) {
-        let mut nos = self.nos.borrow_mut();
-        if let NodeOrText::AppendNode(filho) = &novo {
-            Self::desligar(&mut nos, *filho);
-        }
-        let Some(filhos) = nos.get(pai).map(|no| &no.filhos) else {
-            return;
-        };
-        let posicao = antes_de
-            .and_then(|irmao| filhos.iter().position(|&f| f == irmao))
-            .unwrap_or(filhos.len());
-        let anterior = posicao.checked_sub(1).and_then(|i| filhos.get(i)).copied();
-        let filho = match novo {
-            NodeOrText::AppendNode(filho) => filho,
-            NodeOrText::AppendText(texto) => {
-                if let Some(Conteudo::Texto(existente)) = anterior
-                    .and_then(|i| nos.get_mut(i))
-                    .map(|no| &mut no.conteudo)
-                {
-                    existente.push_tendril(&texto);
-                    return;
-                }
-                nos.push(No::novo(Conteudo::Texto(texto)));
-                nos.len() - 1
-            }
-        };
-        if let Some(no) = nos.get_mut(pai) {
-            no.filhos.insert(posicao, filho);
-        }
-        if let Some(no) = nos.get_mut(filho) {
-            no.pai = Some(pai);
-        }
-    }
-
-    fn pai(&self, no: usize) -> Option<usize> {
-        self.nos.borrow().get(no)?.pai
-    }
-}
-
-impl TreeSink for Construtor {
-    type Handle = usize;
-    type Output = Documento;
-    type ElemName<'a> = Ref<'a, QualName>;
-
-    fn finish(self) -> Documento {
-        Documento {
-            nos: self.nos.into_inner(),
-        }
-    }
-
-    fn parse_error(&self, _mensagem: Cow<'static, str>) {}
-
-    fn get_document(&self) -> usize {
-        RAIZ
-    }
-
-    fn elem_name<'a>(&'a self, alvo: &'a usize) -> Ref<'a, QualName> {
-        Ref::map(self.nos.borrow(), |nos| {
-            if let Some(Conteudo::Elemento(dados)) = nos.get(*alvo).map(|no| &no.conteudo) {
-                &dados.nome
-            } else {
-                &SEM_NOME
-            }
-        })
-    }
-
-    fn create_element(
-        &self,
-        nome: QualName,
-        atributos: Vec<Attribute>,
-        flags: ElementFlags,
-    ) -> usize {
-        let conteudo_do_modelo = flags.template.then(|| self.criar(Conteudo::Raiz));
-        self.criar(Conteudo::Elemento(DadosDoElemento {
-            nome,
-            atributos,
-            conteudo_do_modelo,
-        }))
-    }
-
-    fn create_comment(&self, _texto: StrTendril) -> usize {
-        self.criar(Conteudo::Comentario)
-    }
-
-    fn create_pi(&self, _alvo: StrTendril, _dados: StrTendril) -> usize {
-        self.criar(Conteudo::Comentario)
-    }
-
-    fn append(&self, pai: &usize, filho: NodeOrText<usize>) {
-        self.inserir(*pai, None, filho);
-    }
-
-    fn append_based_on_parent_node(
-        &self,
-        elemento: &usize,
-        anterior: &usize,
-        filho: NodeOrText<usize>,
-    ) {
-        match self.pai(*elemento) {
-            Some(pai) => self.inserir(pai, Some(*elemento), filho),
-            None => self.inserir(*anterior, None, filho),
-        }
-    }
-
-    fn append_doctype_to_document(
-        &self,
-        _nome: StrTendril,
-        _publico: StrTendril,
-        _sistema: StrTendril,
-    ) {
-    }
-
-    fn get_template_contents(&self, alvo: &usize) -> usize {
-        let nos = self.nos.borrow();
-        match nos.get(*alvo).map(|no| &no.conteudo) {
-            Some(Conteudo::Elemento(dados)) => dados.conteudo_do_modelo.unwrap_or(*alvo),
-            Some(Conteudo::Raiz | Conteudo::Texto(_) | Conteudo::Comentario) | None => *alvo,
-        }
-    }
-
-    fn same_node(&self, x: &usize, y: &usize) -> bool {
-        x == y
-    }
-
-    fn set_quirks_mode(&self, _modo: QuirksMode) {}
-
-    fn append_before_sibling(&self, irmao: &usize, novo: NodeOrText<usize>) {
-        if let Some(pai) = self.pai(*irmao) {
-            self.inserir(pai, Some(*irmao), novo);
-        }
-    }
-
-    fn add_attrs_if_missing(&self, alvo: &usize, atributos: Vec<Attribute>) {
-        let mut nos = self.nos.borrow_mut();
-        if let Some(Conteudo::Elemento(dados)) = nos.get_mut(*alvo).map(|no| &mut no.conteudo) {
-            for atributo in atributos {
-                if !dados.atributos.iter().any(|a| a.name == atributo.name) {
-                    dados.atributos.push(atributo);
-                }
-            }
-        }
-    }
-
-    fn remove_from_parent(&self, alvo: &usize) {
-        Self::desligar(&mut self.nos.borrow_mut(), *alvo);
-    }
-
-    fn reparent_children(&self, origem: &usize, destino: &usize) {
-        let filhos = self
-            .nos
-            .borrow_mut()
-            .get_mut(*origem)
-            .map(|no| std::mem::take(&mut no.filhos))
-            .unwrap_or_default();
-        for filho in filhos {
-            self.inserir(*destino, None, NodeOrText::AppendNode(filho));
-        }
-    }
-}
-
 #[cfg(test)]
 mod tests {
-    use super::arvore;
+    use super::{No, arvore};
     use crate::tela_html::HtmlServido;
 
     fn documento(html: &str) -> super::Documento {
@@ -399,6 +282,51 @@ mod tests {
         let linha = d.elementos("tr").next().unwrap();
         let nomes: Vec<_> = linha.filhos().map(|e| e.nome()).collect();
         assert_eq!(nomes, ["th", "td"]);
+    }
+
+    #[test]
+    fn nos_filhos_trazem_texto_comentario_e_elemento() {
+        let d = documento("<div id='d'> a&amp;b <!-- c --><i>x</i></div>");
+        let div = d.com_id("d").next().unwrap();
+        let nos: Vec<_> = div.nos().collect();
+        assert!(matches!(
+            nos.as_slice(),
+            [No::Texto(" a&b "), No::Comentario, No::Elemento(_)]
+        ));
+        assert_eq!(nos[0].como_texto(), Some(" a&b "));
+        assert_eq!(nos[2].como_texto(), None);
+    }
+
+    #[test]
+    fn script_guarda_o_conteudo_cru_como_texto() {
+        let d = documento("<script><!--//--><![CDATA[//><!--\nf('<b>');\n//--><!]]></script>");
+        let script = d.elementos("script").next().unwrap();
+        assert_eq!(
+            script.texto(),
+            "<!--//--><![CDATA[//><!--\nf('<b>');\n//--><!]]>"
+        );
+        assert_eq!(d.elementos("b").count(), 0);
+    }
+
+    #[test]
+    fn atributos_presentes_classes_e_total() {
+        let d = documento("<table><tr><td class='a  b\tc' disabled class='z'></td></tr></table>");
+        let td = d.elementos("td").next().unwrap();
+        assert!(td.tem_classe("b") && td.tem_classe("c") && !td.tem_classe("z"));
+        assert!(td.presente("disabled") && !td.presente("hidden"));
+        assert_eq!(td.total_de_atributos(), 2);
+    }
+
+    #[test]
+    fn fragmento_le_o_primeiro_nivel_como_innerhtml() {
+        let d = super::fragmento(&HtmlServido::de_teste(" Ana<br/>(<a>X</a>)"));
+        let nos: Vec<_> = d.nos().collect();
+        assert!(matches!(
+            nos.as_slice(),
+            [No::Texto(" Ana"), No::Elemento(br), No::Texto("("), No::Elemento(_), No::Texto(")")]
+                if br.nome() == "br"
+        ));
+        assert_eq!(d.elementos("a").count(), 1);
     }
 
     #[test]

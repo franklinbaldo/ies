@@ -1,0 +1,15 @@
+id: 56l-matches-elemento
+language: rust
+message: "matches!(n, tl::Node::Tag(_)) vira matches!(n, crate::tela_html::No::Elemento(_))"
+severity: hint
+rule:
+  all:
+    - pattern: "matches!($N, tl::Node::Tag(_))"
+    - not:
+        inside:
+          stopBy: end
+          kind: mod_item
+          follows:
+            kind: attribute_item
+            regex: 'cfg\(test\)'
+fix: "matches!($N, crate::tela_html::No::Elemento(_))"

@@ -4,7 +4,9 @@ message: 'Opção de valor já decodificado: map(decodificar_atributo) some'
 severity: hint
 rule:
   all:
-    - pattern: '$X.map(|$S| decodificar_atributo(&$S))'
+    - any:
+        - pattern: '$X.map(|$S| decodificar_atributo(&$S))'
+        - pattern: '$X.map(|$S| crate::formulario_web::decodificar_atributo(&$S))'
     - not:
         inside:
           stopBy: end

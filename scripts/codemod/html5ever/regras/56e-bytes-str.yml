@@ -1,0 +1,15 @@
+id: 56e-bytes-str
+language: rust
+message: 'as_utf8_str() do tl vira o próprio &str'
+severity: hint
+rule:
+  all:
+    - pattern: '$B.as_utf8_str()'
+    - not:
+        inside:
+          stopBy: end
+          kind: mod_item
+          follows:
+            kind: attribute_item
+            regex: 'cfg\(test\)'
+fix: '$B'

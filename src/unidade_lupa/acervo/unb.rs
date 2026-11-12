@@ -205,8 +205,7 @@ fn observacao_dos_links_da_lupa_unb_no_acervo() {
         if resposta.operacao == "grupo_unidade_listar" {
             observar_btn_novo_unb(&html);
         }
-        let candidatos =
-            fluxo::candidatos(&html, proxima).expect("controle UnB precisa ser analisável");
+        let candidatos = fluxo::candidatos(&html, proxima);
         let distintos: std::collections::HashSet<_> = candidatos
             .iter()
             .filter(|u| u.contains(&format!("acao={}", proxima.como_na_url())))
