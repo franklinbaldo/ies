@@ -180,9 +180,9 @@ pub(crate) fn url_da_ciencia_do_documento(
     let minusculas = html.to_ascii_lowercase();
     if minusculas.split("<template").skip(1).any(|resto| {
         resto
-            .split("</template")
-            .next()
-            .is_some_and(|parte| parte.contains("<script"))
+            .split_once("</template")
+            .map_or(resto, |(antes, _)| antes)
+            .contains("<script")
     }) {
         return Err(ErroCienciaNaArvore::ScriptDaCienciaDoDocumentoForaDaForma);
     }
@@ -226,7 +226,7 @@ pub(crate) fn url_da_ciencia_do_documento(
     .map_err(ErroCienciaNaArvore::EnderecoDaCienciaDoDocumentoRecusado)?;
     // Se a instalação também publicou id_procedimento, ele tem de ser único
     // e corresponder ao processo; a ausência é a forma observada na UnB.
-    let consulta = ConsultaDoControlador::ler(url.split_once('?').map_or("", |(_, q)| q))
+    let consulta = ConsultaDoControlador::da_url(url.split_once('?').map(|(_, q)| q))
         .map_err(ErroCienciaNaArvore::ConsultaDaCienciaIlegivel)?;
     let ids: Vec<&str> = consulta.valores("id_procedimento").collect();
     if !ids.is_empty() && ids.as_slice() != [id_procedimento] {

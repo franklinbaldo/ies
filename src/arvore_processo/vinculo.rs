@@ -93,7 +93,7 @@ fn conferir(
     id: &str,
 ) -> Result<VinculoDeAnexacao, ErroArvore> {
     let fora = || ErroArvore::VinculoDeAnexacaoForaDaFormaObservada;
-    let consulta = ConsultaDoControlador::ler(href.split_once('?').map_or("", |(_, c)| c))
+    let consulta = ConsultaDoControlador::da_url(href.split_once('?').map(|(_, c)| c))
         .map_err(ErroArvore::ConsultaDoVinculoIlegivel)?;
     let valores = |nome: &str| -> Vec<&str> { consulta.valores(nome).collect() };
     let (anexados, pais) = (valores(CHAVE_DO_ANEXADO), valores("id_procedimento"));

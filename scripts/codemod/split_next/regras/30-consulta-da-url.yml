@@ -1,0 +1,14 @@
+id: 30-consulta-da-url
+language: rust
+message: 'URL sem ? não é consulta vazia: da_url(None) já diz que não há pares.'
+severity: hint
+rule:
+  pattern: ConsultaDoControlador::ler($X.split_once('?').map_or("", |(_, $C)| $C))
+  not:
+    inside:
+      stopBy: end
+      kind: mod_item
+      follows:
+        kind: attribute_item
+        regex: 'cfg\((all\()?test\b'
+fix: 'ConsultaDoControlador::da_url($X.split_once(''?'').map(|(_, $C)| $C))'

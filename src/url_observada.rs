@@ -61,7 +61,9 @@ pub(crate) fn tem_prefixo_de_esquema(referencia: &str) -> bool {
 
 /// Até a primeira `/` ou `?` (a referência inteira se não houver).
 fn primeira_componente(referencia: &str) -> &str {
-    referencia.split(['/', '?']).next().unwrap_or(referencia)
+    referencia
+        .split_once(['/', '?'])
+        .map_or(referencia, |(antes, _)| antes)
 }
 
 pub(crate) fn esquema_e_resto(referencia: &str) -> Option<(&str, &str)> {
@@ -77,7 +79,7 @@ pub(crate) fn resto_http_ou_https(referencia: &str) -> Option<&str> {
 pub(crate) fn caminho_absoluto(url: &str) -> Option<&str> {
     let resto = url.strip_prefix("https://")?;
     let (_, caminho) = resto.split_at(resto.find('/')?);
-    caminho.split('?').next()
+    Some(caminho.split_once('?').map_or(caminho, |(antes, _)| antes))
 }
 
 /// Diretório sintático da URL servida, sem normalizar a referência.

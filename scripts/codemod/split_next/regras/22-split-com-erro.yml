@@ -1,0 +1,41 @@
+id: 22-split-com-erro
+language: rust
+message: 'split(P).next() nunca é None: o erro e o ? são impossíveis.'
+severity: hint
+rule:
+  any:
+    - pattern: $X.split($P).next().ok_or($E)?
+    - pattern: $X.split($P).next().ok_or_else($E)?
+    - pattern: $X.split($P).next()?
+  not:
+    inside:
+      stopBy: end
+      kind: mod_item
+      follows:
+        kind: attribute_item
+        regex: 'cfg\((all\()?test\b'
+constraints:
+  X:
+    kind: identifier
+fix: '$X.split_once($P).map_or($X, |(antes, _)| antes)'
+---
+id: 22b-split-com-erro-campo
+language: rust
+message: 'split(P).next() nunca é None: o erro e o ? são impossíveis.'
+severity: hint
+rule:
+  any:
+    - pattern: $X.split($P).next().ok_or($E)?
+    - pattern: $X.split($P).next().ok_or_else($E)?
+    - pattern: $X.split($P).next()?
+  not:
+    inside:
+      stopBy: end
+      kind: mod_item
+      follows:
+        kind: attribute_item
+        regex: 'cfg\((all\()?test\b'
+constraints:
+  X:
+    kind: field_expression
+fix: '$X.split_once($P).map_or($X.as_str(), |(antes, _)| antes)'

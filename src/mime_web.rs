@@ -1,14 +1,32 @@
 //! Conferência estrita do tipo de mídia do Controle Web do SEI.
 //! Nunca autoriza rede, apenas interpreta o cabeçalho recebido.
 pub(crate) fn e_html(mime: &str) -> bool {
-    mime.split(';')
-        .next()
-        .is_some_and(|principal| principal.trim().eq_ignore_ascii_case("text/html"))
+    principal(mime).eq_ignore_ascii_case("text/html")
+}
+
+/// O tipo principal: antes do primeiro `;` (o cabeçalho inteiro se não
+/// houver), aparado.
+pub(crate) fn principal(mime: &str) -> &str {
+    mime.split_once(';').map_or(mime, |(tipo, _)| tipo).trim()
 }
 
 #[cfg(test)]
 mod tests {
-    use super::e_html;
+    use super::{e_html, principal};
+
+    #[test]
+    fn principal_e_o_texto_antes_do_primeiro_ponto_e_virgula_aparado() {
+        for (mime, esperado) in [
+            ("", ""),
+            (";", ""),
+            ("text/html", "text/html"),
+            (" TEXT/HTML ; charset=x", "TEXT/HTML"),
+            ("a;b;c", "a"),
+            ("  ", ""),
+        ] {
+            assert_eq!(principal(mime), esperado, "{mime:?}");
+        }
+    }
 
     #[test]
     fn aceita_tipo_html_exato_com_charset_opcional() {

@@ -143,7 +143,7 @@ fn candidatos_do_controle(tag: crate::tela_html::Elemento<'_>) -> Vec<String> {
             local.and_then(|s| s.split_once('=')).and_then(|(_, v)| {
                 let v = v.strip_prefix('\'').or_else(|| v.strip_prefix('"'))?;
                 let fim = if bruto.contains("='") { '\'' } else { '"' };
-                v.split(fim).next()
+                Some(v.split_once(fim).map_or(v, |(antes, _)| antes))
             })
         };
         if let Some(literal) = literal.filter(|x| x.contains("controlador.php?")) {
@@ -226,7 +226,9 @@ fn destino_de_candidatos(
         let url = if relativo.starts_with("https://") {
             relativo
         } else if relativo.starts_with("controlador.php?") {
-            let base = url_da_tela.split('?').next().unwrap_or_default();
+            let base = url_da_tela
+                .split_once('?')
+                .map_or(url_da_tela, |(antes, _)| antes);
             let pasta = base
                 .rsplit_once('/')
                 .map(|(p, _)| p)
