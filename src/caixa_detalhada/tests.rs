@@ -42,7 +42,7 @@ fn pagina_detalhada_completa_de_um_get_vira_lista_sem_categorias_inventadas() {
 #[test]
 fn booleano_antes_de_id_href_e_class_nao_altera_a_leitura() {
     let original = pagina(2, 1, &[(1, "000001/2026"), (2, "000002/2026")]);
-    let html = crate::html_atributos::com_booleano_antes_dos_atributos(&original);
+    let html = crate::tela_html::teste::com_booleano_antes_dos_atributos(&original);
     assert!(possui_tabela(&html));
     let resposta = ler_paginas(&[HtmlServido::de_teste(&html)], Some("PPI")).unwrap();
     assert_eq!(resposta.processos.len(), 2);

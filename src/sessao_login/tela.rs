@@ -1,4 +1,4 @@
-//! Telas do login, lidas com `tl` e `html_atributos` (sem regex): o
+//! Telas do login, lidas na árvore html5ever (sem regex): o
 //! formulário `frmLogin` servido, captcha e segundo fator exigidos, a
 //! mensagem de recusa e o link do Controle no Painel. As `const` da
 //! operação ficam aqui; o primitivo de formulário deriva o POST.
@@ -6,10 +6,9 @@ use super::{Credenciais, ErroLogin};
 use crate::acao_do_sei::AcaoDoSei;
 use crate::formulario_web::{
     ConferenciaDaUnidade, EfeitoAvaliado, EnvioDoFormulario, EstadoDeSessao, OperacaoDeFormulario,
-    ResultadoDoEnvio, SubmissaoDerivada, TelaServida, decodificar_atributo,
-    derivar_submissao_de_login, localizar_formulario_tl,
+    ResultadoDoEnvio, SubmissaoDerivada, TelaServida, derivar_submissao_de_login,
+    localizar_formulario,
 };
-use crate::html_atributos::{atributos, nos_com_id, valor_do_atributo};
 use crate::instalacao::Instalacao;
 
 const CAMPOS_DO_LOGIN: &[&str] = &["txtUsuario", "pwdSenha", "selOrgao"];
@@ -53,32 +52,31 @@ pub(crate) const SBM_ACESSAR_DESABILITADO: &str =
 const CLASSES_DE_RECUSA: [&str; 3] = ["alert-danger", "infraMensagemErro", "infraExcecao"];
 const AVISO_DO_NAVEGADOR: &str = "divInfraNavegadorAviso";
 
-fn handle(indice: usize) -> tl::NodeHandle {
-    tl::NodeHandle::new(u32::try_from(indice).unwrap_or(u32::MAX))
+/// Os elementos do documento, em ordem.
+fn tags(dom: &crate::tela_html::Documento) -> impl Iterator<Item = crate::tela_html::Elemento<'_>> {
+    dom.nos()
+        .filter_map(|no| match no {
+            crate::tela_html::No::Elemento(elemento) => Some(elemento),
+            crate::tela_html::No::Texto(_) | crate::tela_html::No::Comentario => None,
+        })
+        .flat_map(|raiz| std::iter::once(raiz).chain(raiz.descendentes()))
 }
 
-/// Tags legíveis do documento, em ordem; tag ilegível é ignorada aqui
-/// (só serve para afirmar presença, nunca ausência de recusa).
-fn tags<'d>(dom: &'d tl::VDom<'d>) -> impl Iterator<Item = (tl::NodeHandle, &'d tl::HTMLTag<'d>)> {
-    let parser = dom.parser();
-    (0..dom.nodes().len()).filter_map(move |i| {
-        let h = handle(i);
-        h.get(parser).and_then(tl::Node::as_tag).map(|tag| (h, tag))
-    })
+fn tem_id_ou_nome(tag: crate::tela_html::Elemento<'_>, valor: &str) -> bool {
+    tag.atributo("id").is_some_and(|v| v == valor)
+        || tag.atributo("name").is_some_and(|v| v == valor)
 }
 
-fn tem_id_ou_nome(tag: &tl::HTMLTag<'_>, valor: &str) -> bool {
-    atributos(tag)
-        .is_ok_and(|a| a.valores("id").any(|v| v == valor) || a.valores("name").any(|v| v == valor))
+fn tem_classe(tag: crate::tela_html::Elemento<'_>, classe: &str) -> bool {
+    tag.tem_classe(classe)
 }
 
-fn tem_classe(tag: &tl::HTMLTag<'_>, classe: &str) -> bool {
-    atributos(tag).is_ok_and(|a| a.tem_classe(classe))
-}
-
-fn algum(html: &crate::tela_html::HtmlServido, teste: impl Fn(&tl::HTMLTag<'_>) -> bool) -> bool {
-    let dom = crate::tela_html::interpretar(html);
-    tags(&dom).any(|(_, tag)| teste(tag))
+fn algum(
+    html: &crate::tela_html::HtmlServido,
+    teste: impl Fn(crate::tela_html::Elemento<'_>) -> bool,
+) -> bool {
+    let dom = crate::tela_html::arvore(html);
+    tags(&dom).any(teste)
 }
 
 /// Controle de captcha servido (não basta CSS ou função JS de captcha):
@@ -106,18 +104,14 @@ pub(crate) fn mensagem_de_recusa(html: &crate::tela_html::HtmlServido) -> Option
     {
         return Some(mensagem);
     }
-    let dom = crate::tela_html::interpretar(html);
+    let dom = crate::tela_html::arvore(html);
     tags(&dom)
-        .filter(|(_, tag)| {
-            !tem_id_ou_nome(tag, AVISO_DO_NAVEGADOR)
-                && (tem_id_ou_nome(tag, "divInfraExcecao")
-                    || CLASSES_DE_RECUSA.iter().any(|c| tem_classe(tag, c)))
+        .filter(|tag| {
+            !tem_id_ou_nome(*tag, AVISO_DO_NAVEGADOR)
+                && (tem_id_ou_nome(*tag, "divInfraExcecao")
+                    || CLASSES_DE_RECUSA.iter().any(|c| tem_classe(*tag, c)))
         })
-        .find_map(|(h, _)| {
-            let texto =
-                html_escape::decode_html_entities(&texto_visivel(h, dom.parser())).into_owned();
-            crate::transporte::saneamento::sanear(&texto)
-        })
+        .find_map(|tag| crate::transporte::saneamento::sanear(&texto_visivel(tag)))
 }
 
 /// URL de `onclick` nas duas formas observadas do menu:
@@ -134,18 +128,13 @@ fn url_do_onclick(onclick: &str) -> Option<&str> {
 pub(crate) fn link_do_controle(
     html: &crate::tela_html::HtmlServido,
 ) -> Result<Option<String>, ErroLogin> {
-    let dom = crate::tela_html::interpretar(html);
-    let parser = dom.parser();
+    let dom = crate::tela_html::arvore(html);
     let mut achado: Option<String> = None;
-    for h in nos_com_id(&dom, "lnkControleProcessos").map_err(ErroLogin::Atributo)? {
-        let tag = h
-            .get(parser)
-            .and_then(tl::Node::as_tag)
+    for h in dom.com_id("lnkControleProcessos") {
+        let onclick = h
+            .atributo("onclick")
+            .map(str::to_owned)
             .ok_or(ErroLogin::LinkDoControleDeProcessosNaoReconhecido)?;
-        let bruto = valor_do_atributo(tag, "onclick")
-            .map_err(ErroLogin::Atributo)?
-            .ok_or(ErroLogin::LinkDoControleDeProcessosNaoReconhecido)?;
-        let onclick = decodificar_atributo(&bruto);
         let url = url_do_onclick(&onclick)
             .ok_or(ErroLogin::LinkDoControleDeProcessosNaoReconhecido)?
             .to_owned();
@@ -157,20 +146,23 @@ pub(crate) fn link_do_controle(
     Ok(achado)
 }
 
-fn atributo_decodificado(tag: &tl::HTMLTag<'_>, nome: &'static str) -> Option<String> {
-    valor_do_atributo(tag, nome)
-        .ok()
-        .flatten()
-        .map(|bruto| decodificar_atributo(&bruto))
+fn atributo_decodificado(
+    tag: crate::tela_html::Elemento<'_>,
+    nome: &'static str,
+) -> Option<String> {
+    tag.atributo(nome).map(str::to_owned)
 }
 
 /// `onsubmit="return acaoLogin(N);"` com o script servido gravando o
 /// argumento em `hdnAcao`: o valor de `hdnAcao` é `N`.
-fn hdn_acao_do_onsubmit(form: &tl::HTMLTag<'_>, html: &str) -> Result<String, ErroLogin> {
-    let bruto = valor_do_atributo(form, "onsubmit")
-        .map_err(ErroLogin::Atributo)?
+fn hdn_acao_do_onsubmit(
+    form: crate::tela_html::Elemento<'_>,
+    html: &str,
+) -> Result<String, ErroLogin> {
+    let onsubmit = form
+        .atributo("onsubmit")
+        .map(str::to_owned)
         .ok_or(ErroLogin::OnsubmitDoLoginAusente)?;
-    let onsubmit = decodificar_atributo(&bruto);
     let argumento = onsubmit
         .trim()
         .strip_prefix("return acaoLogin(")
@@ -184,9 +176,9 @@ fn hdn_acao_do_onsubmit(form: &tl::HTMLTag<'_>, html: &str) -> Result<String, Er
 }
 
 /// Texto visível da opção: entidades decodificadas, espaços colapsados.
-fn texto_da_opcao(opcao: &tl::HTMLTag<'_>, parser: &tl::Parser<'_>) -> String {
-    html_escape::decode_html_entities(&opcao.inner_text(parser))
-        .into_owned()
+fn texto_da_opcao(opcao: crate::tela_html::Elemento<'_>) -> String {
+    opcao
+        .texto()
         .split_whitespace()
         .collect::<Vec<_>>()
         .join(" ")
@@ -194,17 +186,10 @@ fn texto_da_opcao(opcao: &tl::HTMLTag<'_>, parser: &tl::Parser<'_>) -> String {
 
 /// `value` da única opção (fora `null`) cujo texto visível ou `value` é
 /// igual ao órgão configurado; sem casamento parcial.
-fn valor_do_orgao(
-    form: &tl::HTMLTag<'_>,
-    parser: &tl::Parser<'_>,
-    orgao: &str,
-) -> Result<String, ErroLogin> {
-    let selects: Vec<&tl::HTMLTag<'_>> = form
-        .query_selector(parser, "select")
-        .into_iter()
-        .flatten()
-        .filter_map(|h| h.get(parser).and_then(tl::Node::as_tag))
-        .filter(|tag| atributo_decodificado(tag, "name").as_deref() == Some("selOrgao"))
+fn valor_do_orgao(form: crate::tela_html::Elemento<'_>, orgao: &str) -> Result<String, ErroLogin> {
+    let selects: Vec<crate::tela_html::Elemento<'_>> = form
+        .elementos("select")
+        .filter(|tag| atributo_decodificado(*tag, "name").as_deref() == Some("selOrgao"))
         .collect();
     let select = match selects.as_slice() {
         [] => {
@@ -216,13 +201,8 @@ fn valor_do_orgao(
         }
     };
     let mut casados = Vec::new();
-    for opcao in select
-        .query_selector(parser, "option")
-        .into_iter()
-        .flatten()
-        .filter_map(|h| h.get(parser).and_then(tl::Node::as_tag))
-    {
-        let texto = texto_da_opcao(opcao, parser);
+    for opcao in select.elementos("option") {
+        let texto = texto_da_opcao(opcao);
         // Sem `value`, o navegador envia o texto da opção.
         let valor = atributo_decodificado(opcao, "value").unwrap_or_else(|| texto.clone());
         if valor != "null" && (texto == orgao || valor == orgao) {
@@ -239,18 +219,12 @@ fn valor_do_orgao(
 /// A `const` do botão servido: `Acessar`, ou `sbmAcessar` com o trecho
 /// observado que o desabilita. Outra combinação é recusa.
 fn operacao_do_botao(
-    form: &tl::HTMLTag<'_>,
-    parser: &tl::Parser<'_>,
+    form: crate::tela_html::Elemento<'_>,
     html: &str,
 ) -> Result<&'static OperacaoDeFormulario, ErroLogin> {
     let mut nomes = Vec::new();
     for elemento in ["button", "input"] {
-        for tag in form
-            .query_selector(parser, elemento)
-            .into_iter()
-            .flatten()
-            .filter_map(|h| h.get(parser).and_then(tl::Node::as_tag))
-        {
+        for tag in form.elementos(elemento) {
             let padrao = if elemento == "button" {
                 "submit"
             } else {
@@ -281,12 +255,11 @@ pub(crate) fn derivar_login(
     tela: &TelaServida<'_>,
     credenciais: &Credenciais,
 ) -> Result<SubmissaoDerivada, ErroLogin> {
-    let dom = crate::tela_html::interpretar(tela.html);
-    let parser = dom.parser();
-    let form = localizar_formulario_tl(&dom, "frmLogin")?;
+    let dom = crate::tela_html::arvore(tela.html);
+    let form = localizar_formulario(&dom, "frmLogin")?;
     let acao = hdn_acao_do_onsubmit(form, tela.html)?;
-    let orgao = valor_do_orgao(form, parser, credenciais.orgao())?;
-    let operacao = operacao_do_botao(form, parser, tela.html)?;
+    let orgao = valor_do_orgao(form, credenciais.orgao())?;
+    let operacao = operacao_do_botao(form, tela.html)?;
     let campos = [
         ("txtUsuario", credenciais.usuario()),
         ("pwdSenha", credenciais.senha()),

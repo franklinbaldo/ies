@@ -24,8 +24,7 @@ const PAGINAS: [(&str, &str); 2] = [
 ];
 
 fn normalizado(texto: &str) -> String {
-    html_escape::decode_html_entities(texto)
-        .into_owned()
+    texto
         .replace('\u{a0}', " ")
         .split_whitespace()
         .collect::<Vec<_>>()
@@ -34,14 +33,10 @@ fn normalizado(texto: &str) -> String {
 
 /// `true` só para a página de bloqueio; o 403 genérico não é.
 pub(crate) fn e_bloqueio_de_seguranca(html: &crate::tela_html::HtmlServido) -> bool {
-    let dom = crate::tela_html::interpretar(html);
-    let parser = dom.parser();
-    let primeiro = |elemento: &str| {
-        let mut nos = dom.query_selector(elemento)?;
-        nos.next()
-    };
-    let titulo = primeiro("title").map(|h| normalizado(&texto_visivel(h, parser)));
-    let corpo = primeiro("body").map(|h| normalizado(&texto_visivel(h, parser)));
+    let dom = crate::tela_html::arvore(html);
+    let primeiro = |elemento: &str| dom.elementos(elemento).next();
+    let titulo = primeiro("title").map(|h| normalizado(&texto_visivel(h)));
+    let corpo = primeiro("body").map(|h| normalizado(&texto_visivel(h)));
     PAGINAS.iter().any(|(t, frase)| {
         titulo.as_deref() == Some(*t) && corpo.as_deref().is_some_and(|c| c.contains(frase))
     })

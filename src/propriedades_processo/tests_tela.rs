@@ -2,8 +2,8 @@
 //! 4.0.9, identidade, campos e recusas tipadas. Fixtures sintéticas.
 use super::tests_apoio::{tela_das_propriedades, tela_restrita};
 use super::*;
-use crate::html_atributos::com_booleano_antes_dos_atributos;
 use crate::tela_html::HtmlServido;
+use crate::tela_html::teste::com_booleano_antes_dos_atributos;
 
 const NUP: &str = "00001.000001/2026-01";
 const ID: &str = "10";

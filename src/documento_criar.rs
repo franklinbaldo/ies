@@ -17,15 +17,11 @@ use crate::acao_do_sei::AcaoDoSei;
 use crate::arvore_processo::DocumentoNaArvore;
 use crate::arvore_processo::endereco::{EnderecoRecusado, conferir_endereco_relativo};
 use crate::consulta_do_controlador::ConsultaDoControlador;
-use crate::formulario_web::decodificar_atributo;
-use crate::html_atributos::{nos_com_id, valor_do_atributo};
 use crate::instalacao::Instalacao;
 
 #[derive(Clone, Debug, PartialEq, Eq, thiserror::Error)]
 #[error("{self:?}")]
 pub(crate) enum ErroCriar {
-    /// O tokenizador de atributos recusou a tag.
-    Atributo(#[source] crate::html_atributos::ErroAtributoHtml),
     ListaForaDaForma,
     TipoAusente,
     TipoAmbiguo,
@@ -46,59 +42,47 @@ pub(crate) enum ErroCriar {
 pub(crate) fn tipos_oferecidos(
     html: &crate::tela_html::HtmlServido,
 ) -> Result<Vec<String>, ErroCriar> {
-    let dom = crate::tela_html::interpretar(html);
-    let tabelas = nos_com_id(&dom, "tblSeries").map_err(ErroCriar::Atributo)?;
+    let dom = crate::tela_html::arvore(html);
+    let tabelas = dom.com_id("tblSeries").collect::<Vec<_>>();
     let [tabela] = tabelas.as_slice() else {
         return Err(ErroCriar::ListaForaDaForma);
     };
-    let parser = dom.parser();
-    let faixas = guarda_script::faixas_inertes(&dom).ok_or(ErroCriar::ListaForaDaForma)?;
-    let ocultas = guarda_script::faixas_ocultas(&dom).ok_or(ErroCriar::ListaForaDaForma)?;
-    let tabela = tabela
-        .get(parser)
-        .and_then(tl::Node::as_tag)
-        .ok_or(ErroCriar::ListaForaDaForma)?;
-    if !tabela.name().as_utf8_str().eq_ignore_ascii_case("table") {
+    let tabela = *tabela;
+    if !tabela.nome().eq_ignore_ascii_case("table") {
         return Err(ErroCriar::ListaForaDaForma);
     }
     let mut tipos = Vec::new();
-    for tag in tabela
-        .children()
-        .all(parser)
-        .iter()
-        .filter_map(tl::Node::as_tag)
-    {
-        // Um tipo no fragmento inerte de <template> não é oferecido.
-        if !tag.name().as_utf8_str().eq_ignore_ascii_case("a")
-            || guarda_script::dentro_de_template(tag.boundaries(parser).0, &faixas)
-            || guarda_script::dentro_de_faixa_oculta(tag.boundaries(parser).0, &ocultas)
-        {
+    for tag in tabela.descendentes() {
+        if !tag.nome().eq_ignore_ascii_case("a") {
             continue;
         }
-        let href = valor_do_atributo(tag, "href").map_err(ErroCriar::Atributo)?;
-        if href.is_none() {
+        let Some(href) = tag.atributo("href") else {
             continue;
-        }
-        let onclick = valor_do_atributo(tag, "onclick").map_err(ErroCriar::Atributo)?;
+        };
+        let onclick = tag.atributo("onclick");
         // Na 4.0 "Externo" usa documento_receber, e não documento_gerar.
         // Nas 4.1/5.0, escolher(-1) também é externo.
-        let href = decodificar_atributo(href.as_deref().unwrap_or_default());
-        if !link_de_tipo_interno(&href, onclick.as_deref()) {
+        if !link_de_tipo_interno(href, onclick) {
             continue;
         }
-        let nome = tag
-            .inner_text(parser)
-            .split_whitespace()
-            .collect::<Vec<_>>()
-            .join(" ");
-        // Texto, não atributo: o SEI 5 publica "Nome&nbsp;(Formulário)".
-        let nome = html_escape::decode_html_entities(&nome).into_owned();
+        let nome = nome_visivel(&tag.texto());
         if !nome.is_empty() {
             tipos.push(nome);
         }
     }
     Ok(tipos)
 }
+/// Nome do tipo como o texto o publica, espaços colapsados. O U+00A0 fica:
+/// o SEI 5 publica "Nome&nbsp;(Formulário)", e o `tl` só decodificava
+/// a entidade depois de colapsar os espaços.
+fn nome_visivel(texto: &str) -> String {
+    texto
+        .split(|c: char| c.is_whitespace() && c != '\u{a0}')
+        .filter(|parte| !parte.is_empty())
+        .collect::<Vec<_>>()
+        .join(" ")
+}
+
 pub(crate) fn conferir_tipo(tipo: &str, oferecidos: &[String]) -> Result<(), ErroCriar> {
     match oferecidos.iter().filter(|s| s.as_str() == tipo).count() {
         0 => Err(ErroCriar::TipoAusente),
@@ -248,24 +232,8 @@ fn script_prova_escolha(
 /// declara o botão "Exibir todos" por exibirSeries('T'), que altera apenas
 /// o filtro da sessão. Nunca executar JS ou inferir a função pelo botão.
 pub(crate) fn filtro_de_todos(html: &crate::tela_html::HtmlServido) -> Result<bool, ErroCriar> {
-    let dom = crate::tela_html::interpretar(html);
-    let faixas = guarda_script::faixas_inertes(&dom).ok_or(ErroCriar::ListaForaDaForma)?;
-    let ocultas = guarda_script::faixas_ocultas(&dom).ok_or(ErroCriar::ListaForaDaForma)?;
-    let botoes = nos_com_id(&dom, "ancExibirSeries")
-        .map_err(ErroCriar::Atributo)?
-        .into_iter()
-        .filter(|no| {
-            !no.get(dom.parser())
-                .and_then(tl::Node::as_tag)
-                .is_some_and(|tag| {
-                    guarda_script::dentro_de_template(tag.boundaries(dom.parser()).0, &faixas)
-                        || guarda_script::dentro_de_faixa_oculta(
-                            tag.boundaries(dom.parser()).0,
-                            &ocultas,
-                        )
-                })
-        })
-        .collect::<Vec<_>>();
+    let dom = crate::tela_html::arvore(html);
+    let botoes = dom.com_id("ancExibirSeries").collect::<Vec<_>>();
     let [botao] = botoes.as_slice() else {
         return if botoes.is_empty() {
             Ok(false)
@@ -273,21 +241,18 @@ pub(crate) fn filtro_de_todos(html: &crate::tela_html::HtmlServido) -> Result<bo
             Err(ErroCriar::ListaForaDaForma)
         };
     };
-    let tag = botao
-        .get(dom.parser())
-        .and_then(tl::Node::as_tag)
-        .ok_or(ErroCriar::ListaForaDaForma)?;
-    if !tag.name().as_utf8_str().eq_ignore_ascii_case("a") {
+    let tag = *botao;
+    if !tag.nome().eq_ignore_ascii_case("a") {
         return Err(ErroCriar::ListaForaDaForma);
     }
-    let href = valor_do_atributo(tag, "href")
-        .map_err(ErroCriar::Atributo)?
+    let href = tag
+        .atributo("href")
+        .map(str::to_owned)
         .ok_or(ErroCriar::LinkDoTipoNaoNavegavel)?;
-    let href = decodificar_atributo(&href);
-    let onclick = valor_do_atributo(tag, "onclick")
-        .map_err(ErroCriar::Atributo)?
+    let onclick = tag
+        .atributo("onclick")
+        .map(str::to_owned)
         .ok_or(ErroCriar::LinkDoTipoNaoNavegavel)?;
-    let onclick = decodificar_atributo(&onclick);
     let chamada = onclick.trim().trim_end_matches(';').trim();
     // Filtro da sessão já em "todos": o botão volta a oferecer só os
     // utilizados, e a lista servida já está completa (UnB, 10/11/2026).
@@ -316,47 +281,29 @@ pub(crate) fn escolha_do_tipo(
     id_procedimento: &str,
     tipo: &str,
 ) -> Result<EscolhaDoDocumento, ErroCriar> {
-    let dom = crate::tela_html::interpretar(html);
-    let tabelas = nos_com_id(&dom, "tblSeries").map_err(ErroCriar::Atributo)?;
+    let dom = crate::tela_html::arvore(html);
+    let tabelas = dom.com_id("tblSeries").collect::<Vec<_>>();
     let [tabela] = tabelas.as_slice() else {
         return Err(ErroCriar::ListaForaDaForma);
     };
-    let tabela = tabela
-        .get(dom.parser())
-        .and_then(tl::Node::as_tag)
-        .ok_or(ErroCriar::ListaForaDaForma)?;
-    let faixas = guarda_script::faixas_inertes(&dom).ok_or(ErroCriar::ListaForaDaForma)?;
-    let ocultas = guarda_script::faixas_ocultas(&dom).ok_or(ErroCriar::ListaForaDaForma)?;
-    if !tabela.name().as_utf8_str().eq_ignore_ascii_case("table") {
+    let tabela = *tabela;
+    if !tabela.nome().eq_ignore_ascii_case("table") {
         return Err(ErroCriar::ListaForaDaForma);
     }
     let mut links = Vec::new();
-    for tag in tabela
-        .children()
-        .all(dom.parser())
-        .iter()
-        .filter_map(tl::Node::as_tag)
-    {
-        if !tag.name().as_utf8_str().eq_ignore_ascii_case("a")
-            || guarda_script::dentro_de_template(tag.boundaries(dom.parser()).0, &faixas)
-            || guarda_script::dentro_de_faixa_oculta(tag.boundaries(dom.parser()).0, &ocultas)
-        {
+    for tag in tabela.descendentes() {
+        if !tag.nome().eq_ignore_ascii_case("a") {
             continue;
         }
-        let nome = tag
-            .inner_text(dom.parser())
-            .split_whitespace()
-            .collect::<Vec<_>>()
-            .join(" ");
-        let nome = html_escape::decode_html_entities(&nome).into_owned();
+        let nome = nome_visivel(&tag.texto());
         if nome != tipo {
             continue;
         }
-        let onclick = valor_do_atributo(tag, "onclick").map_err(ErroCriar::Atributo)?;
-        let href = valor_do_atributo(tag, "href")
-            .map_err(ErroCriar::Atributo)?
+        let onclick = tag.atributo("onclick").map(str::to_owned);
+        let href = tag
+            .atributo("href")
+            .map(str::to_owned)
             .ok_or(ErroCriar::LinkDoTipoNaoNavegavel)?;
-        let href = decodificar_atributo(&href);
         if link_de_tipo_externo(&href, onclick.as_deref()) {
             continue;
         }

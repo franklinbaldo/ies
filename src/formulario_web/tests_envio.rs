@@ -96,7 +96,7 @@ fn resposta_com_marcador_de_resultado_e_aceita_com_uma_chamada() {
 
 #[test]
 fn marcador_com_booleano_antes_da_classe_e_reconhecido() {
-    let html = crate::html_atributos::com_booleano_antes_dos_atributos(RESULTADO);
+    let html = crate::tela_html::teste::com_booleano_antes_dos_atributos(RESULTADO);
     let (r, n) = enviar_com(200, &html);
     assert_eq!(r.unwrap(), html);
     assert_eq!(n, 1);

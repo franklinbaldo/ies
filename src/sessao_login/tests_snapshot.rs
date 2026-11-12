@@ -8,6 +8,7 @@ use super::gravacao;
 use super::tests_apoio::*;
 use super::tests_colheita::controle_com_linha;
 use crate::acao_do_sei::AcaoDoSei;
+#[cfg(unix)]
 use crate::arquivo_privado::ErroArquivoPrivado;
 use crate::colheita_do_controle::Colheita;
 use crate::indice_local::{ChaveDoLink, IndiceLocal};

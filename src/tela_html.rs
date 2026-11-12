@@ -4,6 +4,8 @@
 use crate::transporte::corpo::{ErroCorpoHttp, legivel};
 
 mod documento;
+#[cfg(test)]
+pub(crate) mod teste;
 pub(crate) use documento::{Documento, Elemento, No, arvore, fragmento};
 
 /// Bytes UTF-8 que um corpo de até `MAX_HTML_BYTES` bytes rende: em
@@ -11,7 +13,7 @@ pub(crate) use documento::{Documento, Elemento, No, arvore, fragmento};
 const LIMITE_DO_TEXTO: usize = 2 * crate::MAX_HTML_BYTES;
 
 /// Texto de uma tela servida, com no máximo `LIMITE_DO_TEXTO` bytes, abaixo
-/// de `u32::MAX`: o único erro do parser (`InvalidLength`) não ocorre.
+/// de `u32::MAX`, o comprimento que o `tendril` do html5ever comporta.
 #[derive(Clone, Debug, PartialEq, Eq)]
 pub(crate) struct HtmlServido(String);
 
@@ -60,16 +62,6 @@ impl std::ops::Deref for HtmlServido {
     type Target = str;
     fn deref(&self) -> &str {
         &self.0
-    }
-}
-
-/// A árvore do HTML servido.
-pub(crate) fn interpretar(html: &HtmlServido) -> tl::VDom<'_> {
-    match tl::parse(html, tl::ParserOptions::default()) {
-        Ok(dom) => dom,
-        Err(tl::ParseError::InvalidLength) => {
-            unreachable!("HtmlServido tem no máximo 2 × MAX_HTML_BYTES, abaixo de u32::MAX")
-        }
     }
 }
 

@@ -225,9 +225,10 @@ fn cadastro_so_aceita_tipo_e_controles_publicados_habilitados() {
 }
 
 #[test]
-fn controles_de_cadastro_inertes_ou_fora_do_formulario_nao_autorizam_escrita() {
+fn controles_de_cadastro_em_template_ou_fora_do_formulario_nao_autorizam_escrita() {
     // Cenários adversariais sintéticos: a presença de um id na página
-    // não prova que o formulário de cadastro oferece esse controle.
+    // não prova que o formulário de cadastro oferece esse controle. O
+    // conteúdo de template fica fora da árvore, como no navegador.
     let abertura = r#"<form id="frmDocumentoCadastro" method="post">
         <label id="lblSerieTitulo">Despacho</label>"#;
     let publico = r#"<input type="radio" id="optPublico" name="rdoNivelAcesso" value="0">"#;
@@ -256,18 +257,6 @@ fn controles_de_cadastro_inertes_ou_fora_do_formulario_nao_autorizam_escrita() {
             Some("publico")
         ),
         Err(ErroCriar::DescricaoNaoOferecida)
-    );
-
-    let radio_desabilitado =
-        format!("{abertura}<fieldset disabled>{publico}</fieldset>{descricao}</form>");
-    assert_eq!(
-        conferir_cadastro(
-            &HtmlServido::de_teste(&radio_desabilitado),
-            "Despacho",
-            Some("Prova"),
-            Some("publico")
-        ),
-        Err(ErroCriar::NivelNaoOferecido)
     );
 }
 

@@ -235,7 +235,7 @@ mod tests {
 
     #[test]
     fn booleano_antes_do_id_e_do_value_nao_apaga_o_contexto() {
-        let html = crate::html_atributos::com_booleano_antes_dos_atributos(&controle());
+        let html = crate::tela_html::teste::com_booleano_antes_dos_atributos(&controle());
         let contexto = contexto_da_pagina(&crate::tela_html::HtmlServido::de_teste(&html)).unwrap();
         assert_eq!(contexto.unidade.as_deref(), Some("UNIDADE A"));
         assert_eq!(contexto.modo.as_deref(), Some("R"));

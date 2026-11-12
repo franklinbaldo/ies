@@ -1,6 +1,5 @@
 //! Ações de filtro e seleção de tipo: prova de script inline ativo (#246).
 //! O teste do corpo é literal; comentários, textos e blocos JS não provam ação.
-use super::guarda_script::{dentro_de_template, faixas_inertes, fonte_do_script};
 
 #[derive(Clone, Copy, PartialEq, Eq)]
 enum Contexto {
@@ -121,10 +120,6 @@ fn definicoes_ativas(texto: &str, assinatura: &str, corpo_esperado: &str) -> Opt
 #[derive(Clone, Debug, PartialEq, Eq, thiserror::Error)]
 #[error("{self:?}")]
 pub(crate) enum ErroGuardaDeNavegacao {
-    NoDeTemplateNaoInterpretado,
-    NoDeScriptNaoInterpretado,
-    AtributoDoScript(#[source] crate::html_atributos::ErroAtributoHtml),
-    FonteDoScriptNaoLocalizada,
     /// Declaração fora do nível superior, corpo diferente do literal
     /// observado, ou script que termina dentro de cadeia/comentário/bloco.
     ScriptForaDaFormaObservada,
@@ -142,35 +137,19 @@ pub(super) fn script_publica_funcao_de_navegacao(
     corpo_esperado: &str,
 ) -> Result<(), ErroGuardaDeNavegacao> {
     use ErroGuardaDeNavegacao::{
-        AtributoDoScript, FonteDoScriptNaoLocalizada, FuncaoDeclaradaMaisDeUmaVez,
-        FuncaoNaoDeclaradaEmScriptAtivo, NoDeScriptNaoInterpretado, NoDeTemplateNaoInterpretado,
-        ScriptForaDaFormaObservada,
+        FuncaoDeclaradaMaisDeUmaVez, FuncaoNaoDeclaradaEmScriptAtivo, ScriptForaDaFormaObservada,
     };
-    let dom = crate::tela_html::interpretar(html);
-    let faixas = faixas_inertes(&dom).ok_or(NoDeTemplateNaoInterpretado)?;
+    let dom = crate::tela_html::arvore(html);
     let mut encontradas = 0_usize;
-    for no in dom.query_selector("script").into_iter().flatten() {
-        let script = no
-            .get(dom.parser())
-            .and_then(tl::Node::as_tag)
-            .ok_or(NoDeScriptNaoInterpretado)?;
-        if dentro_de_template(script.boundaries(dom.parser()).0, &faixas) {
-            continue;
-        }
-        let tipo =
-            crate::html_atributos::valor_do_atributo(script, "type").map_err(AtributoDoScript)?;
-        if tipo
-            .as_deref()
+    for script in dom.elementos("script") {
+        if script
+            .atributo("type")
             .is_some_and(|tipo| !tipo.trim().eq_ignore_ascii_case("text/javascript"))
+            || script.presente("src")
         {
             continue;
         }
-        if crate::html_atributos::atributo_presente(script, "src").map_err(AtributoDoScript)? {
-            continue;
-        }
-        let texto = fonte_do_script(html, script.boundaries(dom.parser()).0)
-            .ok_or(FonteDoScriptNaoLocalizada)?;
-        let ocorrencias = definicoes_ativas(texto, assinatura, corpo_esperado)
+        let ocorrencias = definicoes_ativas(&script.texto(), assinatura, corpo_esperado)
             .ok_or(ScriptForaDaFormaObservada)?;
         if ocorrencias == 0 {
             continue;

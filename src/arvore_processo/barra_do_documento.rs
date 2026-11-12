@@ -10,7 +10,6 @@ use super::literais::{
 };
 use crate::acao_do_sei::AcaoDoSei;
 use crate::consulta_do_controlador::menciona_acao;
-use crate::html_atributos::ErroAtributoHtml;
 use crate::instalacao::Instalacao;
 
 /// URL absoluta da lista de versões, assinada: `Debug` redigido.
@@ -53,7 +52,6 @@ pub(crate) struct BarraDoDocumento {
 pub(crate) enum ErroBarraDoDocumento {
     LinhaDaBarraDoDocumentoIlegivel(#[source] super::ErroArvore),
     BarrasRepetidasNaArvore,
-    AtributoDeLinkDaBarra(#[source] ErroAtributoHtml),
     EnderecoDasVersoesDeOutroDocumento,
     BarraDoDocumentoForaDaFormaObservada,
     BotoesDeCienciaDoDocumentoRepetidos,

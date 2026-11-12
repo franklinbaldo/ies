@@ -2,8 +2,8 @@
 //! antes de `disabled`, `name`, `type` ou `value` não pode abrir o formulário.
 use super::tests::{OPERACAO, instalacao, tela_iso, url_servida};
 use super::*;
-use crate::html_atributos::com_booleano_antes_dos_atributos;
 use crate::tela_html::HtmlServido;
+use crate::tela_html::teste::com_booleano_antes_dos_atributos;
 
 fn pagina(interior: &str) -> String {
     format!(

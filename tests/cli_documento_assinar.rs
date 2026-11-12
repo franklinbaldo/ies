@@ -7,6 +7,7 @@ use std::process::{Command, Output};
 
 #[path = "support/falha.rs"]
 mod falha_cli;
+#[cfg(unix)]
 use falha_cli::falha;
 #[path = "support/falha_por.rs"]
 mod falha_por_cli;

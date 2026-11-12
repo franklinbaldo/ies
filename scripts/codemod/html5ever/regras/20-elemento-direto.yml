@@ -3,16 +3,25 @@ language: rust
 message: 'Some(x).is_some_and(|y| corpo) deixado pelas regras 07 e 18b: o corpo usa x no lugar de y.'
 severity: hint
 rule:
-  any:
-    - pattern: 'Some($X).is_some_and(|$Y| { $B })'
-    - pattern: Some($X).is_some_and(|$Y| $B)
-  not:
-    inside:
-      stopBy: end
-      kind: mod_item
-      follows:
-        kind: attribute_item
-        regex: 'cfg\(test\)'
+  all:
+    - any:
+        - pattern: 'Some($X).is_some_and(|$Y| { $B })'
+        - pattern: Some($X).is_some_and(|$Y| $B)
+    # Corpo binário vai pela 20b, que preserva a precedência com parênteses.
+    - not:
+        has:
+          stopBy: end
+          kind: closure_expression
+          has:
+            field: body
+            kind: binary_expression
+    - not:
+        inside:
+          stopBy: end
+          kind: mod_item
+          follows:
+            kind: attribute_item
+            regex: 'cfg\(test\)'
 rewriters:
   - id: renomear
     rule:
@@ -25,3 +34,36 @@ transform:
       rewriters: [renomear]
       source: $B
 fix: $CORPO
+---
+id: 20b-elemento-direto-binario
+language: rust
+message: 'Como a 20, mas o corpo é expressão binária: entre parênteses, para não mudar a precedência em !x ou x && c.'
+severity: hint
+rule:
+  all:
+    - pattern: Some($X).is_some_and(|$Y| $B)
+    - has:
+        stopBy: end
+        kind: closure_expression
+        has:
+          field: body
+          kind: binary_expression
+    - not:
+        inside:
+          stopBy: end
+          kind: mod_item
+          follows:
+            kind: attribute_item
+            regex: 'cfg\(test\)'
+rewriters:
+  - id: renomear
+    rule:
+      kind: identifier
+      pattern: $Y
+    fix: $X
+transform:
+  CORPO:
+    rewrite:
+      rewriters: [renomear]
+      source: $B
+fix: ($CORPO)

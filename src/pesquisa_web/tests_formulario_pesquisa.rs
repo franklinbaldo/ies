@@ -215,7 +215,7 @@ fn forma_bruta_observada_do_select_com_multiple_sem_valor_e_lida() {
 #[test]
 fn booleano_antes_de_cada_atributo_preserva_regras_e_corpo() {
     let esperado = derivar(&observado()).unwrap();
-    let html = crate::html_atributos::com_booleano_antes_dos_atributos(&observado());
+    let html = crate::tela_html::teste::com_booleano_antes_dos_atributos(&observado());
     let obtido = derivar(&html).unwrap();
     assert_eq!(obtido.corpo(), esperado.corpo());
     assert_eq!(obtido.url(), esperado.url());

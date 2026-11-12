@@ -417,7 +417,6 @@ dependencies = [
  "sha2",
  "thiserror",
  "time",
- "tl",
  "ureq",
  "zip",
 ]
@@ -1035,12 +1034,6 @@ dependencies = [
  "num-conv",
  "time-core",
 ]
-
-[[package]]
-name = "tl"
-version = "0.7.8"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "b130bd8a58c163224b44e217b4239ca7b927d82bf6cc2fea1fc561d15056e3f7"
 
 [[package]]
 name = "typed-path"

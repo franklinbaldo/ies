@@ -31,7 +31,6 @@ pub enum ErroResultadoPesquisa {
     /// `a.protocoloNormal` de `documento_visualizar` na linha cujo link do
     /// processo não leva o mesmo `id_documento` (Goiás, acerto em documento).
     LinkDoDocumentoDaLinhaDiferenteDoProcesso,
-    HtmlDePesquisaNaoInterpretado,
     /// `href` de um `a.protocoloNormal` da linha ilegível.
     IdentificadorDoProcessoRepetidoNaPesquisa,
     LinhaDePesquisaComMaisDeUmLinkDaArvore,

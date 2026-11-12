@@ -128,7 +128,7 @@ mod tests {
     #[test]
     fn booleano_antes_do_id_nao_esconde_a_tabela_do_historico() {
         let html =
-            crate::html_atributos::com_booleano_antes_dos_atributos(&fixture("202600005002487"));
+            crate::tela_html::teste::com_booleano_antes_dos_atributos(&fixture("202600005002487"));
         let resultado = ler_historico(
             &crate::tela_html::HtmlServido::de_teste(&html),
             "202600005002487",

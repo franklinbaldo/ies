@@ -17,7 +17,7 @@ fn numero_encontrado_na_pesquisa_preserva_zeros_e_nao_link_assinado() {
 
 #[test]
 fn booleano_antes_de_class_e_href_nao_omite_resultado() {
-    let html = HtmlServido::de_teste(&crate::html_atributos::com_booleano_antes_dos_atributos(
+    let html = HtmlServido::de_teste(&crate::tela_html::teste::com_booleano_antes_dos_atributos(
         RESULTADO,
     ));
     assert_eq!(

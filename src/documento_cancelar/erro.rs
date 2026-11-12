@@ -68,14 +68,13 @@ mod testes_cadeia_de_causas {
 
     #[test]
     fn erros_de_cancelamento_retêm_as_causas_tipadas() {
-        let atributo = crate::html_atributos::ErroAtributoHtml::ValorEntreAspasSemFechamento;
         let exemplos = [
             ErroCancelar::Abertura(ErroDocumentoObter::Processo(
                 crate::processo_obter::ErroProcessoObter::Transporte(FalhaTransporte::Rede),
             )),
             ErroCancelar::Link(ErroLinkCancelar::BarraDoDocumentoIlegivel(barra())),
             ErroCancelar::Tela(FalhaTransporte::Rede),
-            ErroCancelar::Formulario(ErroSubmissaoFormulario::AtributoHtml(atributo)),
+            ErroCancelar::Formulario(ErroSubmissaoFormulario::FormularioAusenteNaTela),
             ErroCancelar::EnderecoDoProcessoRecusado(
                 crate::arvore_processo::endereco::EnderecoRecusado::NaoReconhecido,
             ),

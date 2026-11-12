@@ -6,7 +6,6 @@ use crate::consulta_do_controlador::{
     ConsultaDoControlador, ErroChaveDaConsulta, ErroConsultaDoControlador,
 };
 use crate::formulario_web::{ErroSubmissaoFormulario, localizar_formulario};
-use crate::html_atributos::ErroAtributoHtml;
 use std::collections::HashMap;
 
 /// Formulário observado (o `id` é o publicado pelo SEI, apesar do nome).
@@ -30,7 +29,6 @@ pub(crate) enum ErroNivelDeDetalhe {
     RotuloDaOpcaoDoDetalheDiferente {
         coluna: ColunaDoDetalhe,
     },
-    AtributoHtml(#[source] ErroAtributoHtml),
     CampoNaoPrevistoNoFormularioDoNivelDeDetalhe,
     FormularioDoNivelDeDetalheAusente(#[source] crate::formulario_web::ErroSubmissaoFormulario),
     FormulariosDoNivelDeDetalheRepetidos,
@@ -79,7 +77,6 @@ pub(crate) fn ler_nivel_de_detalhe(
             ErroSubmissaoFormulario::FormulariosComMesmoIdentificadorNaTela => {
                 E::FormulariosDoNivelDeDetalheRepetidos
             }
-            ErroSubmissaoFormulario::AtributoHtml(falha) => E::AtributoHtml(falha),
             outro @ (ErroSubmissaoFormulario::EfeitoDaOperacaoNaoAvaliado
             | ErroSubmissaoFormulario::UnidadeDaTelaDiferenteDaSolicitada
             | ErroSubmissaoFormulario::UnidadeNaoInformada

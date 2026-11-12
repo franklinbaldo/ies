@@ -4,32 +4,17 @@
 //! parênteses e o número SEI à direita; snippet; metadados.
 use super::{DocumentoEncontrado, ErroDocumentoDaPesquisa};
 use crate::acao_do_sei::AcaoDoSei;
-use crate::html_atributos::{
-    atributos, nos_por_elemento_e_classe, valor_decodificado, valor_do_atributo,
-};
 use crate::pesquisa_web::documento_da_linha::{documento_do_processo, documento_visualizado};
 use crate::pesquisa_web::{ErroResultadoPesquisa, validar_href_de_processo};
 use crate::processo::NumeroProcesso;
 use crate::transporte::texto_de_recusa::texto_visivel;
 use std::collections::HashSet;
 
-type Tag<'a> = tl::HTMLTag<'a>;
+type Tag<'a> = crate::tela_html::Elemento<'a>;
 
-fn tag<'a>(
-    no: tl::NodeHandle,
-    parser: &'a tl::Parser<'a>,
-) -> Result<&'a Tag<'a>, ErroDocumentoDaPesquisa> {
-    no.get(parser)
-        .and_then(tl::Node::as_tag)
-        .ok_or(ErroDocumentoDaPesquisa::Linha(
-            ErroResultadoPesquisa::HtmlDePesquisaNaoInterpretado,
-        ))
-}
-
-/// Texto visível, entidades decodificadas e espaços colapsados.
-fn texto(no: tl::NodeHandle, parser: &tl::Parser<'_>) -> String {
-    let bruto = html_escape::decode_html_entities(&texto_visivel(no, parser)).into_owned();
-    bruto
+/// Texto visível com espaços (inclusive o U+00A0 de `&nbsp;`) colapsados.
+fn texto(no: Tag<'_>) -> String {
+    texto_visivel(no)
         .split(|c: char| c.is_whitespace() || c == '\u{a0}')
         .filter(|p| !p.is_empty())
         .collect::<Vec<_>>()
@@ -57,55 +42,52 @@ fn anexo_baixado(href: &str) -> bool {
 }
 
 /// A única célula `td.classe` da linha de título.
-fn celula<'a>(
-    dom: &'a tl::VDom<'a>,
-    linha: &Tag<'_>,
-    classe: &str,
-) -> Result<tl::NodeHandle, ErroDocumentoDaPesquisa> {
-    match nos_por_elemento_e_classe(dom, Some(linha), "td", classe)?.as_slice() {
+fn celula<'a>(linha: Tag<'a>, classe: &str) -> Result<Tag<'a>, ErroDocumentoDaPesquisa> {
+    match linha
+        .elementos("td")
+        .filter(|elemento| elemento.tem_classe(classe))
+        .collect::<Vec<_>>()
+        .as_slice()
+    {
         [celula] => Ok(*celula),
         _ => Err(ErroDocumentoDaPesquisa::CelulaDoTituloDoDocumentoAusenteOuRepetida),
     }
 }
 
-fn href(link: &Tag<'_>) -> Result<String, ErroDocumentoDaPesquisa> {
-    valor_decodificado(link, "href")
-        .map_err(ErroDocumentoDaPesquisa::AtributoHtml)?
+fn href(link: Tag<'_>) -> Result<String, ErroDocumentoDaPesquisa> {
+    link.atributo("href")
+        .map(str::to_owned)
         .ok_or(ErroDocumentoDaPesquisa::LinkDaLinhaDeDocumentoNaoReconhecido)
 }
 
-/// Os `a.protocoloNormal` sob `raiz`; `class` repetido é aceito quando
-/// todas as ocorrências trazem a classe (PEN3 5.0.4, processo visitado).
-fn links(
-    dom: &tl::VDom<'_>,
-    raiz: &Tag<'_>,
-) -> Result<Vec<tl::NodeHandle>, ErroDocumentoDaPesquisa> {
-    nos_por_elemento_e_classe(dom, Some(raiz), "a", "protocoloNormal")
-        .map_err(ErroDocumentoDaPesquisa::AtributoHtml)
+/// Os `a.protocoloNormal` sob `raiz`; com `class` repetido vale o
+/// primeiro, como no navegador (PEN3 5.0.4, processo visitado).
+fn links(raiz: Tag<'_>) -> Vec<Tag<'_>> {
+    raiz.elementos("a")
+        .filter(|elemento| elemento.tem_classe("protocoloNormal"))
+        .collect()
 }
 
 /// Zero ou um `a.arvore` na linha, com o `href` idêntico ao do processo
-/// (a mesma regra de `processo buscar`, com a tolerância de `links`).
+/// (a mesma regra de `processo buscar`).
 fn arvore_da_linha(
-    dom: &tl::VDom<'_>,
-    linha: &Tag<'_>,
+    linha: Tag<'_>,
     href_do_processo: &str,
 ) -> Result<usize, ErroDocumentoDaPesquisa> {
-    let arvores = nos_por_elemento_e_classe(dom, Some(linha), "a", "arvore")?;
+    let arvores = linha
+        .elementos("a")
+        .filter(|elemento| elemento.tem_classe("arvore"))
+        .collect::<Vec<_>>();
     let arvore = match arvores.as_slice() {
         [] => return Ok(0),
-        [arvore] => tag(*arvore, dom.parser())?,
+        [arvore] => *arvore,
         _ => {
             return Err(ErroDocumentoDaPesquisa::Linha(
                 ErroResultadoPesquisa::LinhaDePesquisaComMaisDeUmLinkDaArvore,
             ));
         }
     };
-    if valor_decodificado(arvore, "href")
-        .map_err(ErroDocumentoDaPesquisa::AtributoHtml)?
-        .as_deref()
-        != Some(href_do_processo)
-    {
+    if arvore.atributo("href") != Some(href_do_processo) {
         return Err(ErroDocumentoDaPesquisa::Linha(
             ErroResultadoPesquisa::LinkDaArvoreComHrefDiferenteDoLinkDoProcesso,
         ));
@@ -115,16 +97,15 @@ fn arvore_da_linha(
 
 /// Os metadados publicados ("Unidade:", "Inclusão:") das linhas do registro.
 /// Sem um deles, o registro falha: a ausência é recusada, não publicada.
-fn metadados(
-    dom: &tl::VDom<'_>,
-    linhas: &[&Tag<'_>],
-) -> Result<(String, String), ErroDocumentoDaPesquisa> {
-    let parser = dom.parser();
+fn metadados(linhas: &[Tag<'_>]) -> Result<(String, String), ErroDocumentoDaPesquisa> {
     let (mut unidade, mut inclusao, mut usuario) = (None, None, false);
     for linha in linhas {
-        let celulas = nos_por_elemento_e_classe(dom, Some(linha), "td", "pesquisaMetatag")?;
+        let celulas = linha
+            .elementos("td")
+            .filter(|elemento| elemento.tem_classe("pesquisaMetatag"))
+            .collect::<Vec<_>>();
         for no in celulas {
-            let lido = texto(no, parser);
+            let lido = texto(no);
             let repetido = || ErroDocumentoDaPesquisa::MetadadoDoDocumentoRepetido;
             if let Some(valor) = lido.strip_prefix("Unidade:") {
                 if unidade.replace(valor.trim().to_owned()).is_some() {
@@ -160,17 +141,14 @@ fn eh_data(valor: &str) -> bool {
 
 /// Um registro: a linha de título e as seguintes até o próximo título.
 fn ler_registro(
-    dom: &tl::VDom<'_>,
-    titulo: &Tag<'_>,
-    seguintes: &[&Tag<'_>],
+    titulo: Tag<'_>,
+    seguintes: &[Tag<'_>],
 ) -> Result<(DocumentoEncontrado, String, usize), ErroDocumentoDaPesquisa> {
-    let parser = dom.parser();
-    let esquerda = tag(celula(dom, titulo, "pesquisaTituloEsquerda")?, parser)?;
-    let direita = tag(celula(dom, titulo, "pesquisaTituloDireita")?, parser)?;
+    let esquerda = celula(titulo, "pesquisaTituloEsquerda")?;
+    let direita = celula(titulo, "pesquisaTituloDireita")?;
     let (mut processos, mut documentos) = (Vec::new(), Vec::new());
-    for no in links(dom, esquerda)? {
-        let link = tag(no, parser)?;
-        let href = href(link)?;
+    for no in links(esquerda) {
+        let href = href(no)?;
         if documento_visualizado(&href).is_some() || anexo_baixado(&href) {
             documentos.push((no, href));
         } else if href.contains("acao=procedimento_trabalhar") {
@@ -204,24 +182,24 @@ fn ler_registro(
     if !anexo && documento_visualizado(&href_documento) != Some(id_documento) {
         return Err(ErroDocumentoDaPesquisa::LinkDoDocumentoDiferenteDoProcesso);
     }
-    let numero = match links(dom, direita)?.as_slice() {
+    let numero = match links(direita).as_slice() {
         [no] => *no,
         _ => return Err(ErroDocumentoDaPesquisa::NumeroSeiComLinkDiferenteDoDocumento),
     };
-    if href(tag(numero, parser)?)? != href_documento {
+    if href(numero)? != href_documento {
         return Err(ErroDocumentoDaPesquisa::NumeroSeiComLinkDiferenteDoDocumento);
     }
-    let numero_sei = texto(numero, parser);
+    let numero_sei = texto(numero);
     if numero_sei.is_empty() {
         return Err(ErroDocumentoDaPesquisa::NumeroSeiAusenteNaLinha);
     }
-    let rotulo = texto(documento, parser);
+    let rotulo = texto(documento);
     if rotulo.is_empty() {
         return Err(ErroDocumentoDaPesquisa::RotuloDoDocumentoAusente);
     }
-    let processo = NumeroProcesso::novo(&texto(processo, parser))?;
-    let arvores = arvore_da_linha(dom, titulo, &href_processo)?;
-    let (unidade, inclusao) = metadados(dom, seguintes)?;
+    let processo = NumeroProcesso::novo(&texto(processo))?;
+    let arvores = arvore_da_linha(titulo, &href_processo)?;
+    let (unidade, inclusao) = metadados(seguintes)?;
     let encontrado = DocumentoEncontrado {
         numero_sei,
         rotulo,
@@ -238,33 +216,29 @@ fn ler_registro(
 pub(crate) fn ler_documentos(
     html: &crate::tela_html::HtmlServido,
 ) -> Result<Vec<DocumentoEncontrado>, ErroDocumentoDaPesquisa> {
-    let dom = crate::tela_html::interpretar(html);
-    let parser = dom.parser();
-    let tabela =
-        match nos_por_elemento_e_classe(&dom, None, "table", "pesquisaResultado")?.as_slice() {
-            [] => {
-                return Err(ErroDocumentoDaPesquisa::Linha(
-                    ErroResultadoPesquisa::TabelaDePesquisaAusente,
-                ));
-            }
-            [tabela] => tag(*tabela, parser)?,
-            _ => {
-                return Err(ErroDocumentoDaPesquisa::Linha(
-                    ErroResultadoPesquisa::TabelasDePesquisaRepetidas,
-                ));
-            }
-        };
+    let dom = crate::tela_html::arvore(html);
+    let tabela = match dom
+        .elementos("table")
+        .filter(|elemento| elemento.tem_classe("pesquisaResultado"))
+        .collect::<Vec<_>>()
+        .as_slice()
+    {
+        [] => {
+            return Err(ErroDocumentoDaPesquisa::Linha(
+                ErroResultadoPesquisa::TabelaDePesquisaAusente,
+            ));
+        }
+        [tabela] => *tabela,
+        _ => {
+            return Err(ErroDocumentoDaPesquisa::Linha(
+                ErroResultadoPesquisa::TabelasDePesquisaRepetidas,
+            ));
+        }
+    };
     // Linhas na ordem do documento; cada título abre um registro.
-    let mut nos: Vec<tl::NodeHandle> = tabela
-        .query_selector(parser, "tr")
-        .into_iter()
-        .flatten()
-        .collect();
-    nos.sort_by_key(tl::NodeHandle::get_inner);
-    let mut registros: Vec<(&Tag<'_>, Vec<&Tag<'_>>)> = Vec::new();
-    for no in nos {
-        let linha = tag(no, parser)?;
-        let titulo = atributos(linha)?.tem_classe("pesquisaTituloRegistro");
+    let mut registros: Vec<(Tag<'_>, Vec<Tag<'_>>)> = Vec::new();
+    for linha in tabela.elementos("tr") {
+        let titulo = linha.tem_classe("pesquisaTituloRegistro");
         if titulo {
             registros.push((linha, Vec::new()));
         } else {
@@ -277,7 +251,7 @@ pub(crate) fn ler_documentos(
     let (mut numeros, mut ids) = (HashSet::new(), HashSet::new());
     let (mut documentos, mut arvores) = (Vec::new(), 0);
     for (titulo, seguintes) in &registros {
-        let (documento, id, arvore) = ler_registro(&dom, titulo, seguintes)?;
+        let (documento, id, arvore) = ler_registro(*titulo, seguintes)?;
         if !numeros.insert(documento.numero_sei.clone())
             || !ids.insert(id.trim_start_matches('0').to_owned())
         {
@@ -288,16 +262,15 @@ pub(crate) fn ler_documentos(
     }
     // Nenhum link fora dos registros lidos: três `a.protocoloNormal` por
     // linha e um `procedimento_trabalhar` por linha (mais as árvores).
-    if links(&dom, tabela)?.len() != 3 * documentos.len() {
+    if links(tabela).len() != 3 * documentos.len() {
         return Err(ErroDocumentoDaPesquisa::Linha(
             ErroResultadoPesquisa::LinkDeProcessoForaDaLinhaDePesquisa,
         ));
     }
     let mut de_trabalho = 0;
-    for no in tabela.query_selector(parser, "a").into_iter().flatten() {
-        let link = tag(no, parser)?;
-        let abre = valor_do_atributo(link, "href")
-            .map_err(ErroDocumentoDaPesquisa::AtributoHtml)?
+    for link in tabela.elementos("a") {
+        let abre = link
+            .atributo("href")
             .is_some_and(|h| h.contains("acao=procedimento_trabalhar"));
         de_trabalho += usize::from(abre);
     }

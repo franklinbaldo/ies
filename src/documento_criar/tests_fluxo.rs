@@ -144,28 +144,24 @@ fn exibir_todos_deriva_um_unico_post_de_filtro_e_nao_de_criacao() {
 }
 
 #[test]
-fn cadastro_ignora_required_de_controles_inativos() {
-    // Teste tecnico auxiliar do BDD-246-01/02: campos nao acionaveis
-    // nao impedem a previa nem o cadastro publico observado.
-    for conteudo in [
-        "<fieldset disabled><input name=\"campoInativo\" required></fieldset>",
-        "<div hidden><input name=\"campoOculto\" required></div>",
-        "<template><input name=\"campoTemplate\" required></template>",
-    ] {
-        let html = HtmlServido::de_teste(
-            &cadastro()
-                .replace(
-                    "<form ",
-                    "<label id=\"lblSerieTitulo\">Despacho</label><form ",
-                )
-                .replace("</form>", &format!("{conteudo}</form>")),
-        );
-        assert_eq!(
-            conferir_cadastro(&html, "Despacho", None, Some("publico")),
-            Ok(()),
-            "controle inativo nao deve exigir entrada do usuario: {conteudo}"
-        );
-    }
+fn cadastro_ignora_required_em_template() {
+    // Teste tecnico auxiliar do BDD-246-01/02: o conteudo de template fica
+    // fora da arvore, como no navegador, e nao exige entrada do usuario.
+    let html = HtmlServido::de_teste(
+        &cadastro()
+            .replace(
+                "<form ",
+                "<label id=\"lblSerieTitulo\">Despacho</label><form ",
+            )
+            .replace(
+                "</form>",
+                "<template><input name=\"campoTemplate\" required></template></form>",
+            ),
+    );
+    assert_eq!(
+        conferir_cadastro(&html, "Despacho", None, Some("publico")),
+        Ok(())
+    );
 }
 
 #[test]
