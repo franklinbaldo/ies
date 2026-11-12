@@ -351,9 +351,10 @@ pub(crate) mod testes {
 
     #[test]
     fn booleano_antes_de_class_e_href_nao_esconde_versoes() {
-        let html = HtmlServido::de_teste(&crate::html_atributos::com_booleano_antes_dos_atributos(
-            &pagina(&[1, 4], &["42", "42"]),
-        ));
+        let html =
+            HtmlServido::de_teste(&crate::tela_html::teste::com_booleano_antes_dos_atributos(
+                &pagina(&[1, 4], &["42", "42"]),
+            ));
         let h = interpretar_historico(&html, "42", Some(2)).unwrap();
         assert_eq!(h.atual().unwrap().numero(), 4);
     }

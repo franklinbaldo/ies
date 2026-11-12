@@ -152,7 +152,7 @@ fn tela(c: &Cassette<'_>, r: &Resposta<'_>, html: &str, id: &str) -> Registro {
     c.registro(Leitor::Tela, r.passo, resultado)
 }
 
-/// A `div#divInfraAreaPaginacaoSuperior` (por `html_atributos`): vazia,
+/// A `div#divInfraAreaPaginacaoSuperior` (pela árvore `tela_html`): vazia,
 /// com algum conteúdo, ausente ou repetida.
 fn paginador(html: &str) -> &'static str {
     let servido = HtmlServido::de_teste(html);

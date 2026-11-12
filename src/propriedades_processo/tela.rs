@@ -1,8 +1,7 @@
 //! O formulário `form#frmProcedimentoCadastro` servido por
 //! `procedimento_alterar` (ou `procedimento_consultar`), lido sem envio:
 //! nenhum campo é reescrito e `btnSalvar` nunca participa. Atributos pelo
-//! tokenizador de `html_atributos` (o `tl` 0.7.8 corrompe o atributo depois
-//! de um booleano, como `disabled` do `optSigiloso`); aninhamento pelo `tl`.
+//! árvore `tela_html` (atributos e aninhamento como no navegador).
 use super::{Assunto, ErroPropriedades, FonteDasPropriedades, NivelDeAcesso, PropriedadesLidas};
 
 const FORMULARIO: &str = "frmProcedimentoCadastro";

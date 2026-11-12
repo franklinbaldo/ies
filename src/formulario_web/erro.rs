@@ -1,5 +1,4 @@
 //! Recusas tipadas da derivação e do envio de formulário (uma por fato).
-use crate::html_atributos::ErroAtributoHtml;
 use crate::transporte::{FalhaTransporte, FatoDaResposta, StatusHttpRecusado};
 
 #[derive(Clone, Debug, PartialEq, Eq, thiserror::Error)]
@@ -45,8 +44,6 @@ pub(crate) enum ErroSubmissaoFormulario {
     /// HTTP 200 com `#txaInfraValidacao` não vazio: o SEI recusou o envio
     /// pela validação da Infra. Status 200 e a mensagem saneada.
     ValidacaoRecusadaPeloSei(String),
-    /// Tag de abertura servida que o tokenizador de atributos recusou.
-    AtributoHtml(#[from] ErroAtributoHtml),
     Transporte(#[from] FalhaTransporte),
     AcaoDoFormularioAusente,
     BotaoDeEnvioAusenteNoFormulario,
@@ -85,7 +82,6 @@ impl ErroSubmissaoFormulario {
             | Self::TelaDeLoginRecebidaAposEnvio
             | Self::MarcadorDeResultadoAusenteNaResposta
             | Self::ValidacaoRecusadaPeloSei(_)
-            | Self::AtributoHtml(_)
             | Self::AcaoDoFormularioAusente
             | Self::BotaoDeEnvioAusenteNoFormulario
             | Self::BotoesDeEnvioRepetidosNoFormulario
@@ -123,7 +119,6 @@ impl ErroSubmissaoFormulario {
             | Self::TelaDeLoginRecebidaAposEnvio
             | Self::MarcadorDeResultadoAusenteNaResposta
             | Self::ValidacaoRecusadaPeloSei(_)
-            | Self::AtributoHtml(_)
             | Self::AcaoDoFormularioAusente
             | Self::BotaoDeEnvioAusenteNoFormulario
             | Self::BotoesDeEnvioRepetidosNoFormulario

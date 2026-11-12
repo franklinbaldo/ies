@@ -6,8 +6,6 @@ use super::recibo::ReciboUpload;
 #[derive(Debug, Clone, PartialEq, Eq, thiserror::Error)]
 #[error("{self:?}")]
 pub(crate) enum FalhaAnexo {
-    /// O tokenizador de atributos recusou a tag.
-    Atributo(#[source] crate::html_atributos::ErroAtributoHtml),
     /// `new infraUpload(...)` sem a URL literal como segundo argumento.
     UrlDoUploadIlegivel,
     /// A URL de upload não é `controlador.php?acao=documento_upload_anexo&...`.
@@ -185,52 +183,21 @@ fn ler_colunas(fonte: &str) -> Result<Vec<Coluna>, FalhaAnexo> {
     Ok(colunas)
 }
 
-fn corpo_do_script(html: &str, inicio: usize) -> Option<&str> {
-    let abertura = html.get(inicio..)?;
-    let corpo = abertura.find('>')? + 1;
-    let fim = corpo + abertura.get(corpo..)?.find("</script>")?;
-    abertura.get(corpo..fim)
-}
-
 /// Interpreta apenas declarações literais em script inline ativo da tela.
 /// Não executa JS, não inventa URL e não aceita colunas de template inerte.
 pub(crate) fn ler_plano(html: &crate::tela_html::HtmlServido) -> Result<PlanoAnexo, FalhaAnexo> {
-    let dom = crate::tela_html::interpretar(html);
-    let tags = |seletor: &str| -> Vec<&tl::HTMLTag<'_>> {
-        dom.query_selector(seletor)
-            .into_iter()
-            .flatten()
-            .filter_map(|no| no.get(dom.parser()).and_then(tl::Node::as_tag))
-            .collect()
-    };
-    let inertes: Vec<_> = tags("template")
-        .into_iter()
-        .map(|tag| tag.boundaries(dom.parser()))
-        .collect();
+    let dom = crate::tela_html::arvore(html);
     let mut uploads = Vec::new();
     let mut linhas = Vec::new();
-    for tag in tags("script") {
-        let inicio = tag.boundaries(dom.parser()).0;
-        if inertes
-            .iter()
-            .any(|&(primeiro, ultimo)| (primeiro..=ultimo).contains(&inicio))
-        {
-            continue;
-        }
-        let tipo =
-            crate::html_atributos::valor_do_atributo(tag, "type").map_err(FalhaAnexo::Atributo)?;
-        if tipo
-            .as_deref()
+    for tag in dom.elementos("script") {
+        if tag
+            .atributo("type")
             .is_some_and(|tipo| !tipo.eq_ignore_ascii_case("text/javascript"))
+            || tag.presente("src")
         {
             continue;
         }
-        if crate::html_atributos::atributo_presente(tag, "src").map_err(FalhaAnexo::Atributo)? {
-            continue;
-        }
-        let Some(fonte) = corpo_do_script(html, inicio) else {
-            continue;
-        };
+        let fonte = tag.texto();
         for chamada in fonte.split("new infraUpload(").skip(1) {
             uploads.push(ler_url_upload(chamada)?);
         }

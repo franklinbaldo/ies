@@ -87,7 +87,8 @@ fn dado_acao_publicada_quando_rotulo_muda_entao_nao_classifica_por_texto() {
 
 #[test]
 fn dado_template_inerte_quando_publica_acao_entao_nao_aceita_link_falso() {
-    // Dado link que só existe em template; Quando escolho; Então não navego.
+    // Dado link que só existe em template (fora da árvore, como no
+    // navegador); Quando escolho; Então não navego.
     let html = HtmlServido::de_teste(&lista(
         r#"<template><a href="controlador.php?acao=documento_receber&id_procedimento=50961&infra_hash=FICTICIO">Externo</a></template>"#,
     ));

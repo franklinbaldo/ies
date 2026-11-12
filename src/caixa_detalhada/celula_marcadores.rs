@@ -1,6 +1,6 @@
 //! Célula Marcadores da tabela D: um `a.ancMarcador` por marcador (forma
 //! da `UnB` 4.0.9). Lista sempre; nomes nunca concatenados. Leitura pela
-//! árvore do `tl` e pelo tokenizador de atributos, sem regex nem JavaScript.
+//! árvore `tela_html`, sem regex nem JavaScript.
 use super::ErroDetalhada;
 use crate::acao_do_sei::AcaoDoSei;
 use crate::consulta_do_controlador::ConsultaDoControlador;

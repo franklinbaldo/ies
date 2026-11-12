@@ -76,7 +76,7 @@ fn visao_resumida_sem_paginacao_preserva_a_unica_leitura() {
 
 #[test]
 fn booleano_antes_dos_ids_preserva_faixas_das_duas_paginas() {
-    let com = crate::html_atributos::com_booleano_antes_dos_atributos;
+    let com = crate::tela_html::teste::com_booleano_antes_dos_atributos;
     let primeira = HtmlServido::de_teste(&com(&html((4, 1, 2, &[1, 2]), (1, 1, 1, &[11]))));
     let segunda = HtmlServido::de_teste(&com(&html((4, 3, 4, &[3, 4]), (1, 1, 1, &[11]))));
     let leitura = juntar(&[primeira.clone(), segunda], Some("TESTE")).unwrap();

@@ -54,7 +54,6 @@ mod formulario_web;
 mod foto_documento;
 mod historico;
 mod historico_processo;
-mod html_atributos;
 mod indice_caminho_cli;
 mod indice_local;
 mod instalacao;

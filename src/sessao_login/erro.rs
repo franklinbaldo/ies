@@ -39,8 +39,6 @@ pub(crate) enum CampoDasCredenciais {
 #[derive(Clone, Debug, PartialEq, Eq, thiserror::Error)]
 #[error("{self:?}")]
 pub(crate) enum ErroLogin {
-    /// O tokenizador de atributos recusou a tag.
-    Atributo(#[source] crate::html_atributos::ErroAtributoHtml),
     Configuracao(#[from] ErroConfiguracao),
     /// O arquivo da origem da instalação não foi lido.
     OrigemIlegivel(#[source] ErroArquivoPrivado),
@@ -151,7 +149,6 @@ impl ErroLogin {
             | Self::SelecaoDeOrgaoAusenteNaTelaDeLogin
             | Self::SelecaoDeOrgaoRepetidaNaTelaDeLogin
             | Self::TelaAposOLoginNaoReconhecida
-            | Self::Atributo(_)
             | Self::TelaDeLoginNaoReconhecida => false,
         }
     }

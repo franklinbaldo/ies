@@ -56,6 +56,6 @@ fn html_sem_texto_nao_e_mensagem() {
 
 #[test]
 fn atributo_booleano_antes_do_id_nao_muda_a_extracao() {
-    let corrompido = crate::html_atributos::com_booleano_antes_dos_atributos(EXCECAO);
+    let corrompido = crate::tela_html::teste::com_booleano_antes_dos_atributos(EXCECAO);
     assert_eq!(extraido(&corrompido), extraido(EXCECAO));
 }

@@ -328,7 +328,6 @@ pub(crate) fn falha_do_envio(erro: ErroSubmissaoFormulario) -> ErroPesquisaProto
         | ErroSubmissaoFormulario::ValorNaoRepresentavelNaCodificacao { .. }
         | ErroSubmissaoFormulario::TelaDeLoginRecebidaAposEnvio
         | ErroSubmissaoFormulario::ValidacaoRecusadaPeloSei(_)
-        | ErroSubmissaoFormulario::AtributoHtml(_)
         | ErroSubmissaoFormulario::Transporte(_)
         | ErroSubmissaoFormulario::AcaoDoFormularioAusente
         | ErroSubmissaoFormulario::BotaoDeEnvioAusenteNoFormulario

@@ -232,7 +232,7 @@ mod tests {
     fn booleano_antes_de_id_e_class_nao_omite_tabela_nem_processo() {
         let original = html(&format!("{}{}", linha("42"), linha("43")), 2);
         let com_booleano = crate::tela_html::HtmlServido::de_teste(
-            &crate::html_atributos::com_booleano_antes_dos_atributos(&original),
+            &crate::tela_html::teste::com_booleano_antes_dos_atributos(&original),
         );
         assert_eq!(
             parse_html(&com_booleano),

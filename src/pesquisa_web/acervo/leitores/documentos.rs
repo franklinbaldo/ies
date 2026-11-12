@@ -200,10 +200,10 @@ fn pagina_seguinte(
             Err(erro) => recusa(&format!("{erro:?}")),
         };
     };
-    let dom = crate::tela_html::interpretar(&html);
+    let dom = crate::tela_html::arvore(&html);
     let numero = match pagina_selecionada(&dom) {
-        Ok(Some(n)) => u32::try_from(n).unwrap_or(u32::MAX),
-        _ => return recusa("pagina_selecionada_ausente_no_paginador"),
+        Some(n) => u32::try_from(n).unwrap_or(u32::MAX),
+        None => return recusa("pagina_selecionada_ausente_no_paginador"),
     };
     let pedido = match planejar_pagina_por(*primeira, Some(html_1), numero) {
         Ok(Some(pedido)) => pedido,

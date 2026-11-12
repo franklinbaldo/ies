@@ -2,8 +2,6 @@
 //! Os links e opções provêm das telas do Todos (`UnB` SEI 4/PEN3 SEI 5).
 use crate::acao_do_sei::AcaoDoSei;
 use crate::consulta_do_controlador::ConsultaDoControlador;
-use crate::formulario_web::decodificar_atributo;
-use crate::html_atributos::{atributo_presente, nos_com_id, valor_do_atributo};
 
 #[derive(Debug, PartialEq, Eq)]
 pub(crate) enum EscolhaExterna {
@@ -14,8 +12,6 @@ pub(crate) enum EscolhaExterna {
 #[derive(Clone, Debug, PartialEq, Eq, thiserror::Error)]
 #[error("{self:?}")]
 pub(crate) enum ErroEscolhaExterna {
-    /// O tokenizador de atributos recusou a tag.
-    Atributo(#[source] crate::html_atributos::ErroAtributoHtml),
     NaoOferecido,
     Ambiguo,
     ForaDaForma,
@@ -26,59 +22,32 @@ pub(crate) enum ErroEscolhaExterna {
 pub(crate) fn escolher_externo(
     html: &crate::tela_html::HtmlServido,
 ) -> Result<EscolhaExterna, ErroEscolhaExterna> {
-    let dom = crate::tela_html::interpretar(html);
-    // Links em <template> não estão na interface ativa.
-    let mut inertes = Vec::new();
-    for no in dom.query_selector("template").into_iter().flatten() {
-        let tag = no
-            .get(dom.parser())
-            .and_then(tl::Node::as_tag)
-            .ok_or(ErroEscolhaExterna::ForaDaForma)?;
-        inertes.push(tag.boundaries(dom.parser()));
-    }
+    let dom = crate::tela_html::arvore(html);
     let mut escolhas = Vec::new();
-    for no in dom.query_selector("a").into_iter().flatten() {
-        let tag = no
-            .get(dom.parser())
-            .and_then(tl::Node::as_tag)
-            .ok_or(ErroEscolhaExterna::ForaDaForma)?;
-        let inicio = tag.boundaries(dom.parser()).0;
-        if inertes
-            .iter()
-            .any(|&(primeiro, ultimo)| (primeiro..=ultimo).contains(&inicio))
-        {
-            continue;
-        }
-        let Some(href) = valor_do_atributo(tag, "href").map_err(ErroEscolhaExterna::Atributo)?
-        else {
+    for no in dom.elementos("a") {
+        let Some(href) = no.atributo("href").map(str::to_owned) else {
             continue;
         };
-        let href = decodificar_atributo(&href);
-        let onclick = valor_do_atributo(tag, "onclick").map_err(ErroEscolhaExterna::Atributo)?;
+        let onclick = no.atributo("onclick");
         // A classificação vem da ação, nunca do texto da âncora.
         let pelo_link = href
             .strip_prefix("controlador.php?")
             .and_then(|q| ConsultaDoControlador::ler(q).ok())
             .is_some_and(|q| q.acao() == Ok(AcaoDoSei::DocumentoReceber));
-        let pelo_script = onclick
-            .as_deref()
-            .is_some_and(|v| v.trim().trim_end_matches(';').trim() == "escolher(-1)");
+        let pelo_script =
+            onclick.is_some_and(|v| v.trim().trim_end_matches(';').trim() == "escolher(-1)");
         if !pelo_link && !pelo_script {
             continue;
         }
-        if pelo_link && onclick.as_deref().is_none_or(str::is_empty) {
+        if pelo_link && onclick.is_none_or(str::is_empty) {
             escolhas.push(EscolhaExterna::Url(href));
         } else if (href == "#" || href == "javascript:void(0);") && pelo_script {
-            let formularios = nos_com_id(&dom, "frmDocumentoEscolherTipo")
-                .map_err(ErroEscolhaExterna::Atributo)?;
+            let formularios = dom.com_id("frmDocumentoEscolherTipo").collect::<Vec<_>>();
             let [no] = formularios.as_slice() else {
                 return Err(ErroEscolhaExterna::ForaDaForma);
             };
-            let form = no
-                .get(dom.parser())
-                .and_then(tl::Node::as_tag)
-                .ok_or(ErroEscolhaExterna::ForaDaForma)?;
-            if !form.name().as_utf8_str().eq_ignore_ascii_case("form") {
+            let form = *no;
+            if !form.nome().eq_ignore_ascii_case("form") {
                 return Err(ErroEscolhaExterna::ForaDaForma);
             }
             escolhas.push(EscolhaExterna::Formulario);
@@ -100,75 +69,46 @@ pub(crate) fn identificar_tipo(
     html: &crate::tela_html::HtmlServido,
     tipo: &str,
 ) -> Result<String, ErroEscolhaExterna> {
-    let dom = crate::tela_html::interpretar(html);
-    let selects = nos_com_id(&dom, "selSerie").map_err(ErroEscolhaExterna::Atributo)?;
+    let dom = crate::tela_html::arvore(html);
+    let selects = dom.com_id("selSerie").collect::<Vec<_>>();
     let [no] = selects.as_slice() else {
         return Err(ErroEscolhaExterna::ForaDaForma);
     };
-    let select = no
-        .get(dom.parser())
-        .and_then(tl::Node::as_tag)
-        .ok_or(ErroEscolhaExterna::ForaDaForma)?;
-    if !select.name().as_utf8_str().eq_ignore_ascii_case("select")
-        || atributo_presente(select, "disabled").map_err(ErroEscolhaExterna::Atributo)?
-        || valor_do_atributo(select, "name")
-            .map_err(ErroEscolhaExterna::Atributo)?
-            .as_deref()
-            != Some("selSerie")
+    let select = *no;
+    if !select.nome().eq_ignore_ascii_case("select")
+        || select.presente("disabled")
+        || select.atributo("name") != Some("selSerie")
     {
         return Err(ErroEscolhaExterna::ForaDaForma);
     }
     // A recarga do tipo usa flag 1; flag 2 é cadastro definitivo.
     // Conferi-la ANTES de enviar qualquer POST evita escrita acidental.
-    let flags =
-        nos_com_id(&dom, "hdnFlagDocumentoCadastro").map_err(ErroEscolhaExterna::Atributo)?;
+    let flags = dom.com_id("hdnFlagDocumentoCadastro").collect::<Vec<_>>();
     let [no] = flags.as_slice() else {
         return Err(ErroEscolhaExterna::ForaDaForma);
     };
-    let flag = no
-        .get(dom.parser())
-        .and_then(tl::Node::as_tag)
-        .ok_or(ErroEscolhaExterna::ForaDaForma)?;
-    if !flag.name().as_utf8_str().eq_ignore_ascii_case("input")
-        || valor_do_atributo(flag, "type")
-            .map_err(ErroEscolhaExterna::Atributo)?
-            .as_deref()
-            != Some("hidden")
-        || valor_do_atributo(flag, "name")
-            .map_err(ErroEscolhaExterna::Atributo)?
-            .as_deref()
-            != Some("hdnFlagDocumentoCadastro")
-        || valor_do_atributo(flag, "value")
-            .map_err(ErroEscolhaExterna::Atributo)?
-            .as_deref()
-            != Some("1")
+    let flag = *no;
+    if !flag.nome().eq_ignore_ascii_case("input")
+        || flag.atributo("type") != Some("hidden")
+        || flag.atributo("name") != Some("hdnFlagDocumentoCadastro")
+        || flag.atributo("value") != Some("1")
     {
         return Err(ErroEscolhaExterna::ForaDaForma);
     }
     let mut ids = Vec::new();
-    for tag in select
-        .children()
-        .all(dom.parser())
-        .iter()
-        .filter_map(tl::Node::as_tag)
-    {
-        if !tag.name().as_utf8_str().eq_ignore_ascii_case("option")
-            || atributo_presente(tag, "disabled").map_err(ErroEscolhaExterna::Atributo)?
-        {
+    for tag in select.descendentes() {
+        if !tag.nome().eq_ignore_ascii_case("option") || tag.presente("disabled") {
             continue;
         }
-        // Texto de <option> é texto, não atributo: a UnB serve `&nbsp;`
-        // na opção vazia, que o decodificador de atributo não conhece.
-        let texto = html_escape::decode_html_entities(&tag.inner_text(dom.parser()))
-            .into_owned()
-            .split_whitespace()
-            .collect::<Vec<_>>()
-            .join(" ");
+        // Texto de <option>, já decodificado (a UnB serve `&nbsp;` na
+        // opção vazia).
+        let texto = tag.texto().split_whitespace().collect::<Vec<_>>().join(" ");
         if texto != tipo {
             continue;
         }
-        let id = valor_do_atributo(tag, "value")
-            .map_err(ErroEscolhaExterna::Atributo)?
+        let id = tag
+            .atributo("value")
+            .map(str::to_owned)
             .ok_or(ErroEscolhaExterna::ForaDaForma)?;
         if id.is_empty() || id == "null" {
             return Err(ErroEscolhaExterna::ForaDaForma);

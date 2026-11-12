@@ -183,7 +183,7 @@ fn conferir_ocultos(
 /// `onSubmitForm()` exige órgão em `selOrgaoPesquisa[]`: as opções com
 /// `selected` servidas, na ordem do documento; nenhuma é inventada.
 /// O `select` é achado pelo `name` (o nome serializado no POST), não pelo
-/// `id`: a regra continua mais precisa mesmo sem o defeito do tl 0.7.8.
+/// `id`: a regra continua mais precisa sem depender de índice de `id`.
 fn orgaos_selecionados(
     tags: &[crate::tela_html::Elemento<'_>],
 ) -> Result<Vec<String>, ErroRegraDoFormularioDePesquisa> {

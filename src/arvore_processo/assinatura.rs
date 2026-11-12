@@ -57,8 +57,7 @@ pub(crate) fn ler_assinatura_na_arvore(
         super::ErroBarraDoDocumento::BarrasRepetidasNaArvore => {
             ErroAssinaturaNaArvore::BarrasDoDocumentoRepetidasNaArvore
         }
-        super::ErroBarraDoDocumento::AtributoDeLinkDaBarra(_)
-        | super::ErroBarraDoDocumento::EnderecoDasVersoesDeOutroDocumento
+        super::ErroBarraDoDocumento::EnderecoDasVersoesDeOutroDocumento
         | super::ErroBarraDoDocumento::BarraDoDocumentoForaDaFormaObservada
         | super::ErroBarraDoDocumento::BotoesDeCienciaDoDocumentoRepetidos
         | super::ErroBarraDoDocumento::LinkDasVersoesNaoReconhecido

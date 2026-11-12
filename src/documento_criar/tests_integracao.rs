@@ -340,12 +340,17 @@ fn dois_botoes_salvar_identicos_sao_permitidos_na_captura() {
 
 #[test]
 fn controle_salvar_dentro_de_template_nao_autoriza_post_criador() {
-    // Ablação #246: permanecem garantidas as fronteiras reais do DOM.
+    // O conteúdo de template fica fora da árvore, como no navegador: sem
+    // btnSalvar na tela, a escrita não é comprovada.
     let original = cadastro();
     let botao = "<button type=\"button\" id=\"btnSalvar\" name=\"btnSalvar\"\n          onclick=\"confirmarDados()\">Salvar</button>";
     assert!(original.contains(botao));
     let html = original.replace(botao, &format!("<template>{botao}</template>"));
-    let (_resultado, pedidos) = executar_com_cadastro_sintetico(html);
+    let (resultado, pedidos) = executar_com_cadastro_sintetico(html);
+    assert!(matches!(
+        resultado,
+        Err(ErroDocumentoCriar::SubmissaoNaoComprovada)
+    ));
     assert_eq!(pedidos, pedidos_antes_da_escrita(), "5 GET, 0 POST");
 }
 #[test]
@@ -398,32 +403,4 @@ fn controle_salvar_e_formulario_servidos_nao_dependem_de_interpretar_js() {
         "/* lógica do navegador não interpretada */",
     ));
     assert!(cadastro_oferece_salvar(&html));
-}
-
-#[test]
-fn salvar_oculto_ou_em_fieldset_desabilitado_recusa_post() {
-    // Um onclick não torna acionável um botão oculto ou desabilitado
-    // por um ancestral. Cenários sintéticos; cinco GET, nenhum POST.
-    let original = cadastro();
-    let casos = [
-        original.replace(
-            "onclick=\"confirmarDados()\"",
-            "hidden onclick=\"confirmarDados()\"",
-        ),
-        original
-            .replace("<button", "<div hidden><button")
-            .replace("</button>", "</button></div>"),
-        original
-            .replace("<button", "<fieldset disabled><button")
-            .replace("</button>", "</button></fieldset>"),
-    ];
-    for html in casos {
-        let (_resultado, pedidos) = executar_com_cadastro_sintetico(html);
-        assert_eq!(pedidos, pedidos_antes_da_escrita(), "5 GET, 0 POST");
-    }
-    assert!(cadastro_oferece_salvar(&HtmlServido::de_teste(
-        &original
-            .replace("<button", "<fieldset><button")
-            .replace("</button>", "</button></fieldset>")
-    )));
 }

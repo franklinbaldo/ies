@@ -167,3 +167,14 @@ Os métodos entram na árvore com o primeiro leitor que os usa (`filhos` na F1;
 `presente`, `tem_classe`, `nos`, `total_de_atributos`, `No` e `fragmento` na
 F2; `descendentes`, `Elemento::com_id` e a igualdade de elementos na F3):
 método sem uso é código morto.
+
+## Caso de regressão da regra 20
+
+A regra 20 tirava os parênteses quando o corpo do fecho era uma expressão
+binária, e a precedência mudava sem erro de compilação:
+`!Some(x).is_some_and(|y| a || b)` virava `!a || b`. A 20b cobre esse caso.
+
+| Antes | Depois |
+| --- | --- |
+| `!Some(x).is_some_and(\|y\| y == 1 \|\| y == 2)` | `!(x == 1 \|\| x == 2)` |
+| `Some(x).is_some_and(\|y\| y > 3) && c` | `(x > 3) && c` |

@@ -19,8 +19,6 @@ use crate::instalacao::Instalacao;
 #[derive(Clone, Debug, PartialEq, Eq, thiserror::Error)]
 #[error("{self:?}")]
 pub(crate) enum ErroCienciaNaArvore {
-    /// O tokenizador de atributos recusou a tag.
-    Atributo(#[source] crate::html_atributos::ErroAtributoHtml),
     EnderecoDaCienciaDoDocumentoRecusado(
         #[source] crate::arvore_processo::endereco::EnderecoRecusado,
     ),
@@ -135,19 +133,14 @@ pub(crate) fn ciencia_do_documento_na_barra(
     html: &str,
     id_documento: &str,
 ) -> Result<bool, super::ErroBarraDoDocumento> {
-    use crate::html_atributos::atributos;
     let Some(barra) = super::barra_do_documento::barra_do_no(html, id_documento)? else {
         return Ok(false);
     };
-    let dom = crate::tela_html::interpretar(&barra);
+    let dom = crate::tela_html::arvore(&barra);
     let mut total = 0;
-    for no in dom.query_selector("a").into_iter().flatten() {
-        let Some(tag) = no.get(dom.parser()).and_then(tl::Node::as_tag) else {
-            continue;
-        };
-        let lidos = atributos(tag).map_err(super::ErroBarraDoDocumento::AtributoDeLinkDaBarra)?;
-        if let Some(onclick) = lidos.valor("onclick") {
-            let onclick = crate::formulario_web::decodificar_atributo(onclick);
+    for no in dom.elementos("a") {
+        if let Some(onclick) = no.atributo("onclick") {
+            let onclick = onclick.to_owned();
             if onclick == "cienciaDocumento();" {
                 total += 1;
             }
@@ -186,26 +179,20 @@ pub(crate) fn url_da_ciencia_do_documento(
     }) {
         return Err(ErroCienciaNaArvore::ScriptDaCienciaDoDocumentoForaDaForma);
     }
-    let dom = crate::tela_html::interpretar(html);
+    let dom = crate::tela_html::arvore(html);
     let mut urls = Vec::<String>::new();
-    for no in dom.query_selector("script").into_iter().flatten() {
-        let Some(tag) = no.get(dom.parser()).and_then(tl::Node::as_tag) else {
-            continue;
-        };
-        let lidos = crate::html_atributos::atributos(tag).map_err(ErroCienciaNaArvore::Atributo)?;
-        if lidos.valor("src").is_some() {
+    for no in dom.elementos("script") {
+        if no.atributo("src").is_some() {
             continue;
         }
-        let tipo = lidos.valor("type");
+        let tipo = no.atributo("type");
         if tipo.is_some_and(|t| t != "text/javascript" && t != "application/javascript") {
             continue;
         }
         // Fonte bruta, não inner_text: a `UnB` 4.0.9 envolve o script em
         // `<!--//--><![CDATA[//><!--`, que inner_text omite (live 10/11/2026).
-        let script = tag.raw().as_utf8_str();
-        urls.extend(javascript::urls_ativas_da_ciencia_do_documento(
-            script.as_ref(),
-        )?);
+        let script = no.texto();
+        urls.extend(javascript::urls_ativas_da_ciencia_do_documento(&script)?);
     }
     let url = match urls.as_slice() {
         [] => {

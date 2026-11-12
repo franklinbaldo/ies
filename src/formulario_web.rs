@@ -7,7 +7,6 @@ mod codificacao;
 mod erro;
 mod guardada;
 mod leitura;
-mod leitura_tl;
 mod login;
 mod redirecionamento;
 mod unidade;
@@ -28,7 +27,6 @@ use leitura::{
     Controle, UrlHttps, conferir_metodo_e_codificacao, ler_controles, resolver_action,
     resolver_action_declarada,
 };
-pub(crate) use leitura_tl::localizar_formulario_tl;
 pub(crate) use login::derivar_submissao_de_login;
 pub(crate) use redirecionamento::consulta_do_controlador;
 use std::fmt;
@@ -339,7 +337,6 @@ pub(crate) fn derivar_submissao_com_action(
             FalhaTransporte::OrigemNaoAutorizada,
         ));
     }
-    // tl só recusa entradas acima de u32::MAX bytes, já barradas acima.
     let dom = crate::tela_html::arvore(tela.html);
     match operacao.unidade {
         ConferenciaDaUnidade::NaTelaDoFormulario => conferir_unidade(&dom, unidade_solicitada)?,

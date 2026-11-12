@@ -96,7 +96,7 @@ fn tela_com_tres_marcadas_como_a_pen1() {
 #[test]
 fn tela_com_todas_marcadas_como_go_e_booleano_antes_dos_atributos() {
     let todas: Vec<_> = ColunaDoDetalhe::TODAS.iter().map(|c| c.campo()).collect();
-    let html = HtmlServido::de_teste(&crate::html_atributos::com_booleano_antes_dos_atributos(
+    let html = HtmlServido::de_teste(&crate::tela_html::teste::com_booleano_antes_dos_atributos(
         &tela(&todas),
     ));
     let nivel = ler_nivel_de_detalhe(&html).unwrap();
