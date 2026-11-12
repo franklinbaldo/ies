@@ -1,0 +1,21 @@
+id: 54-fonte-do-script
+language: rust
+message: 'Fonte de um <script> (tl raw()): o html5ever guarda o conteúdo como texto cru'
+severity: hint
+rule:
+  all:
+    - pattern: '$T.raw().as_utf8_str()'
+    - inside:
+        stopBy: end
+        kind: for_expression
+        has:
+          stopBy: end
+          regex: '^"script"$'
+    - not:
+        inside:
+          stopBy: end
+          kind: mod_item
+          follows:
+            kind: attribute_item
+            regex: 'cfg\(test\)'
+fix: '$T.texto()'

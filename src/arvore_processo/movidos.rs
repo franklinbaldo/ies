@@ -17,7 +17,6 @@ use super::{
 };
 use crate::acao_do_sei::AcaoDoSei;
 use crate::consulta_do_controlador::ConsultaDoControlador;
-use crate::html_atributos::atributos;
 use crate::instalacao::Instalacao;
 use std::collections::{HashMap, HashSet};
 
@@ -151,27 +150,16 @@ fn destino_do_html(
     id: &str,
     processo: &ProcessoNaArvore,
 ) -> Result<Option<DestinoDoMovido>, ErroArvore> {
-    let dom = crate::tela_html::interpretar(texto);
-    let parser = dom.parser();
+    let dom = crate::tela_html::arvore(texto);
     let mut achado = None;
-    for no in dom.query_selector("a").into_iter().flatten() {
-        let Some(tag) = no.get(parser).and_then(tl::Node::as_tag) else {
-            continue;
-        };
-        let lidos = atributos(tag).map_err(ErroArvore::Atributo)?;
-        let Some(href) = lidos.valor("href") else {
+    for no in dom.elementos("a") {
+        let Some(href) = no.atributo("href") else {
             continue;
         };
         if achado.is_some() {
             return Err(ErroArvore::DestinosDoDocumentoMovidoRepetidos);
         }
-        achado = Some(conferir(
-            instalacao,
-            href,
-            &texto_unico(tag, parser),
-            id,
-            processo,
-        )?);
+        achado = Some(conferir(instalacao, href, &texto_unico(no), id, processo)?);
     }
     Ok(achado)
 }

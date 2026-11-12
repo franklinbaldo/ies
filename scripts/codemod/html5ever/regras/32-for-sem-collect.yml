@@ -1,10 +1,13 @@
 id: 32-for-sem-collect
 language: rust
-message: 'for sobre com_id(..).collect::<Vec<_>>() itera direto'
+message: 'for sobre elementos/com_id/filhos/nos(..)…collect::<Vec<_>>() itera direto'
 severity: hint
 rule:
   all:
-    - pattern: 'for $X in $D.com_id($I).collect::<Vec<_>>() { $$$B }'
+    - pattern: 'for $X in $E.collect::<Vec<_>>() { $$$B }'
+    - has:
+        field: value
+        regex: '\.(com_id|elementos|filhos|nos)\('
     - not:
         inside:
           stopBy: end
@@ -13,6 +16,6 @@ rule:
             kind: attribute_item
             regex: 'cfg\(test\)'
 fix: |-
-  for $X in $D.com_id($I) {
+  for $X in $E {
       $$$B
   }

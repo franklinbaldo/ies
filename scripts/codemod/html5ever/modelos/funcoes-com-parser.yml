@@ -9,6 +9,12 @@ rule:
     - has:
         field: parameters
         has:
-          pattern:
-            context: "fn f($P: &tl::Parser<$L>) {}"
-            selector: parameter
+          any:
+            - pattern:
+                context: "fn f($P: &tl::Parser<$L>) {}"
+                selector: parameter
+            - all:
+                - kind: parameter
+                - has:
+                    field: type
+                    regex: "^&'[a-z_]+ tl::Parser<"

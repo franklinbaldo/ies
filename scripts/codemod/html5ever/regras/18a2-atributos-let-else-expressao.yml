@@ -3,7 +3,9 @@ language: rust
 message: 'Tag sempre legível: os atributos são o próprio elemento.'
 severity: hint
 rule:
-  pattern: let Ok($A) = atributos($T) else { $$$B };
+  any:
+    - pattern: 'let Ok($A) = atributos($T) else { $$$B };'
+    - pattern: 'let Ok($A) = crate::html_atributos::atributos($T) else { $$$B };'
   not:
     inside:
       stopBy: end

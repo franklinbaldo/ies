@@ -49,11 +49,6 @@ impl<'a> AtributosDaTag<'a> {
         self.pares.iter().map(|(nome, _)| nome.as_str())
     }
 
-    /// Quantos atributos a tag tem, inclusive repetidos.
-    pub(crate) fn total(&self) -> usize {
-        self.pares.len()
-    }
-
     /// Quantas vezes `nome` (minúsculo) aparece na tag.
     pub(crate) fn ocorrencias(&self, nome: &str) -> usize {
         self.pares.iter().filter(|(chave, _)| chave == nome).count()

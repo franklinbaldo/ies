@@ -3,7 +3,6 @@
 use crate::controle_contexto::contexto_da_pagina;
 use crate::dominio::{CaixaDeEntrada, Categoria, Processo, Tabela};
 use crate::erro_web::ErroCaixa;
-use crate::html_atributos::nos_com_id;
 use crate::legenda::{ErroLegenda, Legenda, ler_legenda};
 use crate::paginacao_controle::{controles_de_paginacao, paginador_da_tabela};
 use std::collections::BTreeMap;
@@ -63,14 +62,10 @@ fn faixa_da_tabela(
     categoria: Categoria,
     linhas: usize,
 ) -> Result<Option<Faixa>, ErroCaixa> {
-    let dom = crate::tela_html::interpretar(html);
-    let parser = dom.parser();
-    let tabela = match nos_com_id(&dom, id)
-        .map_err(ErroCaixa::AtributoDaCaixaIlegivel)?
-        .as_slice()
-    {
+    let dom = crate::tela_html::arvore(html);
+    let tabela = match dom.com_id(id).collect::<Vec<_>>().as_slice() {
         // Lista vazia comprovada pela estrutura: a mesma faixa de `0 registros:`.
-        [] if crate::caixa::lista_vazia_comprovada(&dom, categoria)? => {
+        [] if crate::caixa::lista_vazia_comprovada(html, &dom, categoria) => {
             return Ok(Some(Faixa {
                 total: 0,
                 inicio: 1,
@@ -82,24 +77,14 @@ fn faixa_da_tabela(
         [tabela] => *tabela,
         _ => return Err(ErroCaixa::TabelasDaCategoriaRepetidas { categoria }),
     };
-    let tabela = tabela
-        .get(parser)
-        .and_then(tl::Node::as_tag)
-        .ok_or(ErroCaixa::TabelaAusente { categoria })?;
-    let mut legendas = tabela
-        .query_selector(parser, "caption")
-        .ok_or(ErroCaixa::LegendaAusente { categoria })?;
+    let mut legendas = tabela.elementos("caption");
     let primeira = legendas
         .next()
         .ok_or(ErroCaixa::LegendaAusente { categoria })?;
     if legendas.next().is_some() {
         return Err(ErroCaixa::LegendasDaTabelaRepetidas { categoria });
     }
-    let legenda = primeira
-        .get(parser)
-        .and_then(tl::Node::as_tag)
-        .ok_or(ErroCaixa::LegendaAusente { categoria })?
-        .inner_text(parser);
+    let legenda = primeira.texto();
     faixa_da_legenda(&legenda, linhas)
         .map_err(|motivo| ErroCaixa::FaixaInvalida { categoria, motivo })
 }

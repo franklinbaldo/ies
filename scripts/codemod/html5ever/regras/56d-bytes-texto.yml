@@ -1,0 +1,16 @@
+id: 56d-bytes-texto
+language: rust
+message: 'Bytes do tl (as_utf8_str) viram o &str do texto'
+severity: hint
+rule:
+  all:
+    - any:
+        - pattern: '$B.as_utf8_str().into_owned()'
+    - not:
+        inside:
+          stopBy: end
+          kind: mod_item
+          follows:
+            kind: attribute_item
+            regex: 'cfg\(test\)'
+fix: '$B.to_owned()'

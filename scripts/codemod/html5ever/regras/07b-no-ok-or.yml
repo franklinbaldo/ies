@@ -1,0 +1,20 @@
+id: 07b-no-ok-or
+language: rust
+message: 'h.get(parser).ok_or(e)?: o nó sempre existe'
+severity: hint
+rule:
+  all:
+    - pattern: '$H.get($P).$M($E)?'
+    - not:
+        inside:
+          stopBy: end
+          kind: mod_item
+          follows:
+            kind: attribute_item
+            regex: 'cfg\(test\)'
+constraints:
+  P:
+    regex: '^(parser|.*\.parser\(\))$'
+  M:
+    regex: '^ok_or(_else)?$'
+fix: '$H'

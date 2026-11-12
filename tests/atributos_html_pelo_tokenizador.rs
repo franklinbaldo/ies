@@ -61,12 +61,12 @@ fn seletor_por_id_ou_classe(codigo: &str) -> bool {
     })
 }
 
-/// `src/tela_html.rs` e o módulo da árvore, `src/tela_html/`.
+/// `src/tela_html.rs` e o módulo da árvore, tudo sob `src/tela_html/`.
 fn e_tela_html(caminho: &Path) -> bool {
     caminho.ends_with("src/tela_html.rs")
         || caminho
-            .parent()
-            .is_some_and(|pasta| pasta.ends_with("src/tela_html"))
+            .ancestors()
+            .any(|pasta| pasta.ends_with("src/tela_html"))
 }
 
 #[test]

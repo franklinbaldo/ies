@@ -1,0 +1,18 @@
+id: 56c-no-comentario
+language: rust
+message: "tl::Node::Comment(_) vira No::Comentario"
+severity: hint
+rule:
+  all:
+    - any:
+        - pattern:
+            context: "match x { tl::Node::Comment($$$C) => 1 }"
+            selector: tuple_struct_pattern
+    - not:
+        inside:
+          stopBy: end
+          kind: mod_item
+          follows:
+            kind: attribute_item
+            regex: 'cfg\(test\)'
+fix: "crate::tela_html::No::Comentario"

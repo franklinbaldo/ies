@@ -222,35 +222,16 @@ pub(crate) fn atividade_do_aceite(
     html: &crate::tela_html::HtmlServido,
     alvo: AlvoDaCiencia<'_>,
 ) -> Result<String, ErroCiencia> {
-    let dom = crate::tela_html::interpretar(html);
-    let parser = dom.parser();
-    // Com JavaScript ativo, scripts aninhados em <template> ou <noscript>
-    // não rodam. Ignore somente esses nós, em vez de recusar a resposta
-    // inteira quando há também um script ativo: marcação dentro de um literal
-    // JavaScript nem sequer cria um contêiner HTML.
-    let mut scripts_inertes = Vec::new();
-    for seletor in ["template", "noscript"] {
-        for no in dom.query_selector(seletor).into_iter().flatten() {
-            if let Some(tag) = no.get(parser).and_then(tl::Node::as_tag) {
-                scripts_inertes.extend(tag.query_selector(parser, "script").into_iter().flatten());
-            }
-        }
-    }
+    let dom = crate::tela_html::arvore(html);
+    // Com JavaScript ativo, scripts em <template> ou <noscript> não rodam;
+    // como no navegador, o conteúdo de <template> fica fora da árvore e o de
+    // <noscript> é texto, então esses scripts nem aparecem aqui.
     let mut atividades = Vec::new();
-    for script in dom.query_selector("script").into_iter().flatten() {
-        if scripts_inertes.contains(&script) {
-            continue;
-        }
-        let Some(tag) = script.get(parser).and_then(tl::Node::as_tag) else {
-            continue;
-        };
+    for script in dom.elementos("script") {
         // Scripts de dados (application/json, text/plain) e scripts com src
         // não executam seu conteúdo inline. Jamais publicar um id_atividade
         // apenas porque o HTML contém texto JavaScript inerte.
-        let Ok(atributos) = crate::html_atributos::atributos(tag) else {
-            continue;
-        };
-        let tipo = atributos.valor("type");
+        let tipo = script.atributo("type");
         // O tipo de script clássico segue a semântica HTML: ausente,
         // vazio ou MIME JavaScript (sem parâmetros, independente de caixa).
         // Um tipo de dados ou um script externo não prova a atividade.
@@ -260,21 +241,14 @@ pub(crate) fn atividade_do_aceite(
                 || t.eq_ignore_ascii_case("text/javascript")
                 || t.eq_ignore_ascii_case("application/javascript")
         });
-        if atributos.presente("src") || !script_classico {
+        if script.presente("src") || !script_classico {
             continue;
         }
-        // Texto e fonte bruta: a `UnB` 4.0.9 envolve o script em
-        // `<!--//--><![CDATA[//><!--`, que inner_text omite (live 10/11/2026);
-        // um `<script>` dentro de literal JS, ao contrário, trunca a fonte bruta.
-        let texto = tag.inner_text(parser);
-        let fonte = tag.raw().as_utf8_str();
-        let bruto = fonte.split_once('>').map_or("", |(_, resto)| {
-            resto.rsplit_once("</").map_or(resto, |(c, _)| c)
-        });
-        for url in [texto.as_ref(), bruto]
-            .into_iter()
-            .flat_map(literais_de_atualizar_arvore)
-        {
+        // O conteúdo inteiro do script, como o navegador o guarda: inclusive o
+        // invólucro `<!--//--><![CDATA[//><!--` que a `UnB` 4.0.9 publica
+        // (live 10/11/2026).
+        let texto = script.texto();
+        for url in literais_de_atualizar_arvore(&texto) {
             let Some(atividade) = atividade_do_endereco(url, alvo) else {
                 continue;
             };

@@ -18,6 +18,13 @@ fi
 GERADAS=$(mktemp -d)
 trap 'rm -rf "$GERADAS"' EXIT
 cp "$DIR"/regras/*.yml "$GERADAS"/
+# Regra que não se lê é erro, não silêncio.
+for regra in "$DIR"/regras/*.yml; do
+    if ! $SG scan -r "$regra" --json=stream /dev/null >/dev/null 2>&1; then
+        echo "$(basename "$regra"): regra inválida" >&2
+        exit 1
+    fi
+done
 FUNCOES=$($SG scan -r "$DIR/modelos/funcoes-com-parser.yml" --json=stream "$@" \
     | python3 -I -c 'import sys, json; print("|".join(sorted({json.loads(l)["metaVariables"]["single"]["F"]["text"] for l in sys.stdin})))')
 if [ -n "$FUNCOES" ]; then
@@ -36,15 +43,31 @@ if [ "$SECO" = 1 ]; then
     done
     exit 0
 fi
-for regra in "$GERADAS"/*.yml; do
-    passadas=0
-    while $SG scan -r "$regra" -U "$@" 2>&1 | grep -q '^Applied'; do
-        passadas=$((passadas + 1))
-        if [ "$passadas" -ge 20 ]; then
-            echo "$(basename "$regra"): não converge em 20 passadas" >&2
-            exit 1
-        fi
+# Uma regra pode abrir caminho para uma anterior (a 18 troca atributos() por
+# atributo(), que a 11 reconhece): a sequência inteira repete até uma
+# rodada não mudar nada, no máximo 5 rodadas.
+rodada=0
+while :; do
+    mudou=0
+    for regra in "$GERADAS"/*.yml; do
+        passadas=0
+        while $SG scan -r "$regra" -U "$@" 2>&1 | grep -q '^Applied'; do
+            mudou=1
+            passadas=$((passadas + 1))
+            if [ "$passadas" -ge 20 ]; then
+                echo "$(basename "$regra"): não converge em 20 passadas" >&2
+                exit 1
+            fi
+        done
     done
+    rodada=$((rodada + 1))
+    if [ "$mudou" = 0 ]; then
+        break
+    fi
+    if [ "$rodada" -ge 5 ]; then
+        echo "as regras não convergem em 5 rodadas" >&2
+        exit 1
+    fi
 done
 sed -i -e '/^[[:space:]]*\/\* ies-codemod: remover linha \*\/[[:space:]]*$/d' \
     -e 's/ *\/\* ies-codemod: remover linha \*\/ *//g' "$@"

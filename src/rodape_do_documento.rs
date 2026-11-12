@@ -6,23 +6,17 @@
 //! PEN4 5.0.4 ao vivo, inclusive na versão N lida pela lista (`versão N`).
 //! Só a forma exata conta: nenhum ou mais de um rodapé é "não servido".
 use crate::documento_versoes::VersaoDocumento;
-use crate::html_atributos::atributos;
 
 /// A versão que o rodapé declara para o conteúdo servido; `None` se não há
 /// exatamente um rodapé na forma observada.
 pub(crate) fn versao_do_rodape(html: &crate::tela_html::HtmlServido) -> Option<VersaoDocumento> {
-    let dom = crate::tela_html::interpretar(html);
-    let parser = dom.parser();
+    let dom = crate::tela_html::arvore(html);
     let mut achadas = Vec::new();
-    for no in dom.query_selector("div")?.filter_map(|h| h.get(parser)) {
-        let Some(tag) = no.as_tag() else {
-            continue;
-        };
-        let lidos = atributos(tag).ok()?;
-        if lidos.valor("unselectable") != Some("on") {
+    for no in dom.elementos("div") {
+        if no.atributo("unselectable") != Some("on") {
             continue;
         }
-        let texto = html_escape::decode_html_entities(&no.inner_text(parser)).into_owned();
+        let texto = no.texto();
         let texto = texto.split_whitespace().collect::<Vec<_>>().join(" ");
         if let Some(versao) = versao_da_linha(&texto) {
             achadas.push(versao);
@@ -37,11 +31,10 @@ pub(crate) fn versao_do_rodape(html: &crate::tela_html::HtmlServido) -> Option<V
 /// Código CRC mostrado no bloco de autenticidade de documento assinado.
 /// Informativo: não é recalculado nem participa da identidade do cache.
 pub(crate) fn crc_do_rodape(html: &crate::tela_html::HtmlServido) -> Option<String> {
-    let dom = crate::tela_html::interpretar(html);
-    let parser = dom.parser();
+    let dom = crate::tela_html::arvore(html);
     let mut achados = Vec::new();
-    for no in dom.query_selector("p, div")?.filter_map(|h| h.get(parser)) {
-        let texto = html_escape::decode_html_entities(&no.inner_text(parser)).into_owned();
+    for no in dom.elementos("p").chain(dom.elementos("div")) {
+        let texto = no.texto();
         let texto = texto.split_whitespace().collect::<Vec<_>>().join(" ");
         let minusculo = texto.to_lowercase();
         if !minusculo.contains("autenticidade") || !minusculo.contains("código verificador") {

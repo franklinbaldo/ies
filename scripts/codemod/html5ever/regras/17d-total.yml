@@ -1,0 +1,23 @@
+id: 17d-total
+language: rust
+message: 'Só em função que chama atributos(): total() vira total_de_atributos()'
+severity: hint
+rule:
+  all:
+    - pattern: '$A.total()'
+    - inside:
+        stopBy: end
+        kind: function_item
+        has:
+          stopBy: end
+          any:
+            - pattern: 'atributos($T)'
+            - pattern: 'crate::html_atributos::atributos($T)'
+    - not:
+        inside:
+          stopBy: end
+          kind: mod_item
+          follows:
+            kind: attribute_item
+            regex: 'cfg\(test\)'
+fix: '$A.total_de_atributos()'

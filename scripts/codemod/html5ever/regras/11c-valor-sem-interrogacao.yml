@@ -6,7 +6,9 @@ rule:
   all:
     - any:
         - pattern: 'valor_do_atributo($T, $K).map_err($E)'
+        - pattern: 'crate::html_atributos::valor_do_atributo($T, $K).map_err($E)'
         - pattern: 'valor_decodificado($T, $K).map_err($E)'
+        - pattern: 'crate::html_atributos::valor_decodificado($T, $K).map_err($E)'
     - not:
         inside:
           stopBy: end

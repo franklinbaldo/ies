@@ -3,7 +3,9 @@ language: rust
 message: 'Tag sempre legível em is_ok_and.'
 severity: hint
 rule:
-  pattern: atributos($T).is_ok_and(|$A| $B)
+  any:
+    - pattern: 'atributos($T).is_ok_and(|$A| $B)'
+    - pattern: 'crate::html_atributos::atributos($T).is_ok_and(|$A| $B)'
   not:
     inside:
       stopBy: end

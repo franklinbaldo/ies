@@ -4,7 +4,9 @@ message: 'let-else de atributos(): o nome some e os usos passam ao elemento (o l
 severity: hint
 rule:
   all:
-    - pattern: 'let Ok($X) = atributos($H) else { $$$B };'
+    - any:
+        - pattern: 'let Ok($X) = atributos($H) else { $$$B };'
+        - pattern: 'let Ok($X) = crate::html_atributos::atributos($H) else { $$$B };'
     - not:
         inside:
           stopBy: end

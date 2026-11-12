@@ -1,0 +1,15 @@
+id: 56k-matches-texto
+language: rust
+message: "matches!(n, tl::Node::Raw(_)) vira matches!(n, crate::tela_html::No::Texto(_))"
+severity: hint
+rule:
+  all:
+    - pattern: "matches!($N, tl::Node::Raw(_))"
+    - not:
+        inside:
+          stopBy: end
+          kind: mod_item
+          follows:
+            kind: attribute_item
+            regex: 'cfg\(test\)'
+fix: "matches!($N, crate::tela_html::No::Texto(_))"

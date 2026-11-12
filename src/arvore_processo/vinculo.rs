@@ -10,7 +10,6 @@ use super::literais::{Literal, indice_do_html, ler_declaracao, ler_html};
 use super::{EnderecoDaArvore, ErroArvore, VinculoDeAnexacao};
 use crate::acao_do_sei::AcaoDoSei;
 use crate::consulta_do_controlador::ConsultaDoControlador;
-use crate::html_atributos::atributos;
 use crate::instalacao::Instalacao;
 
 const CHAVE_DO_ANEXADO: &str = "id_procedimento_anexado";
@@ -24,15 +23,10 @@ pub(crate) fn ler_vinculo_de_anexacao(
     let Some(texto) = html_da_raiz(html)? else {
         return Ok(None);
     };
-    let dom = crate::tela_html::interpretar(&texto);
-    let parser = dom.parser();
+    let dom = crate::tela_html::arvore(&texto);
     let mut achado = None;
-    for no in dom.query_selector("a").into_iter().flatten() {
-        let Some(tag) = no.get(parser).and_then(tl::Node::as_tag) else {
-            continue;
-        };
-        let lidos = atributos(tag).map_err(ErroArvore::Atributo)?;
-        let Some(href) = lidos.valor("href") else {
+    for no in dom.elementos("a") {
+        let Some(href) = no.atributo("href") else {
             continue;
         };
         if !pares(href).any(|(chave, _)| chave == CHAVE_DO_ANEXADO) {
@@ -41,20 +35,17 @@ pub(crate) fn ler_vinculo_de_anexacao(
         if achado.is_some() {
             return Err(ErroArvore::VinculosDeAnexacaoRepetidos);
         }
-        achado = Some(conferir(instalacao, href, &texto_unico(tag, parser), id)?);
+        achado = Some(conferir(instalacao, href, &texto_unico(no), id)?);
     }
     Ok(achado)
 }
 
 /// O texto do link quando ele é o único filho (nó de texto cru); senão
 /// vazio, que a conferência recusa.
-pub(super) fn texto_unico(tag: &tl::HTMLTag<'_>, parser: &tl::Parser<'_>) -> String {
-    let filhos = tag.children();
-    match filhos.top().as_slice() {
-        [filho] => match filho.get(parser) {
-            Some(tl::Node::Raw(bytes)) => bytes.as_utf8_str().into_owned(),
-            _ => String::new(),
-        },
+pub(super) fn texto_unico(tag: crate::tela_html::Elemento<'_>) -> String {
+    let mut filhos = tag.nos();
+    match (filhos.next(), filhos.next()) {
+        (Some(crate::tela_html::No::Texto(texto)), None) => texto.to_owned(),
         _ => String::new(),
     }
 }

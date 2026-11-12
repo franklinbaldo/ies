@@ -1,0 +1,20 @@
+id: 18ca-atributos-ok
+language: rust
+message: 'let a = atributos(t).ok()?: a tag sempre é legível (o let)'
+severity: hint
+rule:
+  all:
+    - any:
+        - pattern: 'let $X = atributos($H).ok()?;'
+        - pattern: 'let $X = crate::html_atributos::atributos($H).ok()?;'
+    - not:
+        inside:
+          stopBy: end
+          kind: mod_item
+          follows:
+            kind: attribute_item
+            regex: 'cfg\(test\)'
+constraints:
+  H:
+    kind: identifier
+fix: '/* ies-codemod: remover linha */'

@@ -1,0 +1,28 @@
+id: 18c-atributos-ok-usos
+language: rust
+message: 'let a = atributos(t).ok()?: a tag sempre é legível (usos)'
+severity: hint
+rule:
+  all:
+    - kind: identifier
+    - pattern: $X
+    - inside:
+        stopBy: end
+        follows:
+          stopBy: end
+          any:
+            - pattern: 'let $X = atributos($H).ok()?;'
+            - pattern: 'let $X = crate::html_atributos::atributos($H).ok()?;'
+    - not:
+        pattern: $H
+    - not:
+        inside:
+          stopBy: end
+          kind: mod_item
+          follows:
+            kind: attribute_item
+            regex: 'cfg\(test\)'
+constraints:
+  H:
+    kind: identifier
+fix: '$H'

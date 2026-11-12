@@ -4,8 +4,6 @@
 use super::ErroDetalhada;
 use crate::acao_do_sei::AcaoDoSei;
 use crate::consulta_do_controlador::ConsultaDoControlador;
-use crate::formulario_web::decodificar_atributo;
-use crate::html_atributos::valor_decodificado;
 use crate::marcadores_processo::rotulo_do_marcador;
 use crate::nivel_de_detalhe::texto_colapsado;
 use serde::Serialize;
@@ -31,21 +29,20 @@ const SOLTO: ErroDetalhada = ErroDetalhada::TextoForaDosMarcadoresNaCelula;
 
 /// Filhos diretos de `tag` que são elementos; texto só de espaços (inclusive
 /// `&nbsp;`) e comentários são ignorados, outro texto é `erro`.
-fn filhos<'d>(
-    tag: &tl::HTMLTag<'_>,
-    parser: &'d tl::Parser<'d>,
+fn filhos(
+    tag: crate::tela_html::Elemento<'_>,
     erro: ErroDetalhada,
-) -> Result<Vec<&'d tl::HTMLTag<'d>>, ErroDetalhada> {
+) -> Result<Vec<crate::tela_html::Elemento<'_>>, ErroDetalhada> {
     let mut elementos = Vec::new();
-    for no in tag.children().top().iter().filter_map(|h| h.get(parser)) {
+    for no in tag.nos() {
         match no {
-            tl::Node::Tag(filho) => elementos.push(filho),
-            tl::Node::Raw(_) => {
-                if !texto_colapsado(&no.inner_text(parser)).is_empty() {
+            crate::tela_html::No::Elemento(filho) => elementos.push(filho),
+            crate::tela_html::No::Texto(texto) => {
+                if !texto_colapsado(texto).is_empty() {
                     return Err(erro);
                 }
             }
-            tl::Node::Comment(_) => {}
+            crate::tela_html::No::Comentario => {}
         }
     }
     Ok(elementos)
@@ -124,46 +121,44 @@ fn cor(src: &str) -> Result<String, ErroDetalhada> {
 }
 
 fn marcador(
-    ancora: &tl::HTMLTag<'_>,
-    parser: &tl::Parser<'_>,
+    ancora: crate::tela_html::Elemento<'_>,
     id_procedimento: &str,
 ) -> Result<MarcadorDaCelula, ErroDetalhada> {
-    if valor_decodificado(ancora, "class")?.as_deref() != Some("ancMarcador") {
+    if ancora.atributo("class") != Some("ancMarcador") {
         return Err(FORA);
     }
     let id = id_do_href(
-        &valor_decodificado(ancora, "href")?.ok_or(FORA)?,
+        &ancora.atributo("href").map(str::to_owned).ok_or(FORA)?,
         id_procedimento,
     )?;
-    let texto = valor_decodificado(ancora, "onmouseover")?
+    let texto = ancora
+        .atributo("onmouseover")
+        .map(str::to_owned)
         .map(|v| texto_do_tooltip(&v))
         .transpose()?
         .map(|t| texto_colapsado(&t))
         .filter(|t| !t.is_empty());
-    let [icone, rotulo] = filhos(ancora, parser, FORA)?[..] else {
+    let [icone, rotulo] = filhos(ancora, FORA)?[..] else {
         return Err(FORA);
     };
-    if icone.name() != "div" || rotulo.name() != "div" {
+    if icone.nome() != "div" || rotulo.nome() != "div" {
         return Err(FORA);
     }
-    let [img] = filhos(icone, parser, FORA)?[..] else {
+    let [img] = filhos(icone, FORA)?[..] else {
         return Err(FORA);
     };
-    if img.name() != "img" {
+    if img.nome() != "img" {
         return Err(FORA);
     }
-    let cor = cor(&valor_decodificado(img, "src")?.ok_or(FORA)?)?;
+    let cor = cor(&img.atributo("src").map(str::to_owned).ok_or(FORA)?)?;
     let so_texto = rotulo
-        .children()
-        .top()
-        .iter()
-        .filter_map(|h| h.get(parser))
-        .all(|no| matches!(no, tl::Node::Raw(_)));
+        .nos()
+        .all(|no| matches!(no, crate::tela_html::No::Texto(_)));
     if !so_texto {
         return Err(FORA);
     }
-    let bruto = rotulo.inner_text(parser);
-    let nome = texto_colapsado(&decodificar_atributo(&bruto));
+    let bruto = rotulo.texto();
+    let nome = texto_colapsado(&bruto);
     if nome.is_empty() {
         return Err(FORA);
     }
@@ -179,16 +174,15 @@ fn marcador(
 
 /// Um objeto por `a` da célula; texto ou tag fora das âncoras é recusa.
 pub(super) fn marcadores_da_celula(
-    celula: &tl::HTMLTag<'_>,
-    parser: &tl::Parser<'_>,
+    celula: crate::tela_html::Elemento<'_>,
     id_procedimento: &str,
 ) -> Result<Vec<MarcadorDaCelula>, ErroDetalhada> {
     let mut marcadores = Vec::new();
-    for filho in filhos(celula, parser, SOLTO)? {
-        if filho.name() != "a" {
+    for filho in filhos(celula, SOLTO)? {
+        if filho.nome() != "a" {
             return Err(SOLTO);
         }
-        marcadores.push(marcador(filho, parser, id_procedimento)?);
+        marcadores.push(marcador(filho, id_procedimento)?);
     }
     Ok(marcadores)
 }

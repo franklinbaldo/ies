@@ -2,7 +2,6 @@
 use crate::classe_link_processo::{ClassesDeEstadoDiferentesNoLink, estado_do_link};
 use crate::dominio::{CaixaDeEntrada, Categoria, IdProcedimento, Processo, Tabela};
 use crate::erro_web::ErroCaixa;
-use crate::html_atributos::{nos_com_id, valor_do_atributo};
 use crate::legenda::{ErroLegenda, ler_legenda};
 
 mod vazia;
@@ -28,11 +27,12 @@ impl std::fmt::Debug for LinhaDoControle {
 }
 
 fn ler_tabela(
-    dom: &tl::VDom<'_>,
+    html: &crate::tela_html::HtmlServido,
+    dom: &crate::tela_html::Documento,
     table_id: &str,
     categoria: Categoria,
 ) -> Result<Tabela<Processo>, ErroCaixa> {
-    let (total, linhas) = ler_linhas(dom, table_id, categoria)?;
+    let (total, linhas) = ler_linhas(html, dom, table_id, categoria)?;
     Tabela::nova(
         categoria,
         total,
@@ -45,40 +45,30 @@ type LinhaLida = (Processo, Option<String>);
 
 /// Total da legenda e cada processo com o `href` bruto do seu link.
 fn ler_linhas(
-    dom: &tl::VDom<'_>,
+    html: &crate::tela_html::HtmlServido,
+    dom: &crate::tela_html::Documento,
     table_id: &str,
     categoria: Categoria,
 ) -> Result<(usize, Vec<LinhaLida>), ErroCaixa> {
-    let parser = dom.parser();
     // A primeira ocorrência do ID não comprova que não houve uma segunda tabela.
     // Se duas existem, escolher uma pode omitir processos apesar dos totais declarados.
-    let candidatas = nos_com_id(dom, table_id).map_err(ErroCaixa::AtributoDaCaixaIlegivel)?;
+    let candidatas = dom.com_id(table_id).collect::<Vec<_>>();
     let primeira = match candidatas.as_slice() {
-        [] if vazia::lista_vazia_comprovada(dom, categoria)? => return Ok((0, Vec::new())),
+        [] if vazia::lista_vazia_comprovada(html, dom, categoria) => return Ok((0, Vec::new())),
         [] => return Err(ErroCaixa::TabelaAusente { categoria }),
         [primeira] => *primeira,
         _ => return Err(ErroCaixa::TabelasDaCategoriaRepetidas { categoria }),
     };
-    let tabela = primeira
-        .get(parser)
-        .and_then(tl::Node::as_tag)
-        .ok_or(ErroCaixa::TabelaInvalida { categoria })?;
-    if tabela.name() != "table"
-        || tabela
-            .query_selector(parser, "table")
-            .is_some_and(|mut filhos| filhos.next().is_some())
-    {
+    if primeira.nome() != "table" || primeira.elementos("table").next().is_some() {
         // Não permitir que linhas de tabelas aninhadas contaminem o resultado.
         return Err(ErroCaixa::TabelaInvalida { categoria });
     }
 
-    let legenda = tabela
-        .query_selector(parser, "caption")
-        .and_then(|mut itens| itens.next())
-        .and_then(|no| no.get(parser))
-        .and_then(tl::Node::as_tag)
+    let legenda = primeira
+        .elementos("caption")
+        .next()
         .ok_or(ErroCaixa::LegendaAusente { categoria })?
-        .inner_text(parser);
+        .texto();
     let total = match ler_legenda(&legenda) {
         Ok(lida) => lida.total,
         Err(ErroLegenda::SemContagem) => {
@@ -87,14 +77,9 @@ fn ler_linhas(
         Err(motivo) => return Err(ErroCaixa::LegendaIlegivel { categoria, motivo }),
     };
     let mut processos = Vec::new();
-    let linhas = tabela
-        .query_selector(parser, "tr")
-        .ok_or(ErroCaixa::TabelaInvalida { categoria })?;
+    let linhas = primeira.elementos("tr");
     for linha in linhas {
-        let Some(tag) = linha.get(parser).and_then(tl::Node::as_tag) else {
-            continue;
-        };
-        let Some(id) = valor_do_atributo(tag, "id")? else {
+        let Some(id) = linha.atributo("id").map(str::to_owned) else {
             // Cabeçalhos e avisos podem aparecer entre as linhas.
             continue;
         };
@@ -102,15 +87,13 @@ fn ler_linhas(
             continue;
         };
         let id = IdProcedimento::novo(id)?;
-        let links = tag
-            .query_selector(parser, "a")
-            .ok_or(ErroCaixa::TabelaInvalida { categoria })?;
+        let links = linha.elementos("a");
         let mut encontrado = None;
         for link in links {
-            let Some(a) = link.get(parser).and_then(tl::Node::as_tag) else {
-                continue;
-            };
-            let classes = valor_do_atributo(a, "class")?.unwrap_or_default();
+            let classes = link
+                .atributo("class")
+                .map(str::to_owned)
+                .unwrap_or_default();
             let estado = estado_do_link(&classes).map_err(|ClassesDeEstadoDiferentesNoLink| {
                 ErroCaixa::ClassesDeEstadoDiferentesNoLinkDoProcesso {
                     categoria,
@@ -118,7 +101,7 @@ fn ler_linhas(
                 }
             })?;
             if let Some(estado) = estado {
-                let numero = a.inner_text(parser).into_owned();
+                let numero = link.texto();
                 if numero.is_empty() {
                     return Err(ErroCaixa::NumeroInvalido {
                         categoria,
@@ -138,7 +121,7 @@ fn ler_linhas(
                         visualizado: estado.visualizado,
                         sigiloso: estado.sigiloso,
                     },
-                    valor_do_atributo(a, "href")?,
+                    link.atributo("href").map(str::to_owned),
                 ));
             }
         }
@@ -153,10 +136,10 @@ fn ler_linhas(
 }
 
 pub fn parse_html(html: &crate::tela_html::HtmlServido) -> Result<CaixaDeEntrada, ErroCaixa> {
-    let dom = crate::tela_html::interpretar(html);
+    let dom = crate::tela_html::arvore(html);
     Ok(CaixaDeEntrada {
-        recebidos: ler_tabela(&dom, "tblProcessosRecebidos", Categoria::Recebidos)?,
-        gerados: ler_tabela(&dom, "tblProcessosGerados", Categoria::Gerados)?,
+        recebidos: ler_tabela(html, &dom, "tblProcessosRecebidos", Categoria::Recebidos)?,
+        gerados: ler_tabela(html, &dom, "tblProcessosGerados", Categoria::Gerados)?,
     })
 }
 
@@ -165,13 +148,13 @@ pub fn parse_html(html: &crate::tela_html::HtmlServido) -> Result<CaixaDeEntrada
 pub(crate) fn linhas_com_link(
     html: &crate::tela_html::HtmlServido,
 ) -> Result<Vec<LinhaDoControle>, ErroCaixa> {
-    let dom = crate::tela_html::interpretar(html);
+    let dom = crate::tela_html::arvore(html);
     let mut todas = Vec::new();
     for (tabela, categoria) in [
         ("tblProcessosRecebidos", Categoria::Recebidos),
         ("tblProcessosGerados", Categoria::Gerados),
     ] {
-        let (total, linhas) = ler_linhas(&dom, tabela, categoria)?;
+        let (total, linhas) = ler_linhas(html, &dom, tabela, categoria)?;
         let processos = linhas.iter().map(|(p, _)| p.clone()).collect();
         Tabela::nova(categoria, total, processos)?;
         todas.extend(linhas.into_iter().map(|(p, href)| LinhaDoControle {

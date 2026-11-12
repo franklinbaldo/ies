@@ -1,0 +1,17 @@
+id: 18e-atributos-ok-resto
+language: rust
+message: 'atributos(t).ok()? que sobrou: o próprio elemento'
+severity: hint
+rule:
+  all:
+    - any:
+        - pattern: 'atributos($T).ok()?'
+        - pattern: 'crate::html_atributos::atributos($T).ok()?'
+    - not:
+        inside:
+          stopBy: end
+          kind: mod_item
+          follows:
+            kind: attribute_item
+            regex: 'cfg\(test\)'
+fix: '$T'

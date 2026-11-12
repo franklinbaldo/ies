@@ -43,7 +43,6 @@ fn replay_da_lupa_go_no_acervo() {
             // não publicar nem comparar o hash assinado da cassette.
             let candidatos: Vec<_> =
                 super::fluxo::candidatos(&html, AcaoDoSei::UnidadeSelecionarEnvioProcesso)
-                    .expect("HTML do cadastro fora da forma observada")
                     .into_iter()
                     .filter(|url| url.contains("acao=unidade_selecionar_envio_processo"))
                     .collect();
