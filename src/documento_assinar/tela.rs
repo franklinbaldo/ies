@@ -15,7 +15,6 @@ use crate::formulario_web::{
     ConferenciaDaUnidade, EfeitoAvaliado, EnvioDoFormulario, EstadoDoProcesso,
     OperacaoDeFormulario, ResultadoDoEnvio, localizar_formulario,
 };
-use crate::html_atributos::{atributo_presente, valor_decodificado};
 
 pub(crate) const FORMULARIO_DE_ASSINATURA: &str = "frmAssinaturas";
 pub(crate) const FORMA_DE_AUTENTICACAO: &str = "hdnFormaAutenticacao";
@@ -80,27 +79,25 @@ pub(crate) fn conferir_tela_de_assinatura(
     html: &crate::tela_html::HtmlServido,
     id_documento: &str,
 ) -> Result<TelaDeAssinatura, ErroTelaDeAssinatura> {
-    let dom = crate::tela_html::interpretar(html);
-    let parser = dom.parser();
+    let dom = crate::tela_html::arvore(html);
     let form = localizar_formulario(&dom, FORMULARIO_DE_ASSINATURA)
         .map_err(ErroTelaDeAssinatura::FormularioDeAssinaturaAusente)?;
     let (mut documentos, mut id_usuario, mut assinante) = (None, None, None);
     let (mut orgao, mut cargos, mut senha) = (None, None, false);
-    for tag in form
-        .children()
-        .all(parser)
-        .iter()
-        .filter_map(tl::Node::as_tag)
-    {
-        let elemento = tag.name().as_utf8_str().to_ascii_lowercase();
+    for tag in form.descendentes() {
+        let elemento = tag.nome().to_ascii_lowercase();
         if !matches!(
             elemento.as_str(),
             "input" | "button" | "select" | "textarea"
-        ) || atributo_presente(tag, "disabled")?
+        ) || tag.presente("disabled")
         {
             continue;
         }
-        let Some(nome) = valor_decodificado(tag, "name")?.filter(|n| !n.is_empty()) else {
+        let Some(nome) = tag
+            .atributo("name")
+            .map(str::to_owned)
+            .filter(|n| !n.is_empty())
+        else {
             continue;
         };
         let padrao = if elemento == "button" {
@@ -108,9 +105,11 @@ pub(crate) fn conferir_tela_de_assinatura(
         } else {
             "text"
         };
-        let tipo = valor_decodificado(tag, "type")?
+        let tipo = tag
+            .atributo("type")
+            .map(str::to_owned)
             .map_or_else(|| padrao.to_owned(), |t| t.to_ascii_lowercase());
-        let servido = valor_decodificado(tag, "value")?.unwrap_or_default();
+        let servido = tag.atributo("value").map(str::to_owned).unwrap_or_default();
         match (elemento.as_str(), tipo.as_str(), nome.as_str()) {
             ("input", "hidden", DOCUMENTOS) => documentos = Some(servido),
             ("input", "hidden", ID_USUARIO) => id_usuario = Some(servido),
@@ -119,8 +118,8 @@ pub(crate) fn conferir_tela_de_assinatura(
             ("input" | "button", "button" | "reset", _) => {}
             ("input", "text", USUARIO) if assinante.is_none() => assinante = Some(servido),
             ("input", "password", SENHA) if !senha => senha = true,
-            ("select", _, ORGAO) if orgao.is_none() => orgao = Some(opcoes(tag, parser)?),
-            ("select", _, CARGO) if cargos.is_none() => cargos = Some(opcoes(tag, parser)?),
+            ("select", _, ORGAO) if orgao.is_none() => orgao = Some(opcoes(tag)?),
+            ("select", _, CARGO) if cargos.is_none() => cargos = Some(opcoes(tag)?),
             _ => return Err(ErroTelaDeAssinatura::CampoNaoPrevistoNaTelaDeAssinatura),
         }
     }
@@ -166,20 +165,18 @@ pub(crate) fn conferir_tela_de_assinatura(
 
 /// As opções do `select`: `value` (decodificado) e `selected`.
 fn opcoes(
-    select: &tl::HTMLTag<'_>,
-    parser: &tl::Parser<'_>,
+    select: crate::tela_html::Elemento<'_>,
 ) -> Result<Vec<(String, bool)>, ErroTelaDeAssinatura> {
     let mut lidas = Vec::new();
     for tag in select
-        .children()
-        .all(parser)
-        .iter()
-        .filter_map(tl::Node::as_tag)
-        .filter(|t| t.name().as_utf8_str().eq_ignore_ascii_case("option"))
+        .descendentes()
+        .filter(|t| t.nome().eq_ignore_ascii_case("option"))
     {
-        let valor = valor_decodificado(tag, "value")?
+        let valor = tag
+            .atributo("value")
+            .map(str::to_owned)
             .ok_or(ErroTelaDeAssinatura::TelaDeAssinaturaNaoInterpretada)?;
-        lidas.push((valor, atributo_presente(tag, "selected")?));
+        lidas.push((valor, tag.presente("selected")));
     }
     Ok(lidas)
 }

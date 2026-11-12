@@ -1,0 +1,28 @@
+id: 04-tag-let-else-usos-campo
+language: rust
+message: 'let-else de um handle resolvido: o nome some e os usos passam ao handle (usos) (campo abreviado de struct)'
+severity: hint
+rule:
+  all:
+    - kind: identifier
+    - pattern: $X
+    - inside:
+        stopBy: end
+        follows:
+          stopBy: end
+          pattern: 'let Some($X) = $H.get($P).and_then(tl::Node::as_tag) else { $$$B };'
+    - not:
+        pattern: $H
+    - inside:
+        kind: shorthand_field_initializer
+    - not:
+        inside:
+          stopBy: end
+          kind: mod_item
+          follows:
+            kind: attribute_item
+            regex: 'cfg\(test\)'
+constraints:
+  H:
+    kind: identifier
+fix: '$X: $H'

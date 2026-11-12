@@ -34,41 +34,18 @@ pub(super) fn conferir_indice_da_pagina(
     html: &crate::tela_html::HtmlServido,
     indice: &str,
 ) -> Result<(), FalhaLeitura> {
-    use crate::html_atributos::valor_do_atributo;
     let ilegivel = || FalhaLeitura::HtmlDeBlocosInvalido;
-    let dom = crate::tela_html::interpretar(html);
+    let dom = crate::tela_html::arvore(html);
     let form = crate::formulario_web::localizar_formulario(&dom, "frmBlocoLista")?;
     let mut achados = 0;
-    for no in form
-        .query_selector(dom.parser(), "select")
-        .into_iter()
-        .flatten()
-    {
-        let tag = no
-            .get(dom.parser())
-            .and_then(tl::Node::as_tag)
-            .ok_or_else(ilegivel)?;
-        if valor_do_atributo(tag, "name")
-            .map_err(FalhaLeitura::Atributo)?
-            .as_deref()
-            != Some("selInfraPaginacaoSuperior")
-        {
+    for no in form.elementos("select") {
+        if no.atributo("name") != Some("selInfraPaginacaoSuperior") {
             continue;
         }
         achados += 1;
-        let opcoes = tag
-            .query_selector(dom.parser(), "option")
-            .ok_or_else(ilegivel)?;
-        let valores = opcoes
-            .filter_map(|h| h.get(dom.parser()).and_then(tl::Node::as_tag))
-            .map(|o| valor_do_atributo(o, "value").map_err(FalhaLeitura::Atributo))
-            .collect::<Result<Vec<_>, _>>()?;
-        if valores
-            .iter()
-            .filter(|v| v.as_deref() == Some(indice))
-            .count()
-            != 1
-        {
+        let opcoes = no.elementos("option");
+        let valores: Vec<_> = opcoes.map(|o| o.atributo("value")).collect();
+        if valores.iter().filter(|v| **v == Some(indice)).count() != 1 {
             return Err(ilegivel());
         }
     }

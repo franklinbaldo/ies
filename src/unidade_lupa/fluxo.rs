@@ -16,8 +16,6 @@ use consulta::consulta;
 #[derive(Debug, PartialEq, Eq, thiserror::Error)]
 #[error("{self:?}")]
 pub(crate) enum FalhaDaLupa {
-    /// O tokenizador de atributos recusou a tag.
-    Atributo(#[source] crate::html_atributos::ErroAtributoHtml),
     Transporte(#[source] FalhaTransporte),
     Tela(ErroLupa),
     LinkAusente,

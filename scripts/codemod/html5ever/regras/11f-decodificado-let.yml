@@ -1,12 +1,12 @@
 id: 11f-decodificado-let
 language: rust
-message: 'O let y = decodificar_atributo(&b) sai (valor já decodificado; usos na 11e)'
+message: 'O let y = decodificar_atributo(&y) sai (o valor já vem decodificado; a 11e deu à origem o nome y)'
 severity: hint
 rule:
   all:
     - any:
-        - pattern: 'let $Y = decodificar_atributo(&$B);'
-        - pattern: 'let $Y = crate::formulario_web::decodificar_atributo(&$B);'
+        - pattern: 'let $Y = decodificar_atributo(&$Y);'
+        - pattern: 'let $Y = crate::formulario_web::decodificar_atributo(&$Y);'
     - follows:
         stopBy: end
         kind: let_declaration
@@ -14,10 +14,10 @@ rule:
           - has:
               field: pattern
               any:
-                - pattern: $B
+                - pattern: $Y
                 - has:
                     stopBy: end
-                    pattern: $B
+                    pattern: $Y
           - has:
               field: value
               stopBy: end
@@ -32,6 +32,6 @@ rule:
             kind: attribute_item
             regex: 'cfg\(test\)'
 constraints:
-  B:
+  Y:
     kind: identifier
 fix: '/* ies-codemod: remover linha */'

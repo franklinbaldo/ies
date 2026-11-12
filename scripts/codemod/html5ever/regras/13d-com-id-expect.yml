@@ -1,0 +1,19 @@
+id: 13d-com-id-expect
+language: rust
+message: 'nos_com_id(&d, id).expect(m)/.unwrap()'
+severity: hint
+rule:
+  all:
+    - any:
+        - pattern: 'nos_com_id(&$D, $I).expect($M)'
+        - pattern: 'crate::html_atributos::nos_com_id(&$D, $I).expect($M)'
+        - pattern: 'nos_com_id(&$D, $I).unwrap()'
+        - pattern: 'crate::html_atributos::nos_com_id(&$D, $I).unwrap()'
+    - not:
+        inside:
+          stopBy: end
+          kind: mod_item
+          follows:
+            kind: attribute_item
+            regex: 'cfg\(test\)'
+fix: '$D.com_id($I).collect::<Vec<_>>()'

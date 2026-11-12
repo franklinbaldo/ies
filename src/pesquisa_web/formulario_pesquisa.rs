@@ -10,7 +10,7 @@ use crate::acao_do_sei::AcaoDoSei;
 use crate::formulario_web::{
     ConferenciaDaUnidade, EfeitoAvaliado, EnvioDoFormulario, ErroSubmissaoFormulario,
     EstadoDeSessao, MarcadorDeResultado, OperacaoDeFormulario, RespostaDoEnvio, ResultadoDoEnvio,
-    SubmissaoDerivada, TelaServida, derivar_submissao, localizar_formulario,
+    SubmissaoDerivada, TelaServida, derivar_submissao, localizar_formulario_tl,
 };
 #[cfg(test)]
 use crate::formulario_web::{RespostaDoPost, enviar_submissao_via};
@@ -225,7 +225,7 @@ fn derivar_com(
     // As recusas de instalação e unidade vêm de `derivar_submissao`, depois
     // destas regras; ler a tela em memória não tem efeito.
     let dom = crate::tela_html::interpretar(tela.html);
-    let form = localizar_formulario(&dom, operacao.formulario)?;
+    let form = localizar_formulario_tl(&dom, operacao.formulario)?;
     let regras = ler_regras_da_tela(form, dom.parser(), em)?;
     // O navegador conta `maxlength` em unidades UTF-16; termo maior não
     // seria digitável na tela servida e não sai em POST.

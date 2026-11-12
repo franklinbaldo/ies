@@ -312,7 +312,7 @@ pub fn juntar(
         return Err(ErroCaixa::VisaoResumidaComPaginacao);
     }
     for html in paginas {
-        if crate::controle_contexto::filtro_de_marcador_ativo(html)? {
+        if crate::controle_contexto::filtro_de_marcador_ativo(html) {
             return Err(ErroCaixa::FiltroDeMarcadorAtivoNoControle);
         }
     }

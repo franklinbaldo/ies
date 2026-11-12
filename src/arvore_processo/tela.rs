@@ -4,7 +4,6 @@ use crate::acao_do_sei::AcaoDoSei;
 use crate::consulta_do_controlador::{
     ConsultaDoControlador, ErroChaveDaConsulta, ErroConsultaDoControlador,
 };
-use crate::html_atributos::{ErroAtributoHtml, nos_com_id, valor_do_atributo};
 use crate::instalacao::Instalacao;
 
 /// URL absoluta da árvore, assinada: `Debug` redigido, sem `Display`.
@@ -53,10 +52,7 @@ pub(crate) enum ErroTelaDoProcesso {
     ConsultaDaArvoreIlegivel(#[source] ErroConsultaDoControlador),
     /// O `src` da tela pesquisada não traz exatamente um `id_procedimento`.
     IdDoProcessoNaArvore(#[source] ErroChaveDaConsulta),
-    HtmlDaTelaDoProcessoNaoInterpretado,
     IdentificacaoDaUnidadeAusenteNaTelaDoProcesso,
-    IdDeNoDaTela(#[source] ErroAtributoHtml),
-    SrcDaArvore(#[source] ErroAtributoHtml),
 }
 
 /// Lê a tela servida (a URL já foi conferida por quem a pediu). `unidade`
@@ -110,7 +106,7 @@ fn unidade_e_src(
     html: &crate::tela_html::HtmlServido,
     unidade: Option<&str>,
 ) -> Result<(String, String), ErroTelaDoProcesso> {
-    let dom = crate::tela_html::interpretar(html);
+    let dom = crate::tela_html::arvore(html);
     let publicada = crate::controle_contexto::unidade_html(&dom)
         .map_err(ErroTelaDoProcesso::UnidadeDoControleIlegivel)?
         .ok_or(ErroTelaDoProcesso::IdentificacaoDaUnidadeAusenteNaTelaDoProcesso)?;
@@ -119,23 +115,20 @@ fn unidade_e_src(
     {
         return Err(ErroTelaDoProcesso::UnidadeDaTelaDiferenteDaSolicitada);
     }
-    let iframes = nos_com_id(&dom, "ifrArvore").map_err(ErroTelaDoProcesso::IdDeNoDaTela)?;
+    let iframes = dom.com_id("ifrArvore").collect::<Vec<_>>();
     let iframe = match iframes.as_slice() {
         [] => return Err(ErroTelaDoProcesso::ArvoreAusenteNaTelaDoProcesso),
-        [um] => um
-            .get(dom.parser())
-            .and_then(tl::Node::as_tag)
-            .ok_or(ErroTelaDoProcesso::HtmlDaTelaDoProcessoNaoInterpretado)?,
+        [um] => *um,
         _ => return Err(ErroTelaDoProcesso::ArvoresRepetidasNaTelaDoProcesso),
     };
-    if iframe.name() != "iframe" {
+    if iframe.nome() != "iframe" {
         return Err(ErroTelaDoProcesso::ArvoreAusenteNaTelaDoProcesso);
     }
-    let src = valor_do_atributo(iframe, "src")
-        .map_err(ErroTelaDoProcesso::SrcDaArvore)?
+    let src = iframe
+        .atributo("src")
+        .map(str::to_owned)
         .ok_or(ErroTelaDoProcesso::EnderecoDaArvoreNaoReconhecido)?;
     // Servido com `&` cru (UnB e GO); `&amp;` também é o mesmo endereço.
-    let src = crate::formulario_web::decodificar_atributo(&src);
     if src.is_empty() && html.contains("controlador.php?acao=usuario_validar_acesso&") {
         return Err(ErroTelaDoProcesso::ProcessoExigeValidacaoDeAcesso);
     }

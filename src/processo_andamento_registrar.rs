@@ -9,7 +9,6 @@ use crate::formulario_web::{
     consulta_do_controlador, derivar_submissao, enviar_submissao_via, localizar_formulario,
 };
 use crate::historico_processo::AndamentosLidos;
-use crate::html_atributos::valor_do_atributo;
 use crate::indice_local::IndiceLocal;
 use crate::instalacao::Instalacao;
 use crate::pagina_do_controle::codificacao_da_tela;
@@ -44,8 +43,6 @@ const REGISTRAR: OperacaoDeFormulario = OperacaoDeFormulario {
 #[derive(Debug, Clone, PartialEq, Eq, thiserror::Error)]
 #[error("{self:?}")]
 pub(crate) enum ErroTela {
-    /// O tokenizador de atributos recusou a tag.
-    Atributo(#[source] crate::html_atributos::ErroAtributoHtml),
     FormularioAusenteOuDuplicado(#[source] ErroSubmissaoFormulario),
     ControleAusenteOuDuplicado,
     ProtocoloDiferente,
@@ -57,26 +54,21 @@ pub(crate) fn conferir_formulario(
     html: &crate::tela_html::HtmlServido,
     id: &str,
 ) -> Result<(), ErroTela> {
-    let dom = crate::tela_html::interpretar(html);
+    let dom = crate::tela_html::arvore(html);
     let form = localizar_formulario(&dom, FORM).map_err(ErroTela::FormularioAusenteOuDuplicado)?;
     let mut protocolo = Vec::new();
     let mut atividade = 0;
     let mut descricao = 0;
     let mut salvar = 0;
-    for tag in form
-        .children()
-        .all(dom.parser())
-        .iter()
-        .filter_map(tl::Node::as_tag)
-    {
-        let elemento = tag.name().as_utf8_str().to_ascii_lowercase();
+    for tag in form.descendentes() {
+        let elemento = tag.nome().to_ascii_lowercase();
         if !matches!(
             elemento.as_str(),
             "input" | "textarea" | "button" | "select"
         ) {
             continue;
         }
-        let attr = |nome| valor_do_atributo(tag, nome).map_err(ErroTela::Atributo);
+        let attr = |nome| Ok(tag.atributo(nome).map(str::to_owned));
         let Some(nome) = attr("name")?.filter(|s| !s.is_empty()) else {
             continue;
         };

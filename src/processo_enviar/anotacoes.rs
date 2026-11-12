@@ -22,7 +22,6 @@ pub(crate) enum ErroDasAnotacoes {
 #[derive(Clone, Debug, PartialEq, Eq, thiserror::Error)]
 #[error("{self:?}")]
 pub(crate) enum ErroLeituraDaAnotacao {
-    TelaDeAnotacoesComAtributoIlegivel(#[source] crate::html_atributos::ErroAtributoHtml),
     FormularioDeAnotacoesAusente(#[source] crate::formulario_web::ErroSubmissaoFormulario),
     AnotacaoDeOutroProcesso,
     AnotacaoNaoPublicada,
@@ -48,24 +47,15 @@ pub(crate) const REGISTRAR_ANOTACAO: OperacaoDeFormulario = OperacaoDeFormulario
 pub(crate) fn salvar_oferecido(
     html: &crate::tela_html::HtmlServido,
 ) -> Result<bool, ErroLeituraDaAnotacao> {
-    let dom = crate::tela_html::interpretar(html);
+    let dom = crate::tela_html::arvore(html);
     let form = crate::formulario_web::localizar_formulario(&dom, "frmAnotacaoCadastro")
         .map_err(ErroLeituraDaAnotacao::FormularioDeAnotacoesAusente)?;
-    for tag in form
-        .children()
-        .all(dom.parser())
-        .iter()
-        .filter_map(tl::Node::as_tag)
-    {
-        if !tag.name().as_utf8_str().eq_ignore_ascii_case("button") {
+    for tag in form.descendentes() {
+        if !tag.nome().eq_ignore_ascii_case("button") {
             continue;
         }
-        let nome = crate::html_atributos::valor_do_atributo(tag, "name")
-            .map_err(ErroLeituraDaAnotacao::TelaDeAnotacoesComAtributoIlegivel)?;
-        if nome.as_deref() == Some("sbmRegistrarAnotacao")
-            && !crate::html_atributos::atributo_presente(tag, "disabled")
-                .map_err(ErroLeituraDaAnotacao::TelaDeAnotacoesComAtributoIlegivel)?
-        {
+        let nome = tag.atributo("name");
+        if nome == Some("sbmRegistrarAnotacao") && !tag.presente("disabled") {
             return Ok(true);
         }
     }
@@ -76,35 +66,25 @@ pub(crate) fn texto_anotacao(
     html: &crate::tela_html::HtmlServido,
     id: &str,
 ) -> Result<String, ErroLeituraDaAnotacao> {
-    use crate::formulario_web::{decodificar_atributo, localizar_formulario};
-    use crate::html_atributos::valor_do_atributo;
+    use crate::formulario_web::localizar_formulario;
 
-    let dom = crate::tela_html::interpretar(html);
+    let dom = crate::tela_html::arvore(html);
     let form = localizar_formulario(&dom, "frmAnotacaoCadastro")
         .map_err(ErroLeituraDaAnotacao::FormularioDeAnotacoesAusente)?;
-    let parser = dom.parser();
-    let valor = |tag: &tl::HTMLTag<'_>,
+    let valor = |tag: crate::tela_html::Elemento<'_>,
                  nome: &'static str|
      -> Result<Option<String>, ErroLeituraDaAnotacao> {
-        Ok(valor_do_atributo(tag, nome)
-            .map_err(ErroLeituraDaAnotacao::TelaDeAnotacoesComAtributoIlegivel)?
-            .map(|bruto| decodificar_atributo(&bruto)))
+        Ok(tag.atributo(nome).map(str::to_owned))
     };
     let mut ids = Vec::new();
     let mut descricoes = Vec::new();
-    for tag in form
-        .children()
-        .all(parser)
-        .iter()
-        .filter_map(tl::Node::as_tag)
-    {
-        match tag.name().as_utf8_str().as_ref() {
+    for tag in form.descendentes() {
+        match tag.nome() {
             "input" if valor(tag, "name")?.as_deref() == Some("hdnIdProtocolo") => {
                 ids.push(valor(tag, "value")?);
             }
             "textarea" if valor(tag, "name")?.as_deref() == Some("txaDescricao") => {
-                descricoes
-                    .push(html_escape::decode_html_entities(&tag.inner_text(parser)).into_owned());
+                descricoes.push(tag.texto());
             }
             _ => {}
         }

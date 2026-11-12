@@ -6,6 +6,7 @@ rule:
   any:
     - pattern: $T.query_selector($P, $S).into_iter().flatten()
     - pattern: $T.query_selector($P, $S).ok_or($E)?
+    - pattern: $T.query_selector($P, $S).ok_or_else($E)?
     - pattern: $T.query_selector($P, $S)?
   not:
     inside:

@@ -15,6 +15,9 @@ rule:
         pattern: $H
     - not:
         inside:
+          kind: shorthand_field_initializer
+    - not:
+        inside:
           stopBy: end
           kind: mod_item
           follows:

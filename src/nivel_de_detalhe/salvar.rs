@@ -14,7 +14,6 @@ use crate::formulario_web::{
     ConferenciaDaUnidade, EfeitoAvaliado, EnvioDoFormulario, OperacaoDeFormulario,
     PreferenciaDoUsuario, ResultadoDoEnvio, localizar_formulario,
 };
-use crate::html_atributos::{atributo_presente, valor_do_atributo};
 
 /// `name` das 12 caixas, na ordem de [`ColunaDoDetalhe::TODAS`].
 pub(crate) const CAMPOS_DAS_OPCOES: [&str; 12] = [
@@ -70,25 +69,23 @@ pub(crate) fn campos_do_envio(plano: &PlanoDasColunas) -> Vec<(&'static str, &'s
 pub(crate) fn conferir_controles_do_formulario(
     html: &crate::tela_html::HtmlServido,
 ) -> Result<(), ErroNivelDeDetalhe> {
-    let dom = crate::tela_html::interpretar(html);
-    let parser = dom.parser();
+    let dom = crate::tela_html::arvore(html);
     let form = localizar_formulario(&dom, FORMULARIO_DO_NIVEL_DE_DETALHE)
         .map_err(ErroNivelDeDetalhe::FormularioDoNivelDeDetalheAusente)?;
-    for tag in form
-        .children()
-        .all(parser)
-        .iter()
-        .filter_map(tl::Node::as_tag)
-    {
-        let elemento = tag.name().as_utf8_str().to_ascii_lowercase();
+    for tag in form.descendentes() {
+        let elemento = tag.nome().to_ascii_lowercase();
         if !matches!(
             elemento.as_str(),
             "input" | "button" | "select" | "textarea"
-        ) || atributo_presente(tag, "disabled")?
+        ) || tag.presente("disabled")
         {
             continue;
         }
-        let Some(nome) = valor_do_atributo(tag, "name")?.filter(|n| !n.is_empty()) else {
+        let Some(nome) = tag
+            .atributo("name")
+            .map(str::to_owned)
+            .filter(|n| !n.is_empty())
+        else {
             continue;
         };
         let padrao = if elemento == "button" {
@@ -96,7 +93,9 @@ pub(crate) fn conferir_controles_do_formulario(
         } else {
             "text"
         };
-        let tipo = valor_do_atributo(tag, "type")?
+        let tipo = tag
+            .atributo("type")
+            .map(str::to_owned)
             .map_or_else(|| padrao.to_owned(), |t| t.to_ascii_lowercase());
         let previsto = match (elemento.as_str(), tipo.as_str()) {
             // Não participam do envio.

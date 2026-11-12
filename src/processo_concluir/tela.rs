@@ -16,7 +16,6 @@ use crate::formulario_web::{
     ConferenciaDaUnidade, EfeitoAvaliado, EnvioDoFormulario, EstadoDoProcesso,
     OperacaoDeFormulario, ResultadoDoEnvio, consulta_do_controlador, localizar_formulario,
 };
-use crate::html_atributos::{atributo_presente, valor_do_atributo};
 
 pub(crate) const FORMULARIO_DE_CONCLUSAO: &str = "frmDesentranharDocumento";
 pub(crate) const BOTAO_SALVAR: &str = "sbmSalvar";
@@ -60,32 +59,30 @@ pub(crate) fn conferir_tela_de_conclusao(
     html: &crate::tela_html::HtmlServido,
     id: &str,
 ) -> Result<(), ErroTelaDeConclusao> {
-    let dom = crate::tela_html::interpretar(html);
-    let parser = dom.parser();
+    let dom = crate::tela_html::arvore(html);
     let form = localizar_formulario(&dom, FORMULARIO_DE_CONCLUSAO)
         .map_err(ErroTelaDeConclusao::FormularioDeConclusaoAusente)?;
     let mut somente_marcado = false;
     let mut outra_marcada = false;
     let mut preenchida = false;
-    for tag in form
-        .children()
-        .all(parser)
-        .iter()
-        .filter_map(tl::Node::as_tag)
-    {
-        let elemento = tag.name().as_utf8_str().to_ascii_lowercase();
+    for tag in form.descendentes() {
+        let elemento = tag.nome().to_ascii_lowercase();
         if elemento == "option" {
-            preenchida |= atributo_presente(tag, "selected")?;
+            preenchida |= tag.presente("selected");
             continue;
         }
         if !matches!(
             elemento.as_str(),
             "input" | "button" | "select" | "textarea"
-        ) || atributo_presente(tag, "disabled")?
+        ) || tag.presente("disabled")
         {
             continue;
         }
-        let Some(nome) = valor_do_atributo(tag, "name")?.filter(|n| !n.is_empty()) else {
+        let Some(nome) = tag
+            .atributo("name")
+            .map(str::to_owned)
+            .filter(|n| !n.is_empty())
+        else {
             continue;
         };
         let padrao = if elemento == "button" {
@@ -93,10 +90,12 @@ pub(crate) fn conferir_tela_de_conclusao(
         } else {
             "text"
         };
-        let tipo = valor_do_atributo(tag, "type")?
+        let tipo = tag
+            .atributo("type")
+            .map(str::to_owned)
             .map_or_else(|| padrao.to_owned(), |t| t.to_ascii_lowercase());
-        let marcado = atributo_presente(tag, "checked")?;
-        let servido = valor_do_atributo(tag, "value")?.unwrap_or_default();
+        let marcado = tag.presente("checked");
+        let servido = tag.atributo("value").map(str::to_owned).unwrap_or_default();
         match (elemento.as_str(), tipo.as_str(), nome.as_str()) {
             ("input", "hidden", "hdnIdProtocolos") if servido != id => {
                 return Err(ErroTelaDeConclusao::TelaDeConclusaoDeOutroProcesso);

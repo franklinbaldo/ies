@@ -7,7 +7,7 @@ use crate::acao_do_sei::AcaoDoSei;
 use crate::formulario_web::{
     ConferenciaDaUnidade, EfeitoAvaliado, EnvioDoFormulario, EstadoDeSessao, OperacaoDeFormulario,
     ResultadoDoEnvio, SubmissaoDerivada, TelaServida, decodificar_atributo,
-    derivar_submissao_de_login, localizar_formulario,
+    derivar_submissao_de_login, localizar_formulario_tl,
 };
 use crate::html_atributos::{atributos, nos_com_id, valor_do_atributo};
 use crate::instalacao::Instalacao;
@@ -283,7 +283,7 @@ pub(crate) fn derivar_login(
 ) -> Result<SubmissaoDerivada, ErroLogin> {
     let dom = crate::tela_html::interpretar(tela.html);
     let parser = dom.parser();
-    let form = localizar_formulario(&dom, "frmLogin")?;
+    let form = localizar_formulario_tl(&dom, "frmLogin")?;
     let acao = hdn_acao_do_onsubmit(form, tela.html)?;
     let orgao = valor_do_orgao(form, parser, credenciais.orgao())?;
     let operacao = operacao_do_botao(form, parser, tela.html)?;

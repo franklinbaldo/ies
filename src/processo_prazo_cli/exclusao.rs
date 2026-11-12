@@ -38,8 +38,6 @@ struct ExclusaoPreparada {
 #[derive(Debug, thiserror::Error)]
 #[error("{self:?}")]
 pub(crate) enum ErroLinkDaLista {
-    /// O HTML do Controle não pôde ser interpretado.
-    ControleIlegivel(#[source] crate::html_atributos::ErroAtributoHtml),
     /// A origem da sessão não é uma instalação reconhecida.
     OrigemNaoInterpretada,
     /// Nenhum link do Controle aponta para `controle_prazo_listar`.
@@ -59,22 +57,14 @@ pub(super) fn link_da_lista(
     html: &crate::tela_html::HtmlServido,
     origem: &str,
 ) -> Result<String, ErroLinkDaLista> {
-    let dom = crate::tela_html::interpretar(html);
+    let dom = crate::tela_html::arvore(html);
     let instalacao =
         Instalacao::interpretar(origem).ok_or(ErroLinkDaLista::OrigemNaoInterpretada)?;
     let mut encontrados = Vec::new();
-    for ancora in dom
-        .query_selector("a")
-        .into_iter()
-        .flatten()
-        .filter_map(|n| n.get(dom.parser()).and_then(tl::Node::as_tag))
-    {
-        let Some(bruto) = crate::html_atributos::valor_do_atributo(ancora, "href")
-            .map_err(ErroLinkDaLista::ControleIlegivel)?
-        else {
+    for ancora in dom.elementos("a") {
+        let Some(href) = ancora.atributo("href").map(str::to_owned) else {
             continue;
         };
-        let href = crate::formulario_web::decodificar_atributo(&bruto);
         if !menciona_acao(&href, AcaoDoSei::ControlePrazoListar) {
             continue;
         }
@@ -114,7 +104,6 @@ pub(super) fn link_da_lista(
 #[error("{self:?}")]
 pub(crate) enum ErroListaDePrazos {
     FormularioDaListaNaoLocalizado(#[source] crate::formulario_web::ErroSubmissaoFormulario),
-    AtributoDaLista(#[source] crate::html_atributos::ErroAtributoHtml),
     AcaoExcluirForaDaForma,
     IdDoControleNaoNumerico,
     /// Duas linhas com `acaoExcluir` para o mesmo NUP.
@@ -127,19 +116,12 @@ pub(super) fn id_na_lista(
     html: &crate::tela_html::HtmlServido,
     nup: &str,
 ) -> Result<Option<String>, ErroListaDePrazos> {
-    let dom = crate::tela_html::interpretar(html);
+    let dom = crate::tela_html::arvore(html);
     crate::formulario_web::localizar_formulario(&dom, "frmControlePrazoLista")
         .map_err(ErroListaDePrazos::FormularioDaListaNaoLocalizado)?;
     let mut encontrado = None;
-    for ancora in dom
-        .query_selector("a")
-        .into_iter()
-        .flatten()
-        .filter_map(|n| n.get(dom.parser()).and_then(tl::Node::as_tag))
-    {
-        let Some(acao) = crate::html_atributos::valor_do_atributo(ancora, "onclick")
-            .map_err(ErroListaDePrazos::AtributoDaLista)?
-        else {
+    for ancora in dom.elementos("a") {
+        let Some(acao) = ancora.atributo("onclick").map(str::to_owned) else {
             continue;
         };
         let Some(resto) = acao.trim().strip_prefix("acaoExcluir('") else {
@@ -387,17 +369,6 @@ pub(super) fn executar(
 #[cfg(test)]
 mod tests {
     use super::{ErroAcaoDeExclusao, ErroLinkDaLista, action_de_exclusao, link_da_lista};
-
-    #[test]
-    fn controle_ilegivel_guarda_a_recusa_do_atributo() {
-        use crate::html_atributos::ErroAtributoHtml;
-        let erro =
-            ErroLinkDaLista::ControleIlegivel(ErroAtributoHtml::ValorEntreAspasSemFechamento);
-        assert_eq!(
-            std::error::Error::source(&erro).and_then(|c| c.downcast_ref::<ErroAtributoHtml>()),
-            Some(&ErroAtributoHtml::ValorEntreAspasSemFechamento)
-        );
-    }
 
     fn hash() -> String {
         "a".repeat(64)

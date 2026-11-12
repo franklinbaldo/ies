@@ -33,47 +33,33 @@ const CONSULTAR: OperacaoDeFormulario = OperacaoDeFormulario {
 /// O navegador nao transmite botao sem name. A forma sintética mais antiga
 /// serve um submit nomeado: nesse caso, seu par entra no corpo.
 fn envio_da_lupa(html: &crate::tela_html::HtmlServido) -> Result<EnvioDoFormulario, FalhaDaLupa> {
-    let dom = crate::tela_html::interpretar(html);
+    let dom = crate::tela_html::arvore(html);
     let form = crate::formulario_web::localizar_formulario(&dom, "frmUnidadeLista")
         .map_err(FalhaDaLupa::FormularioAusente)?;
     let mut nomeados = 0;
     let mut sem_nome = 0;
-    for tag in form
-        .children()
-        .all(dom.parser())
-        .iter()
-        .filter_map(tl::Node::as_tag)
-    {
-        let elemento = tag.name().as_utf8_str();
+    for tag in form.descendentes() {
+        let elemento = tag.nome();
         if elemento != "input" && elemento != "button" {
             continue;
         }
-        let tipo =
-            crate::html_atributos::valor_do_atributo(tag, "type").map_err(FalhaDaLupa::Atributo)?;
+        let tipo = tag.atributo("type");
         let padrao = if elemento == "button" {
             "submit"
         } else {
             "text"
         };
-        if !tipo
-            .as_deref()
-            .unwrap_or(padrao)
-            .eq_ignore_ascii_case("submit")
-        {
+        if !tipo.unwrap_or(padrao).eq_ignore_ascii_case("submit") {
             continue;
         }
-        if crate::html_atributos::atributo_presente(tag, "disabled")
-            .map_err(FalhaDaLupa::Atributo)?
-        {
+        if tag.presente("disabled") {
             continue;
         }
-        let nome =
-            crate::html_atributos::valor_do_atributo(tag, "name").map_err(FalhaDaLupa::Atributo)?;
-        let id =
-            crate::html_atributos::valor_do_atributo(tag, "id").map_err(FalhaDaLupa::Atributo)?;
+        let nome = tag.atributo("name").map(str::to_owned);
+        let id = tag.atributo("id");
         if nome.as_deref() == Some("btnPesquisar") {
             nomeados += 1;
-        } else if nome.is_none() && id.as_deref() == Some("btnPesquisar") {
+        } else if nome.is_none() && id == Some("btnPesquisar") {
             sem_nome += 1;
         }
     }
@@ -109,23 +95,14 @@ pub(super) fn consulta(
     // campos de formulário ausentes; a identidade e o paginador da página
     // são conferidos estruturalmente antes de derivar o único POST.
     let lida = super::ler_pagina(html).map_err(FalhaDaLupa::Tela)?;
-    let dom = crate::tela_html::interpretar(html);
+    let dom = crate::tela_html::arvore(html);
     let form = crate::formulario_web::localizar_formulario(&dom, "frmUnidadeLista")
         .map_err(FalhaDaLupa::FormularioAusente)?;
     let mut superior = 0;
     let mut inferior = 0;
-    for no in form
-        .query_selector(dom.parser(), "select")
-        .into_iter()
-        .flatten()
-    {
-        let tag = no
-            .get(dom.parser())
-            .and_then(tl::Node::as_tag)
-            .ok_or(FalhaDaLupa::FormularioInesperado)?;
-        let nome =
-            crate::html_atributos::valor_do_atributo(tag, "name").map_err(FalhaDaLupa::Atributo)?;
-        match nome.as_deref() {
+    for no in form.elementos("select") {
+        let nome = no.atributo("name");
+        match nome {
             Some("selInfraPaginacaoSuperior") => superior += 1,
             Some("selInfraPaginacaoInferior") => inferior += 1,
             _ => {}

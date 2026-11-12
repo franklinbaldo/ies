@@ -1,0 +1,17 @@
+id: 20c-some-expect
+language: rust
+message: 'Some(x).expect(m) deixado pela 07: x'
+severity: hint
+rule:
+  all:
+    - any:
+        - pattern: 'Some($X).expect($M)'
+        - pattern: 'Some($X).unwrap()'
+    - not:
+        inside:
+          stopBy: end
+          kind: mod_item
+          follows:
+            kind: attribute_item
+            regex: 'cfg\(test\)'
+fix: '$X'

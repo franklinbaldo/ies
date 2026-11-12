@@ -2,7 +2,7 @@
 //! Cada pedido faz uma consulta sem efeito de escrita, por URL assinada
 //! observada, e exige identidade unívoca; nenhum nome vira ID inventado.
 use crate::formulario_web::{
-    ConsultaAjax, EfeitoAvaliado, TelaServida, derivar_consulta_ajax, localizar_formulario,
+    ConsultaAjax, EfeitoAvaliado, TelaServida, derivar_consulta_ajax, localizar_formulario_tl,
 };
 use crate::html_atributos::{atributo_presente, valor_do_atributo};
 use crate::instalacao::Instalacao;
@@ -89,7 +89,7 @@ fn campo_unico(
 /// Também confere os campos reais do formulário que receberá os IDs.
 fn url_publicada(html: &crate::tela_html::HtmlServido) -> Result<String, ErroInteressado> {
     let dom = crate::tela_html::interpretar(html);
-    let form = localizar_formulario(&dom, "frmProcedimentoCadastro")
+    let form = localizar_formulario_tl(&dom, "frmProcedimentoCadastro")
         .map_err(ErroInteressado::FormularioDosControlesRecusado)?;
     campo_unico(form, dom.parser(), "input", "hdnInteressadosProcedimento")?;
     campo_unico(form, dom.parser(), "input", "txtInteressadoProcedimento")?;

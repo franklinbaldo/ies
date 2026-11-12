@@ -4,7 +4,6 @@
 use super::tela;
 use crate::cassette::acervo::gravacao;
 use crate::cassette::{ZipDoAcervo, conferir_cassette_ate, html_da_resposta};
-use crate::html_atributos::valor_do_atributo;
 use crate::tela_html::HtmlServido;
 use iesei::banco_cassettes::{self, ControleResumido, Linha};
 use iesei::instalacao::Instalacao;
@@ -23,19 +22,16 @@ const ID: &str = "10";
 /// Preserva a ordem observada e os valores publicos das opcoes de formulario.
 fn forma(html: &str) -> Vec<(String, String, Option<String>)> {
     let servido = HtmlServido::de_teste(html);
-    let dom = crate::tela_html::interpretar(&servido);
+    let dom = crate::tela_html::arvore(&servido);
     let form = crate::formulario_web::localizar_formulario(&dom, "frmDesentranharDocumento")
         .expect("frmDesentranharDocumento presente");
-    form.children()
-        .all(dom.parser())
-        .iter()
-        .filter_map(tl::Node::as_tag)
+    form.descendentes()
         .filter_map(|tag| {
-            let tipo = tag.name().as_utf8_str().to_ascii_lowercase();
+            let tipo = tag.nome().to_ascii_lowercase();
             if !matches!(tipo.as_str(), "input" | "button" | "select" | "textarea") {
                 return None;
             }
-            let attr = |nome| valor_do_atributo(tag, nome).unwrap();
+            let attr = |nome| tag.atributo(nome).map(str::to_owned);
             let nome = attr("name").expect("controle com nome");
             let classe = attr("type").unwrap_or(tipo);
             let opcao = match nome.as_str() {
