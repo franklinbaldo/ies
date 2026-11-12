@@ -15,7 +15,6 @@ use crate::formulario_web::{
     OperacaoDeFormulario, RespostaDoEnvio, ResultadoDoEnvio, TelaServida, consulta_do_controlador,
     derivar_submissao, enviar_submissao_via,
 };
-use crate::html_atributos::valor_decodificado;
 use crate::indice_local::IndiceLocal;
 use crate::instalacao::Instalacao;
 use crate::pagina_do_controle::codificacao_da_tela;
@@ -136,16 +135,11 @@ pub(crate) fn ler_tela_de_escolha(
     html: &crate::tela_html::HtmlServido,
 ) -> Result<TelaDeEscolha, ErroIncluir> {
     let fora = || ErroIncluir::TelaDeEscolherBlocoForaDaFormaObservada;
-    let dom = crate::tela_html::interpretar(html);
-    let parser = dom.parser();
-    let tags = |seletor: &str| -> Vec<&tl::HTMLTag<'_>> {
-        dom.query_selector(seletor)
-            .into_iter()
-            .flatten()
-            .filter_map(|n| n.get(parser).and_then(tl::Node::as_tag))
-            .collect()
+    let dom = crate::tela_html::arvore(html);
+    let com_id = |nome: &str, id: &'static str| -> Vec<crate::tela_html::Elemento<'_>> {
+        dom.com_id(id).filter(|e| e.nome() == nome).collect()
     };
-    let formularios = tags("form#frmBlocoEscolher");
+    let formularios = com_id("form", "frmBlocoEscolher");
     match formularios.len() {
         0 => return Err(ErroIncluir::FormularioDeEscolherBlocoAusente),
         1 => {}
@@ -153,18 +147,18 @@ pub(crate) fn ler_tela_de_escolha(
             return Err(ErroIncluir::FormulariosDeEscolherBlocoRepetidos);
         }
     }
-    let selecoes = tags("select#selBloco");
+    let selecoes = com_id("select", "selBloco");
     let selecao = match selecoes.as_slice() {
         [] => return Err(ErroIncluir::SelecaoDeBlocoAusente),
         [selecao] => *selecao,
         _ => return Err(ErroIncluir::SelecoesDeBlocoRepetidas),
     };
     let mut blocos = Vec::new();
-    for filho in selecao.children().all(parser) {
-        let Some(opcao) = filho.as_tag().filter(|t| t.name() == "option") else {
-            continue;
-        };
-        let valor = valor_decodificado(opcao, "value")?.ok_or_else(fora)?;
+    for opcao in selecao.elementos("option") {
+        let valor = opcao
+            .atributo("value")
+            .map(str::to_owned)
+            .ok_or_else(fora)?;
         if valor == "null" {
             continue;
         }
@@ -174,8 +168,8 @@ pub(crate) fn ler_tela_de_escolha(
         blocos.push(valor);
     }
     let mut documentos: Vec<DocumentoOferecido> = Vec::new();
-    for caixa in tags("input") {
-        let Some(nome) = valor_decodificado(caixa, "name")? else {
+    for caixa in dom.elementos("input") {
+        let Some(nome) = caixa.atributo("name").map(str::to_owned) else {
             continue;
         };
         let Some(indice) = nome.strip_prefix("chkDocumentosItem") else {
@@ -183,13 +177,19 @@ pub(crate) fn ler_tela_de_escolha(
         };
         if indice.is_empty()
             || !indice.bytes().all(|b| b.is_ascii_digit())
-            || valor_decodificado(caixa, "id")?.as_deref() != Some(nome.as_str())
-            || valor_decodificado(caixa, "type")?.as_deref() != Some("checkbox")
+            || caixa.atributo("id") != Some(nome.as_str())
+            || caixa.atributo("type") != Some("checkbox")
         {
             return Err(fora());
         }
-        let id = valor_decodificado(caixa, "value")?.ok_or_else(fora)?;
-        let numero = valor_decodificado(caixa, "title")?.ok_or_else(fora)?;
+        let id = caixa
+            .atributo("value")
+            .map(str::to_owned)
+            .ok_or_else(fora)?;
+        let numero = caixa
+            .atributo("title")
+            .map(str::to_owned)
+            .ok_or_else(fora)?;
         if id.is_empty() || !id.bytes().all(|b| b.is_ascii_digit()) || numero.is_empty() {
             return Err(fora());
         }

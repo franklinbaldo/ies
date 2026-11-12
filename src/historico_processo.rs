@@ -52,8 +52,6 @@ pub(crate) struct AndamentosLidos {
 #[derive(Clone, Debug, PartialEq, Eq, thiserror::Error)]
 #[error("{self:?}")]
 pub(crate) enum ErroLinkDoHistorico {
-    /// O tokenizador de atributos recusou a tag.
-    Atributo(#[source] crate::html_atributos::ErroAtributoHtml),
     LinkDoHistoricoAusenteNaArvore,
     EnderecoDoHistoricoDeOutroProcesso,
     EnderecoDoHistoricoNaoReconhecido,

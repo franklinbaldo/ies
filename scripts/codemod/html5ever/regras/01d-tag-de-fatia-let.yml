@@ -1,0 +1,26 @@
+id: 01d-tag-de-fatia-let
+language: rust
+message: 'let x = h.get(..)…ok_or(e)? com h de um let [h] = …: o elemento vem por cópia'
+severity: hint
+rule:
+  all:
+    - pattern: 'let $X = $H.get($P).and_then(tl::Node::as_tag).$M($E)?;'
+    - follows:
+        stopBy: end
+        kind: let_declaration
+        has:
+          field: pattern
+          kind: slice_pattern
+          has:
+            pattern: $H
+    - not:
+        inside:
+          stopBy: end
+          kind: mod_item
+          follows:
+            kind: attribute_item
+            regex: 'cfg\(test\)'
+constraints:
+  M:
+    regex: '^ok_or(_else)?$'
+fix: 'let $X = *$H;'

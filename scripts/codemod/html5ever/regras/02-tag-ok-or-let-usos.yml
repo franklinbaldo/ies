@@ -10,7 +10,9 @@ rule:
         stopBy: end
         follows:
           stopBy: end
-          pattern: 'let $X = $H.get($P).and_then(tl::Node::as_tag).ok_or($E)?;'
+          pattern: 'let $X = $H.get($P).and_then(tl::Node::as_tag).$M($E)?;'
+    - not:
+        pattern: $H
     - not:
         inside:
           stopBy: end
@@ -19,6 +21,8 @@ rule:
             kind: attribute_item
             regex: 'cfg\(test\)'
 constraints:
+  M:
+    regex: '^ok_or(_else)?$'
   H:
     kind: identifier
 fix: '$H'

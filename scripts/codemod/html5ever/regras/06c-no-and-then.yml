@@ -1,0 +1,15 @@
+id: 06c-no-and-then
+language: rust
+message: 'and_then(|n| n.get(parser)) sobre um handle que já é elemento some'
+severity: hint
+rule:
+  all:
+    - pattern: '$X.and_then(|$N| $N.get($P))'
+    - not:
+        inside:
+          stopBy: end
+          kind: mod_item
+          follows:
+            kind: attribute_item
+            regex: 'cfg\(test\)'
+fix: '$X'

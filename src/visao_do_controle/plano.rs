@@ -87,7 +87,7 @@ pub(super) fn posicao(
     let criterio = valores_ocultos(html, "hdnDetalhadoHashCriterios")?
         .into_iter()
         .next();
-    let paginador = crate::paginacao_controle::paginador_com_prefixo(html, "Detalhado")?;
+    let paginador = crate::paginacao_controle::paginador_com_prefixo(html, "Detalhado");
     Ok(PosicaoDetalhada {
         total,
         faixa,

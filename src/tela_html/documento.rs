@@ -116,10 +116,21 @@ impl<'d> Elemento<'d> {
     }
 
     /// Os elementos descendentes de nome `nome`, na ordem do documento.
-    pub(crate) fn elementos(&self, nome: &'d str) -> impl Iterator<Item = Elemento<'d>> {
+    pub(crate) fn elementos(self, nome: &'d str) -> impl Iterator<Item = Elemento<'d>> {
         self.documento
             .descendentes(self.indice)
             .filter(move |elemento| elemento.nome() == nome)
+    }
+
+    /// Os filhos que são elementos, na ordem do documento.
+    pub(crate) fn filhos(self) -> impl Iterator<Item = Elemento<'d>> {
+        let documento = self.documento;
+        documento
+            .nos
+            .get(self.indice)
+            .into_iter()
+            .flat_map(|no| no.filhos.iter())
+            .filter_map(move |&indice| documento.elemento(indice))
     }
 
     /// O texto de todos os descendentes, concatenado (`textContent`).
@@ -380,6 +391,14 @@ mod tests {
         assert_eq!(campo.atributo("value"), Some("a&b"));
         assert_eq!(campo.atributo("title"), Some("&naoexiste;"));
         assert_eq!(campo.atributo("id"), None);
+    }
+
+    #[test]
+    fn filhos_sao_so_os_elementos_do_primeiro_nivel() {
+        let d = documento("<table><tr><th>a</th> <td>b<i>c</i></td><!-- x --></tr></table>");
+        let linha = d.elementos("tr").next().unwrap();
+        let nomes: Vec<_> = linha.filhos().map(|e| e.nome()).collect();
+        assert_eq!(nomes, ["th", "td"]);
     }
 
     #[test]

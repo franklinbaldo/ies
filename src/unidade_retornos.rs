@@ -55,7 +55,6 @@ pub(crate) enum ErroRetornos {
     Atributo(#[from] crate::html_atributos::ErroAtributoHtml),
     TelaDeRetornosDesconhecida,
     Legenda(#[from] crate::legenda::ErroLegenda),
-    PaginadorDosRetornosIlegivel(#[source] crate::erro_web::ErroCaixa),
     ListaDeRetornosIncompleta,
     ListaDeRetornosComMaisDeUmaPagina,
     /// A tabela não tem a coluna "Data de Retorno Efetiva".
@@ -235,9 +234,7 @@ pub(crate) fn extrair_retornos(
     html: &crate::tela_html::HtmlServido,
 ) -> Result<Vec<Retorno>, ErroRetornos> {
     for prefixo in ["Aguardando", "Devolver"] {
-        if crate::paginacao_controle::paginador_com_prefixo(html, prefixo)
-            .map_err(ErroRetornos::PaginadorDosRetornosIlegivel)?
-        {
+        if crate::paginacao_controle::paginador_com_prefixo(html, prefixo) {
             return Err(ErroRetornos::ListaDeRetornosComMaisDeUmaPagina);
         }
     }

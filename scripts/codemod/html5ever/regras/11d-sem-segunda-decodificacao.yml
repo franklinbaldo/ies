@@ -1,0 +1,15 @@
+id: 11d-sem-segunda-decodificacao
+language: rust
+message: 'Opção de valor já decodificado: map(decodificar_atributo) some'
+severity: hint
+rule:
+  all:
+    - pattern: '$X.map(|$S| decodificar_atributo(&$S))'
+    - not:
+        inside:
+          stopBy: end
+          kind: mod_item
+          follows:
+            kind: attribute_item
+            regex: 'cfg\(test\)'
+fix: '$X'

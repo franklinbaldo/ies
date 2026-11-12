@@ -12,6 +12,8 @@ rule:
           stopBy: end
           pattern: 'let Some($X) = $H.get($P).and_then(tl::Node::as_tag) else { $$$B };'
     - not:
+        pattern: $H
+    - not:
         inside:
           stopBy: end
           kind: mod_item

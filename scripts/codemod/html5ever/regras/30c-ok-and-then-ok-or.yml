@@ -1,0 +1,17 @@
+id: 30c-ok-and-then-ok-or
+language: rust
+message: 'Ok(x).and_then(|y| y.ok_or(e)) vira x.ok_or(e)'
+severity: hint
+rule:
+  all:
+    - any:
+        - pattern: 'Ok($X).and_then(|$Y| $Y.ok_or($E))'
+        - pattern: 'Ok($X).and_then(|$Y| { $Y.ok_or($E) })'
+    - not:
+        inside:
+          stopBy: end
+          kind: mod_item
+          follows:
+            kind: attribute_item
+            regex: 'cfg\(test\)'
+fix: '$X.ok_or($E)'

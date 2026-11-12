@@ -1,0 +1,26 @@
+id: 11e-decodificado-let-usos
+language: rust
+message: 'let y = decodificar_atributo(&b) de valor já decodificado: os usos de y viram b'
+severity: hint
+rule:
+  all:
+    - kind: identifier
+    - pattern: $Y
+    - inside:
+        stopBy: end
+        follows:
+          stopBy: end
+          pattern: 'let $Y = decodificar_atributo(&$B);'
+    - not:
+        pattern: $B
+    - not:
+        inside:
+          stopBy: end
+          kind: mod_item
+          follows:
+            kind: attribute_item
+            regex: 'cfg\(test\)'
+constraints:
+  B:
+    kind: identifier
+fix: '$B'

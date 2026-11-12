@@ -1,34 +1,23 @@
 //! Identificação estrutural de controles de paginação no Controle Web.
 //! Não interpreta comandos JavaScript nem emite requisições.
-use crate::erro_web::ErroCaixa;
-use crate::html_atributos::valor_do_atributo;
 
 /// Em visão resumida, um paginador observado impede certificar a caixa
 /// pelo total da legenda da primeira página, mesmo quando coincide.
-pub(crate) fn controles_de_paginacao(
-    html: &crate::tela_html::HtmlServido,
-) -> Result<bool, ErroCaixa> {
-    let dom = crate::tela_html::interpretar(html);
-    let parser = dom.parser();
+pub(crate) fn controles_de_paginacao(html: &crate::tela_html::HtmlServido) -> bool {
+    let dom = crate::tela_html::arvore(html);
     for seletor in ["a", "select"] {
-        if let Some(elementos) = dom.query_selector(seletor) {
-            for elemento in elementos {
-                let Some(tag) = elemento.get(parser).and_then(tl::Node::as_tag) else {
-                    continue;
-                };
-                let id =
-                    valor_do_atributo(tag, "id").map_err(ErroCaixa::AtributoDaCaixaIlegivel)?;
-                if id.is_some_and(|nome| {
-                    nome.starts_with("lnkInfraProximaPagina")
-                        || nome.starts_with("lnkInfraPaginaAnterior")
-                        || nome.starts_with("selInfraPaginacao")
-                }) {
-                    return Ok(true);
-                }
+        for elemento in dom.elementos(seletor) {
+            let id = elemento.atributo("id");
+            if id.is_some_and(|nome| {
+                nome.starts_with("lnkInfraProximaPagina")
+                    || nome.starts_with("lnkInfraPaginaAnterior")
+                    || nome.starts_with("selInfraPaginacao")
+            }) {
+                return true;
             }
         }
     }
-    Ok(false)
+    false
 }
 
 /// Paginador próprio de Recebidos ou Gerados (`lnk{T}ProximaPagina*`,
@@ -38,7 +27,7 @@ pub(crate) fn controles_de_paginacao(
 pub(crate) fn paginador_da_tabela(
     html: &crate::tela_html::HtmlServido,
     categoria: crate::dominio::Categoria,
-) -> Result<bool, ErroCaixa> {
+) -> bool {
     let prefixo = match categoria {
         crate::dominio::Categoria::Recebidos => "Recebidos",
         crate::dominio::Categoria::Gerados => "Gerados",
@@ -48,12 +37,8 @@ pub(crate) fn paginador_da_tabela(
 
 /// Paginador `lnk{prefixo}*`/`sel{prefixo}Paginacao*`; `Detalhado` na visão D
 /// (`lnkDetalhadoProximaPagina*`, `selDetalhadoPaginacao*`: PEN1 e GO).
-pub(crate) fn paginador_com_prefixo(
-    html: &crate::tela_html::HtmlServido,
-    prefixo: &str,
-) -> Result<bool, ErroCaixa> {
-    let dom = crate::tela_html::interpretar(html);
-    let parser = dom.parser();
+pub(crate) fn paginador_com_prefixo(html: &crate::tela_html::HtmlServido, prefixo: &str) -> bool {
+    let dom = crate::tela_html::arvore(html);
     for (seletor, marcas) in [
         (
             "a",
@@ -66,21 +51,18 @@ pub(crate) fn paginador_com_prefixo(
         ),
         ("select", &["Paginacao"][..]),
     ] {
-        for elemento in dom.query_selector(seletor).into_iter().flatten() {
-            let Some(tag) = elemento.get(parser).and_then(tl::Node::as_tag) else {
-                continue;
-            };
-            let id = valor_do_atributo(tag, "id").map_err(ErroCaixa::AtributoDaCaixaIlegivel)?;
-            let resto = id.as_deref().and_then(|nome| {
+        for elemento in dom.elementos(seletor) {
+            let id = elemento.atributo("id");
+            let resto = id.and_then(|nome| {
                 nome.strip_prefix(if seletor == "a" { "lnk" } else { "sel" })?
                     .strip_prefix(prefixo)
             });
             if resto.is_some_and(|r| marcas.iter().any(|m| r.starts_with(m))) {
-                return Ok(true);
+                return true;
             }
         }
     }
-    Ok(false)
+    false
 }
 
 #[cfg(test)]
@@ -97,20 +79,18 @@ mod tests {
             "<a id='lnkRecebidosPrimeiraPaginaSuperior'>|«</a>",
             "<select id='selRecebidosPaginacaoInferior'><option>1</option></select>",
         ] {
-            assert_eq!(
+            assert!(
                 paginador_da_tabela(
                     &crate::tela_html::HtmlServido::de_teste(controle),
                     Categoria::Recebidos
                 ),
-                Ok(true),
                 "{controle}"
             );
-            assert_eq!(
-                paginador_da_tabela(
+            assert!(
+                !paginador_da_tabela(
                     &crate::tela_html::HtmlServido::de_teste(controle),
                     Categoria::Gerados
                 ),
-                Ok(false),
                 "{controle}"
             );
         }
@@ -123,7 +103,7 @@ mod tests {
             "<input type='hidden' id='hdnGeradosPaginaAtual' value='0'>\
                     <div id='divGeradosAreaPaginacaoSuperior'></div>",
         );
-        assert_eq!(paginador_da_tabela(&html, Categoria::Gerados), Ok(false));
+        assert!(!paginador_da_tabela(&html, Categoria::Gerados));
     }
 
     #[test]
@@ -132,17 +112,13 @@ mod tests {
             "<a hidden id='lnkInfraProximaPaginaSuperior'>»</a>",
             "<select disabled id='selInfraPaginacaoSuperior'></select>",
         ] {
-            assert_eq!(
+            assert!(
                 controles_de_paginacao(&crate::tela_html::HtmlServido::de_teste(html)),
-                Ok(true),
                 "{html}"
             );
         }
-        assert_eq!(
-            controles_de_paginacao(&crate::tela_html::HtmlServido::de_teste(
-                "<a hidden id='x'>»</a>"
-            )),
-            Ok(false)
-        );
+        assert!(!controles_de_paginacao(
+            &crate::tela_html::HtmlServido::de_teste("<a hidden id='x'>»</a>")
+        ));
     }
 }

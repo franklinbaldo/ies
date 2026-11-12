@@ -1,0 +1,33 @@
+id: 11f-decodificado-let
+language: rust
+message: 'O let y = decodificar_atributo(&b) sai (valor já decodificado; usos na 11e)'
+severity: hint
+rule:
+  all:
+    - pattern: 'let $Y = decodificar_atributo(&$B);'
+    - follows:
+        stopBy: end
+        kind: let_declaration
+        all:
+          - has:
+              field: pattern
+              any:
+                - pattern: $B
+                - has:
+                    stopBy: end
+                    pattern: $B
+          - has:
+              field: value
+              stopBy: end
+              pattern: $T.atributo($K)
+    - not:
+        inside:
+          stopBy: end
+          kind: mod_item
+          follows:
+            kind: attribute_item
+            regex: 'cfg\(test\)'
+constraints:
+  B:
+    kind: identifier
+fix: '/* ies-codemod: remover linha */'

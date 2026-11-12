@@ -1,0 +1,14 @@
+id: funcoes-com-parser
+language: rust
+rule:
+  kind: function_item
+  has:
+    field: name
+    pattern: $F
+  all:
+    - has:
+        field: parameters
+        has:
+          pattern:
+            context: "fn f($P: &tl::Parser<$L>) {}"
+            selector: parameter

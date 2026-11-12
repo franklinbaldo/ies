@@ -1,0 +1,29 @@
+id: 07c-tag-map-ok-or
+language: rust
+message: 'h.get(parser).map(|n| corpo).ok_or(e): o nó sempre existe, o corpo usa h'
+severity: hint
+rule:
+  all:
+    - pattern: '$H.get($P).map(|$N| $B).ok_or($E)'
+    - not:
+        inside:
+          stopBy: end
+          kind: mod_item
+          follows:
+            kind: attribute_item
+            regex: 'cfg\(test\)'
+constraints:
+  P:
+    regex: '^(parser|.*\.parser\(\))$'
+rewriters:
+  - id: renomear
+    rule:
+      kind: identifier
+      pattern: $N
+    fix: $H
+transform:
+  CORPO:
+    rewrite:
+      rewriters: [renomear]
+      source: $B
+fix: 'Ok($CORPO)'

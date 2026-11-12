@@ -1,0 +1,32 @@
+id: 11g-sem-segunda-decodificacao-let
+language: rust
+message: 'decodificar_atributo de valor lido por atributo(): o valor já vem decodificado'
+severity: hint
+rule:
+  all:
+    - pattern: 'decodificar_atributo(&$B)'
+    - inside:
+        stopBy: end
+        follows:
+          stopBy: end
+          kind: let_declaration
+          all:
+            - has:
+                field: pattern
+                any:
+                  - pattern: $B
+                  - has:
+                      stopBy: end
+                      pattern: $B
+            - has:
+                field: value
+                stopBy: end
+                pattern: $T.atributo($K)
+    - not:
+        inside:
+          stopBy: end
+          kind: mod_item
+          follows:
+            kind: attribute_item
+            regex: 'cfg\(test\)'
+fix: '$B'
