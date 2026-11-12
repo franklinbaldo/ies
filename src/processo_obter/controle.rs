@@ -5,12 +5,6 @@
 use super::ErroProcessoObter;
 use crate::acao_do_sei::AcaoDoSei;
 use crate::consulta_do_controlador::ConsultaDoControlador;
-use crate::formulario_web::decodificar_atributo;
-use crate::html_atributos::valor_do_atributo;
-
-fn ilegivel<T>(_: T) -> ErroProcessoObter {
-    ErroProcessoObter::LinhaDoControleIlegivel
-}
 
 /// `href` relativo de `procedimento_trabalhar` para o id da linha.
 fn eh_link_do_processo(href: &str, id: &str) -> bool {
@@ -31,15 +25,11 @@ pub(super) fn link_do_processo_no_controle(
     html: &crate::tela_html::HtmlServido,
     nup: &str,
 ) -> Result<Option<(String, String)>, ErroProcessoObter> {
-    let dom = crate::tela_html::interpretar(html);
-    let parser = dom.parser();
+    let dom = crate::tela_html::arvore(html);
     let mut achado: Option<(String, String)> = None;
-    let linhas = dom.query_selector("tr").into_iter().flatten();
+    let linhas = dom.elementos("tr");
     for linha in linhas {
-        let Some(linha) = linha.get(parser).and_then(tl::Node::as_tag) else {
-            continue;
-        };
-        let Some(id) = valor_do_atributo(linha, "id").map_err(ilegivel)? else {
+        let Some(id) = linha.atributo("id").map(str::to_owned) else {
             continue;
         };
         let Some(id) = id
@@ -49,17 +39,13 @@ pub(super) fn link_do_processo_no_controle(
             continue;
         };
         let mut nesta_linha: Option<String> = None;
-        for link in linha.query_selector(parser, "a").into_iter().flatten() {
-            let Some(link) = link.get(parser).and_then(tl::Node::as_tag) else {
-                continue;
-            };
-            if link.inner_text(parser) != nup {
+        for link in linha.elementos("a") {
+            if link.texto() != nup {
                 continue;
             }
-            let Some(href) = valor_do_atributo(link, "href").map_err(ilegivel)? else {
+            let Some(href) = link.atributo("href").map(str::to_owned) else {
                 continue;
             };
-            let href = decodificar_atributo(&href);
             if !href.starts_with("controlador.php?acao=procedimento_trabalhar&") {
                 continue;
             }

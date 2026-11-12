@@ -1,0 +1,20 @@
+id: 11m-valor-let-ok-some
+language: rust
+message: 'let Ok(Some(x)) = valor_do_atributo(t, k) else {…}'
+severity: hint
+rule:
+  all:
+    - any:
+        - pattern: 'let Ok(Some($X)) = valor_do_atributo($T, $K) else { $$$B };'
+        - pattern: 'let Ok(Some($X)) = valor_decodificado($T, $K) else { $$$B };'
+    - not:
+        inside:
+          stopBy: end
+          kind: mod_item
+          follows:
+            kind: attribute_item
+            regex: 'cfg\(test\)'
+fix: |-
+  let Some($X) = $T.atributo($K).map(str::to_owned) else {
+      $$$B
+  };

@@ -3,12 +3,10 @@
 //! `id_documento`, e o nome e o número SEI do documento são
 //! `a.protocoloNormal` de `documento_visualizar` com o mesmo `id_documento`.
 //! Só essa forma é aceita; o documento não é publicado.
-use super::ErroResultadoPesquisa;
 use crate::acao_do_sei::AcaoDoSei;
-use crate::html_atributos::valor_decodificado;
 
 /// Campos da consulta de um `href` `controlador.php?` já decodificado
-/// (`valor_decodificado`): o `&amp;` do HTML chega como `&`.
+/// pela árvore: o `&amp;` do HTML chega como `&`.
 fn campos(href: &str) -> Option<Vec<&str>> {
     let consulta = href.strip_prefix("controlador.php?")?;
     Some(consulta.split('&').collect())
@@ -51,21 +49,15 @@ pub(super) fn documento_do_processo(href: &str) -> Option<&str> {
 /// Separa os `a.protocoloNormal` da linha em candidatos a link do processo
 /// e `id_documento` dos links que só abrem um documento.
 pub(super) fn separar(
-    parser: &tl::Parser<'_>,
-    links: Vec<tl::NodeHandle>,
-) -> Result<(Vec<tl::NodeHandle>, Vec<String>), ErroResultadoPesquisa> {
+    links: Vec<crate::tela_html::Elemento<'_>>,
+) -> (Vec<crate::tela_html::Elemento<'_>>, Vec<String>) {
     let mut candidatos = Vec::new();
     let mut documentos = Vec::new();
-    for no in links {
-        let href = match no.get(parser).and_then(tl::Node::as_tag) {
-            Some(link) => valor_decodificado(link, "href")
-                .map_err(ErroResultadoPesquisa::HrefDoLinkDaLinhaIlegivel)?,
-            None => None,
-        };
-        match href.as_deref().and_then(documento_visualizado) {
+    for link in links {
+        match link.atributo("href").and_then(documento_visualizado) {
             Some(id) => documentos.push(id.to_owned()),
-            None => candidatos.push(no),
+            None => candidatos.push(link),
         }
     }
-    Ok((candidatos, documentos))
+    (candidatos, documentos)
 }

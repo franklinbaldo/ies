@@ -33,7 +33,7 @@ fi
 COM_ELEMENTO=$($SG scan -r "$DIR/modelos/funcoes-com-elemento.yml" --json=stream "$@" \
     | python3 -I -c 'import sys, json; print("|".join(sorted({json.loads(l)["metaVariables"]["single"]["F"]["text"] for l in sys.stdin})))')
 if [ -n "$COM_ELEMENTO" ]; then
-    for modelo in 44-copia-para-funcao 44b-funcao-direta; do
+    for modelo in 44-copia-para-funcao 44a-indice-para-funcao 44b-funcao-direta; do
         sed "s/FUNCOES/$COM_ELEMENTO/" "$DIR/modelos/$modelo.yml" > "$GERADAS/$modelo.yml"
     done
 fi

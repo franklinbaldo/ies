@@ -13,7 +13,6 @@ pub struct IdentidadeDoDocumento {
 pub enum ErroTituloDocumento {
     TituloSemNumeroSei,
     TituloSemTipoDocumento,
-    CabecalhosHtmlRepetidos,
     TituloDocumentoAusente,
     TituloDocumentoSemIdentificacaoSei,
     TitulosDeDocumentoRepetidos,
@@ -22,53 +21,20 @@ pub enum ErroTituloDocumento {
 pub fn identidade_do_titulo(
     html: &crate::tela_html::HtmlServido,
 ) -> Result<IdentidadeDoDocumento, ErroTituloDocumento> {
-    let dom = crate::tela_html::interpretar(html);
-    let parser = dom.parser();
-    // O <title> de SVG no corpo descreve um ícone, não um documento SEI.
-    // Em um HTML com <head>, é esse cabeçalho que define a identidade.
-    let mut cabecalhos = dom.query_selector("head").into_iter().flatten();
-    let titulos: Vec<_> = if let Some(cabecalho) = cabecalhos.next() {
-        if cabecalhos.next().is_some() {
-            return Err(ErroTituloDocumento::CabecalhosHtmlRepetidos);
-        }
-        let tag = cabecalho
-            .get(parser)
-            .and_then(tl::Node::as_tag)
-            .ok_or(ErroTituloDocumento::TituloDocumentoAusente)?;
-        tag.query_selector(parser, "title")
-            .into_iter()
-            .flatten()
-            .collect()
-    } else {
-        // Fragmentos sem head admitem title externo, mas nunca aquele
-        // inserido no corpo, em ícones SVG ou em template inerte.
-        let mut titulos_de_conteudo = Vec::new();
-        for nome in ["body", "svg", "template"] {
-            for area in dom.query_selector(nome).into_iter().flatten() {
-                let Some(tag) = area.get(parser).and_then(tl::Node::as_tag) else {
-                    continue;
-                };
-                titulos_de_conteudo
-                    .extend(tag.query_selector(parser, "title").into_iter().flatten());
-            }
-        }
-        dom.query_selector("title")
-            .into_iter()
-            .flatten()
-            .filter(|titulo| !titulos_de_conteudo.contains(titulo))
-            .collect()
-    };
-    let mut titulos = titulos.into_iter();
+    let dom = crate::tela_html::arvore(html);
+    // Só vale o <title> do <head>: o de SVG no corpo descreve um ícone e o
+    // de <template> fica fora da árvore. Como no navegador, o documento tem
+    // um único <head>, ainda que a fonte traga dois ou nenhum.
+    let mut titulos = dom
+        .elementos("head")
+        .flat_map(|cabecalho| cabecalho.elementos("title"));
     let primeiro = titulos
         .next()
         .ok_or(ErroTituloDocumento::TituloDocumentoAusente)?;
     if titulos.next().is_some() {
         return Err(ErroTituloDocumento::TitulosDeDocumentoRepetidos);
     }
-    let titulo = primeiro
-        .get(parser)
-        .map(|node| node.inner_text(parser).into_owned())
-        .ok_or(ErroTituloDocumento::TituloDocumentoAusente)?;
+    let titulo = primeiro.texto();
     let mut campos = titulo.splitn(3, " - ");
     let instalacao = campos.next().unwrap_or_default();
     if !instalacao.starts_with("SEI/") || instalacao.len() <= 4 {
@@ -202,7 +168,7 @@ mod tests {
         );
         assert_eq!(
             identidade_do_titulo(&html),
-            Err(ErroTituloDocumento::CabecalhosHtmlRepetidos)
+            Err(ErroTituloDocumento::TitulosDeDocumentoRepetidos)
         );
     }
 
@@ -239,7 +205,6 @@ pub enum ErroCorpoDocumento {
     TextoAcimaDoLimite,
     ArvoreDocumentoAninhamentoExcessivo,
     CorpoDocumentoAusente,
-    CorposDeDocumentoRepetidos,
 }
 /// Ícones SVG e templates não renderizados não compõem o texto do documento.
 fn ignorar_subarvore_decorativa(nome: &str) -> bool {
@@ -248,8 +213,7 @@ fn ignorar_subarvore_decorativa(nome: &str) -> bool {
 
 /// Percorre nós do corpo sem executar scripts; separa blocos visíveis.
 fn anexar_texto(
-    no: &tl::Node<'_>,
-    parser: &tl::Parser<'_>,
+    no: crate::tela_html::No<'_>,
     saida: &mut String,
     profundidade: usize,
 ) -> Result<(), ErroCorpoDocumento> {
@@ -257,18 +221,18 @@ fn anexar_texto(
         return Err(ErroCorpoDocumento::ArvoreDocumentoAninhamentoExcessivo);
     }
     match no {
-        tl::Node::Raw(valor) => saida.push_str(valor.as_utf8_str().as_ref()),
-        tl::Node::Comment(_) => {}
-        tl::Node::Tag(tag) => {
-            let nome = tag.name().as_utf8_str();
-            if ignorar_subarvore_decorativa(nome.as_ref()) {
+        crate::tela_html::No::Texto(valor) => saida.push_str(valor.as_ref()),
+        crate::tela_html::No::Comentario => {}
+        crate::tela_html::No::Elemento(tag) => {
+            let nome = tag.nome();
+            if ignorar_subarvore_decorativa(nome) {
                 return Ok(());
             }
-            if matches!(nome.as_ref(), "script" | "style" | "iframe" | "noscript") {
+            if matches!(nome, "script" | "style" | "iframe" | "noscript") {
                 return Err(ErroCorpoDocumento::CorpoComConteudoExecutavel);
             }
             let quebra = matches!(
-                nome.as_ref(),
+                nome,
                 "p" | "div"
                     | "li"
                     | "br"
@@ -288,10 +252,8 @@ fn anexar_texto(
             if quebra {
                 saida.push(' ');
             }
-            for filho in tag.children().top().iter() {
-                if let Some(no) = filho.get(parser) {
-                    anexar_texto(no, parser, saida, profundidade + 1)?;
-                }
+            for filho in tag.nos() {
+                anexar_texto(filho, saida, profundidade + 1)?;
             }
             if quebra {
                 saida.push(' ');
@@ -307,27 +269,15 @@ fn anexar_texto(
 /// Extrai o texto do body observado sem executar HTML nem serializar atributos.
 /// Recusa conteúdo executável no corpo para evitar expor scripts ou segredos.
 pub fn texto_do_corpo(html: &crate::tela_html::HtmlServido) -> Result<String, ErroCorpoDocumento> {
-    let dom = crate::tela_html::interpretar(html);
-    let parser = dom.parser();
-    let mut corpos = dom
-        .query_selector("body")
-        .ok_or(ErroCorpoDocumento::CorpoDocumentoAusente)?;
-    let primeiro = corpos
+    let dom = crate::tela_html::arvore(html);
+    let primeiro = dom
+        .elementos("body")
         .next()
         .ok_or(ErroCorpoDocumento::CorpoDocumentoAusente)?;
-    if corpos.next().is_some() {
-        return Err(ErroCorpoDocumento::CorposDeDocumentoRepetidos);
-    }
-    let corpo = primeiro
-        .get(parser)
-        .ok_or(ErroCorpoDocumento::CorpoDocumentoAusente)?;
-    if corpo.as_tag().is_none() {
-        return Err(ErroCorpoDocumento::CorpoDocumentoAusente);
-    }
     let mut bruto = String::new();
-    anexar_texto(corpo, parser, &mut bruto, 0)?;
-    // Entidades decodificadas antes de juntar espaços: `&nbsp;` é espaço.
-    let bruto = html_escape::decode_html_entities(&bruto).into_owned();
+    anexar_texto(crate::tela_html::No::Elemento(primeiro), &mut bruto, 0)?;
+    // O texto da árvore já vem decodificado: `&nbsp;` chega como U+00A0,
+    // que `split_whitespace` trata como espaço.
     let texto = bruto.split_whitespace().collect::<Vec<_>>().join(" ");
     if texto.is_empty() {
         return Err(ErroCorpoDocumento::CorpoVazio);
@@ -455,7 +405,7 @@ mod testes_texto {
             texto_do_corpo(&crate::tela_html::HtmlServido::de_teste(
                 "<html><head></head></html>"
             )),
-            Err(ErroCorpoDocumento::CorpoDocumentoAusente)
+            Err(ErroCorpoDocumento::CorpoVazio)
         );
     }
     #[test]
@@ -465,7 +415,7 @@ mod testes_texto {
         );
         assert_eq!(
             texto_do_corpo(&html),
-            Err(ErroCorpoDocumento::CorposDeDocumentoRepetidos)
+            Ok("Primeiro documento Segundo documento".to_owned())
         );
     }
     #[test]

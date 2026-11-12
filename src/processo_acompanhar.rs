@@ -30,8 +30,6 @@ pub(crate) enum ErroAcompanhar {
     PedidoDeAcompanhamentoInvalido,
     RedirecionamentoDeAcompanhamentoInesperado,
     TelaDeAcompanhamentoInesperada,
-    /// O tokenizador de atributos recusou a tag.
-    Atributo(#[source] crate::html_atributos::ErroAtributoHtml),
     CadastroNaoPublicado,
     CadastroDeOutroProcesso,
     /// A action do cadastro não se lê em pares `chave=valor`.

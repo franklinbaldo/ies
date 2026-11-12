@@ -1,0 +1,17 @@
+id: 13f-com-id-let-ok
+language: rust
+message: 'let Ok(x) = nos_com_id(&d, id) else {…}'
+severity: hint
+rule:
+  all:
+    - any:
+        - pattern: 'let Ok($X) = nos_com_id(&$D, $I) else { $$$B };'
+        - pattern: 'let Ok($X) = crate::html_atributos::nos_com_id(&$D, $I) else { $$$B };'
+    - not:
+        inside:
+          stopBy: end
+          kind: mod_item
+          follows:
+            kind: attribute_item
+            regex: 'cfg\(test\)'
+fix: 'let $X = $D.com_id($I).collect::<Vec<_>>();'

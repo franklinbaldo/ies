@@ -10,7 +10,6 @@ use super::{Leitor, Lista, Registro, Replay, Resultado};
 use crate::caixa_detalhada::ValorDaColuna;
 use crate::cassette::acervo::gravacao::Resposta;
 use crate::dominio::Categoria;
-use crate::html_atributos::valor_do_atributo;
 use crate::pagina_do_controle::{ErroPaginaDoControle, PlanoDaPagina};
 use crate::paginas::faixa_na_pagina;
 use crate::tela_html::HtmlServido;
@@ -26,7 +25,6 @@ fn prefixo(categoria: Categoria) -> &'static str {
 pub(super) fn criterio(html: &str, categoria: Categoria) -> Option<String> {
     let id = format!("hdn{}HashCriterios", prefixo(categoria));
     valores_ocultos(&HtmlServido::de_teste(html), &id)
-        .ok()?
         .into_iter()
         .next()
 }
@@ -35,15 +33,11 @@ pub(super) fn criterio(html: &str, categoria: Categoria) -> Option<String> {
 /// `sel{P}Paginacao…`), sem o sufixo `Superior`/`Inferior`.
 pub(super) fn controles(html: &str, prefixo: &str) -> Vec<String> {
     let servido = HtmlServido::de_teste(html);
-    let dom = crate::tela_html::interpretar(&servido);
-    let parser = dom.parser();
+    let dom = crate::tela_html::arvore(&servido);
     let mut achados = Vec::new();
     for seletor in ["a", "select"] {
-        for no in dom.query_selector(seletor).into_iter().flatten() {
-            let Some(tag) = no.get(parser).and_then(tl::Node::as_tag) else {
-                continue;
-            };
-            let Ok(Some(id)) = valor_do_atributo(tag, "id") else {
+        for no in dom.elementos(seletor) {
+            let Some(id) = no.atributo("id").map(str::to_owned) else {
                 continue;
             };
             let tipo = if seletor == "a" { "lnk" } else { "sel" };
@@ -195,8 +189,8 @@ pub(super) fn detalhada(
         .map(|x| x.id.as_str().to_owned())
         .collect();
     pagina.criterio = valores_ocultos(&HtmlServido::de_teste(html), "hdnDetalhadoHashCriterios")
-        .ok()
-        .and_then(|v| v.into_iter().next());
+        .into_iter()
+        .next();
     saida.paginas.push(pagina);
     saida
         .registros

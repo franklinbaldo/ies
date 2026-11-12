@@ -48,7 +48,6 @@ pub(crate) fn projetar(html: &crate::tela_html::HtmlServido) -> Result<Value, Fa
             | ErroCaixa::HashesDeCriteriosGeradosRepetidosNoControle
             | ErroCaixa::HashesDeCriteriosRecebidosRepetidosNoControle
             | ErroCaixa::HtmlDaCaixaInvalido
-            | ErroCaixa::AtributoDaCaixaIlegivel(_)
             | ErroCaixa::IdentificacoesDaUnidadeRepetidasNoControle
             | ErroCaixa::TiposDeVisualizacaoRepetidosNoControle
             | ErroCaixa::UnidadeInesperada) => FalhaControleWeb::ControleNaoReconhecido(outro),

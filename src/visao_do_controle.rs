@@ -109,8 +109,6 @@ impl Visao {
 #[derive(Clone, Debug, PartialEq, Eq, thiserror::Error)]
 #[error("{self:?}")]
 pub(crate) enum ErroVisaoDoControle {
-    /// O tokenizador de atributos recusou a tag.
-    Atributo(#[source] crate::html_atributos::ErroAtributoHtml),
     CharsetDaTelaNaoSuportado,
     UnidadeDiferenteDaSolicitada,
     RedirecionamentoAoTrocarVisao,
@@ -183,7 +181,6 @@ impl ErroVisaoDoControle {
             | Self::LinkDoNivelDeDetalheAusente
             | Self::LinkDoNivelDeDetalheNaoReconhecido
             | Self::LinksDoNivelDeDetalheRepetidos
-            | Self::Atributo(_)
             | Self::VisaoDoControleNaoReconhecida => false,
         }
     }

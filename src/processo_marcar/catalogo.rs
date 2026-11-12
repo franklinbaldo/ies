@@ -11,9 +11,8 @@ use crate::consulta_do_controlador::ConsultaDoControlador;
 use crate::formulario_web::{
     CampoDeTexto, ConferenciaDaUnidade, EfeitoAvaliado, EnvioDoFormulario, EstadoDoProcesso,
     OperacaoDeFormulario, Redirecionamento302, RespostaDoEnvio, ResultadoDoEnvio, TelaServida,
-    consulta_do_controlador, decodificar_atributo, derivar_submissao, enviar_submissao_via,
+    consulta_do_controlador, derivar_submissao, enviar_submissao_via,
 };
-use crate::html_atributos::valor_do_atributo;
 use crate::indice_local::IndiceLocal;
 use crate::instalacao::Instalacao;
 use crate::pagina_do_controle::codificacao_da_tela;
@@ -48,20 +47,15 @@ const ADICIONAR: OperacaoDeFormulario = OperacaoDeFormulario {
 pub(super) fn link_de_adicionar(
     html: &crate::tela_html::HtmlServido,
 ) -> Result<String, ErroMarcar> {
-    let dom = crate::tela_html::interpretar(html);
-    dom.query_selector("button")
-        .into_iter()
-        .flatten()
-        .filter_map(|h| h.get(dom.parser()).and_then(tl::Node::as_tag))
-        .filter(|tag| {
-            valor_do_atributo(tag, "id").is_ok_and(|id| id.as_deref() == Some("btnAdicionar"))
-        })
+    let dom = crate::tela_html::arvore(html);
+    dom.elementos("button")
+        .filter(|tag| tag.atributo("id") == Some("btnAdicionar"))
         .find_map(|tag| {
-            let onclick = valor_do_atributo(tag, "onclick").ok()??;
+            let onclick = tag.atributo("onclick").map(str::to_owned)?;
             let relativo = onclick
                 .strip_prefix("location.href='")?
                 .strip_suffix('\'')?;
-            Some(decodificar_atributo(relativo))
+            Some(relativo.to_owned())
         })
         .ok_or(ErroMarcar::DestinoDoCadastroAusente)
 }
@@ -100,32 +94,19 @@ pub(super) fn rotulo_oferecido(
     html: &crate::tela_html::HtmlServido,
     rotulo: &Rotulo,
 ) -> Result<(), ErroMarcar> {
-    let dom = crate::tela_html::interpretar(html);
-    let parser = dom.parser();
+    let dom = crate::tela_html::arvore(html);
     let nomes: Vec<String> = dom
-        .query_selector("select")
-        .into_iter()
-        .flatten()
-        .filter_map(|h| h.get(parser).and_then(tl::Node::as_tag))
-        .filter(|tag| {
-            valor_do_atributo(tag, "id").is_ok_and(|id| id.as_deref() == Some("selMarcador"))
-        })
-        .flat_map(|select| select.children().all(parser).iter())
-        .filter_map(tl::Node::as_tag)
-        .filter(|tag| tag.name().as_utf8_str() == "option")
-        .filter(|tag| {
-            valor_do_atributo(tag, "value")
-                .is_ok_and(|id| id.as_deref() == Some(rotulo.id.as_str()))
-        })
-        .map(|tag| tag.inner_text(parser).to_string())
+        .elementos("select")
+        .filter(|tag| tag.atributo("id") == Some("selMarcador"))
+        .flat_map(crate::tela_html::Elemento::descendentes)
+        .filter(|tag| tag.nome() == "option")
+        .filter(|tag| tag.atributo("value") == Some(rotulo.id.as_str()))
+        .map(|tag| tag.texto())
         .collect();
     if nomes.is_empty() {
         return Err(ErroMarcar::OpcaoDoMarcadorNaoOferecida);
     }
-    if nomes
-        .iter()
-        .any(|nome| decodificar_atributo(nome) != rotulo.nome.as_str())
-    {
+    if nomes.iter().any(|nome| *nome != rotulo.nome) {
         return Err(ErroMarcar::NomeDoMarcadorDiferenteDoCatalogo);
     }
     Ok(())

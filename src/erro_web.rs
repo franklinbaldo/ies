@@ -92,7 +92,6 @@ pub enum ErroCaixa {
     HashesDeCriteriosGeradosRepetidosNoControle,
     HashesDeCriteriosRecebidosRepetidosNoControle,
     HtmlDaCaixaInvalido,
-    AtributoDaCaixaIlegivel(#[from] crate::html_atributos::ErroAtributoHtml),
     IdentificacoesDaUnidadeRepetidasNoControle,
     TiposDeVisualizacaoRepetidosNoControle,
     UnidadeInesperada,
@@ -132,7 +131,6 @@ impl ErroCaixa {
             | Self::HashesDeCriteriosGeradosRepetidosNoControle
             | Self::HashesDeCriteriosRecebidosRepetidosNoControle
             | Self::HtmlDaCaixaInvalido
-            | Self::AtributoDaCaixaIlegivel(_)
             | Self::IdentificacoesDaUnidadeRepetidasNoControle
             | Self::TiposDeVisualizacaoRepetidosNoControle
             | Self::UnidadeInesperada => None,
@@ -171,7 +169,6 @@ impl ErroCaixa {
             | Self::HashesDeCriteriosGeradosRepetidosNoControle
             | Self::HashesDeCriteriosRecebidosRepetidosNoControle
             | Self::HtmlDaCaixaInvalido
-            | Self::AtributoDaCaixaIlegivel(_)
             | Self::IdentificacoesDaUnidadeRepetidasNoControle
             | Self::TiposDeVisualizacaoRepetidosNoControle
             | Self::UnidadeInesperada => None,

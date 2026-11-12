@@ -1,0 +1,35 @@
+id: 11o-sem-segunda-decodificacao-if-let
+language: rust
+message: 'decodificar_atributo(&b) no corpo de if let Some(b) = t.atributo(k).map(str::to_owned): o valor já vem decodificado'
+severity: hint
+rule:
+  all:
+    - any:
+        - pattern: 'decodificar_atributo(&$B)'
+        - pattern: 'crate::formulario_web::decodificar_atributo(&$B)'
+    - inside:
+        stopBy: end
+        kind: if_expression
+        has:
+          field: condition
+          kind: let_condition
+          all:
+            - has:
+                field: pattern
+                has:
+                  stopBy: end
+                  pattern: $B
+            - has:
+                field: value
+                pattern: $T.atributo($K).map(str::to_owned)
+    - not:
+        inside:
+          stopBy: end
+          kind: mod_item
+          follows:
+            kind: attribute_item
+            regex: 'cfg\(test\)'
+constraints:
+  B:
+    kind: identifier
+fix: '$B'

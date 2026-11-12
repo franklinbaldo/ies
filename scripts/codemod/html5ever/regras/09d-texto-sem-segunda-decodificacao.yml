@@ -1,0 +1,17 @@
+id: 09d-texto-sem-segunda-decodificacao
+language: rust
+message: 'decodificar_atributo(&n.texto()): o texto da árvore já vem decodificado'
+severity: hint
+rule:
+  all:
+    - any:
+        - pattern: 'decodificar_atributo(&$N.texto())'
+        - pattern: 'crate::formulario_web::decodificar_atributo(&$N.texto())'
+    - not:
+        inside:
+          stopBy: end
+          kind: mod_item
+          follows:
+            kind: attribute_item
+            regex: 'cfg\(test\)'
+fix: '$N.texto()'

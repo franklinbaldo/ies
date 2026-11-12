@@ -30,7 +30,7 @@ pub(crate) enum ErroNivelDeDetalhe {
     RotuloDaOpcaoDoDetalheDiferente {
         coluna: ColunaDoDetalhe,
     },
-    AtributoHtml(#[from] ErroAtributoHtml),
+    AtributoHtml(#[source] ErroAtributoHtml),
     CampoNaoPrevistoNoFormularioDoNivelDeDetalhe,
     FormularioDoNivelDeDetalheAusente(#[source] crate::formulario_web::ErroSubmissaoFormulario),
     FormulariosDoNivelDeDetalheRepetidos,

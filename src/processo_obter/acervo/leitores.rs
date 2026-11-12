@@ -8,7 +8,6 @@ use crate::arvore_processo::{ler_tela_do_processo, nup_declarado_na_arvore};
 use crate::cassette::acervo::gravacao::{self, Resposta};
 use crate::cassette::html_da_resposta;
 use crate::historico_processo::{TipoDoHistorico, ler_andamentos};
-use crate::html_atributos::nos_com_id;
 use crate::instalacao::Instalacao;
 use crate::marcadores_processo::{TelaDosMarcadores, ler_marcadores};
 use crate::propriedades_processo::{FonteDasPropriedades, ler_propriedades};
@@ -157,22 +156,14 @@ fn tela(c: &Cassette<'_>, r: &Resposta<'_>, html: &str, id: &str) -> Registro {
 /// com algum conteúdo, ausente ou repetida.
 fn paginador(html: &str) -> &'static str {
     let servido = HtmlServido::de_teste(html);
-    let dom = crate::tela_html::interpretar(&servido);
-    let parser = dom.parser();
-    let Ok(nos) = nos_com_id(&dom, "divInfraAreaPaginacaoSuperior") else {
-        return "html_nao_interpretado";
-    };
+    let dom = crate::tela_html::arvore(&servido);
+    let nos = dom
+        .com_id("divInfraAreaPaginacaoSuperior")
+        .collect::<Vec<_>>();
     match nos.as_slice() {
         [] => "paginador_ausente",
         [no] => {
-            let vazio = no
-                .get(parser)
-                .and_then(tl::Node::as_tag)
-                .is_some_and(|div| {
-                    let filhos = div.children();
-                    filhos.all(parser).iter().all(|n| n.as_tag().is_none())
-                        && div.inner_text(parser).trim().is_empty()
-                });
+            let vazio = no.descendentes().next().is_none() && no.texto().trim().is_empty();
             if vazio {
                 "paginador_vazio"
             } else {

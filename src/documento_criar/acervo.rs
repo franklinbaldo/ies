@@ -4,7 +4,6 @@
 use super::{conferir_cadastro, tipos_oferecidos};
 use crate::cassette::acervo::gravacao;
 use crate::cassette::{ZipDoAcervo, conferir_cassette_ate, html_da_resposta};
-use crate::html_atributos::nos_com_id;
 use crate::tela_html::HtmlServido;
 use std::path::Path;
 
@@ -15,17 +14,16 @@ const CARDS: [&str; 2] = [
 
 fn tipo_do_cadastro(html: &str) -> Option<String> {
     let servido = HtmlServido::de_teste(html);
-    let dom = crate::tela_html::interpretar(&servido);
-    let rotulos = nos_com_id(&dom, "lblSerieTitulo").ok()?;
+    let dom = crate::tela_html::arvore(&servido);
+    let rotulos = dom.com_id("lblSerieTitulo").collect::<Vec<_>>();
     let [rotulo] = rotulos.as_slice() else {
         return None;
     };
-    let tag = rotulo.get(dom.parser())?.as_tag()?;
-    if !tag.name().as_utf8_str().eq_ignore_ascii_case("label") {
+    if !rotulo.nome().eq_ignore_ascii_case("label") {
         return None;
     }
-    let tipo = tag
-        .inner_text(dom.parser())
+    let tipo = rotulo
+        .texto()
         .split_whitespace()
         .collect::<Vec<_>>()
         .join(" ");

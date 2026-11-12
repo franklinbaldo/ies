@@ -2,7 +2,6 @@
 //! Confere ZIPs, membros, schema e host antes de usar o leitor real.
 use crate::cassette::acervo::{INSTALACOES, Resultado, gravacao, publicar, tabela};
 use crate::cassette::{ZipDoAcervo, archive_filename, conferir_cassette_ate, html_da_resposta};
-use crate::html_atributos::{nos_com_id, valor_do_atributo};
 use crate::tela_html::HtmlServido;
 use serde_json::Value;
 use std::collections::HashMap;
@@ -19,18 +18,15 @@ struct Registro {
 /// formulário; não usamos URL assinada de sessão como identidade pública.
 fn id_da_tela(html: &str) -> Option<String> {
     let servido = HtmlServido::de_teste(html);
-    let dom = crate::tela_html::interpretar(&servido);
-    let forms = nos_com_id(&dom, "frmAtividadeAtribuir").ok()?;
+    let dom = crate::tela_html::arvore(&servido);
+    let forms = dom.com_id("frmAtividadeAtribuir").collect::<Vec<_>>();
     let [form] = forms.as_slice() else {
         return None;
     };
-    let parser = dom.parser();
-    let form = form.get(parser)?.as_tag()?;
     let mut ids = Vec::new();
-    for node in form.query_selector(parser, "input").into_iter().flatten() {
-        let input = node.get(parser)?.as_tag()?;
-        if valor_do_atributo(input, "name").ok()?.as_deref() == Some("hdnIdProtocolo") {
-            ids.push(valor_do_atributo(input, "value").ok()?);
+    for node in form.elementos("input") {
+        if node.atributo("name") == Some("hdnIdProtocolo") {
+            ids.push(node.atributo("value").map(str::to_owned));
         }
     }
     let [Some(id)] = ids.as_slice() else {

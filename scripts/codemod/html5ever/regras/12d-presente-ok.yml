@@ -1,0 +1,17 @@
+id: 12d-presente-ok
+language: rust
+message: 'atributo_presente(t, k).ok() vira Some(t.presente(k))'
+severity: hint
+rule:
+  all:
+    - any:
+        - pattern: 'atributo_presente($T, $K).ok()'
+        - pattern: 'crate::html_atributos::atributo_presente($T, $K).ok()'
+    - not:
+        inside:
+          stopBy: end
+          kind: mod_item
+          follows:
+            kind: attribute_item
+            regex: 'cfg\(test\)'
+fix: 'Some($T.presente($K))'

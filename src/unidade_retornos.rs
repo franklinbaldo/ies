@@ -1,7 +1,6 @@
 //! Leitor estrutural da lista mensal de retornos (somente leitura).
 //! Fonte dos cenarios: Todos `tests/test_unidade_listar_retornos_010.py` @323eb01.
 //! Nao interpreta JavaScript, nao escolhe linhas fora de tabela reconhecida.
-use crate::html_atributos::valor_do_atributo;
 use serde::{Serialize, Serializer};
 use std::collections::HashSet;
 
@@ -51,8 +50,6 @@ impl Serialize for PrazoRestante {
 #[derive(Clone, Debug, PartialEq, Eq, thiserror::Error)]
 #[error("{self:?}")]
 pub(crate) enum ErroRetornos {
-    /// O tokenizador de atributos recusou a tag.
-    Atributo(#[from] crate::html_atributos::ErroAtributoHtml),
     TelaDeRetornosDesconhecida,
     Legenda(#[from] crate::legenda::ErroLegenda),
     ListaDeRetornosIncompleta,
@@ -63,12 +60,8 @@ pub(crate) enum ErroRetornos {
     ColunaPrazoRestanteAusente,
 }
 
-fn texto(tag: &tl::HTMLTag<'_>, parser: &tl::Parser<'_>) -> String {
-    html_escape::decode_html_entities(&tag.inner_text(parser))
-        .into_owned()
-        .split_whitespace()
-        .collect::<Vec<_>>()
-        .join(" ")
+fn texto(tag: crate::tela_html::Elemento<'_>) -> String {
+    tag.texto().split_whitespace().collect::<Vec<_>>().join(" ")
 }
 
 fn identificador(s: &str) -> String {
@@ -131,26 +124,17 @@ pub(crate) fn ultimo_dia(ano: u16, mes: u8) -> Option<u8> {
 }
 
 fn ler_tabela(
-    tabela: &tl::HTMLTag<'_>,
-    parser: &tl::Parser<'_>,
+    tabela: crate::tela_html::Elemento<'_>,
     situacao: &'static str,
 ) -> Result<Vec<Retorno>, ErroRetornos> {
-    let legendas: Vec<_> = tabela
-        .query_selector(parser, "caption")
-        .into_iter()
-        .flatten()
-        .filter_map(|n| n.get(parser).and_then(tl::Node::as_tag))
-        .collect();
+    let legendas: Vec<_> = tabela.elementos("caption").collect();
     let [legenda] = legendas.as_slice() else {
         return Err(ErroRetornos::TelaDeRetornosDesconhecida);
     };
-    let declarado = crate::legenda::ler_legenda(&texto(legenda, parser))?.total;
+    let declarado = crate::legenda::ler_legenda(&texto(*legenda))?.total;
     let titulos: Vec<String> = tabela
-        .query_selector(parser, "th")
-        .into_iter()
-        .flatten()
-        .filter_map(|n| n.get(parser).and_then(tl::Node::as_tag))
-        .map(|t| identificador(&texto(t, parser)))
+        .elementos("th")
+        .map(|t| identificador(&texto(t)))
         .collect();
     let indice = |nome: &str| {
         titulos
@@ -175,16 +159,8 @@ fn ler_tabela(
         .position(|c| c == "prazo restante")
         .ok_or(ErroRetornos::ColunaPrazoRestanteAusente)?;
     let mut lista = Vec::new();
-    for no in tabela.query_selector(parser, "tr").into_iter().flatten() {
-        let Some(linha) = no.get(parser).and_then(tl::Node::as_tag) else {
-            continue;
-        };
-        let celulas: Vec<_> = linha
-            .query_selector(parser, "td")
-            .into_iter()
-            .flatten()
-            .filter_map(|n| n.get(parser).and_then(tl::Node::as_tag))
-            .collect();
+    for no in tabela.elementos("tr") {
+        let celulas: Vec<_> = no.elementos("td").collect();
         if celulas.is_empty() {
             continue;
         }
@@ -194,7 +170,8 @@ fn ler_tabela(
         let valor = |pos: usize| {
             celulas
                 .get(pos)
-                .map(|celula| texto(celula, parser))
+                .copied()
+                .map(texto)
                 .ok_or(ErroRetornos::TelaDeRetornosDesconhecida)
         };
         let numero = valor(processo)?;
@@ -238,28 +215,20 @@ pub(crate) fn extrair_retornos(
             return Err(ErroRetornos::ListaDeRetornosComMaisDeUmaPagina);
         }
     }
-    let dom = crate::tela_html::interpretar(html);
-    let parser = dom.parser();
+    let dom = crate::tela_html::arvore(html);
     let mut situacoes = HashSet::new();
     let mut lista = Vec::new();
-    for no in dom.query_selector("table").into_iter().flatten() {
-        let Some(tabela) = no.get(parser).and_then(tl::Node::as_tag) else {
-            continue;
-        };
-        let Some(summary) = valor_do_atributo(tabela, "summary")? else {
+    for no in dom.elementos("table") {
+        let Some(summary) = no.atributo("summary").map(str::to_owned) else {
             continue;
         };
         let Some(situacao) = situacao_da_tabela(&summary) else {
             continue;
         };
-        if !situacoes.insert(situacao)
-            || tabela
-                .query_selector(parser, "table")
-                .is_some_and(|mut it| it.next().is_some())
-        {
+        if !situacoes.insert(situacao) || no.elementos("table").next().is_some() {
             return Err(ErroRetornos::TelaDeRetornosDesconhecida);
         }
-        lista.extend(ler_tabela(tabela, parser, situacao)?);
+        lista.extend(ler_tabela(no, situacao)?);
     }
     // A lista mensal completa observada em todas as sete instalacoes pode
     // omitir "Para Devolver", mas so dentro da area mensal reconhecida.
@@ -268,11 +237,8 @@ pub(crate) fn extrair_retornos(
     let mut areas_aguardando = 0usize;
     let mut areas_observadas = HashSet::new();
     let mut area_aguardando_com_tabela = false;
-    for no in dom.query_selector("div").into_iter().flatten() {
-        let Some(area) = no.get(parser).and_then(tl::Node::as_tag) else {
-            continue;
-        };
-        let situacao = match valor_do_atributo(area, "id")?.as_deref() {
+    for no in dom.elementos("div") {
+        let situacao = match no.atributo("id") {
             Some("divAguardandoAreaTabela") => "aguardando",
             Some("divDevolverAreaTabela") => "devolver",
             _ => continue,
@@ -285,11 +251,8 @@ pub(crate) fn extrair_retornos(
         if situacao == "aguardando" {
             areas_aguardando += 1;
             let mut reconhecidas = Vec::new();
-            for no in area.query_selector(parser, "table").into_iter().flatten() {
-                let Some(tabela) = no.get(parser).and_then(tl::Node::as_tag) else {
-                    continue;
-                };
-                if let Some(summary) = valor_do_atributo(tabela, "summary")?
+            for no in no.elementos("table") {
+                if let Some(summary) = no.atributo("summary").map(str::to_owned)
                     && let Some(tipo) = situacao_da_tabela(&summary)
                 {
                     reconhecidas.push(tipo);
@@ -297,9 +260,7 @@ pub(crate) fn extrair_retornos(
             }
             area_aguardando_com_tabela = reconhecidas == ["aguardando"];
         }
-        if identificador(&texto(area, parser)) == "nenhum registro encontrado."
-            && !vazios.insert(situacao)
-        {
+        if identificador(&texto(no)) == "nenhum registro encontrado." && !vazios.insert(situacao) {
             return Err(ErroRetornos::TelaDeRetornosDesconhecida);
         }
     }

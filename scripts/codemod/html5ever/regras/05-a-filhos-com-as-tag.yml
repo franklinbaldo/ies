@@ -1,0 +1,15 @@
+id: 05-a-filhos-com-as-tag
+language: rust
+message: 'Filhos elementos (children().top() com get(p).and_then(as_tag) num só filter_map), antes que a 05 apague o filter_map'
+severity: hint
+rule:
+  all:
+    - pattern: '$T.children().top().iter().filter_map(|$H| $H.get($P).and_then(tl::Node::as_tag))'
+    - not:
+        inside:
+          stopBy: end
+          kind: mod_item
+          follows:
+            kind: attribute_item
+            regex: 'cfg\(test\)'
+fix: '$T.filhos()'

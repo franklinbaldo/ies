@@ -17,8 +17,6 @@ pub(crate) enum PedidoDePrazo {
 #[derive(Clone, Debug, PartialEq, Eq, thiserror::Error)]
 #[error("{self:?}")]
 pub(crate) enum ErroPrazo {
-    /// O tokenizador de atributos recusou a tag.
-    Atributo(#[from] crate::html_atributos::ErroAtributoHtml),
     OpcoesIncompativeis,
     DataInvalida,
     DiasInvalidos,

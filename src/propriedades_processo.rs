@@ -99,8 +99,6 @@ pub(crate) struct PropriedadesLidas {
 #[derive(Clone, Debug, PartialEq, Eq, thiserror::Error)]
 #[error("{self:?}")]
 pub(crate) enum ErroPropriedades {
-    /// O tokenizador de atributos recusou a tag.
-    Atributo(#[source] crate::html_atributos::ErroAtributoHtml),
     Barra(#[from] crate::arvore_processo::ErroBarraDoProcesso),
     LinksDasPropriedadesRepetidosNaBarra,
     EnderecoDasPropriedadesNaoReconhecido,
@@ -121,7 +119,6 @@ pub(crate) enum ErroPropriedades {
     CampoDasPropriedadesRepetido,
     DataDeGeracaoForaDaFormaObservada,
     FormulariosDasPropriedadesRepetidos,
-    HtmlDasPropriedadesNaoInterpretado,
     InteressadoForaDaFormaObservada,
     NivelDeAcessoForaDaFormaObservada,
     OpcoesMarcadasRepetidas,

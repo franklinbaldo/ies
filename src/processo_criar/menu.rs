@@ -4,8 +4,6 @@ use crate::acao_do_sei::AcaoDoSei;
 use crate::consulta_do_controlador::{
     ConsultaDoControlador, ErroChaveDaConsulta, ErroConsultaDoControlador, menciona_acao,
 };
-use crate::formulario_web::decodificar_atributo;
-use crate::html_atributos::valor_do_atributo;
 use crate::instalacao::Instalacao;
 
 /// O menu do Controle fora da forma observada.
@@ -14,7 +12,6 @@ use crate::instalacao::Instalacao;
 pub(crate) enum ErroMenu {
     LinkDeIniciarProcessoAusente,
     LinkDeIniciarProcessoNaoReconhecido,
-    AtributoDoLinkDeIniciarIlegivel(#[source] crate::html_atributos::ErroAtributoHtml),
     LinkDeIniciarProcessoRepetido,
     ConsultaDoLinkRecusada(#[source] crate::transporte::FalhaTransporte),
     /// A consulta do link não se lê em pares `chave=valor`.
@@ -30,20 +27,12 @@ pub(crate) fn link_de_iniciar(
     url_controle: &str,
     html: &crate::tela_html::HtmlServido,
 ) -> Result<String, ErroMenu> {
-    let dom = crate::tela_html::interpretar(html);
-    let parser = dom.parser();
+    let dom = crate::tela_html::arvore(html);
     let mut candidatos = Vec::new();
-    for no in dom.query_selector("a").into_iter().flatten() {
-        let tag = no
-            .get(parser)
-            .and_then(tl::Node::as_tag)
-            .ok_or(ErroMenu::LinkDeIniciarProcessoNaoReconhecido)?;
-        let Some(bruto) =
-            valor_do_atributo(tag, "href").map_err(ErroMenu::AtributoDoLinkDeIniciarIlegivel)?
-        else {
+    for no in dom.elementos("a") {
+        let Some(href) = no.atributo("href").map(str::to_owned) else {
             continue;
         };
-        let href = decodificar_atributo(&bruto);
         let aponta = menciona_acao(&href, AcaoDoSei::ProcedimentoEscolherTipo);
         if aponta {
             candidatos.push(href);

@@ -211,7 +211,9 @@ fn busca_por_id_e_classe_apos_booleano() {
         .get(dom.parser())
         .and_then(tl::Node::as_tag)
         .unwrap();
-    assert_eq!(nos_com_id_em(raiz, dom.parser(), "hdn").unwrap().len(), 1);
+    let arvore = crate::tela_html::arvore(&servido);
+    let raiz_da_arvore = arvore.com_id("raiz").next().unwrap();
+    assert_eq!(raiz_da_arvore.com_id("hdn").count(), 1);
     assert_eq!(
         nos_por_elemento_e_classe(&dom, None, "a", "protocoloNormal")
             .unwrap()

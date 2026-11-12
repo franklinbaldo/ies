@@ -3,11 +3,9 @@
 use crate::acao_do_sei::AcaoDoSei;
 use crate::arvore_processo::{barra_do_no, endereco::conferir_endereco_relativo_por};
 use crate::consulta_do_controlador::ConsultaDoControlador;
-use crate::formulario_web::decodificar_atributo;
-use crate::html_atributos::{atributos, nos_com_id, nos_com_id_em, valor_decodificado};
 use crate::instalacao::Instalacao;
 use serde::Serialize;
-type Tag<'p> = &'p tl::HTMLTag<'p>;
+type Tag<'p> = crate::tela_html::Elemento<'p>;
 #[path = "propriedades_documento/anexo.rs"]
 mod anexo;
 pub(crate) use anexo::ler_anexo_publicado;
@@ -49,13 +47,10 @@ pub(crate) enum Nivel {
 pub(crate) enum ErroPropriedadesDocumento {
     /// Nenhum `rdoNivelAcesso` marcado no cadastro do documento.
     NivelDeAcessoNaoMarcado,
-    /// O tokenizador de atributos recusou a tag.
-    Atributo(#[source] crate::html_atributos::ErroAtributoHtml),
     /// `EnderecoDoConteudo::do_cadastro` recusou o link do anexo.
     LinkAnexoCadastroInvalido(#[source] crate::arvore_processo::ErroConteudoNaArvore),
     AnexoDoCadastroDivergente,
     BarraCadastroDocumentoIlegivel(#[source] crate::arvore_processo::ErroBarraDoDocumento),
-    CadastroDocumentoIlegivel,
     CampoCadastroDocumentoAusente,
     CampoCadastroDocumentoRepetido,
     FormularioCadastroDocumentoAusente,
@@ -68,44 +63,29 @@ pub(crate) enum ErroPropriedadesDocumento {
     TipoCadastroDocumentoRepetido,
     TipoCadastroDocumentoVazio,
     ValorCadastroDocumentoAusente,
-    NivelCadastroDocumentoIlegivel(#[source] crate::html_atributos::ErroAtributoHtml),
 }
 
-fn campo<'p>(
-    form: Tag<'p>,
-    parser: &'p tl::Parser<'p>,
-    id: &str,
-) -> Result<Tag<'p>, ErroPropriedadesDocumento> {
-    let nos = nos_com_id_em(form, parser, id).map_err(ErroPropriedadesDocumento::Atributo)?;
+fn campo<'p>(form: Tag<'p>, id: &str) -> Result<Tag<'p>, ErroPropriedadesDocumento> {
+    let nos = form.com_id(id).collect::<Vec<_>>();
     match nos.as_slice() {
-        [unico] => unico
-            .get(parser)
-            .and_then(tl::Node::as_tag)
-            .ok_or(ErroPropriedadesDocumento::CadastroDocumentoIlegivel),
+        [unico] => Ok(*unico),
         [] => Err(ErroPropriedadesDocumento::CampoCadastroDocumentoAusente),
         _ => Err(ErroPropriedadesDocumento::CampoCadastroDocumentoRepetido),
     }
 }
 fn valor(tag: Tag<'_>) -> Result<String, ErroPropriedadesDocumento> {
-    valor_decodificado(tag, "value")
-        .map_err(ErroPropriedadesDocumento::Atributo)?
+    tag.atributo("value")
+        .map(str::to_owned)
         .ok_or(ErroPropriedadesDocumento::ValorCadastroDocumentoAusente)
 }
-fn texto(tag: Tag<'_>, parser: &tl::Parser<'_>) -> String {
-    decodificar_atributo(&tag.inner_text(parser))
+fn texto(tag: Tag<'_>) -> String {
+    tag.texto()
 }
-fn nivel(form: Tag<'_>, parser: &tl::Parser<'_>) -> Result<Nivel, ErroPropriedadesDocumento> {
+fn nivel(form: Tag<'_>) -> Result<Nivel, ErroPropriedadesDocumento> {
     let mut marcados = Vec::new();
-    for no in form.query_selector(parser, "input").into_iter().flatten() {
-        let Some(tag) = no.get(parser).and_then(tl::Node::as_tag) else {
-            continue;
-        };
-        let a =
-            atributos(tag).map_err(ErroPropriedadesDocumento::NivelCadastroDocumentoIlegivel)?;
-        if a.valor("name") == Some("rdoNivelAcesso") && a.presente("checked") {
-            marcados.push(
-                valor_decodificado(tag, "value").map_err(ErroPropriedadesDocumento::Atributo)?,
-            );
+    for no in form.elementos("input") {
+        if no.atributo("name") == Some("rdoNivelAcesso") && no.presente("checked") {
+            marcados.push(no.atributo("value").map(str::to_owned));
         }
     }
     match marcados.as_slice() {
@@ -128,15 +108,10 @@ pub(crate) fn ler_link(
     else {
         return Ok(None);
     };
-    let dom = crate::tela_html::interpretar(&barra);
+    let dom = crate::tela_html::arvore(&barra);
     let mut encontrado = None;
-    for no in dom.query_selector("a").into_iter().flatten() {
-        let Some(tag) = no.get(dom.parser()).and_then(tl::Node::as_tag) else {
-            continue;
-        };
-        let Some(href) =
-            valor_decodificado(tag, "href").map_err(ErroPropriedadesDocumento::Atributo)?
-        else {
+    for no in dom.elementos("a") {
+        let Some(href) = no.atributo("href").map(str::to_owned) else {
             continue;
         };
         let acao = href
@@ -169,25 +144,20 @@ pub(crate) fn ler_link(
 /// O `frmDocumentoCadastro` único da tela, conferido como o cadastro do
 /// `documento` no `processo` pedidos (`hdnIdDocumento`, `hdnIdProcedimento`).
 fn cadastro_do_documento<'p>(
-    dom: &'p tl::VDom<'p>,
+    dom: &'p crate::tela_html::Documento,
     documento: &str,
     processo: &str,
 ) -> Result<Tag<'p>, ErroPropriedadesDocumento> {
-    let parser = dom.parser();
-    let nos =
-        nos_com_id(dom, "frmDocumentoCadastro").map_err(ErroPropriedadesDocumento::Atributo)?;
+    let nos = dom.com_id("frmDocumentoCadastro").collect::<Vec<_>>();
     let form = match nos.as_slice() {
-        [unico] => unico
-            .get(parser)
-            .and_then(tl::Node::as_tag)
-            .ok_or(ErroPropriedadesDocumento::CadastroDocumentoIlegivel)?,
+        [unico] => *unico,
         [] => return Err(ErroPropriedadesDocumento::FormularioCadastroDocumentoAusente),
         _ => {
             return Err(ErroPropriedadesDocumento::FormulariosCadastroDocumentoRepetidos);
         }
     };
-    if valor(campo(form, parser, "hdnIdDocumento")?)? != documento
-        || valor(campo(form, parser, "hdnIdProcedimento")?)? != processo
+    if valor(campo(form, "hdnIdDocumento")?)? != documento
+        || valor(campo(form, "hdnIdProcedimento")?)? != processo
     {
         return Err(ErroPropriedadesDocumento::IdentidadeCadastroDocumentoDivergente);
     }
@@ -199,26 +169,17 @@ pub(crate) fn ler_formulario(
     documento: &str,
     processo: &str,
 ) -> Result<PropriedadesLidas, ErroPropriedadesDocumento> {
-    let dom = crate::tela_html::interpretar(html);
-    let parser = dom.parser();
+    let dom = crate::tela_html::arvore(html);
     let form = cadastro_do_documento(&dom, documento, processo)?;
-    let tipo = texto(campo(form, parser, "lblSerieTitulo")?, parser);
+    let tipo = texto(campo(form, "lblSerieTitulo")?);
     let tipo = if tipo.trim().is_empty() {
         // Cadastro do externo no SEI 4.0.9: o rótulo é vazio, mas o tipo
         // efetivamente escolhido está no option selecionado de selSerie.
-        let select = campo(form, parser, "selSerie")?;
+        let select = campo(form, "selSerie")?;
         let mut selecionados = Vec::new();
-        for no in select
-            .query_selector(parser, "option")
-            .into_iter()
-            .flatten()
-        {
-            let Some(tag) = no.get(parser).and_then(tl::Node::as_tag) else {
-                continue;
-            };
-            let a = atributos(tag).map_err(ErroPropriedadesDocumento::Atributo)?;
-            if a.presente("selected") {
-                selecionados.push(texto(tag, parser));
+        for no in select.elementos("option") {
+            if no.presente("selected") {
+                selecionados.push(texto(no));
             }
         }
         match selecionados.as_slice() {
@@ -232,10 +193,10 @@ pub(crate) fn ler_formulario(
     Ok(PropriedadesLidas {
         fonte: AcaoDoSei::DocumentoAlterar,
         tipo,
-        descricao: valor(campo(form, parser, "txtDescricao")?)?,
-        nome_na_arvore: valor(campo(form, parser, "txtNomeArvore")?)?,
-        observacoes: texto(campo(form, parser, "txaObservacoes")?, parser),
-        nivel_de_acesso: nivel(form, parser)?,
+        descricao: valor(campo(form, "txtDescricao")?)?,
+        nome_na_arvore: valor(campo(form, "txtNomeArvore")?)?,
+        observacoes: texto(campo(form, "txaObservacoes")?),
+        nivel_de_acesso: nivel(form)?,
     })
 }
 

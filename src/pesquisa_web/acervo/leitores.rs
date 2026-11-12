@@ -9,7 +9,6 @@ use crate::controle_reconhecido::unidade_do_controle;
 use crate::formulario_web::{
     RespostaDoEnvio, RespostaDoPost, SubmissaoDerivada, TelaServida, enviar_submissao_via,
 };
-use crate::html_atributos::{atributo_presente, nos_com_id};
 use crate::instalacao::Instalacao;
 use crate::pagina_do_controle::codificacao_da_tela;
 use crate::pesquisa_web::erro_busca::ErroBuscaDeProcesso;
@@ -316,14 +315,13 @@ pub(super) enum Opcao {
 /// `html_atributos`): exatamente um de `#optProcessos` e `#optDocumentos`.
 fn opcao_marcada(html: &str) -> Opcao {
     let servido = HtmlServido::de_teste(html);
-    let dom = crate::tela_html::interpretar(&servido);
+    let dom = crate::tela_html::arvore(&servido);
     let marcado = |id: &str| -> Option<bool> {
-        let nos = nos_com_id(&dom, id).ok()?;
+        let nos = dom.com_id(id).collect::<Vec<_>>();
         let [no] = nos.as_slice() else {
             return None;
         };
-        let tag = no.get(dom.parser())?.as_tag()?;
-        atributo_presente(tag, "checked").ok()
+        Some(no.presente("checked"))
     };
     match (marcado("optProcessos"), marcado("optDocumentos")) {
         (Some(true), Some(false)) => Opcao::Processos,

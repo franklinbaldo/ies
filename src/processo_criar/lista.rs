@@ -6,7 +6,6 @@ use crate::acao_do_sei::AcaoDoSei;
 use crate::consulta_do_controlador::{
     ConsultaDoControlador, ErroChaveDaConsulta, ErroConsultaDoControlador,
 };
-use crate::html_atributos::{atributo_presente, nos_com_id, valor_do_atributo};
 
 #[derive(Debug, Clone, PartialEq, Eq, thiserror::Error)]
 #[error("{self:?}")]
@@ -14,8 +13,6 @@ pub(crate) enum ErroListaDeTipos {
     TipoNaoOferecido,
     TipoSemAcao,
     ListaIncompleta,
-    ListaDeTiposHtmlInvalido,
-    AtributoDaListaDeTiposIlegivel(#[source] crate::html_atributos::ErroAtributoHtml),
     TabelaDeTiposAusenteOuRepetida,
     TipoDeProcessoAmbiguo,
     /// A consulta do link de cadastro não se lê em pares `chave=valor`.
@@ -81,53 +78,36 @@ pub(crate) fn tipo_na_lista(
     html: &crate::tela_html::HtmlServido,
     pedido: &str,
 ) -> Result<TipoEscolhido, ErroListaDeTipos> {
-    let dom = crate::tela_html::interpretar(html);
-    let tabelas = nos_com_id(&dom, "tblTipoProcedimento")
-        .map_err(ErroListaDeTipos::AtributoDaListaDeTiposIlegivel)?;
+    let dom = crate::tela_html::arvore(html);
+    let tabelas = dom.com_id("tblTipoProcedimento").collect::<Vec<_>>();
     let [tabela] = tabelas.as_slice() else {
         return Err(ErroListaDeTipos::TabelaDeTiposAusenteOuRepetida);
     };
-    let parser = dom.parser();
-    let tag = tabela
-        .get(parser)
-        .and_then(tl::Node::as_tag)
-        .ok_or(ErroListaDeTipos::ListaDeTiposHtmlInvalido)?;
-    if tag.name().as_utf8_str() != "table" {
+    let tag = *tabela;
+    if tag.nome() != "table" {
         return Err(ErroListaDeTipos::TabelaDeTiposAusenteOuRepetida);
     }
     let mut encontrados = Vec::new();
-    for handle in tag.query_selector(parser, "a").into_iter().flatten() {
-        let ancora = handle
-            .get(parser)
-            .and_then(tl::Node::as_tag)
-            .ok_or(ErroListaDeTipos::ListaDeTiposHtmlInvalido)?;
-        let classe = valor_do_atributo(ancora, "class")
-            .map_err(ErroListaDeTipos::AtributoDaListaDeTiposIlegivel)?;
-        if !classe
-            .as_deref()
-            .is_some_and(|s| s.split_whitespace().any(|c| c == "ancoraOpcao"))
-        {
+    for handle in tag.elementos("a") {
+        let classe = handle.atributo("class");
+        if !classe.is_some_and(|s| s.split_whitespace().any(|c| c == "ancoraOpcao")) {
             continue;
         }
-        let nome = html_escape::decode_html_entities(&ancora.inner_text(parser))
-            .into_owned()
+        let nome = handle
+            .texto()
             .split_whitespace()
             .collect::<Vec<_>>()
             .join(" ");
         if nome != pedido.split_whitespace().collect::<Vec<_>>().join(" ") {
             continue;
         }
-        let href = valor_do_atributo(ancora, "href")
-            .map_err(ErroListaDeTipos::AtributoDaListaDeTiposIlegivel)?
-            .map(|valor| crate::formulario_web::decodificar_atributo(&valor));
-        let onclick = valor_do_atributo(ancora, "onclick")
-            .map_err(ErroListaDeTipos::AtributoDaListaDeTiposIlegivel)?;
-        let desabilitada = atributo_presente(ancora, "disabled")
-            .map_err(ErroListaDeTipos::AtributoDaListaDeTiposIlegivel)?;
-        let link = href.as_deref().map(link_do_cadastro).transpose()?.flatten();
-        let escolha = match (link, onclick.as_deref().and_then(escolher_literal)) {
+        let href = handle.atributo("href");
+        let onclick = handle.atributo("onclick");
+        let desabilitada = handle.presente("disabled");
+        let link = href.map(link_do_cadastro).transpose()?.flatten();
+        let escolha = match (link, onclick.and_then(escolher_literal)) {
             (Some(link), None) => Some(EscolhaDoTipo::Link(link)),
-            (None, Some(id)) if href.as_deref().is_none_or(|v| v == "#") => {
+            (None, Some(id)) if href.is_none_or(|v| v == "#") => {
                 Some(EscolhaDoTipo::Formulario(id))
             }
             _ => None,

@@ -1,6 +1,5 @@
 //! Validação offline do cadastro de processo servido pelo SEI.
 //! Sem envio HTTP, JS, URLs montadas ou deduções a partir do nome do tipo.
-use crate::html_atributos::{atributo_presente, nos_com_id, valor_do_atributo};
 
 #[derive(Debug, Clone, PartialEq, Eq, thiserror::Error)]
 #[error("{self:?}")]
@@ -17,8 +16,6 @@ pub(crate) enum ErroCadastro {
     },
     AssuntoSugeridoNaoUnico,
     CadastroDeProcessoAusenteOuRepetido,
-    CadastroDeProcessoHtmlInvalido,
-    AtributoDoCadastroIlegivel(#[source] crate::html_atributos::ErroAtributoHtml),
     EspecificacaoNaoPublicadaNoCadastro,
     LimiteDaEspecificacaoInvalidoNoCadastro(#[source] std::num::ParseIntError),
     /// O campo da especificação existe, mas o formulário não publica `maxlength`.
@@ -75,18 +72,13 @@ fn conferir_cadastro_interno(
     nivel: &str,
     permite_ajax_pendente: bool,
 ) -> Result<CadastroObservado, ErroCadastro> {
-    let dom = crate::tela_html::interpretar(html);
-    let formularios = nos_com_id(&dom, "frmProcedimentoCadastro")
-        .map_err(ErroCadastro::AtributoDoCadastroIlegivel)?;
+    let dom = crate::tela_html::arvore(html);
+    let formularios = dom.com_id("frmProcedimentoCadastro").collect::<Vec<_>>();
     let [formulario] = formularios.as_slice() else {
         return Err(ErroCadastro::CadastroDeProcessoAusenteOuRepetido);
     };
-    let parser = dom.parser();
-    let form = formulario
-        .get(parser)
-        .and_then(tl::Node::as_tag)
-        .ok_or(ErroCadastro::CadastroDeProcessoHtmlInvalido)?;
-    if form.name().as_utf8_str() != "form" {
+    let form = *formulario;
+    if form.nome() != "form" {
         return Err(ErroCadastro::CadastroDeProcessoAusenteOuRepetido);
     }
 
@@ -94,30 +86,21 @@ fn conferir_cadastro_interno(
     let mut descricoes = 0;
     let mut limite_especificacao = None;
     let mut radios = Vec::new();
-    for handle in form.query_selector(parser, "input").into_iter().flatten() {
-        let tag = handle
-            .get(parser)
-            .and_then(tl::Node::as_tag)
-            .ok_or(ErroCadastro::CadastroDeProcessoHtmlInvalido)?;
-        let nome =
-            valor_do_atributo(tag, "name").map_err(ErroCadastro::AtributoDoCadastroIlegivel)?;
-        match nome.as_deref() {
+    for handle in form.elementos("input") {
+        let nome = handle.atributo("name");
+        match nome {
             Some("hdnIdTipoProcedimento") => {
-                ids.push(
-                    valor_do_atributo(tag, "value")
-                        .map_err(ErroCadastro::AtributoDoCadastroIlegivel)?,
-                );
+                ids.push(handle.atributo("value").map(str::to_owned));
             }
             Some("txtDescricao") => {
-                if atributo_presente(tag, "disabled")
-                    .map_err(ErroCadastro::AtributoDoCadastroIlegivel)?
-                {
+                if handle.presente("disabled") {
                     return Err(ErroCadastro::EspecificacaoNaoPublicadaNoCadastro);
                 }
                 // Usar apenas o limite publicado neste cadastro, nunca
                 // um valor fixo extrapolado de outras instalações.
-                limite_especificacao = valor_do_atributo(tag, "maxlength")
-                    .map_err(ErroCadastro::AtributoDoCadastroIlegivel)?
+                limite_especificacao = handle
+                    .atributo("maxlength")
+                    .map(str::to_owned)
                     .map(|literal| {
                         literal
                             .parse::<usize>()
@@ -127,10 +110,8 @@ fn conferir_cadastro_interno(
                 descricoes += 1;
             }
             Some("rdoNivelAcesso") => {
-                let valor = valor_do_atributo(tag, "value")
-                    .map_err(ErroCadastro::AtributoDoCadastroIlegivel)?;
-                let desabilitado = atributo_presente(tag, "disabled")
-                    .map_err(ErroCadastro::AtributoDoCadastroIlegivel)?;
+                let valor = handle.atributo("value").map(str::to_owned);
+                let desabilitado = handle.presente("disabled");
                 radios.push((valor, desabilitado));
             }
             _ => {}
@@ -158,7 +139,7 @@ fn conferir_cadastro_interno(
     }
 
     let (id_assunto, assunto, hipotese_legal) =
-        conferir_listas(form, parser, nivel, permite_ajax_pendente)?;
+        conferir_listas(form, nivel, permite_ajax_pendente)?;
     let limite_especificacao =
         limite_especificacao.ok_or(ErroCadastro::LimiteDaEspecificacaoNaoPublicado)?;
     Ok(CadastroObservado {
@@ -174,8 +155,7 @@ fn conferir_cadastro_interno(
 /// Lê apenas listas publicadas dentro do mesmo formulário, sem inferir
 /// itens ausentes. Dois assuntos não equivalem a um sugerido único.
 fn conferir_listas(
-    form: &tl::HTMLTag<'_>,
-    parser: &tl::Parser<'_>,
+    form: crate::tela_html::Elemento<'_>,
     nivel: &str,
     permite_ajax_pendente: bool,
 ) -> Result<(String, String, Option<String>), ErroCadastro> {
@@ -183,19 +163,12 @@ fn conferir_listas(
     let mut hipotese = Vec::new();
     let mut selects_assunto = 0;
     let mut selects_hipotese = 0;
-    for handle in form.query_selector(parser, "select").into_iter().flatten() {
-        let select = handle
-            .get(parser)
-            .and_then(tl::Node::as_tag)
-            .ok_or(ErroCadastro::CadastroDeProcessoHtmlInvalido)?;
-        let nome =
-            valor_do_atributo(select, "name").map_err(ErroCadastro::AtributoDoCadastroIlegivel)?;
-        let destino = match nome.as_deref() {
+    for handle in form.elementos("select") {
+        let nome = handle.atributo("name");
+        let destino = match nome {
             Some("selAssuntos") => {
                 selects_assunto += 1;
-                if atributo_presente(select, "disabled")
-                    .map_err(ErroCadastro::AtributoDoCadastroIlegivel)?
-                {
+                if handle.presente("disabled") {
                     return Err(ErroCadastro::AssuntoDesabilitado);
                 }
                 &mut assuntos
@@ -204,33 +177,19 @@ fn conferir_listas(
                 selects_hipotese += 1;
                 // No nível público, um seletor restrito desabilitado
                 // não impede a prévia nem exige hipótese legal.
-                if nivel == "restrito"
-                    && atributo_presente(select, "disabled")
-                        .map_err(ErroCadastro::AtributoDoCadastroIlegivel)?
-                {
+                if nivel == "restrito" && handle.presente("disabled") {
                     return Err(ErroCadastro::HipoteseLegalDesabilitada);
                 }
                 &mut hipotese
             }
             _ => continue,
         };
-        for opcao in select
-            .query_selector(parser, "option")
-            .into_iter()
-            .flatten()
-        {
-            let tag = opcao
-                .get(parser)
-                .and_then(tl::Node::as_tag)
-                .ok_or(ErroCadastro::CadastroDeProcessoHtmlInvalido)?;
-            if atributo_presente(tag, "disabled")
-                .map_err(ErroCadastro::AtributoDoCadastroIlegivel)?
-            {
+        for opcao in handle.elementos("option") {
+            if opcao.presente("disabled") {
                 continue;
             }
-            let valor = valor_do_atributo(tag, "value")
-                .map_err(ErroCadastro::AtributoDoCadastroIlegivel)?;
-            let titulo = html_escape::decode_html_entities(&tag.inner_text(parser)).into_owned();
+            let valor = opcao.atributo("value").map(str::to_owned);
+            let titulo = opcao.texto();
             if let Some(valor) = valor.filter(|v| !v.is_empty() && v != "null") {
                 destino.push((valor, titulo));
             }

@@ -1,34 +1,16 @@
 //! Posição e plano de página da visão D e leitura dos ocultos que a
 //! paginação confere, sem rede.
 use crate::caixa_detalhada::LeituraDetalhada;
-use crate::erro_web::ErroCaixa;
-use crate::html_atributos::{nos_com_id, valor_do_atributo};
 use crate::paginas::{FaixaNaPagina, FaixaObservada};
 
-fn html_invalido(_: impl Sized) -> super::ErroVisaoDoControle {
-    super::ErroVisaoDoControle::Caixa(ErroCaixa::HtmlDaCaixaInvalido)
-}
-
 /// Valores de `value` dos elementos com o `id` dado, na ordem do documento.
-pub(super) fn valores_ocultos(
-    html: &crate::tela_html::HtmlServido,
-    id: &str,
-) -> Result<Vec<String>, super::ErroVisaoDoControle> {
-    let dom = crate::tela_html::interpretar(html);
-    let parser = dom.parser();
+pub(super) fn valores_ocultos(html: &crate::tela_html::HtmlServido, id: &str) -> Vec<String> {
+    let dom = crate::tela_html::arvore(html);
     let mut valores = Vec::new();
-    for no in nos_com_id(&dom, id).map_err(html_invalido)? {
-        let tag = no
-            .get(parser)
-            .and_then(tl::Node::as_tag)
-            .ok_or_else(|| html_invalido(()))?;
-        valores.push(
-            valor_do_atributo(tag, "value")
-                .map_err(html_invalido)?
-                .unwrap_or_default(),
-        );
+    for no in dom.com_id(id) {
+        valores.push(no.atributo("value").map(str::to_owned).unwrap_or_default());
     }
-    Ok(valores)
+    valores
 }
 
 /// Onde a tela D está e quantas páginas a lista D tem.
@@ -49,7 +31,7 @@ pub(super) fn posicao(
     html: &crate::tela_html::HtmlServido,
     leitura: &LeituraDetalhada,
 ) -> Result<PosicaoDetalhada, super::ErroVisaoDoControle> {
-    let indices = valores_ocultos(html, "hdnDetalhadoPaginaAtual")?;
+    let indices = valores_ocultos(html, "hdnDetalhadoPaginaAtual");
     let total = leitura.total_declarado;
     let faixa = leitura.faixa_observada;
     let incompativel = super::ErroVisaoDoControle::PaginaAtualDaVisaoDetalhadaIncompativelComAFaixa;
@@ -84,7 +66,7 @@ pub(super) fn posicao(
             (Some(tamanho), total.div_ceil(tamanho).max(1))
         }
     };
-    let criterio = valores_ocultos(html, "hdnDetalhadoHashCriterios")?
+    let criterio = valores_ocultos(html, "hdnDetalhadoHashCriterios")
         .into_iter()
         .next();
     let paginador = crate::paginacao_controle::paginador_com_prefixo(html, "Detalhado");

@@ -4,8 +4,6 @@ use crate::acao_do_sei::AcaoDoSei;
 use crate::arvore_processo::barra_do_no;
 use crate::arvore_processo::endereco::{EnderecoRecusado, conferir_endereco_relativo_por};
 use crate::consulta_do_controlador::menciona_acao;
-use crate::formulario_web::decodificar_atributo;
-use crate::html_atributos::atributos;
 use crate::instalacao::Instalacao;
 
 #[cfg(test)]
@@ -24,8 +22,6 @@ pub(crate) use fluxo::{DocumentoCancelado, PedidoDoCancelamento, cancelar_docume
 #[derive(Clone, Debug, PartialEq, Eq, thiserror::Error)]
 #[error("{self:?}")]
 pub(crate) enum ErroLinkCancelar {
-    /// O tokenizador de atributos recusou a tag.
-    Atributo(#[source] crate::html_atributos::ErroAtributoHtml),
     /// A barra do documento não pôde ser lida do HTML da tela.
     BarraDoDocumentoIlegivel(#[source] crate::arvore_processo::ErroBarraDoDocumento),
     LinksRepetidos,
@@ -59,18 +55,13 @@ pub(crate) fn ler_link_cancelar(
     else {
         return Ok(None);
     };
-    let dom = crate::tela_html::interpretar(&barra);
-    let parser = dom.parser();
+    let dom = crate::tela_html::arvore(&barra);
     let mut links = Vec::new();
-    for no in dom.query_selector("a").into_iter().flatten() {
-        let Some(tag) = no.get(parser).and_then(tl::Node::as_tag) else {
+    for no in dom.elementos("a") {
+        let Some(bruto) = no.atributo("href") else {
             continue;
         };
-        let attrs = atributos(tag).map_err(ErroLinkCancelar::Atributo)?;
-        let Some(bruto) = attrs.valor("href") else {
-            continue;
-        };
-        let href = decodificar_atributo(bruto);
+        let href = bruto.to_owned();
         if menciona_acao(&href, AcaoDoSei::DocumentoCancelar) {
             links.push(href);
         }

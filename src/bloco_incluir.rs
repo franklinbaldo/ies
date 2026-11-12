@@ -96,8 +96,6 @@ impl DesfechoDaInclusao {
 #[derive(Debug, thiserror::Error)]
 #[error("{self:?}")]
 pub(crate) enum ErroIncluir {
-    /// O tokenizador de atributos recusou a tag.
-    Atributo(#[from] crate::html_atributos::ErroAtributoHtml),
     Abertura(#[from] ErroDocumentoObter),
     Barra(#[from] ErroBlocoNaBarra),
     /// A barra do documento não oferece "Incluir em Bloco de Assinatura".

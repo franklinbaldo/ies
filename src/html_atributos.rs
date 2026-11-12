@@ -11,7 +11,7 @@
 mod busca;
 mod tokenizador;
 
-pub(crate) use busca::{nos_com_id, nos_com_id_em, nos_por_elemento_e_classe};
+pub(crate) use busca::{nos_com_id, nos_por_elemento_e_classe};
 pub(crate) use tokenizador::tokenizar_tag_de_abertura;
 
 use crate::formulario_web::decodificar_atributo;

@@ -2,12 +2,10 @@
 //! Oráculo de comportamento: Todos `tests/test_comentarios_010.py` @323eb01;
 //! SEI 4.x: linha de dados + trComentario; SEI 5.0: coluna Texto.
 //! Não usa rede, não executa JS e não infere ausência de tabela como lista vazia.
-use crate::formulario_web::decodificar_atributo;
-use crate::html_atributos::{atributos, nos_com_id, valor_decodificado};
 use crate::legenda::{Legenda, ler_legenda};
 use std::collections::HashSet;
 
-type Tag<'p> = &'p tl::HTMLTag<'p>;
+type Tag<'p> = crate::tela_html::Elemento<'p>;
 
 #[derive(Clone, Debug, PartialEq, Eq)]
 pub struct ComentarioLido {
@@ -53,47 +51,34 @@ pub(crate) enum ErroComentarios {
     ListaIncompleta,
     CabecalhoDosComentariosInvalido,
     FormulariosDeComentariosRepetidos,
-    HtmlDosComentariosNaoInterpretado,
     IdDoComentarioRepetido,
     LegendaDosComentariosInvalida,
     LinhaDoComentarioInvalida,
     TabelaDeComentariosAusente,
     TabelasDeComentariosRepetidas,
     TelaDeComentariosNaoReconhecida,
-    AtributoDosComentariosIlegivel(#[from] crate::html_atributos::ErroAtributoHtml),
 }
 
-fn descendentes<'p>(raiz: Tag<'_>, parser: &'p tl::Parser<'p>, tag: &str) -> Vec<Tag<'p>> {
-    raiz.query_selector(parser, tag)
-        .into_iter()
-        .flatten()
-        .filter_map(|n| n.get(parser).and_then(tl::Node::as_tag))
-        .collect()
+fn descendentes<'p>(raiz: Tag<'p>, tag: &str) -> Vec<Tag<'p>> {
+    raiz.elementos(tag).collect()
 }
 
-fn filhos<'p>(pai: Tag<'_>, parser: &'p tl::Parser<'p>, nome: &str) -> Vec<Tag<'p>> {
-    pai.children()
-        .top()
-        .iter()
-        .filter_map(|h| h.get(parser).and_then(tl::Node::as_tag))
-        .filter(|tag| tag.name() == nome)
-        .collect()
+fn filhos<'p>(pai: Tag<'p>, nome: &str) -> Vec<Tag<'p>> {
+    pai.filhos().filter(|tag| tag.nome() == nome).collect()
 }
 
-fn texto(tag: Tag<'_>, parser: &tl::Parser<'_>) -> String {
-    let bruto = tag.inner_text(parser).replace("&nbsp;", "\u{a0}");
-    decodificar_atributo(&bruto)
+fn texto(tag: Tag<'_>) -> String {
+    tag.texto()
 }
 
-fn tabela_unica<'p>(dom: &'p tl::VDom<'p>, id: &str) -> Result<Option<Tag<'p>>, ErroComentarios> {
-    let nos = nos_com_id(dom, id).map_err(ErroComentarios::AtributoDosComentariosIlegivel)?;
+fn tabela_unica<'p>(
+    dom: &'p crate::tela_html::Documento,
+    id: &str,
+) -> Result<Option<Tag<'p>>, ErroComentarios> {
+    let nos = dom.com_id(id).collect::<Vec<_>>();
     match nos.as_slice() {
         [] => Ok(None),
-        [um] => um
-            .get(dom.parser())
-            .and_then(tl::Node::as_tag)
-            .map(Some)
-            .ok_or(ErroComentarios::HtmlDosComentariosNaoInterpretado),
+        [um] => Ok(Some(*um)),
         _ => Err(ErroComentarios::TabelasDeComentariosRepetidas),
     }
 }
@@ -141,10 +126,11 @@ struct Colunas {
 }
 
 /// Recusa quando qualquer coluna mandatória está ausente ou repetida.
-fn ler_colunas(tabela: Tag<'_>, parser: &tl::Parser<'_>) -> Result<Colunas, ErroComentarios> {
-    let cabecalho: Vec<String> = descendentes(tabela, parser, "th")
+fn ler_colunas(tabela: Tag<'_>) -> Result<Colunas, ErroComentarios> {
+    let cabecalho: Vec<String> = descendentes(tabela, "th")
         .iter()
-        .map(|th| texto(th, parser))
+        .copied()
+        .map(texto)
         .collect();
     let campo = |nome: &str| -> Result<usize, ErroComentarios> {
         let indices: Vec<usize> = cabecalho
@@ -187,39 +173,36 @@ fn ler_colunas(tabela: Tag<'_>, parser: &tl::Parser<'_>) -> Result<Colunas, Erro
 /// Cada checkbox inicia uma linha; no 4.x exige a linha de texto seguinte.
 fn ler_itens(
     tabela: Tag<'_>,
-    parser: &tl::Parser<'_>,
     colunas: &Colunas,
     total: usize,
 ) -> Result<Vec<ComentarioLido>, ErroComentarios> {
     let mut itens: Vec<ComentarioLido> = Vec::new();
     let mut ids = HashSet::new();
     let mut aguardando_texto = false;
-    for tr in descendentes(tabela, parser, "tr") {
-        let celulas = filhos(tr, parser, "td");
+    for tr in descendentes(tabela, "tr") {
+        let celulas = filhos(tr, "td");
         if celulas.is_empty() {
             continue;
         }
-        let caixas: Vec<_> = descendentes(tr, parser, "input")
+        let caixas: Vec<_> = descendentes(tr, "input")
             .into_iter()
-            .filter(|c| valor_decodificado(c, "type").ok().flatten().as_deref() == Some("checkbox"))
+            .filter(|c| c.atributo("type") == Some("checkbox"))
             .collect();
         if caixas.is_empty() {
-            let da_linha =
-                atributos(tr).map_err(ErroComentarios::AtributoDosComentariosIlegivel)?;
-            let classe = da_linha.tem_classe("trComentario");
-            let separador = da_linha.tem_classe("trSeparadorComentario");
+            let classe = tr.tem_classe("trComentario");
+            let separador = tr.tem_classe("trSeparadorComentario");
             if let (true, true, [celula]) = (aguardando_texto, classe, celulas.as_slice()) {
                 let ultimo = itens
                     .last_mut()
                     .ok_or(ErroComentarios::LinhaDoComentarioInvalida)?;
-                ultimo.texto = texto(celula, parser);
+                ultimo.texto = texto(*celula);
                 aguardando_texto = false;
             } else if let (true, [celula]) = (separador, celulas.as_slice()) {
                 // Separador visual entre comentários: forma, não item.
-                if !texto(celula, parser).trim().is_empty() {
+                if !texto(*celula).trim().is_empty() {
                     return Err(ErroComentarios::LinhaDoComentarioInvalida);
                 }
-            } else if !(total == 0 && texto(tr, parser).contains("Nenhum registro")) {
+            } else if !(total == 0 && texto(tr).contains("Nenhum registro")) {
                 return Err(ErroComentarios::LinhaDoComentarioInvalida);
             }
             continue;
@@ -231,7 +214,9 @@ fn ler_itens(
         ) else {
             return Err(ErroComentarios::LinhaDoComentarioInvalida);
         };
-        let id = valor_decodificado(caixa, "value")?
+        let id = caixa
+            .atributo("value")
+            .map(str::to_owned)
             .ok_or(ErroComentarios::LinhaDoComentarioInvalida)?;
         if id.is_empty() || !id.bytes().all(|b| b.is_ascii_digit()) {
             return Err(ErroComentarios::LinhaDoComentarioInvalida);
@@ -242,7 +227,8 @@ fn ler_itens(
         let valor = |i: usize| -> Result<String, ErroComentarios> {
             celulas
                 .get(i)
-                .map(|td| texto(td, parser))
+                .copied()
+                .map(texto)
                 .ok_or(ErroComentarios::LinhaDoComentarioInvalida)
         };
         itens.push(ComentarioLido {
@@ -267,18 +253,15 @@ fn ler_itens(
 
 /// Analisa a lista, sem confundir o número da legenda com a página lida.
 fn ler_lista<'p>(
-    dom: &'p tl::VDom<'p>,
+    dom: &'p crate::tela_html::Documento,
     form: Tag<'p>,
 ) -> Result<TelaDosComentarios, ErroComentarios> {
-    let parser = dom.parser();
-    let visoes: Vec<_> = descendentes(form, parser, "input")
+    let visoes: Vec<_> = descendentes(form, "input")
         .into_iter()
-        .filter(|tag| {
-            valor_decodificado(tag, "name").ok().flatten().as_deref() == Some("hdnVisualizacao")
-        })
+        .filter(|tag| tag.atributo("name") == Some("hdnVisualizacao"))
         .collect();
     let visao = match visoes.as_slice() {
-        [unico] => match valor_decodificado(unico, "value")?.as_deref() {
+        [unico] => match unico.atributo("value") {
             Some("P") => VisaoDosComentarios::Processo,
             Some("T") => VisaoDosComentarios::Todos,
             Some("A") => VisaoDosComentarios::Protocolo,
@@ -288,13 +271,13 @@ fn ler_lista<'p>(
     };
     let tabela =
         tabela_unica(dom, "tblComentarios")?.ok_or(ErroComentarios::TabelaDeComentariosAusente)?;
-    if tabela.name() != "table" {
+    if tabela.nome() != "table" {
         return Err(ErroComentarios::TabelaDeComentariosAusente);
     }
-    let [caption] = descendentes(tabela, parser, "caption")[..] else {
+    let [caption] = descendentes(tabela, "caption")[..] else {
         return Err(ErroComentarios::LegendaDosComentariosInvalida);
     };
-    let legenda = texto(caption, parser);
+    let legenda = texto(caption);
     let (prefixo, _) = legenda
         .split_once('(')
         .ok_or(ErroComentarios::LegendaDosComentariosInvalida)?;
@@ -308,8 +291,8 @@ fn ler_lista<'p>(
     if faixa.is_some() {
         return Err(ErroComentarios::LegendaDosComentariosInvalida);
     }
-    let colunas = ler_colunas(tabela, parser)?;
-    let itens = ler_itens(tabela, parser, &colunas, total_declarado)?;
+    let colunas = ler_colunas(tabela)?;
+    let itens = ler_itens(tabela, &colunas, total_declarado)?;
     Ok(TelaDosComentarios::Lista(ComentariosLidos {
         visao,
         total_declarado,
@@ -327,37 +310,25 @@ fn ler_lista<'p>(
 pub(crate) fn ler_tela(
     html: &crate::tela_html::HtmlServido,
 ) -> Result<TelaDosComentarios, ErroComentarios> {
-    let dom = crate::tela_html::interpretar(html);
-    let parser = dom.parser();
-    let cadastros = nos_com_id(&dom, "frmComentarioCadastro")
-        .map_err(ErroComentarios::AtributoDosComentariosIlegivel)?;
-    let listas = nos_com_id(&dom, "frmComentarioLista")
-        .map_err(ErroComentarios::AtributoDosComentariosIlegivel)?;
+    let dom = crate::tela_html::arvore(html);
+    let cadastros = dom.com_id("frmComentarioCadastro").collect::<Vec<_>>();
+    let listas = dom.com_id("frmComentarioLista").collect::<Vec<_>>();
     if let ([cadastro], []) = (cadastros.as_slice(), listas.as_slice()) {
-        let form = cadastro
-            .get(parser)
-            .and_then(tl::Node::as_tag)
-            .ok_or(ErroComentarios::TelaDeComentariosNaoReconhecida)?;
-        if form.name() == "form" {
-            let areas = descendentes(form, parser, "textarea");
+        if cadastro.nome() == "form" {
+            let areas = descendentes(*cadastro, "textarea");
             // O SEI publica o envio como `<input>` ou como `<button>`.
-            let botoes: Vec<_> = descendentes(form, parser, "input")
+            let botoes: Vec<_> = descendentes(*cadastro, "input")
                 .into_iter()
-                .chain(descendentes(form, parser, "button"))
+                .chain(descendentes(*cadastro, "button"))
                 .collect();
             let area_ok = areas
                 .iter()
-                .filter(|t| {
-                    valor_decodificado(t, "name").ok().flatten().as_deref() == Some("txaDescricao")
-                })
+                .filter(|t| t.atributo("name") == Some("txaDescricao"))
                 .count()
                 == 1;
             let botao_ok = botoes
                 .iter()
-                .filter(|t| {
-                    valor_decodificado(t, "name").ok().flatten().as_deref()
-                        == Some("sbmCadastrarComentario")
-                })
+                .filter(|t| t.atributo("name") == Some("sbmCadastrarComentario"))
                 .count()
                 == 1;
             if area_ok && botao_ok && tabela_unica(&dom, "tblComentarios")?.is_none() {
@@ -373,11 +344,8 @@ pub(crate) fn ler_tela(
             ErroComentarios::FormulariosDeComentariosRepetidos
         });
     };
-    let form = formulario
-        .get(parser)
-        .and_then(tl::Node::as_tag)
-        .ok_or(ErroComentarios::TelaDeComentariosNaoReconhecida)?;
-    if form.name() != "form" || !cadastros.is_empty() {
+    let form = *formulario;
+    if form.nome() != "form" || !cadastros.is_empty() {
         return Err(ErroComentarios::TelaDeComentariosNaoReconhecida);
     }
     ler_lista(&dom, form)

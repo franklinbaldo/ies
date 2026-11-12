@@ -2,7 +2,6 @@
 //! Ausência de cabeçalho explícito ou de nome continua desconhecida, não é
 //! preenchida a partir da revisão do documento ou de outra atividade.
 use super::{ErroCiencia, atividade_na_lista};
-use crate::html_atributos::{nos_com_id, valor_do_atributo};
 
 pub(crate) fn usuario_da_atividade_na_lista(
     html: &crate::tela_html::HtmlServido,
@@ -13,79 +12,50 @@ pub(crate) fn usuario_da_atividade_na_lista(
     if !atividade_na_lista(html, atividade)? {
         return Ok(None);
     }
-    let dom = crate::tela_html::interpretar(html);
-    let parser = dom.parser();
-    let tabelas = nos_com_id(&dom, "tblAndamentos").map_err(ErroCiencia::Atributo)?;
+    let dom = crate::tela_html::arvore(html);
+    let tabelas = dom.com_id("tblAndamentos").collect::<Vec<_>>();
     let [unica] = tabelas.as_slice() else {
         return Err(ErroCiencia::ListaDeCienciasForaDaFormaObservada);
     };
-    let tabela = unica
-        .get(parser)
-        .and_then(tl::Node::as_tag)
-        .ok_or(ErroCiencia::ListaDeCienciasForaDaFormaObservada)?;
+    let tabela = *unica;
 
     // Não presumir que a segunda coluna é o nome: nas instalações
     // reais a disposição pode variar ou sequer estar identificada.
-    let coluna_usuario = tabela
-        .query_selector(parser, "tr")
-        .into_iter()
-        .flatten()
-        .filter_map(|no| no.get(parser).and_then(tl::Node::as_tag))
-        .find_map(|linha| {
-            linha
-                .query_selector(parser, "th")
-                .into_iter()
-                .flatten()
-                .filter_map(|no| no.get(parser).and_then(tl::Node::as_tag))
-                .enumerate()
-                .find_map(|(indice, cabecalho)| {
-                    let titulo = html_escape::decode_html_entities(&cabecalho.inner_text(parser))
-                        .into_owned();
-                    titulo
-                        .trim()
-                        .eq_ignore_ascii_case("usuário")
-                        .then_some(indice)
-                })
-        });
+    let coluna_usuario = tabela.elementos("tr").find_map(|linha| {
+        linha
+            .elementos("th")
+            .enumerate()
+            .find_map(|(indice, cabecalho)| {
+                let titulo = cabecalho.texto();
+                titulo
+                    .trim()
+                    .eq_ignore_ascii_case("usuário")
+                    .then_some(indice)
+            })
+    });
     let Some(coluna_usuario) = coluna_usuario else {
         return Ok(None);
     };
 
-    for no in tabela.query_selector(parser, "tr").into_iter().flatten() {
-        let Some(linha) = no.get(parser).and_then(tl::Node::as_tag) else {
-            continue;
-        };
-        let contem_atividade = linha
-            .query_selector(parser, "input")
-            .into_iter()
-            .flatten()
-            .filter_map(|no| no.get(parser).and_then(tl::Node::as_tag))
-            .any(|input| {
-                let tipo = valor_do_atributo(input, "type").ok().flatten();
-                let nome = valor_do_atributo(input, "name").ok().flatten();
-                let valor = valor_do_atributo(input, "value").ok().flatten();
-                tipo.as_deref() == Some("checkbox")
-                    && nome.as_deref().is_some_and(|nome| {
-                        nome.strip_prefix("chkInfraItem")
-                            .is_some_and(|sufixo| sufixo.bytes().all(|b| b.is_ascii_digit()))
-                    })
-                    && valor.as_deref() == Some(atividade)
-            });
+    for no in tabela.elementos("tr") {
+        let contem_atividade = no.elementos("input").any(|input| {
+            let tipo = input.atributo("type");
+            let nome = input.atributo("name").map(str::to_owned);
+            let valor = input.atributo("value");
+            tipo == Some("checkbox")
+                && nome.as_deref().is_some_and(|nome| {
+                    nome.strip_prefix("chkInfraItem")
+                        .is_some_and(|sufixo| sufixo.bytes().all(|b| b.is_ascii_digit()))
+                })
+                && valor == Some(atividade)
+        });
         if !contem_atividade {
             continue;
         }
-        let nome = linha
-            .query_selector(parser, "td")
-            .into_iter()
-            .flatten()
-            .filter_map(|no| no.get(parser).and_then(tl::Node::as_tag))
+        let nome = no
+            .elementos("td")
             .nth(coluna_usuario)
-            .map(|celula| {
-                html_escape::decode_html_entities(&celula.inner_text(parser))
-                    .into_owned()
-                    .trim()
-                    .to_owned()
-            });
+            .map(|celula| celula.texto().trim().to_owned());
         return Ok(nome.filter(|nome| !nome.is_empty()));
     }
     Ok(None)

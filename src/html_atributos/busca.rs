@@ -39,18 +39,6 @@ pub(crate) fn nos_com_id(
     filtrar_por_id(dom.parser(), (0..dom.nodes().len()).map(handle), id)
 }
 
-/// Descendentes de `tag` cujo `id` é exatamente `id`, em ordem.
-pub(crate) fn nos_com_id_em(
-    tag: &tl::HTMLTag<'_>,
-    parser: &tl::Parser<'_>,
-    id: &str,
-) -> Result<Vec<tl::NodeHandle>, ErroAtributoHtml> {
-    let Some((inicio, fim)) = tag.children().boundaries(parser) else {
-        return Ok(Vec::new());
-    };
-    filtrar_por_id(parser, (inicio..=fim).map(tl::NodeHandle::new), id)
-}
-
 /// Elementos `elemento` com a classe `classe`, no documento (`raiz` `None`)
 /// ou entre os descendentes de `raiz`. A seleção por nome é a do `tl`.
 pub(crate) fn nos_por_elemento_e_classe(

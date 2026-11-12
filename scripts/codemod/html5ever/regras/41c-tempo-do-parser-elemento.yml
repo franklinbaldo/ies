@@ -1,0 +1,29 @@
+id: 41c-tempo-do-parser-elemento
+language: rust
+message: "Elemento<'_> ao lado de `parser: &'p tl::Parser<'p>`: o elemento passa a carregar o tempo 'p que a 42 tira com o parser"
+severity: hint
+rule:
+  all:
+    - kind: parameter
+    - pattern:
+        context: "fn f($X: crate::tela_html::Elemento<'_>) {}"
+        selector: parameter
+    - inside:
+        kind: parameters
+        has:
+          kind: parameter
+          has:
+            field: type
+            kind: reference_type
+            regex: "^&'[a-z]+ tl::Parser<'[a-z]+>$"
+            has:
+              kind: lifetime
+              pattern: $L
+    - not:
+        inside:
+          stopBy: end
+          kind: mod_item
+          follows:
+            kind: attribute_item
+            regex: 'cfg\(test\)'
+fix: "$X: crate::tela_html::Elemento<$L>"

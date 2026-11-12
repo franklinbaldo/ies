@@ -38,41 +38,18 @@ fn html(interacao: &serde_json::Value) -> Result<String, String> {
 /// Os textos das opções habilitadas e com valor do `selSerie`, como o usuário as veria.
 fn tipos_oferecidos(html: &str) -> Vec<String> {
     let servido = HtmlServido::de_teste(html);
-    let dom = crate::tela_html::interpretar(&servido);
-    let parser = dom.parser();
-    let selects = dom.query_selector("select").into_iter().flatten();
+    let dom = crate::tela_html::arvore(&servido);
+    let selects = dom.elementos("select");
     selects
-        .filter_map(|no| no.get(parser).and_then(tl::Node::as_tag))
+        .filter(|tag| tag.atributo("id") == Some("selSerie"))
+        .flat_map(|select| select.descendentes().collect::<Vec<_>>())
+        .filter(|tag| tag.nome() == "option" && !tag.presente("disabled"))
         .filter(|tag| {
-            crate::html_atributos::valor_do_atributo(tag, "id")
-                .expect("id legível")
-                .as_deref()
-                == Some("selSerie")
-        })
-        .flat_map(|select| {
-            select
-                .children()
-                .all(parser)
-                .iter()
-                .filter_map(tl::Node::as_tag)
-                .collect::<Vec<_>>()
-        })
-        .filter(|tag| {
-            tag.name().as_utf8_str() == "option"
-                && !crate::html_atributos::atributo_presente(tag, "disabled")
-                    .expect("disabled legível")
-        })
-        .filter(|tag| {
-            crate::html_atributos::valor_do_atributo(tag, "value")
-                .expect("value legível")
+            tag.atributo("value")
+                .map(str::to_owned)
                 .is_some_and(|valor| !valor.is_empty())
         })
-        .map(|tag| {
-            html_escape::decode_html_entities(&tag.inner_text(parser))
-                .split_whitespace()
-                .collect::<Vec<_>>()
-                .join(" ")
-        })
+        .map(|tag| tag.texto().split_whitespace().collect::<Vec<_>>().join(" "))
         .filter(|texto| !texto.is_empty())
         .collect()
 }

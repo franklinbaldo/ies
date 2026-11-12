@@ -10,9 +10,8 @@ use super::resposta::{FaixaDaPesquisa, RespostaDaPesquisa};
 use crate::acao_do_sei::AcaoDoSei;
 use crate::formulario_web::{
     ConferenciaDaUnidade, EfeitoAvaliado, EnvioDoFormulario, EstadoDeSessao, OperacaoDeFormulario,
-    decodificar_atributo, localizar_formulario_tl,
+    localizar_formulario,
 };
-use crate::html_atributos::valor_do_atributo;
 
 /// `navegar(inicio)`: `submit()` por script, só `hdnInicio` reescrito.
 pub(crate) const PAGINAR_PESQUISA_DE_PROTOCOLO: OperacaoDeFormulario = OperacaoDeFormulario {
@@ -33,8 +32,6 @@ pub(crate) const PAGINAR_PESQUISA_DE_PROTOCOLO: OperacaoDeFormulario = OperacaoD
 #[derive(Clone, Debug, PartialEq, Eq, thiserror::Error)]
 #[error("{self:?}")]
 pub(crate) enum ErroPaginacaoDaPesquisa {
-    /// O tokenizador de atributos recusou a tag.
-    Atributo(#[source] crate::html_atributos::ErroAtributoHtml),
     PaginaForaDoIntervalo {
         solicitada: u32,
         paginas: u64,
@@ -166,19 +163,12 @@ fn conferir_links_de_navegar(
     tamanho: u64,
     total: u64,
 ) -> Result<(), ErroPaginacaoDaPesquisa> {
-    let dom = crate::tela_html::interpretar(html);
-    let parser = dom.parser();
+    let dom = crate::tela_html::arvore(html);
     let mut publicados = 0;
-    for no in dom.query_selector("a").into_iter().flatten() {
-        let Some(tag) = no.get(parser).and_then(tl::Node::as_tag) else {
+    for no in dom.elementos("a") {
+        let Some(href) = no.atributo("href").map(str::to_owned) else {
             continue;
         };
-        let Some(bruto) =
-            valor_do_atributo(tag, "href").map_err(ErroPaginacaoDaPesquisa::Atributo)?
-        else {
-            continue;
-        };
-        let href = decodificar_atributo(&bruto);
         let Some(resto) = href.strip_prefix("javascript:navegar(") else {
             continue;
         };
@@ -205,26 +195,16 @@ pub(crate) fn conferir_protocolo_servido(
     html: &crate::tela_html::HtmlServido,
     protocolo: &str,
 ) -> Result<(), ErroPaginacaoDaPesquisa> {
-    let dom = crate::tela_html::interpretar(html);
-    let parser = dom.parser();
-    let form = localizar_formulario_tl(&dom, PAGINAR_PESQUISA_DE_PROTOCOLO.formulario)
+    let dom = crate::tela_html::arvore(html);
+    let form = localizar_formulario(&dom, PAGINAR_PESQUISA_DE_PROTOCOLO.formulario)
         .map_err(ErroPaginacaoDaPesquisa::FormularioDaPesquisaNaoLocalizadoNaTela)?;
     let mut servidos = Vec::new();
     for tag in form
-        .children()
-        .all(parser)
-        .iter()
-        .filter_map(tl::Node::as_tag)
-        .filter(|t| t.name().as_utf8_str().eq_ignore_ascii_case("input"))
+        .descendentes()
+        .filter(|t| t.nome().eq_ignore_ascii_case("input"))
     {
-        if valor_do_atributo(tag, "name")
-            .map_err(ErroPaginacaoDaPesquisa::Atributo)?
-            .as_deref()
-            == Some("txtProtocoloPesquisa")
-        {
-            let bruto =
-                valor_do_atributo(tag, "value").map_err(ErroPaginacaoDaPesquisa::Atributo)?;
-            servidos.push(decodificar_atributo(&bruto.unwrap_or_default()));
+        if tag.atributo("name") == Some("txtProtocoloPesquisa") {
+            servidos.push(tag.atributo("value").unwrap_or_default().to_owned());
         }
     }
     if servidos != [protocolo] {

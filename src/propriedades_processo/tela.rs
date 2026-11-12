@@ -4,12 +4,10 @@
 //! tokenizador de `html_atributos` (o `tl` 0.7.8 corrompe o atributo depois
 //! de um booleano, como `disabled` do `optSigiloso`); aninhamento pelo `tl`.
 use super::{Assunto, ErroPropriedades, FonteDasPropriedades, NivelDeAcesso, PropriedadesLidas};
-use crate::formulario_web::decodificar_atributo;
-use crate::html_atributos::{atributos, nos_com_id, nos_com_id_em};
 
 const FORMULARIO: &str = "frmProcedimentoCadastro";
 
-type Tag<'p> = &'p tl::HTMLTag<'p>;
+type Tag<'p> = crate::tela_html::Elemento<'p>;
 
 /// Lê a tela e confere a identidade (NUP e id, comparação opaca) antes de
 /// qualquer outro campo.
@@ -19,42 +17,34 @@ pub(crate) fn ler_propriedades(
     id: &str,
     fonte: FonteDasPropriedades,
 ) -> Result<PropriedadesLidas, ErroPropriedades> {
-    let ilegivel = || ErroPropriedades::HtmlDasPropriedadesNaoInterpretado;
-    let dom = crate::tela_html::interpretar(html);
-    let parser = dom.parser();
-    let formulario = match nos_com_id(&dom, FORMULARIO)
-        .map_err(ErroPropriedades::Atributo)?
-        .as_slice()
-    {
+    let dom = crate::tela_html::arvore(html);
+    let formulario = match dom.com_id(FORMULARIO).collect::<Vec<_>>().as_slice() {
         [] => return Err(ErroPropriedades::FormularioDasPropriedadesAusente),
-        [unico] => unico
-            .get(parser)
-            .and_then(tl::Node::as_tag)
-            .ok_or_else(ilegivel)?,
+        [unico] => *unico,
         _ => return Err(ErroPropriedades::FormulariosDasPropriedadesRepetidos),
     };
-    let campos = Campos { formulario, parser };
-    if valor(campos.unico("hdnProtocoloFormatado")?)? != nup {
+    let campos = Campos { formulario };
+    if valor(campos.unico("hdnProtocoloFormatado")?) != nup {
         return Err(ErroPropriedades::NumeroDasPropriedadesDiferenteDoSolicitado);
     }
-    if valor(campos.unico("hdnIdProcedimento")?)? != id {
+    if valor(campos.unico("hdnIdProcedimento")?) != id {
         return Err(ErroPropriedades::IdDasPropriedadesDiferenteDoAberto);
     }
     for oculta in ["hdnAssuntos", "hdnInteressadosProcedimento"] {
         if let Some(tag) = campos.opcional(oculta)?
-            && !valor(tag)?.is_empty()
+            && !valor(tag).is_empty()
         {
             return Err(ErroPropriedades::ListaOcultaDasPropriedadesPreenchida);
         }
     }
     Ok(PropriedadesLidas {
         tipo: tipo(&campos)?,
-        especificacao: valor(campos.unico("txtDescricao")?)?,
+        especificacao: valor(campos.unico("txtDescricao")?),
         interessados: interessados(&campos)?,
         assuntos: assuntos(&campos)?,
         observacoes: observacoes(&campos)?,
         nivel_de_acesso: nivel_de_acesso(&campos)?,
-        hipotese_legal: marcada(&campos, campos.unico("selHipoteseLegal")?)?.map(|(_, t)| t),
+        hipotese_legal: marcada(campos.unico("selHipoteseLegal")?)?.map(|(_, t)| t),
         data_de_geracao: data_de_geracao(&campos)?,
         fonte,
     })
@@ -62,20 +52,14 @@ pub(crate) fn ler_propriedades(
 
 struct Campos<'p> {
     formulario: Tag<'p>,
-    parser: &'p tl::Parser<'p>,
 }
 
 impl<'p> Campos<'p> {
     fn opcional(&self, id: &str) -> Result<Option<Tag<'p>>, ErroPropriedades> {
-        let nos =
-            nos_com_id_em(self.formulario, self.parser, id).map_err(ErroPropriedades::Atributo)?;
+        let nos = self.formulario.com_id(id).collect::<Vec<_>>();
         match nos.as_slice() {
             [] => Ok(None),
-            [unico] => unico
-                .get(self.parser)
-                .and_then(tl::Node::as_tag)
-                .map(Some)
-                .ok_or(ErroPropriedades::HtmlDasPropriedadesNaoInterpretado),
+            [unico] => Ok(Some(*unico)),
             _ => Err(ErroPropriedades::CampoDasPropriedadesRepetido),
         }
     }
@@ -84,31 +68,17 @@ impl<'p> Campos<'p> {
         self.opcional(id)?
             .ok_or(ErroPropriedades::CampoDasPropriedadesAusente)
     }
-
-    /// `(value, selected, texto)` de cada `option` de `select`, em ordem.
-    fn opcoes(&self, select: Tag<'p>) -> Result<Vec<(String, bool, String)>, ErroPropriedades> {
-        let mut opcoes = Vec::new();
-        for no in select
-            .query_selector(self.parser, "option")
-            .into_iter()
-            .flatten()
-        {
-            let Some(tag) = no.get(self.parser).and_then(tl::Node::as_tag) else {
-                continue;
-            };
-            let lidos = atributos(tag).map_err(ErroPropriedades::Atributo)?;
-            let bruto = lidos.valor("value");
-            let valor = bruto.map(decodificar).unwrap_or_default();
-            let texto = espacos(&decodificar(&tag.inner_text(self.parser)));
-            opcoes.push((valor, lidos.presente("selected"), texto));
-        }
-        Ok(opcoes)
-    }
 }
 
-/// Entidades decodificadas (`&nbsp;` como espaço inseparável).
-fn decodificar(bruto: &str) -> String {
-    decodificar_atributo(&bruto.replace("&nbsp;", "\u{a0}"))
+/// `(value, selected, texto)` de cada `option` de `select`, em ordem.
+fn opcoes(select: Tag<'_>) -> Vec<(String, bool, String)> {
+    let mut opcoes = Vec::new();
+    for no in select.elementos("option") {
+        let valor = no.atributo("value").unwrap_or_default().to_owned();
+        let texto = espacos(&no.texto());
+        opcoes.push((valor, no.presente("selected"), texto));
+    }
+    opcoes
 }
 
 fn espacos(texto: &str) -> String {
@@ -120,19 +90,14 @@ fn espacos(texto: &str) -> String {
 }
 
 /// `value` decodificado; sem o atributo, vazio.
-fn valor(tag: Tag<'_>) -> Result<String, ErroPropriedades> {
-    let lidos = atributos(tag).map_err(ErroPropriedades::Atributo)?;
-    let bruto = lidos.valor("value");
-    Ok(bruto.map(decodificar).unwrap_or_default())
+fn valor(tag: Tag<'_>) -> String {
+    let bruto = tag.atributo("value");
+    bruto.map(str::to_owned).unwrap_or_default()
 }
 
 /// A única `option` marcada com `value` diferente de `null`; duas: recusa.
-fn marcada(
-    campos: &Campos<'_>,
-    select: Tag<'_>,
-) -> Result<Option<(String, String)>, ErroPropriedades> {
-    let marcadas: Vec<(String, String)> = campos
-        .opcoes(select)?
+fn marcada(select: Tag<'_>) -> Result<Option<(String, String)>, ErroPropriedades> {
+    let marcadas: Vec<(String, String)> = opcoes(select)
         .into_iter()
         .filter(|(_, marcada, _)| *marcada)
         .map(|(valor, _, texto)| (valor, texto))
@@ -146,12 +111,11 @@ fn marcada(
 }
 
 fn tipo(campos: &Campos<'_>) -> Result<String, ErroPropriedades> {
-    let Some((valor_marcado, texto)) = marcada(campos, campos.unico("selTipoProcedimento")?)?
-    else {
+    let Some((valor_marcado, texto)) = marcada(campos.unico("selTipoProcedimento")?)? else {
         return Err(ErroPropriedades::TipoDoProcessoNaoMarcado);
     };
     if let Some(oculto) = campos.opcional("hdnIdTipoProcedimento")?
-        && valor(oculto)? != valor_marcado
+        && valor(oculto) != valor_marcado
     {
         return Err(ErroPropriedades::TipoDoProcessoInconsistente);
     }
@@ -161,7 +125,7 @@ fn tipo(campos: &Campos<'_>) -> Result<String, ErroPropriedades> {
 fn assuntos(campos: &Campos<'_>) -> Result<Vec<Assunto>, ErroPropriedades> {
     let select = campos.unico("selAssuntos")?;
     let mut lidos = Vec::new();
-    for (valor, _, texto) in campos.opcoes(select)? {
+    for (valor, _, texto) in opcoes(select) {
         if valor.is_empty() || !valor.bytes().all(|b| b.is_ascii_digit()) || texto.is_empty() {
             return Err(ErroPropriedades::AssuntoForaDaFormaObservada);
         }
@@ -183,8 +147,7 @@ fn assuntos(campos: &Campos<'_>) -> Result<Vec<Assunto>, ErroPropriedades> {
 
 fn interessados(campos: &Campos<'_>) -> Result<Vec<String>, ErroPropriedades> {
     let select = campos.unico("selInteressadosProcedimento")?;
-    campos
-        .opcoes(select)?
+    opcoes(select)
         .into_iter()
         .map(|(_, _, texto)| {
             if texto.is_empty() {
@@ -200,7 +163,7 @@ fn interessados(campos: &Campos<'_>) -> Result<Vec<String>, ErroPropriedades> {
 /// depois da tag de abertura.
 fn observacoes(campos: &Campos<'_>) -> Result<String, ErroPropriedades> {
     let tag = campos.unico("txaObservacoes")?;
-    let texto = decodificar(&tag.inner_text(campos.parser));
+    let texto = tag.texto();
     let texto = texto
         .strip_prefix("\r\n")
         .or_else(|| texto.strip_prefix('\n'))
@@ -211,18 +174,13 @@ fn observacoes(campos: &Campos<'_>) -> Result<String, ErroPropriedades> {
 /// Os `rdoNivelAcesso` do formulário: um marcado, `value` e `id` observados.
 fn nivel_de_acesso(campos: &Campos<'_>) -> Result<NivelDeAcesso, ErroPropriedades> {
     let mut marcados = Vec::new();
-    let entradas = campos.formulario.query_selector(campos.parser, "input");
-    for no in entradas.into_iter().flatten() {
-        let Some(tag) = no.get(campos.parser).and_then(tl::Node::as_tag) else {
-            continue;
-        };
-        let lidos = atributos(tag).map_err(ErroPropriedades::Atributo)?;
-        let nome = lidos.valor("name");
-        if nome != Some("rdoNivelAcesso") || !lidos.presente("checked") {
+    for no in campos.formulario.elementos("input") {
+        let nome = no.atributo("name");
+        if nome != Some("rdoNivelAcesso") || !no.presente("checked") {
             continue;
         }
-        let valor = lidos.valor("value");
-        let id = lidos.valor("id");
+        let valor = no.atributo("value");
+        let id = no.atributo("id");
         marcados.push((valor, id));
     }
     match marcados.as_slice() {
@@ -239,7 +197,7 @@ fn data_de_geracao(campos: &Campos<'_>) -> Result<String, ErroPropriedades> {
     let Some(tag) = campos.opcional("hdnDtaGeracao")? else {
         return Err(ErroPropriedades::DataDeGeracaoAusente);
     };
-    let data = valor(tag)?;
+    let data = valor(tag);
     if data.is_empty() {
         return Err(ErroPropriedades::DataDeGeracaoAusente);
     }
