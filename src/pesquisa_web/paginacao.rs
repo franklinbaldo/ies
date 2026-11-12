@@ -10,7 +10,7 @@ use super::resposta::{FaixaDaPesquisa, RespostaDaPesquisa};
 use crate::acao_do_sei::AcaoDoSei;
 use crate::formulario_web::{
     ConferenciaDaUnidade, EfeitoAvaliado, EnvioDoFormulario, EstadoDeSessao, OperacaoDeFormulario,
-    decodificar_atributo, localizar_formulario,
+    decodificar_atributo, localizar_formulario_tl,
 };
 use crate::html_atributos::valor_do_atributo;
 
@@ -207,7 +207,7 @@ pub(crate) fn conferir_protocolo_servido(
 ) -> Result<(), ErroPaginacaoDaPesquisa> {
     let dom = crate::tela_html::interpretar(html);
     let parser = dom.parser();
-    let form = localizar_formulario(&dom, PAGINAR_PESQUISA_DE_PROTOCOLO.formulario)
+    let form = localizar_formulario_tl(&dom, PAGINAR_PESQUISA_DE_PROTOCOLO.formulario)
         .map_err(ErroPaginacaoDaPesquisa::FormularioDaPesquisaNaoLocalizadoNaTela)?;
     let mut servidos = Vec::new();
     for tag in form

@@ -1,0 +1,15 @@
+id: 15d-nome-as-ref
+language: rust
+message: 'nome().as_ref() vira nome(): o nome já é &str'
+severity: hint
+rule:
+  all:
+    - pattern: '$T.nome().as_ref()'
+    - not:
+        inside:
+          stopBy: end
+          kind: mod_item
+          follows:
+            kind: attribute_item
+            regex: 'cfg\(test\)'
+fix: '$T.nome()'

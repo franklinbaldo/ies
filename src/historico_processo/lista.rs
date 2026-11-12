@@ -3,9 +3,8 @@
 //! `(N registros):` da `table#tblHistorico` e a visão servida em
 //! `form#frmProcedimentoHistorico input[name=hdnTipoHistorico]`.
 use super::{AndamentosLidos, ErroAndamentos, TipoDoHistorico};
-use crate::formulario_web::{decodificar_atributo, localizar_formulario};
+use crate::formulario_web::localizar_formulario;
 use crate::historico::ler_historico;
-use crate::html_atributos::{nos_com_id, valor_do_atributo};
 use crate::legenda::{Legenda, ler_legenda};
 
 /// Lê a página e confere o NUP do título com o pedido.
@@ -14,7 +13,7 @@ pub(crate) fn ler_andamentos(
     nup: &str,
 ) -> Result<AndamentosLidos, ErroAndamentos> {
     let detalhe = ler_historico(html, nup)?;
-    let dom = crate::tela_html::interpretar(html);
+    let dom = crate::tela_html::arvore(html);
     let total = legenda(&dom)?;
     let tipo = tipo_servido(&dom)?;
     if detalhe.andamentos.len() > total {
@@ -30,22 +29,16 @@ pub(crate) fn ler_andamentos(
 }
 
 /// A única `caption` da tabela (já conferida única pelo leitor das linhas).
-fn legenda(dom: &tl::VDom<'_>) -> Result<usize, ErroAndamentos> {
-    let parser = dom.parser();
-    let nos = nos_com_id(dom, "tblHistorico").map_err(ErroAndamentos::Atributo)?;
+fn legenda(dom: &crate::tela_html::Documento) -> Result<usize, ErroAndamentos> {
+    let nos = dom.com_id("tblHistorico").collect::<Vec<_>>();
     let tabela = nos
         .first()
         .copied()
-        .and_then(|no| no.get(parser))
-        .and_then(tl::Node::as_tag)
         .ok_or(ErroAndamentos::LegendaDosAndamentosAusente)?;
     let legendas: Vec<String> = tabela
-        .query_selector(parser, "caption")
-        .into_iter()
-        .flatten()
-        .filter_map(|no| no.get(parser))
+        .elementos("caption")
         .map(|no| {
-            no.inner_text(parser)
+            no.texto()
                 .replace("&nbsp;", " ")
                 .replace('\u{a0}', " ")
                 .split_whitespace()
@@ -69,27 +62,20 @@ fn legenda(dom: &tl::VDom<'_>) -> Result<usize, ErroAndamentos> {
 }
 
 /// O único `hdnTipoHistorico` do formulário: `R` ou `P`.
-fn tipo_servido(dom: &tl::VDom<'_>) -> Result<TipoDoHistorico, ErroAndamentos> {
-    let parser = dom.parser();
+fn tipo_servido(dom: &crate::tela_html::Documento) -> Result<TipoDoHistorico, ErroAndamentos> {
     let form = localizar_formulario(dom, super::VER_HISTORICO_COMPLETO.formulario)
         .map_err(ErroAndamentos::FormularioDoTipoNaoLocalizado)?;
     let mut valores = Vec::new();
     for tag in form
-        .children()
-        .all(parser)
-        .iter()
-        .filter_map(tl::Node::as_tag)
-        .filter(|t| t.name().as_utf8_str().eq_ignore_ascii_case("input"))
+        .descendentes()
+        .filter(|t| t.nome().eq_ignore_ascii_case("input"))
     {
-        if valor_do_atributo(tag, "name")
-            .map_err(ErroAndamentos::Atributo)?
-            .as_deref()
-            == Some(super::CAMPO_TIPO)
-        {
-            let bruto = valor_do_atributo(tag, "value")
-                .map_err(ErroAndamentos::Atributo)?
+        if tag.atributo("name") == Some(super::CAMPO_TIPO) {
+            let bruto = tag
+                .atributo("value")
+                .map(str::to_owned)
                 .ok_or(ErroAndamentos::TipoDoHistoricoSemValor)?;
-            valores.push(decodificar_atributo(&bruto));
+            valores.push(bruto);
         }
     }
     match valores.as_slice() {

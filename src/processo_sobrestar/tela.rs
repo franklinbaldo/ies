@@ -8,14 +8,11 @@ use crate::formulario_web::{
     ConferenciaDaUnidade, EfeitoAvaliado, EnvioDoFormulario, ErroSubmissaoFormulario,
     EstadoDoProcesso, OperacaoDeFormulario, ResultadoDoEnvio, localizar_formulario,
 };
-use crate::html_atributos::{atributo_presente, valor_do_atributo};
 use std::collections::HashMap;
 
 #[derive(Clone, Debug, PartialEq, Eq, thiserror::Error)]
 #[error("{self:?}")]
 pub(crate) enum ErroTela {
-    /// O tokenizador de atributos recusou a tag.
-    Atributo(#[source] crate::html_atributos::ErroAtributoHtml),
     /// O tokenizador HTML recusou a tela.
     FormularioAusente(#[source] ErroSubmissaoFormulario),
     OutroProcesso,
@@ -55,40 +52,29 @@ pub(crate) fn conferir_formulario(
     html: &crate::tela_html::HtmlServido,
     id: &str,
 ) -> Result<(), ErroTela> {
-    let dom = crate::tela_html::interpretar(html);
+    let dom = crate::tela_html::arvore(html);
     let form =
         localizar_formulario(&dom, OPERACAO.formulario).map_err(ErroTela::FormularioAusente)?;
-    let atributo = |tag: &tl::HTMLTag<'_>, nome: &'static str| {
-        valor_do_atributo(tag, nome).map_err(ErroTela::Atributo)
+    let atributo = |tag: crate::tela_html::Elemento<'_>, nome: &'static str| {
+        Ok(tag.atributo(nome).map(str::to_owned))
     };
-    let presente = |tag: &tl::HTMLTag<'_>, nome: &'static str| {
-        atributo_presente(tag, nome).map_err(ErroTela::Atributo)
-    };
+    let presente = |tag: crate::tela_html::Elemento<'_>, nome: &'static str| Ok(tag.presente(nome));
     let action = atributo(form, "action")?.ok_or(ErroTela::OutroProcesso)?;
-    let action = crate::formulario_web::decodificar_atributo(&action);
     conferir_processo_da_action(&action, id)?;
     if !atributo(form, "method")?.is_some_and(|v| v.eq_ignore_ascii_case("post")) {
         return Err(ErroTela::CampoInesperado);
     }
     // An external form-associated field changes the browser POST.
     for elemento in ["input", "button", "select", "textarea"] {
-        for no in dom.query_selector(elemento).into_iter().flatten() {
-            let Some(tag) = no.get(dom.parser()).and_then(tl::Node::as_tag) else {
-                continue;
-            };
-            if atributo(tag, "form")?.is_some() {
+        for no in dom.elementos(elemento) {
+            if atributo(no, "form")?.is_some() {
                 return Err(ErroTela::CampoInesperado);
             }
         }
     }
     let mut vistos: HashMap<String, usize> = HashMap::new();
-    for tag in form
-        .children()
-        .all(dom.parser())
-        .iter()
-        .filter_map(tl::Node::as_tag)
-    {
-        let elemento = tag.name().as_utf8_str().to_ascii_lowercase();
+    for tag in form.descendentes() {
+        let elemento = tag.nome().to_ascii_lowercase();
         if elemento == "fieldset" && presente(tag, "disabled")? {
             return Err(ErroTela::CampoInesperado);
         }
@@ -107,7 +93,7 @@ pub(crate) fn conferir_formulario(
         if presente(tag, "disabled")? || atributo(tag, "form")?.is_some() {
             return Err(ErroTela::CampoInesperado);
         }
-        conferir_campo(&dom, tag, id, &mut vistos)?;
+        conferir_campo(tag, id, &mut vistos)?;
     }
     let esperados = [
         ("hdnInfraTipoPagina", 1),
@@ -136,14 +122,13 @@ pub(crate) fn conferir_formulario(
 
 /// Um controle enviável, conferido contra a forma observada antes do POST.
 fn conferir_campo(
-    dom: &tl::VDom<'_>,
-    tag: &tl::HTMLTag<'_>,
+    tag: crate::tela_html::Elemento<'_>,
     id: &str,
     vistos: &mut HashMap<String, usize>,
 ) -> Result<(), ErroTela> {
-    let atributo = |nome: &'static str| valor_do_atributo(tag, nome).map_err(ErroTela::Atributo);
-    let presente = |nome: &'static str| atributo_presente(tag, nome).map_err(ErroTela::Atributo);
-    let elemento = tag.name().as_utf8_str().to_ascii_lowercase();
+    let atributo = |nome: &'static str| Ok(tag.atributo(nome).map(str::to_owned));
+    let presente = |nome: &'static str| Ok(tag.presente(nome));
+    let elemento = tag.nome().to_ascii_lowercase();
     let nome = atributo("name")?.ok_or(ErroTela::CampoInesperado)?;
     let tipo = atributo("type")?.unwrap_or_else(|| {
         if elemento == "button" {
@@ -175,9 +160,7 @@ fn conferir_campo(
             }
             valido
         }
-        ("textarea", _, "txaMotivo") => {
-            !presente("readonly")? && tag.inner_text(dom.parser()).is_empty()
-        }
+        ("textarea", _, "txaMotivo") => !presente("readonly")? && tag.texto().is_empty(),
         ("input" | "button", "submit", "sbmSalvar") => {
             valor == "Salvar"
                 && !presente("formaction")?

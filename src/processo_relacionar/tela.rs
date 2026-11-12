@@ -3,9 +3,8 @@
 use crate::acao_do_sei::AcaoDoSei;
 use crate::consulta_do_controlador::ConsultaDoControlador;
 use crate::formulario_web::{ErroSubmissaoFormulario, localizar_formulario};
-use crate::html_atributos::{ErroAtributoHtml, valor_decodificado};
+use crate::html_atributos::ErroAtributoHtml;
 use crate::resposta_ajax::{ErroXml, RespostaAjax};
-use ErroAtributoDeRelacionamento::AtributoDaTelaIlegivel;
 use std::collections::HashSet;
 
 #[derive(Debug, PartialEq, Eq)]
@@ -62,22 +61,13 @@ fn id_do_processo(href: &str) -> Option<&str> {
 pub(super) fn ler_linhas(
     html: &crate::tela_html::HtmlServido,
 ) -> Result<Vec<Relacionamento>, ErroTelaDeRelacionamentos> {
-    let dom = crate::tela_html::interpretar(html);
-    let parser = dom.parser();
+    let dom = crate::tela_html::arvore(html);
     let form = localizar_formulario(&dom, "frmProcedimentoListarRelacionamentos")
         .map_err(ErroTelaDeRelacionamentos::FormularioDeRelacionamentosNaoLocalizado)?;
     let mut tabelas = Vec::new();
-    for tag in form
-        .children()
-        .all(parser)
-        .iter()
-        .filter_map(tl::Node::as_tag)
-    {
-        if tag.name().as_utf8_str().eq_ignore_ascii_case("table")
-            && valor_decodificado(tag, "summary")
-                .map_err(AtributoDaTelaIlegivel)?
-                .as_deref()
-                == Some("Lista de Processos Relacionados")
+    for tag in form.descendentes() {
+        if tag.nome().eq_ignore_ascii_case("table")
+            && tag.atributo("summary") == Some("Lista de Processos Relacionados")
         {
             tabelas.push(tag);
         }
@@ -90,19 +80,11 @@ pub(super) fn ler_linhas(
             // Não aceitar uma tela genérica apenas por não conter tabela.
             let mut protocolo = 0;
             let mut id_protocolo = 0;
-            for campo in form
-                .children()
-                .all(parser)
-                .iter()
-                .filter_map(tl::Node::as_tag)
-            {
-                if !campo.name().as_utf8_str().eq_ignore_ascii_case("input") {
+            for campo in form.descendentes() {
+                if !campo.nome().eq_ignore_ascii_case("input") {
                     continue;
                 }
-                match valor_decodificado(campo, "id")
-                    .map_err(AtributoDaTelaIlegivel)?
-                    .as_deref()
-                {
+                match campo.atributo("id") {
                     Some("txtProtocolo") => protocolo += 1,
                     Some("hdnIdProtocolo") => id_protocolo += 1,
                     _ => {}
@@ -118,33 +100,25 @@ pub(super) fn ler_linhas(
     let mut lista = Vec::new();
     let mut ids = HashSet::new();
     for linha in tabela
-        .children()
-        .all(parser)
-        .iter()
-        .filter_map(tl::Node::as_tag)
-        .filter(|tag| tag.name().as_utf8_str().eq_ignore_ascii_case("tr"))
+        .descendentes()
+        .filter(|tag| tag.nome().eq_ignore_ascii_case("tr"))
     {
         let mut processos = Vec::new();
         let mut remocoes = Vec::new();
         for ancora in linha
-            .children()
-            .all(parser)
-            .iter()
-            .filter_map(tl::Node::as_tag)
-            .filter(|tag| tag.name().as_utf8_str().eq_ignore_ascii_case("a"))
+            .descendentes()
+            .filter(|tag| tag.nome().eq_ignore_ascii_case("a"))
         {
-            if let Some(href) =
-                valor_decodificado(ancora, "href").map_err(AtributoDaTelaIlegivel)?
+            if let Some(href) = ancora.atributo("href").map(str::to_owned)
                 && let Some(id) = id_do_processo(&href)
             {
-                let nup =
-                    html_escape::decode_html_entities(&ancora.inner_text(parser)).into_owned();
+                let nup = ancora.texto();
                 if nup.trim().is_empty() {
                     return Err(ErroTelaDeRelacionamentos::NumeroDoRelacionadoAusente);
                 }
                 processos.push((id.to_owned(), nup.trim().to_owned()));
             }
-            remocoes.extend(valor_decodificado(ancora, "onclick").map_err(AtributoDaTelaIlegivel)?);
+            remocoes.extend(ancora.atributo("onclick").map(str::to_owned));
         }
         match processos.as_slice() {
             [] => {}
@@ -234,32 +208,14 @@ pub(super) fn url_exclusao(html: &crate::tela_html::HtmlServido) -> Option<Strin
     const ENVIAR: &str =
         "document.getElementById('frmProcedimentoListarRelacionamentos').submit();";
 
-    let dom = crate::tela_html::interpretar(html);
-    let parser = dom.parser();
-    // Um script dentro de template não oferece evento acionável.
-    let inertes: Vec<_> = dom
-        .query_selector("template")
-        .into_iter()
-        .flatten()
-        .filter_map(|n| n.get(parser).and_then(tl::Node::as_tag))
-        .flat_map(|t| t.children().all(parser))
-        .filter_map(tl::Node::as_tag)
-        .filter(|t| t.name().as_utf8_str().eq_ignore_ascii_case("script"))
-        .map(|t| t.raw().as_utf8_str().into_owned())
-        .collect();
-
+    let dom = crate::tela_html::arvore(html);
+    // Um script dentro de template não oferece evento acionável; como no
+    // navegador, ele nem está na árvore.
     let mut urls = Vec::new();
-    for no in dom.query_selector("script").into_iter().flatten() {
-        let Some(script) = no.get(parser).and_then(tl::Node::as_tag) else {
-            continue;
-        };
-        // Fonte bruta, não inner_text: o SEI 4 da `UnB` envolve o script em
-        // `<!--//--><![CDATA[//><!--`, que o tokenizador lê como comentário
-        // e inner_text omite (live de 10/11/2026, lista de relacionamentos).
-        let texto = script.raw().as_utf8_str().into_owned();
-        if inertes.contains(&texto) {
-            continue;
-        }
+    for no in dom.elementos("script") {
+        // O conteúdo inteiro do script, inclusive o invólucro
+        // `<!--//--><![CDATA[//><!--` do SEI 4 da `UnB` (live de 10/11/2026).
+        let texto = no.texto();
         let linhas: Vec<_> = texto.lines().map(str::trim).collect();
         let candidatos: Vec<_> = linhas
             .iter()

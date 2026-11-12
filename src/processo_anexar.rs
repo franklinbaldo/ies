@@ -3,7 +3,6 @@
 //! Nenhum JavaScript executado, atributos só via `html_atributos`.
 use crate::formulario_web::ErroSubmissaoFormulario;
 use crate::formulario_web::localizar_formulario;
-use crate::html_atributos::{ErroAtributoHtml, valor_decodificado};
 use crate::resposta_ajax::{ErroXml, RespostaAjax};
 use std::collections::HashSet;
 
@@ -22,9 +21,7 @@ pub(crate) struct Destino {
 /// Um atributo da tela ou da resposta da anexação que não pôde ser lido.
 #[derive(Clone, Copy, Debug, PartialEq, Eq, thiserror::Error)]
 #[error("{self:?}")]
-pub(crate) enum ErroAtributoDaAnexacao {
-    AtributoDaAnexacaoIlegivel(#[source] ErroAtributoHtml),
-}
+pub(crate) enum ErroAtributoDaAnexacao {}
 
 /// A tela `frmProcedimentoAnexar` fora da forma observada.
 #[derive(Clone, Debug, PartialEq, Eq, thiserror::Error)]
@@ -60,8 +57,7 @@ pub(crate) enum ErroAnexacaoRecusada {
 pub(crate) fn ler_tela(
     html: &crate::tela_html::HtmlServido,
 ) -> Result<TelaDeAnexacao, ErroTelaDeAnexacao> {
-    let dom = crate::tela_html::interpretar(html);
-    let parser = dom.parser();
+    let dom = crate::tela_html::arvore(html);
     let form = localizar_formulario(&dom, "frmProcedimentoAnexar")
         .map_err(ErroTelaDeAnexacao::FormularioDeAnexacaoNaoLocalizado)?;
     let esperados = [
@@ -73,33 +69,20 @@ pub(crate) fn ler_tela(
     ];
     let mut vistos = [0usize; 5];
     let mut tabelas = Vec::new();
-    for tag in form
-        .children()
-        .all(parser)
-        .iter()
-        .filter_map(tl::Node::as_tag)
-    {
-        let elemento = tag.name().as_utf8_str();
+    for tag in form.descendentes() {
+        let elemento = tag.nome();
         // `UnB` 4.0.9 publica o envio como <button type="submit">.
         if (elemento.eq_ignore_ascii_case("input") || elemento.eq_ignore_ascii_case("button"))
-            && let Some(nome) = valor_decodificado(tag, "name")
-                .map_err(ErroAtributoDaAnexacao::AtributoDaAnexacaoIlegivel)?
+            && let Some(nome) = tag.atributo("name").map(str::to_owned)
             && let Some(pos) = esperados.iter().position(|c| *c == nome)
             && let Some(visto) = vistos.get_mut(pos)
         {
             *visto += 1;
-            let tipo = valor_decodificado(tag, "type")
-                .map_err(ErroAtributoDaAnexacao::AtributoDaAnexacaoIlegivel)?;
+            let tipo = tag.atributo("type");
             let valido = match pos {
-                0 | 1 => tipo
-                    .as_deref()
-                    .is_none_or(|v| v.eq_ignore_ascii_case("text")),
-                2 | 3 => tipo
-                    .as_deref()
-                    .is_some_and(|v| v.eq_ignore_ascii_case("hidden")),
-                _ => tipo
-                    .as_deref()
-                    .is_some_and(|v| v.eq_ignore_ascii_case("submit")),
+                0 | 1 => tipo.is_none_or(|v| v.eq_ignore_ascii_case("text")),
+                2 | 3 => tipo.is_some_and(|v| v.eq_ignore_ascii_case("hidden")),
+                _ => tipo.is_some_and(|v| v.eq_ignore_ascii_case("submit")),
             };
             if !valido {
                 return Err(ErroTelaDeAnexacao::ControlesDaAnexacaoAusentesOuRepetidos);
@@ -109,16 +92,9 @@ pub(crate) fn ler_tela(
     if vistos != [1; 5] {
         return Err(ErroTelaDeAnexacao::ControlesDaAnexacaoAusentesOuRepetidos);
     }
-    for table in dom.query_selector("table").into_iter().flatten() {
-        let Some(tag) = table.get(parser).and_then(tl::Node::as_tag) else {
-            continue;
-        };
-        if valor_decodificado(tag, "summary")
-            .map_err(ErroAtributoDaAnexacao::AtributoDaAnexacaoIlegivel)?
-            .as_deref()
-            == Some("Lista de Processos Anexados")
-        {
-            tabelas.push(tag);
+    for table in dom.elementos("table") {
+        if table.atributo("summary") == Some("Lista de Processos Anexados") {
+            tabelas.push(table);
         }
     }
     let tabela = match tabelas.as_slice() {
@@ -132,21 +108,18 @@ pub(crate) fn ler_tela(
     };
     let mut anexados = Vec::new();
     let mut ids = HashSet::new();
-    for tag in tabela
-        .children()
-        .all(parser)
-        .iter()
-        .filter_map(tl::Node::as_tag)
-    {
-        if !tag.name().as_utf8_str().eq_ignore_ascii_case("input")
-            || !valor_decodificado(tag, "type")
-                .map_err(ErroAtributoDaAnexacao::AtributoDaAnexacaoIlegivel)?
+    for tag in tabela.descendentes() {
+        if !tag.nome().eq_ignore_ascii_case("input")
+            || !tag
+                .atributo("type")
+                .map(str::to_owned)
                 .is_some_and(|v| v.eq_ignore_ascii_case("checkbox"))
         {
             continue;
         }
-        let id = valor_decodificado(tag, "value")
-            .map_err(ErroAtributoDaAnexacao::AtributoDaAnexacaoIlegivel)?
+        let id = tag
+            .atributo("value")
+            .map(str::to_owned)
             .filter(|id| !id.is_empty() && id.bytes().all(|b| b.is_ascii_digit()))
             .ok_or(ErroTelaDeAnexacao::IdDoAnexadoAusenteOuInvalido)?;
         if !ids.insert(id.clone()) {

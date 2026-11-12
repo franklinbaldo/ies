@@ -64,38 +64,33 @@ impl fluxo::TransporteLupa for TransporteGravado {
 
 fn observar_formulario_da_lupa_unb(html: &str, passo: usize) {
     let servido = HtmlServido::de_teste(html);
-    let dom = crate::tela_html::interpretar(&servido);
+    let dom = crate::tela_html::arvore(&servido);
     let form = crate::formulario_web::localizar_formulario(&dom, "frmUnidadeLista")
         .expect("formulario da lupa UnB");
     let mut submits_nomeados = 0;
     let mut submits_sem_nome = 0;
     let mut controles = 0;
-    for tag in form
-        .children()
-        .all(dom.parser())
-        .iter()
-        .filter_map(tl::Node::as_tag)
-    {
-        let elemento = tag.name().as_utf8_str();
+    for tag in form.descendentes() {
+        let elemento = tag.nome();
         if elemento != "input" && elemento != "button" {
             continue;
         }
         controles += 1;
-        let tipo = crate::html_atributos::valor_do_atributo(tag, "type").expect("tipo UnB");
+        let tipo = tag.atributo("type").map(str::to_owned);
         if tipo
             .as_deref()
             .is_some_and(|tipo| tipo.eq_ignore_ascii_case("submit"))
         {
-            let nome = crate::html_atributos::valor_do_atributo(tag, "name").expect("nome UnB");
-            let id = crate::html_atributos::valor_do_atributo(tag, "id").expect("id UnB");
-            let id_publico = id.as_deref().filter(|x| {
+            let nome = tag.atributo("name").map(str::to_owned);
+            let id = tag.atributo("id");
+            let id_publico = id.filter(|x| {
                 x.len() <= 32 && x.bytes().all(|b| b.is_ascii_alphanumeric() || b == b'_')
             });
             println!(
                 "observacao UnB submit passo {passo}: id={:?}, name_btnPesquisar={}, desabilitado={}",
                 id_publico.unwrap_or("<sem-id-ou-opaco>"),
                 nome.as_deref() == Some("btnPesquisar"),
-                crate::html_atributos::atributo_presente(tag, "disabled").expect("disabled UnB")
+                tag.presente("disabled")
             );
             if nome.as_deref() == Some("btnPesquisar") {
                 submits_nomeados += 1;
@@ -121,20 +116,14 @@ fn observar_formulario_da_lupa_unb(html: &str, passo: usize) {
 
 /// Como a lista `UnB` publica o `btnNovo` (observação, sem asserção).
 fn observar_btn_novo_unb(html: &HtmlServido) {
-    let dom = crate::tela_html::interpretar(html);
-    for no in
-        crate::html_atributos::nos_com_id(&dom, "btnNovo").expect("id do btnNovo sem ambiguidade")
-    {
-        let tag = no
-            .get(dom.parser())
-            .and_then(tl::Node::as_tag)
-            .expect("btnNovo é elemento HTML");
-        let href = crate::html_atributos::valor_do_atributo(tag, "href").expect("href válido");
-        let onclick =
-            crate::html_atributos::valor_do_atributo(tag, "onclick").expect("onclick válido");
+    let dom = crate::tela_html::arvore(html);
+    for no in dom.com_id("btnNovo") {
+        let tag = no;
+        let href = tag.atributo("href").map(str::to_owned);
+        let onclick = tag.atributo("onclick").map(str::to_owned);
         println!(
             "observacao UnB btnNovo: tag={}, href_url={}, onclick_url={}, onclick_location={}, onclick_urls={}, alvo_cadastro={}",
-            tag.name().as_utf8_str(),
+            tag.nome(),
             href.as_deref()
                 .is_some_and(|x| x.contains("controlador.php?")),
             onclick

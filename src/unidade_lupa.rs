@@ -5,7 +5,6 @@
 #[path = "unidade_lupa/acervo.rs"]
 mod acervo;
 mod fluxo;
-use crate::html_atributos::valor_decodificado;
 use crate::indice_local::UnidadeGuardada;
 use crate::legenda::ler_legenda;
 pub(crate) use fluxo::{FalhaDaLupa, HttpsLupa, ler_integral_com_contador};
@@ -35,30 +34,24 @@ pub(crate) struct PaginaDaLupa {
 }
 
 fn tags<'a>(
-    raiz: &tl::HTMLTag<'_>,
-    parser: &'a tl::Parser<'a>,
+    raiz: crate::tela_html::Elemento<'a>,
     seletor: &str,
-) -> Vec<&'a tl::HTMLTag<'a>> {
-    raiz.query_selector(parser, seletor)
-        .into_iter()
-        .flatten()
-        .filter_map(|handle| handle.get(parser).and_then(tl::Node::as_tag))
-        .collect()
+) -> Vec<crate::tela_html::Elemento<'a>> {
+    raiz.elementos(seletor).collect()
 }
-fn campo_unico(
-    form: &tl::HTMLTag<'_>,
-    parser: &tl::Parser<'_>,
-    nome: &str,
-) -> Result<String, ErroLupa> {
-    let encontrados = tags(form, parser, "input");
+fn campo_unico(form: crate::tela_html::Elemento<'_>, nome: &str) -> Result<String, ErroLupa> {
+    let encontrados = tags(form, "input");
     let correspondentes: Vec<_> = encontrados
         .into_iter()
-        .filter(|t| valor_decodificado(t, "name").ok().flatten().as_deref() == Some(nome))
+        .filter(|t| t.atributo("name") == Some(nome))
         .collect();
     let [unico] = correspondentes.as_slice() else {
         return Err(ErroLupa::PaginaInvalida);
     };
-    valor_decodificado(unico, "value")?.ok_or(ErroLupa::PaginaInvalida)
+    unico
+        .atributo("value")
+        .map(str::to_owned)
+        .ok_or(ErroLupa::PaginaInvalida)
 }
 fn total_da_legenda(legenda: &str) -> Result<usize, ErroLupa> {
     if !legenda.starts_with("Lista de Unidades (") {
@@ -68,20 +61,19 @@ fn total_da_legenda(legenda: &str) -> Result<usize, ErroLupa> {
 }
 
 fn ler_unidades(
-    tabela: &tl::HTMLTag<'_>,
-    parser: &tl::Parser<'_>,
+    tabela: crate::tela_html::Elemento<'_>,
     total: usize,
 ) -> Result<Vec<UnidadeGuardada>, ErroLupa> {
-    let trs = tags(tabela, parser, "tr");
+    let trs = tags(tabela, "tr");
     let mut indices: Option<(usize, usize, usize, usize)> = None;
     let mut unidades = Vec::new();
     for tr in trs {
-        let ths = tags(tr, parser, "th");
+        let ths = tags(tr, "th");
         if !ths.is_empty() {
             if indices.is_some() {
                 continue;
             }
-            let nomes: Vec<_> = ths.iter().map(|c| texto_da_tag(c, parser)).collect();
+            let nomes: Vec<_> = ths.iter().copied().map(texto_da_tag).collect();
             let posicao = |alvo: &str| -> Result<usize, ErroLupa> {
                 let achados: Vec<_> = nomes
                     .iter()
@@ -104,7 +96,7 @@ fn ler_unidades(
             ));
             continue;
         }
-        let tds = tags(tr, parser, "td");
+        let tds = tags(tr, "td");
         if tds.is_empty() {
             continue;
         }
@@ -112,7 +104,7 @@ fn ler_unidades(
             return Err(ErroLupa::TabelaForaDaForma);
         };
         if let [aviso] = tds.as_slice()
-            && valor_decodificado(aviso, "colspan")?.is_some()
+            && aviso.atributo("colspan").map(str::to_owned).is_some()
         {
             // O único aviso permitido é a lista realmente vazia.
             if total == 0 && unidades.is_empty() {
@@ -123,20 +115,24 @@ fn ler_unidades(
         if tds.len() != tamanho {
             return Err(ErroLupa::TabelaForaDaForma);
         }
-        let checkbox: Vec<_> = tags(tr, parser, "input")
+        let checkbox: Vec<_> = tags(tr, "input")
             .into_iter()
-            .filter(|t| valor_decodificado(t, "type").ok().flatten().as_deref() == Some("checkbox"))
+            .filter(|t| t.atributo("type") == Some("checkbox"))
             .collect();
         let [unico] = checkbox.as_slice() else {
             return Err(ErroLupa::LinhaSemIdentidade);
         };
-        let id = valor_decodificado(unico, "value")?.ok_or(ErroLupa::LinhaSemIdentidade)?;
+        let id = unico
+            .atributo("value")
+            .map(str::to_owned)
+            .ok_or(ErroLupa::LinhaSemIdentidade)?;
         if id.is_empty() {
             return Err(ErroLupa::LinhaSemIdentidade);
         }
         let celula = |i: usize| {
             tds.get(i)
-                .map(|tag| texto_da_tag(tag, parser))
+                .copied()
+                .map(texto_da_tag)
                 .ok_or(ErroLupa::TabelaForaDaForma)
         };
         let sigla = celula(sigla)?;
@@ -162,19 +158,15 @@ fn ler_unidades(
 /// A resposta da lupa deve ser uma página de dados identificada pelo formulário,
 /// pela tabela, pelo cabeçalho, pelo total e pelo paginador.
 pub(crate) fn ler_pagina(html: &crate::tela_html::HtmlServido) -> Result<PaginaDaLupa, ErroLupa> {
-    let dom = crate::tela_html::interpretar(html);
-    let parser = dom.parser();
+    let dom = crate::tela_html::arvore(html);
     let form = crate::formulario_web::localizar_formulario(&dom, "frmUnidadeLista")
         .map_err(ErroLupa::FormularioAusente)?;
-    let pagina: usize = campo_unico(form, parser, "hdnInfraPaginaAtual")?
+    let pagina: usize = campo_unico(form, "hdnInfraPaginaAtual")?
         .parse()
         .map_err(ErroLupa::NumeroDaPaginaIlegivel)?;
-    let seletores: Vec<_> = tags(form, parser, "select")
+    let seletores: Vec<_> = tags(form, "select")
         .into_iter()
-        .filter(|s| {
-            valor_decodificado(s, "name").ok().flatten().as_deref()
-                == Some("selInfraPaginacaoSuperior")
-        })
+        .filter(|s| s.atributo("name") == Some("selInfraPaginacaoSuperior"))
         .collect();
     let paginas = match seletores.as_slice() {
         [] => 1,
@@ -182,12 +174,15 @@ pub(crate) fn ler_pagina(html: &crate::tela_html::HtmlServido) -> Result<PaginaD
             // A lupa GO publica índices 0..N-1 nos valores das opções.
             // Contar opções sem conferir seus índices permitiria tratar
             // páginas saltadas ou duplicadas como um snapshot completo.
-            let opcoes = tags(seletor, parser, "option");
+            let opcoes = tags(*seletor, "option");
             if opcoes.is_empty() {
                 return Err(ErroLupa::PaginaInvalida);
             }
             for (indice, opcao) in opcoes.iter().enumerate() {
-                let valor = valor_decodificado(opcao, "value")?.ok_or(ErroLupa::PaginaInvalida)?;
+                let valor = opcao
+                    .atributo("value")
+                    .map(str::to_owned)
+                    .ok_or(ErroLupa::PaginaInvalida)?;
                 if valor.parse::<usize>().ok() != Some(indice) {
                     return Err(ErroLupa::PaginaInvalida);
                 }
@@ -196,18 +191,21 @@ pub(crate) fn ler_pagina(html: &crate::tela_html::HtmlServido) -> Result<PaginaD
         }
         _ => return Err(ErroLupa::PaginaInvalida),
     };
-    let tabelas = tags(form, parser, "table");
+    let tabelas = tags(form, "table");
     let mut candidatas: Vec<_> = Vec::new();
     let mut existe_tabela_infra = false;
     for tabela in tabelas {
-        let classe = valor_decodificado(tabela, "class")?.unwrap_or_default();
+        let classe = tabela
+            .atributo("class")
+            .map(str::to_owned)
+            .unwrap_or_default();
         if !classe.split_whitespace().any(|c| c == "infraTable") {
             continue;
         }
         existe_tabela_infra = true;
-        let legendas = tags(tabela, parser, "caption");
+        let legendas = tags(tabela, "caption");
         if let [legenda] = legendas.as_slice()
-            && texto_da_tag(legenda, parser).starts_with("Lista de Unidades (")
+            && texto_da_tag(*legenda).starts_with("Lista de Unidades (")
         {
             candidatas.push(tabela);
         }
@@ -217,7 +215,7 @@ pub(crate) fn ler_pagina(html: &crate::tela_html::HtmlServido) -> Result<PaginaD
         [] if !existe_tabela_infra
             && pagina == 0
             && paginas == 1
-            && texto_da_tag(form, parser).ends_with("Nenhum registro encontrado.") =>
+            && texto_da_tag(form).ends_with("Nenhum registro encontrado.") =>
         {
             // GO, cassette unidade-listar-destinos-go, POST passo 12:
             // a lupa mantém o formulário, mas omite infraTable e declara
@@ -231,15 +229,16 @@ pub(crate) fn ler_pagina(html: &crate::tela_html::HtmlServido) -> Result<PaginaD
         }
         _ => return Err(ErroLupa::TabelaForaDaForma),
     };
-    let legenda = tags(tabela, parser, "caption")
+    let legenda = tags(tabela, "caption")
         .first()
-        .map(|legenda| texto_da_tag(legenda, parser))
+        .copied()
+        .map(texto_da_tag)
         .ok_or(ErroLupa::TabelaForaDaForma)?;
     let total = total_da_legenda(&legenda)?;
     if pagina >= paginas {
         return Err(ErroLupa::PaginaInvalida);
     }
-    let unidades = ler_unidades(tabela, parser, total)?;
+    let unidades = ler_unidades(tabela, total)?;
     Ok(PaginaDaLupa {
         unidades,
         total,
@@ -247,12 +246,8 @@ pub(crate) fn ler_pagina(html: &crate::tela_html::HtmlServido) -> Result<PaginaD
         paginas,
     })
 }
-fn texto_da_tag(tag: &tl::HTMLTag<'_>, parser: &tl::Parser<'_>) -> String {
-    html_escape::decode_html_entities(&tag.inner_text(parser))
-        .into_owned()
-        .split_whitespace()
-        .collect::<Vec<_>>()
-        .join(" ")
+fn texto_da_tag(tag: crate::tela_html::Elemento<'_>) -> String {
+    tag.texto().split_whitespace().collect::<Vec<_>>().join(" ")
 }
 
 /// Confere que a resposta POST do SEI é a lista *integral*, não uma
@@ -263,19 +258,20 @@ fn texto_da_tag(tag: &tl::HTMLTag<'_>, parser: &tl::Parser<'_>) -> String {
 pub(crate) fn conferir_filtros_de_lista_integral(
     html: &crate::tela_html::HtmlServido,
 ) -> Result<(), ErroLupa> {
-    let dom = crate::tela_html::interpretar(html);
-    let parser = dom.parser();
+    let dom = crate::tela_html::arvore(html);
     let form = crate::formulario_web::localizar_formulario(&dom, "frmUnidadeLista")
         .map_err(ErroLupa::FormularioAusente)?;
-    let inputs = tags(form, parser, "input");
+    let inputs = tags(form, "input");
     for nome in ["txtSiglaUnidade", "txtDescricaoUnidade"] {
         let mut encontrados = 0;
         for campo in &inputs {
-            if valor_decodificado(campo, "name")?.as_deref() != Some(nome) {
+            if campo.atributo("name") != Some(nome) {
                 continue;
             }
             encontrados += 1;
-            if !valor_decodificado(campo, "value")?
+            if !campo
+                .atributo("value")
+                .map(str::to_owned)
                 .unwrap_or_default()
                 .is_empty()
             {
@@ -288,15 +284,15 @@ pub(crate) fn conferir_filtros_de_lista_integral(
     }
 
     let mut selects = 0;
-    for seletor in tags(form, parser, "select") {
-        if valor_decodificado(seletor, "name")?.as_deref() != Some("selOrgaoUnidade") {
+    for seletor in tags(form, "select") {
+        if seletor.atributo("name") != Some("selOrgaoUnidade") {
             continue;
         }
         selects += 1;
-        let opcoes = tags(seletor, parser, "option");
+        let opcoes = tags(seletor, "option");
         let mut selecionadas = Vec::new();
         for (i, opcao) in opcoes.iter().enumerate() {
-            if valor_decodificado(opcao, "selected")?.is_some() {
+            if opcao.atributo("selected").map(str::to_owned).is_some() {
                 selecionadas.push(i);
             }
         }
@@ -308,9 +304,7 @@ pub(crate) fn conferir_filtros_de_lista_integral(
             _ => return Err(ErroLupa::PaginaInvalida),
         };
         let opcao = opcoes.get(indice).ok_or(ErroLupa::PaginaInvalida)?;
-        if valor_decodificado(opcao, "value")?.as_deref() != Some("")
-            || texto_da_tag(opcao, parser) != "Todos"
-        {
+        if opcao.atributo("value") != Some("") || texto_da_tag(*opcao) != "Todos" {
             return Err(ErroLupa::PaginaInvalida);
         }
     }

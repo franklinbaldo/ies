@@ -7,12 +7,10 @@ use crate::arvore_processo::{Cancelamento, ProcessoNaArvore};
 use crate::consulta_do_controlador::ConsultaDoControlador;
 use crate::documento::NumeroDocumento;
 use crate::formulario_web::{
-    ConferenciaDaUnidade, EfeitoAvaliado, EnvioDoFormulario, ErroSubmissaoFormulario,
-    EstadoDoProcesso, OperacaoDeFormulario, RespostaDoEnvio, ResultadoDoEnvio, SubmissaoDerivada,
-    TelaServida, consulta_do_controlador, derivar_submissao, enviar_submissao_via,
-    localizar_formulario,
+    ConferenciaDaUnidade, EfeitoAvaliado, EnvioDoFormulario, EstadoDoProcesso,
+    OperacaoDeFormulario, RespostaDoEnvio, ResultadoDoEnvio, SubmissaoDerivada, TelaServida,
+    consulta_do_controlador, derivar_submissao, enviar_submissao_via, localizar_formulario,
 };
-use crate::html_atributos::valor_do_atributo;
 use crate::indice_local::IndiceLocal;
 use crate::instalacao::Instalacao;
 use crate::pagina_do_controle::codificacao_da_tela;
@@ -214,12 +212,12 @@ pub(super) fn conferir_formulario(
     documento: &str,
 ) -> Result<(), ErroCancelar> {
     use crate::arvore_processo::endereco::conferir_endereco_relativo_por;
-    let dom = crate::tela_html::interpretar(tela.html);
+    let dom = crate::tela_html::arvore(tela.html);
     let form = localizar_formulario(&dom, CANCELAR.formulario).map_err(ErroCancelar::Formulario)?;
-    let action = valor_do_atributo(form, "action")
-        .map_err(|f| ErroCancelar::Formulario(ErroSubmissaoFormulario::AtributoHtml(f)))?
+    let action = form
+        .atributo("action")
+        .map(str::to_owned)
         .ok_or(ErroCancelar::FormularioDeOutroDocumento)?;
-    let action = crate::formulario_web::decodificar_atributo(&action);
     conferir_endereco_relativo_por(
         instalacao,
         &action,
@@ -237,20 +235,10 @@ pub(super) fn conferir_formulario(
     )
     .map_err(ErroCancelar::EnderecoDoDocumentoRecusado)?;
     let mut motivos = 0;
-    for tag in form
-        .children()
-        .all(dom.parser())
-        .iter()
-        .filter_map(tl::Node::as_tag)
-    {
-        let nome = valor_do_atributo(tag, "name")
-            .map_err(|f| ErroCancelar::Formulario(ErroSubmissaoFormulario::AtributoHtml(f)))?;
-        if nome.as_deref() == Some("txaMotivo") {
-            if tag.name().as_utf8_str() != "textarea"
-                || crate::html_atributos::atributo_presente(tag, "disabled").map_err(|f| {
-                    ErroCancelar::Formulario(ErroSubmissaoFormulario::AtributoHtml(f))
-                })?
-            {
+    for tag in form.descendentes() {
+        let nome = tag.atributo("name");
+        if nome == Some("txaMotivo") {
+            if tag.nome() != "textarea" || tag.presente("disabled") {
                 return Err(ErroCancelar::MotivoNaoPublicadoNaTela);
             }
             motivos += 1;

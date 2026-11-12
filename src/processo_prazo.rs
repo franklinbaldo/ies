@@ -121,18 +121,22 @@ pub(crate) fn ler_tela(
     html: &crate::tela_html::HtmlServido,
     id_procedimento: &str,
 ) -> Result<TelaDoPrazo, ErroPrazo> {
-    let dom = crate::tela_html::interpretar(html);
+    let dom = crate::tela_html::arvore(html);
     let form = crate::formulario_web::localizar_formulario(&dom, "frmControlePrazoCadastro")
         .map_err(ErroPrazo::FormularioDoPrazoAusente)?;
     conferir_destino(form, id_procedimento)?;
-    ler_controles_da_tela(form, &dom, id_procedimento)
+    ler_controles_da_tela(form, id_procedimento)
 }
 
 /// O `action` do formulário é `controlador.php?acao=controle_prazo_definir`
 /// com o `id_procedimento` pedido; outro destino recusa antes de qualquer escrita.
-fn conferir_destino(form: &tl::HTMLTag<'_>, id_procedimento: &str) -> Result<(), ErroPrazo> {
-    let action = crate::html_atributos::valor_do_atributo(form, "action")?
-        .map(|bruto| crate::formulario_web::decodificar_atributo(&bruto))
+fn conferir_destino(
+    form: crate::tela_html::Elemento<'_>,
+    id_procedimento: &str,
+) -> Result<(), ErroPrazo> {
+    let action = form
+        .atributo("action")
+        .map(str::to_owned)
         .ok_or(ErroPrazo::FormularioDeOutroDestino)?;
     let (caminho, consulta) = action
         .split_once('?')
@@ -181,8 +185,7 @@ fn estado_dos_controles(
 
 /// Os valores atuais publicados no formulário e o id do processo.
 fn ler_controles_da_tela(
-    form: &tl::HTMLTag<'_>,
-    dom: &tl::VDom<'_>,
+    form: crate::tela_html::Elemento<'_>,
     id_procedimento: &str,
 ) -> Result<TelaDoPrazo, ErroPrazo> {
     let mut opcoes_publicadas = false;
@@ -191,22 +194,15 @@ fn ler_controles_da_tela(
     let mut dias = String::new();
     let mut valor_dos_uteis = "on".to_owned();
     let mut id_conferido = false;
-    for tag in form
-        .children()
-        .all(dom.parser())
-        .iter()
-        .filter_map(tl::Node::as_tag)
-    {
-        let Some(nome) = crate::html_atributos::valor_do_atributo(tag, "name")? else {
+    for tag in form.descendentes() {
+        let Some(nome) = tag.atributo("name").map(str::to_owned) else {
             continue;
         };
-        let valor = crate::html_atributos::valor_do_atributo(tag, "value")?;
+        let valor = tag.atributo("value").map(str::to_owned);
         match nome.as_str() {
             "rdoPrazo" => {
                 opcoes_publicadas = true;
-                if crate::html_atributos::atributo_presente(tag, "checked")
-                    .map_err(ErroPrazo::Atributo)?
-                {
+                if tag.presente("checked") {
                     marcada = valor;
                 }
             }

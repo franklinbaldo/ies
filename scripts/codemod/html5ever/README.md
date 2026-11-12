@@ -23,6 +23,10 @@ só tem a marca, ou só a marca quando ela divide a linha com outro código.
 As regras 30 a 31b limpam o que a migração deixaria: alias, `into_iter()`
 sobre `Option` e cópia de `&str` usada só por `as_deref()`.
 
+As regras de renomeação (`…-usos`) não tocam um campo abreviado de struct
+(`S { nome }`): a variante `…-usos-campo` o escreve por extenso
+(`S { nome: novo }`).
+
 As regras 43, 44 e 44b saem de `modelos/`: o `aplicar.sh` lista primeiro as
 funções dos arquivos dados que têm parâmetro `&tl::Parser` (43) ou
 `&tl::HTMLTag`/`&tl::Node` (44) e só mexe nas chamadas delas. Uma regra que
@@ -61,7 +65,7 @@ pode ser outro programa. Depois: `cargo fmt` e o compilador. O que sobra
 | `07-tag-opcao` | `h.get(p).and_then(tl::Node::as_tag)` (resto) | `Some(h)` |
 | `07c-tag-map-ok-or` | `h.get(p).map(\|n\| corpo).ok_or(e)` | `Ok(corpo)` com `h` no lugar de `n` |
 | `07d-no-opcao` | `h.get(parser)` que sobrou | `Some(h)` |
-| `08-seletor-no-elemento` | `t.query_selector(p, "nome")` com `into_iter().flatten()`, `ok_or(e)?` ou `?` | `t.elementos("nome")` |
+| `08-seletor-no-elemento` | `t.query_selector(p, "nome")` com `into_iter().flatten()`, `ok_or(e)?`, `ok_or_else(e)?` ou `?` | `t.elementos("nome")` |
 | `08b-seletor-is-some-and` | `t.query_selector(p, "nome").is_some_and(\|mut i\| i.m(…))` | `t.elementos("nome").m(…)` |
 | `08c-seletor-algum` | `t.query_selector(p, "nome").is_some_and(\|mut i\| i.next().is_some())` | `t.elementos("nome").next().is_some()` |
 | `08d-seletor-primeiro` | `t.query_selector(p, "nome").and_then(\|mut i\| i.next())` | `t.elementos("nome").next()` |
@@ -73,16 +77,22 @@ pode ser outro programa. Depois: `cargo fmt` e o compilador. O que sobra
 | `11-valor-do-atributo` | `valor_do_atributo(t, k)` / `valor_decodificado(t, k)` com `?` | `t.atributo(k).map(str::to_owned)` |
 | `11c-valor-sem-interrogacao` | `valor_do_atributo(t, k).map_err(e)` sem `?` | `Ok(t.atributo(k).map(str::to_owned))` |
 | `11d-sem-segunda-decodificacao` | `x.map(\|s\| decodificar_atributo(&s))` | `x` |
-| `11e-decodificado-let-usos`, `11f-…` | `let y = decodificar_atributo(&b);` com `b` lido por `atributo()` | o `let` sai; os usos de `y` viram `b` |
+| `11f-decodificado-let` | `let y = decodificar_atributo(&y);` (depois da 11e) | o `let` sai |
 | `11g-sem-segunda-decodificacao-let` | `decodificar_atributo(&b)` que sobrou, com `b` lido por `atributo()` | `b` |
 | `11g2-sem-segunda-decodificacao-str` | `decodificar_atributo(b)` com `b: &str` lido por `atributo()` | `b.to_owned()` |
 | `11h-map-sem-decodificar` | `t.atributo(k).map(str::to_owned).map(\|v\| f(&decodificar_atributo(&v)))` | `t.atributo(k).map(f)` |
+| `11e-decodificado-renomear-origem`, `-campo` | `let y = decodificar_atributo(&b);` com `b` lido por `atributo()`/`texto()` | `b` passa a se chamar `y` em todo o bloco (em campo abreviado de struct, `b: y`) |
+| `11i-valor-ok-flatten` | `valor_do_atributo(t, k).ok().flatten()` | `t.atributo(k).map(str::to_owned)` |
+| `11j-valor-expect` | `valor_do_atributo(t, k).expect(m)` / `.unwrap()` (acervo e testes) | `t.atributo(k).map(str::to_owned)` |
 | `12-atributo-presente` | `atributo_presente(t, k)` com `?` | `t.presente(k)` |
+| `12b-presente-sem-interrogacao`, `12c-presente-expect` | `atributo_presente(t, k).map_err(e)` sem `?` / `.expect(m)` | `Ok(t.presente(k))` / `t.presente(k)` |
 | `13-com-id`, `13b-…` | `nos_com_id(&dom, id)` / `nos_com_id(dom, id)` com `?` | `dom.com_id(id).collect::<Vec<_>>()` |
 | `13c-com-id-vazio` | `nos_com_id(&d, id).is_ok_and(\|v\| v.is_empty())` | `d.com_id(id).next().is_none()` |
+| `13d-com-id-expect` | `nos_com_id(&d, id).expect(m)` | `d.com_id(id).collect::<Vec<_>>()` |
 | `14-com-id-em` | `nos_com_id_em(t, p, id)` com `?` | `t.com_id(id).collect::<Vec<_>>()` |
 | `15-nome`, `15b-…` | `t.name().as_utf8_str()`, `t.name() == s` | `t.nome()`, `t.nome() == s` |
 | `15c-nome-diferente` | `t.name() != s` | `t.nome() != s` |
+| `15d-nome-as-ref` | `t.nome().as_ref()` | `t.nome()` |
 | `16-filhos-elementos` | `t.children().all(p).iter().filter_map(tl::Node::as_tag)` | `t.descendentes()` |
 | `16c-as-tag-resto` | `.filter_map(tl::Node::as_tag)` / `.and_then(tl::Node::as_tag)` que sobrou | (sai) |
 | `16d-for-filhos-por-nome` | `for f in t.children().all(p) { let Some(o) = f.as_tag().filter(\|x\| x.nome() == s) else { continue; }; … }` | `for o in t.elementos(s) { … }` |
@@ -96,6 +106,7 @@ pode ser outro programa. Depois: `cargo fmt` e o compilador. O que sobra
 | `18e-…`, `18g-…` | `atributos(t).ok()?` / `atributos(t).map_err(e)?` que sobrou | `t` |
 | `18b-atributos-is-ok-and` | `atributos(t).is_ok_and(\|a\| …)` | `Some(t).is_some_and(\|a\| …)` |
 | `20-elemento-direto` | `Some(x).is_some_and(\|y\| corpo)` | `corpo` com `x` no lugar de `y` |
+| `20c-some-expect` | `Some(x).expect(m)` deixado pela 07 | `x` |
 | `21-elemento-e-classe`, `21b-…` | `nos_por_elemento_e_classe(dom, None \| Some(r), n, c)` com `?` | `….elementos(n).filter(\|e\| e.tem_classe(c)).collect::<Vec<_>>()` |
 | `30-opcao-any`, `30b-opcao-all` | `x.atributo(k).into_iter().any(f)` / `.all(f)` | `x.atributo(k).is_some_and(f)` / `.is_none_or(f)` |
 | `31-atributo-emprestado` | `let v = t.atributo(k).map(str::to_owned);` com `v` usado só em `v.as_deref()` | `let v = t.atributo(k);` |
@@ -132,7 +143,7 @@ O que muda no comportamento, de propósito:
 - Seletores só por nome de elemento literal (`"[a-z][a-z0-9]*"`) são
   reescritos; seletor em variável ou composto fica para ajuste à mão.
 
-Alvos ainda sem método na árvore (`descendentes` e `Elemento::com_id`;
-`filhos` entrou na F1; `presente`, `tem_classe`, `nos`, `total_de_atributos`,
-`No` e `fragmento` na F2) entram em `documento.rs` com o primeiro leitor que os
-usar: método sem uso é código morto.
+Os métodos entram na árvore com o primeiro leitor que os usa (`filhos` na F1;
+`presente`, `tem_classe`, `nos`, `total_de_atributos`, `No` e `fragmento` na
+F2; `descendentes`, `Elemento::com_id` e a igualdade de elementos na F3):
+método sem uso é código morto.

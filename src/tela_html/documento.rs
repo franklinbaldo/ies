@@ -166,6 +166,13 @@ impl Documento {
     }
 }
 
+/// O mesmo nó do mesmo documento.
+impl PartialEq for Elemento<'_> {
+    fn eq(&self, outro: &Self) -> bool {
+        std::ptr::eq(self.documento, outro.documento) && self.indice == outro.indice
+    }
+}
+
 impl<'d> Elemento<'d> {
     /// O nome local, em minúsculas para elementos HTML.
     pub(crate) fn nome(&self) -> &'d str {
@@ -219,6 +226,21 @@ impl<'d> Elemento<'d> {
     /// Os nós filhos (elementos, textos e comentários), na ordem.
     pub(crate) fn nos(self) -> impl Iterator<Item = No<'d>> {
         self.documento.nos_de(self.indice)
+    }
+
+    /// Todos os elementos abaixo deste, na ordem do documento.
+    pub(crate) fn descendentes(self) -> impl Iterator<Item = Elemento<'d>> {
+        self.documento.descendentes(self.indice)
+    }
+
+    /// Os elementos abaixo deste cujo `id` é `id`, na ordem do documento.
+    pub(crate) fn com_id<'i>(
+        self,
+        id: &'i str,
+    ) -> impl Iterator<Item = Elemento<'d>> + use<'d, 'i> {
+        self.documento
+            .descendentes(self.indice)
+            .filter(move |elemento| elemento.atributo("id") == Some(id))
     }
 
     /// Quantos atributos o elemento tem (repetidos contam uma vez).
@@ -327,6 +349,25 @@ mod tests {
                 if br.nome() == "br"
         ));
         assert_eq!(d.elementos("a").count(), 1);
+    }
+
+    #[test]
+    fn descendentes_com_id_e_igualdade_de_elementos() {
+        let d = documento(
+            "<form id='f'><div><input id='a'></div><select id='a'></select></form><i id='a'></i>",
+        );
+        let form = d.com_id("f").next().unwrap();
+        let nomes: Vec<_> = form.descendentes().map(|e| e.nome()).collect();
+        assert_eq!(nomes, ["div", "input", "select"]);
+        assert_eq!(form.com_id("a").count(), 2);
+        assert!(form.com_id("a").next() == d.com_id("a").next());
+        assert!(form.com_id("a").next() != d.elementos("i").next());
+    }
+
+    #[test]
+    fn textarea_le_crlf_como_o_navegador() {
+        let d = documento("<textarea>a\r\nb\rc</textarea>");
+        assert_eq!(d.elementos("textarea").next().unwrap().texto(), "a\nb\nc");
     }
 
     #[test]
