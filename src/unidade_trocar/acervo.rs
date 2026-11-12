@@ -32,8 +32,10 @@ fn id_declarado(localizacao: &str) -> Option<String> {
     ids.next().is_none().then(|| id.to_owned())
 }
 
-// Um leitor por braço, na ordem da gravação: dividir espalharia o estado.
-#[allow(clippy::too_many_lines)]
+#[expect(
+    clippy::too_many_lines,
+    reason = "Um leitor por braço, na ordem da gravação: dividir espalharia o estado"
+)]
 #[test]
 #[ignore = "lê os ZIPs do acervo em IES_ACERVO_CACHE (padrão ~/.cache/ies); sem rede"]
 fn replay_de_unidade_trocar_no_acervo() {

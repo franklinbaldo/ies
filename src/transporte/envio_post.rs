@@ -84,9 +84,10 @@ pub(crate) fn ler_tela_do_controle(
 /// `Origin` e `Referer` são os da tela servida. O `Content-Type` é o do
 /// navegador, sem parâmetro: o corpo já está no charset da tela. Status,
 /// MIME, limite e login ficam com o envio.
-// A submissão é recebida por valor, como no `FnOnce` do envio: consumida
-// numa única tentativa, sem cópia para retry.
-#[allow(clippy::needless_pass_by_value)]
+#[expect(
+    clippy::needless_pass_by_value,
+    reason = "A submissão é recebida por valor, como no `FnOnce` do envio: consumida numa única tentativa, sem cópia para retry"
+)]
 pub(crate) fn enviar_post(
     submissao: SubmissaoDerivada,
     cookie: &str,

@@ -42,7 +42,7 @@ fn escopo_da_sessao(arquivos: &ArquivosDeAcesso) -> Result<(String, String), Err
         .ok_or(ErroDasUnidades::OrigemNaoAutorizada)?;
     let unidade = indice_local::unidade_dos_links(referencias.url_do_controle())
         .ok_or(ErroDasUnidades::UnidadeDaSessaoNaoIdentificada)?;
-    Ok((instalacao.url_base().clone(), unidade))
+    Ok((instalacao.url_base(), unidade))
 }
 
 /// Falha fechada: em uma consulta offline não se confere o rótulo da

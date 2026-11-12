@@ -177,20 +177,20 @@ fn concluir(
     troca: &Troca,
     pedidos: u32,
 ) -> anyhow::Result<()> {
-    let mut descartados = None;
-    if let Some(novo) = &troca.controle_novo {
-        descartados = aplicar_troca(arquivos, indice, instalacao, sessao.cookie(), novo).map_err(
-            |causa| TrocaFeitaSemRegravarSessao {
+    let descartados = if let Some(novo) = &troca.controle_novo {
+        aplicar_troca(arquivos, indice, instalacao, sessao.cookie(), novo).map_err(|causa| {
+            TrocaFeitaSemRegravarSessao {
                 causa,
                 depois: troca.pedida.clone(),
                 requisicoes: pedidos,
-            },
-        )?;
+            }
+        })?
     } else {
         let inicial = &troca.controle_inicial;
         crate::colheita_do_controle::Colheita::das_referencias(indice, sessao)
             .colher(&inicial.html, Some(&inicial.mime));
-    }
+        None
+    };
     if json_mode {
         let mut valor = serde_json::to_value(resultado_troca(troca, descartados, pedidos))?;
         crate::indice_local::anexar_avisos(&mut valor, indice);

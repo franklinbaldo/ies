@@ -23,7 +23,7 @@ pub(crate) fn humano(feito: &ProcessoEnviado) -> String {
         });
         let observada = if remocao.antes { "sim" } else { "não" };
         linhas.push(format!("Anotação na origem, antes do envio: {observada}"));
-        if let Some(false) = feito.anotacao_depois() {
+        if feito.anotacao_depois() == Some(false) {
             linhas.push("Anotação na origem, após o envio: removida (releitura)".to_owned());
         }
     }

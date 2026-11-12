@@ -164,12 +164,18 @@ pub(crate) fn post(url: &str, corpo: &str) -> Pedido {
 /// Status, HTML e `Location`; ou falha de transporte.
 pub(crate) type Resposta = Result<(i32, String, Option<String>), FalhaTransporte>;
 
-#[allow(clippy::unnecessary_wraps)] // `Resposta` também carrega falhas de transporte.
+#[expect(
+    clippy::unnecessary_wraps,
+    reason = "`Resposta` também carrega falhas de transporte"
+)]
 pub(crate) fn ok(html: String) -> Resposta {
     Ok((200, html, None))
 }
 
-#[allow(clippy::unnecessary_wraps)]
+#[expect(
+    clippy::unnecessary_wraps,
+    reason = "`Resposta` também carrega falhas de transporte"
+)]
 pub(crate) fn r302(localizacao: &str) -> Resposta {
     Ok((302, String::new(), Some(localizacao.to_owned())))
 }

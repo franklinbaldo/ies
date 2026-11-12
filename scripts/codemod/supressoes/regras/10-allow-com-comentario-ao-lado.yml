@@ -1,0 +1,26 @@
+id: 10-allow-com-comentario-ao-lado
+language: rust
+message: 'allow com o motivo no comentário ao lado: expect com reason, que acusa a supressão morta.'
+severity: hint
+rule:
+  pattern: '#[allow(clippy::$L)]'
+  precedes:
+    kind: line_comment
+    regex: '^//[^/!]'
+    pattern: $C
+transform:
+  SEM_BARRAS:
+    replace:
+      source: $C
+      replace: '^//\s*'
+      by: ''
+  MOTIVO:
+    replace:
+      source: $SEM_BARRAS
+      replace: '\.\s*$'
+      by: ''
+fix:
+  template: '#[expect(clippy::$L, reason = "$MOTIVO")]'
+  expandEnd:
+    kind: line_comment
+    regex: '^//[^/!]'

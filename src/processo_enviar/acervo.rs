@@ -145,7 +145,10 @@ fn verificacao(
 }
 
 #[test]
-#[allow(clippy::too_many_lines)] // Um laço por gravação, como os replays de concluir e reabrir.
+#[expect(
+    clippy::too_many_lines,
+    reason = "Um laço por gravação, como os replays de concluir e reabrir"
+)]
 #[ignore = "lê os ZIPs do acervo em IES_ACERVO_CACHE (padrão ~/.cache/ies); sem rede"]
 fn replay_de_processo_enviar_no_acervo() {
     let mut contagem = Contagem::new();

@@ -402,7 +402,10 @@ fn identidade_contestada_pelo_servidor_deixa_de_ser_reutilizavel() {
 fn relogio() -> (Arc<AtomicU64>, impl Fn() -> f64 + Send + 'static) {
     let agora = Arc::new(AtomicU64::new(1_800_000_000));
     let leitura = Arc::clone(&agora);
-    #[allow(clippy::cast_precision_loss)]
+    #[expect(
+        clippy::cast_precision_loss,
+        reason = "Relógio de teste em segundos, muito abaixo de 2^53: o f64 é exato"
+    )]
     let ler = move || leitura.load(Ordering::SeqCst) as f64;
     (agora, ler)
 }

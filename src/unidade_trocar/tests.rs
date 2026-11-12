@@ -214,8 +214,10 @@ fn incerto(respostas_depois: Vec<Resposta>) -> (ErroTroca, usize) {
     (r.map(|_| ()).unwrap_err(), pedidos.len())
 }
 
-// Uma tabela de casos: dividir só repetiria o roteiro.
-#[allow(clippy::too_many_lines)]
+#[expect(
+    clippy::too_many_lines,
+    reason = "Uma tabela de casos: dividir só repetiria o roteiro"
+)]
 #[test]
 fn desvios_depois_do_post_sao_nao_confirmado_sem_novo_pedido() {
     let casos: Vec<(Vec<Resposta>, Etapa, FalhaDepoisDoEnvio, usize)> = vec![

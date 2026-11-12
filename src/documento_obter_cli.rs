@@ -388,10 +388,11 @@ fn publicar(
     for d in &obtidos {
         caches.push(registrar_cache(host, cache_ativo, d)?);
     }
-    let mut gravados = Vec::new();
-    if let Some(destino) = destino {
-        gravados = gravar(&mut obtidos, destino, &caches)?;
-    }
+    let gravados = if let Some(destino) = destino {
+        gravar(&mut obtidos, destino, &caches)?
+    } else {
+        Vec::new()
+    };
     let antes = nota.map_or(0, |n| u32::try_from(n.antes).unwrap_or(u32::MAX));
     let total: u32 = obtidos
         .iter()

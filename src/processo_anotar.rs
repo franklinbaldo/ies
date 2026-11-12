@@ -109,9 +109,8 @@ pub(crate) fn executar<V: EnvioDoProcesso>(
         }
     })?;
     let anotacao_antes = crate::processo_enviar::texto_anotacao(&html, &id)?;
-    let mut alterado = false;
     // Retirada com anotação comprovadamente vazia dispensa POST.
-    if confirmar && (!remover || !anotacao_antes.is_empty()) {
+    let alterado = if confirmar && (!remover || !anotacao_antes.is_empty()) {
         if !remover && !anotacao_antes.trim().is_empty() {
             return Err(ErroAnotar::AnotacaoJaPresente);
         }
@@ -154,8 +153,10 @@ pub(crate) fn executar<V: EnvioDoProcesso>(
         if !resposta_aceita || relido.as_deref() != Some(if remover { "" } else { texto }) {
             return Err(ErroAnotar::NaoConfirmado);
         }
-        alterado = true;
-    }
+        true
+    } else {
+        false
+    };
     Ok(Previa {
         nup: nup.as_str().to_owned(),
         id_procedimento: id,

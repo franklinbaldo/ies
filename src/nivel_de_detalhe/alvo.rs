@@ -106,7 +106,7 @@ pub(crate) fn planejar(
         .map(|opcao| opcao.coluna)
         .collect();
     let alvo = match alvo {
-        AlvoDasColunas::Todas => disponiveis.clone(),
+        AlvoDasColunas::Todas => disponiveis,
         AlvoDasColunas::Lista(colunas) => {
             if let Some(&coluna) = colunas.iter().find(|c| !disponiveis.contains(c)) {
                 return Err(ColunaIndisponivelNestaInstalacao { coluna });

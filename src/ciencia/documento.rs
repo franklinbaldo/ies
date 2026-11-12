@@ -213,7 +213,10 @@ fn ler_aceite<V: EnvioDoProcesso>(
     .map_err(FalhaDoAceite::Aceite)
 }
 
-#[allow(clippy::too_many_arguments)]
+#[expect(
+    clippy::too_many_arguments,
+    reason = "A releitura usa a sessão, o pedido, o índice e a rede do aceite, e confere os ids e a atividade lidos antes do GET"
+)]
 fn verificar<V: EnvioDoProcesso>(
     sessao: &SessaoDoProcesso<'_>,
     pedido: &PedidoDaCienciaDocumento<'_>,
