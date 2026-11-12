@@ -25,6 +25,7 @@ impl IndiceLocal {
 
     /// O NUP já visto para este `id_procedimento` (o mesmo palpite).
     pub(crate) fn nup_por_id(&self, instalacao: &Instalacao, id: &str) -> Option<String> {
+        // Cache local é melhor esforço: registro fora da forma é ignorado.
         conferir_id_procedimento(id).ok()?;
         let origem = instalacao.url_base();
         self.executar(None, |banco, _| {

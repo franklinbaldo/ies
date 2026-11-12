@@ -1,4 +1,7 @@
-use super::{ConsultaDoControlador, ErroChaveDaConsulta, ErroConsultaDoControlador, menciona_acao};
+use super::{
+    ConsultaDoControlador, ErroChaveDaConsulta, ErroConsultaDoControlador, ErroIdDaUrl, id_decimal,
+    id_decimal_do_controlador, menciona_acao,
+};
 use crate::acao_do_sei::AcaoDoSei;
 use crate::transporte::FalhaTransporte;
 
@@ -99,4 +102,53 @@ fn menciona_acao_seleciona_sem_conferir_o_resto() {
             "{href}"
         );
     }
+}
+
+#[test]
+fn id_decimal_devolve_o_id_unico_e_cada_falha_com_o_fato() {
+    assert_eq!(
+        id_decimal("controlador.php?acao=x&id_anexo=42", "id_anexo"),
+        Ok("42")
+    );
+    let casos = [
+        ("controlador.php", ErroIdDaUrl::SemConsulta),
+        ("controlador.php?acao=x&solto", ErroIdDaUrl::ParSemIgual),
+        (
+            "controlador.php?acao=x",
+            ErroIdDaUrl::ParametroAusente("id_anexo"),
+        ),
+        (
+            "controlador.php?id_anexo=1&id_anexo=2",
+            ErroIdDaUrl::ParametroRepetido("id_anexo"),
+        ),
+        (
+            "controlador.php?id_anexo=4a",
+            ErroIdDaUrl::IdNaoDecimal {
+                chave: "id_anexo",
+                valor: "4a".to_owned(),
+            },
+        ),
+        (
+            "controlador.php?id_anexo=",
+            ErroIdDaUrl::IdNaoDecimal {
+                chave: "id_anexo",
+                valor: String::new(),
+            },
+        ),
+    ];
+    for (url, erro) in casos {
+        assert_eq!(id_decimal(url, "id_anexo"), Err(erro), "{url}");
+    }
+}
+
+#[test]
+fn id_decimal_do_controlador_recusa_outra_pagina() {
+    assert_eq!(
+        id_decimal_do_controlador("outra.php?id_anexo=1", "id_anexo"),
+        Err(ErroIdDaUrl::ForaDoControlador)
+    );
+    assert_eq!(
+        id_decimal_do_controlador("controlador.php?id_anexo=1", "id_anexo"),
+        Ok("1")
+    );
 }

@@ -94,6 +94,61 @@ impl<'a> ConsultaDoControlador<'a> {
     }
 }
 
+/// Por que a URL não traz um id decimal único na chave pedida.
+#[derive(Clone, Debug, PartialEq, Eq, thiserror::Error)]
+#[error("{self:?}")]
+pub(crate) enum ErroIdDaUrl {
+    /// A URL não tem `?`.
+    SemConsulta,
+    /// A URL relativa não é do `controlador.php`.
+    ForaDoControlador,
+    /// Um trecho entre `&` não tem `=`.
+    ParSemIgual,
+    /// A chave ou o valor fora da forma que o transporte aceita enviar.
+    RecusadaPeloTransporte(#[source] FalhaTransporte),
+    ParametroAusente(&'static str),
+    ParametroRepetido(&'static str),
+    /// O valor não é decimal; ids do SEI são números, então o valor vai junto.
+    IdNaoDecimal {
+        chave: &'static str,
+        valor: String,
+    },
+}
+
+/// O id decimal único de `chave` numa URL relativa do `controlador.php?`.
+pub(crate) fn id_decimal_do_controlador<'a>(
+    url: &'a str,
+    chave: &'static str,
+) -> Result<&'a str, ErroIdDaUrl> {
+    if !url.starts_with("controlador.php?") {
+        return Err(ErroIdDaUrl::ForaDoControlador);
+    }
+    id_decimal(url, chave)
+}
+
+/// O id decimal único de `chave` na consulta de `url` (texto depois do `?`).
+pub(crate) fn id_decimal<'a>(url: &'a str, chave: &'static str) -> Result<&'a str, ErroIdDaUrl> {
+    let (_, texto) = url.split_once('?').ok_or(ErroIdDaUrl::SemConsulta)?;
+    let consulta = ConsultaDoControlador::ler(texto).map_err(|erro| match erro {
+        ErroConsultaDoControlador::ParSemIgual => ErroIdDaUrl::ParSemIgual,
+        ErroConsultaDoControlador::RecusadaPeloTransporte(falha) => {
+            ErroIdDaUrl::RecusadaPeloTransporte(falha)
+        }
+    })?;
+    let mut valores = consulta.valores(chave);
+    let valor = valores.next().ok_or(ErroIdDaUrl::ParametroAusente(chave))?;
+    if valores.next().is_some() {
+        return Err(ErroIdDaUrl::ParametroRepetido(chave));
+    }
+    if valor.is_empty() || !valor.bytes().all(|b| b.is_ascii_digit()) {
+        return Err(ErroIdDaUrl::IdNaoDecimal {
+            chave,
+            valor: valor.to_owned(),
+        });
+    }
+    Ok(valor)
+}
+
 /// Seleção de candidato, tolerante de propósito: a consulta de `href` (o
 /// texto depois do `?`) tem algum par `acao=` com o valor de `acao`? Não
 /// confere o resto da consulta; quem seleciona por aqui confere o candidato

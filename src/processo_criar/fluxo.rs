@@ -238,7 +238,7 @@ pub(crate) fn criar_com_contagem<V: EnvioDoControle>(
     let (id_tipo, cadastro) = match escolhido.escolha {
         EscolhaDoTipo::Link(link) => {
             let id_tipo = id_do_link(&link)
-                .ok_or(ErroCriar::TipoSemIdentificador)?
+                .map_err(ErroCriar::TipoSemIdentificador)?
                 .to_owned();
             let url = resolver_link(&instalacao, &lista.url, &link, AcaoDoSei::ProcedimentoGerar)?;
             (id_tipo, get(envio, &url, cookie_valor, requisicoes)?)

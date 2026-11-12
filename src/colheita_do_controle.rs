@@ -107,7 +107,8 @@ impl<'i> Colheita<'i> {
         let Some(alvo) = &self.alvo else {
             return;
         };
-        let Some(unidade) = unidade_dos_links(&alvo.url_do_controle) else {
+        // Colheita é melhor esforço: sem unidade legível, não colhe.
+        let Ok(unidade) = unidade_dos_links(&alvo.url_do_controle) else {
             return;
         };
         let (indice, instalacao) = (alvo.indice, &alvo.instalacao);
@@ -214,6 +215,7 @@ fn action_da_pesquisa_rapida(
     mime: &str,
 ) -> Option<String> {
     let codificacao = codificacao_da_tela(mime)?;
+    // Cache local é melhor esforço: registro fora da forma é ignorado.
     let unidade = contexto_da_pagina(html).ok()?.unidade?;
     let tela = TelaServida {
         url: &alvo.url_do_controle,

@@ -17,7 +17,7 @@ pub(crate) enum ErroDasUnidades {
     /// A origem da sessão não identifica uma instalação HTTPS válida.
     OrigemNaoAutorizada,
     /// A URL local do Controle não identifica uma única unidade ativa.
-    UnidadeDaSessaoNaoIdentificada,
+    UnidadeDaSessaoNaoIdentificada(#[source] crate::consulta_do_controlador::ErroIdDaUrl),
     /// `--unidade` não se confere sem consultar a tela do SEI.
     UnidadePedidaNaoVerificavelOffline,
     IndiceLocalDesligado,
@@ -41,7 +41,7 @@ fn escopo_da_sessao(arquivos: &ArquivosDeAcesso) -> Result<(String, String), Err
     let instalacao = Instalacao::interpretar(referencias.origem())
         .ok_or(ErroDasUnidades::OrigemNaoAutorizada)?;
     let unidade = indice_local::unidade_dos_links(referencias.url_do_controle())
-        .ok_or(ErroDasUnidades::UnidadeDaSessaoNaoIdentificada)?;
+        .map_err(ErroDasUnidades::UnidadeDaSessaoNaoIdentificada)?;
     Ok((instalacao.url_base(), unidade))
 }
 

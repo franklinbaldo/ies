@@ -5,10 +5,8 @@ use crate::acao_do_sei::AcaoDoSei;
 use crate::consulta_do_controlador::ConsultaDoControlador;
 use crate::instalacao::Instalacao;
 
-pub(super) fn id_do_link(link: &str) -> Option<&str> {
-    let consulta = ConsultaDoControlador::ler(link.split('?').nth(1)?).ok()?;
-    let primeiro = consulta.unico("id_tipo_procedimento").ok()?;
-    (!primeiro.is_empty() && primeiro.bytes().all(|b| b.is_ascii_digit())).then_some(primeiro)
+pub(super) fn id_do_link(link: &str) -> Result<&str, crate::consulta_do_controlador::ErroIdDaUrl> {
+    crate::consulta_do_controlador::id_decimal(link, "id_tipo_procedimento")
 }
 
 /// Exige exatamente uma ocorrência do parâmetro acao, com valor literal

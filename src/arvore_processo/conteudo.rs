@@ -28,7 +28,7 @@ impl EnderecoDoConteudo {
         id: &str,
     ) -> Result<Self, ErroConteudoNaArvore> {
         if acao_unica(href) != Some(AcaoDoSei::DocumentoDownloadAnexo)
-            || id_anexo_unico(href) != Some(id)
+            || id_anexo_unico(href).map_err(ErroConteudoNaArvore::IdDoAnexoIlegivel)? != id
         {
             return Err(ErroConteudoNaArvore::LinkAnexoCadastroInvalido);
         }
@@ -62,7 +62,7 @@ pub(crate) enum ConteudoNaArvore {
     Vazio,
 }
 
-#[derive(Clone, Copy, Debug, PartialEq, Eq, thiserror::Error)]
+#[derive(Clone, Debug, PartialEq, Eq, thiserror::Error)]
 #[error("{self:?}")]
 pub(crate) enum ErroConteudoNaArvore {
     LinkAnexoCadastroRecusado(#[source] crate::arvore_processo::endereco::EnderecoRecusado),
@@ -71,6 +71,8 @@ pub(crate) enum ErroConteudoNaArvore {
     DocumentoAusenteDaArvore,
     EnderecoDoConteudoNaoReconhecido,
     LinkAnexoCadastroInvalido,
+    /// O link do anexo não traz um `id_anexo` decimal único.
+    IdDoAnexoIlegivel(#[source] crate::consulta_do_controlador::ErroIdDaUrl),
     LinkDoConteudoAusenteNaArvore,
     LinkDoConteudoForaDaFormaObservada,
     LinkDoConteudoRepetidoNaArvore,
@@ -119,8 +121,7 @@ pub(crate) fn ler_conteudo_na_arvore(
         Some(AcaoDoSei::DocumentoDownloadAnexo) => {
             // O link não traz `id_documento`: o id conferido é o `id_anexo`
             // único e decimal do próprio link; a ligação é o nó (Refs #60).
-            let id_anexo = id_anexo_unico(src)
-                .ok_or(ErroConteudoNaArvore::EnderecoDoConteudoNaoReconhecido)?;
+            let id_anexo = id_anexo_unico(src).map_err(ErroConteudoNaArvore::IdDoAnexoIlegivel)?;
             conferir_endereco_relativo_por(
                 instalacao,
                 src,
@@ -152,13 +153,8 @@ pub(crate) fn ler_conteudo_na_arvore(
 }
 
 /// O `id_anexo` único e decimal de `controlador.php?…`.
-fn id_anexo_unico(src: &str) -> Option<&str> {
-    let consulta = src.strip_prefix("controlador.php?")?;
-    let id = ConsultaDoControlador::ler(consulta)
-        .ok()?
-        .unico("id_anexo")
-        .ok()?;
-    (!id.is_empty() && id.bytes().all(|b| b.is_ascii_digit())).then_some(id)
+fn id_anexo_unico(src: &str) -> Result<&str, crate::consulta_do_controlador::ErroIdDaUrl> {
+    crate::consulta_do_controlador::id_decimal_do_controlador(src, "id_anexo")
 }
 
 /// A `acao` única de `controlador.php?…`, sem conferir o resto.
