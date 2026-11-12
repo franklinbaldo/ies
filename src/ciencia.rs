@@ -137,9 +137,8 @@ fn so_chamadas_simples(script: &str, inicio: usize, fim: usize) -> bool {
     !ativo.contains(['{', '}'])
         && ativo.split(';').map(str::trim).all(|instrucao| {
             let palavra = instrucao
-                .split(|c: char| !(c.is_ascii_alphanumeric() || c == '_'))
-                .next()
-                .unwrap_or_default();
+                .split_once(|c: char| !(c.is_ascii_alphanumeric() || c == '_'))
+                .map_or(instrucao, |(antes, _)| antes);
             !DESVIOS.contains(&palavra)
         })
 }
@@ -187,7 +186,12 @@ fn atividade_do_endereco(url: &str, alvo: AlvoDaCiencia<'_>) -> Option<String> {
     if caminho != "controlador.php" {
         return None;
     }
-    let consulta = ConsultaDoControlador::ler(restante.split('#').next()?).ok()?;
+    let consulta = ConsultaDoControlador::ler(
+        restante
+            .split_once('#')
+            .map_or(restante, |(antes, _)| antes),
+    )
+    .ok()?;
     let (id_procedimento, marca, id_documento) = match alvo {
         AlvoDaCiencia::Processo { id_procedimento } => {
             (id_procedimento, "procedimento_visualizar_ciencias", None)

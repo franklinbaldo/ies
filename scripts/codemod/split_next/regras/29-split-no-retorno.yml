@@ -1,0 +1,19 @@
+id: 29-split-no-retorno
+language: rust
+message: 'split(P).next() no retorno de quem devolve Option: é sempre Some.'
+severity: hint
+rule:
+  pattern: $X.split($P).next()
+  inside:
+    kind: block
+  not:
+    inside:
+      stopBy: end
+      kind: mod_item
+      follows:
+        kind: attribute_item
+        regex: 'cfg\((all\()?test\b'
+constraints:
+  X:
+    kind: identifier
+fix: 'Some($X.split_once($P).map_or($X, |(antes, _)| antes))'

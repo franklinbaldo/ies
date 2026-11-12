@@ -122,7 +122,10 @@ pub(super) fn link_do_nivel_de_detalhe(
     {
         return Err(invalido);
     }
-    let base = tela.url.split('?').next().unwrap_or_default();
+    let base = tela
+        .url
+        .split_once('?')
+        .map_or(tela.url.as_str(), |(antes, _)| antes);
     let (pasta, _) = base.rsplit_once('/').ok_or_else(|| invalido.clone())?;
     let url = format!("{pasta}/{relativo}");
     let (host, caminho) = url

@@ -19,7 +19,9 @@ pub(super) fn destino(localizacao: Option<&str>) -> DestinoDoRedirecionamento {
         return DestinoDoRedirecionamento::Outro;
     };
     let (caminho, consulta) = localizacao.split_once('?').unwrap_or((localizacao, ""));
-    let arquivo = caminho.rsplit('/').next().unwrap_or(caminho);
+    let arquivo = caminho
+        .rsplit_once('/')
+        .map_or(caminho, |(_, depois)| depois);
     if !arquivo.eq_ignore_ascii_case("login.php") {
         return DestinoDoRedirecionamento::Outro;
     }

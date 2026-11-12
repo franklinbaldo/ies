@@ -20,13 +20,7 @@ pub(crate) fn ler_resposta_da_consulta<R: std::io::Read>(
     if resposta.status_code != 200 {
         return Err(FalhaDaConsulta::Transporte(recusar_status(resposta)));
     }
-    let principal = resposta
-        .mime
-        .split(';')
-        .next()
-        .unwrap_or_default()
-        .trim()
-        .to_ascii_lowercase();
+    let principal = crate::mime_web::principal(&resposta.mime).to_ascii_lowercase();
     if !matches!(principal.as_str(), "application/xml" | "text/xml") {
         return Err(FalhaDaConsulta::RespostaDoAutocompletarNaoXml);
     }

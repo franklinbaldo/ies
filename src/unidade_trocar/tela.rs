@@ -109,7 +109,9 @@ pub(crate) fn link_da_troca(
     }
     conferir_consulta(consulta, AcaoDoSei::InfraTrocarUnidade, |h| h.len() == 64)
         .map_err(|ConsultaForaDaForma| ErroTroca::LinkDeTrocaDeUnidadeForaDaFormaObservada)?;
-    let base = url_da_tela.split('?').next().unwrap_or_default();
+    let base = url_da_tela
+        .split_once('?')
+        .map_or(url_da_tela, |(antes, _)| antes);
     let (pasta, _) = base
         .rsplit_once('/')
         .ok_or(ErroTroca::LinkDeTrocaDeUnidadeForaDaFormaObservada)?;
@@ -304,7 +306,7 @@ fn publica_selecao_por_script(html: &str) -> bool {
     let Some((_, corpo)) = html.split_once("function selecionarUnidade(idUnidade){") else {
         return false;
     };
-    let corpo = corpo.split('}').next().unwrap_or_default();
+    let corpo = corpo.split_once('}').map_or(corpo, |(antes, _)| antes);
     corpo.contains("document.getElementById('frmInfraSelecaoUnidade')")
         && corpo.contains("input.name = 'selInfraUnidades';")
         && corpo.contains("input.value = idUnidade;")

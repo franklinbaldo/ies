@@ -291,7 +291,9 @@ pub(crate) fn resolver_link(
     {
         return Err(nao());
     }
-    let base = url_da_tela.split('?').next().ok_or_else(nao)?;
+    let base = url_da_tela
+        .split_once('?')
+        .map_or(url_da_tela, |(antes, _)| antes);
     let (pasta, _) = base.rsplit_once('/').ok_or_else(nao)?;
     let url = format!("{pasta}/{href}");
     let (host, caminho) = url

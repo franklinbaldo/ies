@@ -23,7 +23,9 @@ pub(crate) fn resolver_no_host(
         return Err(Ilegivel);
     }
     // O navegador não envia o fragmento.
-    let referencia = referencia.split('#').next().unwrap_or_default();
+    let referencia = referencia
+        .split_once('#')
+        .map_or(referencia, |(antes, _)| antes);
     let caminho_atual = caminho_da_url(atual).ok_or(Ilegivel)?;
     let resto_absoluto = resto_http_ou_https(referencia).or_else(|| referencia.strip_prefix("//"));
     let caminho_e_consulta = if let Some(resto) = resto_absoluto {
@@ -50,7 +52,9 @@ pub(crate) fn resolver_no_host(
         let diretorio = caminho_atual.trim_end_matches(|c| c != '/');
         format!("{diretorio}{referencia}")
     };
-    let caminho = caminho_e_consulta.split('?').next().unwrap_or_default();
+    let caminho = caminho_e_consulta
+        .split_once('?')
+        .map_or(caminho_e_consulta.as_str(), |(antes, _)| antes);
     if caminho
         .split('/')
         .skip(1)

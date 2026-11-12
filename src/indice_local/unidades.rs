@@ -133,7 +133,7 @@ impl IndiceLocal {
         if pedida.is_empty() {
             return Vec::new();
         }
-        let ultimo = sigla.rsplit('/').next().unwrap_or(sigla);
+        let ultimo = sigla.rsplit_once('/').map_or(sigla, |(_, depois)| depois);
         let trecho = ultimo.rsplit_once('-').map_or(ultimo, |(parte, sufixo)| {
             if !sufixo.is_empty() && sufixo.bytes().all(|b| b.is_ascii_digit()) {
                 parte

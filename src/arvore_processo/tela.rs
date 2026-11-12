@@ -86,7 +86,7 @@ pub(crate) fn ler_tela_do_documento(
     unidade: Option<&str>,
 ) -> Result<(TelaDoProcesso, String), ErroTelaDoProcesso> {
     let (publicada, src) = unidade_e_src(html, unidade)?;
-    let consulta = ConsultaDoControlador::ler(src.split_once('?').map_or("", |(_, c)| c))
+    let consulta = ConsultaDoControlador::da_url(src.split_once('?').map(|(_, c)| c))
         .map_err(ErroTelaDoProcesso::ConsultaDaArvoreIlegivel)?;
     if consulta.valores("id_documento").collect::<Vec<_>>() != [id_documento] {
         return Err(ErroTelaDoProcesso::EnderecoDaArvoreDeOutroDocumento);

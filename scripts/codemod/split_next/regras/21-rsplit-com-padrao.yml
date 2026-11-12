@@ -1,0 +1,39 @@
+id: 21-rsplit-com-padrao
+language: rust
+message: 'rsplit(P).next() nunca é None: o padrão é código morto.'
+severity: hint
+rule:
+  any:
+    - pattern: $X.rsplit($P).next().unwrap_or_default()
+    - pattern: $X.rsplit($P).next().unwrap_or($D)
+  not:
+    inside:
+      stopBy: end
+      kind: mod_item
+      follows:
+        kind: attribute_item
+        regex: 'cfg\((all\()?test\b'
+constraints:
+  X:
+    kind: identifier
+fix: '$X.rsplit_once($P).map_or($X, |(_, depois)| depois)'
+---
+id: 21b-rsplit-com-padrao-campo
+language: rust
+message: 'rsplit(P).next() nunca é None: o padrão é código morto.'
+severity: hint
+rule:
+  any:
+    - pattern: $X.rsplit($P).next().unwrap_or_default()
+    - pattern: $X.rsplit($P).next().unwrap_or($D)
+  not:
+    inside:
+      stopBy: end
+      kind: mod_item
+      follows:
+        kind: attribute_item
+        regex: 'cfg\((all\()?test\b'
+constraints:
+  X:
+    kind: field_expression
+fix: '$X.rsplit_once($P).map_or($X.as_str(), |(_, depois)| depois)'

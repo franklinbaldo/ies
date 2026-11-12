@@ -68,6 +68,21 @@ fn consulta_vazia_nao_tem_pares() {
 }
 
 #[test]
+fn url_sem_interrogacao_e_consulta_vazia() {
+    for url in [
+        "https://h/sei/controlador.php",
+        "https://h/sei/controlador.php?",
+        "https://h/sei/controlador.php?acao=arvore_visualizar&id=1",
+        "https://h/sei/controlador.php?acao=x&&id=1",
+        "",
+    ] {
+        let antes = ConsultaDoControlador::ler(url.split_once('?').map_or("", |(_, c)| c));
+        let depois = ConsultaDoControlador::da_url(url.split_once('?').map(|(_, c)| c));
+        assert_eq!(antes.map(|c| c.pares), depois.map(|c| c.pares), "{url}");
+    }
+}
+
+#[test]
 fn menciona_acao_seleciona_sem_conferir_o_resto() {
     let casos = [
         ("controlador.php?acao=arvore_visualizar&id=1", true),

@@ -36,7 +36,9 @@ fn validar_url(url: &str) -> Result<(&str, &str), FalhaTransporte> {
     let authority = partes.host;
     let route = partes.caminho;
     let query = partes.consulta.ok_or(FalhaTransporte::UrlInvalida)?;
-    if route.rsplit('/').next() != Some("controlador.php") || route.contains("..") {
+    if route.rsplit_once('/').map_or(route, |(_, depois)| depois) != "controlador.php"
+        || route.contains("..")
+    {
         return Err(FalhaTransporte::UrlInvalida);
     }
     let mut actions = 0;
@@ -202,7 +204,7 @@ pub(crate) fn decodificar_resposta<R: Read>(
 pub(crate) fn decodificar_resposta_xml<R: Read>(
     resposta: RespostaWeb<R>,
 ) -> Result<crate::tela_html::HtmlServido, FalhaTransporte> {
-    let principal = resposta.mime.split(';').next().unwrap_or_default().trim();
+    let principal = crate::mime_web::principal(&resposta.mime);
     if resposta.status_code == 200
         && !principal.eq_ignore_ascii_case("application/xml")
         && !principal.eq_ignore_ascii_case("text/xml")
