@@ -1,0 +1,17 @@
+id: 09c-texto-decodificado
+language: rust
+message: 'Texto do tl decodificado à mão: o html5ever já entrega decodificado'
+severity: hint
+rule:
+  all:
+    - any:
+        - pattern: 'html_escape::decode_html_entities(&$N.inner_text($P)).into_owned()'
+        - pattern: 'html_escape::decode_html_entities(&$N.inner_text($P))'
+    - not:
+        inside:
+          stopBy: end
+          kind: mod_item
+          follows:
+            kind: attribute_item
+            regex: 'cfg\(test\)'
+fix: '$N.texto()'

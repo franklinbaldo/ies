@@ -2,7 +2,6 @@
 //! Caso derivado de Todos `src/todos/sei/blocos_lista.py` @323eb01.
 use crate::bloco::TipoBloco;
 use crate::bloco_estado::EstadoDoBloco;
-use crate::html_atributos::nos_com_id;
 use crate::legenda::{ErroLegenda, Faixa, Legenda, ler_legenda};
 use serde::Serialize;
 
@@ -27,9 +26,8 @@ pub(crate) struct BlocoDetalhado {
     pub(crate) faixa_observada: Option<Faixa>,
     pub(crate) itens: Vec<ItemDoBloco>,
 }
-fn texto(tag: &tl::HTMLTag<'_>, parser: &tl::Parser<'_>) -> String {
-    html_escape::decode_html_entities(&tag.inner_text(parser))
-        .into_owned()
+fn texto(tag: crate::tela_html::Elemento<'_>) -> String {
+    tag.texto()
         .replace('\u{a0}', " ")
         .split_whitespace()
         .collect::<Vec<_>>()
@@ -48,8 +46,6 @@ pub(crate) enum ErroBlocoDetalhe {
     TabelasDoBlocoRepetidas,
     /// A legenda não está em nenhuma forma observada (leitor `legenda`).
     Legenda(#[from] ErroLegenda),
-    /// `nos_com_id` recusou a tag do bloco.
-    Atributo(#[source] crate::html_atributos::ErroAtributoHtml),
 }
 
 /// A marca que o SEI publica para um bloco sem registros, no lugar da tabela.
@@ -57,22 +53,17 @@ const BLOCO_VAZIO: &str = "Nenhum registro encontrado.";
 
 /// Verdadeiro só para a forma observada: a área da tabela tem como único
 /// conteúdo um rótulo com a marca de vazio, e a tabela não existe.
-fn bloco_vazio(dom: &tl::VDom<'_>, parser: &tl::Parser<'_>) -> Result<bool, ErroBlocoDetalhe> {
-    let areas = nos_com_id(dom, "divInfraAreaTabela").map_err(ErroBlocoDetalhe::Atributo)?;
+fn bloco_vazio(dom: &crate::tela_html::Documento) -> bool {
+    let areas = dom.com_id("divInfraAreaTabela").collect::<Vec<_>>();
     let [area] = areas.as_slice() else {
-        return Ok(false);
+        return false;
     };
-    let Some(area) = area.get(parser).and_then(tl::Node::as_tag) else {
-        return Ok(false);
-    };
-    let mut rotulos = area.query_selector(parser, "label").into_iter().flatten();
-    let rotulo = rotulos
-        .next()
-        .and_then(|no| no.get(parser))
-        .and_then(tl::Node::as_tag);
-    Ok(rotulos.next().is_none()
-        && rotulo.is_some_and(|r| texto(r, parser) == BLOCO_VAZIO)
-        && texto(area, parser) == BLOCO_VAZIO)
+    let area = *area;
+    let mut rotulos = area.elementos("label");
+    let rotulo = rotulos.next();
+    rotulos.next().is_none()
+        && rotulo.is_some_and(|r| texto(r) == BLOCO_VAZIO)
+        && texto(area) == BLOCO_VAZIO
 }
 
 fn faixa(legenda: &str, linhas: usize) -> Result<(usize, Option<Faixa>), ErroBlocoDetalhe> {
@@ -106,8 +97,7 @@ fn faixa(legenda: &str, linhas: usize) -> Result<(usize, Option<Faixa>), ErroBlo
 }
 
 fn ler_itens(
-    tabela: &tl::HTMLTag<'_>,
-    parser: &tl::Parser<'_>,
+    tabela: crate::tela_html::Elemento<'_>,
     headers: &[String],
     tipo: TipoBloco,
 ) -> Result<Vec<ItemDoBloco>, ErroBlocoDetalhe> {
@@ -117,19 +107,8 @@ fn ler_itens(
     let documento = index("Documento");
     let tipo_coluna = index("Tipo");
     let mut itens = Vec::new();
-    for no in tabela.query_selector(parser, "tr").into_iter().flatten() {
-        let tr = no
-            .get(parser)
-            .and_then(tl::Node::as_tag)
-            .ok_or(ErroBlocoDetalhe::LinhaDoBlocoInvalida)?;
-        let td: Vec<_> = tr
-            .children()
-            .top()
-            .iter()
-            .filter_map(|h| h.get(parser))
-            .filter_map(tl::Node::as_tag)
-            .filter(|t| t.name() == "td")
-            .collect();
+    for no in tabela.elementos("tr") {
+        let td: Vec<_> = no.filhos().filter(|t| t.nome() == "td").collect();
         if td.is_empty() {
             continue;
         }
@@ -141,12 +120,12 @@ fn ler_itens(
                 .copied()
                 .ok_or(ErroBlocoDetalhe::LinhaDoBlocoInvalida)
         };
-        let processo = texto(celula(processo)?, parser);
+        let processo = texto(celula(processo)?);
         if processo.is_empty() {
             return Err(ErroBlocoDetalhe::LinhaDoBlocoInvalida);
         }
         let doc = documento
-            .map(|i| celula(i).map(|c| texto(c, parser)))
+            .map(|i| celula(i).map(texto))
             .transpose()?
             .filter(|s| !s.is_empty());
         if tipo == TipoBloco::Assinatura && doc.is_none() {
@@ -156,10 +135,10 @@ fn ler_itens(
             processo,
             documento: doc,
             tipo: tipo_coluna
-                .map(|i| celula(i).map(|c| texto(c, parser)))
+                .map(|i| celula(i).map(texto))
                 .transpose()?
                 .filter(|s| !s.is_empty()),
-            anotacoes: texto(celula(anotacoes)?, parser),
+            anotacoes: texto(celula(anotacoes)?),
         });
     }
     Ok(itens)
@@ -171,10 +150,9 @@ pub(crate) fn ler_detalhe(
     tipo: TipoBloco,
     estado: EstadoDoBloco,
 ) -> Result<BlocoDetalhado, ErroBlocoDetalhe> {
-    let dom = crate::tela_html::interpretar(html);
-    let parser = dom.parser();
-    let tabelas = nos_com_id(&dom, "tblProtocolosBlocos").map_err(ErroBlocoDetalhe::Atributo)?;
-    if tabelas.is_empty() && bloco_vazio(&dom, parser)? {
+    let dom = crate::tela_html::arvore(html);
+    let tabelas = dom.com_id("tblProtocolosBlocos").collect::<Vec<_>>();
+    if tabelas.is_empty() && bloco_vazio(&dom) {
         return Ok(BlocoDetalhado {
             numero: numero.to_owned(),
             tipo,
@@ -186,45 +164,27 @@ pub(crate) fn ler_detalhe(
     }
     let tabela = match tabelas.as_slice() {
         [] => return Err(ErroBlocoDetalhe::TabelaDoBlocoAusente),
-        [no] => no
-            .get(parser)
-            .and_then(tl::Node::as_tag)
-            .ok_or(ErroBlocoDetalhe::TabelaDoBlocoAusente)?,
+        [no] => *no,
         _ => return Err(ErroBlocoDetalhe::TabelasDoBlocoRepetidas),
     };
-    if tabela.name() != "table" {
+    if tabela.nome() != "table" {
         return Err(ErroBlocoDetalhe::TabelaDoBlocoAusente);
     }
-    let mut captions = tabela
-        .query_selector(parser, "caption")
-        .ok_or(ErroBlocoDetalhe::LegendaDoBlocoInvalida)?;
+    let mut captions = tabela.elementos("caption");
     let caption = captions
         .next()
-        .and_then(|h| h.get(parser))
-        .and_then(tl::Node::as_tag)
         .ok_or(ErroBlocoDetalhe::LegendaDoBlocoInvalida)?;
     if captions.next().is_some() {
         return Err(ErroBlocoDetalhe::LegendaDoBlocoInvalida);
     }
     let mut headers = None;
-    for no in tabela.query_selector(parser, "tr").into_iter().flatten() {
-        let tr = no
-            .get(parser)
-            .and_then(tl::Node::as_tag)
-            .ok_or(ErroBlocoDetalhe::CabecalhoDoBlocoInvalido)?;
-        let th: Vec<_> = tr
-            .children()
-            .top()
-            .iter()
-            .filter_map(|h| h.get(parser))
-            .filter_map(tl::Node::as_tag)
-            .filter(|t| t.name() == "th")
-            .collect();
+    for no in tabela.elementos("tr") {
+        let th: Vec<_> = no.filhos().filter(|t| t.nome() == "th").collect();
         if !th.is_empty() {
             if headers.is_some() {
                 return Err(ErroBlocoDetalhe::CabecalhoDoBlocoInvalido);
             }
-            headers = Some(th.iter().map(|t| texto(t, parser)).collect::<Vec<_>>());
+            headers = Some(th.iter().copied().map(texto).collect::<Vec<_>>());
         }
     }
     let headers = headers.ok_or(ErroBlocoDetalhe::CabecalhoDoBlocoInvalido)?;
@@ -238,8 +198,8 @@ pub(crate) fn ler_detalhe(
     {
         return Err(ErroBlocoDetalhe::CabecalhoDoBlocoInvalido);
     }
-    let itens = ler_itens(tabela, parser, &headers, tipo)?;
-    let (total_declarado, faixa_observada) = faixa(&texto(caption, parser), itens.len())?;
+    let itens = ler_itens(tabela, &headers, tipo)?;
+    let (total_declarado, faixa_observada) = faixa(&texto(caption), itens.len())?;
     Ok(BlocoDetalhado {
         numero: numero.to_owned(),
         tipo,

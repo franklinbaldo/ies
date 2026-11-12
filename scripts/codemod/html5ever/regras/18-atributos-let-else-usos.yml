@@ -12,6 +12,8 @@ rule:
           stopBy: end
           pattern: 'let Ok($X) = atributos($H) else { $$$B };'
     - not:
+        pattern: $H
+    - not:
         inside:
           stopBy: end
           kind: mod_item

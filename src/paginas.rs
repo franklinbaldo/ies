@@ -323,7 +323,7 @@ pub fn juntar(
         return Err(ErroCaixa::LimitePaginas);
     }
     let contexto_inicial = contexto_da_pagina(primeira)?;
-    if contexto_inicial.eh_resumida() && controles_de_paginacao(primeira)? {
+    if contexto_inicial.eh_resumida() && controles_de_paginacao(primeira) {
         return Err(ErroCaixa::VisaoResumidaComPaginacao);
     }
     for html in paginas {
@@ -350,7 +350,7 @@ pub fn juntar(
             if !contexto.verificavel() {
                 return Err(ErroCaixa::ContextoNaoVerificavel);
             }
-            if contexto.eh_resumida() && controles_de_paginacao(html)? {
+            if contexto.eh_resumida() && controles_de_paginacao(html) {
                 return Err(ErroCaixa::VisaoResumidaComPaginacao);
             }
             if contexto != contexto_inicial {
@@ -376,7 +376,7 @@ pub fn juntar(
             // Paginador próprio da tabela com legenda sem intervalo: a
             // coincidência entre total e linhas não comprova página única.
             if faixa.is_some_and(|f| !f.explicita && f.total > 0)
-                && paginador_da_tabela(html, categoria)?
+                && paginador_da_tabela(html, categoria)
             {
                 return Err(ErroCaixa::PaginadorDaTabelaSemFaixaNaLegenda { categoria });
             }

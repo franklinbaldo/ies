@@ -1,0 +1,17 @@
+id: 11c-valor-sem-interrogacao
+language: rust
+message: 'valor_do_atributo/valor_decodificado sem ?: o Result vira Ok'
+severity: hint
+rule:
+  all:
+    - any:
+        - pattern: 'valor_do_atributo($T, $K).map_err($E)'
+        - pattern: 'valor_decodificado($T, $K).map_err($E)'
+    - not:
+        inside:
+          stopBy: end
+          kind: mod_item
+          follows:
+            kind: attribute_item
+            regex: 'cfg\(test\)'
+fix: 'Ok($T.atributo($K).map(str::to_owned))'

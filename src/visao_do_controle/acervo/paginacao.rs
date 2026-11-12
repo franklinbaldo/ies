@@ -82,10 +82,10 @@ pub(super) fn da_tabela(
 ) -> Registro {
     let mut p = cas.registro(leitor_da_pagina(categoria), resp.passo, Resultado::Lido);
     p.formas = controles(html, prefixo(categoria));
-    match crate::paginacao_controle::paginador_da_tabela(&HtmlServido::de_teste(html), categoria) {
-        Ok(true) => p.formas.push("paginador_publicado".into()),
-        Ok(false) => p.formas.push("sem_paginador".into()),
-        Err(erro) => p.formas.push(format!("paginador_{erro:?}")),
+    if crate::paginacao_controle::paginador_da_tabela(&HtmlServido::de_teste(html), categoria) {
+        p.formas.push("paginador_publicado".into());
+    } else {
+        p.formas.push("sem_paginador".into());
     }
     match planejar_r(html, categoria) {
         Ok(contagens) => p.contagens = contagens,

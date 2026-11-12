@@ -1,6 +1,6 @@
 id: 31-atributo-emprestado
 language: rust
-message: 'Valor de atributo usado só por as_deref(): sem to_owned'
+message: 'Valor de atributo usado só por as_deref(), is_some_and ou is_none_or: sem to_owned'
 severity: hint
 rule:
   all:
@@ -16,7 +16,10 @@ rule:
               - not:
                   inside:
                     stopBy: end
-                    pattern: $V.as_deref()
+                    any:
+                      - pattern: $V.as_deref()
+                      - pattern: $V.is_some_and($F)
+                      - pattern: $V.is_none_or($F)
     - not:
         inside:
           stopBy: end

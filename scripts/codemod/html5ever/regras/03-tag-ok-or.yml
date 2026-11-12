@@ -3,7 +3,7 @@ language: rust
 message: 'Ramo impossível: um nó da árvore sempre é o elemento achado.'
 severity: hint
 rule:
-  pattern: $H.get($P).and_then(tl::Node::as_tag).ok_or($E)?
+  pattern: $H.get($P).and_then(tl::Node::as_tag).$M($E)?
   not:
     inside:
       stopBy: end
@@ -11,4 +11,7 @@ rule:
       follows:
         kind: attribute_item
         regex: 'cfg\(test\)'
+constraints:
+  M:
+    regex: '^ok_or(_else)?$'
 fix: '$H'

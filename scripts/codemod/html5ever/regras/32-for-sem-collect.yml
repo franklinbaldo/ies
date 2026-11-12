@@ -1,0 +1,18 @@
+id: 32-for-sem-collect
+language: rust
+message: 'for sobre com_id(..).collect::<Vec<_>>() itera direto'
+severity: hint
+rule:
+  all:
+    - pattern: 'for $X in $D.com_id($I).collect::<Vec<_>>() { $$$B }'
+    - not:
+        inside:
+          stopBy: end
+          kind: mod_item
+          follows:
+            kind: attribute_item
+            regex: 'cfg\(test\)'
+fix: |-
+  for $X in $D.com_id($I) {
+      $$$B
+  }

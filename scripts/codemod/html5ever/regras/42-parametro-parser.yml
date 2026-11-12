@@ -1,0 +1,20 @@
+id: 42-parametro-parser
+language: rust
+message: "O parâmetro tl::Parser sai: o elemento acessa o próprio documento"
+severity: hint
+rule:
+  all:
+    - pattern:
+        context: "fn f($P: &tl::Parser<$L>) {}"
+        selector: parameter
+    - not:
+        inside:
+          stopBy: end
+          kind: mod_item
+          follows:
+            kind: attribute_item
+            regex: 'cfg\(test\)'
+fix:
+  template: "/* ies-codemod: remover linha */"
+  expandEnd:
+    regex: ","

@@ -5,7 +5,6 @@ use crate::controle_contexto::contexto_da_pagina;
 use crate::dominio::Categoria;
 use crate::erro_web::ErroCaixa;
 use crate::formulario_web::CodificacaoDaTela;
-use crate::html_atributos::{nos_com_id, valor_do_atributo};
 use crate::paginacao_controle::paginador_da_tabela;
 use crate::paginas::{FaixaNaPagina, faixa_na_pagina};
 
@@ -34,18 +33,14 @@ pub(super) fn campo_da_pagina(categoria: Categoria) -> &'static str {
     }
 }
 
-fn html_invalido(_: impl Sized) -> ErroPaginaDoControle {
-    ErroPaginaDoControle::Caixa(ErroCaixa::HtmlDaCaixaInvalido)
-}
-
 /// Índice (a partir de 0) que a tela publica em `hdn{T}PaginaAtual`.
 fn pagina_atual(
     html: &crate::tela_html::HtmlServido,
     categoria: Categoria,
 ) -> Result<usize, ErroPaginaDoControle> {
-    let dom = crate::tela_html::interpretar(html);
+    let dom = crate::tela_html::arvore(html);
     let ilegivel = || ErroPaginaDoControle::PaginaAtualDaTabelaIlegivel { categoria };
-    let nos = nos_com_id(&dom, campo_da_pagina(categoria)).map_err(html_invalido)?;
+    let nos = dom.com_id(campo_da_pagina(categoria)).collect::<Vec<_>>();
     let [no] = nos.as_slice() else {
         return Err(if nos.is_empty() {
             ilegivel()
@@ -53,13 +48,7 @@ fn pagina_atual(
             ErroPaginaDoControle::CamposDePaginaAtualDaTabelaRepetidos { categoria }
         });
     };
-    let tag = no
-        .get(dom.parser())
-        .and_then(tl::Node::as_tag)
-        .ok_or_else(ilegivel)?;
-    let valor = valor_do_atributo(tag, "value")
-        .map_err(html_invalido)?
-        .unwrap_or_default();
+    let valor = no.atributo("value").map(str::to_owned).unwrap_or_default();
     if valor.is_empty() || !valor.bytes().all(|b| b.is_ascii_digit()) {
         return Err(ilegivel());
     }
@@ -143,7 +132,7 @@ pub(crate) fn planejar(
     if pagina == atual + 1 {
         return Ok(PlanoDaPagina::JaExibida);
     }
-    if !paginador_da_tabela(html, categoria)? {
+    if !paginador_da_tabela(html, categoria) {
         return Err(ErroPaginaDoControle::PaginadorDaTabelaNaoPublicado { categoria });
     }
     let indice = pagina - 1;

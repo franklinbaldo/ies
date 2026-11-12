@@ -4,7 +4,7 @@ message: 'let de um handle resolvido com ok_or: o nome some e os usos passam ao 
 severity: hint
 rule:
   all:
-    - pattern: 'let $X = $H.get($P).and_then(tl::Node::as_tag).ok_or($E)?;'
+    - pattern: 'let $X = $H.get($P).and_then(tl::Node::as_tag).$M($E)?;'
     - not:
         inside:
           stopBy: end
@@ -13,6 +13,8 @@ rule:
             kind: attribute_item
             regex: 'cfg\(test\)'
 constraints:
+  M:
+    regex: '^ok_or(_else)?$'
   H:
     kind: identifier
 fix: '/* ies-codemod: remover linha */'

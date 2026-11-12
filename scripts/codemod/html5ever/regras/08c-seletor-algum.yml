@@ -1,0 +1,18 @@
+id: 08c-seletor-algum
+language: rust
+message: 'query_selector(nome).is_some_and(|mut i| i.next().is_some())'
+severity: hint
+rule:
+  all:
+    - pattern: '$T.query_selector($P, $S).is_some_and(|mut $I| $I.next().is_some())'
+    - not:
+        inside:
+          stopBy: end
+          kind: mod_item
+          follows:
+            kind: attribute_item
+            regex: 'cfg\(test\)'
+constraints:
+  S:
+    regex: '^"[a-z][a-z0-9]*"$'
+fix: '$T.elementos($S).next().is_some()'

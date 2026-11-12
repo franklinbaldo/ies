@@ -360,9 +360,7 @@ fn ler_pagina(html: &crate::tela_html::HtmlServido) -> Result<Pagina, ErroDetalh
     // Marcadores de paginação sem faixa explícita não demonstram cobertura.
     let paginacao_visivel = indice_oculto_alem_da_primeira(&dom, parser)?
         || crate::paginacao_controle::controles_de_paginacao(html)
-            .map_err(ErroDetalhada::ControleDaPaginaNaoInterpretado)?
-        || crate::paginacao_controle::paginador_com_prefixo(html, "Detalhado")
-            .map_err(ErroDetalhada::ControleDaPaginaNaoInterpretado)?;
+        || crate::paginacao_controle::paginador_com_prefixo(html, "Detalhado");
     let (total, inicio, fim) = faixa(&texto(legenda, parser), processos.len(), paginacao_visivel)?;
     Ok(Pagina {
         contexto,

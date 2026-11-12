@@ -1,0 +1,18 @@
+id: funcoes-com-elemento
+language: rust
+rule:
+  kind: function_item
+  has:
+    field: name
+    pattern: $F
+  all:
+    - has:
+        field: parameters
+        has:
+          any:
+            - pattern:
+                context: "fn f($P: &tl::HTMLTag<$L>) {}"
+                selector: parameter
+            - pattern:
+                context: "fn f($P: &tl::Node<$L>) {}"
+                selector: parameter

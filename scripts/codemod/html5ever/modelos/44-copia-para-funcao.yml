@@ -1,0 +1,18 @@
+id: 44-copia-para-funcao
+language: rust
+message: "v.iter().map(|t| f(t)) com f que agora recebe Elemento por valor (regra 40): copia e passa a função"
+severity: hint
+rule:
+  all:
+    - pattern: $V.iter().map(|$T| $F($T))
+    - not:
+        inside:
+          stopBy: end
+          kind: mod_item
+          follows:
+            kind: attribute_item
+            regex: 'cfg\(test\)'
+constraints:
+  F:
+    regex: "^(FUNCOES)$"
+fix: "$V.iter().copied().map($F)"

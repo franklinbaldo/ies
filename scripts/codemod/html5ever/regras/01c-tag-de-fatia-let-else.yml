@@ -1,0 +1,23 @@
+id: 01c-tag-de-fatia-let-else
+language: rust
+message: 'Handle de um let [h] = … else: o elemento vem por cópia'
+severity: hint
+rule:
+  all:
+    - pattern: 'let Some($X) = $H.get($P).and_then(tl::Node::as_tag) else { $$$B };'
+    - follows:
+        stopBy: end
+        kind: let_declaration
+        has:
+          field: pattern
+          kind: slice_pattern
+          has:
+            pattern: $H
+    - not:
+        inside:
+          stopBy: end
+          kind: mod_item
+          follows:
+            kind: attribute_item
+            regex: 'cfg\(test\)'
+fix: 'let $X = *$H;'
