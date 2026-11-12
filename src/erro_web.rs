@@ -40,6 +40,8 @@ pub enum ErroCaixa {
     ClassesDeEstadoDiferentesNoLinkDoProcesso {
         categoria: Categoria,
         id: String,
+        #[source]
+        motivo: crate::classe_link_processo::ClassesDeEstadoDiferentesNoLink,
     },
     TotalExcedido {
         categoria: Categoria,

@@ -65,6 +65,8 @@ pub(crate) enum ErroTroca {
     AtributoDaLinhaDeUnidadeIlegivel(#[source] crate::html_atributos::ErroAtributoHtml),
     LinkDeTrocaDeUnidadeAusente,
     LinkDeTrocaDeUnidadeForaDaFormaObservada,
+    /// A consulta do link de troca não tem a forma conferida (`acao`, `infra_hash`).
+    ConsultaDoLinkDeTrocaForaDaForma(#[source] ConsultaForaDaForma),
     AtributoDoLinkDeTrocaIlegivel(#[source] crate::html_atributos::ErroAtributoHtml),
     TelaDeTrocaDeUnidadeNaoReconhecida,
     AtributoDaTelaDeTrocaIlegivel(#[source] crate::html_atributos::ErroAtributoHtml),

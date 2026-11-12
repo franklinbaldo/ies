@@ -138,11 +138,18 @@ fn recusas_estruturais() {
         // `PASTA` tem 15 argumentos; outro tipo é recusa.
         (
             vec![p(), pasta],
-            super::ErroArvore::QuantidadeDeArgumentosDoNoDiferenteDaObservada,
+            super::ErroArvore::QuantidadeDeArgumentosDoNoDiferenteDaObservada {
+                esperada: 15,
+                observada: 16,
+            },
         ),
         (
             vec![p(), outro_tipo],
             super::ErroArvore::TipoDeNoDaArvoreNaoSuportado,
+        ),
+        (
+            vec![p(), "Nos[1] = new infraArvoreNo();".to_owned()],
+            super::ErroArvore::NoSemArgumentos,
         ),
         (
             vec![p(), no_documento(1, "21", "99", "1")],
@@ -174,7 +181,10 @@ fn recusas_estruturais() {
         ),
         (
             vec![p().replace(",\"noVisitado\",\"", ",\"")],
-            super::ErroArvore::QuantidadeDeArgumentosDoNoDiferenteDaObservada,
+            super::ErroArvore::QuantidadeDeArgumentosDoNoDiferenteDaObservada {
+                esperada: 16,
+                observada: 15,
+            },
         ),
         (
             vec![p().replace("Nos[0]", "Nos[1]")],

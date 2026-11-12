@@ -68,7 +68,8 @@ observada em [reabertura do processo](../../docs/como-o-sei-funciona/reabertura-
 | Fato na tela do nó | Erro (stderr) |
 | --- | --- |
 | Nenhuma das duas formas | `ErroEnderecoDeReabrir::EnderecoDeReabrirAusenteNaTelaDoNo` |
-| Função ou variável fora da forma exata | `ErroEnderecoDeReabrir::EnderecoDeReabrirForaDaFormaObservada` |
+| Função fora da forma exata | `ErroEnderecoDeReabrir::FuncaoDeReabrirForaDaFormaObservada(FuncaoForaDaForma)` |
+| Variável fora da forma exata | `ErroEnderecoDeReabrir::EnderecoDeReabrirForaDaFormaObservada` |
 | Duas funções, duas variáveis, ou as duas formas | `ErroEnderecoDeReabrir::EnderecosDeReabrirRepetidosNaTelaDoNo` |
 | URL sem `procedimento_reabrir` assinado | `ErroEnderecoDeReabrir::EnderecoDaReaberturaNaoReconhecido` |
 | URL de outro `id_procedimento` | `EnderecoDaReaberturaDeOutroProcesso` |

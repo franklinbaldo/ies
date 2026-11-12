@@ -133,7 +133,10 @@ fn nos_de_pasta_na_forma_observada() {
                 ",true,true,null,null,null);\nNos[1]",
                 ",true,true,null,null,null,null);\nNos[1]",
             ),
-            super::ErroArvore::QuantidadeDeArgumentosDoNoDiferenteDaObservada,
+            super::ErroArvore::QuantidadeDeArgumentosDoNoDiferenteDaObservada {
+                esperada: 15,
+                observada: 16,
+            },
         ),
         // Pai que não é o processo.
         (

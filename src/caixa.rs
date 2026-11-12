@@ -1,5 +1,5 @@
 //! Parser Web puro: HTML -> `CaixaDeEntrada` tipada; sem estado de sessão ou JSON.
-use crate::classe_link_processo::{ClassesDeEstadoDiferentesNoLink, estado_do_link};
+use crate::classe_link_processo::estado_do_link;
 use crate::dominio::{CaixaDeEntrada, Categoria, IdProcedimento, Processo, Tabela};
 use crate::erro_web::ErroCaixa;
 use crate::legenda::{ErroLegenda, ler_legenda};
@@ -94,10 +94,11 @@ fn ler_linhas(
                 .atributo("class")
                 .map(str::to_owned)
                 .unwrap_or_default();
-            let estado = estado_do_link(&classes).map_err(|ClassesDeEstadoDiferentesNoLink| {
+            let estado = estado_do_link(&classes).map_err(|motivo| {
                 ErroCaixa::ClassesDeEstadoDiferentesNoLinkDoProcesso {
                     categoria,
                     id: id.as_str().to_owned(),
+                    motivo,
                 }
             })?;
             if let Some(estado) = estado {

@@ -115,3 +115,32 @@ fn edicao_por_link_simbolico_e_recusada() {
     assert_eq!(previa(&pasta, Some(2)), Err(ErroCopia::LinkSimbolico));
     fs::remove_dir_all(pasta).unwrap();
 }
+
+#[test]
+fn nome_de_versao_local_invalido_guarda_o_motivo_da_leitura() {
+    use crate::documento_versoes::ErroVersao;
+    use std::error::Error;
+    for (nome, motivo) in [
+        ("0011519.v0.html", ErroVersao::VersaoDocumentoInvalida),
+        ("0011519.v1x.html", ErroVersao::VersaoDocumentoInvalida),
+        (
+            "0011519.v4294967296.html",
+            ErroVersao::NumeroDaVersaoIlegivel(std::num::IntErrorKind::PosOverflow),
+        ),
+    ] {
+        let pasta = pasta();
+        fs::write(pasta.join(nome), "x").unwrap();
+        let erro = versoes_locais(&pasta, &doc()).unwrap_err();
+        assert_eq!(
+            erro,
+            ErroCopia::NomeVersaoLocalInvalido(motivo.clone()),
+            "{nome}"
+        );
+        assert_eq!(
+            erro.source().and_then(|c| c.downcast_ref::<ErroVersao>()),
+            Some(&motivo),
+            "{nome}"
+        );
+        fs::remove_dir_all(pasta).unwrap();
+    }
+}

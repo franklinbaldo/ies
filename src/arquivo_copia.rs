@@ -12,7 +12,7 @@ pub(crate) fn ler_regular(alvo: &Path, ausente: ErroCopia) -> Result<Vec<u8>, Er
     // de segurança deve usar o mesmo descritor que vai fornecer os bytes.
     let observado = fs::symlink_metadata(alvo).map_err(|erro| {
         if erro.kind() == std::io::ErrorKind::NotFound {
-            ausente
+            ausente.clone()
         } else {
             ErroCopia::ConsultaDaFotoFalhou(erro.kind())
         }

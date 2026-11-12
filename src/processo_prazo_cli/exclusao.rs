@@ -39,7 +39,7 @@ struct ExclusaoPreparada {
 #[error("{self:?}")]
 pub(crate) enum ErroLinkDaLista {
     /// O HTML do Controle não pôde ser interpretado.
-    ControleIlegivel,
+    ControleIlegivel(#[source] crate::html_atributos::ErroAtributoHtml),
     /// A origem da sessão não é uma instalação reconhecida.
     OrigemNaoInterpretada,
     /// Nenhum link do Controle aponta para `controle_prazo_listar`.
@@ -70,7 +70,7 @@ pub(super) fn link_da_lista(
         .filter_map(|n| n.get(dom.parser()).and_then(tl::Node::as_tag))
     {
         let Some(bruto) = crate::html_atributos::valor_do_atributo(ancora, "href")
-            .map_err(|_| ErroLinkDaLista::ControleIlegivel)?
+            .map_err(ErroLinkDaLista::ControleIlegivel)?
         else {
             continue;
         };
@@ -387,6 +387,17 @@ pub(super) fn executar(
 #[cfg(test)]
 mod tests {
     use super::{ErroAcaoDeExclusao, ErroLinkDaLista, action_de_exclusao, link_da_lista};
+
+    #[test]
+    fn controle_ilegivel_guarda_a_recusa_do_atributo() {
+        use crate::html_atributos::ErroAtributoHtml;
+        let erro =
+            ErroLinkDaLista::ControleIlegivel(ErroAtributoHtml::ValorEntreAspasSemFechamento);
+        assert_eq!(
+            std::error::Error::source(&erro).and_then(|c| c.downcast_ref::<ErroAtributoHtml>()),
+            Some(&ErroAtributoHtml::ValorEntreAspasSemFechamento)
+        );
+    }
 
     fn hash() -> String {
         "a".repeat(64)

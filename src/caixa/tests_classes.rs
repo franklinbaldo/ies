@@ -103,7 +103,15 @@ fn classes_de_estado_diferentes_no_mesmo_link_falham_tipadas() {
             ErroCaixa::ClassesDeEstadoDiferentesNoLinkDoProcesso {
                 categoria: Categoria::Gerados,
                 id: "7".to_owned(),
+                motivo: crate::classe_link_processo::ClassesDeEstadoDiferentesNoLink,
             },
+            "{classe}"
+        );
+        assert_eq!(
+            std::error::Error::source(&erro).and_then(|c| {
+                c.downcast_ref::<crate::classe_link_processo::ClassesDeEstadoDiferentesNoLink>()
+            }),
+            Some(&crate::classe_link_processo::ClassesDeEstadoDiferentesNoLink),
             "{classe}"
         );
     }

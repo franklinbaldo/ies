@@ -108,7 +108,7 @@ pub(crate) fn link_da_troca(
         return Err(ErroTroca::LinkDeTrocaDeUnidadeForaDaFormaObservada);
     }
     conferir_consulta(consulta, AcaoDoSei::InfraTrocarUnidade, |h| h.len() == 64)
-        .map_err(|ConsultaForaDaForma| ErroTroca::LinkDeTrocaDeUnidadeForaDaFormaObservada)?;
+        .map_err(ErroTroca::ConsultaDoLinkDeTrocaForaDaForma)?;
     let base = url_da_tela
         .split_once('?')
         .map_or(url_da_tela, |(antes, _)| antes);

@@ -24,7 +24,13 @@ pub(crate) enum ErroArvore {
     ProtocolosDaPastaIlegiveis(#[source] Box<ErroArvore>),
     ArgumentoDeNoNaoLiteral,
     TextoDeNoSemFechamento,
-    QuantidadeDeArgumentosDoNoDiferenteDaObservada,
+    /// A declaração do nó não traz nenhum argumento (nem o tipo).
+    NoSemArgumentos,
+    /// O nó traz `observada` argumentos onde a forma do tipo tem `esperada`.
+    QuantidadeDeArgumentosDoNoDiferenteDaObservada {
+        esperada: usize,
+        observada: usize,
+    },
     ArgumentoDeNoComTipoDiferenteDoObservado,
     TipoDeNoDaArvoreNaoSuportado,
     NoDoProcessoAusenteNaArvore,

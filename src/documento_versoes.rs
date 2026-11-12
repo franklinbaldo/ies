@@ -55,6 +55,10 @@ impl VersaoDocumento {
     pub fn numero(self) -> u32 {
         self.0.get()
     }
+    /// A versão `N + 1`; não existe depois do maior `u32`.
+    pub fn seguinte(self) -> Option<Self> {
+        self.0.checked_add(1).map(Self)
+    }
 }
 
 #[derive(Debug, Clone, PartialEq, Eq)]
