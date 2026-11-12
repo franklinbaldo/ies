@@ -5,7 +5,7 @@
 use super::ErroLogin;
 use crate::instalacao::host_valido;
 pub(crate) use crate::url_observada::caminho_absoluto as caminho_da_url;
-use crate::url_observada::{esquema_e_resto, pasta, resto_http_ou_https, tem_prefixo_de_esquema};
+use crate::url_observada::{esquema_e_resto, resto_http_ou_https, tem_prefixo_de_esquema};
 
 /// Próxima URL HTTPS de um salto: `localizacao` resolvida contra `atual`
 /// (URL HTTPS absoluta já aceita) e conferida contra `host`.
@@ -45,8 +45,10 @@ pub(crate) fn resolver_no_host(
     } else if referencia.starts_with('?') {
         format!("{caminho_atual}{referencia}")
     } else {
-        let diretorio = pasta(caminho_atual).unwrap_or("");
-        format!("{diretorio}/{referencia}")
+        // `caminho_da_url` começa por `/`: a pasta, com a barra final, é
+        // tudo até a última `/` e nunca falta.
+        let diretorio = caminho_atual.trim_end_matches(|c| c != '/');
+        format!("{diretorio}{referencia}")
     };
     let caminho = caminho_e_consulta.split('?').next().unwrap_or_default();
     if caminho

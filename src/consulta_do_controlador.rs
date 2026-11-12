@@ -35,6 +35,11 @@ pub(crate) enum ErroChaveDaConsulta {
 }
 
 impl<'a> ConsultaDoControlador<'a> {
+    /// A consulta de uma URL, que pode não ter `?`: sem ela, não há pares.
+    pub(crate) fn da_url(consulta: Option<&'a str>) -> Result<Self, ErroConsultaDoControlador> {
+        consulta.map_or_else(|| Ok(Self { pares: Vec::new() }), Self::ler)
+    }
+
     /// `consulta` é o texto depois do `?`, sem ele; vazia, não tem pares.
     pub(crate) fn ler(consulta: &'a str) -> Result<Self, ErroConsultaDoControlador> {
         if consulta.is_empty() {

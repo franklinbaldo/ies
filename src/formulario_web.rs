@@ -2,6 +2,7 @@
 //! Contrato: docs/arquitetura/0002-submeter-formulario-observado.md.
 //! `action` aqui é o atributo do `<form>`, não um despachante genérico.
 mod ajax;
+mod campo_de_texto;
 mod codificacao;
 mod erro;
 mod guardada;
@@ -17,6 +18,7 @@ use crate::transporte::sessao::CookieDaSessao;
 use crate::transporte::validacao_da_infra::mensagem_de_validacao_da_infra;
 use crate::transporte::{FalhaTransporte, RespostaWeb, decodificar_resposta};
 pub(crate) use ajax::{ConsultaAjax, derivar_consulta_ajax};
+pub(crate) use campo_de_texto::CampoDeTexto;
 use codificacao::codificar;
 pub(crate) use codificacao::decodificar_atributo;
 pub(crate) use erro::ErroSubmissaoFormulario;

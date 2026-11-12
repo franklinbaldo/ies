@@ -137,10 +137,10 @@ impl OrigemDoTrabalho<'_> {
 /// teto dos arquivos privados de URL assinada.
 const LIMITE_DA_LOCALIZACAO: usize = 8_192;
 
-/// Host, caminho e consulta de uma URL `https://` absoluta.
-fn partir_https(url: &str) -> Option<(&str, &str, &str)> {
+/// Host, caminho e consulta (se houver `?`) de uma URL `https://` absoluta.
+fn partir_https(url: &str) -> Option<(&str, &str, Option<&str>)> {
     let partes = partes_https(url)?;
-    Some((partes.host, partes.caminho, partes.consulta.unwrap_or("")))
+    Some((partes.host, partes.caminho, partes.consulta))
 }
 
 /// Resolve como o navegador resolveria, sem normalizar `..`: o caminho
@@ -187,8 +187,10 @@ fn resolver(
 }
 
 /// Parâmetros da consulta do 302: nomes canônicos e sem `;`, cada um com `=`.
-fn parametros(consulta: &str) -> Result<ConsultaDoControlador<'_>, ErroRedirecionamentoDaPesquisa> {
-    ConsultaDoControlador::ler(consulta).map_err(|erro| match erro {
+fn parametros(
+    consulta: Option<&str>,
+) -> Result<ConsultaDoControlador<'_>, ErroRedirecionamentoDaPesquisa> {
+    ConsultaDoControlador::da_url(consulta).map_err(|erro| match erro {
         ErroConsultaDoControlador::RecusadaPeloTransporte(falha) => {
             ErroRedirecionamentoDaPesquisa::ParametroDeConsultaRecusadoNoRedirecionamento(falha)
         }
@@ -201,8 +203,8 @@ fn parametros(consulta: &str) -> Result<ConsultaDoControlador<'_>, ErroRedirecio
 fn parametros_do_envio(
     url_do_envio: &str,
 ) -> Result<ConsultaDoControlador<'_>, ErroRedirecionamentoDaPesquisa> {
-    let consulta = partir_https(url_do_envio).map_or("", |(_, _, consulta)| consulta);
-    ConsultaDoControlador::ler(consulta).map_err(|erro| match erro {
+    let consulta = partir_https(url_do_envio).and_then(|(_, _, consulta)| consulta);
+    ConsultaDoControlador::da_url(consulta).map_err(|erro| match erro {
         ErroConsultaDoControlador::RecusadaPeloTransporte(falha) => {
             ErroRedirecionamentoDaPesquisa::ParametroDeConsultaRecusadoNaUrlDoEnvio(falha)
         }
@@ -411,7 +413,7 @@ fn conferir_infra_hash(
 pub(crate) fn documento_do_trabalho(
     trabalho: &UrlDeTrabalho,
 ) -> Result<String, ErroRedirecionamentoDaPesquisa> {
-    let consulta = partir_https(trabalho.as_str()).map_or("", |(_, _, consulta)| consulta);
+    let consulta = partir_https(trabalho.as_str()).and_then(|(_, _, consulta)| consulta);
     let pares = parametros(consulta)?;
     match pares.valores("id_documento").collect::<Vec<_>>().as_slice() {
         [] | [""] => Err(ErroRedirecionamentoDaPesquisa::IdDocumentoAusenteNoRedirecionamento),
