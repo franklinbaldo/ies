@@ -23,6 +23,7 @@ impl IndiceLocal {
         instalacao: &Instalacao,
         numero: &str,
     ) -> Option<DocumentoGuardado> {
+        // Cache local é melhor esforço: registro fora da forma é ignorado.
         conferir_numero_sei(numero).ok()?;
         let origem = instalacao.url_base();
         let linha: Option<(String, String)> = self.executar(None, |banco, _| {

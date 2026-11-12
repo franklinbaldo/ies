@@ -116,7 +116,7 @@ fn troca_regrava_sessao_e_nada_da_unidade_anterior_e_reaproveitado() {
     );
     let gravada = std::fs::read_to_string(&arquivos.url_controle).unwrap();
     assert_eq!(gravada.trim(), url_limpa(ID_B));
-    assert_eq!(unidade_dos_links(gravada.trim()).as_deref(), Some(ID_B));
+    assert_eq!(unidade_dos_links(gravada.trim()).as_deref(), Ok(ID_B));
     assert!(crate::sessao_login::mesma_geracao(
         &arquivos,
         &url_limpa(ID_B),

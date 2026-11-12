@@ -57,7 +57,7 @@ pub(crate) fn abrir_para_escrever<V: EnvioDoProcesso>(
         nup: pedido.nup.as_str(),
         unidade_pedida: pedido.unidade,
         geracao: crate::sessao_login::geracao_da_sessao(&cookie),
-        unidade_id: unidade_dos_links(sessao.url_do_controle),
+        unidade_id: unidade_dos_links(sessao.url_do_controle).ok(),
         indice,
         cookie: sessao.cookie,
         documento_procurado: None,
@@ -204,7 +204,8 @@ fn entrada_por_id<V: EnvioDoProcesso>(contexto: &Contexto<'_>, rede: &mut Rede<'
     if contexto.indice.entrada_por_id(instalacao) == Some(AceiteDaEntrada::Recusada) {
         return Ok(None);
     }
-    let Some(url) = url_da_entrada_por_id(instalacao, &id) else {
+    // Atalho por id é melhor esforço: id guardado fora da forma cai no caminho comum.
+    let Ok(url) = url_da_entrada_por_id(instalacao, &id) else {
         return Ok(None);
     };
     let localizacao = match rede.get(&url)? {

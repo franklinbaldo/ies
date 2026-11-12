@@ -108,7 +108,8 @@ fn entrada_com_documento<V: EnvioDoProcesso>(
     if recusada || indice.id_por_nup(instalacao, contexto.nup).as_ref() != Some(id) {
         return Ok(None);
     }
-    let Some(url) = url_da_entrada_por_id_com_documento(instalacao, id, documento) else {
+    // Atalho por id é melhor esforço: id guardado fora da forma cai no caminho comum.
+    let Ok(url) = url_da_entrada_por_id_com_documento(instalacao, id, documento) else {
         return Ok(None);
     };
     let localizacao = match rede.get(&url)? {

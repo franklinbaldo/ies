@@ -94,19 +94,33 @@ fn link_do_anexo_fora_da_forma_e_recusado() {
     for (ruim, esperado) in [
         (
             src_anexo().replace("&id_anexo=901", ""),
-            nao_reconhecido.clone(),
+            Err(ErroConteudoNaArvore::IdDoAnexoIlegivel(
+                crate::consulta_do_controlador::ErroIdDaUrl::ParametroAusente("id_anexo"),
+            )),
         ),
         (
             src_anexo().replace("id_anexo=901", "id_anexo=901&id_anexo=902"),
-            nao_reconhecido.clone(),
+            Err(ErroConteudoNaArvore::IdDoAnexoIlegivel(
+                crate::consulta_do_controlador::ErroIdDaUrl::ParametroRepetido("id_anexo"),
+            )),
         ),
         (
             src_anexo().replace("id_anexo=901", "id_anexo=9a1"),
-            nao_reconhecido.clone(),
+            Err(ErroConteudoNaArvore::IdDoAnexoIlegivel(
+                crate::consulta_do_controlador::ErroIdDaUrl::IdNaoDecimal {
+                    chave: "id_anexo",
+                    valor: "9a1".to_owned(),
+                },
+            )),
         ),
         (
             src_anexo().replace("id_anexo=901", "id_anexo="),
-            nao_reconhecido.clone(),
+            Err(ErroConteudoNaArvore::IdDoAnexoIlegivel(
+                crate::consulta_do_controlador::ErroIdDaUrl::IdNaoDecimal {
+                    chave: "id_anexo",
+                    valor: String::new(),
+                },
+            )),
         ),
         (src_anexo().replace(HASH_CONTEUDO, "x"), recusado),
         (

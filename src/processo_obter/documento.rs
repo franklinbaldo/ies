@@ -240,7 +240,7 @@ fn abrir<V: EnvioDoProcesso, F: FimDaLeitura>(
         nup: numero,
         unidade_pedida: pedido.unidade,
         geracao: crate::sessao_login::geracao_da_sessao(&cookie),
-        unidade_id: unidade_dos_links(sessao.url_do_controle),
+        unidade_id: unidade_dos_links(sessao.url_do_controle).ok(),
         indice,
         cookie: sessao.cookie,
         documento_procurado: Some(numero),

@@ -99,7 +99,7 @@ pub(crate) enum ErroCriar {
     ConsultaDoRetornoIlegivel(#[source] crate::consulta_do_controlador::ErroConsultaDoControlador),
     /// O retorno da criação não tem exatamente um `id_procedimento`.
     IdDoRetornoIlegivel(#[source] crate::consulta_do_controlador::ErroChaveDaConsulta),
-    TipoSemIdentificador,
+    TipoSemIdentificador(#[source] crate::consulta_do_controlador::ErroIdDaUrl),
     EscolhaInesperada,
     Interessado(ErroInteressado),
     Hipotese(ErroHipotese),
