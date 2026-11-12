@@ -2,7 +2,10 @@
 //! Unidade, escolha da sigla, POST derivado e `Location` dos 302. Telas
 //! sintéticas na forma observada (ver `tests_apoio`).
 use super::retorno::{hash_do_salto, url_do_salto};
-use super::tela::{TROCAR_UNIDADE, campos_do_envio, escolher, ler_tela_de_troca, link_da_troca};
+use super::tela::{
+    ConsultaForaDaForma, TROCAR_UNIDADE, campos_do_envio, escolher, ler_tela_de_troca,
+    link_da_troca,
+};
 use super::tests_apoio::*;
 use crate::formulario_web::{CodificacaoDaTela, TelaServida, derivar_submissao};
 use crate::instalacao::Instalacao;
@@ -39,27 +42,40 @@ fn link_da_troca_ausente_divergente_ou_fora_da_forma_e_recusado() {
         link_da_troca(&sei, &url, &divergente),
         Err(super::ErroTroca::LinksDeTrocaDivergentes)
     );
-    for (de, para) in [
-        ("acao=infra_trocar_unidade", "acao=procedimento_controlar"),
+    let consulta = super::ErroTroca::ConsultaDoLinkDeTrocaForaDaForma(ConsultaForaDaForma);
+    assert_eq!(
+        std::error::Error::source(&consulta).and_then(|c| c.downcast_ref::<ConsultaForaDaForma>()),
+        Some(&ConsultaForaDaForma)
+    );
+    let forma = super::ErroTroca::LinkDeTrocaDeUnidadeForaDaFormaObservada;
+    for (de, para, esperado) in [
+        (
+            "acao=infra_trocar_unidade",
+            "acao=procedimento_controlar",
+            &consulta,
+        ),
         (
             "acao=infra_trocar_unidade",
             "acao=infra_trocar_unidade&acao=x",
+            &consulta,
         ),
         (
             "acao=infra_trocar_unidade",
             "acao=infra_trocar_unidade&acao_ajax=1",
+            &consulta,
         ),
-        ("&infra_hash=", "&infra_hash=1"),
-        ("window.location.href='", "location.href='"),
+        ("&infra_hash=", "&infra_hash=1", &consulta),
+        ("window.location.href='", "location.href='", &forma),
         (
             "controlador.php?",
             "https://outro.exemplo/sei/controlador.php?",
+            &forma,
         ),
     ] {
         let html = HtmlServido::de_teste(&barra("PR-A", ID_A).replace(de, para));
         assert_eq!(
-            link_da_troca(&sei, &url, &html),
-            Err(super::ErroTroca::LinkDeTrocaDeUnidadeForaDaFormaObservada),
+            link_da_troca(&sei, &url, &html).as_ref(),
+            Err(esperado),
             "{para}"
         );
     }

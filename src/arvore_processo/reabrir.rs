@@ -83,6 +83,8 @@ pub(crate) enum ErroEnderecoDeReabrir {
     EnderecoDaReaberturaNaoReconhecido,
     EnderecoDeReabrirAusenteNaTelaDoNo,
     EnderecoDeReabrirForaDaFormaObservada,
+    /// A definição de `reabrirProcesso()` fora da forma de três linhas.
+    FuncaoDeReabrirForaDaFormaObservada(#[source] FuncaoForaDaForma),
     EnderecosDeReabrirRepetidosNaTelaDoNo,
 }
 
@@ -93,9 +95,8 @@ pub(crate) fn ler_endereco_de_reabrir(
     html: &str,
     id: &str,
 ) -> Result<(EnderecoDeEscrita, FormaDaReabertura), ErroEnderecoDeReabrir> {
-    let funcoes = urls_das_funcoes(html, "reabrirProcesso").map_err(|FuncaoForaDaForma| {
-        ErroEnderecoDeReabrir::EnderecoDeReabrirForaDaFormaObservada
-    })?;
+    let funcoes = urls_das_funcoes(html, "reabrirProcesso")
+        .map_err(ErroEnderecoDeReabrir::FuncaoDeReabrirForaDaFormaObservada)?;
     let mut variaveis = Vec::new();
     for linha in html.lines().map(str::trim) {
         if !linha.starts_with(VARIAVEL) {

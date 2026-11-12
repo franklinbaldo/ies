@@ -3,8 +3,8 @@
 //! 4.1.5 e GO/PEN 5.0 para o link; `UnB` 4.0.9 e PEN1 4.0.12 para a
 //! função). Hosts, hashes e ids inventados.
 use super::concluir::{
-    ConcluirNaBarra, ErroConcluirNaBarra, ErroFuncaoDeConcluir, ler_concluir_da_barra,
-    ler_funcao_de_concluir,
+    ConcluirNaBarra, ErroConcluirNaBarra, ErroFuncaoDeConcluir, FuncaoForaDaForma,
+    ler_concluir_da_barra, ler_funcao_de_concluir,
 };
 use super::tests::{NUP, arvore, no_documento, no_processo};
 use super::tests_tela::instalacao;
@@ -203,6 +203,19 @@ fn funcao_ausente_fora_da_forma_ou_repetida() {
     assert_eq!(
         ler(&duas),
         Err(ErroFuncaoDeConcluir::FuncoesDeConcluirRepetidasNaTelaDoNo)
+    );
+    let fora = tela.replace(
+        "//if (confirm('Confirma conclusão",
+        "//if (window.confirm('Confirma conclusão",
+    );
+    let erro = ler(&fora).unwrap_err();
+    assert_eq!(
+        erro,
+        ErroFuncaoDeConcluir::FuncaoDeConcluirForaDaFormaObservada(FuncaoForaDaForma)
+    );
+    assert_eq!(
+        std::error::Error::source(&erro).and_then(|c| c.downcast_ref::<FuncaoForaDaForma>()),
+        Some(&FuncaoForaDaForma)
     );
     let outro = tela.replace(
         &format!("id_procedimento=10&atualizar_arvore=1&{CONTEXTO}&infra_hash={HASH_FUNCAO}"),

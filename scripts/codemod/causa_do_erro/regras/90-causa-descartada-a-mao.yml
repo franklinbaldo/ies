@@ -1,0 +1,42 @@
+id: 90-causa-descartada-a-mao
+language: rust
+message: 'A closure de map_err ignora o erro, mas não devolve uma variante unitária: ajuste à mão.'
+severity: warning
+rule:
+  kind: call_expression
+  all:
+    - has:
+        field: function
+        kind: field_expression
+        has:
+          field: field
+          regex: '^map_err$'
+    - has:
+        field: arguments
+        has:
+          kind: closure_expression
+          all:
+            - has:
+                field: parameters
+                regex: '^\|\s*(_[A-Za-z0-9_]*(\s*:\s*[^|]+)?|[A-Z][A-Za-z0-9_]*(\s*\{[^|]*\})?)\s*\|$'
+            - not:
+                has:
+                  field: body
+                  kind: scoped_identifier
+            - not:
+                has:
+                  field: body
+                  kind: block
+                  has:
+                    kind: scoped_identifier
+                    nthChild: 1
+                  not:
+                    has:
+                      nthChild: 2
+  not:
+    inside:
+      stopBy: end
+      kind: mod_item
+      follows:
+        kind: attribute_item
+        regex: 'cfg\((all\()?test\b'

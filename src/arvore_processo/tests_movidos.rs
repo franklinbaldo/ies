@@ -234,7 +234,10 @@ fn no_movido_fora_da_forma_e_recusa() {
                 d(),
                 com_a3(",\"noVisitado\",\"0000103\");", ",\"0000103\");"),
             ],
-            super::ErroArvore::QuantidadeDeArgumentosDoNoDiferenteDaObservada,
+            super::ErroArvore::QuantidadeDeArgumentosDoNoDiferenteDaObservada {
+                esperada: 16,
+                observada: 15,
+            },
         ),
     ];
     for (nos, esperado) in casos {

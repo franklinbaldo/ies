@@ -31,12 +31,12 @@ pub(crate) enum ErroCienciaNaArvore {
     CienciaRepetidaNaBarra,
     TelaDeCienciaNaoPublicada,
     FuncaoDeCienciaAusenteNaTela,
-    FuncaoDeCienciaForaDaForma,
+    FuncaoDeCienciaForaDaForma(#[source] FuncaoForaDaForma),
     FuncoesDeCienciaRepetidas,
-    EnderecoDaCienciaNaoReconhecido,
+    EnderecoDaCienciaNaoReconhecido(#[source] EnderecoRecusado),
     ListaDeCienciasRepetidaNaArvore,
     ListaDeCienciasForaDaForma,
-    EnderecoDaListaDeCienciasNaoReconhecido,
+    EnderecoDaListaDeCienciasNaoReconhecido(#[source] EnderecoRecusado),
     EnderecoDaCienciaDeOutroProcesso,
     FuncaoDeCienciaDoDocumentoForaDaForma,
     LinkDeCienciaDoDocumentoAusente,
@@ -104,7 +104,7 @@ pub(crate) fn lista_do_processo(
     };
     conferir_endereco_relativo(instalacao, url, AcaoDoSei::ProtocoloCienciaListar, id)
         .map(|url| Some(EnderecoDeEscrita::novo(url)))
-        .map_err(|_: EnderecoRecusado| ErroCienciaNaArvore::EnderecoDaListaDeCienciasNaoReconhecido)
+        .map_err(ErroCienciaNaArvore::EnderecoDaListaDeCienciasNaoReconhecido)
 }
 
 /// Lê só a URL assinada da função do SEI na tela do nó. Um GET nessa
@@ -115,10 +115,10 @@ pub(crate) fn url_da_ciencia(
     id: &str,
 ) -> Result<EnderecoDeEscrita, ErroCienciaNaArvore> {
     let funcoes = urls_das_funcoes(html, "cienciaProcesso")
-        .map_err(|FuncaoForaDaForma| ErroCienciaNaArvore::FuncaoDeCienciaForaDaForma)?;
+        .map_err(ErroCienciaNaArvore::FuncaoDeCienciaForaDaForma)?;
     // SEI 4.1 e 5.0 (UFRJ e GO, 10/11/2026): `var linkCienciaProcesso = '…';`.
     let variaveis = urls_das_variaveis(html, "linkCienciaProcesso")
-        .map_err(|FuncaoForaDaForma| ErroCienciaNaArvore::FuncaoDeCienciaForaDaForma)?;
+        .map_err(ErroCienciaNaArvore::FuncaoDeCienciaForaDaForma)?;
     let url = match (funcoes.as_slice(), variaveis.as_slice()) {
         ([], []) => return Err(ErroCienciaNaArvore::FuncaoDeCienciaAusenteNaTela),
         ([url], []) | ([], [url]) => *url,
@@ -126,7 +126,7 @@ pub(crate) fn url_da_ciencia(
     };
     conferir_endereco_relativo(instalacao, url, AcaoDoSei::ProcedimentoCiencia, id)
         .map(EnderecoDeEscrita::novo)
-        .map_err(|_: EnderecoRecusado| ErroCienciaNaArvore::EnderecoDaCienciaNaoReconhecido)
+        .map_err(ErroCienciaNaArvore::EnderecoDaCienciaNaoReconhecido)
 }
 
 /// A ciência do documento é oferecida somente pela barra do próprio nó.
