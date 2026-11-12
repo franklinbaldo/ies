@@ -2,14 +2,14 @@
 //! Prévia não modifica processo e confirmação só será permitida após aceite causal.
 use super::{
     Decisao, ErroMarcar, FalhaDaMarcacao, Operacao, Rotulo, decidir, recusa,
-    releitura_de_marcadores,
+    releitura_de_marcadores, texto_relido,
 };
 use crate::Cli;
 use crate::acao_do_sei::AcaoDoSei;
 use crate::arvore_processo::endereco::{EnderecoRecusado, conferir_endereco_relativo};
 use crate::consulta_do_controlador::ConsultaDoControlador;
 use crate::formulario_web::{
-    ConferenciaDaUnidade, EfeitoAvaliado, EnvioDoFormulario, EstadoDoProcesso,
+    CampoDeTexto, ConferenciaDaUnidade, EfeitoAvaliado, EnvioDoFormulario, EstadoDoProcesso,
     OperacaoDeFormulario, Redirecionamento302, RespostaDoEnvio, ResultadoDoEnvio, TelaServida,
     consulta_do_controlador, decodificar_atributo, derivar_submissao, enviar_submissao_via,
 };
@@ -169,7 +169,7 @@ fn submissao_cadastro<V: EnvioDoProcesso>(
         Some(unidade),
         &[
             ("hdnIdMarcador", &rotulo.id),
-            ("txaTexto", texto.unwrap_or("")),
+            ("txaTexto", CampoDeTexto::de(texto).enviado()),
         ],
     )
     .map_err(Into::into)
@@ -211,7 +211,7 @@ fn saida_previa(
             rotulo.nome,
             nup.as_str(),
             unidade,
-            texto.unwrap_or(""),
+            CampoDeTexto::de(texto).enviado(),
             requisicoes
         );
     }
@@ -332,10 +332,11 @@ fn finalizar_atribuicao<V: EnvioDoProcesso>(
     // Segunda leitura independente: não confiar no próprio POST nem repetir.
     let presente =
         releitura_de_marcadores(sessao, indice, pedido, rede, (id, unidade)).map(|lidos| {
-            lidos
-                .itens
-                .iter()
-                .any(|m| m.id == rotulo.id && m.nome == rotulo.nome && m.texto.as_deref() == texto)
+            lidos.itens.iter().any(|m| {
+                m.id == rotulo.id
+                    && m.nome == rotulo.nome
+                    && texto_relido(m.texto.as_deref(), CampoDeTexto::de(texto))
+            })
         });
     if !aceito || !matches!(presente, Ok(true)) {
         return Err(FalhaDaMarcacao::AtribuicaoNaoConfirmada {

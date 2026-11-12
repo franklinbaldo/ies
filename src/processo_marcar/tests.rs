@@ -199,3 +199,34 @@ fn acao_de_remocao_recusa_id_sem_handler_na_tela() {
         Err(ErroMarcar::AcaoDeRemocaoAusente)
     );
 }
+
+/// O SEI publica o texto do marcador na célula `tdAndamentoMarcador<n>`
+/// (cassettes `marcador-escritas-*`: `<td id="tdAndamentoMarcador19"
+/// valign="center">Teste do Todos</td>`); sem texto, a célula fica vazia e o
+/// leitor devolve `None`. A releitura confere o `txaTexto` enviado por essa
+/// forma: `--texto ""` e a ausência de `--texto` enviam o campo vazio, e os
+/// dois são confirmados pela célula vazia.
+#[test]
+fn celula_vazia_confirma_tanto_texto_ausente_quanto_texto_vazio() {
+    use crate::arvore_processo::tests::NUP;
+    use crate::formulario_web::CampoDeTexto;
+    use crate::marcadores_processo::tests_apoio::tela_dos_marcadores;
+    use crate::marcadores_processo::{TelaDosMarcadores, ler_marcadores};
+    let html = crate::tela_html::HtmlServido::de_teste(&tela_dos_marcadores(NUP, "10"));
+    let Ok(TelaDosMarcadores::Lidos(lidos)) = ler_marcadores(&html, NUP, "10") else {
+        panic!("tela sintética não lida");
+    };
+    let [sem_texto, com_texto] = lidos.itens.as_slice() else {
+        panic!("dois marcadores esperados");
+    };
+    let sem_texto = sem_texto.texto.as_deref();
+    assert_eq!(sem_texto, None);
+    assert!(texto_relido(sem_texto, CampoDeTexto::de(None)));
+    assert!(texto_relido(sem_texto, CampoDeTexto::de(Some(""))));
+    assert!(!texto_relido(sem_texto, CampoDeTexto::de(Some("Conferir"))));
+    let com_texto = com_texto.texto.as_deref();
+    let publicado = "Texto sint\u{e9}tico & anota\u{e7}\u{e3}o";
+    assert!(texto_relido(com_texto, CampoDeTexto::de(Some(publicado))));
+    assert!(!texto_relido(com_texto, CampoDeTexto::de(None)));
+    assert!(!texto_relido(com_texto, CampoDeTexto::de(Some(""))));
+}

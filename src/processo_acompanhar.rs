@@ -185,12 +185,18 @@ fn conferir_action_do_cadastro(action: &str, id_procedimento: &str) -> Result<()
     Ok(())
 }
 
-/// Casa APENAS pelo nome exato. O branco seleciona a opção vazia publicada.
+/// O nome da opção "sem grupo" do `selGrupoAcompanhamento` do cadastro: o
+/// SEI a publica como `<option value="null" selected="selected">&nbsp;</option>`
+/// (cassettes `processo-acompanhar-*`), e o texto colapsado fica vazio.
+pub(crate) const SEM_GRUPO: &str = "";
+
+/// Casa APENAS pelo nome exato. Sem grupo pedido, seleciona a opção
+/// [`SEM_GRUPO`] publicada.
 pub(crate) fn escolher_grupo<'a>(
     grupos: &'a [GrupoOferecido],
     pedido: Option<&str>,
 ) -> Result<&'a GrupoOferecido, ErroAcompanhar> {
-    let nome = pedido.unwrap_or("");
+    let nome = pedido.unwrap_or(SEM_GRUPO);
     let achados: Vec<_> = grupos.iter().filter(|g| g.nome == nome).collect();
     match achados.as_slice() {
         [] => Err(ErroAcompanhar::GrupoNaoOferecido),

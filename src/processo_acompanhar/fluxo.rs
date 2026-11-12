@@ -7,7 +7,7 @@ use super::{
 };
 use crate::acao_do_sei::AcaoDoSei;
 use crate::formulario_web::{
-    RespostaDoEnvio, SubmissaoDerivada, decodificar_atributo, enviar_submissao_via,
+    CampoDeTexto, RespostaDoEnvio, SubmissaoDerivada, decodificar_atributo, enviar_submissao_via,
 };
 use crate::indice_local::IndiceLocal;
 use crate::instalacao::Instalacao;
@@ -163,7 +163,9 @@ fn selecionar_previa(
             unidade: unidade.to_owned(),
             operacao: "deixar",
             grupo: alvo
-                .map_or(pedido.grupo.unwrap_or(""), |a| a.grupo.as_str())
+                .map_or(pedido.grupo.unwrap_or(super::SEM_GRUPO), |a| {
+                    a.grupo.as_str()
+                })
                 .to_owned(),
             observacao: alvo.map_or("", |a| a.observacao.as_str()).to_owned(),
             id_de_remocao: alvo.map(|a| a.id.clone()),
@@ -180,7 +182,7 @@ fn selecionar_previa(
         unidade: unidade.to_owned(),
         operacao: "acompanhar",
         grupo: selecionado.nome.clone(),
-        observacao: pedido.observacao.unwrap_or("").to_owned(),
+        observacao: CampoDeTexto::de(pedido.observacao).enviado().to_owned(),
         id_de_remocao: None,
         estado: EstadoDoAcompanhamento::Previa {
             ja_estava: super::conferir_novo_grupo(antes, &selecionado.nome).is_err(),
@@ -305,7 +307,7 @@ pub(crate) fn previa<V: EnvioDoProcesso>(
             &id,
             &unidade,
             pedido.grupo,
-            pedido.observacao.unwrap_or(""),
+            CampoDeTexto::de(pedido.observacao),
         )?;
         if pedido.confirmar {
             submissao = Some(derivada);

@@ -93,14 +93,13 @@ fn numero_com_milhar(
 }
 
 fn separador_canonico(texto: &str) -> bool {
-    let mut grupos = texto.split('.');
-    let primeiro = grupos.next().unwrap_or("");
-    let demais: Vec<&str> = grupos.collect();
-    !demais.is_empty()
-        && (1..=3).contains(&primeiro.len())
+    let Some((primeiro, demais)) = texto.split_once('.') else {
+        return false;
+    };
+    (1..=3).contains(&primeiro.len())
         && primeiro.bytes().all(|b| b.is_ascii_digit())
         && demais
-            .iter()
+            .split('.')
             .all(|g| g.len() == 3 && g.bytes().all(|b| b.is_ascii_digit()))
 }
 

@@ -1,4 +1,5 @@
 use super::*;
+use crate::formulario_web::CampoDeTexto;
 use crate::tela_html::HtmlServido;
 
 const ID: &str = "12345";
@@ -212,7 +213,7 @@ fn submissao_inclusao_reflete_grupo_exato_oculto_e_botao() {
         ID,
         "TESTE",
         Some("acomp fiel"),
-        "Prazo.",
+        CampoDeTexto::Preenchido("Prazo."),
     )
     .expect("formulário sintético válido");
     assert_eq!(
@@ -231,6 +232,48 @@ fn submissao_inclusao_reflete_grupo_exato_oculto_e_botao() {
     assert_eq!(sub.referer(), url);
     assert_eq!(sub.origem(), "https://sei.exemplo.gov.br");
     assert!(!format!("{sub:?}").contains(&"a".repeat(64)));
+}
+
+/// Sem `--grupo` e sem `--observacao`: a opção [`SEM_GRUPO`] publicada pelo
+/// SEI (`value="null"`, `&nbsp;`) e `txaObservacao` presente e vazio, como o
+/// navegador envia o `textarea` vazio do cadastro.
+#[test]
+fn submissao_inclusao_sem_grupo_nem_observacao_envia_os_campos_vazios() {
+    use crate::formulario_web::{CodificacaoDaTela, TelaServida};
+    use crate::instalacao::Instalacao;
+    let html =
+        cadastro(r#"<option value="null">&nbsp;</option><option value="19">acomp fiel</option>"#)
+            .replace(
+                "infra_hash=SYNTHETIC",
+                &format!("infra_hash={}", "a".repeat(64)),
+            )
+            .replace(
+                r#"name="sbmCadastrarAcompanhamento">"#,
+                r#"name="sbmCadastrarAcompanhamento" value="Salvar">"#,
+            );
+    let url = format!(
+        "https://sei.exemplo.gov.br/sei/controlador.php?acao=acompanhamento_cadastrar&id_procedimento={ID}&infra_hash={}",
+        "b".repeat(64)
+    );
+    let tela = TelaServida {
+        url: &url,
+        html: &HtmlServido::de_teste(&html),
+        codificacao: CodificacaoDaTela::Iso88591,
+    };
+    let instalacao = Instalacao::interpretar("https://sei.exemplo.gov.br/sei").unwrap();
+    let sub = super::submissao::derivar_inclusao(
+        &instalacao,
+        &tela,
+        ID,
+        "TESTE",
+        None,
+        CampoDeTexto::de(None),
+    )
+    .expect("formulário sintético válido");
+    assert_eq!(
+        sub.corpo(),
+        b"hdnIdProtocolo=12345&selGrupoAcompanhamento=null&txaObservacao=&sbmCadastrarAcompanhamento=Salvar"
+    );
 }
 
 #[test]
@@ -258,7 +301,7 @@ fn submissao_inclusao_nao_inventa_grupo_ou_endereco() {
             ID,
             "TESTE",
             Some("inexistente"),
-            ""
+            CampoDeTexto::CampoVazio
         ),
         Err(ErroAcompanhar::GrupoNaoOferecido)
     ));
@@ -273,7 +316,7 @@ fn submissao_inclusao_nao_inventa_grupo_ou_endereco() {
             ID,
             "TESTE",
             Some("acomp fiel"),
-            "",
+            CampoDeTexto::CampoVazio,
         )
         .is_err()
     );
@@ -303,7 +346,7 @@ fn submissao_inclusao_recusa_hash_duplicado_e_processo_divergente() {
             ID,
             "TESTE",
             Some("acomp fiel"),
-            "",
+            CampoDeTexto::CampoVazio,
         )
         .is_err()
     };

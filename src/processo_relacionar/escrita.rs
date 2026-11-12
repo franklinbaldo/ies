@@ -4,7 +4,7 @@ use super::{FalhaRelacionar, tela};
 use crate::acao_do_sei::AcaoDoSei;
 use crate::consulta_do_controlador::ConsultaDoControlador;
 use crate::formulario_web::{
-    ConferenciaDaUnidade, EfeitoAvaliado, EnvioDoFormulario, EstadoDoProcesso,
+    CampoDeTexto, ConferenciaDaUnidade, EfeitoAvaliado, EnvioDoFormulario, EstadoDoProcesso,
     OperacaoDeFormulario, RespostaDoEnvio, ResultadoDoEnvio, TelaServida, consulta_do_controlador,
     derivar_submissao, derivar_submissao_com_action, enviar_submissao_via,
 };
@@ -173,7 +173,7 @@ pub(super) fn adicionar<V: EnvioDoProcesso>(
             ("txtProtocolo", &destino.nup),
             (
                 "txtIdentificacaoProtocolo",
-                destino.tipo.as_deref().unwrap_or(""),
+                CampoDeTexto::de(destino.tipo.as_deref()).enviado(),
             ),
             ("hdnIdProtocolo", &destino.id),
         ],
