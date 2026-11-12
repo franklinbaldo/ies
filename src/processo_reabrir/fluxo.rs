@@ -38,7 +38,7 @@ pub(crate) fn reabrir_processo<V: EnvioDoProcesso>(
         super::erro::ErroReabrir::SituacaoDoProcessoNaoLidaAntesDeReabrir { motivo }
     })?;
     let na_unidade = aberto_em.contains(&unidade);
-    let id = aberto.arvore.processo.id.clone();
+    let id = aberto.arvore.processo.id;
     let desfecho =
         match (acoes.reabrir?, na_unidade) {
             (None, true) => DesfechoDaReabertura::JaAbertoNaUnidade {

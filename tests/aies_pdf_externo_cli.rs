@@ -137,7 +137,10 @@ fn preparar_banco() -> (Connection, Instalacao) {
     (banco, origem)
 }
 
-#[allow(clippy::too_many_lines)] // Bancada E2E reúne proxy TLS, servidor HTTP e processos reais.
+#[expect(
+    clippy::too_many_lines,
+    reason = "Bancada E2E reúne proxy TLS, servidor HTTP e processos reais"
+)]
 fn executar(
     incerteza: bool,
     somente_previa: bool,

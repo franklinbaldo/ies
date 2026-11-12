@@ -44,7 +44,7 @@ pub(crate) fn concluir_processo<V: EnvioDoProcesso>(
     let aberto_em = siglas_abertas(&aberto.arvore.aberto_em)
         .map_err(|motivo| ErroConcluir::SituacaoDoProcessoNaoLidaAntesDeConcluir { motivo })?;
     let na_unidade = aberto_em.contains(&unidade);
-    let id = aberto.arvore.processo.id.clone();
+    let id = aberto.arvore.processo.id;
     let desfecho = match (concluir?, na_unidade) {
         (None, false) => DesfechoDaConclusao::NaoAbertoNaUnidade {
             confirmado: pedido.confirmar,

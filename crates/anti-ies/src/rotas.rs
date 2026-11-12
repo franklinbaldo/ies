@@ -72,7 +72,10 @@ fn trabalhar_protocolo(
 }
 
 /// Resolve uma única operação a partir do estado da instalação e do cenário.
-#[allow(clippy::too_many_lines)] // Despachante de ações HTTP: cada capacidade permanece em módulo próprio.
+#[expect(
+    clippy::too_many_lines,
+    reason = "Despachante de ações HTTP: cada capacidade permanece em módulo próprio"
+)]
 pub(crate) fn responder(
     metodo: &str,
     alvo: &str,

@@ -87,14 +87,12 @@ fn ler_par(
     let seguinte =
         VersaoDocumento::nova(n.numero() + 1).map_err(ErroSalvarNoSei::ProximaVersaoInvalida)?;
     let ler = |v, ausente| {
-        ler_regular(
+        let bytes = ler_regular(
             &pasta.join(crate::foto_documento::nome(numero.as_str(), v)),
             ausente,
         )
-        .map_err(ErroSalvarNoSei::Local)
-        .and_then(|bytes| {
-            String::from_utf8(bytes).map_err(|erro| ErroSalvarNoSei::BaseNaoUtf8(erro.utf8_error()))
-        })
+        .map_err(ErroSalvarNoSei::Local)?;
+        String::from_utf8(bytes).map_err(|erro| ErroSalvarNoSei::BaseNaoUtf8(erro.utf8_error()))
     };
     Ok((
         ler(n, ErroCopia::BaseVersaoAusente)?,

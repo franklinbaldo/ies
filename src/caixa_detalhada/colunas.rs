@@ -111,9 +111,9 @@ fn papel(th: crate::tela_html::Elemento<'_>) -> Result<PapelDaColuna, ErroDetalh
             if !rotulo.is_empty() {
                 return papel_do_rotulo(&rotulo);
             }
-            rotulo_do_icone(*div)
-                .ok_or(ErroDetalhada::CabecalhoDaVisaoDetalhadaNaoReconhecido)
-                .and_then(|rotulo| papel_do_rotulo(&rotulo))
+            let rotulo = rotulo_do_icone(*div)
+                .ok_or(ErroDetalhada::CabecalhoDaVisaoDetalhadaNaoReconhecido)?;
+            papel_do_rotulo(&rotulo)
         }
         _ => Err(ErroDetalhada::CabecalhoDaVisaoDetalhadaNaoReconhecido),
     }

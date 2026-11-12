@@ -36,7 +36,10 @@ fn normalizado(texto: &str) -> String {
 pub(crate) fn e_bloqueio_de_seguranca(html: &crate::tela_html::HtmlServido) -> bool {
     let dom = crate::tela_html::interpretar(html);
     let parser = dom.parser();
-    let primeiro = |elemento: &str| dom.query_selector(elemento).and_then(|mut nos| nos.next());
+    let primeiro = |elemento: &str| {
+        let mut nos = dom.query_selector(elemento)?;
+        nos.next()
+    };
     let titulo = primeiro("title").map(|h| normalizado(&texto_visivel(h, parser)));
     let corpo = primeiro("body").map(|h| normalizado(&texto_visivel(h, parser)));
     PAGINAS.iter().any(|(t, frase)| {

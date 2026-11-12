@@ -39,7 +39,10 @@ pub(crate) fn aceite(localizacao: &str, url_post: &str, principal: &str) -> bool
     })
 }
 
-#[allow(clippy::too_many_arguments)] // Dados da única tela, origem e transporte.
+#[expect(
+    clippy::too_many_arguments,
+    reason = "Dados da única tela, origem e transporte"
+)]
 pub(super) fn confirmar<V: EnvioDoProcesso>(
     sessao: &SessaoDoProcesso<'_>,
     instalacao: &Instalacao,

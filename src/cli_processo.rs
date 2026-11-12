@@ -1,8 +1,10 @@
 //! Argumentos de `ies processo` (subcomandos e flags), separados de `main.rs`.
 use clap::{Args, Subcommand};
 
-// Flags de exclusão independentes correspondem diretamente às opções da CLI.
-#[allow(clippy::struct_excessive_bools)]
+#[expect(
+    clippy::struct_excessive_bools,
+    reason = "Flags de exclusão independentes correspondem diretamente às opções da CLI"
+)]
 #[derive(Debug, Args)]
 pub(crate) struct Processo {
     #[arg(value_parser = crate::processo::NumeroProcesso::novo)]

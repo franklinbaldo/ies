@@ -67,7 +67,7 @@ pub(crate) fn enviar_processo<V: EnvioDoProcesso>(
     let aberto_em = siglas_abertas(&aberto.arvore.aberto_em)
         .map_err(|motivo| ErroEnviar::SituacaoDoProcessoNaoLidaAntesDeEnviar { motivo })?;
     let link = conferir_link_do_envio(acoes.enviar, &aberto_em, &unidade)?;
-    let id = aberto.arvore.processo.id.clone();
+    let id = aberto.arvore.processo.id;
     let cookie = ler_cookie(sessao)?;
     let tela = ler_tela(&mut rede, &cookie, link.as_str(), &id)?;
     let (link_anotacao, anotacao_lida, metodo_remocao) = if pedido.remover_anotacoes {
