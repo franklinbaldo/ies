@@ -1,0 +1,63 @@
+id: 90-caminho-curto
+language: rust
+message: 'Com AcaoDoSei importado no arquivo, o caminho fica curto.'
+severity: hint
+rule:
+  any:
+    - kind: scoped_identifier
+    - kind: scoped_type_identifier
+  regex: '^crate::acao_do_sei::AcaoDoSei$'
+  not:
+    any:
+      - inside:
+          stopBy: end
+          kind: use_declaration
+      - inside:
+          stopBy: end
+          kind: mod_item
+          not:
+            has:
+              stopBy: end
+              kind: use_declaration
+              regex: '^use super::\*;$'
+  inside:
+    stopBy: end
+    kind: source_file
+    has:
+      kind: use_declaration
+      regex: 'acao_do_sei::(AcaoDoSei;|\{[^}]*\bAcaoDoSei\b)'
+fix: 'AcaoDoSei'
+---
+id: 90b-caminho-curto-em-macro
+language: rust
+message: 'Com AcaoDoSei importado no arquivo, o caminho fica curto (dentro de macro).'
+severity: hint
+rule:
+  pattern: $T
+  kind: token_tree
+  regex: 'crate::acao_do_sei::AcaoDoSei::'
+  not:
+    any:
+      - inside:
+          kind: token_tree
+      - inside:
+          stopBy: end
+          kind: mod_item
+          not:
+            has:
+              stopBy: end
+              kind: use_declaration
+              regex: '^use super::\*;$'
+  inside:
+    stopBy: end
+    kind: source_file
+    has:
+      kind: use_declaration
+      regex: 'acao_do_sei::(AcaoDoSei;|\{[^}]*\bAcaoDoSei\b)'
+transform:
+  CURTO:
+    replace:
+      source: $T
+      replace: 'crate::acao_do_sei::AcaoDoSei::'
+      by: 'AcaoDoSei::'
+fix: '$CURTO'

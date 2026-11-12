@@ -1,0 +1,29 @@
+id: 12-texto-comparado-com-a-url
+language: rust
+message: 'O texto lido vira ação antes da comparação.'
+severity: hint
+rule:
+  pattern: $A == $V.como_na_url()
+  not:
+    inside:
+      stopBy: end
+      kind: mod_item
+      follows:
+        kind: attribute_item
+        regex: 'cfg\((all\()?test\b'
+fix: 'crate::acao_do_sei::AcaoDoSei::ler($A) == Some($V)'
+---
+id: 12b-texto-diferente-da-url
+language: rust
+message: 'O texto lido vira ação antes da comparação.'
+severity: hint
+rule:
+  pattern: $A != $V.como_na_url()
+  not:
+    inside:
+      stopBy: end
+      kind: mod_item
+      follows:
+        kind: attribute_item
+        regex: 'cfg\((all\()?test\b'
+fix: 'crate::acao_do_sei::AcaoDoSei::ler($A) != Some($V)'

@@ -283,7 +283,7 @@ pub(crate) fn resolver_link(
         Some(n) => ids == [n],
         None => ids.is_empty(),
     };
-    if acao_lida != acao.como_na_url()
+    if AcaoDoSei::ler(acao_lida) != Some(acao)
         || hash.len() != 64
         || !hash.bytes().all(|b| b.is_ascii_hexdigit())
         || consulta.valores("acao_ajax").next().is_some()

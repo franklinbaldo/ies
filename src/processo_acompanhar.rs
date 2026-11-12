@@ -179,7 +179,7 @@ fn conferir_action_do_cadastro(action: &str, id_procedimento: &str) -> Result<()
     let id = consulta
         .unico("id_procedimento")
         .map_err(ErroAcompanhar::ChaveDoCadastroIlegivel)?;
-    if acao != AcaoDoSei::AcompanhamentoCadastrar.como_na_url() || id != id_procedimento {
+    if AcaoDoSei::ler(acao) != Some(AcaoDoSei::AcompanhamentoCadastrar) || id != id_procedimento {
         return Err(ErroAcompanhar::CadastroDeOutroProcesso);
     }
     Ok(())

@@ -360,7 +360,7 @@ pub(super) fn aceite_da_atribuicao(redir: &Redirecionamento302, id: &str) -> boo
         return false;
     };
     consulta.acao() == Ok(AcaoDoSei::AndamentoMarcadorGerenciar)
-        && consulta.unico("acao_origem") == Ok(AcaoDoSei::AndamentoMarcadorCadastrar.como_na_url())
+        && consulta.acao_de_origem() == Ok(AcaoDoSei::AndamentoMarcadorCadastrar)
         && consulta.unico("id_procedimento") == Ok(id)
 }
 

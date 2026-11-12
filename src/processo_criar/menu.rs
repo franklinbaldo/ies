@@ -108,10 +108,11 @@ mod tests {
         )
     }
 
-    fn ancora(acao: &str) -> String {
+    fn ancora(acao: AcaoDoSei) -> String {
         format!(
             "<a href='controlador.php?acao={acao}&amp;infra_hash={}'>Iniciar</a>",
-            "a".repeat(64)
+            "a".repeat(64),
+            acao = acao.como_na_url()
         )
     }
 
@@ -121,9 +122,7 @@ mod tests {
         let link = link_de_iniciar(
             &instalacao,
             url,
-            &crate::tela_html::HtmlServido::de_teste(&ancora(
-                AcaoDoSei::ProcedimentoEscolherTipo.como_na_url(),
-            )),
+            &crate::tela_html::HtmlServido::de_teste(&ancora(AcaoDoSei::ProcedimentoEscolherTipo)),
         )
         .unwrap();
         assert!(link.contains("acao=procedimento_escolher_tipo&infra_hash="));
@@ -143,8 +142,8 @@ mod tests {
         );
         let repetido = crate::tela_html::HtmlServido::de_teste(&format!(
             "{}{}",
-            ancora(AcaoDoSei::ProcedimentoEscolherTipo.como_na_url()),
-            ancora(AcaoDoSei::ProcedimentoEscolherTipo.como_na_url())
+            ancora(AcaoDoSei::ProcedimentoEscolherTipo),
+            ancora(AcaoDoSei::ProcedimentoEscolherTipo)
         ));
         assert_eq!(
             link_de_iniciar(&instalacao, url, &repetido),
@@ -154,7 +153,7 @@ mod tests {
             link_de_iniciar(
                 &instalacao,
                 url,
-                &crate::tela_html::HtmlServido::de_teste(&ancora("procedimento_gerar"))
+                &crate::tela_html::HtmlServido::de_teste(&ancora(AcaoDoSei::ProcedimentoGerar))
             ),
             Err(ErroMenu::LinkDeIniciarProcessoAusente)
         );

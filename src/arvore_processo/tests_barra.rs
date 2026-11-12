@@ -2,6 +2,7 @@
 //! observada na `UnB` 4.0.9, fallback `procedimento_consultar` e recusas.
 use super::ler_link_das_propriedades;
 use super::tests::{NUP, arvore, no_documento, no_processo};
+use crate::acao_do_sei::AcaoDoSei;
 use crate::instalacao::Instalacao;
 use crate::propriedades_processo::tests_apoio::{
     acao_da_barra, barra, com_barra, link_das_propriedades,
@@ -31,14 +32,14 @@ fn ler(html: &str) -> Result<Option<(FonteDasPropriedades, String)>, ErroProprie
 }
 
 fn alterar(id: &str) -> String {
-    acao_da_barra(&link_das_propriedades("procedimento_alterar", id))
+    acao_da_barra(&link_das_propriedades(AcaoDoSei::ProcedimentoAlterar, id))
 }
 
 fn consultar(id: &str) -> String {
-    acao_da_barra(&link_das_propriedades("procedimento_consultar", id))
+    acao_da_barra(&link_das_propriedades(AcaoDoSei::ProcedimentoConsultar, id))
 }
 
-fn absoluta(acao: &str) -> String {
+fn absoluta(acao: AcaoDoSei) -> String {
     format!("{ORIGEM}/{}", link_das_propriedades(acao, "10"))
 }
 
@@ -48,7 +49,7 @@ fn le_o_link_de_alterar_da_barra_do_processo() {
         ler(&com_acoes(&[alterar("10")])),
         Ok(Some((
             FonteDasPropriedades::Alterar,
-            absoluta("procedimento_alterar")
+            absoluta(AcaoDoSei::ProcedimentoAlterar)
         )))
     );
 }
@@ -59,7 +60,7 @@ fn sem_alterar_usa_consultar_e_alterar_vence_quando_ha_os_dois() {
         ler(&com_acoes(&[consultar("10")])),
         Ok(Some((
             FonteDasPropriedades::Consultar,
-            absoluta("procedimento_consultar")
+            absoluta(AcaoDoSei::ProcedimentoConsultar)
         )))
     );
     assert_eq!(
@@ -80,12 +81,12 @@ fn barra_vazia_ou_sem_os_links_nao_publica() {
 
 #[test]
 fn entidade_no_href_e_decodificada() {
-    let href = link_das_propriedades("procedimento_alterar", "10").replace('&', "&amp;");
+    let href = link_das_propriedades(AcaoDoSei::ProcedimentoAlterar, "10").replace('&', "&amp;");
     assert_eq!(
         ler(&com_acoes(&[acao_da_barra(&href)]))
             .unwrap()
             .map(|(_, u)| u),
-        Some(absoluta("procedimento_alterar"))
+        Some(absoluta(AcaoDoSei::ProcedimentoAlterar))
     );
 }
 
@@ -113,14 +114,15 @@ fn endereco_de_outro_processo_ou_fora_da_regra_e_recusa() {
         ler(&com_acoes(&[alterar("11")])),
         Err(ErroPropriedades::EnderecoDasPropriedadesDeOutroProcesso)
     );
-    let curto = link_das_propriedades("procedimento_alterar", "10").replace(&"3".repeat(64), "33");
+    let curto =
+        link_das_propriedades(AcaoDoSei::ProcedimentoAlterar, "10").replace(&"3".repeat(64), "33");
     assert_eq!(
         ler(&com_acoes(&[acao_da_barra(&curto)])),
         Err(ErroPropriedades::EnderecoDasPropriedadesNaoReconhecido)
     );
     let absoluto = format!(
         "{ORIGEM}/{}",
-        link_das_propriedades("procedimento_alterar", "10")
+        link_das_propriedades(AcaoDoSei::ProcedimentoAlterar, "10")
     );
     assert_eq!(
         ler(&com_acoes(&[acao_da_barra(&absoluto)])),

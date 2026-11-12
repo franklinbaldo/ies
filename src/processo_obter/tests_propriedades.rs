@@ -45,7 +45,7 @@ fn frio_padrao_le_historico_e_propriedades_com_cinco_get() {
         PedidoDeAndamentos::VisaoServida,
         true,
         frio(
-            arvore_com_propriedades(ID, NUP, AcaoDoSei::ProcedimentoAlterar.como_na_url()),
+            arvore_com_propriedades(ID, NUP, AcaoDoSei::ProcedimentoAlterar),
             vec![ok(historico('R', 1, 1)), ok(propriedades())],
         ),
     );
@@ -55,7 +55,7 @@ fn frio_padrao_le_historico_e_propriedades_com_cinco_get() {
         pedidos,
         pedidos_frio(&[
             url_historico(ID),
-            url_propriedades(AcaoDoSei::ProcedimentoAlterar.como_na_url(), ID)
+            url_propriedades(AcaoDoSei::ProcedimentoAlterar, ID)
         ])
     );
     let lidas = lidas(&r);
@@ -64,10 +64,7 @@ fn frio_padrao_le_historico_e_propriedades_com_cinco_get() {
     assert_eq!(r.propriedades.motivo(), None);
     assert_eq!(
         guardado(&amb, AcaoDoSei::ProcedimentoAlterar),
-        Some(url_propriedades(
-            AcaoDoSei::ProcedimentoAlterar.como_na_url(),
-            ID
-        ))
+        Some(url_propriedades(AcaoDoSei::ProcedimentoAlterar, ID))
     );
     let debug = format!("{r:?}");
     assert!(!debug.contains(&"3".repeat(64)), "{debug}");
@@ -81,7 +78,7 @@ fn sem_propriedades_nao_pede_a_tela() {
         PedidoDeAndamentos::VisaoServida,
         false,
         frio(
-            arvore_com_propriedades(ID, NUP, AcaoDoSei::ProcedimentoAlterar.como_na_url()),
+            arvore_com_propriedades(ID, NUP, AcaoDoSei::ProcedimentoAlterar),
             vec![ok(historico('R', 1, 1))],
         ),
     );
@@ -104,17 +101,14 @@ fn sem_andamentos_le_so_as_propriedades() {
         PedidoDeAndamentos::Omitidos,
         true,
         frio(
-            arvore_com_propriedades(ID, NUP, AcaoDoSei::ProcedimentoAlterar.como_na_url()),
+            arvore_com_propriedades(ID, NUP, AcaoDoSei::ProcedimentoAlterar),
             vec![ok(propriedades())],
         ),
     );
     assert_eq!(r.unwrap().requisicoes, 4);
     assert_eq!(
         pedidos,
-        pedidos_frio(&[url_propriedades(
-            AcaoDoSei::ProcedimentoAlterar.como_na_url(),
-            ID
-        )])
+        pedidos_frio(&[url_propriedades(AcaoDoSei::ProcedimentoAlterar, ID)])
     );
 }
 
@@ -126,7 +120,7 @@ fn sem_andamentos_e_sem_propriedades_custa_so_a_abertura() {
         PedidoDeAndamentos::Omitidos,
         false,
         frio(
-            arvore_com_propriedades(ID, NUP, AcaoDoSei::ProcedimentoAlterar.como_na_url()),
+            arvore_com_propriedades(ID, NUP, AcaoDoSei::ProcedimentoAlterar),
             vec![],
         ),
     );
@@ -142,7 +136,7 @@ fn sem_alterar_na_barra_le_pela_consulta() {
         PedidoDeAndamentos::Omitidos,
         true,
         frio(
-            arvore_com_propriedades(ID, NUP, AcaoDoSei::ProcedimentoConsultar.como_na_url()),
+            arvore_com_propriedades(ID, NUP, AcaoDoSei::ProcedimentoConsultar),
             vec![ok(propriedades())],
         ),
     );
@@ -150,17 +144,11 @@ fn sem_alterar_na_barra_le_pela_consulta() {
     assert_eq!(lidas(&r).fonte, FonteDasPropriedades::Consultar);
     assert_eq!(
         pedidos,
-        pedidos_frio(&[url_propriedades(
-            AcaoDoSei::ProcedimentoConsultar.como_na_url(),
-            ID
-        )])
+        pedidos_frio(&[url_propriedades(AcaoDoSei::ProcedimentoConsultar, ID)])
     );
     assert_eq!(
         guardado(&amb, AcaoDoSei::ProcedimentoConsultar),
-        Some(url_propriedades(
-            AcaoDoSei::ProcedimentoConsultar.como_na_url(),
-            ID
-        ))
+        Some(url_propriedades(AcaoDoSei::ProcedimentoConsultar, ID))
     );
 }
 
@@ -182,7 +170,7 @@ fn barra_sem_o_link_recusa_sem_requisicao() {
 
 #[test]
 fn link_invalido_na_barra_so_pesa_quando_as_propriedades_sao_lidas() {
-    let arvore = arvore_com_propriedades(ID, NUP, AcaoDoSei::ProcedimentoAlterar.como_na_url()).replace(
+    let arvore = arvore_com_propriedades(ID, NUP, AcaoDoSei::ProcedimentoAlterar).replace(
         &format!("acao={}&acao_origem=arvore_visualizar&acao_retorno=arvore_visualizar&id_procedimento={ID}&", AcaoDoSei::ProcedimentoAlterar.como_na_url()),
         &format!("acao={}&acao_origem=arvore_visualizar&acao_retorno=arvore_visualizar&id_procedimento=99&", AcaoDoSei::ProcedimentoAlterar.como_na_url()),
     );
@@ -223,7 +211,7 @@ fn tela_de_outro_processo_pelo_link_da_arvore_e_recusa() {
         PedidoDeAndamentos::Omitidos,
         true,
         frio(
-            arvore_com_propriedades(ID, NUP, AcaoDoSei::ProcedimentoAlterar.como_na_url()),
+            arvore_com_propriedades(ID, NUP, AcaoDoSei::ProcedimentoAlterar),
             vec![ok(outra)],
         ),
     );
@@ -238,7 +226,7 @@ fn login_ou_503_na_tela_falham_sem_retry() {
         PedidoDeAndamentos::Omitidos,
         true,
         frio(
-            arvore_com_propriedades(ID, NUP, AcaoDoSei::ProcedimentoAlterar.como_na_url()),
+            arvore_com_propriedades(ID, NUP, AcaoDoSei::ProcedimentoAlterar),
             vec![r302(LOGIN)],
         ),
     );
@@ -253,7 +241,7 @@ fn login_ou_503_na_tela_falham_sem_retry() {
         PedidoDeAndamentos::Omitidos,
         true,
         frio(
-            arvore_com_propriedades(ID, NUP, AcaoDoSei::ProcedimentoAlterar.como_na_url()),
+            arvore_com_propriedades(ID, NUP, AcaoDoSei::ProcedimentoAlterar),
             vec![(503, String::new(), None)],
         ),
     );
@@ -283,8 +271,7 @@ fn quente(amb: &Ambiente, propriedades_guardadas: Option<&str>) {
 }
 
 fn url_guardada() -> String {
-    url_propriedades(AcaoDoSei::ProcedimentoAlterar.como_na_url(), ID)
-        .replace(&"3".repeat(64), &hash('8'))
+    url_propriedades(AcaoDoSei::ProcedimentoAlterar, ID).replace(&"3".repeat(64), &hash('8'))
 }
 
 #[test]
@@ -299,7 +286,7 @@ fn repeticao_quente_custa_arvore_historico_e_propriedades_guardadas() {
             ok(arvore_com_propriedades(
                 ID,
                 NUP,
-                AcaoDoSei::ProcedimentoAlterar.como_na_url(),
+                AcaoDoSei::ProcedimentoAlterar,
             )),
             ok(historico('R', 1, 1)),
             ok(propriedades()),
@@ -330,7 +317,7 @@ fn repeticao_quente_sem_andamentos_custa_dois_e_sem_os_dois_custa_um() {
             ok(arvore_com_propriedades(
                 ID,
                 NUP,
-                AcaoDoSei::ProcedimentoAlterar.como_na_url(),
+                AcaoDoSei::ProcedimentoAlterar,
             )),
             ok(propriedades()),
         ],
@@ -344,7 +331,7 @@ fn repeticao_quente_sem_andamentos_custa_dois_e_sem_os_dois_custa_um() {
         vec![ok(arvore_com_propriedades(
             ID,
             NUP,
-            AcaoDoSei::ProcedimentoAlterar.como_na_url(),
+            AcaoDoSei::ProcedimentoAlterar,
         ))],
     );
     assert_eq!(r.unwrap().requisicoes, 1);
@@ -375,7 +362,7 @@ fn guardado_velho_e_esquecido_e_o_da_arvore_segue() {
                 ok(arvore_com_propriedades(
                     ID,
                     NUP,
-                    AcaoDoSei::ProcedimentoAlterar.como_na_url(),
+                    AcaoDoSei::ProcedimentoAlterar,
                 )),
                 velho,
                 ok(propriedades()),
@@ -387,18 +374,12 @@ fn guardado_velho_e_esquecido_e_o_da_arvore_segue() {
             [
                 get(&url_arvore(ID)),
                 get(&url_guardada()),
-                get(&url_propriedades(
-                    AcaoDoSei::ProcedimentoAlterar.como_na_url(),
-                    ID
-                )),
+                get(&url_propriedades(AcaoDoSei::ProcedimentoAlterar, ID)),
             ]
         );
         assert_eq!(
             guardado(&amb, AcaoDoSei::ProcedimentoAlterar),
-            Some(url_propriedades(
-                AcaoDoSei::ProcedimentoAlterar.como_na_url(),
-                ID
-            ))
+            Some(url_propriedades(AcaoDoSei::ProcedimentoAlterar, ID))
         );
     }
 }
@@ -432,7 +413,7 @@ fn guardado_que_responde_503_falha_sem_tentar_o_da_arvore() {
             ok(arvore_com_propriedades(
                 ID,
                 NUP,
-                AcaoDoSei::ProcedimentoAlterar.como_na_url(),
+                AcaoDoSei::ProcedimentoAlterar,
             )),
             (503, String::new(), None),
         ],

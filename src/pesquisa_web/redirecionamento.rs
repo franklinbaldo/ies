@@ -111,14 +111,14 @@ pub(crate) enum OrigemDoTrabalho<'a> {
 }
 
 impl OrigemDoTrabalho<'_> {
-    fn acao_de_origem(self) -> Option<&'static str> {
+    fn acao_de_origem(self) -> Option<AcaoDoSei> {
         match self {
-            Self::Pesquisa => Some("protocolo_pesquisar"),
+            Self::Pesquisa => Some(AcaoDoSei::ProtocoloPesquisar),
             Self::PesquisaRapida | Self::PesquisaRapidaDocumento => {
-                Some("protocolo_pesquisa_rapida")
+                Some(AcaoDoSei::ProtocoloPesquisaRapida)
             }
             Self::EntradaPorId { .. } | Self::EntradaPorIdComDocumento { .. } => None,
-            Self::Controle { .. } => Some("procedimento_controlar"),
+            Self::Controle { .. } => Some(AcaoDoSei::ProcedimentoControlar),
         }
     }
     fn chave_do_id(self) -> &'static str {
@@ -380,7 +380,7 @@ fn conferir_acao_de_origem(
         ([_, ..], None) => {
             return Err(ErroRedirecionamentoDaPesquisa::AcaoDeOrigemInesperadaNoRedirecionamento);
         }
-        ([observada], Some(esperada)) if *observada == esperada => {}
+        ([observada], Some(esperada)) if AcaoDoSei::ler(observada) == Some(esperada) => {}
         ([_], Some(_)) => {
             return Err(
                 ErroRedirecionamentoDaPesquisa::AcaoDeOrigemDoRedirecionamentoDiferenteDaPesquisa,

@@ -1,0 +1,29 @@
+id: 11-acao-de-origem-comparada
+language: rust
+message: 'A única acao_origem= é lida no enum e comparada com a variante.'
+severity: hint
+rule:
+  pattern: $C.unico("acao_origem") == Ok($V.como_na_url())
+  not:
+    inside:
+      stopBy: end
+      kind: mod_item
+      follows:
+        kind: attribute_item
+        regex: 'cfg\((all\()?test\b'
+fix: '$C.acao_de_origem() == Ok($V)'
+---
+id: 11b-acao-de-origem-diferente
+language: rust
+message: 'A única acao_origem= é lida no enum e comparada com a variante.'
+severity: hint
+rule:
+  pattern: $C.unico("acao_origem") != Ok($V.como_na_url())
+  not:
+    inside:
+      stopBy: end
+      kind: mod_item
+      follows:
+        kind: attribute_item
+        regex: 'cfg\((all\()?test\b'
+fix: '$C.acao_de_origem() != Ok($V)'

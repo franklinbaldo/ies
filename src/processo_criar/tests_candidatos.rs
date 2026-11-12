@@ -2,6 +2,7 @@
 //! candidatos da caixa Gerados; não basta observar a linha nova.
 use super::tests::{cadastro, lista, pedido, tela_controle};
 use super::*;
+use crate::acao_do_sei::AcaoDoSei;
 use crate::processo_concluir::tests_apoio::{
     NUP, UNIDADE, ambiente, arvore, ok, rodar_com, trabalhar, trabalhar_controle,
 };
@@ -25,7 +26,7 @@ pub(super) fn arvore_com_propriedades() -> String {
     arvore(
         &[UNIDADE],
         &[acao_da_barra(&link_das_propriedades(
-            "procedimento_alterar",
+            AcaoDoSei::ProcedimentoAlterar,
             "10",
         ))],
     )
@@ -208,7 +209,7 @@ fn arvore_com_propriedades_de(id: &str, nup: &str) -> String {
         nup,
         &crate::processo_concluir::tests_apoio::situacao(&[UNIDADE]),
         &[acao_da_barra(&link_das_propriedades(
-            "procedimento_alterar",
+            AcaoDoSei::ProcedimentoAlterar,
             id,
         ))],
     )

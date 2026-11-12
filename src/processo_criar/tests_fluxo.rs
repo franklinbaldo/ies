@@ -1,6 +1,7 @@
 //! Casos sintéticos da issue #245: oráculo de cenário Todos
 //! `tests/test_processo_criar_escolher_tipo_010.py`, sem portar a arquitetura.
 use super::*;
+use crate::acao_do_sei::AcaoDoSei;
 use crate::consulta_do_controlador::ErroChaveDaConsulta;
 use crate::processo_concluir::tests_apoio::NUP;
 use crate::processo_concluir::tests_apoio::{
@@ -59,7 +60,7 @@ fn arvore_verificadora() -> String {
     arvore(
         &[UNIDADE],
         &[acao_da_barra(&link_das_propriedades(
-            "procedimento_alterar",
+            AcaoDoSei::ProcedimentoAlterar,
             "10",
         ))],
     )

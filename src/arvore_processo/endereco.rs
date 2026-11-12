@@ -51,7 +51,7 @@ pub(crate) fn conferir_endereco_relativo_por(
             return Err(EnderecoRecusado::NaoReconhecido);
         }
         match nome {
-            "acao" if valor == acao.como_na_url() => acoes += 1,
+            "acao" if AcaoDoSei::ler(valor) == Some(acao) => acoes += 1,
             "infra_hash" if valor.len() == 64 && valor.bytes().all(|b| b.is_ascii_hexdigit()) => {
                 hashes += 1;
             }

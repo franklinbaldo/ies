@@ -5,6 +5,7 @@ use super::tests_candidatos::{
     arvore_com_propriedades, gerados_com_candidato, propriedades_correspondentes,
 };
 use super::*;
+use crate::acao_do_sei::AcaoDoSei;
 use crate::processo_concluir::tests_apoio::{NUP, ambiente, ok, r302, rodar_com, trabalhar};
 use crate::transporte::FalhaTransporte;
 
@@ -174,7 +175,7 @@ fn redirecionamento_valido_com_propriedades_divergentes_nao_confirma() {
         ok(arvore(
             &[UNIDADE],
             &[acao_da_barra(&link_das_propriedades(
-                "procedimento_alterar",
+                AcaoDoSei::ProcedimentoAlterar,
                 "10",
             ))],
         )),

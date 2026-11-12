@@ -30,7 +30,7 @@ pub(crate) enum ErroChaveDaConsulta {
     Repetida {
         chave: &'static str,
     },
-    /// `acao=` com valor fora de `AcaoDoSei`.
+    /// `acao=` ou `acao_origem=` com valor fora de `AcaoDoSei`.
     AcaoDesconhecida,
 }
 
@@ -73,7 +73,16 @@ impl<'a> ConsultaDoControlador<'a> {
 
     /// A única `acao=`, lida no conjunto fechado do SEI.
     pub(crate) fn acao(&self) -> Result<AcaoDoSei, ErroChaveDaConsulta> {
-        AcaoDoSei::ler(self.unico("acao")?).ok_or(ErroChaveDaConsulta::AcaoDesconhecida)
+        self.acao_em("acao")
+    }
+
+    /// A única `acao_origem=`, lida no conjunto fechado do SEI.
+    pub(crate) fn acao_de_origem(&self) -> Result<AcaoDoSei, ErroChaveDaConsulta> {
+        self.acao_em("acao_origem")
+    }
+
+    fn acao_em(&self, chave: &'static str) -> Result<AcaoDoSei, ErroChaveDaConsulta> {
+        AcaoDoSei::ler(self.unico(chave)?).ok_or(ErroChaveDaConsulta::AcaoDesconhecida)
     }
 
     /// Todos os valores de `chave`, na ordem publicada.

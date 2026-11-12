@@ -4,6 +4,7 @@
 //! `a.protocoloNormal` de `documento_visualizar` com o mesmo `id_documento`.
 //! Só essa forma é aceita; o documento não é publicado.
 use super::ErroResultadoPesquisa;
+use crate::acao_do_sei::AcaoDoSei;
 use crate::html_atributos::valor_decodificado;
 
 /// Campos da consulta de um `href` `controlador.php?` já decodificado
@@ -32,7 +33,11 @@ pub(super) fn documento_visualizado(href: &str) -> Option<&str> {
         .iter()
         .filter_map(|c| c.strip_prefix("acao="))
         .collect();
-    if acoes != ["documento_visualizar"] {
+    if acoes
+        .into_iter()
+        .map(AcaoDoSei::ler)
+        .ne([Some(AcaoDoSei::DocumentoVisualizar)])
+    {
         return None;
     }
     unico_decimal(&campos, "id_documento")

@@ -1,5 +1,6 @@
 //! Testes sintéticos do fluxo Web de unidades (issue #244).
 use super::*;
+use crate::acao_do_sei::AcaoDoSei;
 use crate::formulario_web::RespostaDoPost;
 use crate::tela_html::HtmlServido;
 use crate::transporte::RespostaWeb;
@@ -7,8 +8,11 @@ use std::fmt::Write as _;
 use std::io::Cursor;
 const ORIGEM: &str = "https://sei.example/sei";
 const HASH: &str = "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa";
-fn url(acao: &str) -> String {
-    format!("{ORIGEM}/controlador.php?acao={acao}&infra_hash={HASH}")
+fn url(acao: AcaoDoSei) -> String {
+    format!(
+        "{ORIGEM}/controlador.php?acao={acao}&infra_hash={HASH}",
+        acao = acao.como_na_url()
+    )
 }
 fn resposta(html: String) -> RespostaDoPost<Cursor<Vec<u8>>> {
     RespostaDoPost {
@@ -36,7 +40,7 @@ fn pagina(p: usize, ids: &[&str]) -> String {
             .concat()
         })
         .collect();
-    let acao = url("unidade_selecionar_envio_processo");
+    let acao = url(AcaoDoSei::UnidadeSelecionarEnvioProcesso);
     format!(
         "<form id='frmUnidadeLista' method='post' action='{acao}'>
          <input type='hidden' name='hdnInfraPaginaAtual' value='{p}'>
@@ -73,20 +77,23 @@ impl TransporteLupa for Fake {
         let (acao, html) = match passo {
             0 => (
                 "procedimento_controlar",
-                format!("<a href='{}'>Grupos</a>", url("grupo_unidade_listar")),
+                format!(
+                    "<a href='{}'>Grupos</a>",
+                    url(AcaoDoSei::GrupoUnidadeListar)
+                ),
             ),
             1 => (
                 "grupo_unidade_listar",
                 format!(
                     "<button id='btnNovo' onclick=\"window.location.href='{}';\">Novo</button>",
-                    url("grupo_unidade_cadastrar")
+                    url(AcaoDoSei::GrupoUnidadeCadastrar)
                 ),
             ),
             2 => (
                 "grupo_unidade_cadastrar",
                 format!(
                     "<a href='{}'>Unidades</a>",
-                    url("unidade_selecionar_envio_processo")
+                    url(AcaoDoSei::UnidadeSelecionarEnvioProcesso)
                 ),
             ),
             3 => ("unidade_selecionar_envio_processo", pagina(0, &[])),
@@ -100,7 +107,7 @@ impl TransporteLupa for Fake {
         envio: SubmissaoDerivada,
         _cookie: &str,
     ) -> Result<RespostaDoPost<Self::Corpo>, FalhaTransporte> {
-        assert_eq!(envio.url(), url("unidade_selecionar_envio_processo"));
+        assert_eq!(envio.url(), url(AcaoDoSei::UnidadeSelecionarEnvioProcesso));
         let indice_pagina = self.posts;
         assert!(
             String::from_utf8_lossy(envio.corpo())
@@ -136,7 +143,7 @@ fn quatro_get_e_um_post_por_pagina_sem_repetir() {
     };
     let lida = ler_integral(
         &mut rede,
-        &url("procedimento_controlar"),
+        &url(AcaoDoSei::ProcedimentoControlar),
         ORIGEM,
         "PHPSESSID=SINTETICO",
     )
@@ -158,7 +165,7 @@ fn filtro_restaurado_pelo_sei_nao_vira_lista_integral() {
     assert_eq!(
         ler_integral(
             &mut rede,
-            &url("procedimento_controlar"),
+            &url(AcaoDoSei::ProcedimentoControlar),
             ORIGEM,
             "PHPSESSID=SINTETICO",
         )
@@ -181,7 +188,7 @@ fn pagina_repetida_recusa_antes_de_persistir() {
     };
     let err = ler_integral(
         &mut rede,
-        &url("procedimento_controlar"),
+        &url(AcaoDoSei::ProcedimentoControlar),
         ORIGEM,
         "PHPSESSID=SINTETICO",
     )
@@ -265,7 +272,7 @@ impl TransporteLupa for RoteiroPaginacaoIntegral {
         envio: SubmissaoDerivada,
         _cookie: &str,
     ) -> Result<RespostaDoPost<Self::Corpo>, FalhaTransporte> {
-        assert_eq!(envio.url(), url("unidade_selecionar_envio_processo"));
+        assert_eq!(envio.url(), url(AcaoDoSei::UnidadeSelecionarEnvioProcesso));
         let indice = self.posts;
         assert!(
             indice < PAGINAS_GO_SINTETICAS,
@@ -289,7 +296,7 @@ fn pagina_integral_de_274_paginas_nao_pula_nem_repete_requisicoes() {
     let mut roteiro = RoteiroPaginacaoIntegral::novo(false);
     let lida = ler_integral(
         &mut roteiro,
-        &url("procedimento_controlar"),
+        &url(AcaoDoSei::ProcedimentoControlar),
         ORIGEM,
         "PHPSESSID=SINTETICO",
     )
@@ -309,7 +316,7 @@ fn filtro_adulterado_na_ultima_das_274_paginas_aborta_sem_retry() {
     assert_eq!(
         ler_integral(
             &mut roteiro,
-            &url("procedimento_controlar"),
+            &url(AcaoDoSei::ProcedimentoControlar),
             ORIGEM,
             "PHPSESSID=SINTETICO",
         )
@@ -335,7 +342,7 @@ fn falha_de_filtro_publica_cinco_tentativas_sem_post_repetido() {
     assert_eq!(
         ler_integral_com_contador(
             &mut rede,
-            &url("procedimento_controlar"),
+            &url(AcaoDoSei::ProcedimentoControlar),
             ORIGEM,
             "PHPSESSID=SINTETICO",
             &mut requisicoes,
@@ -355,7 +362,7 @@ fn falha_tardia_na_pagina_final_conta_todas_as_tentativas() {
     assert_eq!(
         ler_integral_com_contador(
             &mut roteiro,
-            &url("procedimento_controlar"),
+            &url(AcaoDoSei::ProcedimentoControlar),
             ORIGEM,
             "PHPSESSID=SINTETICO",
             &mut requisicoes,
@@ -380,7 +387,7 @@ fn dois_submits_sem_name_da_lupa_go_nao_entram_no_corpo() {
     let instalacao = Instalacao::interpretar(ORIGEM).expect("origem sintetica");
     let post = consulta(
         &instalacao,
-        &url("unidade_selecionar_envio_processo"),
+        &url(AcaoDoSei::UnidadeSelecionarEnvioProcesso),
         &HtmlServido::de_teste(&html),
         "text/html; charset=utf-8",
         0,
@@ -407,7 +414,7 @@ fn botoes_sem_nome_ausentes_ou_repetidos_demais_falham_fechados() {
         assert!(matches!(
             consulta(
                 &instalacao,
-                &url("unidade_selecionar_envio_processo"),
+                &url(AcaoDoSei::UnidadeSelecionarEnvioProcesso),
                 &HtmlServido::de_teste(html),
                 "text/html; charset=utf-8",
                 0,

@@ -21,10 +21,7 @@ const SO_MARCADORES: (bool, bool) = (false, true);
 /// propriedades e dos marcadores.
 fn arvore_completa(id: &str) -> String {
     let acoes = [
-        acao_da_barra(&link_das_propriedades(
-            AcaoDoSei::ProcedimentoAlterar.como_na_url(),
-            id,
-        )),
+        acao_da_barra(&link_das_propriedades(AcaoDoSei::ProcedimentoAlterar, id)),
         acao_da_barra(&link_dos_marcadores(id)),
     ];
     com_barra(&arvore_com_historico(id, NUP), 0, &barra(&acoes))
@@ -96,7 +93,7 @@ fn frio_padrao_le_historico_propriedades_e_os_dois_marcadores_com_seis_get() {
         pedidos,
         pedidos_frio(&[
             url_historico(ID),
-            url_propriedades(AcaoDoSei::ProcedimentoAlterar.como_na_url(), ID),
+            url_propriedades(AcaoDoSei::ProcedimentoAlterar, ID),
             url_marcadores()
         ])
     );
@@ -125,7 +122,7 @@ fn sem_marcadores_nao_pede_a_tela() {
         pedidos,
         pedidos_frio(&[
             url_historico(ID),
-            url_propriedades(AcaoDoSei::ProcedimentoAlterar.como_na_url(), ID)
+            url_propriedades(AcaoDoSei::ProcedimentoAlterar, ID)
         ])
     );
     assert_eq!(r.marcadores, Marcadores::Omitidos);
@@ -145,7 +142,7 @@ fn combinacoes_com_sem_andamentos_e_sem_propriedades() {
             TODOS,
             vec![ok(propriedades()), ok(marcadores())],
             vec![
-                url_propriedades(AcaoDoSei::ProcedimentoAlterar.como_na_url(), ID),
+                url_propriedades(AcaoDoSei::ProcedimentoAlterar, ID),
                 url_marcadores(),
             ],
         ),
@@ -290,7 +287,7 @@ fn quente(amb: &Ambiente, marcadores_guardados: Option<&str>) {
         (AcaoDoSei::ProcedimentoConsultarHistorico, url_historico(ID)),
         (
             AcaoDoSei::ProcedimentoAlterar,
-            url_propriedades(AcaoDoSei::ProcedimentoAlterar.como_na_url(), ID),
+            url_propriedades(AcaoDoSei::ProcedimentoAlterar, ID),
         ),
     ];
     if let Some(url) = marcadores_guardados {
@@ -326,10 +323,7 @@ fn repeticao_quente_custa_quatro_e_so_marcadores_custa_dois() {
         [
             get(&url_arvore(ID)),
             get(&url_historico(ID)),
-            get(&url_propriedades(
-                AcaoDoSei::ProcedimentoAlterar.como_na_url(),
-                ID
-            )),
+            get(&url_propriedades(AcaoDoSei::ProcedimentoAlterar, ID)),
             get(&url_guardada()),
         ]
     );

@@ -1,4 +1,5 @@
 use super::*;
+use crate::acao_do_sei::AcaoDoSei;
 use crate::tela_html::HtmlServido;
 
 fn lista_41() -> String {
@@ -167,7 +168,7 @@ fn arvore_com_comentarios(acoes: &[String]) -> String {
 
 fn link_comentarios(id: &str) -> String {
     use crate::propriedades_processo::tests_apoio::{acao_da_barra, link_das_propriedades};
-    acao_da_barra(&link_das_propriedades("comentario_listar", id))
+    acao_da_barra(&link_das_propriedades(AcaoDoSei::ComentarioListar, id))
 }
 
 fn link_da_arvore(html: &str) -> Result<Option<EnderecoDosComentarios>, ErroLinkDosComentarios> {

@@ -237,6 +237,6 @@ pub(crate) fn redirecionamento_esperado(
         return false;
     };
     consulta.acao() == Ok(AcaoDoSei::ArvoreVisualizar)
-        && consulta.unico("acao_origem") == Ok(AcaoDoSei::ProcedimentoSobrestar.como_na_url())
+        && consulta.acao_de_origem() == Ok(AcaoDoSei::ProcedimentoSobrestar)
         && consulta.unico("id_procedimento") == Ok(id)
 }

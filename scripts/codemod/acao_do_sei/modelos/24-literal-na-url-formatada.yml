@@ -1,0 +1,31 @@
+id: 24-literal-na-url-formatada-VALOR
+language: rust
+message: 'A URL formatada recebe a ação pela variante.'
+severity: hint
+rule:
+  pattern: $M
+  kind: macro_invocation
+  regex: '^format!'
+  has:
+    stopBy: end
+    kind: string_literal
+    regex: 'acao=VALOR[&"]'
+  not:
+    inside:
+      stopBy: end
+      kind: mod_item
+      follows:
+        kind: attribute_item
+        regex: 'cfg\((all\()?test\b'
+transform:
+  SEM_LITERAL:
+    replace:
+      source: $M
+      replace: 'acao=VALOR([&"])'
+      by: 'acao={acao}$1'
+  COM_ARGUMENTO:
+    replace:
+      source: $SEM_LITERAL
+      replace: ',?\s*\)$'
+      by: ', acao = crate::acao_do_sei::AcaoDoSei::VARIANTE.como_na_url())'
+fix: $COM_ARGUMENTO
