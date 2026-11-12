@@ -3,7 +3,6 @@
 use crate::acao_do_sei::AcaoDoSei;
 use crate::consulta_do_controlador::ConsultaDoControlador;
 use crate::formulario_web::{ErroSubmissaoFormulario, localizar_formulario};
-use crate::html_atributos::ErroAtributoHtml;
 use crate::resposta_ajax::{ErroXml, RespostaAjax};
 use std::collections::HashSet;
 
@@ -21,9 +20,7 @@ pub(super) struct DestinoConsultado {
 /// Um atributo da tela ou da resposta de relacionamento que não pôde ser lido.
 #[derive(Clone, Copy, Debug, PartialEq, Eq, thiserror::Error)]
 #[error("{self:?}")]
-pub(crate) enum ErroAtributoDeRelacionamento {
-    AtributoDaTelaIlegivel(#[from] ErroAtributoHtml),
-}
+pub(crate) enum ErroAtributoDeRelacionamento {}
 
 /// A lista `frmProcedimentoListarRelacionamentos` fora da forma observada.
 #[derive(Clone, Debug, PartialEq, Eq, thiserror::Error)]

@@ -79,7 +79,6 @@ pub(crate) enum ErroDetalhada {
     CabecalhoProcessoDetalhadoRepetido,
     ColunaDaVisaoDetalhadaRepetida,
     FaixaDetalhadaInvalida,
-    AtributoDaDetalhadaIlegivel(#[from] crate::html_atributos::ErroAtributoHtml),
     /// A legenda não está em nenhuma forma observada (leitor `legenda`).
     Legenda(#[from] ErroLegenda),
     /// O controle da página recusou o HTML recebido.

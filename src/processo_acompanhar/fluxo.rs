@@ -7,7 +7,7 @@ use super::{
 };
 use crate::acao_do_sei::AcaoDoSei;
 use crate::formulario_web::{
-    CampoDeTexto, RespostaDoEnvio, SubmissaoDerivada, decodificar_atributo, enviar_submissao_via,
+    CampoDeTexto, RespostaDoEnvio, SubmissaoDerivada, enviar_submissao_via,
 };
 use crate::indice_local::IndiceLocal;
 use crate::instalacao::Instalacao;
@@ -94,22 +94,17 @@ fn adicionar_da_lista(
     html: &crate::tela_html::HtmlServido,
     id: &str,
 ) -> Result<String, ErroAcompanhar> {
-    let dom = crate::tela_html::interpretar(html);
+    let dom = crate::tela_html::arvore(html);
     let mut urls = Vec::new();
-    for no in dom.query_selector("button").into_iter().flatten() {
-        let tag = no
-            .get(dom.parser())
-            .and_then(tl::Node::as_tag)
-            .ok_or(ErroAcompanhar::TelaDeAcompanhamentoInesperada)?;
-        let identificador = crate::html_atributos::valor_do_atributo(tag, "id")
-            .map_err(ErroAcompanhar::Atributo)?;
-        if identificador.as_deref() != Some("btnAdicionar") {
+    for no in dom.elementos("button") {
+        let identificador = no.atributo("id");
+        if identificador != Some("btnAdicionar") {
             continue;
         }
-        let onclick = crate::html_atributos::valor_do_atributo(tag, "onclick")
-            .map_err(ErroAcompanhar::Atributo)?
+        let onclick = no
+            .atributo("onclick")
+            .map(str::to_owned)
             .ok_or(ErroAcompanhar::TelaDeAcompanhamentoInesperada)?;
-        let onclick = decodificar_atributo(&onclick);
         let url = onclick
             .strip_prefix("location.href='")
             .and_then(|v| v.strip_suffix("';").or_else(|| v.strip_suffix("'")))

@@ -4,8 +4,6 @@ use crate::acao_do_sei::AcaoDoSei;
 use crate::consulta_do_controlador::{
     ConsultaDoControlador, ErroChaveDaConsulta, ErroConsultaDoControlador, menciona_acao,
 };
-use crate::formulario_web::decodificar_atributo;
-use crate::html_atributos::valor_do_atributo;
 use crate::instalacao::Instalacao;
 use crate::transporte::FalhaTransporte;
 use crate::unidade_retornos::{self, ErroRetornos, Retorno};
@@ -15,8 +13,6 @@ use std::collections::HashSet;
 #[derive(Debug, thiserror::Error)]
 #[error("{self:?}")]
 pub(crate) enum ErroLeituraRetornos {
-    /// O tokenizador de atributos recusou a tag.
-    Atributo(#[source] crate::html_atributos::ErroAtributoHtml),
     Transporte(#[from] FalhaTransporte),
     Controle(#[from] crate::erro_web::ErroCaixa),
     Tabela(#[from] ErroRetornos),
@@ -45,7 +41,6 @@ impl ErroLeituraRetornos {
             | Self::CalendarioDosRetornosDesconhecido
             | Self::MesDosRetornosInacessivel
             | Self::MesDaCliInvalido
-            | Self::Atributo(_)
             | Self::UnidadeDiferenteDaSolicitada
             | Self::ConsultaDoLinkIlegivel(_)
             | Self::ChaveDoLinkIlegivel(_) => false,
@@ -131,7 +126,7 @@ fn conferir_link(
     instalacao: &Instalacao,
 ) -> Result<Link, ErroLeituraRetornos> {
     let nao = ErroLeituraRetornos::LinkDeRetornosForaDaInstalacao;
-    let href = decodificar_atributo(bruto);
+    let href = bruto.to_owned();
     if !href.bytes().all(|b| (33..=126).contains(&b))
         || href.contains(['#', '\\', '\''])
         || href.contains("..")
@@ -200,20 +195,15 @@ fn links(
     servida: &str,
     instalacao: &Instalacao,
 ) -> Result<Vec<Link>, ErroLeituraRetornos> {
-    let dom = crate::tela_html::interpretar(html);
-    let parser = dom.parser();
+    let dom = crate::tela_html::arvore(html);
     let mut saida = Vec::new();
-    for no in dom.query_selector("a").into_iter().flatten() {
-        let Some(tag) = no.get(parser).and_then(tl::Node::as_tag) else {
-            continue;
-        };
-        let bruto = valor_do_atributo(tag, "href").map_err(ErroLeituraRetornos::Atributo)?;
-        let Some(bruto) = bruto else { continue };
+    for no in dom.elementos("a") {
+        let href = no.atributo("href").map(str::to_owned);
+        let Some(href) = href else { continue };
         // Seleção tolerante pela ação exata (decodificada antes); a conferência
         // estrita fica em `conferir_link`.
-        let href = decodificar_atributo(&bruto);
         if menciona_acao(&href, AcaoDoSei::RetornoProgramadoListar) {
-            saida.push(conferir_link(&bruto, servida, instalacao)?);
+            saida.push(conferir_link(&href, servida, instalacao)?);
         }
     }
     Ok(saida)
@@ -270,28 +260,17 @@ fn hoje_na_tela(
     servida: &str,
     instalacao: &Instalacao,
 ) -> Result<Option<(u16, u8)>, ErroLeituraRetornos> {
-    let dom = crate::tela_html::interpretar(html);
-    let parser = dom.parser();
+    let dom = crate::tela_html::arvore(html);
     let mut marcado = None;
     let mut celulas_marcadas = 0;
-    for no in dom.query_selector("td").into_iter().flatten() {
-        let Some(tag) = no.get(parser).and_then(tl::Node::as_tag) else {
-            continue;
-        };
-        let classe = valor_do_atributo(tag, "class").map_err(ErroLeituraRetornos::Atributo)?;
-        if !classe
-            .as_deref()
-            .is_some_and(|c| c.split_whitespace().any(|v| v == "diaHoje"))
-        {
+    for no in dom.elementos("td") {
+        let classe = no.atributo("class");
+        if !classe.is_some_and(|c| c.split_whitespace().any(|v| v == "diaHoje")) {
             continue;
         }
         celulas_marcadas += 1;
-        for filho in tag.query_selector(parser, "a").into_iter().flatten() {
-            let Some(a) = filho.get(parser).and_then(tl::Node::as_tag) else {
-                continue;
-            };
-            let Some(href) = valor_do_atributo(a, "href").map_err(ErroLeituraRetornos::Atributo)?
-            else {
+        for filho in no.elementos("a") {
+            let Some(href) = filho.atributo("href").map(str::to_owned) else {
                 continue;
             };
             let link = conferir_link(&href, servida, instalacao)?;

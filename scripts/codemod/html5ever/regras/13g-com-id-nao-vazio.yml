@@ -1,0 +1,17 @@
+id: 13g-com-id-nao-vazio
+language: rust
+message: 'nos_com_id(&d, id).is_ok_and(|v| !v.is_empty())'
+severity: hint
+rule:
+  all:
+    - any:
+        - pattern: 'nos_com_id(&$D, $I).is_ok_and(|$V| !$V.is_empty())'
+        - pattern: 'crate::html_atributos::nos_com_id(&$D, $I).is_ok_and(|$V| !$V.is_empty())'
+    - not:
+        inside:
+          stopBy: end
+          kind: mod_item
+          follows:
+            kind: attribute_item
+            regex: 'cfg\(test\)'
+fix: '$D.com_id($I).next().is_some()'

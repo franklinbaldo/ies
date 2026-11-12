@@ -13,8 +13,6 @@ pub(crate) use fluxo::{FalhaDaLupa, HttpsLupa, ler_integral_com_contador};
 #[error("{self:?}")]
 pub(crate) enum ErroLupa {
     Legenda(#[from] crate::legenda::ErroLegenda),
-    /// O tokenizador de atributos recusou a tag.
-    Atributo(#[from] crate::html_atributos::ErroAtributoHtml),
     FormularioAusente(#[source] crate::formulario_web::ErroSubmissaoFormulario),
     TabelaForaDaForma,
     TotalAusente,

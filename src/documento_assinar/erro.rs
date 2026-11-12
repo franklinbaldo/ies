@@ -17,7 +17,6 @@ pub(crate) enum ErroTelaDeAssinatura {
     CampoNaoPrevistoNaTelaDeAssinatura,
     FormularioDeAssinaturaAusente(#[source] crate::formulario_web::ErroSubmissaoFormulario),
     TelaDeAssinaturaNaoInterpretada,
-    TelaDeAssinaturaComAtributoIlegivel(#[from] crate::html_atributos::ErroAtributoHtml),
 }
 
 /// Por que a resposta do POST não é a esperada. O POST saiu (ou pode ter

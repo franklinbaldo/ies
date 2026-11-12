@@ -6,8 +6,6 @@ use crate::acao_do_sei::AcaoDoSei;
 use crate::consulta_do_controlador::{
     ConsultaDoControlador, ErroConsultaDoControlador, menciona_acao,
 };
-use crate::formulario_web::decodificar_atributo;
-use crate::html_atributos::valor_do_atributo;
 use crate::instalacao::Instalacao;
 use crate::transporte::FalhaTransporte;
 
@@ -15,8 +13,6 @@ use crate::transporte::FalhaTransporte;
 #[derive(Clone, Debug, PartialEq, Eq, thiserror::Error)]
 #[error("{self:?}")]
 pub(crate) enum ErroLinkDaPesquisa {
-    /// O tokenizador de atributos recusou a tag.
-    Atributo(#[source] crate::html_atributos::ErroAtributoHtml),
     /// `https://`, `http://` ou `//`: o menu observado é relativo.
     LinkDaPesquisaComEnderecoAbsoluto,
     LinkDaPesquisaAusenteNoControle,
@@ -77,18 +73,12 @@ pub(crate) fn link_da_pesquisa(
 /// O único `href` (decodificado) de `<a>` cuja consulta tem
 /// `acao=protocolo_pesquisar`; `protocolo_pesquisa_rapida` não conta.
 fn href_publicado(html: &crate::tela_html::HtmlServido) -> Result<String, ErroLinkDaPesquisa> {
-    let dom = crate::tela_html::interpretar(html);
-    let parser = dom.parser();
+    let dom = crate::tela_html::arvore(html);
     let mut achados = Vec::new();
-    for no in dom.query_selector("a").into_iter().flatten() {
-        let Some(tag) = no.get(parser).and_then(tl::Node::as_tag) else {
+    for no in dom.elementos("a") {
+        let Some(href) = no.atributo("href").map(str::to_owned) else {
             continue;
         };
-        let Some(bruto) = valor_do_atributo(tag, "href").map_err(ErroLinkDaPesquisa::Atributo)?
-        else {
-            continue;
-        };
-        let href = decodificar_atributo(&bruto);
         let publica = menciona_acao(&href, AcaoDoSei::ProtocoloPesquisar);
         if publica {
             achados.push(href);

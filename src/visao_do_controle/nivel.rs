@@ -5,8 +5,6 @@ use super::passos::{contexto, trocar, unidade_da_tela};
 use super::{ErroVisaoDoControle, Visao};
 use crate::acao_do_sei::AcaoDoSei;
 use crate::consulta_do_controlador::{ConsultaDoControlador, ErroConsultaDoControlador};
-use crate::formulario_web::decodificar_atributo;
-use crate::html_atributos::{nos_com_id, valor_do_atributo};
 use crate::instalacao::Instalacao;
 use crate::nivel_de_detalhe::{NivelDeDetalhe, ler_nivel_de_detalhe};
 use crate::transporte::decodificar_resposta;
@@ -74,21 +72,16 @@ pub(super) fn link_do_nivel_de_detalhe(
     tela: &TelaAtual,
 ) -> Result<String, super::ErroVisaoDoControle> {
     let invalido = super::ErroVisaoDoControle::LinkDoNivelDeDetalheNaoReconhecido;
-    let dom = crate::tela_html::interpretar(&tela.html);
-    let parser = dom.parser();
-    let nos = nos_com_id(&dom, "ancNivelDetalhe").map_err(super::ErroVisaoDoControle::Atributo)?;
+    let dom = crate::tela_html::arvore(&tela.html);
+    let nos = dom.com_id("ancNivelDetalhe").collect::<Vec<_>>();
     let no = match nos.as_slice() {
         [] => return Err(ErroVisaoDoControle::LinkDoNivelDeDetalheAusente),
         [no] => *no,
         _ => return Err(ErroVisaoDoControle::LinksDoNivelDeDetalheRepetidos),
     };
-    let tag = no
-        .get(parser)
-        .and_then(tl::Node::as_tag)
-        .ok_or_else(|| invalido.clone())?;
-    let onclick = valor_do_atributo(tag, "onclick")
-        .map_err(super::ErroVisaoDoControle::Atributo)?
-        .map(|v| decodificar_atributo(&v))
+    let onclick = no
+        .atributo("onclick")
+        .map(str::to_owned)
         .ok_or_else(|| invalido.clone())?;
     let resto = onclick
         .strip_prefix("acaoConfigurarDetalhe('")

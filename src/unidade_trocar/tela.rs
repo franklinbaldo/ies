@@ -5,13 +5,9 @@
 //! executado: as formas são conferidas como texto e atributos.
 use super::ErroTroca;
 use crate::acao_do_sei::AcaoDoSei;
-use crate::formulario_web::decodificar_atributo;
 use crate::formulario_web::{
     ConferenciaDaUnidade, EfeitoAvaliado, EnvioDoFormulario, EstadoDeSessao, OperacaoDeFormulario,
     ResultadoDoEnvio,
-};
-use crate::html_atributos::{
-    atributo_presente, nos_com_id, nos_por_elemento_e_classe, valor_decodificado, valor_do_atributo,
 };
 use crate::instalacao::Instalacao;
 use crate::legenda::{Legenda, ler_legenda};
@@ -75,19 +71,12 @@ pub(crate) fn link_da_troca(
     url_da_tela: &str,
     html: &crate::tela_html::HtmlServido,
 ) -> Result<String, super::ErroTroca> {
-    let dom = crate::tela_html::interpretar(html);
-    let parser = dom.parser();
-    let nos =
-        nos_com_id(&dom, "lnkInfraUnidade").map_err(ErroTroca::AtributoDoLinkDeTrocaIlegivel)?;
+    let dom = crate::tela_html::arvore(html);
+    let nos = dom.com_id("lnkInfraUnidade").collect::<Vec<_>>();
     let mut onclicks = Vec::new();
     for no in nos {
-        let Some(tag) = no.get(parser).and_then(tl::Node::as_tag) else {
-            continue;
-        };
-        if let Some(bruto) =
-            valor_do_atributo(tag, "onclick").map_err(ErroTroca::AtributoDoLinkDeTrocaIlegivel)?
-        {
-            onclicks.push(decodificar_atributo(&bruto));
+        if let Some(bruto) = no.atributo("onclick").map(str::to_owned) {
+            onclicks.push(bruto);
         }
     }
     let Some(primeiro) = onclicks.first() else {
@@ -127,26 +116,15 @@ pub(crate) fn link_da_troca(
     Ok(url)
 }
 
-fn texto(no: &tl::Node<'_>, parser: &tl::Parser<'_>) -> String {
-    let bruto = no.inner_text(parser).replace("&nbsp;", " ");
-    html_escape::decode_html_entities(&bruto)
-        .into_owned()
-        .split_whitespace()
-        .collect::<Vec<_>>()
-        .join(" ")
+fn texto(no: crate::tela_html::Elemento<'_>) -> String {
+    no.texto().split_whitespace().collect::<Vec<_>>().join(" ")
 }
 
 fn tags<'p>(
-    tag: &tl::HTMLTag<'_>,
-    parser: &'p tl::Parser<'p>,
+    tag: crate::tela_html::Elemento<'p>,
     seletor: &str,
-) -> Vec<&'p tl::HTMLTag<'p>> {
-    tag.query_selector(parser, seletor)
-        .into_iter()
-        .flatten()
-        .filter_map(|h| h.get(parser))
-        .filter_map(tl::Node::as_tag)
-        .collect()
+) -> Vec<crate::tela_html::Elemento<'p>> {
+    tag.elementos(seletor).collect()
 }
 
 const LEGENDA: &str = "Lista de Unidades com Permissão (";
@@ -164,24 +142,15 @@ fn total_da_legenda(legenda: &str) -> Result<usize, super::ErroTroca> {
 }
 
 /// A tabela da lista: exatamente uma `table.infraTable` com a legenda.
-fn tabela_da_lista<'d>(
-    dom: &'d tl::VDom<'d>,
-) -> Result<(&'d tl::HTMLTag<'d>, usize), super::ErroTroca> {
-    let parser = dom.parser();
+fn tabela_da_lista(
+    dom: &crate::tela_html::Documento,
+) -> Result<(crate::tela_html::Elemento<'_>, usize), super::ErroTroca> {
     let mut achada = None;
-    for h in nos_por_elemento_e_classe(dom, None, "table", "infraTable")
-        .map_err(ErroTroca::AtributoDaTelaDeTrocaIlegivel)?
+    for h in dom
+        .elementos("table")
+        .filter(|elemento| elemento.tem_classe("infraTable"))
     {
-        let Some(tabela) = h.get(parser).and_then(tl::Node::as_tag) else {
-            continue;
-        };
-        let legendas: Vec<String> = tabela
-            .query_selector(parser, "caption")
-            .into_iter()
-            .flatten()
-            .filter_map(|c| c.get(parser))
-            .map(|c| texto(c, parser))
-            .collect();
+        let legendas: Vec<String> = h.elementos("caption").map(texto).collect();
         if !legendas.iter().any(|l| l.starts_with(LEGENDA)) {
             continue;
         }
@@ -189,72 +158,50 @@ fn tabela_da_lista<'d>(
             return Err(ErroTroca::TelaDeTrocaDeUnidadeNaoReconhecida);
         };
         let total = total_da_legenda(legenda)?;
-        achada = Some((tabela, total));
+        achada = Some((h, total));
     }
     achada.ok_or(super::ErroTroca::TelaDeTrocaDeUnidadeNaoReconhecida)
 }
 
 /// Uma linha de dados: o rádio e as células Sigla e Descrição.
 fn ler_linha(
-    tr: &tl::HTMLTag<'_>,
-    parser: &tl::Parser<'_>,
+    tr: crate::tela_html::Elemento<'_>,
 ) -> Result<Option<(UnidadeOferecida, bool)>, super::ErroTroca> {
-    let celulas: Vec<_> = tr
-        .query_selector(parser, "td")
-        .into_iter()
-        .flatten()
-        .filter_map(|h| h.get(parser))
-        .collect();
+    let celulas: Vec<_> = tr.elementos("td").collect();
     if celulas.is_empty() {
         return Ok(None);
     }
     let mut radios = Vec::new();
-    for input in tags(tr, parser, "input") {
-        if valor_decodificado(input, "name")
-            .map_err(ErroTroca::AtributoDaLinhaDeUnidadeIlegivel)?
-            .as_deref()
-            == Some("chkInfraItem")
-        {
+    for input in tags(tr, "input") {
+        if input.atributo("name") == Some("chkInfraItem") {
             radios.push(input);
         }
     }
     let [radio] = radios.as_slice() else {
         return Err(super::ErroTroca::LinhaDeUnidadeForaDaFormaObservada);
     };
-    let id = valor_decodificado(radio, "value")
-        .map_err(ErroTroca::AtributoDaLinhaDeUnidadeIlegivel)?
+    let id = radio
+        .atributo("value")
+        .map(str::to_owned)
         .ok_or(super::ErroTroca::LinhaDeUnidadeForaDaFormaObservada)?;
     if id.is_empty() || !id.bytes().all(|b| b.is_ascii_digit()) {
         return Err(super::ErroTroca::LinhaDeUnidadeForaDaFormaObservada);
     }
     let esperado = format!("infraSelecionarItens(this,'Infra'); selecionarUnidade({id})");
-    if valor_decodificado(radio, "type")
-        .map_err(ErroTroca::AtributoDaLinhaDeUnidadeIlegivel)?
-        .as_deref()
-        != Some("radio")
-        || valor_decodificado(radio, "onclick")
-            .map_err(ErroTroca::AtributoDaLinhaDeUnidadeIlegivel)?
-            .as_deref()
-            .map(str::trim)
-            != Some(esperado.as_str())
+    if radio.atributo("type") != Some("radio")
+        || radio.atributo("onclick").map(str::trim) != Some(esperado.as_str())
     {
         return Err(super::ErroTroca::LinhaDeUnidadeForaDaFormaObservada);
     }
     let [_, sigla, descricao, ..] = celulas.as_slice() else {
         return Err(super::ErroTroca::LinhaDeUnidadeForaDaFormaObservada);
     };
-    let sigla = texto(sigla, parser);
-    if sigla.is_empty()
-        || valor_decodificado(radio, "title")
-            .map_err(ErroTroca::AtributoDaLinhaDeUnidadeIlegivel)?
-            .as_deref()
-            != Some(sigla.as_str())
-    {
+    let sigla = texto(*sigla);
+    if sigla.is_empty() || radio.atributo("title") != Some(sigla.as_str()) {
         return Err(super::ErroTroca::LinhaDeUnidadeForaDaFormaObservada);
     }
-    let marcada =
-        atributo_presente(radio, "checked").map_err(ErroTroca::AtributoDaLinhaDeUnidadeIlegivel)?;
-    let descricao = texto(descricao, parser);
+    let marcada = radio.presente("checked");
+    let descricao = texto(*descricao);
     Ok(Some((
         UnidadeOferecida {
             sigla,
@@ -268,32 +215,28 @@ fn ler_linha(
 /// O valor servido de um filtro: `value` do `input`, ou a opção que o
 /// navegador seleciona (a última com `selected`; sem nenhuma, a primeira).
 fn filtro(
-    dom: &tl::VDom<'_>,
+    dom: &crate::tela_html::Documento,
     nome: &'static str,
 ) -> Result<(&'static str, String), super::ErroTroca> {
-    let parser = dom.parser();
-    let nos = nos_com_id(dom, nome).map_err(ErroTroca::AtributoDaTelaDeTrocaIlegivel)?;
+    let nos = dom.com_id(nome).collect::<Vec<_>>();
     let [no] = nos.as_slice() else {
         return Err(ErroTroca::TelaDeTrocaDeUnidadeNaoReconhecida);
     };
-    let tag = no
-        .get(parser)
-        .and_then(tl::Node::as_tag)
-        .ok_or(ErroTroca::TelaDeTrocaDeUnidadeNaoReconhecida)?;
-    let valor = |t: &tl::HTMLTag<'_>| -> Result<String, super::ErroTroca> {
-        match valor_do_atributo(t, "value").map_err(ErroTroca::AtributoDaTelaDeTrocaIlegivel)? {
+    let tag = *no;
+    let valor = |t: crate::tela_html::Elemento<'_>| -> Result<String, super::ErroTroca> {
+        match t.atributo("value").map(str::to_owned) {
             None => Ok(String::new()),
-            Some(bruto) => Ok(decodificar_atributo(&bruto)),
+            Some(bruto) => Ok(bruto),
         }
     };
-    if tag.name() != "select" {
+    if tag.nome() != "select" {
         return Ok((nome, valor(tag)?));
     }
-    let opcoes = tags(tag, parser, "option");
+    let opcoes = tags(tag, "option");
     let mut escolhida = opcoes.first().copied();
     for opcao in &opcoes {
-        if atributo_presente(opcao, "selected").map_err(ErroTroca::AtributoDaTelaDeTrocaIlegivel)? {
-            escolhida = Some(opcao);
+        if opcao.presente("selected") {
+            escolhida = Some(*opcao);
         }
     }
     let opcao = escolhida.ok_or(ErroTroca::TelaDeTrocaDeUnidadeNaoReconhecida)?;
@@ -318,10 +261,8 @@ fn publica_selecao_por_script(html: &str) -> bool {
 pub(crate) fn ler_tela_de_troca(
     html: &crate::tela_html::HtmlServido,
 ) -> Result<TelaDeTroca, super::ErroTroca> {
-    let dom = crate::tela_html::interpretar(html);
-    let parser = dom.parser();
-    let formularios = nos_com_id(&dom, "frmInfraSelecaoUnidade")
-        .map_err(ErroTroca::AtributoDaTelaDeTrocaIlegivel)?;
+    let dom = crate::tela_html::arvore(html);
+    let formularios = dom.com_id("frmInfraSelecaoUnidade").collect::<Vec<_>>();
     if formularios.len() != 1 {
         return Err(ErroTroca::TelaDeTrocaDeUnidadeNaoReconhecida);
     }
@@ -331,8 +272,8 @@ pub(crate) fn ler_tela_de_troca(
     }
     let mut unidades: Vec<UnidadeOferecida> = Vec::new();
     let mut marcadas = Vec::new();
-    for tr in tags(tabela, parser, "tr") {
-        let Some((unidade, marcada)) = ler_linha(tr, parser)? else {
+    for tr in tags(tabela, "tr") {
+        let Some((unidade, marcada)) = ler_linha(tr)? else {
             continue;
         };
         if unidades.iter().any(|u| u.id_unidade == unidade.id_unidade) {

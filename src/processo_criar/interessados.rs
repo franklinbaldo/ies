@@ -2,9 +2,8 @@
 //! Cada pedido faz uma consulta sem efeito de escrita, por URL assinada
 //! observada, e exige identidade unívoca; nenhum nome vira ID inventado.
 use crate::formulario_web::{
-    ConsultaAjax, EfeitoAvaliado, TelaServida, derivar_consulta_ajax, localizar_formulario_tl,
+    ConsultaAjax, EfeitoAvaliado, TelaServida, derivar_consulta_ajax, localizar_formulario,
 };
-use crate::html_atributos::{atributo_presente, valor_do_atributo};
 use crate::instalacao::Instalacao;
 use crate::resposta_ajax::{Elemento, ErroXml, RespostaAjax};
 use crate::transporte::ler_limitado;
@@ -28,7 +27,6 @@ pub(crate) enum ErroInteressado {
     Ambiguo,
     InteressadoControlesAusentes,
     FormularioDosControlesRecusado(#[source] crate::formulario_web::ErroSubmissaoFormulario),
-    AtributoDosControlesDeInteressadoIlegivel(#[source] crate::html_atributos::ErroAtributoHtml),
     InteressadoRespostaNaoReconhecida,
     Xml(#[from] ErroXml),
     CorpoDaRespostaIlegivel(#[source] crate::transporte::corpo::ErroCorpoHttp),
@@ -47,7 +45,6 @@ impl ErroInteressado {
             | Self::Ambiguo
             | Self::InteressadoControlesAusentes
             | Self::FormularioDosControlesRecusado(_)
-            | Self::AtributoDosControlesDeInteressadoIlegivel(_)
             | Self::InteressadoRespostaNaoReconhecida
             | Self::Xml(_)
             | Self::CorpoDaRespostaIlegivel(_) => None,
@@ -56,23 +53,15 @@ impl ErroInteressado {
 }
 
 fn campo_unico(
-    form: &tl::HTMLTag<'_>,
-    parser: &tl::Parser<'_>,
+    form: crate::tela_html::Elemento<'_>,
     elemento: &str,
     nome: &str,
 ) -> Result<(), ErroInteressado> {
     let mut achados = 0;
-    for handle in form.query_selector(parser, elemento).into_iter().flatten() {
-        let tag = handle
-            .get(parser)
-            .and_then(tl::Node::as_tag)
-            .ok_or(ErroInteressado::InteressadoControlesAusentes)?;
-        let lido = valor_do_atributo(tag, "name")
-            .map_err(ErroInteressado::AtributoDosControlesDeInteressadoIlegivel)?;
-        if lido.as_deref() == Some(nome) {
-            if atributo_presente(tag, "disabled")
-                .map_err(ErroInteressado::AtributoDosControlesDeInteressadoIlegivel)?
-            {
+    for handle in form.elementos(elemento) {
+        let lido = handle.atributo("name");
+        if lido == Some(nome) {
+            if handle.presente("disabled") {
                 return Err(ErroInteressado::InteressadoControlesAusentes);
             }
             achados += 1;
@@ -88,12 +77,12 @@ fn campo_unico(
 /// URL declarada na inicialização do autocomplete, sem executar o script.
 /// Também confere os campos reais do formulário que receberá os IDs.
 fn url_publicada(html: &crate::tela_html::HtmlServido) -> Result<String, ErroInteressado> {
-    let dom = crate::tela_html::interpretar(html);
-    let form = localizar_formulario_tl(&dom, "frmProcedimentoCadastro")
+    let dom = crate::tela_html::arvore(html);
+    let form = localizar_formulario(&dom, "frmProcedimentoCadastro")
         .map_err(ErroInteressado::FormularioDosControlesRecusado)?;
-    campo_unico(form, dom.parser(), "input", "hdnInteressadosProcedimento")?;
-    campo_unico(form, dom.parser(), "input", "txtInteressadoProcedimento")?;
-    campo_unico(form, dom.parser(), "select", "selInteressadosProcedimento")?;
+    campo_unico(form, "input", "hdnInteressadosProcedimento")?;
+    campo_unico(form, "input", "txtInteressadoProcedimento")?;
+    campo_unico(form, "select", "selInteressadosProcedimento")?;
     let urls: Vec<&str> = html
         .lines()
         .filter_map(|linha| linha.strip_prefix(PREFIXO))

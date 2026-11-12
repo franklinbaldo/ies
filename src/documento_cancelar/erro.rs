@@ -58,6 +58,14 @@ mod testes_cadeia_de_causas {
     use super::*;
     use std::error::Error as _;
 
+    fn barra() -> crate::arvore_processo::ErroBarraDoDocumento {
+        crate::arvore_processo::ErroBarraDoDocumento::LinhaDaBarraDoDocumentoIlegivel(
+            crate::arvore_processo::ErroArvore::EnderecoDeAbrirPastasRecusado(
+                crate::arvore_processo::endereco::EnderecoRecusado::NaoReconhecido,
+            ),
+        )
+    }
+
     #[test]
     fn erros_de_cancelamento_retêm_as_causas_tipadas() {
         let atributo = crate::html_atributos::ErroAtributoHtml::ValorEntreAspasSemFechamento;
@@ -65,7 +73,7 @@ mod testes_cadeia_de_causas {
             ErroCancelar::Abertura(ErroDocumentoObter::Processo(
                 crate::processo_obter::ErroProcessoObter::Transporte(FalhaTransporte::Rede),
             )),
-            ErroCancelar::Link(ErroLinkCancelar::Atributo(atributo)),
+            ErroCancelar::Link(ErroLinkCancelar::BarraDoDocumentoIlegivel(barra())),
             ErroCancelar::Tela(FalhaTransporte::Rede),
             ErroCancelar::Formulario(ErroSubmissaoFormulario::AtributoHtml(atributo)),
             ErroCancelar::EnderecoDoProcessoRecusado(
@@ -78,12 +86,14 @@ mod testes_cadeia_de_causas {
         for erro in exemplos {
             assert!(erro.source().is_some(), "perdeu a causa: {erro:?}");
         }
-        let link = ErroLinkCancelar::Atributo(atributo);
+        let link = ErroLinkCancelar::BarraDoDocumentoIlegivel(barra());
         assert!(
             link.source()
-                .and_then(|fonte| fonte.downcast_ref::<crate::html_atributos::ErroAtributoHtml>())
+                .and_then(
+                    |fonte| fonte.downcast_ref::<crate::arvore_processo::ErroBarraDoDocumento>()
+                )
                 .is_some(),
-            "a falha da tag deve sobreviver também ao leitor do link"
+            "a falha da barra deve sobreviver também ao leitor do link"
         );
     }
 }

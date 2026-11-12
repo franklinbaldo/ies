@@ -1,0 +1,31 @@
+id: 09f-seletor-variavel-no-documento
+language: rust
+message: 'Seletor em variável de um for sobre nomes literais, no documento'
+severity: hint
+rule:
+  all:
+    - any:
+        - pattern: '$D.query_selector($S).into_iter().flatten()'
+        - pattern: '$D.query_selector($S).ok_or($E)?'
+        - pattern: '$D.query_selector($S)?'
+    - inside:
+        stopBy: end
+        kind: for_expression
+        all:
+          - has:
+              field: pattern
+              pattern: $S
+          - has:
+              field: value
+              regex: '^\[\s*"[a-z][a-z0-9]*"(\s*,\s*"[a-z][a-z0-9]*")*\s*,?\s*\]$'
+    - not:
+        inside:
+          stopBy: end
+          kind: mod_item
+          follows:
+            kind: attribute_item
+            regex: 'cfg\(test\)'
+constraints:
+  S:
+    kind: identifier
+fix: '$D.elementos($S)'

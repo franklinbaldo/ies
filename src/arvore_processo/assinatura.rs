@@ -13,8 +13,6 @@ use super::concluir::EnderecoDeEscrita;
 use super::endereco::{EnderecoRecusado, conferir_endereco_relativo_por};
 use super::literais::{Literal, ler_chamada, ler_declaracao};
 use crate::acao_do_sei::AcaoDoSei;
-use crate::formulario_web::decodificar_atributo;
-use crate::html_atributos::atributos;
 use crate::instalacao::Instalacao;
 
 const ONCLICK: &str = "assinarDocumento();";
@@ -43,8 +41,6 @@ pub(crate) struct AssinaturaNaArvore {
 #[error("{self:?}")]
 pub(crate) enum ErroAssinaturaNaArvore {
     BarraDoDocumentoIlegivel(#[source] super::ErroBarraDoDocumento),
-    /// O tokenizador de atributos recusou a tag.
-    Atributo(#[source] crate::html_atributos::ErroAtributoHtml),
     AcoesDeAssinarRepetidasNaBarra,
     AssinaturasDoDocumentoForaDaFormaObservada,
     AssinaturasDoDocumentoRepetidasNaArvore,
@@ -74,7 +70,7 @@ pub(crate) fn ler_assinatura_na_arvore(
         }
     })?;
     let acoes = match barra {
-        Some(texto) => acoes_de_assinar(&texto)?,
+        Some(texto) => acoes_de_assinar(&texto),
         None => 0,
     };
     if acoes > 1 {
@@ -87,23 +83,16 @@ pub(crate) fn ler_assinatura_na_arvore(
 }
 
 /// Quantas âncoras da barra têm exatamente `onclick="assinarDocumento();"`.
-fn acoes_de_assinar(
-    texto: &crate::tela_html::HtmlServido,
-) -> Result<usize, ErroAssinaturaNaArvore> {
-    let dom = crate::tela_html::interpretar(texto);
-    let parser = dom.parser();
+fn acoes_de_assinar(texto: &crate::tela_html::HtmlServido) -> usize {
+    let dom = crate::tela_html::arvore(texto);
     let mut contagem = 0;
-    for no in dom.query_selector("a").into_iter().flatten() {
-        let Some(tag) = no.get(parser).and_then(tl::Node::as_tag) else {
-            continue;
-        };
-        let lidos = atributos(tag).map_err(ErroAssinaturaNaArvore::Atributo)?;
-        if let Some(bruto) = lidos.valor("onclick") {
-            let onclick = decodificar_atributo(bruto);
+    for no in dom.elementos("a") {
+        if let Some(bruto) = no.atributo("onclick") {
+            let onclick = bruto.to_owned();
             contagem += usize::from(onclick == ONCLICK);
         }
     }
-    Ok(contagem)
+    contagem
 }
 
 /// Os assinantes da única caneta do documento; toda linha de caneta precisa

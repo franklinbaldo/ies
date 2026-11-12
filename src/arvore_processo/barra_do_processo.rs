@@ -9,8 +9,6 @@ use super::endereco::{EnderecoRecusado, conferir_endereco_relativo};
 use super::literais::{Literal, indice_da_barra, ler_barra, ler_declaracao};
 use crate::acao_do_sei::AcaoDoSei;
 use crate::consulta_do_controlador::menciona_acao;
-use crate::formulario_web::decodificar_atributo;
-use crate::html_atributos::atributos;
 use crate::instalacao::Instalacao;
 use crate::marcadores_processo::{EnderecoDosMarcadores, ErroMarcadores};
 use crate::processo_comentarios::{EnderecoDosComentarios, ErroLinkDosComentarios};
@@ -181,8 +179,6 @@ pub(crate) fn ler_link_dos_comentarios(
 pub(crate) enum ErroBarraDoProcesso {
     DeclaracaoDaBarraIlegivel(#[source] super::ErroArvore),
     LinhaDaBarraIlegivel(#[source] super::ErroArvore),
-    /// O tokenizador de atributos recusou a tag.
-    Atributo(#[source] crate::html_atributos::ErroAtributoHtml),
     BarraDoProcessoForaDaFormaObservada,
     BarrasDoProcessoRepetidasNaArvore,
 }
@@ -208,16 +204,11 @@ pub(super) fn ancoras_da_barra(html: &str) -> Result<Vec<AncoraDaBarra>, ErroBar
     let Some(texto) = barra_da_raiz(html)? else {
         return Ok(Vec::new());
     };
-    let dom = crate::tela_html::interpretar(&texto);
-    let parser = dom.parser();
+    let dom = crate::tela_html::arvore(&texto);
     let mut ancoras = Vec::new();
-    for no in dom.query_selector("a").into_iter().flatten() {
-        let Some(tag) = no.get(parser).and_then(tl::Node::as_tag) else {
-            continue;
-        };
-        let lidos = atributos(tag).map_err(ErroBarraDoProcesso::Atributo)?;
+    for no in dom.elementos("a") {
         let decodificado = |nome: &'static str| -> Result<Option<String>, ErroBarraDoProcesso> {
-            Ok(lidos.valor(nome).map(decodificar_atributo))
+            Ok(no.atributo(nome).map(str::to_owned))
         };
         ancoras.push(AncoraDaBarra {
             href: decodificado("href")?,

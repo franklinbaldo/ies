@@ -16,8 +16,7 @@ use crate::arvore_processo::endereco::conferir_endereco_relativo;
 use crate::arvore_processo::nup_declarado_na_arvore;
 use crate::cassette::acervo::{INSTALACOES, gravacao, percorrer, publicar};
 use crate::cassette::html_da_resposta;
-use crate::formulario_web::{Redirecionamento302, decodificar_atributo};
-use crate::html_atributos::{nos_com_id, valor_do_atributo};
+use crate::formulario_web::Redirecionamento302;
 use crate::marcadores_processo::{TelaDosMarcadores, ler_marcadores};
 use crate::processo_obter::marcadores::sem_marcadores;
 use crate::tela_html::HtmlServido;
@@ -58,20 +57,13 @@ struct Estado {
 /// As opções do `select#selMarcador` servido, como `Rotulo` (id e texto).
 fn opcoes_do_select(html: &str) -> Vec<Rotulo> {
     let servido = HtmlServido::de_teste(html);
-    let dom = crate::tela_html::interpretar(&servido);
-    let parser = dom.parser();
-    let Ok(selects) = nos_com_id(&dom, "selMarcador") else {
-        return Vec::new();
-    };
-    selects
-        .iter()
-        .filter_map(|h| h.get(parser).and_then(tl::Node::as_tag))
-        .flat_map(|select| select.children().all(parser).iter())
-        .filter_map(tl::Node::as_tag)
-        .filter(|tag| tag.name().as_utf8_str() == "option")
+    let dom = crate::tela_html::arvore(&servido);
+    dom.com_id("selMarcador")
+        .flat_map(crate::tela_html::Elemento::descendentes)
+        .filter(|tag| tag.nome() == "option")
         .filter_map(|tag| {
-            let id = valor_do_atributo(tag, "value").ok()??;
-            let nome = decodificar_atributo(&tag.inner_text(parser));
+            let id = tag.atributo("value").map(str::to_owned)?;
+            let nome = tag.texto();
             Some(Rotulo { id, nome })
         })
         .collect()

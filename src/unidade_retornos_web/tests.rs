@@ -28,7 +28,7 @@ fn calendario(ano: u16, mes: u8, hoje: bool) -> String {
     let classe = if hoje { "diaHoje" } else { "diaUtil" };
     format!(
         "<html><a href='{}'>Ver todo o mes</a>\
-         <td class='{classe}'><a href='{}'>15</a></td>\
+         <table><tr><td class='{classe}'><a href='{}'>15</a></td></tr></table>\
          <a href='{}'>vizinho</a></html>",
         href(&format!(
             "data_inicial=01%2F{mes:02}%2F{ano:04}&data_final={fim:02}%2F{mes:02}%2F{ano:04}"
@@ -440,9 +440,9 @@ fn calendario_utc_cobre_virada_de_ano_e_bissexto_sem_dependencia_de_fuso() {
 #[test]
 fn dois_dias_hoje_conflitantes_nao_publicam_mes() {
     let duplo = HtmlServido::de_teste(&calendario(2026, 11, true).replace(
-        "</html>",
+        "</tr>",
         &format!(
-            "<td class='diaHoje'><a href='{}'>outro dia</a></td></html>",
+            "<td class='diaHoje'><a href='{}'>outro dia</a></td></tr>",
             href("data_atual=16%2F11%2F2026")
         ),
     ));

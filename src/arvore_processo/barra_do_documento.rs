@@ -10,8 +10,7 @@ use super::literais::{
 };
 use crate::acao_do_sei::AcaoDoSei;
 use crate::consulta_do_controlador::menciona_acao;
-use crate::formulario_web::decodificar_atributo;
-use crate::html_atributos::{ErroAtributoHtml, atributos};
+use crate::html_atributos::ErroAtributoHtml;
 use crate::instalacao::Instalacao;
 
 /// URL absoluta da lista de versões, assinada: `Debug` redigido.
@@ -77,16 +76,11 @@ pub(crate) fn ler_barra_do_documento(
     let Some(texto) = barra_do_no(html, id_documento)? else {
         return Ok(nada);
     };
-    let dom = crate::tela_html::interpretar(&texto);
-    let parser = dom.parser();
+    let dom = crate::tela_html::arvore(&texto);
     let (mut links, mut edicoes) = (Vec::new(), Vec::new());
-    for no in dom.query_selector("a").into_iter().flatten() {
-        let Some(tag) = no.get(parser).and_then(tl::Node::as_tag) else {
-            continue;
-        };
-        let lidos = atributos(tag).map_err(ErroBarraDoDocumento::AtributoDeLinkDaBarra)?;
+    for no in dom.elementos("a") {
         let valor = |nome| -> Result<Option<String>, ErroBarraDoDocumento> {
-            Ok(lidos.valor(nome).map(decodificar_atributo))
+            Ok(no.atributo(nome).map(str::to_owned))
         };
         if let Some(href) = valor("href")?
             && menciona_acao(&href, AcaoDoSei::DocumentoVersaoListar)

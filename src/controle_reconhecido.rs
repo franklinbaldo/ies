@@ -6,13 +6,12 @@
 //! Login, diagnóstico e `unidade atual` precisam reconhecer as duas.
 use crate::caixa_detalhada::{self, ErroDetalhada};
 use crate::erro_web::ErroCaixa;
-use crate::html_atributos::nos_com_id;
 use crate::paginas;
 
 /// A página publica a tabela da visão detalhada (tag ilegível não conta).
 pub(crate) fn publica_visao_detalhada(html: &crate::tela_html::HtmlServido) -> bool {
-    let dom = crate::tela_html::interpretar(html);
-    nos_com_id(&dom, "tblProcessosDetalhado").is_ok_and(|tabelas| !tabelas.is_empty())
+    let dom = crate::tela_html::arvore(html);
+    dom.com_id("tblProcessosDetalhado").next().is_some()
 }
 
 /// Rótulo da unidade ativa publicado pelo Controle, na visão `R` ou `D`.
@@ -53,7 +52,6 @@ pub(crate) fn unidade_do_controle(
                 | ErroDetalhada::FaixaDetalhadaInvalida
                 | ErroDetalhada::Legenda(_)
                 | ErroDetalhada::ControleDaPaginaNaoInterpretado(_)
-                | ErroDetalhada::AtributoDaDetalhadaIlegivel(_)
                 | ErroDetalhada::IdentificadorDetalhadoInvalido(_)
                 | ErroDetalhada::ConsultaDoMarcadorIlegivel(_)
                 | ErroDetalhada::ChaveDoMarcadorDetalhado(_)

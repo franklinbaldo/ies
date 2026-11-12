@@ -1,0 +1,19 @@
+id: 11k-valor-ok-interrogacao
+language: rust
+message: 'valor_do_atributo(t, k).ok()? / .ok()?? : a tag sempre é legível'
+severity: hint
+rule:
+  all:
+    - any:
+        - pattern: 'valor_do_atributo($T, $K).ok()?'
+        - pattern: 'crate::html_atributos::valor_do_atributo($T, $K).ok()?'
+        - pattern: 'valor_decodificado($T, $K).ok()?'
+        - pattern: 'crate::html_atributos::valor_decodificado($T, $K).ok()?'
+    - not:
+        inside:
+          stopBy: end
+          kind: mod_item
+          follows:
+            kind: attribute_item
+            regex: 'cfg\(test\)'
+fix: '$T.atributo($K).map(str::to_owned)'

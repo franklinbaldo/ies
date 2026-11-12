@@ -8,9 +8,8 @@ use crate::consulta_do_controlador::menciona_acao;
 use crate::formulario_web::{
     ConferenciaDaUnidade, EfeitoAvaliado, EnvioDoFormulario, ErroSubmissaoFormulario,
     EstadoDoProcesso, OperacaoDeFormulario, RespostaDoEnvio, ResultadoDoEnvio, TelaServida,
-    consulta_do_controlador, decodificar_atributo, derivar_submissao, enviar_submissao_via,
+    consulta_do_controlador, derivar_submissao, enviar_submissao_via,
 };
-use crate::html_atributos::atributos;
 use crate::indice_local::IndiceLocal;
 use crate::instalacao::Instalacao;
 use crate::processo::NumeroProcesso;
@@ -63,8 +62,6 @@ pub(crate) enum ErroComentar {
     TelaDaLista(#[source] FalhaDaTela),
     ListaIlegivel(#[source] ErroComentarios),
     ListaForaDaForma,
-    /// O tokenizador de atributos recusou o `href` de um link da lista.
-    AtributoDaLinkIlegivel(#[source] crate::html_atributos::ErroAtributoHtml),
     /// Zero ou mais de um link `comentario_cadastrar` na lista.
     LinkDoCadastroNaoUnico,
     LinkDoCadastroRecusado(EnderecoRecusado),
@@ -126,34 +123,21 @@ fn link_do_cadastro(
     html: &crate::tela_html::HtmlServido,
     id: &str,
 ) -> Result<String, ErroComentar> {
-    let fora = || ErroComentar::ListaForaDaForma;
-    let dom = crate::tela_html::interpretar(html);
+    let dom = crate::tela_html::arvore(html);
     let mut links = Vec::new();
-    for no in dom.query_selector("a").into_iter().flatten() {
-        let tag = no
-            .get(dom.parser())
-            .and_then(tl::Node::as_tag)
-            .ok_or_else(fora)?;
-        let href = atributos(tag)
-            .map_err(ErroComentar::AtributoDaLinkIlegivel)?
-            .valor("href");
+    for no in dom.elementos("a") {
+        let href = no.atributo("href");
         if let Some(href) = href {
-            let href = decodificar_atributo(href);
+            let href = href.to_owned();
             if e_link_do_cadastro(&href) {
                 links.push(href);
             }
         }
     }
-    for no in dom.query_selector("button").into_iter().flatten() {
-        let tag = no
-            .get(dom.parser())
-            .and_then(tl::Node::as_tag)
-            .ok_or_else(fora)?;
-        let onclick = atributos(tag)
-            .map_err(ErroComentar::AtributoDaLinkIlegivel)?
-            .valor("onclick");
+    for no in dom.elementos("button") {
+        let onclick = no.atributo("onclick");
         if let Some(onclick) = onclick {
-            let onclick = decodificar_atributo(onclick);
+            let onclick = onclick.to_owned();
             if let Some(url) = url_do_botao_de_cadastro(&onclick) {
                 links.push(url.to_owned());
             }

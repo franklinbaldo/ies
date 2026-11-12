@@ -112,7 +112,7 @@ pub(super) fn paginar_detalhada<V: EnvioDoControle>(
             ErroPaginaDoControle::VisualizacaoAlteradaAposPaginar,
         ));
     }
-    if valores_ocultos(&nova.html, "hdnDetalhadoHashCriterios")?
+    if valores_ocultos(&nova.html, "hdnDetalhadoHashCriterios")
         .first()
         .map(String::as_str)
         != criterio

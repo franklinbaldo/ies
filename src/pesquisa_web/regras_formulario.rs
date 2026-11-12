@@ -2,7 +2,6 @@
 //! JavaScript servido em `unb`, `pen1`, `ufrj` e `go` (GET de
 //! `protocolo_pesquisar` das cassettes `processo-busca-*`). Nada de JS é
 //! executado ou interpretado aqui. Evidência: docs/decisoes/processo-buscar.md.
-use crate::html_atributos::{ErroAtributoHtml, atributo_presente, valor_decodificado};
 
 #[derive(Clone, Debug, PartialEq, Eq, thiserror::Error)]
 #[error("{self:?}")]
@@ -29,8 +28,6 @@ pub(crate) enum ErroRegraDoFormularioDePesquisa {
     /// Nenhuma das duas servida marcada: `onSubmitForm()` não envia.
     NenhumTipoDeDocumentoMarcadoNaTela,
     AssinanteOcultoPreenchidoNaPesquisaEmDocumentos,
-    /// Tag de abertura que o tokenizador de atributos recusou.
-    AtributoHtml(#[from] ErroAtributoHtml),
     CaixaDeTipoDeDocumentoAusenteNaTela,
     CaixaDeTipoDeDocumentoSemValorNaTela,
     CaixasDeTipoDeDocumentoRepetidasNaTela,
@@ -67,14 +64,14 @@ pub(crate) struct RegrasDaTela {
     pub(crate) maxlength_do_termo: u32,
 }
 
-fn eh(tag: &tl::HTMLTag<'_>, elemento: &str) -> bool {
-    tag.name().as_utf8_str().eq_ignore_ascii_case(elemento)
+fn eh(tag: crate::tela_html::Elemento<'_>, elemento: &str) -> bool {
+    tag.nome().eq_ignore_ascii_case(elemento)
 }
 
 /// `onSubmitForm()` exige rádio marcado; com `P`, a operação usa
 /// `#optProcessos` como servido; com `D`, `#optDocumentos` (e as caixas).
 fn opcao(
-    tags: &[&tl::HTMLTag<'_>],
+    tags: &[crate::tela_html::Elemento<'_>],
     em: PesquisarEm,
 ) -> Result<String, ErroRegraDoFormularioDePesquisa> {
     let (id, ausente, repetidas, sem_valor, outro_nome) = match em {
@@ -94,8 +91,8 @@ fn opcao(
         ),
     };
     let mut achadas = Vec::new();
-    for tag in tags.iter().filter(|t| eh(t, "input")) {
-        if valor_decodificado(tag, "id")?.as_deref() == Some(id) {
+    for tag in tags.iter().filter(|t| eh(**t, "input")) {
+        if tag.atributo("id") == Some(id) {
             achadas.push(*tag);
         }
     }
@@ -104,10 +101,10 @@ fn opcao(
         [radio] => *radio,
         _ => return Err(repetidas),
     };
-    if valor_decodificado(radio, "name")?.as_deref() != Some("rdoPesquisarEm") {
+    if radio.atributo("name") != Some("rdoPesquisarEm") {
         return Err(outro_nome);
     }
-    valor_decodificado(radio, "value")?.ok_or(sem_valor)
+    radio.atributo("value").map(str::to_owned).ok_or(sem_valor)
 }
 
 /// Caixas que `onSubmitForm()` lê por id com `D`: cada uma servida uma vez,
@@ -116,14 +113,14 @@ fn opcao(
 const CAIXAS_DE_DOCUMENTO: [&str; 2] = ["chkSinDocumentosGerados", "chkSinDocumentosRecebidos"];
 
 fn caixas_de_documento(
-    tags: &[&tl::HTMLTag<'_>],
+    tags: &[crate::tela_html::Elemento<'_>],
 ) -> Result<Vec<(&'static str, String)>, ErroRegraDoFormularioDePesquisa> {
     let mut marcadas = Vec::new();
     for caixa in CAIXAS_DE_DOCUMENTO {
         let mut achadas = Vec::new();
-        for tag in tags.iter().filter(|t| eh(t, "input")) {
-            let id = valor_decodificado(tag, "id")?;
-            let nome = valor_decodificado(tag, "name")?;
+        for tag in tags.iter().filter(|t| eh(**t, "input")) {
+            let id = tag.atributo("id").map(str::to_owned);
+            let nome = tag.atributo("name").map(str::to_owned);
             if id.as_deref() == Some(caixa) || nome.as_deref() == Some(caixa) {
                 achadas.push((*tag, id, nome));
             }
@@ -142,8 +139,10 @@ fn caixas_de_documento(
         if id.as_deref() != Some(caixa) || nome.as_deref() != Some(caixa) {
             return Err(ErroRegraDoFormularioDePesquisa::CaixaDeTipoDeDocumentoAusenteNaTela);
         }
-        if atributo_presente(tag, "checked")? {
-            let valor = valor_decodificado(tag, "value")?
+        if tag.presente("checked") {
+            let valor = tag
+                .atributo("value")
+                .map(str::to_owned)
                 .ok_or(ErroRegraDoFormularioDePesquisa::CaixaDeTipoDeDocumentoSemValorNaTela)?;
             marcadas.push((caixa, valor));
         }
@@ -158,19 +157,19 @@ fn caixas_de_documento(
 /// servido preenchido filtraria em silêncio. `navegar()` só reescreve
 /// `hdnInicio` na paginação. Ocultos saem como servidos.
 fn conferir_ocultos(
-    tags: &[&tl::HTMLTag<'_>],
+    tags: &[crate::tela_html::Elemento<'_>],
     em: PesquisarEm,
 ) -> Result<(), ErroRegraDoFormularioDePesquisa> {
-    for tag in tags.iter().filter(|t| eh(t, "input")) {
-        let valor = || valor_decodificado(tag, "value").map(Option::unwrap_or_default);
-        match valor_decodificado(tag, "name")?.as_deref() {
-            Some("hdnIdAssinante") if !valor()?.is_empty() => {
+    for tag in tags.iter().filter(|t| eh(**t, "input")) {
+        let valor = || tag.atributo("value").unwrap_or_default();
+        match tag.atributo("name") {
+            Some("hdnIdAssinante") if !valor().is_empty() => {
                 return Err(match em {
                     PesquisarEm::Processos => ErroRegraDoFormularioDePesquisa::AssinanteOcultoPreenchidoNaPesquisaEmProcessos,
                     PesquisarEm::Documentos => ErroRegraDoFormularioDePesquisa::AssinanteOcultoPreenchidoNaPesquisaEmDocumentos,
                 });
             }
-            Some("hdnInicio") if valor()? != "0" => {
+            Some("hdnInicio") if valor() != "0" => {
                 return Err(
                     ErroRegraDoFormularioDePesquisa::InicioDaPaginacaoDiferenteDeZeroNaTela,
                 );
@@ -186,12 +185,11 @@ fn conferir_ocultos(
 /// O `select` é achado pelo `name` (o nome serializado no POST), não pelo
 /// `id`: a regra continua mais precisa mesmo sem o defeito do tl 0.7.8.
 fn orgaos_selecionados(
-    tags: &[&tl::HTMLTag<'_>],
-    parser: &tl::Parser<'_>,
+    tags: &[crate::tela_html::Elemento<'_>],
 ) -> Result<Vec<String>, ErroRegraDoFormularioDePesquisa> {
     let mut achados = Vec::new();
-    for tag in tags.iter().filter(|t| eh(t, "select")) {
-        if valor_decodificado(tag, "name")?.as_deref() == Some("selOrgaoPesquisa[]") {
+    for tag in tags.iter().filter(|t| eh(**t, "select")) {
+        if tag.atributo("name") == Some("selOrgaoPesquisa[]") {
             achados.push(*tag);
         }
     }
@@ -204,41 +202,26 @@ fn orgaos_selecionados(
             return Err(ErroRegraDoFormularioDePesquisa::SeletoresDeOrgaoDePesquisaRepetidosNaTela);
         }
     };
-    if !atributo_presente(select, "multiple")? {
+    if !select.presente("multiple") {
         return Err(ErroRegraDoFormularioDePesquisa::SeletorDeOrgaoDePesquisaSemMultiplaEscolha);
     }
-    let descendentes: Vec<_> = select
-        .children()
-        .all(parser)
-        .iter()
-        .filter_map(tl::Node::as_tag)
-        .collect();
+    let descendentes: Vec<_> = select.descendentes().collect();
     // Como no navegador: opção desabilitada, própria ou por `optgroup
     // disabled`, não é serializada mesmo se servida com `selected`.
-    let mut desabilitadas: Vec<*const tl::HTMLTag<'_>> = Vec::new();
-    for grupo in descendentes.iter().filter(|t| eh(t, "optgroup")) {
-        if atributo_presente(grupo, "disabled")? {
-            desabilitadas.extend(
-                grupo
-                    .children()
-                    .all(parser)
-                    .iter()
-                    .filter_map(tl::Node::as_tag)
-                    .map(std::ptr::from_ref),
-            );
+    let mut desabilitadas = Vec::new();
+    for grupo in descendentes.iter().filter(|t| eh(**t, "optgroup")) {
+        if grupo.presente("disabled") {
+            desabilitadas.extend(grupo.descendentes());
         }
     }
     let mut valores = Vec::new();
     for opcao in descendentes {
-        if !eh(opcao, "option")
-            || atributo_presente(opcao, "disabled")?
-            || desabilitadas.contains(&std::ptr::from_ref(opcao))
-        {
+        if !eh(opcao, "option") || opcao.presente("disabled") || desabilitadas.contains(&opcao) {
             continue;
         }
-        if atributo_presente(opcao, "selected")? {
+        if opcao.presente("selected") {
             valores.push(
-                valor_decodificado(opcao, "value")?.ok_or(
+                opcao.atributo("value").map(str::to_owned).ok_or(
                     ErroRegraDoFormularioDePesquisa::OpcaoDeOrgaoSelecionadaSemValorNaTela,
                 )?,
             );
@@ -253,10 +236,12 @@ fn orgaos_selecionados(
 /// `maxlength` de `txtProtocoloPesquisa` como servido (50 nas quatro
 /// instalações, sem presumir esse valor). Só dígitos ASCII são aceitos,
 /// mais estrito que o navegador, que ignora o atributo inválido.
-fn maxlength_do_termo(tags: &[&tl::HTMLTag<'_>]) -> Result<u32, ErroRegraDoFormularioDePesquisa> {
+fn maxlength_do_termo(
+    tags: &[crate::tela_html::Elemento<'_>],
+) -> Result<u32, ErroRegraDoFormularioDePesquisa> {
     let mut campos = Vec::new();
-    for tag in tags.iter().filter(|t| eh(t, "input")) {
-        if valor_decodificado(tag, "name")?.as_deref() == Some("txtProtocoloPesquisa") {
+    for tag in tags.iter().filter(|t| eh(**t, "input")) {
+        if tag.atributo("name") == Some("txtProtocoloPesquisa") {
             campos.push(*tag);
         }
     }
@@ -265,7 +250,7 @@ fn maxlength_do_termo(tags: &[&tl::HTMLTag<'_>]) -> Result<u32, ErroRegraDoFormu
         [campo] => *campo,
         _ => return Err(ErroRegraDoFormularioDePesquisa::CamposDoTermoRepetidosNaTela),
     };
-    let Some(valor) = valor_decodificado(campo, "maxlength")? else {
+    let Some(valor) = campo.atributo("maxlength").map(str::to_owned) else {
         return Err(ErroRegraDoFormularioDePesquisa::MaxlengthDoTermoAusenteNaTela);
     };
     if valor.is_empty() || !valor.bytes().all(|b| b.is_ascii_digit()) {
@@ -278,23 +263,17 @@ fn maxlength_do_termo(tags: &[&tl::HTMLTag<'_>]) -> Result<u32, ErroRegraDoFormu
 
 /// Lê, do `<form>` já localizado, os valores que o `onsubmit` exige.
 pub(crate) fn ler_regras_da_tela(
-    form: &tl::HTMLTag<'_>,
-    parser: &tl::Parser<'_>,
+    form: crate::tela_html::Elemento<'_>,
     em: PesquisarEm,
 ) -> Result<RegrasDaTela, ErroRegraDoFormularioDePesquisa> {
-    let tags: Vec<_> = form
-        .children()
-        .all(parser)
-        .iter()
-        .filter_map(tl::Node::as_tag)
-        .collect();
+    let tags: Vec<_> = form.descendentes().collect();
     let opcao = opcao(&tags, em)?;
     let caixas_de_documento = match em {
         PesquisarEm::Processos => Vec::new(),
         PesquisarEm::Documentos => caixas_de_documento(&tags)?,
     };
     conferir_ocultos(&tags, em)?;
-    let orgaos_selecionados = orgaos_selecionados(&tags, parser)?;
+    let orgaos_selecionados = orgaos_selecionados(&tags)?;
     let maxlength_do_termo = maxlength_do_termo(&tags)?;
     Ok(RegrasDaTela {
         opcao,

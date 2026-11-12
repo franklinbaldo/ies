@@ -45,8 +45,6 @@ pub(crate) struct TelaDaAtribuicao {
 #[derive(Clone, Debug, PartialEq, Eq, thiserror::Error)]
 #[error("{self:?}")]
 pub(crate) enum ErroAtribuir {
-    /// O tokenizador de atributos recusou a tag.
-    Atributo(#[from] crate::html_atributos::ErroAtributoHtml),
     UsuarioNaoAtribuivel,
     UsuarioAmbiguo,
     AtribuicaoJaAplicada,

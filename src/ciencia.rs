@@ -34,8 +34,6 @@ pub(crate) enum AlvoDaCiencia<'a> {
 #[error("{self:?}")]
 pub(crate) enum ErroCiencia {
     Legenda(#[from] crate::legenda::ErroLegenda),
-    /// O tokenizador de atributos recusou a tag.
-    Atributo(#[source] crate::html_atributos::ErroAtributoHtml),
     AceiteSemAtividade,
     AtividadesAmbiguas,
     ListaDeCienciasForaDaFormaObservada,

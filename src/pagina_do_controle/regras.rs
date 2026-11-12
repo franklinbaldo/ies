@@ -3,7 +3,6 @@
 //! 02/11/2026 (PEN1, PEN3, PEN4, Goiás, UnB): `txtBloco`, caixas de seleção
 //! `chk{T}Item*` desmarcadas e, quando há várias páginas, `sel{T}Paginacao*`.
 //! Nada de JavaScript é executado ou interpretado aqui.
-use crate::html_atributos::ErroAtributoHtml;
 
 /// Únicos controles de usuário que o POST do paginador repete.
 pub(super) const CAMPOS_USUARIO: &[&str] = &[
@@ -23,7 +22,6 @@ pub(crate) enum ErroControleDoFormulario {
     PaginadorComMaisDeUmaOpcaoSelecionada { campo: String },
     OpcaoSelecionadaDoPaginadorSemValor { campo: String },
     ControleRepetidoNoFormularioDoControle { campo: String },
-    AtributoHtml(#[from] ErroAtributoHtml),
 }
 
 /// Valor que o navegador envia para um `<select>` simples: a única opção

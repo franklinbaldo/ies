@@ -27,7 +27,7 @@ As regras de renomeação (`…-usos`) não tocam um campo abreviado de struct
 (`S { nome }`): a variante `…-usos-campo` o escreve por extenso
 (`S { nome: novo }`).
 
-As regras 43, 44 e 44b saem de `modelos/`: o `aplicar.sh` lista primeiro as
+As regras 43, 44, 44a e 44b saem de `modelos/`: o `aplicar.sh` lista primeiro as
 funções dos arquivos dados que têm parâmetro `&tl::Parser` (43) ou
 `&tl::HTMLTag`/`&tl::Node` (44) e só mexe nas chamadas delas. Uma regra que
 não converge em 20 passadas, uma sequência que não converge em 5 rodadas
@@ -37,9 +37,12 @@ uma regra que não se lê interrompem o `aplicar.sh`.
 Depois do `aplicar.sh`: `cargo fmt`; `python3 -I scripts/codemod/html5ever/derefs.py`
 (o `*` que o rustc sugere onde uma fatia entrega `&Elemento` a quem recebe
 `Elemento`); `python3 -I scripts/codemod/html5ever/imports_sem_uso.py` (só os
-`use` sem uso, pela sugestão exata do rustc); e o compilador. Função que ficou sem falha
-perde o `Result`, e variante de erro sem construção sai, guiadas pelo
-`clippy::unnecessary_wraps` e pelo `dead_code`.
+`use` sem uso, pela sugestão exata do rustc); `python3 -I scripts/codemod/html5ever/variantes_mortas.py`
+(a variante de erro que o `dead_code` aponta como nunca construída sai, com
+a documentação, e a alternativa `| Tipo::Variante` que a nomeava num
+`match`; teste que a construía acusa no compilador e é revisto à mão); e o
+compilador. Função que ficou sem falha perde o `Result`, guiada pelo
+`clippy::unnecessary_wraps`.
 
 O ast-grep roda pelo `uvx` (`ast-grep-cli==0.51.2`); o `sg` do sistema
 pode ser outro programa. Depois: `cargo fmt` e o compilador. O que sobra
@@ -51,11 +54,13 @@ pode ser outro programa. Depois: `cargo fmt` e o compilador. O que sobra
 | `01-interpretar` | `crate::tela_html::interpretar(h)` | `crate::tela_html::arvore(h)` |
 | `01b-tag-de-fatia-no-match` | `[h] => h.get(p).and_then(tl::Node::as_tag).ok_or(e)?` | `[h] => *h` |
 | `01c-…-let-else`, `01d-…-let` | `let Some(x) = h.get(..)… else {…};` / `let x = h.get(..)…ok_or(e)?;` com `h` de `let [h] = …` | `let x = *h;` |
+| `01e-tag-de-fatia-no-match-ok`, `01f-…-some` | `[h] => h.get(p).and_then(tl::Node::as_tag).ok_or(e)` / `.map(Some).ok_or(e)`, sem `?` | `[h] => Ok(*h)` / `Ok(Some(*h))` |
 | `02-tag-ok-or-let-usos`, `02a-…` | `let x = h.get(p).and_then(tl::Node::as_tag).ok_or(e)?;` (`h` identificador) | o `let` sai; os usos de `x` depois dele viram `h` |
 | `03-tag-ok-or` | `h.get(p).and_then(tl::Node::as_tag).ok_or(e)?` | `h` |
 | `04-tag-let-else-usos`, `04a-…` | `let Some(x) = h.get(p).and_then(tl::Node::as_tag) else {…};` (`h` identificador) | o `let` sai; os usos de `x` viram `h` |
 | `04b-tag-let-else-expressao` | o mesmo, com `h` expressão | `let x = h;` |
 | `05b-filhos` | `t.children().top().iter().filter_map(\|h\| h.get(p)).filter_map(tl::Node::as_tag)` | `t.filhos()` |
+| `05-a-filhos-com-as-tag` | `t.children().top().iter().filter_map(\|h\| h.get(p).and_then(tl::Node::as_tag))`, antes que a 05 apague o `filter_map` | `t.filhos()` |
 | `05-tag-filter-map` | `.filter_map(\|n\| n.get(p).and_then(tl::Node::as_tag))` | (sai) |
 | `06-no-filter-map` | `.filter_map(\|n\| n.get(p))` | (sai) |
 | `05c-como-texto` | `n.get(p).and_then(tl::Node::as_raw)` | `n.como_texto()` |
@@ -70,9 +75,12 @@ pode ser outro programa. Depois: `cargo fmt` e o compilador. O que sobra
 | `08c-seletor-algum` | `t.query_selector(p, "nome").is_some_and(\|mut i\| i.next().is_some())` | `t.elementos("nome").next().is_some()` |
 | `08d-seletor-primeiro` | `t.query_selector(p, "nome").and_then(\|mut i\| i.next())` | `t.elementos("nome").next()` |
 | `08e-seletor-if-let-for` | `if let Some(l) = t.query_selector(p, "nome") { for x in l {…} }` | `for x in t.elementos("nome") {…}` |
+| `08g-seletor-parametro-no-elemento` | `t.query_selector(p, s)` com `s` parâmetro `&str` de um auxiliar (os chamadores passam nome literal) | `t.elementos(s)` |
 | `09-seletor-no-documento` | `dom.query_selector("nome")` como na 08 | `dom.elementos("nome")` |
 | `09b-seletor-let-else` | `let Some(f) = dom.query_selector("nome") else {…};` | `let f = dom.elementos("nome");` |
 | `09c-texto-decodificado` | `html_escape::decode_html_entities(&n.inner_text(p))` | `n.texto()` (o html5ever já decodifica) |
+| `09d-texto-sem-segunda-decodificacao` | `decodificar_atributo(&n.texto())` | `n.texto()` |
+| `09f-seletor-variavel-no-documento` | `dom.query_selector(s)` com `s` de um `for` sobre nomes literais | `dom.elementos(s)` |
 | `10-texto` | `n.inner_text(p)` e `.into_owned()` | `n.texto()` |
 | `11-valor-do-atributo` | `valor_do_atributo(t, k)` / `valor_decodificado(t, k)` com `?` | `t.atributo(k).map(str::to_owned)` |
 | `11c-valor-sem-interrogacao` | `valor_do_atributo(t, k).map_err(e)` sem `?` | `Ok(t.atributo(k).map(str::to_owned))` |
@@ -84,16 +92,26 @@ pode ser outro programa. Depois: `cargo fmt` e o compilador. O que sobra
 | `11e-decodificado-renomear-origem`, `-campo` | `let y = decodificar_atributo(&b);` com `b` lido por `atributo()`/`texto()` | `b` passa a se chamar `y` em todo o bloco (em campo abreviado de struct, `b: y`) |
 | `11i-valor-ok-flatten` | `valor_do_atributo(t, k).ok().flatten()` | `t.atributo(k).map(str::to_owned)` |
 | `11j-valor-expect` | `valor_do_atributo(t, k).expect(m)` / `.unwrap()` (acervo e testes) | `t.atributo(k).map(str::to_owned)` |
+| `11k-valor-ok-interrogacao` | `valor_do_atributo(t, k).ok()?` | `t.atributo(k).map(str::to_owned)` |
+| `11m-valor-let-ok-some` | `let Ok(Some(x)) = valor_do_atributo(t, k) else {…};` | `let Some(x) = t.atributo(k).map(str::to_owned) else {…};` |
+| `11n-map-decodificar` | `t.atributo(k).map(decodificar_atributo)` | `t.atributo(k).map(str::to_owned)` |
+| `11o-…-if-let`, `11p-…-if-let-str` | `decodificar_atributo(&b)` / `(b)` no corpo de `if let Some(b) = t.atributo(k)…` | `b` / `b.to_owned()` |
+| `11q-valor-if-let-ok-some` | `if let Ok(Some(x)) = valor_do_atributo(t, k)` | `if let Some(x) = t.atributo(k).map(str::to_owned)` |
+| `11r-valor-is-ok-and-igual` | `valor_do_atributo(t, k).is_ok_and(\|v\| v.as_deref() == x)` | `t.atributo(k) == x` |
 | `12-atributo-presente` | `atributo_presente(t, k)` com `?` | `t.presente(k)` |
 | `12b-presente-sem-interrogacao`, `12c-presente-expect` | `atributo_presente(t, k).map_err(e)` sem `?` / `.expect(m)` | `Ok(t.presente(k))` / `t.presente(k)` |
+| `12d-presente-ok` | `atributo_presente(t, k).ok()` | `Some(t.presente(k))` |
 | `13-com-id`, `13b-…` | `nos_com_id(&dom, id)` / `nos_com_id(dom, id)` com `?` | `dom.com_id(id).collect::<Vec<_>>()` |
 | `13c-com-id-vazio` | `nos_com_id(&d, id).is_ok_and(\|v\| v.is_empty())` | `d.com_id(id).next().is_none()` |
 | `13d-com-id-expect` | `nos_com_id(&d, id).expect(m)` | `d.com_id(id).collect::<Vec<_>>()` |
+| `13e-com-id-ok`, `13f-com-id-let-ok` | `nos_com_id(&d, id).ok()?` / `let Ok(x) = nos_com_id(&d, id) else {…};` | `d.com_id(id).collect::<Vec<_>>()` |
+| `13g-com-id-nao-vazio` | `nos_com_id(&d, id).is_ok_and(\|v\| !v.is_empty())` | `d.com_id(id).next().is_some()` |
 | `14-com-id-em` | `nos_com_id_em(t, p, id)` com `?` | `t.com_id(id).collect::<Vec<_>>()` |
 | `15-nome`, `15b-…` | `t.name().as_utf8_str()`, `t.name() == s` | `t.nome()`, `t.nome() == s` |
 | `15c-nome-diferente` | `t.name() != s` | `t.nome() != s` |
 | `15d-nome-as-ref` | `t.nome().as_ref()` | `t.nome()` |
 | `16-filhos-elementos` | `t.children().all(p).iter().filter_map(tl::Node::as_tag)` | `t.descendentes()` |
+| `16-a-flat-map-descendentes` | `x.flat_map(\|s\| s.children().all(p).iter()).filter_map(tl::Node::as_tag)` | `x.flat_map(crate::tela_html::Elemento::descendentes)` |
 | `16c-as-tag-resto` | `.filter_map(tl::Node::as_tag)` / `.and_then(tl::Node::as_tag)` que sobrou | (sai) |
 | `16d-for-filhos-por-nome` | `for f in t.children().all(p) { let Some(o) = f.as_tag().filter(\|x\| x.nome() == s) else { continue; }; … }` | `for o in t.elementos(s) { … }` |
 | `16e-for-descendentes` | `for n in t.children().all(p) { let Some(x) = n.as_tag() else { continue }; … }` | `for x in t.descendentes() { … }` |
@@ -118,9 +136,11 @@ pode ser outro programa. Depois: `cargo fmt` e o compilador. O que sobra
 | `32b-collect-into-iter` | `x.collect::<Vec<_>>().into_iter()` | `x` |
 | `40-tipo-tag`, `40b-…` | `&tl::HTMLTag<'_>` / `&tl::Node<'_>` / `&'a tl::HTMLTag<'a>` | `crate::tela_html::Elemento<'_>` / `<'a>`, por valor |
 | `41-tipo-documento` | `tl::VDom<'_>` | `crate::tela_html::Documento` |
+| `41b-tempo-do-parser`, `41c-…-elemento` | `Tag<'_>` / `Elemento<'_>` ao lado de `parser: &'p tl::Parser<'p>` | `Tag<'p>` / `Elemento<'p>` (o tempo que a 42 tira com o parser) |
 | `42-parametro-parser` | parâmetro `parser: &tl::Parser<'_>` | (sai) |
 | `43-argumento-parser` (de `modelos/`) | `parser` / `dom.parser()` / `self.parser` como argumento de uma função da regra 42 | (sai) |
 | `44-copia-para-funcao`, `44b-…` (de `modelos/`) | `v.iter().map(\|t\| f(t))` / `x.map(\|t\| f(t))` com `f` da regra 40 | `v.iter().copied().map(f)` / `x.map(f)` |
+| `44a-indice-para-funcao` (de `modelos/`) | `v.get(i).map(\|t\| f(t))` com `f` da regra 40 | `v.get(i).copied().map(f)` |
 | `50-…` (usos e o `let`) | `let x = n.as_tag().ok_or(e)?;` / `let x = n.as_tag()?;` | o `let` sai; os usos de `x` viram `n` |
 | `51-as-tag-ok-or`, `53-as-tag-interrogacao` | `n.as_tag().ok_or(e)?` / `n.as_tag()?` | `n` |
 | `52-…` (usos e o `let`), `52b-…` | `let Some(x) = n.as_tag() else {…};` | o `let` sai e os usos viram `n`; com `n` expressão, `let x = n;` |

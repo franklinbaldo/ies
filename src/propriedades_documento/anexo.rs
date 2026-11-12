@@ -12,10 +12,9 @@ pub(crate) fn ler_anexo_publicado(
     documento: &str,
     processo: &str,
 ) -> Result<Option<EnderecoDoConteudo>, ErroPropriedadesDocumento> {
-    let dom = crate::tela_html::interpretar(html);
-    let parser = dom.parser();
+    let dom = crate::tela_html::arvore(html);
     let form = cadastro_do_documento(&dom, documento, processo)?;
-    let lista = valor(campo(form, parser, "hdnAnexos")?)?;
+    let lista = valor(campo(form, "hdnAnexos")?)?;
     let mut encontrado = None;
     for linha in html.lines() {
         let Some((_, restante)) = linha.split_once("objTabelaAnexos.adicionarAcoes('") else {
