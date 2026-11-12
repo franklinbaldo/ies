@@ -3,7 +3,9 @@ use std::process::{Command, Output};
 
 #[path = "support/falha.rs"]
 mod falha_cli;
-use falha_cli::falha;
+#[path = "support/falha_por.rs"]
+mod falha_por_cli;
+use falha_por_cli::falha_por;
 
 const NUP: &str = "00001.000001/2026-01";
 
@@ -27,7 +29,7 @@ fn remocao_confirmada_bloqueada_antes_da_sessao_ou_rede() {
         let mut args = vec!["processo", "acompanhar", NUP, "--confirmar", "--json"];
         args.extend(acao);
         let saida = sem_sessao(&args);
-        falha(&saida, "ArquivoPrivadoAusenteOuInacessivel");
+        falha_por(&saida, "UrlDoControleIlegivel", "Ausente");
     }
 }
 
@@ -51,7 +53,7 @@ fn entrada_invalida_e_combinacoes_impossiveis() {
 #[test]
 fn previa_exige_sessao_privada_e_nunca_vira_stub() {
     let saida = sem_sessao(&["processo", "acompanhar", NUP, "--json"]);
-    falha(&saida, "ArquivoPrivadoAusenteOuInacessivel");
+    falha_por(&saida, "UrlDoControleIlegivel", "Ausente");
 }
 
 #[test]
@@ -66,5 +68,5 @@ fn inclusao_confirmada_nao_e_stub_e_exige_sessao() {
         "--confirmar",
         "--json",
     ]);
-    falha(&saida, "ArquivoPrivadoAusenteOuInacessivel");
+    falha_por(&saida, "UrlDoControleIlegivel", "Ausente");
 }

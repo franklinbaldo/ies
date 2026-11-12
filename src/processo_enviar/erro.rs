@@ -2,7 +2,6 @@
 //! (contracts/cli/processo-enviar.md). Um erro por fato.
 use crate::arvore_processo::{ErroEnviarNaBarra, MotivoAbertoEm};
 use crate::formulario_web::ErroSubmissaoFormulario;
-use crate::processo_concluir::escrita::CookieIlegivel;
 use crate::processo_concluir::{FalhaDoEnvio, VerificacaoPorLeitura};
 use crate::processo_obter::ErroProcessoObter;
 use crate::resposta_ajax::ErroXml;
@@ -40,8 +39,6 @@ pub(crate) enum FalhaDaConsulta {
 #[derive(Clone, Debug, thiserror::Error)]
 #[error("{self:?}")]
 pub(crate) enum ErroEnviar {
-    /// O cookie privado da sessão não pôde ser lido.
-    Cookie(#[from] CookieIlegivel),
     /// A abertura do processo (a de `ies processo NUP`) falhou.
     Abertura(#[from] ErroProcessoObter),
     UnidadeDaSessaoNaoPublicada,

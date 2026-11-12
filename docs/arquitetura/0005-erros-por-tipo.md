@@ -94,9 +94,21 @@ Restam à mão:
   `VerificacaoDaCiencia` e `VerificacaoDaCienciaDoDocumento`.
 - **Etapas achatadas** (tipo interno repetido): resolvidas com um tipo
   próprio por etapa, declarado junto de quem levanta o erro e composto por
-  `From` (`CookieIlegivel`, `CredenciaisIlegiveis`, `OrigemIlegivel`,
-  `SessaoGravadaInvalida`, `HistoricoNaoPedido`, `ErroDasAnotacoes`).
+  `From` (`HistoricoNaoPedido`, `ErroDasAnotacoes`).
   O erro `transparente` mantém o motivo concreto como nome público.
+- **Arquivo privado fora do transporte** (12/11/2026): `CookieIlegivel`,
+  `CredenciaisIlegiveis`, `OrigemIlegivel` e `SessaoGravadaInvalida`
+  tinham uma variante só, que embrulhava a `FalhaTransporte` de uma
+  leitura de arquivo. A leitura (`arquivo_privado::ler`) devolve
+  `ErroArquivoPrivado`, um fato por variante, e quem lê embrulha uma vez
+  com o nome do arquivo: `FalhaTransporte::CookieDaSessaoIlegivel`,
+  `ErroLogin::ArquivoDeCredenciais`. Os comandos recebem o cookie que a
+  abertura leu e conferiu (`CookieLido`, em `AcoesDeEstado`,
+  `DocumentoNaArvoreAberto`, `DocumentoObtido` e `Troca`): a variante
+  `Cookie` dos comandos, que nenhum caminho produzia, saiu. Só `processo
+  criar` lê o cookie primeiro, e cada fato do retrato é variante de
+  `ErroCriar` (`CookieDaSessaoIlegivel`, `CookieForaDoFormato`,
+  `ControleForaDaOrigem`).
 
 Terceira passada (10/11/2026): o derive deixou de aceitar
 `#[causa(nome = "...")]`. Os 272 atributos saíram; o nome público é o

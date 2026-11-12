@@ -118,6 +118,8 @@ pub(crate) struct Troca {
     pub(crate) controle_inicial: ControleLido,
     /// O Controle da unidade nova, verificado.
     pub(crate) controle_novo: Option<ControleLido>,
+    /// O cookie que a troca leu e conferiu: a regravação não o relê.
+    pub(crate) cookie: crate::transporte::sessao::CookieLido,
 }
 
 /// Sem rede antes de `envio`; nenhum pedido é repetido.
@@ -126,7 +128,7 @@ pub(crate) fn trocar_unidade<V: EnvioDaTroca>(
     pedido: &PedidoDeTroca<'_>,
     envio: &mut V,
 ) -> Result<Troca, ErroTroca> {
-    let cookie = sessao.cookie.valor()?;
+    let cookie = &sessao.cookie.lido()?;
     let inicial = ler_html(envio, sessao.url_do_controle, cookie)?;
     let antes = unidade_do_controle(&inicial.html)?;
     if pedido.unidade_esperada.is_some_and(|u| u != antes) {
@@ -141,6 +143,7 @@ pub(crate) fn trocar_unidade<V: EnvioDaTroca>(
         confirmado: pedido.confirmar,
         controle_inicial: inicial,
         controle_novo: None,
+        cookie: cookie.clone(),
     };
     if pedido.sigla == antes {
         return Ok(troca);

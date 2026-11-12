@@ -11,7 +11,7 @@ use crate::indice_local::IndiceLocal;
 use crate::instalacao::Instalacao;
 use crate::pagina_do_controle::codificacao_da_tela;
 use crate::processo::NumeroProcesso;
-use crate::processo_concluir::escrita::{Contador, leitura, ler_cookie, obter_tela};
+use crate::processo_concluir::escrita::{Contador, leitura, obter_tela};
 use crate::processo_obter::EnvioDoProcesso;
 use crate::processo_obter::{ProcessoAberto, SessaoDoProcesso, abrir_para_escrever};
 use crate::processo_prazo::{
@@ -117,7 +117,7 @@ fn previsualizar(
     let link = acoes
         .prazo?
         .ok_or(FalhaDoPrazo::ControleNaoOferecidoNaBarra)?;
-    let cookie = ler_cookie(sessao)?;
+    let cookie = acoes.cookie.clone();
     let (html, mime) = obter_tela(&mut rede, &cookie, &link)?;
     let tela = ler_tela(&html, &aberto.arvore.processo.id).map_err(FalhaDoPrazo::from)?;
     let tela = if confirmar {

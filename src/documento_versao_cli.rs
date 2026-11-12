@@ -148,6 +148,7 @@ pub(crate) mod testes {
             requisicoes: 6,
             versoes,
             propriedades: crate::propriedades_documento::PropriedadesDocumento::NaoPedidas,
+            cookie: crate::transporte::sessao::CookieLido::sintetico("PHPSESSID=SINTETICO"),
         }
     }
 

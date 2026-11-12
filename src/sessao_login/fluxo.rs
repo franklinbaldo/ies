@@ -89,14 +89,14 @@ fn unidade_do_controle(html: &crate::tela_html::HtmlServido) -> Result<String, E
 /// O login precisa ler URL e cookie para conferir a geração antes de
 /// validar a sintaxe. Arquivos de gerações diferentes valem sessão ausente.
 fn ler_da_sessao(caminho: &std::path::Path) -> Result<Option<String>, ErroLogin> {
-    match transporte::arquivo_privado(caminho, 8_192) {
+    match crate::arquivo_privado::ler(caminho, 8_192) {
         Ok(texto) => Ok(Some(texto.trim().to_owned())),
         // Vazio: o arquivo que o `ies setup` exige antes do primeiro login.
         Err(
-            FalhaTransporte::ArquivoPrivadoAusenteOuInacessivel(_)
-            | FalhaTransporte::ArquivoPrivadoVazio,
+            crate::arquivo_privado::ErroArquivoPrivado::Ausente
+            | crate::arquivo_privado::ErroArquivoPrivado::Vazio,
         ) => Ok(None),
-        Err(falha) => Err(SessaoGravadaInvalida::Arquivo(falha).into()),
+        Err(falha) => Err(ErroLogin::ArquivoDaSessao(falha)),
     }
 }
 
@@ -118,8 +118,8 @@ fn conferir_sessao_gravada<T: TransporteDeLogin>(
         return Ok(None);
     }
     // Mesmas travas do GET da caixa, antes de qualquer conexão.
-    transporte::validar_origem(&url, origem).map_err(SessaoGravadaInvalida::Arquivo)?;
-    transporte::validar_cookie(&cookie).map_err(SessaoGravadaInvalida::Arquivo)?;
+    transporte::validar_origem(&url, origem)?;
+    transporte::validar_cookie(&cookie)?;
     let resposta = transporte.get(&url, &cookie)?;
     let web = como_web(resposta);
     let mime = web.mime.clone();
@@ -337,12 +337,10 @@ pub(crate) fn entrar_colhendo<T: TransporteDeLogin>(
 ) -> Result<ResultadoDoLogin, ErroLogin> {
     // Exceção inventariada (#183): o login de origem não dispõe ainda da
     // URL do Controle e precisa primeiro selecionar a instalação pelo arquivo.
-    let origem = transporte::arquivo_privado(&pedido.arquivos.origem, 512)
-        .map_err(OrigemIlegivel::Arquivo)?;
+    let origem = crate::arquivo_privado::ler(&pedido.arquivos.origem, 512)
+        .map_err(ErroLogin::OrigemIlegivel)?;
     let origem = origem.trim();
-    let instalacao = Instalacao::interpretar(origem).ok_or(OrigemIlegivel::Arquivo(
-        FalhaTransporte::OrigemNaoAutorizada,
-    ))?;
+    let instalacao = Instalacao::interpretar(origem).ok_or(ErroLogin::OrigemNaoAutorizada)?;
     let _trava = travar_o_login(&pedido.arquivos.url_controle, pedido.espera_do_lock)?;
     let mut contador = Contador {
         transporte,
@@ -423,12 +421,10 @@ pub(super) fn relogar<T: TransporteDeLogin>(
     indice: &IndiceLocal,
     transporte: &mut T,
 ) -> Result<Relogado, ErroLogin> {
-    let origem = transporte::arquivo_privado(&pedido.arquivos.origem, 512)
-        .map_err(OrigemIlegivel::Arquivo)?;
+    let origem = crate::arquivo_privado::ler(&pedido.arquivos.origem, 512)
+        .map_err(ErroLogin::OrigemIlegivel)?;
     let origem = origem.trim();
-    let instalacao = Instalacao::interpretar(origem).ok_or(OrigemIlegivel::Arquivo(
-        FalhaTransporte::OrigemNaoAutorizada,
-    ))?;
+    let instalacao = Instalacao::interpretar(origem).ok_or(ErroLogin::OrigemNaoAutorizada)?;
     let _trava = travar_o_login(&pedido.arquivos.url_controle, pedido.espera_do_lock)?;
     if gravacao::geracao_gravada(pedido.arquivos).as_deref() != inicial {
         return Ok(Relogado::GeracaoJaTrocada);
@@ -446,20 +442,4 @@ fn colher(
 ) {
     crate::colheita_do_controle::Colheita::do_cookie(indice, instalacao, cookie, url)
         .colher(&controle.html, Some(&controle.mime));
-}
-
-/// O arquivo de origem da instalação ausente, inseguro ou inválido. Tipo próprio da etapa; o nome
-/// público é o motivo do transporte (`transparente`).
-#[derive(Clone, Debug, PartialEq, Eq, thiserror::Error)]
-#[error("{self:?}")]
-pub(crate) enum OrigemIlegivel {
-    Arquivo(#[from] crate::transporte::FalhaTransporte),
-}
-
-/// URL ou cookie gravados que o transporte recusa antes da rede. Tipo próprio da etapa; o nome
-/// público é o motivo do transporte (`transparente`).
-#[derive(Clone, Debug, PartialEq, Eq, thiserror::Error)]
-#[error("{self:?}")]
-pub(crate) enum SessaoGravadaInvalida {
-    Arquivo(#[from] crate::transporte::FalhaTransporte),
 }

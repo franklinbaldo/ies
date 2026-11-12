@@ -4,7 +4,9 @@ use std::process::{Command, Output};
 
 #[path = "support/falha.rs"]
 mod falha_cli;
-use falha_cli::falha;
+#[path = "support/falha_por.rs"]
+mod falha_por_cli;
+use falha_por_cli::falha_por;
 
 fn sem_sessao(args: &[&str]) -> Output {
     Command::new(env!("CARGO_BIN_EXE_ies"))
@@ -56,7 +58,7 @@ fn motivo_valido_vai_ate_sessao_mas_nao_inventa_configuracao() {
             args.push("--confirmar");
         }
         let r = sem_sessao(&args);
-        falha(&r, "ArquivoPrivadoAusenteOuInacessivel");
+        falha_por(&r, "UrlDoControleIlegivel", "Ausente");
     }
 }
 
@@ -76,7 +78,7 @@ fn motivo_e_texto_opaco_que_segue_ate_a_sessao() {
                 args.push("--confirmar");
             }
             let saida = sem_sessao(&args);
-            falha(&saida, "ArquivoPrivadoAusenteOuInacessivel");
+            falha_por(&saida, "UrlDoControleIlegivel", "Ausente");
         }
     }
 }

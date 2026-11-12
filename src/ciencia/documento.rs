@@ -10,8 +10,7 @@ use crate::documento::NumeroDocumento;
 use crate::indice_local::IndiceLocal;
 use crate::instalacao::Instalacao;
 use crate::processo::NumeroProcesso;
-use crate::processo_concluir::escrita::CookieIlegivel;
-use crate::processo_concluir::escrita::{Contador, FalhaDaTela, ler_cookie, obter_tela};
+use crate::processo_concluir::escrita::{Contador, FalhaDaTela, obter_tela};
 use crate::processo_obter::{
     EnvioDoProcesso, ErroDocumentoObter, PedidoDoAnexo, PedidoDoDocumento, SessaoDoProcesso,
     abrir_documento_na_arvore,
@@ -69,7 +68,6 @@ pub(crate) enum ErroCienciaDocumento {
     CienciaNaoOferecida,
     TelaNaoPublicada,
     OrigemNaoAutorizada,
-    Cookie(#[from] CookieIlegivel),
     Tela(#[from] FalhaTransporte),
     TelaRedirecionada,
     SessaoEncerrada(#[source] crate::erro_publico::SessaoEncerrada),
@@ -129,7 +127,7 @@ pub(crate) fn ciencia_no_documento<V: EnvioDoProcesso>(
         &feito.id_procedimento,
     )
     .ok_or(ErroCienciaDocumento::TelaNaoPublicada)?;
-    let cookie = ler_cookie(sessao)?;
+    let cookie = aberto.cookie.clone();
     let (html, _) = obter_tela(&mut rede, &cookie, tela.as_str()).map_err(|e| match e {
         FalhaDaTela::Transporte(falha) => ErroCienciaDocumento::Tela(falha),
         FalhaDaTela::Redirecionada => ErroCienciaDocumento::TelaRedirecionada,

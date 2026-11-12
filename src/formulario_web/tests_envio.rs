@@ -200,7 +200,9 @@ fn cookie_com_permissao_insegura_impede_qualquer_envio() {
     });
     assert_eq!(
         r.unwrap_err(),
-        ErroSubmissaoFormulario::Transporte(FalhaTransporte::ArquivoPrivadoComPermissoesInseguras)
+        ErroSubmissaoFormulario::Transporte(FalhaTransporte::CookieDaSessaoIlegivel(
+            crate::arquivo_privado::ErroArquivoPrivado::PermissoesAbertas
+        ))
     );
     assert_eq!(chamadas.get(), 0);
 }

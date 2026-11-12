@@ -1,0 +1,36 @@
+id: 14-import-cookie-ilegivel
+message: 'O use de CookieIlegivel sai com o tipo.'
+language: rust
+severity: hint
+rule:
+  kind: use_declaration
+  regex: '^use [A-Za-z_:]*::CookieIlegivel;$'
+fix: '/* ies-codemod: remover linha */'
+---
+id: 14b-import-cookie-ilegivel-em-lista
+message: 'CookieIlegivel sai da lista do use, com a vírgula.'
+language: rust
+severity: hint
+rule:
+  kind: identifier
+  regex: '^CookieIlegivel$'
+  inside:
+    kind: use_list
+fix:
+  template: ''
+  expandEnd:
+    regex: ',\s*'
+---
+id: 14c-import-ler-cookie-em-lista
+message: 'ler_cookie sai da lista do use (a função saiu: o cookie vem da abertura).'
+language: rust
+severity: hint
+rule:
+  kind: identifier
+  regex: '^ler_cookie$'
+  inside:
+    kind: use_list
+fix:
+  template: ''
+  expandEnd:
+    regex: ',\s*'

@@ -15,7 +15,7 @@ use crate::indice_local::IndiceLocal;
 use crate::instalacao::Instalacao;
 use crate::pagina_do_controle::codificacao_da_tela;
 use crate::processo::NumeroProcesso;
-use crate::processo_concluir::escrita::{Contador, FalhaDaTela, ler_cookie, obter_tela};
+use crate::processo_concluir::escrita::{Contador, FalhaDaTela, obter_tela};
 use crate::processo_obter::{
     EnvioDoProcesso, ErroDocumentoObter, ErroProcessoObter, PedidoDoAnexo, PedidoDoDocumento,
     SessaoDoProcesso, abrir_documento_na_arvore,
@@ -110,7 +110,7 @@ pub(crate) fn cancelar_documento<V: EnvioDoProcesso>(
     )
     .map_err(ErroCancelar::Link)?
     .ok_or(ErroCancelar::CancelamentoNaoOferecido)?;
-    let cookie = ler_cookie(sessao)?;
+    let cookie = aberto.cookie.clone();
     let (html, mime) = obter_tela(&mut rede, &cookie, link.as_str()).map_err(|f| match f {
         FalhaDaTela::Transporte(falha) => ErroCancelar::Tela(falha),
         FalhaDaTela::Redirecionada => ErroCancelar::TelaRedirecionada,

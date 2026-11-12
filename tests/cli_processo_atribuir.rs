@@ -22,7 +22,7 @@ fn sem_arquivos_de_sessao(saida: &Output) {
     assert!(saida.stdout.is_empty(), "falha não publica stdout");
     let erro = String::from_utf8_lossy(&saida.stderr);
     assert!(
-        erro.starts_with("Error: ArquivoPrivadoAusenteOuInacessivel"),
+        erro.starts_with("Error: UrlDoControleIlegivel(Ausente)"),
         "{erro}"
     );
 }

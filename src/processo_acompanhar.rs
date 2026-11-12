@@ -20,8 +20,6 @@ const TABELA: &str = "Tabela de Acompanhamentos.";
 #[derive(Debug, PartialEq, thiserror::Error)]
 #[error("{self:?}")]
 pub(crate) enum ErroAcompanhar {
-    /// O cookie privado da sessão não pôde ser lido.
-    Cookie(#[from] crate::processo_concluir::escrita::CookieIlegivel),
     Abertura(#[from] crate::processo_obter::ErroProcessoObter),
     OrigemNaoAutorizada,
     UnidadeNaoPublicada,

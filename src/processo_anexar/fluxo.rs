@@ -13,8 +13,7 @@ use crate::indice_local::IndiceLocal;
 use crate::instalacao::Instalacao;
 use crate::pagina_do_controle::codificacao_da_tela;
 use crate::processo::NumeroProcesso;
-use crate::processo_concluir::escrita::CookieIlegivel;
-use crate::processo_concluir::escrita::{Contador, FalhaDaTela, leitura, ler_cookie, obter_tela};
+use crate::processo_concluir::escrita::{Contador, FalhaDaTela, leitura, obter_tela};
 use crate::processo_obter::{
     EnvioDoProcesso, ErroProcessoObter, SessaoDoProcesso, abrir_para_escrever, obter_processo,
 };
@@ -48,8 +47,6 @@ pub(crate) enum EtapaNaoComprovada {
 pub(crate) enum FalhaAnexar {
     /// O processo a anexar é o próprio principal; recusado antes da sessão.
     AnexacaoAoProprioProcesso,
-    /// O cookie privado da sessão não pôde ser lido.
-    Cookie(CookieIlegivel),
     NaoConfirmado(EtapaNaoComprovada),
     /// A releitura da árvore do principal falhou após o POST.
     NaoConfirmadoNaArvoreDoPrincipal(#[source] ErroProcessoObter),
@@ -177,7 +174,7 @@ pub(crate) fn prever<V: EnvioDoProcesso>(
         .anexar
         .map_err(FalhaAnexar::Barra)?
         .ok_or(FalhaAnexar::LinkNaoPublicado)?;
-    let cookie = ler_cookie(sessao)?;
+    let cookie = acoes.cookie.clone();
     let (html, mime) =
         obter_tela(&mut rede, &cookie, link.as_str()).map_err(|erro| match erro {
             FalhaDaTela::Transporte(falha) => FalhaAnexar::Tela(falha),
@@ -249,12 +246,6 @@ pub(crate) fn prever<V: EnvioDoProcesso>(
         assinaturas_em_dia,
         requisicoes: rede.feitas(),
     })
-}
-
-impl From<CookieIlegivel> for FalhaAnexar {
-    fn from(erro: CookieIlegivel) -> Self {
-        Self::Cookie(erro)
-    }
 }
 
 /// Uma consulta AJAX sem efeito declarada na tela de anexação: um POST, sem

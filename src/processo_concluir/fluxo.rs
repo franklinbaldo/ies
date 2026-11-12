@@ -4,7 +4,7 @@
 //! seguido; nenhuma escrita é repetida.
 use super::erro::{ErroConcluir, FalhaDoEnvio, VerificacaoPorLeitura};
 use super::escrita::{
-    Contador, FalhaDaTela, leitura, ler_cookie, obter_tela, pela_funcao, siglas_abertas, verificar,
+    Contador, FalhaDaTela, leitura, obter_tela, pela_funcao, siglas_abertas, verificar,
 };
 use super::tela::{
     CAMPOS_DO_ENVIO, CONCLUIR_PROCESSO, conferir_tela_de_conclusao, redirecionamento_esperado,
@@ -61,7 +61,7 @@ pub(crate) fn concluir_processo<V: EnvioDoProcesso>(
                 ConcluirNaBarra::PelaFuncao { .. } => FormaDaConclusao::Funcao,
             };
             if pedido.confirmar {
-                let cookie = ler_cookie(sessao)?;
+                let cookie = acoes.cookie.clone();
                 let falha = escrever(&mut rede, sessao, &instalacao, &cookie, acao, &id, &unidade)?;
                 let verificacao = verificar(sessao, &leitura(false), indice, &mut rede);
                 conciliar(forma, &aberto_em, &unidade, falha, verificacao)?

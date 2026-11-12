@@ -2,7 +2,6 @@
 use super::ErroLinkCancelar;
 use crate::arvore_processo::Cancelamento;
 use crate::formulario_web::ErroSubmissaoFormulario;
-use crate::processo_concluir::escrita::CookieIlegivel;
 use crate::processo_obter::ErroDocumentoObter;
 use crate::transporte::FalhaTransporte;
 
@@ -26,8 +25,6 @@ pub(crate) enum VerificacaoDoCancelamento {
 #[derive(Clone, Debug, PartialEq, Eq, thiserror::Error)]
 #[error("{self:?}")]
 pub(crate) enum ErroCancelar {
-    /// O cookie privado da sessão não pôde ser lido.
-    Cookie(#[source] CookieIlegivel),
     Abertura(#[source] ErroDocumentoObter),
     Link(#[source] ErroLinkCancelar),
     CancelamentoNaoOferecido,
@@ -56,12 +53,6 @@ pub(crate) enum ErroCancelar {
     },
 }
 
-impl From<CookieIlegivel> for ErroCancelar {
-    fn from(erro: CookieIlegivel) -> Self {
-        Self::Cookie(erro)
-    }
-}
-
 #[cfg(test)]
 mod testes_cadeia_de_causas {
     use super::*;
@@ -71,7 +62,6 @@ mod testes_cadeia_de_causas {
     fn erros_de_cancelamento_retêm_as_causas_tipadas() {
         let atributo = crate::html_atributos::ErroAtributoHtml::ValorEntreAspasSemFechamento;
         let exemplos = [
-            ErroCancelar::Cookie(CookieIlegivel::Arquivo(FalhaTransporte::Rede)),
             ErroCancelar::Abertura(ErroDocumentoObter::Processo(
                 crate::processo_obter::ErroProcessoObter::Transporte(FalhaTransporte::Rede),
             )),

@@ -1,0 +1,27 @@
+id: 12-braco-da-variante-do-cookie
+message: 'X::Cookie(_) sai do padrão "ou" (a variante saiu).'
+language: rust
+severity: hint
+rule:
+  kind: tuple_struct_pattern
+  regex: '^[A-Za-z_]+::Cookie\(_\)$'
+  inside:
+    kind: or_pattern
+fix:
+  template: ''
+  expandEnd:
+    regex: '^\|$'
+---
+id: 12b-exemplo-da-variante-do-cookie
+message: 'O exemplo X::Cookie(CookieIlegivel::Arquivo(..)) sai da lista do teste (a variante saiu).'
+language: rust
+severity: hint
+rule:
+  kind: call_expression
+  regex: '^[A-Za-z_]+::Cookie\(CookieIlegivel::Arquivo\('
+  inside:
+    kind: array_expression
+fix:
+  template: ''
+  expandEnd:
+    regex: '^,$'

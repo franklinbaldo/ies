@@ -2,7 +2,6 @@
 //! (contracts/cli/processo-concluir.md). Um erro por fato.
 use crate::arvore_processo::{ErroConcluirNaBarra, ErroFuncaoDeConcluir, MotivoAbertoEm};
 use crate::formulario_web::ErroSubmissaoFormulario;
-use crate::processo_concluir::escrita::CookieIlegivel;
 use crate::processo_obter::ErroProcessoObter;
 use crate::transporte::FalhaTransporte;
 
@@ -55,8 +54,6 @@ pub(crate) enum VerificacaoPorLeitura {
 #[derive(Clone, Debug, PartialEq, Eq, thiserror::Error)]
 #[error("{self:?}")]
 pub(crate) enum ErroConcluir {
-    /// O cookie privado da sessão não pôde ser lido.
-    Cookie(#[from] CookieIlegivel),
     /// A abertura do processo (a de `ies processo NUP`) falhou.
     Abertura(#[from] ErroProcessoObter),
     /// A abertura não publicou a unidade da sessão (não ocorre sem o passo 1).

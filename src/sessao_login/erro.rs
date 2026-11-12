@@ -1,5 +1,6 @@
 //! Recusas tipadas de `ies login`, uma por fato verificável. Nenhum erro
 //! carrega credencial, cookie, URL assinada ou HTML.
+use crate::arquivo_privado::ErroArquivoPrivado;
 use crate::configuracao::{ArquivoPrivado, ErroConfiguracao};
 use crate::erro_web::ErroCaixa;
 use crate::formulario_web::ErroSubmissaoFormulario;
@@ -41,18 +42,21 @@ pub(crate) enum ErroLogin {
     /// O tokenizador de atributos recusou a tag.
     Atributo(#[source] crate::html_atributos::ErroAtributoHtml),
     Configuracao(#[from] ErroConfiguracao),
-    /// Origem da instalação ilegível ou fora do formato `Instalacao`.
-    Origem(#[from] super::fluxo::OrigemIlegivel),
+    /// O arquivo da origem da instalação não foi lido.
+    OrigemIlegivel(#[source] ErroArquivoPrivado),
+    /// A origem lida não é uma instalação (`Instalacao`).
+    OrigemNaoAutorizada,
     CaminhoDasCredenciaisNaoInformado,
-    ArquivoDeCredenciais(#[from] super::credenciais::CredenciaisIlegiveis),
+    /// O arquivo de credenciais não foi lido.
+    ArquivoDeCredenciais(#[source] ErroArquivoPrivado),
     CampoDasCredenciaisAusente(CampoDasCredenciais),
     CampoDasCredenciaisRepetido(CampoDasCredenciais),
     CampoDasCredenciaisVazio(CampoDasCredenciais),
     LinhaDasCredenciaisSemCampoConhecido,
     LoginEmAndamentoEmOutroProcesso,
     ArquivoDeLockDoLoginInacessivel(ErroDeIo),
-    /// URL ou cookie gravados que o transporte recusa antes da rede.
-    ArquivoDaSessao(#[from] super::fluxo::SessaoGravadaInvalida),
+    /// O arquivo da URL ou do cookie gravados não foi lido.
+    ArquivoDaSessao(#[source] ErroArquivoPrivado),
     /// O GET da sessão gravada não mostrou um Controle reconhecível.
     ControleDaSessaoExistenteNaoReconhecido(ErroCaixa),
     RedirecionamentoSemLocalizacao,
@@ -108,7 +112,8 @@ impl ErroLogin {
             #[cfg(unix)]
             Self::DiretorioDaSessaoGravavelPorOutros(_) => false,
             Self::Configuracao(_)
-            | Self::Origem(_)
+            | Self::OrigemIlegivel(_)
+            | Self::OrigemNaoAutorizada
             | Self::CaminhoDasCredenciaisNaoInformado
             | Self::ArquivoDeCredenciais(_)
             | Self::CampoDasCredenciaisAusente(_)

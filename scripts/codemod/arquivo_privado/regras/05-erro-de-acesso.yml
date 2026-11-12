@@ -1,0 +1,31 @@
+id: 05-erro-de-acesso
+message: 'configuracao::ErroArquivoPrivado confere os metadados dos arquivos de acesso (sem ler o conteúdo): vira ErroArquivoDeAcesso, e o nome ErroArquivoPrivado fica para a leitura privada.'
+language: rust
+severity: hint
+rule:
+  any:
+    - kind: identifier
+    - kind: type_identifier
+  regex: '^ErroArquivoPrivado$'
+fix: 'ErroArquivoDeAcesso'
+---
+id: 05b-erro-de-acesso-em-macro
+message: 'O mesmo, dentro de macro: o token_tree mais interno com o nome.'
+language: rust
+severity: hint
+rule:
+  pattern: $P
+  kind: token_tree
+  regex: '\bErroArquivoPrivado\b'
+  not:
+    has:
+      stopBy: end
+      kind: token_tree
+      regex: '\bErroArquivoPrivado\b'
+transform:
+  NOVO:
+    replace:
+      source: $P
+      replace: '\bErroArquivoPrivado\b'
+      by: 'ErroArquivoDeAcesso'
+fix: $NOVO

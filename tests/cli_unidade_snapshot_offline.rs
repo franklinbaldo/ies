@@ -138,11 +138,8 @@ fn binario_real_lista_e_pesquisa_no_indice_sem_cookie_ou_http() {
     let atualizar = ambiente.executar(&["unidade", "listar", "--atualizar", "--json"]);
     assert_eq!(atualizar.status.code(), Some(1));
     assert_eq!(atualizar.stdout, b"", "o cache antigo não é publicado");
-    falha_por(
-        &atualizar,
-        "LupaSemListaIntegral",
-        "ArquivoPrivadoAusenteOuInacessivel",
-    );
+    falha_por(&atualizar, "LupaSemListaIntegral", "CookieDaSessaoIlegivel");
+    falha_por(&atualizar, "LupaSemListaIntegral", "Ausente");
 
     // A tabela documentada é consultável por um agente externo em modo
     // somente leitura, e os comandos não mudam o snapshot nem o esquema.

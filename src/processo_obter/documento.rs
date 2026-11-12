@@ -83,6 +83,8 @@ pub(crate) struct DocumentoObtido {
     /// Versão lida, atual e cópia de trabalho (Refs #88).
     pub(crate) versoes: VersoesDoDocumento,
     pub(crate) propriedades: PropriedadesDocumento,
+    /// O cookie que a abertura leu e conferiu: a escrita não o relê.
+    pub(crate) cookie: crate::transporte::sessao::CookieLido,
 }
 
 #[cfg(test)]
@@ -149,6 +151,8 @@ pub(crate) struct DocumentoNaArvoreAberto {
     pub(crate) resolvido_por: ResolvidoPor,
     pub(crate) html: crate::tela_html::HtmlServido,
     pub(crate) requisicoes: u8,
+    /// O cookie que a abertura leu e conferiu: a escrita não o relê.
+    pub(crate) cookie: crate::transporte::sessao::CookieLido,
 }
 
 impl std::fmt::Debug for DocumentoNaArvoreAberto {
@@ -210,6 +214,7 @@ impl FimDaLeitura for SoArvore {
             resolvido_por: lido.resolvido_por,
             html: lido.html.to_owned(),
             requisicoes: rede.requisicoes.total_u8(),
+            cookie: rede.cookie.clone(),
         })
     }
 }
@@ -227,9 +232,8 @@ fn abrir<V: EnvioDoProcesso, F: FimDaLeitura>(
     ))?;
     let cookie = sessao
         .cookie
-        .valor()
-        .map_err(|f| ErroDocumentoObter::Processo(ErroProcessoObter::Transporte(f)))?
-        .to_owned();
+        .lido()
+        .map_err(|f| ErroDocumentoObter::Processo(ErroProcessoObter::Transporte(f)))?;
     let numero = pedido.numero.as_str();
     let contexto = Contexto {
         instalacao,
@@ -439,6 +443,7 @@ pub(super) fn ler_do_no<V: EnvioDoProcesso>(
         requisicoes: rede.requisicoes.total_u8(),
         versoes,
         propriedades,
+        cookie: rede.cookie.clone(),
     })
 }
 

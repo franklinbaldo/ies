@@ -197,7 +197,14 @@ pub(crate) fn criar_com_contagem<V: EnvioDoControle>(
 ) -> Result<Criacao, ErroCriar> {
     *requisicoes = 0;
     let instalacao = Instalacao::interpretar(origem).ok_or(ErroCriar::SessaoLocalIlegivel)?;
-    let cookie_valor = cookie.valor().map_err(ErroCriar::CookieDaSessaoIlegivel)?;
+    let cookie_valor: &str = match cookie {
+        CookieDaSessao::Lido(lido) => lido,
+        CookieDaSessao::Ilegivel(erro) => return Err(ErroCriar::CookieDaSessaoIlegivel(*erro)),
+        CookieDaSessao::ForaDoFormato => return Err(ErroCriar::CookieForaDoFormato),
+        CookieDaSessao::NaoAberto(recusa) => {
+            return Err(ErroCriar::ControleForaDaOrigem(recusa.clone()));
+        }
+    };
     let controle = get(envio, url_controle, cookie_valor, requisicoes)?;
     let unidade = crate::controle_reconhecido::unidade_do_controle(&controle.html)
         .map_err(ErroCriar::UnidadeDoControleIlegivel)?;

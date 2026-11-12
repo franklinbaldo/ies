@@ -1,5 +1,5 @@
-//! Gravação privada única (#211): o par de escrita de
-//! `transporte::arquivo_privado`, que é a leitura. Cria (exclusivo) ou
+//! Gravação privada única (#211): o par de escrita de [`ler`], que é
+//! a leitura. Cria (exclusivo) ou
 //! substitui (atômico) um arquivo `0600` sem nunca seguir link simbólico
 //! no nome final, no diretório real (resolvido com `canonicalize`) que,
 //! se é do IES, no Unix não é gravável por grupo ou outros sem sticky
@@ -451,7 +451,9 @@ fn sincronizar_pasta(destino: &Path) {
     }
 }
 
+pub(crate) use leitura::{ErroArquivoPrivado, ler};
 pub(crate) use trava::{ErroDaTrava, TravaDeArquivo, travar_com_espera};
+mod leitura;
 mod trava;
 
 #[cfg(test)]

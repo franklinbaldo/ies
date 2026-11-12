@@ -1,0 +1,27 @@
+id: 10-cookie-da-abertura-do-processo
+message: 'ler_cookie(sessao)? depois de abrir_para_escrever não falha (a abertura já leu e conferiu o mesmo cookie): vira o cookie que a abertura entrega, acoes.cookie.'
+language: rust
+severity: hint
+rule:
+  pattern: 'ler_cookie($S)?'
+  inside:
+    stopBy: end
+    kind: function_item
+    has:
+      stopBy: end
+      pattern: 'abrir_para_escrever($$$)'
+fix: 'acoes.cookie.clone()'
+---
+id: 10b-cookie-da-abertura-do-documento
+message: 'ler_cookie(sessao)? depois de abrir_documento_na_arvore não falha: vira aberto.cookie.'
+language: rust
+severity: hint
+rule:
+  pattern: 'ler_cookie($S)?'
+  inside:
+    stopBy: end
+    kind: function_item
+    has:
+      stopBy: end
+      pattern: 'abrir_documento_na_arvore($$$)'
+fix: 'aberto.cookie.clone()'

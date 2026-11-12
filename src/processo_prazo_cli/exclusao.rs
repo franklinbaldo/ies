@@ -336,7 +336,7 @@ pub(super) fn executar(
     if acoes.prazo?.is_none() {
         return Err(FalhaDoPrazo::LeituraIndependenteNaoOferecida.into());
     }
-    let cookie = ler_cookie(sessao)?;
+    let cookie = acoes.cookie.clone();
     let (controle, _) = obter_tela(&mut rede, &cookie, sessao.url_do_controle)?;
     let link_lista =
         link_da_lista(&controle, sessao.origem).map_err(FalhaDoPrazo::LinkDaListaDePrazos)?;

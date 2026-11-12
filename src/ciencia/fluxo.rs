@@ -5,8 +5,7 @@ use crate::arvore_processo::{ErroCienciaNaArvore, url_da_ciencia};
 use crate::indice_local::IndiceLocal;
 use crate::instalacao::Instalacao;
 use crate::processo::NumeroProcesso;
-use crate::processo_concluir::escrita::CookieIlegivel;
-use crate::processo_concluir::escrita::{Contador, FalhaDaTela, leitura, ler_cookie, obter_tela};
+use crate::processo_concluir::escrita::{Contador, FalhaDaTela, leitura, obter_tela};
 use crate::processo_obter::{
     EnvioDoProcesso, ErroProcessoObter, SessaoDoProcesso, abrir_para_escrever,
 };
@@ -58,7 +57,6 @@ pub(crate) enum ErroCienciaProcesso {
     CienciaNaoOferecida,
     UnidadeNaoPublicada,
     OrigemNaoAutorizada,
-    Cookie(#[from] CookieIlegivel),
     Tela(#[from] FalhaTransporte),
     TelaRedirecionada,
     SessaoEncerrada(#[source] crate::erro_publico::SessaoEncerrada),
@@ -112,7 +110,7 @@ pub(crate) fn ciencia_no_processo<V: EnvioDoProcesso>(
     if !pedido.confirmar {
         return Ok(resultado);
     }
-    let cookie = ler_cookie(sessao)?;
+    let cookie = acoes.cookie.clone();
     let (html, _) = obter_tela(&mut rede, &cookie, tela.as_str()).map_err(|falha| match falha {
         FalhaDaTela::Transporte(e) => ErroCienciaProcesso::Tela(e),
         FalhaDaTela::Redirecionada => ErroCienciaProcesso::TelaRedirecionada,

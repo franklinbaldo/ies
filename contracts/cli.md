@@ -167,7 +167,7 @@ nunca reloga. Os POSTs previstos são os de `--pagina N` (abaixo)
 e os da **troca de visão** R↔D, sem volta: a sessão fica na visão que o
 comando precisou ([visão detalhada](cli/unidade-listar-processos-visao-detalhada.md)).
 Sem esses insumos, a falha é o erro tipado da configuração ou da sessão
-(por exemplo `ArquivoPrivadoAusenteOuInacessivel`), saída 1, sem rede.
+(por exemplo `UrlDoControleIlegivel(Ausente)`), saída 1, sem rede.
 
 `ies processo buscar TERMO` usa a mesma sessão e as mesmas travas: segue só o
 link `protocolo_pesquisar` publicado pelo Controle; seus POSTs são o da

@@ -11,9 +11,8 @@ use crate::indice_local::IndiceLocal;
 use crate::instalacao::Instalacao;
 use crate::pagina_do_controle::codificacao_da_tela;
 use crate::processo::NumeroProcesso;
-use crate::processo_concluir::escrita::CookieIlegivel;
 use crate::processo_concluir::escrita::{
-    Contador, FalhaDaTela, leitura, ler_cookie, obter_tela, siglas_abertas,
+    Contador, FalhaDaTela, leitura, obter_tela, siglas_abertas,
 };
 use crate::processo_enviar::REGISTRAR_ANOTACAO;
 use crate::processo_obter::{
@@ -61,7 +60,6 @@ pub(crate) enum ErroAnotar {
     LinkDasAnotacoes(#[from] crate::arvore_processo::ErroLinkDasAnotacoes),
     LeituraDaAnotacao(#[from] crate::processo_enviar::ErroLeituraDaAnotacao),
     Transporte(#[from] FalhaTransporte),
-    Cookie(#[from] CookieIlegivel),
     TelaRedirecionada,
     SessaoEncerrada(#[source] crate::erro_publico::SessaoEncerrada),
     UnidadeNaoPublicada,
@@ -100,7 +98,7 @@ pub(crate) fn executar<V: EnvioDoProcesso>(
     }
     let id = aberto.arvore.processo.id;
     let url = acoes.anotacoes?.ok_or(ErroAnotar::AnotacaoNaoOferecida)?;
-    let cookie = ler_cookie(sessao)?;
+    let cookie = acoes.cookie.clone();
     let (html, mime) = obter_tela(&mut rede, &cookie, &url).map_err(|falha| match falha {
         FalhaDaTela::Transporte(erro) => ErroAnotar::Transporte(erro),
         FalhaDaTela::Redirecionada => ErroAnotar::TelaRedirecionada,

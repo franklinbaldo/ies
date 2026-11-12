@@ -18,9 +18,7 @@ use crate::processo_comentar::{FalhaDaConferencia, conferir_efeito};
 use crate::processo_comentarios::{
     ErroComentarios, ErroLinkDosComentarios, TelaDosComentarios, ler_tela,
 };
-use crate::processo_concluir::escrita::{
-    Contador, CookieIlegivel, FalhaDaTela, leitura, ler_cookie, obter_tela,
-};
+use crate::processo_concluir::escrita::{Contador, FalhaDaTela, leitura, obter_tela};
 use crate::processo_obter::{
     EnvioDoProcesso, ErroProcessoObter, SessaoDoProcesso, abrir_para_escrever,
 };
@@ -62,7 +60,6 @@ pub(crate) enum ErroComentar {
     Abertura(#[from] ErroProcessoObter),
     Barra(#[from] ErroLinkDosComentarios),
     LinkDaListaNaoPublicado,
-    Cookie(#[from] CookieIlegivel),
     TelaDaLista(#[source] FalhaDaTela),
     ListaIlegivel(#[source] ErroComentarios),
     ListaForaDaForma,
@@ -263,7 +260,7 @@ pub(crate) fn prever<V: EnvioDoProcesso>(
     let link = acoes
         .comentarios?
         .ok_or(ErroComentar::LinkDaListaNaoPublicado)?;
-    let cookie = ler_cookie(sessao)?;
+    let cookie = acoes.cookie.clone();
     let (html, _) =
         obter_tela(&mut rede, &cookie, link.as_str()).map_err(ErroComentar::TelaDaLista)?;
     let TelaDosComentarios::Lista(_) = ler_tela(&html).map_err(ErroComentar::ListaIlegivel)? else {

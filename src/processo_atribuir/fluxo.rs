@@ -12,8 +12,7 @@ use crate::indice_local::IndiceLocal;
 use crate::instalacao::Instalacao;
 use crate::processo::NumeroProcesso;
 use crate::processo_atribuir::{Atribuicao, ErroAtribuir, preparar_submissao};
-use crate::processo_concluir::escrita::CookieIlegivel;
-use crate::processo_concluir::escrita::{Contador, FalhaDaTela, leitura, ler_cookie, obter_tela};
+use crate::processo_concluir::escrita::{Contador, FalhaDaTela, leitura, obter_tela};
 use crate::processo_obter::{
     EnvioDoProcesso, ErroProcessoObter, SessaoDoProcesso, abrir_para_escrever, obter_processo,
 };
@@ -70,7 +69,6 @@ pub(crate) enum ErroProcessoAtribuir {
     },
     AtribuicaoNaoOferecidaNaBarra,
     Barra(#[from] ErroAtribuirNaBarra),
-    Cookie(#[from] CookieIlegivel),
     Tela(#[from] FalhaTransporte),
     TelaDaAtribuicaoRedirecionada,
     SessaoEncerradaNaAtribuicao,
@@ -124,7 +122,7 @@ pub(crate) fn executar_previa<V: EnvioDoProcesso>(
     let link = acoes
         .atribuir?
         .ok_or(ErroProcessoAtribuir::AtribuicaoNaoOferecidaNaBarra)?;
-    let cookie = ler_cookie(sessao)?;
+    let cookie = acoes.cookie.clone();
     let (html, mime) =
         obter_tela(&mut rede, &cookie, link.as_str()).map_err(|erro| match erro {
             FalhaDaTela::Transporte(falha) => ErroProcessoAtribuir::Tela(falha),

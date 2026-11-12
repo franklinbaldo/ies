@@ -59,20 +59,6 @@ pub(crate) fn verificar<V: EnvioDoProcesso>(
     }
 }
 
-/// O cookie do retrato da sessão (#222), lido do arquivo privado e conferido.
-/// O cookie privado da sessão não pôde ser lido, antes de qualquer
-/// requisição. Tipo próprio da etapa: os fluxos o recebem por `From` como
-/// erro `Cookie`, distinto do transporte das telas.
-#[derive(Clone, Debug, PartialEq, Eq, thiserror::Error)]
-#[error("{self:?}")]
-pub(crate) enum CookieIlegivel {
-    Arquivo(#[from] FalhaTransporte),
-}
-
-pub(crate) fn ler_cookie(sessao: &SessaoDoProcesso<'_>) -> Result<String, CookieIlegivel> {
-    Ok(sessao.cookie.valor()?.to_owned())
-}
-
 /// Por que uma tela pedida antes da escrita não foi servida.
 #[derive(Debug, thiserror::Error)]
 #[error("{self:?}")]
