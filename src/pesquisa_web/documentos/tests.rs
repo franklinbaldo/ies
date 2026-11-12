@@ -262,8 +262,9 @@ fn processo_visitado_com_class_repetido_contendo_a_classe_e_lido() {
         "class=\"processoVisitado\" href=\"controlador.php?acao=procedimento_trabalhar",
         1,
     );
+    // Vale o primeiro class, como no navegador: sem a classe, não é o link.
     assert!(matches!(
         erro_da_linha(&uma_linha(&sem_a_classe)),
-        ErroDocumentoDaPesquisa::AtributoHtml(_)
+        ErroDocumentoDaPesquisa::Linha(ErroResultadoPesquisa::LinhaDePesquisaSemLinkDoProcesso)
     ));
 }

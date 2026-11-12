@@ -250,9 +250,7 @@ pub(crate) fn atividade_do_aceite(
         let Ok(atributos) = crate::html_atributos::atributos(tag) else {
             continue;
         };
-        let Ok(tipo) = atributos.valor("type") else {
-            continue;
-        };
+        let tipo = atributos.valor("type");
         // O tipo de script clássico segue a semântica HTML: ausente,
         // vazio ou MIME JavaScript (sem parâmetros, independente de caixa).
         // Um tipo de dados ou um script externo não prova a atividade.

@@ -97,7 +97,7 @@ impl<'p> Campos<'p> {
                 continue;
             };
             let lidos = atributos(tag).map_err(ErroPropriedades::Atributo)?;
-            let bruto = lidos.valor("value").map_err(ErroPropriedades::Atributo)?;
+            let bruto = lidos.valor("value");
             let valor = bruto.map(decodificar).transpose()?.unwrap_or_default();
             let texto = espacos(&decodificar(&tag.inner_text(self.parser))?);
             opcoes.push((valor, lidos.presente("selected"), texto));
@@ -123,7 +123,7 @@ fn espacos(texto: &str) -> String {
 /// `value` decodificado; sem o atributo, vazio.
 fn valor(tag: Tag<'_>) -> Result<String, ErroPropriedades> {
     let lidos = atributos(tag).map_err(ErroPropriedades::Atributo)?;
-    let bruto = lidos.valor("value").map_err(ErroPropriedades::Atributo)?;
+    let bruto = lidos.valor("value");
     bruto
         .map(decodificar)
         .transpose()
@@ -221,12 +221,12 @@ fn nivel_de_acesso(campos: &Campos<'_>) -> Result<NivelDeAcesso, ErroPropriedade
             continue;
         };
         let lidos = atributos(tag).map_err(ErroPropriedades::Atributo)?;
-        let nome = lidos.valor("name").map_err(ErroPropriedades::Atributo)?;
+        let nome = lidos.valor("name");
         if nome != Some("rdoNivelAcesso") || !lidos.presente("checked") {
             continue;
         }
-        let valor = lidos.valor("value").ok().flatten();
-        let id = lidos.valor("id").ok().flatten();
+        let valor = lidos.valor("value");
+        let id = lidos.valor("id");
         marcados.push((valor, id));
     }
     match marcados.as_slice() {

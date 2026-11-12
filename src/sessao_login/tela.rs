@@ -73,7 +73,7 @@ fn tem_id_ou_nome(tag: &tl::HTMLTag<'_>, valor: &str) -> bool {
 }
 
 fn tem_classe(tag: &tl::HTMLTag<'_>, classe: &str) -> bool {
-    atributos(tag).is_ok_and(|a| a.tem_classe(classe).unwrap_or(false))
+    atributos(tag).is_ok_and(|a| a.tem_classe(classe))
 }
 
 fn algum(html: &crate::tela_html::HtmlServido, teste: impl Fn(&tl::HTMLTag<'_>) -> bool) -> bool {

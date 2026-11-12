@@ -147,10 +147,7 @@ pub(crate) fn ciencia_do_documento_na_barra(
             continue;
         };
         let lidos = atributos(tag).map_err(super::ErroBarraDoDocumento::AtributoDeLinkDaBarra)?;
-        if let Some(onclick) = lidos
-            .valor("onclick")
-            .map_err(super::ErroBarraDoDocumento::AtributoDeLinkDaBarra)?
-        {
+        if let Some(onclick) = lidos.valor("onclick") {
             let onclick = crate::formulario_web::decodificar_atributo(onclick).ok_or_else(fora)?;
             if onclick == "cienciaDocumento();" {
                 total += 1;
@@ -197,14 +194,10 @@ pub(crate) fn url_da_ciencia_do_documento(
             continue;
         };
         let lidos = crate::html_atributos::atributos(tag).map_err(ErroCienciaNaArvore::Atributo)?;
-        if lidos
-            .valor("src")
-            .map_err(ErroCienciaNaArvore::Atributo)?
-            .is_some()
-        {
+        if lidos.valor("src").is_some() {
             continue;
         }
-        let tipo = lidos.valor("type").map_err(ErroCienciaNaArvore::Atributo)?;
+        let tipo = lidos.valor("type");
         if tipo.is_some_and(|t| t != "text/javascript" && t != "application/javascript") {
             continue;
         }

@@ -186,8 +186,8 @@ fn nos_por_elemento_e_classe_em<'p>(
     let mut achados = Vec::new();
     for tag in descendentes(raiz, parser, elemento) {
         if atributos(tag)
-            .and_then(|a| a.tem_classe(classe))
             .map_err(ErroMarcadores::Atributo)?
+            .tem_classe(classe)
         {
             achados.push(tag);
         }

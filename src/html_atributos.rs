@@ -11,10 +11,7 @@
 mod busca;
 mod tokenizador;
 
-pub(crate) use busca::{
-    nos_com_id, nos_com_id_em, nos_por_elemento_e_classe,
-    nos_por_elemento_e_classe_em_todas_as_ocorrencias,
-};
+pub(crate) use busca::{nos_com_id, nos_com_id_em, nos_por_elemento_e_classe};
 pub(crate) use tokenizador::tokenizar_tag_de_abertura;
 
 use crate::formulario_web::decodificar_atributo;
@@ -30,8 +27,6 @@ pub(crate) enum ErroAtributoHtml {
     FimDaTagDeAberturaAusente,
     /// Um valor entre aspas não foi fechado antes do fim da fonte.
     ValorEntreAspasSemFechamento,
-    /// O atributo pedido aparece mais de uma vez na mesma tag.
-    AtributoRepetidoNaTag { atributo: &'static str },
     /// Os bytes da fonte da tag não são UTF-8 válido.
     FonteDaTagNaoEhUtf8(#[source] std::str::Utf8Error),
     /// O valor tem uma entidade `&nome;` que o decodificador não conhece.
@@ -66,15 +61,14 @@ impl<'a> AtributosDaTag<'a> {
         self.pares.iter().filter(|(chave, _)| chave == nome).count()
     }
 
-    /// Valor bruto do atributo; atributo sem `=` devolve `Ok(None)`, como
-    /// ausente. Repetição não escolhe o primeiro nem o último: é recusada.
-    pub(crate) fn valor(&self, nome: &'static str) -> Result<Option<&'a str>, ErroAtributoHtml> {
-        let mut achados = self.pares.iter().filter(|(chave, _)| chave == nome);
-        let primeiro = achados.next();
-        if achados.next().is_some() {
-            return Err(ErroAtributoHtml::AtributoRepetidoNaTag { atributo: nome });
-        }
-        Ok(primeiro.and_then(|(_, valor)| *valor))
+    /// Valor bruto do atributo; atributo sem `=` devolve `None`, como
+    /// ausente. Repetido na tag, vale o primeiro, como no navegador: o SEI
+    /// repete `class` e `style` com o mesmo valor (#676).
+    pub(crate) fn valor(&self, nome: &str) -> Option<&'a str> {
+        self.pares
+            .iter()
+            .find(|(chave, _)| chave == nome)
+            .and_then(|(_, valor)| *valor)
     }
 
     /// Todos os valores de `nome`, inclusive repetidos, para regras que
@@ -93,29 +87,9 @@ impl<'a> AtributosDaTag<'a> {
     }
 
     /// `class` contém `classe` entre os separadores de espaço HTML.
-    pub(crate) fn tem_classe(&self, classe: &str) -> Result<bool, ErroAtributoHtml> {
-        Ok(self
-            .valor("class")?
-            .is_some_and(|v| v.split(eh_espaco_html).any(|c| c == classe)))
-    }
-
-    /// `class` (talvez repetido) contém `classe`: falso se nenhuma ocorrência
-    /// a contém; erro se umas contêm e outras não.
-    pub(crate) fn tem_classe_em_todas_as_ocorrencias(
-        &self,
-        classe: &str,
-    ) -> Result<bool, ErroAtributoHtml> {
-        let contem: Vec<bool> = self
-            .pares
-            .iter()
-            .filter(|(chave, _)| *chave == "class")
-            .map(|(_, valor)| valor.is_some_and(|v| v.split(eh_espaco_html).any(|c| c == classe)))
-            .collect();
-        match (contem.iter().any(|c| *c), contem.iter().all(|c| *c)) {
-            (false, _) => Ok(false),
-            (true, true) => Ok(true),
-            (true, false) => Err(ErroAtributoHtml::AtributoRepetidoNaTag { atributo: "class" }),
-        }
+    pub(crate) fn tem_classe(&self, classe: &str) -> bool {
+        self.valor("class")
+            .is_some_and(|v| v.split(eh_espaco_html).any(|c| c == classe))
     }
 }
 
@@ -135,18 +109,18 @@ pub(crate) fn atributos<'t>(
 /// Valor bruto e próprio de `nome` em `tag`.
 pub(crate) fn valor_do_atributo(
     tag: &tl::HTMLTag<'_>,
-    nome: &'static str,
+    nome: &str,
 ) -> Result<Option<String>, ErroAtributoHtml> {
-    Ok(atributos(tag)?.valor(nome)?.map(str::to_owned))
+    Ok(atributos(tag)?.valor(nome).map(str::to_owned))
 }
 
 /// Valor de `nome` em `tag` com as entidades HTML resolvidas.
 pub(crate) fn valor_decodificado(
     tag: &tl::HTMLTag<'_>,
-    nome: &'static str,
+    nome: &str,
 ) -> Result<Option<String>, ErroAtributoHtml> {
     atributos(tag)?
-        .valor(nome)?
+        .valor(nome)
         .map(|bruto| decodificar_atributo(bruto).ok_or(ErroAtributoHtml::EntidadeHtmlDesconhecida))
         .transpose()
 }

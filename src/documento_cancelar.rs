@@ -68,7 +68,7 @@ pub(crate) fn ler_link_cancelar(
             continue;
         };
         let attrs = atributos(tag).map_err(ErroLinkCancelar::Atributo)?;
-        let Some(bruto) = attrs.valor("href").map_err(ErroLinkCancelar::Atributo)? else {
+        let Some(bruto) = attrs.valor("href") else {
             continue;
         };
         let href = decodificar_atributo(bruto).ok_or(ErroLinkCancelar::BarraForaDaForma)?;

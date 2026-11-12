@@ -213,10 +213,10 @@ fn pecas(texto: &crate::tela_html::HtmlServido) -> Option<Vec<Peca>> {
 /// `<a alt="N" title="N" class="ancoraSigla">S</a>`, exatamente.
 fn ancora(tag: &tl::HTMLTag<'_>, parser: &tl::Parser<'_>) -> Option<Peca> {
     let lidos = atributos(tag).ok()?;
-    if lidos.total() != 3 || lidos.valor("class").ok()? != Some("ancoraSigla") {
+    if lidos.total() != 3 || lidos.valor("class") != Some("ancoraSigla") {
         return None;
     }
-    let (alt, title) = (lidos.valor("alt").ok()??, lidos.valor("title").ok()??);
+    let (alt, title) = (lidos.valor("alt")?, lidos.valor("title")?);
     let nome = decodificar_atributo(alt)?;
     if alt != title || nome.is_empty() || nome.trim() != nome {
         return None;

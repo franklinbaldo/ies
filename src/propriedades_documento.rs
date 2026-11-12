@@ -104,11 +104,7 @@ fn nivel(form: Tag<'_>, parser: &tl::Parser<'_>) -> Result<Nivel, ErroPropriedad
         };
         let a =
             atributos(tag).map_err(ErroPropriedadesDocumento::NivelCadastroDocumentoIlegivel)?;
-        if a.valor("name")
-            .map_err(ErroPropriedadesDocumento::NivelCadastroDocumentoIlegivel)?
-            == Some("rdoNivelAcesso")
-            && a.presente("checked")
-        {
+        if a.valor("name") == Some("rdoNivelAcesso") && a.presente("checked") {
             marcados.push(
                 valor_decodificado(tag, "value").map_err(ErroPropriedadesDocumento::Atributo)?,
             );
