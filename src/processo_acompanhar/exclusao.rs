@@ -21,7 +21,7 @@ pub(super) fn destino_oferecido(
     let form = crate::formulario_web::localizar_formulario(&dom, "frmGerenciarAcompanhamento")
         .map_err(ErroAcompanhar::Formulario)?;
     let action = campo(form, "action")?.ok_or_else(recusada)?;
-    let action = decodificar_atributo(&action).ok_or_else(recusada)?;
+    let action = decodificar_atributo(&action);
     crate::arvore_processo::conferir_endereco_relativo(
         instalacao,
         &action,
@@ -45,7 +45,7 @@ pub(super) fn destino_oferecido(
         }
         if tag.name() == "a" {
             let onclick = campo(tag, "onclick")?.unwrap_or_default();
-            let onclick = decodificar_atributo(&onclick).ok_or_else(recusada)?;
+            let onclick = decodificar_atributo(&onclick);
             if onclick.trim().starts_with(&assinatura) && onclick.trim().ends_with(");") {
                 links += 1;
             }
@@ -75,7 +75,7 @@ pub(super) fn destino_oferecido(
         {
             return Err(recusada());
         }
-        let destino = decodificar_atributo(destino).ok_or_else(recusada)?;
+        let destino = decodificar_atributo(destino);
         crate::arvore_processo::conferir_endereco_relativo(
             instalacao,
             &destino,

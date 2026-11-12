@@ -19,7 +19,6 @@ pub(crate) enum ErroTelaDeEnvio {
     ConsultaDoAutocompletarForaDaFormaObservada,
     CampoNaoPrevistoNaTelaDeEnvio,
     FormularioDeEnvioAusente(#[source] crate::formulario_web::ErroSubmissaoFormulario),
-    TelaDeEnvioNaoInterpretada,
     TelaDeEnvioComAtributoIlegivel(#[from] crate::html_atributos::ErroAtributoHtml),
 }
 

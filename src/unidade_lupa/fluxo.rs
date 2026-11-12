@@ -136,8 +136,7 @@ fn candidatos_do_controle(tag: &tl::HTMLTag<'_>) -> Result<Vec<String>, FalhaDaL
         let bruto = crate::html_atributos::valor_do_atributo(tag, atributo)
             .map_err(FalhaDaLupa::Atributo)?;
         let Some(bruto) = bruto else { continue };
-        let decodificado =
-            crate::formulario_web::decodificar_atributo(&bruto).ok_or(FalhaDaLupa::LinkAmbiguo)?;
+        let decodificado = crate::formulario_web::decodificar_atributo(&bruto);
         let literal = if atributo == "href" {
             Some(decodificado.as_str())
         } else {

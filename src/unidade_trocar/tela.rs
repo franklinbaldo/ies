@@ -87,10 +87,7 @@ pub(crate) fn link_da_troca(
         if let Some(bruto) =
             valor_do_atributo(tag, "onclick").map_err(ErroTroca::AtributoDoLinkDeTrocaIlegivel)?
         {
-            onclicks.push(
-                decodificar_atributo(&bruto)
-                    .ok_or(ErroTroca::LinkDeTrocaDeUnidadeForaDaFormaObservada)?,
-            );
+            onclicks.push(decodificar_atributo(&bruto));
         }
     }
     let Some(primeiro) = onclicks.first() else {
@@ -284,9 +281,7 @@ fn filtro(
     let valor = |t: &tl::HTMLTag<'_>| -> Result<String, super::ErroTroca> {
         match valor_do_atributo(t, "value").map_err(ErroTroca::AtributoDaTelaDeTrocaIlegivel)? {
             None => Ok(String::new()),
-            Some(bruto) => {
-                decodificar_atributo(&bruto).ok_or(ErroTroca::TelaDeTrocaDeUnidadeNaoReconhecida)
-            }
+            Some(bruto) => Ok(decodificar_atributo(&bruto)),
         }
     };
     if tag.name() != "select" {

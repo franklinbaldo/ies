@@ -276,12 +276,9 @@ fn decodificado(
     tag: &tl::HTMLTag<'_>,
     nome: &'static str,
 ) -> Result<Option<String>, ErroTelaDeEnvio> {
-    valor_do_atributo(tag, nome)
+    Ok(valor_do_atributo(tag, nome)
         .map_err(ErroTelaDeEnvio::TelaDeEnvioComAtributoIlegivel)?
-        .map(|bruto| {
-            decodificar_atributo(&bruto).ok_or(ErroTelaDeEnvio::TelaDeEnvioNaoInterpretada)
-        })
-        .transpose()
+        .map(|bruto| decodificar_atributo(&bruto)))
 }
 
 /// Os pares do `prepararExecucao`: a sigla, o órgão efetivo e, no 4.1/5.0,

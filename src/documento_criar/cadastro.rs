@@ -65,7 +65,7 @@ pub(crate) fn conferir_cadastro(
         .split_whitespace()
         .collect::<Vec<_>>()
         .join(" ");
-    let lido = decodificar_atributo(&lido).ok_or(ErroCriar::CadastroForaDaForma)?;
+    let lido = decodificar_atributo(&lido);
     if lido != tipo {
         return Err(ErroCriar::TipoDoCadastroDiferente);
     }

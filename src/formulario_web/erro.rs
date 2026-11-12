@@ -17,9 +17,6 @@ pub(crate) enum ErroSubmissaoFormulario {
     AcaoDoFormularioForaDaInstalacao,
     AcaoDoFormularioDiferenteDaOperacao,
     AcaoDoFormularioSemInfraHashUnico,
-    EntidadeHtmlDesconhecidaNoAtributo {
-        campo: String,
-    },
     CampoOcultoAusenteNoFormulario {
         campo: String,
     },
@@ -77,7 +74,6 @@ impl ErroSubmissaoFormulario {
             | Self::AcaoDoFormularioForaDaInstalacao
             | Self::AcaoDoFormularioDiferenteDaOperacao
             | Self::AcaoDoFormularioSemInfraHashUnico
-            | Self::EntidadeHtmlDesconhecidaNoAtributo { .. }
             | Self::CampoOcultoAusenteNoFormulario { .. }
             | Self::CampoOcultoRepetidoNoFormulario { .. }
             | Self::HdnAcaoPublicadoSemRegraDaOperacao
@@ -116,7 +112,6 @@ impl ErroSubmissaoFormulario {
             | Self::AcaoDoFormularioForaDaInstalacao
             | Self::AcaoDoFormularioDiferenteDaOperacao
             | Self::AcaoDoFormularioSemInfraHashUnico
-            | Self::EntidadeHtmlDesconhecidaNoAtributo { .. }
             | Self::CampoOcultoAusenteNoFormulario { .. }
             | Self::CampoOcultoRepetidoNoFormulario { .. }
             | Self::HdnAcaoPublicadoSemRegraDaOperacao

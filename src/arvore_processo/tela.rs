@@ -135,8 +135,7 @@ fn unidade_e_src(
         .map_err(ErroTelaDoProcesso::SrcDaArvore)?
         .ok_or(ErroTelaDoProcesso::EnderecoDaArvoreNaoReconhecido)?;
     // Servido com `&` cru (UnB e GO); `&amp;` também é o mesmo endereço.
-    let src = crate::formulario_web::decodificar_atributo(&src)
-        .ok_or(ErroTelaDoProcesso::EnderecoDaArvoreNaoReconhecido)?;
+    let src = crate::formulario_web::decodificar_atributo(&src);
     if src.is_empty() && html.contains("controlador.php?acao=usuario_validar_acesso&") {
         return Err(ErroTelaDoProcesso::ProcessoExigeValidacaoDeAcesso);
     }

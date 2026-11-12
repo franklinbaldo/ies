@@ -53,7 +53,7 @@ pub(crate) fn escolher_externo(
         else {
             continue;
         };
-        let href = decodificar_atributo(&href).ok_or(ErroEscolhaExterna::ForaDaForma)?;
+        let href = decodificar_atributo(&href);
         let onclick = valor_do_atributo(tag, "onclick").map_err(ErroEscolhaExterna::Atributo)?;
         // A classificação vem da ação, nunca do texto da âncora.
         let pelo_link = href

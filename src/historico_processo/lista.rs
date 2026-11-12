@@ -89,9 +89,7 @@ fn tipo_servido(dom: &tl::VDom<'_>) -> Result<TipoDoHistorico, ErroAndamentos> {
             let bruto = valor_do_atributo(tag, "value")
                 .map_err(ErroAndamentos::Atributo)?
                 .ok_or(ErroAndamentos::TipoDoHistoricoSemValor)?;
-            valores.push(
-                decodificar_atributo(&bruto).ok_or(ErroAndamentos::TipoDoHistoricoNaoPublicado)?,
-            );
+            valores.push(decodificar_atributo(&bruto));
         }
     }
     match valores.as_slice() {

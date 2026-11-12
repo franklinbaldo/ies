@@ -12,7 +12,7 @@ fn id_selecionado_na_tela(html: &str) -> Option<String> {
     let tag = iframe.get(dom.parser())?.as_tag()?;
     let src = crate::html_atributos::valor_do_atributo(tag, "src")
         .ok()??;
-    let src = crate::formulario_web::decodificar_atributo(&src)?;
+    let src = crate::formulario_web::decodificar_atributo(&src);
     let consulta = src.split_once('?')?.1;
     let ids: Vec<_> = consulta
         .split('&')

@@ -56,7 +56,6 @@ pub(crate) enum ErroBarraDoDocumento {
     BarrasRepetidasNaArvore,
     AtributoDeLinkDaBarra(#[source] ErroAtributoHtml),
     EnderecoDasVersoesDeOutroDocumento,
-    BarraDaCienciaDoDocumentoForaDaForma,
     BarraDoDocumentoForaDaFormaObservada,
     BotoesDeCienciaDoDocumentoRepetidos,
     LinkDasVersoesNaoReconhecido,
@@ -87,12 +86,7 @@ pub(crate) fn ler_barra_do_documento(
         };
         let lidos = atributos(tag).map_err(ErroBarraDoDocumento::AtributoDeLinkDaBarra)?;
         let valor = |nome| -> Result<Option<String>, ErroBarraDoDocumento> {
-            match lidos.valor(nome) {
-                Some(bruto) => decodificar_atributo(bruto)
-                    .map(Some)
-                    .ok_or(ErroBarraDoDocumento::BarraDoDocumentoForaDaFormaObservada),
-                None => Ok(None),
-            }
+            Ok(lidos.valor(nome).map(decodificar_atributo))
         };
         if let Some(href) = valor("href")?
             && menciona_acao(&href, AcaoDoSei::DocumentoVersaoListar)

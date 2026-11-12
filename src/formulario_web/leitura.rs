@@ -144,11 +144,7 @@ fn resolver_referencia(
 ) -> Result<String, ErroSubmissaoFormulario> {
     let bruto = valor_do_atributo(form, "action")?
         .ok_or(ErroSubmissaoFormulario::AcaoDoFormularioAusente)?;
-    let decodificado = decodificar_atributo(&bruto).ok_or_else(|| {
-        ErroSubmissaoFormulario::EntidadeHtmlDesconhecidaNoAtributo {
-            campo: "action".to_owned(),
-        }
-    })?;
+    let decodificado = decodificar_atributo(&bruto);
     // O navegador não envia o fragmento (`#ancoraBarraPesquisa` observado).
     let referencia = decodificado.split('#').next().unwrap_or_default();
     if referencia.is_empty() {
@@ -221,15 +217,10 @@ impl Controle {
     }
 }
 
-fn valor_decodificado(
-    tag: &tl::HTMLTag<'_>,
-    nome: &str,
-) -> Result<String, ErroSubmissaoFormulario> {
-    decodificar_atributo(&valor_do_atributo(tag, "value")?.unwrap_or_default()).ok_or_else(|| {
-        ErroSubmissaoFormulario::EntidadeHtmlDesconhecidaNoAtributo {
-            campo: nome.to_owned(),
-        }
-    })
+fn valor_decodificado(tag: &tl::HTMLTag<'_>) -> Result<String, ErroSubmissaoFormulario> {
+    Ok(decodificar_atributo(
+        &valor_do_atributo(tag, "value")?.unwrap_or_default(),
+    ))
 }
 
 fn classificar(
@@ -247,11 +238,7 @@ fn classificar(
     let Some(bruto) = valor_do_atributo(tag, "name")?.filter(|n| !n.is_empty()) else {
         return Ok(None);
     };
-    let nome = decodificar_atributo(&bruto).ok_or_else(|| {
-        ErroSubmissaoFormulario::EntidadeHtmlDesconhecidaNoAtributo {
-            campo: bruto.clone(),
-        }
-    })?;
+    let nome = decodificar_atributo(&bruto);
     // `hdnAcao` só com a regra observada da operação (o `onsubmit` do login).
     if nome == "hdnAcao" && !operacao.campos_ocultos_reescritos.contains(&"hdnAcao") {
         return Err(ErroSubmissaoFormulario::HdnAcaoPublicadoSemRegraDaOperacao);
@@ -265,11 +252,11 @@ fn classificar(
         .map_or_else(|| padrao.to_owned(), |t| t.to_ascii_lowercase());
     Ok(match (elemento.as_str(), tipo.as_str()) {
         ("input", "hidden") => {
-            let valor = valor_decodificado(tag, &nome)?;
+            let valor = valor_decodificado(tag)?;
             Some(Controle::Oculto { nome, valor })
         }
         ("input" | "button", "submit") if botao == Some(nome.as_str()) => {
-            let valor = valor_decodificado(tag, &nome)?;
+            let valor = valor_decodificado(tag)?;
             Some(Controle::Botao { nome, valor })
         }
         ("input" | "button", "submit" | "button" | "reset" | "image") | ("button", _) => None,

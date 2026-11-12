@@ -71,7 +71,7 @@ fn opcoes_do_select(html: &str) -> Vec<Rotulo> {
         .filter(|tag| tag.name().as_utf8_str() == "option")
         .filter_map(|tag| {
             let id = valor_do_atributo(tag, "value").ok()??;
-            let nome = decodificar_atributo(&tag.inner_text(parser))?;
+            let nome = decodificar_atributo(&tag.inner_text(parser));
             Some(Rotulo { id, nome })
         })
         .collect()

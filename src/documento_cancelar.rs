@@ -26,7 +26,6 @@ pub(crate) use fluxo::{DocumentoCancelado, PedidoDoCancelamento, cancelar_docume
 pub(crate) enum ErroLinkCancelar {
     /// O tokenizador de atributos recusou a tag.
     Atributo(#[source] crate::html_atributos::ErroAtributoHtml),
-    BarraForaDaForma,
     /// A barra do documento não pôde ser lida do HTML da tela.
     BarraDoDocumentoIlegivel(#[source] crate::arvore_processo::ErroBarraDoDocumento),
     LinksRepetidos,
@@ -71,7 +70,7 @@ pub(crate) fn ler_link_cancelar(
         let Some(bruto) = attrs.valor("href") else {
             continue;
         };
-        let href = decodificar_atributo(bruto).ok_or(ErroLinkCancelar::BarraForaDaForma)?;
+        let href = decodificar_atributo(bruto);
         if menciona_acao(&href, AcaoDoSei::DocumentoCancelar) {
             links.push(href);
         }

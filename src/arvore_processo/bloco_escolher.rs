@@ -19,7 +19,6 @@ pub(crate) enum ErroBlocoNaBarra {
     Atributo(#[source] crate::html_atributos::ErroAtributoHtml),
     EnderecoDeOutroDocumento,
     Barra(#[from] ErroBarraDoDocumento),
-    BarraDoDocumentoForaDaFormaObservada,
     EnderecoDeEscolherBlocoNaoReconhecido,
     LinksDeEscolherBlocoRepetidosNaBarra,
 }
@@ -32,7 +31,6 @@ pub(crate) fn ler_bloco_escolher_da_barra(
     id_documento: &str,
     id_procedimento: &str,
 ) -> Result<Option<EnderecoDeEscrita>, ErroBlocoNaBarra> {
-    let fora = || ErroBlocoNaBarra::BarraDoDocumentoForaDaFormaObservada;
     let Some(texto) = barra_do_no(html, id_documento)? else {
         return Ok(None);
     };
@@ -47,7 +45,7 @@ pub(crate) fn ler_bloco_escolher_da_barra(
         let Some(bruto) = lidos.valor("href") else {
             continue;
         };
-        let href = decodificar_atributo(bruto).ok_or_else(fora)?;
+        let href = decodificar_atributo(bruto);
         if menciona_acao(&href, AcaoDoSei::BlocoEscolher) {
             links.push(href);
         }

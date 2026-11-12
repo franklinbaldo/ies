@@ -17,7 +17,6 @@ pub(crate) enum ErroTela {
     /// O tokenizador de atributos recusou a tag.
     Atributo(#[source] crate::html_atributos::ErroAtributoHtml),
     /// O tokenizador HTML recusou a tela.
-    NaoInterpretada,
     FormularioAusente(#[source] ErroSubmissaoFormulario),
     OutroProcesso,
     /// A consulta do `action` não se lê em pares `chave=valor`.
@@ -66,8 +65,7 @@ pub(crate) fn conferir_formulario(
         atributo_presente(tag, nome).map_err(ErroTela::Atributo)
     };
     let action = atributo(form, "action")?.ok_or(ErroTela::OutroProcesso)?;
-    let action =
-        crate::formulario_web::decodificar_atributo(&action).ok_or(ErroTela::NaoInterpretada)?;
+    let action = crate::formulario_web::decodificar_atributo(&action);
     conferir_processo_da_action(&action, id)?;
     if !atributo(form, "method")?.is_some_and(|v| v.eq_ignore_ascii_case("post")) {
         return Err(ErroTela::CampoInesperado);

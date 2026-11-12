@@ -82,8 +82,7 @@ fn do_onclick(html: &crate::tela_html::HtmlServido) -> Result<Vec<String>, ErroL
             let bruto = valor_do_atributo(a, "onclick")
                 .map_err(ErroLinkDoHistorico::Atributo)?
                 .ok_or(ErroLinkDoHistorico::LinkDoHistoricoForaDaFormaObservada)?;
-            let onclick = decodificar_atributo(&bruto)
-                .ok_or(ErroLinkDoHistorico::LinkDoHistoricoForaDaFormaObservada)?;
+            let onclick = decodificar_atributo(&bruto);
             if onclick == SEM_ARGUMENTO {
                 continue;
             }

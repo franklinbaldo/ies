@@ -49,7 +49,6 @@ pub(crate) enum ErroPaginacaoDaPesquisa {
     PaginaDaPesquisaSemResultadoAposPaginar,
     TotalDaPesquisaAlteradoAposPaginar,
     FaixaDaPesquisaDiferenteDaPaginaSolicitada,
-    HtmlDaTelaDeResultadoDaPesquisaNaoInterpretado,
     /// O formulário de paginação não foi localizado na tela de resultado.
     FormularioDaPesquisaNaoLocalizadoNaTela(
         #[source] crate::formulario_web::ErroSubmissaoFormulario,
@@ -167,7 +166,6 @@ fn conferir_links_de_navegar(
     tamanho: u64,
     total: u64,
 ) -> Result<(), ErroPaginacaoDaPesquisa> {
-    let ilegivel = || ErroPaginacaoDaPesquisa::HtmlDaTelaDeResultadoDaPesquisaNaoInterpretado;
     let dom = crate::tela_html::interpretar(html);
     let parser = dom.parser();
     let mut publicados = 0;
@@ -180,7 +178,7 @@ fn conferir_links_de_navegar(
         else {
             continue;
         };
-        let href = decodificar_atributo(&bruto).ok_or_else(ilegivel)?;
+        let href = decodificar_atributo(&bruto);
         let Some(resto) = href.strip_prefix("javascript:navegar(") else {
             continue;
         };
@@ -207,7 +205,6 @@ pub(crate) fn conferir_protocolo_servido(
     html: &crate::tela_html::HtmlServido,
     protocolo: &str,
 ) -> Result<(), ErroPaginacaoDaPesquisa> {
-    let ilegivel = || ErroPaginacaoDaPesquisa::HtmlDaTelaDeResultadoDaPesquisaNaoInterpretado;
     let dom = crate::tela_html::interpretar(html);
     let parser = dom.parser();
     let form = localizar_formulario(&dom, PAGINAR_PESQUISA_DE_PROTOCOLO.formulario)
@@ -227,7 +224,7 @@ pub(crate) fn conferir_protocolo_servido(
         {
             let bruto =
                 valor_do_atributo(tag, "value").map_err(ErroPaginacaoDaPesquisa::Atributo)?;
-            servidos.push(decodificar_atributo(&bruto.unwrap_or_default()).ok_or_else(ilegivel)?);
+            servidos.push(decodificar_atributo(&bruto.unwrap_or_default()));
         }
     }
     if servidos != [protocolo] {

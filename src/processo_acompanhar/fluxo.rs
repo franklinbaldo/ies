@@ -109,8 +109,7 @@ fn adicionar_da_lista(
         let onclick = crate::html_atributos::valor_do_atributo(tag, "onclick")
             .map_err(ErroAcompanhar::Atributo)?
             .ok_or(ErroAcompanhar::TelaDeAcompanhamentoInesperada)?;
-        let onclick =
-            decodificar_atributo(&onclick).ok_or(ErroAcompanhar::TelaDeAcompanhamentoInesperada)?;
+        let onclick = decodificar_atributo(&onclick);
         let url = onclick
             .strip_prefix("location.href='")
             .and_then(|v| v.strip_suffix("';").or_else(|| v.strip_suffix("'")))

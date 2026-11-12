@@ -431,17 +431,18 @@ fn valor_utf8_usa_bytes_utf8_quando_a_tela_declara_utf8() {
 }
 
 #[test]
-fn entidades_html_do_oculto_sao_decodificadas_ou_recusadas() {
+fn entidades_html_do_oculto_sao_decodificadas_e_desconhecidas_ficam_literais() {
     let amp = padrao().replace("value='1'>", "value='a&amp;b&#233;'>");
     let s = derivar_html(&amp, &[]).unwrap();
     assert!(s.corpo().starts_with(b"hdnInfraTipoPagina=a%26b%E9&"));
     let desconhecida = padrao().replace("value='1'>", "value='&inventada;'>");
-    assert_eq!(
-        erro(&desconhecida, &[]),
-        ErroSubmissaoFormulario::EntidadeHtmlDesconhecidaNoAtributo {
-            campo: campo("hdnInfraTipoPagina")
-        }
+    let s = derivar_html(&desconhecida, &[]).unwrap();
+    assert!(
+        s.corpo()
+            .starts_with(b"hdnInfraTipoPagina=%26inventada%3B&")
     );
+    let escapada = padrao().replace("value='1'>", "value='&amp;inventada;'>");
+    assert_eq!(s.corpo(), derivar_html(&escapada, &[]).unwrap().corpo());
 }
 
 #[test]

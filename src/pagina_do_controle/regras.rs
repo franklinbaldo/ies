@@ -24,16 +24,11 @@ pub(crate) enum ErroControleDoFormulario {
     PaginadorComMaisDeUmaOpcaoSelecionada { campo: String },
     OpcaoSelecionadaDoPaginadorSemValor { campo: String },
     ControleRepetidoNoFormularioDoControle { campo: String },
-    EntidadeHtmlDesconhecidaNoControle { campo: String },
     AtributoHtml(#[from] ErroAtributoHtml),
 }
 
-fn decodificado(bruto: &str, campo: &str) -> Result<String, ErroControleDoFormulario> {
-    decodificar_atributo(bruto).ok_or_else(|| {
-        ErroControleDoFormulario::EntidadeHtmlDesconhecidaNoControle {
-            campo: campo.to_owned(),
-        }
-    })
+fn decodificado(bruto: &str) -> String {
+    decodificar_atributo(bruto)
 }
 
 /// Valor que o navegador envia para um `<select>` simples: a única opção
@@ -60,7 +55,7 @@ fn opcao_selecionada(
         [] => Err(ErroControleDoFormulario::PaginadorSemOpcaoSelecionada {
             campo: campo_owned(),
         }),
-        [Some(valor)] => decodificado(valor, campo),
+        [Some(valor)] => Ok(decodificado(valor)),
         [None] => Err(
             ErroControleDoFormulario::OpcaoSelecionadaDoPaginadorSemValor {
                 campo: campo_owned(),
@@ -101,7 +96,7 @@ pub(crate) fn campos_do_usuario(
         let Some(bruto) = valor_do_atributo(tag, "name")?.filter(|n| !n.is_empty()) else {
             continue;
         };
-        let nome = decodificado(&bruto, &bruto)?;
+        let nome = decodificado(&bruto);
         let tipo = valor_do_atributo(tag, "type")?
             .map_or_else(|| "text".to_owned(), |t| t.to_ascii_lowercase());
         let valor = match (elemento.as_str(), tipo.as_str()) {
@@ -119,7 +114,7 @@ pub(crate) fn campos_do_usuario(
                 continue;
             }
             ("input", "text") if nome == "txtBloco" => {
-                decodificado(&valor_do_atributo(tag, "value")?.unwrap_or_default(), &nome)?
+                decodificado(&valor_do_atributo(tag, "value")?.unwrap_or_default())
             }
             ("select", _)
                 if permitidos.contains(&nome.as_str()) && !atributo_presente(tag, "multiple")? =>

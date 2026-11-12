@@ -219,8 +219,7 @@ pub(super) fn conferir_formulario(
     let action = valor_do_atributo(form, "action")
         .map_err(|f| ErroCancelar::Formulario(ErroSubmissaoFormulario::AtributoHtml(f)))?
         .ok_or(ErroCancelar::FormularioDeOutroDocumento)?;
-    let action = crate::formulario_web::decodificar_atributo(&action)
-        .ok_or(ErroCancelar::FormularioDeOutroDocumento)?;
+    let action = crate::formulario_web::decodificar_atributo(&action);
     conferir_endereco_relativo_por(
         instalacao,
         &action,

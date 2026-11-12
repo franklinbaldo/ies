@@ -65,7 +65,6 @@ pub(crate) enum ErroPropriedadesDocumento {
     LinksAnexoCadastroRepetidos,
     LinksCadastroDocumentoRepetidos,
     NivelCadastroDocumentoInesperado,
-    TextoCadastroDocumentoIlegivel,
     TipoCadastroDocumentoRepetido,
     TipoCadastroDocumentoVazio,
     ValorCadastroDocumentoAusente,
@@ -92,9 +91,8 @@ fn valor(tag: Tag<'_>) -> Result<String, ErroPropriedadesDocumento> {
         .map_err(ErroPropriedadesDocumento::Atributo)?
         .ok_or(ErroPropriedadesDocumento::ValorCadastroDocumentoAusente)
 }
-fn texto(tag: Tag<'_>, parser: &tl::Parser<'_>) -> Result<String, ErroPropriedadesDocumento> {
+fn texto(tag: Tag<'_>, parser: &tl::Parser<'_>) -> String {
     decodificar_atributo(&tag.inner_text(parser))
-        .ok_or(ErroPropriedadesDocumento::TextoCadastroDocumentoIlegivel)
 }
 fn nivel(form: Tag<'_>, parser: &tl::Parser<'_>) -> Result<Nivel, ErroPropriedadesDocumento> {
     let mut marcados = Vec::new();
@@ -192,7 +190,7 @@ pub(crate) fn ler_formulario(
     {
         return Err(ErroPropriedadesDocumento::IdentidadeCadastroDocumentoDivergente);
     }
-    let tipo = texto(campo(form, parser, "lblSerieTitulo")?, parser)?;
+    let tipo = texto(campo(form, parser, "lblSerieTitulo")?, parser);
     let tipo = if tipo.trim().is_empty() {
         // Cadastro do externo no SEI 4.0.9: o rótulo é vazio, mas o tipo
         // efetivamente escolhido está no option selecionado de selSerie.
@@ -208,7 +206,7 @@ pub(crate) fn ler_formulario(
             };
             let a = atributos(tag).map_err(ErroPropriedadesDocumento::Atributo)?;
             if a.presente("selected") {
-                selecionados.push(texto(tag, parser)?);
+                selecionados.push(texto(tag, parser));
             }
         }
         match selecionados.as_slice() {
@@ -224,7 +222,7 @@ pub(crate) fn ler_formulario(
         tipo,
         descricao: valor(campo(form, parser, "txtDescricao")?)?,
         nome_na_arvore: valor(campo(form, parser, "txtNomeArvore")?)?,
-        observacoes: texto(campo(form, parser, "txaObservacoes")?, parser)?,
+        observacoes: texto(campo(form, parser, "txaObservacoes")?, parser),
         nivel_de_acesso: nivel(form, parser)?,
     })
 }

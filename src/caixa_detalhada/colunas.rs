@@ -52,7 +52,7 @@ impl Serialize for ColunasDaLinha {
 /// Texto visível com entidades conhecidas decodificadas e espaços colapsados.
 fn texto(tag: &tl::HTMLTag<'_>, parser: &tl::Parser<'_>) -> String {
     let bruto = tag.inner_text(parser);
-    let decodificado = decodificar_atributo(&bruto).unwrap_or_else(|| bruto.into_owned());
+    let decodificado = decodificar_atributo(&bruto);
     texto_colapsado(&decodificado)
 }
 
@@ -88,10 +88,10 @@ fn rotulo_do_icone(
     };
     let aria = valor_do_atributo(imagem, "aria-label")
         .map_err(ErroDetalhada::AtributoDaDetalhadaIlegivel)?
-        .map(|v| texto_colapsado(&decodificar_atributo(&v).unwrap_or(v)));
+        .map(|v| texto_colapsado(&decodificar_atributo(&v)));
     let dica = valor_do_atributo(imagem, "onmouseover")
         .map_err(ErroDetalhada::AtributoDaDetalhadaIlegivel)?
-        .and_then(|v| decodificar_atributo(&v))
+        .map(|v| decodificar_atributo(&v))
         .and_then(|v| {
             let resto = v.strip_prefix("return infraTooltipMostrar('")?;
             let resto = resto.strip_suffix(';').unwrap_or(resto);
@@ -178,7 +178,7 @@ pub(super) fn valor_da_celula(
     let parser = dom.parser();
     let rotulo = valor_do_atributo(celula, "data-label")
         .map_err(ErroDetalhada::AtributoDaDetalhadaIlegivel)?
-        .map(|v| texto_colapsado(&decodificar_atributo(&v).unwrap_or(v)))
+        .map(|v| texto_colapsado(&decodificar_atributo(&v)))
         .filter(|v| !v.is_empty());
     let (CabecalhoDaColuna::Texto(cabecalho) | CabecalhoDaColuna::Icone(cabecalho)) =
         coluna.cabecalho();

@@ -242,7 +242,7 @@ fn ler_linhas(
                 valor_do_atributo(a, "href")
                     .map_err(ErroBloco::Atributo)
                     .and_then(|x| {
-                        x.and_then(|s| decodificar_atributo(&s))
+                        x.map(|s| decodificar_atributo(&s))
                             .ok_or(ErroBloco::LinkDeBlocosNaoReconhecido)
                     })
             });
@@ -375,9 +375,7 @@ pub(crate) fn link_do_menu(
         let Some(bruto) = valor_do_atributo(tag, "href").map_err(ErroBloco::Atributo)? else {
             continue;
         };
-        let Some(href) = decodificar_atributo(&bruto) else {
-            continue;
-        };
+        let href = decodificar_atributo(&bruto);
         if menciona_acao(&href, tipo.acao()) {
             candidatos.push(href);
         }

@@ -80,9 +80,9 @@ fn filhos<'p>(pai: Tag<'_>, parser: &'p tl::Parser<'p>, nome: &str) -> Vec<Tag<'
         .collect()
 }
 
-fn texto(tag: Tag<'_>, parser: &tl::Parser<'_>) -> Result<String, ErroComentarios> {
+fn texto(tag: Tag<'_>, parser: &tl::Parser<'_>) -> String {
     let bruto = tag.inner_text(parser).replace("&nbsp;", "\u{a0}");
-    decodificar_atributo(&bruto).ok_or(ErroComentarios::HtmlDosComentariosNaoInterpretado)
+    decodificar_atributo(&bruto)
 }
 
 fn tabela_unica<'p>(dom: &'p tl::VDom<'p>, id: &str) -> Result<Option<Tag<'p>>, ErroComentarios> {
@@ -145,7 +145,7 @@ fn ler_colunas(tabela: Tag<'_>, parser: &tl::Parser<'_>) -> Result<Colunas, Erro
     let cabecalho: Vec<String> = descendentes(tabela, parser, "th")
         .iter()
         .map(|th| texto(th, parser))
-        .collect::<Result<_, _>>()?;
+        .collect();
     let campo = |nome: &str| -> Result<usize, ErroComentarios> {
         let indices: Vec<usize> = cabecalho
             .iter()
@@ -212,14 +212,14 @@ fn ler_itens(
                 let ultimo = itens
                     .last_mut()
                     .ok_or(ErroComentarios::LinhaDoComentarioInvalida)?;
-                ultimo.texto = texto(celula, parser)?;
+                ultimo.texto = texto(celula, parser);
                 aguardando_texto = false;
             } else if let (true, [celula]) = (separador, celulas.as_slice()) {
                 // Separador visual entre comentários: forma, não item.
-                if !texto(celula, parser)?.trim().is_empty() {
+                if !texto(celula, parser).trim().is_empty() {
                     return Err(ErroComentarios::LinhaDoComentarioInvalida);
                 }
-            } else if !(total == 0 && texto(tr, parser)?.contains("Nenhum registro")) {
+            } else if !(total == 0 && texto(tr, parser).contains("Nenhum registro")) {
                 return Err(ErroComentarios::LinhaDoComentarioInvalida);
             }
             continue;
@@ -243,7 +243,7 @@ fn ler_itens(
             celulas
                 .get(i)
                 .map(|td| texto(td, parser))
-                .ok_or(ErroComentarios::LinhaDoComentarioInvalida)?
+                .ok_or(ErroComentarios::LinhaDoComentarioInvalida)
         };
         itens.push(ComentarioLido {
             id,
@@ -294,7 +294,7 @@ fn ler_lista<'p>(
     let [caption] = descendentes(tabela, parser, "caption")[..] else {
         return Err(ErroComentarios::LegendaDosComentariosInvalida);
     };
-    let legenda = texto(caption, parser)?;
+    let legenda = texto(caption, parser);
     let (prefixo, _) = legenda
         .split_once('(')
         .ok_or(ErroComentarios::LegendaDosComentariosInvalida)?;

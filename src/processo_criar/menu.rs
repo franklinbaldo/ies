@@ -43,13 +43,7 @@ pub(crate) fn link_de_iniciar(
         else {
             continue;
         };
-        let href = match decodificar_atributo(&bruto) {
-            Some(href) => href,
-            None if bruto.contains(AcaoDoSei::ProcedimentoEscolherTipo.como_na_url()) => {
-                return Err(ErroMenu::LinkDeIniciarProcessoNaoReconhecido);
-            }
-            None => continue,
-        };
+        let href = decodificar_atributo(&bruto);
         let aponta = menciona_acao(&href, AcaoDoSei::ProcedimentoEscolherTipo);
         if aponta {
             candidatos.push(href);

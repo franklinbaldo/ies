@@ -196,7 +196,7 @@ fn linhas_conferidas(
 }
 
 fn trabalho_da_linha(alvo: &Alvo<'_>, linha: &LinhaDoControle) -> Option<String> {
-    let href = decodificar_atributo(linha.href.as_deref()?)?;
+    let href = decodificar_atributo(linha.href.as_deref()?);
     if !href.starts_with("controlador.php?") {
         return None;
     }

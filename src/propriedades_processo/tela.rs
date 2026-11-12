@@ -98,8 +98,8 @@ impl<'p> Campos<'p> {
             };
             let lidos = atributos(tag).map_err(ErroPropriedades::Atributo)?;
             let bruto = lidos.valor("value");
-            let valor = bruto.map(decodificar).transpose()?.unwrap_or_default();
-            let texto = espacos(&decodificar(&tag.inner_text(self.parser))?);
+            let valor = bruto.map(decodificar).unwrap_or_default();
+            let texto = espacos(&decodificar(&tag.inner_text(self.parser)));
             opcoes.push((valor, lidos.presente("selected"), texto));
         }
         Ok(opcoes)
@@ -107,9 +107,8 @@ impl<'p> Campos<'p> {
 }
 
 /// Entidades decodificadas (`&nbsp;` como espaço inseparável).
-fn decodificar(bruto: &str) -> Result<String, ErroPropriedades> {
+fn decodificar(bruto: &str) -> String {
     decodificar_atributo(&bruto.replace("&nbsp;", "\u{a0}"))
-        .ok_or(ErroPropriedades::TextoDasPropriedadesNaoDecodificado)
 }
 
 fn espacos(texto: &str) -> String {
@@ -124,10 +123,7 @@ fn espacos(texto: &str) -> String {
 fn valor(tag: Tag<'_>) -> Result<String, ErroPropriedades> {
     let lidos = atributos(tag).map_err(ErroPropriedades::Atributo)?;
     let bruto = lidos.valor("value");
-    bruto
-        .map(decodificar)
-        .transpose()
-        .map(Option::unwrap_or_default)
+    Ok(bruto.map(decodificar).unwrap_or_default())
 }
 
 /// A única `option` marcada com `value` diferente de `null`; duas: recusa.
@@ -204,7 +200,7 @@ fn interessados(campos: &Campos<'_>) -> Result<Vec<String>, ErroPropriedades> {
 /// depois da tag de abertura.
 fn observacoes(campos: &Campos<'_>) -> Result<String, ErroPropriedades> {
     let tag = campos.unico("txaObservacoes")?;
-    let texto = decodificar(&tag.inner_text(campos.parser))?;
+    let texto = decodificar(&tag.inner_text(campos.parser));
     let texto = texto
         .strip_prefix("\r\n")
         .or_else(|| texto.strip_prefix('\n'))

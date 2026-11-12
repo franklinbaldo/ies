@@ -131,8 +131,7 @@ fn conferir_link(
     instalacao: &Instalacao,
 ) -> Result<Link, ErroLeituraRetornos> {
     let nao = ErroLeituraRetornos::LinkDeRetornosForaDaInstalacao;
-    let href =
-        decodificar_atributo(bruto).ok_or(ErroLeituraRetornos::LinkDeRetornosForaDaInstalacao)?;
+    let href = decodificar_atributo(bruto);
     if !href.bytes().all(|b| (33..=126).contains(&b))
         || href.contains(['#', '\\', '\''])
         || href.contains("..")
@@ -211,14 +210,8 @@ fn links(
         let bruto = valor_do_atributo(tag, "href").map_err(ErroLeituraRetornos::Atributo)?;
         let Some(bruto) = bruto else { continue };
         // Seleção tolerante pela ação exata (decodificada antes); a conferência
-        // estrita fica em `conferir_link`. Href sem decodificação só é suspeito
-        // se citar a operação.
-        let Some(href) = decodificar_atributo(&bruto) else {
-            if bruto.contains("retorno_programado_listar") {
-                return Err(ErroLeituraRetornos::LinkDeRetornosForaDaInstalacao);
-            }
-            continue;
-        };
+        // estrita fica em `conferir_link`.
+        let href = decodificar_atributo(&bruto);
         if menciona_acao(&href, AcaoDoSei::RetornoProgramadoListar) {
             saida.push(conferir_link(&bruto, servida, instalacao)?);
         }

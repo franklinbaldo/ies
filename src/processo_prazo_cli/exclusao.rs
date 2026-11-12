@@ -74,9 +74,7 @@ pub(super) fn link_da_lista(
         else {
             continue;
         };
-        let Some(href) = crate::formulario_web::decodificar_atributo(&bruto) else {
-            continue;
-        };
+        let href = crate::formulario_web::decodificar_atributo(&bruto);
         if !menciona_acao(&href, AcaoDoSei::ControlePrazoListar) {
             continue;
         }

@@ -82,8 +82,7 @@ pub(crate) fn tipos_oferecidos(
         let onclick = valor_do_atributo(tag, "onclick").map_err(ErroCriar::Atributo)?;
         // Na 4.0 "Externo" usa documento_receber, e não documento_gerar.
         // Nas 4.1/5.0, escolher(-1) também é externo.
-        let href = decodificar_atributo(href.as_deref().unwrap_or_default())
-            .ok_or(ErroCriar::ListaForaDaForma)?;
+        let href = decodificar_atributo(href.as_deref().unwrap_or_default());
         if !link_de_tipo_interno(&href, onclick.as_deref()) {
             continue;
         }
@@ -284,11 +283,11 @@ pub(crate) fn filtro_de_todos(html: &crate::tela_html::HtmlServido) -> Result<bo
     let href = valor_do_atributo(tag, "href")
         .map_err(ErroCriar::Atributo)?
         .ok_or(ErroCriar::LinkDoTipoNaoNavegavel)?;
-    let href = decodificar_atributo(&href).ok_or(ErroCriar::ListaForaDaForma)?;
+    let href = decodificar_atributo(&href);
     let onclick = valor_do_atributo(tag, "onclick")
         .map_err(ErroCriar::Atributo)?
         .ok_or(ErroCriar::LinkDoTipoNaoNavegavel)?;
-    let onclick = decodificar_atributo(&onclick).ok_or(ErroCriar::ListaForaDaForma)?;
+    let onclick = decodificar_atributo(&onclick);
     let chamada = onclick.trim().trim_end_matches(';').trim();
     // Filtro da sessão já em "todos": o botão volta a oferecer só os
     // utilizados, e a lista servida já está completa (UnB, 10/11/2026).
@@ -357,7 +356,7 @@ pub(crate) fn escolha_do_tipo(
         let href = valor_do_atributo(tag, "href")
             .map_err(ErroCriar::Atributo)?
             .ok_or(ErroCriar::LinkDoTipoNaoNavegavel)?;
-        let href = decodificar_atributo(&href).ok_or(ErroCriar::ListaForaDaForma)?;
+        let href = decodificar_atributo(&href);
         if link_de_tipo_externo(&href, onclick.as_deref()) {
             continue;
         }

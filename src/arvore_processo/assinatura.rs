@@ -63,7 +63,6 @@ pub(crate) fn ler_assinatura_na_arvore(
         }
         super::ErroBarraDoDocumento::AtributoDeLinkDaBarra(_)
         | super::ErroBarraDoDocumento::EnderecoDasVersoesDeOutroDocumento
-        | super::ErroBarraDoDocumento::BarraDaCienciaDoDocumentoForaDaForma
         | super::ErroBarraDoDocumento::BarraDoDocumentoForaDaFormaObservada
         | super::ErroBarraDoDocumento::BotoesDeCienciaDoDocumentoRepetidos
         | super::ErroBarraDoDocumento::LinkDasVersoesNaoReconhecido
@@ -91,7 +90,6 @@ pub(crate) fn ler_assinatura_na_arvore(
 fn acoes_de_assinar(
     texto: &crate::tela_html::HtmlServido,
 ) -> Result<usize, ErroAssinaturaNaArvore> {
-    let fora = || ErroAssinaturaNaArvore::BarraDoDocumentoForaDaFormaObservada;
     let dom = crate::tela_html::interpretar(texto);
     let parser = dom.parser();
     let mut contagem = 0;
@@ -101,7 +99,7 @@ fn acoes_de_assinar(
         };
         let lidos = atributos(tag).map_err(ErroAssinaturaNaArvore::Atributo)?;
         if let Some(bruto) = lidos.valor("onclick") {
-            let onclick = decodificar_atributo(bruto).ok_or_else(fora)?;
+            let onclick = decodificar_atributo(bruto);
             contagem += usize::from(onclick == ONCLICK);
         }
     }

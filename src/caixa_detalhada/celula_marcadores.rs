@@ -163,7 +163,7 @@ fn marcador(
         return Err(FORA);
     }
     let bruto = rotulo.inner_text(parser);
-    let nome = texto_colapsado(&decodificar_atributo(&bruto).ok_or(FORA)?);
+    let nome = texto_colapsado(&decodificar_atributo(&bruto));
     if nome.is_empty() {
         return Err(FORA);
     }

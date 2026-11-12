@@ -119,11 +119,7 @@ pub(crate) fn tipo_na_lista(
         }
         let href = valor_do_atributo(ancora, "href")
             .map_err(ErroListaDeTipos::AtributoDaListaDeTiposIlegivel)?
-            .map(|valor| {
-                crate::formulario_web::decodificar_atributo(&valor)
-                    .ok_or(ErroListaDeTipos::ListaDeTiposHtmlInvalido)
-            })
-            .transpose()?;
+            .map(|valor| crate::formulario_web::decodificar_atributo(&valor));
         let onclick = valor_do_atributo(ancora, "onclick")
             .map_err(ErroListaDeTipos::AtributoDaListaDeTiposIlegivel)?;
         let desabilitada = atributo_presente(ancora, "disabled")

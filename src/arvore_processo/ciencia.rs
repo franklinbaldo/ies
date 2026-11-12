@@ -139,7 +139,6 @@ pub(crate) fn ciencia_do_documento_na_barra(
     let Some(barra) = super::barra_do_documento::barra_do_no(html, id_documento)? else {
         return Ok(false);
     };
-    let fora = || super::ErroBarraDoDocumento::BarraDaCienciaDoDocumentoForaDaForma;
     let dom = crate::tela_html::interpretar(&barra);
     let mut total = 0;
     for no in dom.query_selector("a").into_iter().flatten() {
@@ -148,7 +147,7 @@ pub(crate) fn ciencia_do_documento_na_barra(
         };
         let lidos = atributos(tag).map_err(super::ErroBarraDoDocumento::AtributoDeLinkDaBarra)?;
         if let Some(onclick) = lidos.valor("onclick") {
-            let onclick = crate::formulario_web::decodificar_atributo(onclick).ok_or_else(fora)?;
+            let onclick = crate::formulario_web::decodificar_atributo(onclick);
             if onclick == "cienciaDocumento();" {
                 total += 1;
             }
