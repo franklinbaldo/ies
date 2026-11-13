@@ -15,7 +15,7 @@ fn cadastro_recusa_controle_obrigatorio_nao_suportado() {
     );
     assert_eq!(
         conferir_cadastro(&html, "Despacho", None, Some("publico")),
-        Err(ErroCriar::CampoObrigatorioNaoAtendido)
+        Err(super::cadastro::ErroCadastroDoDocumento::CampoObrigatorioNaoAtendido)
     );
 }
 
@@ -30,7 +30,7 @@ fn cadastro_recusa_descricao_obrigatoria_nao_preenchida() {
     );
     assert_eq!(
         conferir_cadastro(&html, "Despacho", None, Some("publico")),
-        Err(ErroCriar::CampoObrigatorioNaoAtendido)
+        Err(super::cadastro::ErroCadastroDoDocumento::CampoObrigatorioNaoAtendido)
     );
 }
 
@@ -45,7 +45,7 @@ fn cadastro_recusa_selecao_obrigatoria_nao_suportada() {
     );
     assert_eq!(
         conferir_cadastro(&html, "Despacho", None, Some("publico")),
-        Err(ErroCriar::CampoObrigatorioNaoAtendido)
+        Err(super::cadastro::ErroCadastroDoDocumento::CampoObrigatorioNaoAtendido)
     );
 }
 
@@ -77,7 +77,7 @@ fn cadastro_recusa_nivel_com_disabled_booleano() {
     );
     assert_eq!(
         conferir_cadastro(&html, "Despacho", None, Some("publico")),
-        Err(ErroCriar::NivelNaoOferecido)
+        Err(super::cadastro::ErroCadastroDoDocumento::NivelNaoOferecido)
     );
 }
 
@@ -92,6 +92,6 @@ fn cadastro_recusa_descricao_com_disabled_booleano() {
     );
     assert_eq!(
         conferir_cadastro(&html, "Despacho", Some("texto"), Some("publico")),
-        Err(ErroCriar::DescricaoNaoOferecida)
+        Err(super::cadastro::ErroCadastroDoDocumento::DescricaoNaoOferecida)
     );
 }

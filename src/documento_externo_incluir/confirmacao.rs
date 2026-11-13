@@ -6,7 +6,7 @@ use super::{
     recibo::{FalhaUpload, ReciboUpload},
 };
 use crate::arvore_processo::{ArvoreLida, DocumentoNaArvore};
-use crate::documento_criar::ErroCriar;
+use crate::documento_criar::ErroConferenciaDeCriacao;
 use crate::formulario_web::{
     ErroSubmissaoFormulario, RespostaDoEnvio, SubmissaoDerivada, TelaServida,
 };
@@ -38,7 +38,7 @@ pub(crate) enum FalhaConfirmacao {
     CadastroIncerto(#[source] ErroSubmissaoFormulario),
     ReleituraIncerta(#[source] ErroProcessoObter),
     /// A árvore lida depois do cadastro não prova o documento criado.
-    CriacaoNaoConferida(#[source] ErroCriar),
+    CriacaoNaoConferida(#[source] ErroConferenciaDeCriacao),
     NaoConfirmado,
 }
 #[cfg(test)]

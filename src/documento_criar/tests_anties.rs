@@ -1,6 +1,8 @@
 //! Fronteira tipada IES ↔ anti-IES: a lista vem de uma resposta HTTP real.
 //! Teste técnico da seleção BDD-246-01/03, não um teste da CLI completa.
-use super::{ErroCriar, EscolhaDoDocumento, conferir_tipo, escolha_do_tipo, tipos_oferecidos};
+use super::{
+    ErroListaDeTiposDocumento, EscolhaDoDocumento, conferir_tipo, escolha_do_tipo, tipos_oferecidos,
+};
 use crate::tela_html::HtmlServido;
 use anti_ies::atender_http;
 use iesei::banco_cassettes::iniciar;
@@ -65,11 +67,11 @@ fn lista_renderizada_pelo_anti_ies_e_consumida_pelo_seletor_do_ies() {
     assert_eq!(conferir_tipo("Despacho", &tipos), Ok(()));
     assert_eq!(
         conferir_tipo("Parecer", &tipos),
-        Err(ErroCriar::TipoAusente)
+        Err(ErroListaDeTiposDocumento::TipoAusente)
     );
     assert_eq!(
         conferir_tipo("Despacho", &["Despacho".into(), "Despacho".into()]),
-        Err(ErroCriar::TipoAmbiguo)
+        Err(ErroListaDeTiposDocumento::TipoAmbiguo)
     );
 }
 

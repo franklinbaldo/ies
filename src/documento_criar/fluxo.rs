@@ -3,8 +3,8 @@
 use super::confirmacao::{ErroConfirmacaoDaCriacao, FotoDaCriacao, postar_e_verificar};
 use super::guarda_script::cadastro_oferece_salvar;
 use super::{
-    ErroCriar, EscolhaDoDocumento, cadastro_redirecionado, conferir_cadastro, conferir_tipo,
-    escolha_do_tipo, filtro_de_todos, tipos_oferecidos,
+    EscolhaDoDocumento, cadastro_redirecionado, conferir_cadastro, conferir_tipo, escolha_do_tipo,
+    filtro_de_todos, tipos_oferecidos,
 };
 use crate::acao_do_sei::AcaoDoSei;
 use crate::arvore_processo::{ErroLinkIncluirDocumento, MotivoAbertoEm};
@@ -113,7 +113,8 @@ pub(crate) enum ErroDocumentoCriar {
     TelaTransporte(#[from] FalhaTransporte),
     TelaRedirecionada,
     SessaoEncerrada(#[source] crate::erro_publico::SessaoEncerrada),
-    Tipo(#[from] ErroCriar),
+    ListaDeTipos(#[from] super::ErroListaDeTiposDocumento),
+    Cadastro(#[from] super::cadastro::ErroCadastroDoDocumento),
     Formulario(#[from] ErroSubmissaoFormulario),
     Nivel(#[from] ErroNivelDeConfirmacao),
     SubmissaoNaoComprovada,
