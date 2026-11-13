@@ -184,13 +184,13 @@ fn linhas_do_historico(
             // `href` lido da fonte da tag; tag ilegível não some da contagem.
             // Âncora de fragmento (`#ID-N`, "Recuperar Versão" com o link no
             // `onclick`) não é link de versão e nunca é seguida.
-            let href = a.atributo("href").map(str::to_owned);
+            let href = a.atributo("href");
             links.extend(href.filter(|h| !h.starts_with('#')));
         }
-        let Ok([link]) = <[String; 1]>::try_from(links) else {
+        let Ok([link]) = <[&str; 1]>::try_from(links) else {
             return Err(ErroVersao::LinkVersaoAusenteOuAmbiguo);
         };
-        conferir_link(&link, id_interno, numero)?;
+        conferir_link(link, id_interno, numero)?;
         let [usuario, unidade, modificacao] = [*usuario, *unidade, *modificacao].map(texto);
         if [&usuario, &unidade, &modificacao]
             .iter()
@@ -203,7 +203,7 @@ fn linhas_do_historico(
             usuario,
             unidade,
             modificacao,
-            link,
+            link: link.to_owned(),
         });
         if entradas.len() > 10_000 {
             return Err(ErroVersao::ListaIncompleta);
