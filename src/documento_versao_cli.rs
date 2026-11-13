@@ -4,19 +4,16 @@
 //! `arquivo`; e a gravação idempotente de `DOC.vN.html`, conferida para o
 //! lote inteiro antes da primeira gravação.
 use crate::copia_documento::ErroCopia;
-use crate::documento_versoes::VersaoDocumento;
+use crate::documento_versoes::{ErroVersao, VersaoDocumento};
 use crate::foto_documento::{self, FotoGravada};
 use crate::processo_obter::{DocumentoObtido, PedidoDeVersoes};
 use serde_json::{Map, Value, json};
 use std::path::Path;
 
-/// O pedido de versões; `None` para `--versao 0` (validado antes, saída 1).
-pub(crate) fn pedido(versao: Option<u32>, saida: bool) -> Option<PedidoDeVersoes> {
-    let versao = match versao {
-        Some(n) => Some(VersaoDocumento::nova(n).ok()?),
-        None => None,
-    };
-    Some(PedidoDeVersoes {
+/// O pedido de versões; falha com `VersaoDocumentoInvalida` para `--versao 0`.
+pub(crate) fn pedido(versao: Option<u32>, saida: bool) -> Result<PedidoDeVersoes, ErroVersao> {
+    let versao = versao.map(VersaoDocumento::nova).transpose()?;
+    Ok(PedidoDeVersoes {
         cache: false,
         versao,
         foto: saida,
@@ -198,10 +195,10 @@ pub(crate) mod testes {
 
     #[test]
     fn pedido_de_versoes_pelas_opcoes() {
-        assert_eq!(pedido(None, false), Some(PedidoDeVersoes::default()));
+        assert_eq!(pedido(None, false), Ok(PedidoDeVersoes::default()));
         assert_eq!(
             pedido(None, true),
-            Some(PedidoDeVersoes {
+            Ok(PedidoDeVersoes {
                 cache: false,
                 versao: None,
                 foto: true
@@ -209,13 +206,16 @@ pub(crate) mod testes {
         );
         assert_eq!(
             pedido(Some(3), false),
-            Some(PedidoDeVersoes {
+            Ok(PedidoDeVersoes {
                 cache: false,
                 versao: Some(v(3)),
                 foto: false
             })
         );
-        assert_eq!(pedido(Some(0), true), None);
+        assert_eq!(
+            pedido(Some(0), true),
+            Err(ErroVersao::VersaoDocumentoInvalida)
+        );
     }
 
     #[test]

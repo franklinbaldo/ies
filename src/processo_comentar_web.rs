@@ -152,7 +152,9 @@ fn link_do_cadastro(
 
 /// Confere a identidade do aceite sem seguir o redirecionamento.
 fn id_do_aceite<'a>(local: &'a str, url_post: &str, id_processo: &str) -> Option<&'a str> {
-    let consulta = ConsultaDoControlador::ler(consulta_do_controlador(local, url_post)?).ok()?;
+    let Ok(consulta) = ConsultaDoControlador::ler(consulta_do_controlador(local, url_post)?) else {
+        return None;
+    };
     // `id_procedimento` é opcional, mas repetido nunca casa.
     let processo_confere = match consulta
         .valores("id_procedimento")
@@ -163,7 +165,9 @@ fn id_do_aceite<'a>(local: &'a str, url_post: &str, id_processo: &str) -> Option
         [processo] => *processo == id_processo,
         _ => false,
     };
-    let id = consulta.unico("id_comentario").ok()?;
+    let Ok(id) = consulta.unico("id_comentario") else {
+        return None;
+    };
     (consulta.acao() == Ok(AcaoDoSei::ComentarioListar.como_na_url()) && processo_confere)
         .then_some(id)
         .filter(|valor| !valor.is_empty() && valor.bytes().all(|b| b.is_ascii_digit()))

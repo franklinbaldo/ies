@@ -12,7 +12,7 @@ pub(crate) fn conferir_consulta(
     acao: AcaoDoSei,
     comprimento: impl Fn(&str) -> bool,
 ) -> Result<Option<String>, ConsultaForaDaForma> {
-    let mut unidades = conferir(consulta, acao, comprimento).ok_or(ConsultaForaDaForma)?;
+    let mut unidades = conferir(consulta, acao, comprimento)?;
     if unidades.len() > 1 {
         return Err(ConsultaForaDaForma);
     }
@@ -28,20 +28,20 @@ fn conferir(
     consulta: &str,
     acao: AcaoDoSei,
     comprimento: impl Fn(&str) -> bool,
-) -> Option<Vec<String>> {
-    let consulta = ConsultaDoControlador::ler(consulta).ok()?;
-    let hash = consulta.unico("infra_hash").ok()?;
+) -> Result<Vec<String>, ConsultaForaDaForma> {
+    let consulta = ConsultaDoControlador::ler(consulta).map_err(|_| ConsultaForaDaForma)?;
+    let hash = consulta
+        .unico("infra_hash")
+        .map_err(|_| ConsultaForaDaForma)?;
     if consulta.acao() != Ok(acao.como_na_url())
         || consulta.valores("acao_ajax").next().is_some()
         || !comprimento(hash)
         || !hash.bytes().all(|b| b.is_ascii_hexdigit())
     {
-        return None;
+        return Err(ConsultaForaDaForma);
     }
-    Some(
-        consulta
-            .valores("infra_unidade_atual")
-            .map(str::to_owned)
-            .collect(),
-    )
+    Ok(consulta
+        .valores("infra_unidade_atual")
+        .map(str::to_owned)
+        .collect())
 }

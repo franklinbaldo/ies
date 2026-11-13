@@ -32,7 +32,9 @@ pub(crate) fn consulta_do_controlador<'a>(
     }
     // A mesma regra de autoridade do login e da pesquisa (#201).
     let http = esquema.eq_ignore_ascii_case("http");
-    let depois = sufixo_da_mesma_origem(resto, post.host, http).ok()?;
+    let Ok(depois) = sufixo_da_mesma_origem(resto, post.host, http) else {
+        return None;
+    };
     let caminho_e_consulta = depois.strip_prefix('/')?;
     let (caminho, consulta) = caminho_e_consulta.split_once('?')?;
     let pasta = post.caminho.rsplit_once('/').map(|(pasta, _)| pasta)?;
