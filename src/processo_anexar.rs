@@ -206,6 +206,9 @@ pub(crate) fn decidir(
     Ok(true)
 }
 #[cfg(test)]
+#[path = "processo_anexar/acervo.rs"]
+mod acervo;
+#[cfg(test)]
 mod acervo_leitores;
 #[cfg(test)]
 #[path = "processo_anexar/tests.rs"]
