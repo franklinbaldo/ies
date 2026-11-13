@@ -55,19 +55,18 @@ pub(crate) fn conferir_formulario(
     let dom = crate::tela_html::arvore(html);
     let form =
         localizar_formulario(&dom, OPERACAO.formulario).map_err(ErroTela::FormularioAusente)?;
-    let atributo = |tag: crate::tela_html::Elemento<'_>, nome: &'static str| {
-        Ok(tag.atributo(nome).map(str::to_owned))
-    };
-    let presente = |tag: crate::tela_html::Elemento<'_>, nome: &'static str| Ok(tag.presente(nome));
-    let action = atributo(form, "action")?.ok_or(ErroTela::OutroProcesso)?;
-    conferir_processo_da_action(&action, id)?;
-    if !atributo(form, "method")?.is_some_and(|v| v.eq_ignore_ascii_case("post")) {
+    let action = form.atributo("action").ok_or(ErroTela::OutroProcesso)?;
+    conferir_processo_da_action(action, id)?;
+    if !form
+        .atributo("method")
+        .is_some_and(|v| v.eq_ignore_ascii_case("post"))
+    {
         return Err(ErroTela::CampoInesperado);
     }
     // An external form-associated field changes the browser POST.
     for elemento in ["input", "button", "select", "textarea"] {
         for no in dom.elementos(elemento) {
-            if atributo(no, "form")?.is_some() {
+            if no.atributo("form").is_some() {
                 return Err(ErroTela::CampoInesperado);
             }
         }
@@ -75,11 +74,11 @@ pub(crate) fn conferir_formulario(
     let mut vistos: HashMap<String, usize> = HashMap::new();
     for tag in form.descendentes() {
         let elemento = tag.nome().to_ascii_lowercase();
-        if elemento == "fieldset" && presente(tag, "disabled")? {
+        if elemento == "fieldset" && tag.presente("disabled") {
             return Err(ErroTela::CampoInesperado);
         }
         if elemento == "option" {
-            if presente(tag, "selected")? {
+            if tag.presente("selected") {
                 return Err(ErroTela::DestinoPreenchido);
             }
             continue;
@@ -90,7 +89,7 @@ pub(crate) fn conferir_formulario(
         ) {
             continue;
         }
-        if presente(tag, "disabled")? || atributo(tag, "form")?.is_some() {
+        if tag.presente("disabled") || tag.atributo("form").is_some() {
             return Err(ErroTela::CampoInesperado);
         }
         conferir_campo(tag, id, &mut vistos)?;
@@ -126,21 +125,16 @@ fn conferir_campo(
     id: &str,
     vistos: &mut HashMap<String, usize>,
 ) -> Result<(), ErroTela> {
-    let atributo = |nome: &'static str| Ok(tag.atributo(nome).map(str::to_owned));
-    let presente = |nome: &'static str| Ok(tag.presente(nome));
     let elemento = tag.nome().to_ascii_lowercase();
-    let nome = atributo("name")?.ok_or(ErroTela::CampoInesperado)?;
-    let tipo = atributo("type")?.unwrap_or_else(|| {
-        if elemento == "button" {
-            "submit"
-        } else {
-            "text"
-        }
-        .to_owned()
+    let nome = tag.atributo("name").ok_or(ErroTela::CampoInesperado)?;
+    let tipo = tag.atributo("type").unwrap_or(if elemento == "button" {
+        "submit"
+    } else {
+        "text"
     });
-    let valor = atributo("value")?.unwrap_or_default();
-    *vistos.entry(nome.clone()).or_default() += 1;
-    let valido = match (elemento.as_str(), tipo.as_str(), nome.as_str()) {
+    let valor = tag.atributo("value").unwrap_or_default();
+    *vistos.entry(nome.to_owned()).or_default() += 1;
+    let valido = match (elemento.as_str(), tipo, nome) {
         ("input", "hidden", "hdnIdProtocolos") => {
             if valor != id {
                 return Err(ErroTela::OutroProcesso);
@@ -154,27 +148,27 @@ fn conferir_campo(
         }
         ("input", "radio", "rdoSobrestar") => {
             // "S" pode vir marcado (UFRJ e GO): é a opção enviada.
-            let valido = valor == "S" || (valor == "V" && !presente("checked")?);
+            let valido = valor == "S" || (valor == "V" && !tag.presente("checked"));
             if valido {
                 *vistos.entry(format!("rdoSobrestar:{valor}")).or_default() += 1;
             }
             valido
         }
-        ("textarea", _, "txaMotivo") => !presente("readonly")? && tag.texto().is_empty(),
+        ("textarea", _, "txaMotivo") => !tag.presente("readonly") && tag.texto().is_empty(),
         ("input" | "button", "submit", "sbmSalvar") => {
             valor == "Salvar"
-                && !presente("formaction")?
-                && !presente("formmethod")?
-                && !presente("formenctype")?
+                && !tag.presente("formaction")
+                && !tag.presente("formmethod")
+                && !tag.presente("formenctype")
         }
         ("input" | "button", "button", "btnCancelar" | "btnPesquisar") => true,
-        ("select", _, "selProcedimentos") => presente("multiple")?,
+        ("select", _, "selProcedimentos") => tag.presente("multiple"),
         _ => false,
     };
     if valido {
         Ok(())
     } else {
-        match nome.as_str() {
+        match nome {
             "hdnIdProcedimentoDestino"
             | "txtProcedimentoDestino"
             | "txtIdentificacaoProcedimentoDestino"

@@ -176,8 +176,9 @@ fn par_de_barras_equivalentes(dom: &crate::tela_html::Documento) -> bool {
         return false;
     }
     // `href` repetido numa das tags não comprova o par: não equivalente.
-    let href = |tag: crate::tela_html::Elemento<'_>| tag.atributo("href").map(str::to_owned);
-    href(primeira).is_some_and(|primeiro| href(segunda).is_some_and(|h| h == primeiro))
+    primeira
+        .atributo("href")
+        .is_some_and(|primeiro| segunda.atributo("href") == Some(primeiro))
 }
 
 fn valor_oculto(dom: &crate::tela_html::Documento, id: &str) -> Result<Option<String>, ErroCaixa> {

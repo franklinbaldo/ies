@@ -36,7 +36,7 @@ fn opcao_selecionada(
         .filter(|t| t.nome().eq_ignore_ascii_case("option"))
     {
         if opcao.presente("selected") {
-            escolhidas.push(opcao.atributo("value").map(str::to_owned));
+            escolhidas.push(opcao.atributo("value"));
         }
     }
     let campo_owned = || campo.to_owned();
@@ -44,7 +44,7 @@ fn opcao_selecionada(
         [] => Err(ErroControleDoFormulario::PaginadorSemOpcaoSelecionada {
             campo: campo_owned(),
         }),
-        [Some(valor)] => Ok(valor.clone()),
+        [Some(valor)] => Ok((*valor).to_owned()),
         [None] => Err(
             ErroControleDoFormulario::OpcaoSelecionadaDoPaginadorSemValor {
                 campo: campo_owned(),

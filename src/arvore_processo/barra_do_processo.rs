@@ -207,12 +207,9 @@ pub(super) fn ancoras_da_barra(html: &str) -> Result<Vec<AncoraDaBarra>, ErroBar
     let dom = crate::tela_html::arvore(&texto);
     let mut ancoras = Vec::new();
     for no in dom.elementos("a") {
-        let decodificado = |nome: &'static str| -> Result<Option<String>, ErroBarraDoProcesso> {
-            Ok(no.atributo(nome).map(str::to_owned))
-        };
         ancoras.push(AncoraDaBarra {
-            href: decodificado("href")?,
-            onclick: decodificado("onclick")?,
+            href: no.atributo("href").map(str::to_owned),
+            onclick: no.atributo("onclick").map(str::to_owned),
         });
     }
     Ok(ancoras)

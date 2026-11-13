@@ -71,26 +71,21 @@ pub(crate) fn texto_anotacao(
     let dom = crate::tela_html::arvore(html);
     let form = localizar_formulario(&dom, "frmAnotacaoCadastro")
         .map_err(ErroLeituraDaAnotacao::FormularioDeAnotacoesAusente)?;
-    let valor = |tag: crate::tela_html::Elemento<'_>,
-                 nome: &'static str|
-     -> Result<Option<String>, ErroLeituraDaAnotacao> {
-        Ok(tag.atributo(nome).map(str::to_owned))
-    };
     let mut ids = Vec::new();
     let mut descricoes = Vec::new();
     for tag in form.descendentes() {
         match tag.nome() {
-            "input" if valor(tag, "name")?.as_deref() == Some("hdnIdProtocolo") => {
-                ids.push(valor(tag, "value")?);
+            "input" if tag.atributo("name") == Some("hdnIdProtocolo") => {
+                ids.push(tag.atributo("value"));
             }
-            "textarea" if valor(tag, "name")?.as_deref() == Some("txaDescricao") => {
+            "textarea" if tag.atributo("name") == Some("txaDescricao") => {
                 descricoes.push(tag.texto());
             }
             _ => {}
         }
     }
     match (ids.as_slice(), descricoes.as_slice()) {
-        ([Some(publicado)], [texto]) if publicado == id => Ok(texto.clone()),
+        ([Some(publicado)], [texto]) if *publicado == id => Ok(texto.clone()),
         ([Some(_)], [_]) => Err(ErroLeituraDaAnotacao::AnotacaoDeOutroProcesso),
         ([], _) | (_, []) => Err(ErroLeituraDaAnotacao::AnotacaoNaoPublicada),
         _ => Err(ErroLeituraDaAnotacao::CamposDeAnotacaoRepetidos),
