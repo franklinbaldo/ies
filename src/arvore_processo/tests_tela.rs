@@ -143,9 +143,9 @@ fn tela_do_documento_com_consulta_ilegivel_ou_chave_repetida_tem_a_causa() {
         ler_documento(&valido.replace("&infra_sistema", "&id_procedimento=11&infra_sistema"))
             .map(|_| ()),
         Err(super::ErroTelaDoProcesso::IdDoProcessoNaArvore(
-            crate::consulta_do_controlador::ErroChaveDaConsulta::Repetida {
-                chave: "id_procedimento"
-            }
+            crate::consulta_do_controlador::ErroParametroDaUrl::ParametroRepetido(
+                "id_procedimento"
+            )
         ))
     );
 }

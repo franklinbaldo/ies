@@ -140,9 +140,9 @@ pub(crate) fn redirecionamento_esperado(
     };
     ConsultaDoControlador::ler(consulta).is_ok_and(|consulta| {
         matches!(
-            consulta.acao(),
-            Ok(AcaoDoSei::ArvoreVisualizar | AcaoDoSei::Principal)
-        ) && consulta.acao_de_origem() == Ok(AcaoDoSei::ProcedimentoConcluir)
+            consulta.acao().map(AcaoDoSei::ler),
+            Ok(Some(AcaoDoSei::ArvoreVisualizar | AcaoDoSei::Principal))
+        ) && consulta.acao_de_origem() == Ok(AcaoDoSei::ProcedimentoConcluir.como_na_url())
             && consulta.unico("id_procedimento") == Ok(id)
     })
 }

@@ -92,9 +92,9 @@ pub(crate) enum ErroMarcadores {
         #[source] crate::consulta_do_controlador::ErroConsultaDoControlador,
     ),
     /// A `acao` do formulário de marcadores não é única nem conhecida.
-    AcaoDoFormularioNaoLida(#[source] crate::consulta_do_controlador::ErroChaveDaConsulta),
+    AcaoDoFormularioNaoLida(#[source] crate::consulta_do_controlador::ErroAcaoDaUrl),
     /// O `id_procedimento` do formulário não é único.
-    IdDoFormularioNaoLido(#[source] crate::consulta_do_controlador::ErroChaveDaConsulta),
+    IdDoFormularioNaoLido(#[source] crate::consulta_do_controlador::ErroParametroDaUrl),
     NumeroDosMarcadoresDiferenteDoSolicitado,
     IdDosMarcadoresDiferenteDoAberto,
     MarcadoresAlemDoTotalDeclarado,

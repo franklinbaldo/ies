@@ -4,7 +4,7 @@
 //! não é a escrita de criação de processo.
 use crate::acao_do_sei::AcaoDoSei;
 use crate::consulta_do_controlador::{
-    ConsultaDoControlador, ErroChaveDaConsulta, ErroConsultaDoControlador,
+    ConsultaDoControlador, ErroConsultaDoControlador, ErroParametroDaUrl,
 };
 
 #[derive(Debug, Clone, PartialEq, Eq, thiserror::Error)]
@@ -19,7 +19,8 @@ pub(crate) enum ErroListaDeTipos {
     ConsultaDoCadastroIlegivel(#[source] ErroConsultaDoControlador),
     /// O link de cadastro não tem exatamente uma `acao` reconhecida nem um
     /// `id_tipo_procedimento` único.
-    ChaveDoCadastroIlegivel(#[source] ErroChaveDaConsulta),
+    ChaveDoCadastroIlegivel(#[source] ErroParametroDaUrl),
+    AcaoDoCadastroIlegivel(#[source] crate::consulta_do_controlador::ErroAcaoDaUrl),
 }
 
 #[derive(Debug, Clone, PartialEq, Eq)]
@@ -63,12 +64,12 @@ fn link_do_cadastro(href: &str) -> Result<Option<String>, ErroListaDeTipos> {
         .map_err(ErroListaDeTipos::ConsultaDoCadastroIlegivel)?;
     let acao = consulta
         .acao()
-        .map_err(ErroListaDeTipos::ChaveDoCadastroIlegivel)?;
+        .map_err(ErroListaDeTipos::AcaoDoCadastroIlegivel)?;
     let id = consulta
         .unico("id_tipo_procedimento")
         .map_err(ErroListaDeTipos::ChaveDoCadastroIlegivel)?;
     let numerico = !id.is_empty() && id.bytes().all(|b| b.is_ascii_digit());
-    Ok((acao == AcaoDoSei::ProcedimentoGerar && numerico).then(|| href.to_owned()))
+    Ok((acao == AcaoDoSei::ProcedimentoGerar.como_na_url() && numerico).then(|| href.to_owned()))
 }
 
 /// Compara o nome apresentado pelo SEI, sem escolher um candidato por

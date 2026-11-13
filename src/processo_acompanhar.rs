@@ -4,7 +4,7 @@
 
 use crate::acao_do_sei::AcaoDoSei;
 use crate::consulta_do_controlador::{
-    ConsultaDoControlador, ErroChaveDaConsulta, ErroConsultaDoControlador,
+    ConsultaDoControlador, ErroConsultaDoControlador, ErroParametroDaUrl,
 };
 
 mod exclusao;
@@ -35,7 +35,7 @@ pub(crate) enum ErroAcompanhar {
     /// A action do cadastro não se lê em pares `chave=valor`.
     ConsultaDoCadastroIlegivel(#[source] ErroConsultaDoControlador),
     /// A action do cadastro não tem exatamente um `acao` nem um `id_procedimento`.
-    ChaveDoCadastroIlegivel(#[source] ErroChaveDaConsulta),
+    ChaveDoCadastroIlegivel(#[source] ErroParametroDaUrl),
     GruposNaoPublicados,
     GrupoNaoOferecido,
     GrupoAmbiguo,

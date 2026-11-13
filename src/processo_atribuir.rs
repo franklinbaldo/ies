@@ -65,7 +65,7 @@ fn acao_do_formulario(action: &str, id: &str) -> bool {
         return false;
     }
     ConsultaDoControlador::ler(consulta).is_ok_and(|consulta| {
-        consulta.acao() == Ok(AcaoDoSei::ProcedimentoAtribuicaoCadastrar)
+        consulta.acao() == Ok(AcaoDoSei::ProcedimentoAtribuicaoCadastrar.como_na_url())
             && consulta.unico("id_procedimento") == Ok(id)
             && consulta
                 .unico("infra_hash")

@@ -33,7 +33,7 @@ pub(crate) fn aceite(localizacao: &str, url_post: &str, principal: &str) -> bool
         return false;
     };
     ConsultaDoControlador::ler(query).is_ok_and(|consulta| {
-        consulta.acao() == Ok(AcaoDoSei::ProcedimentoAnexar)
+        consulta.acao() == Ok(AcaoDoSei::ProcedimentoAnexar.como_na_url())
             && consulta.unico("resultado") == Ok("1")
             && consulta.unico("id_procedimento") == Ok(principal)
     })

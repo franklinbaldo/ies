@@ -2,7 +2,7 @@
 //! `tests/test_processo_criar_escolher_tipo_010.py`, sem portar a arquitetura.
 use super::*;
 use crate::acao_do_sei::AcaoDoSei;
-use crate::consulta_do_controlador::ErroChaveDaConsulta;
+use crate::consulta_do_controlador::ErroParametroDaUrl;
 use crate::processo_concluir::tests_apoio::NUP;
 use crate::processo_concluir::tests_apoio::{
     UNIDADE, ambiente, arvore, controle, ok, r302, rodar_com, trabalhar,
@@ -371,9 +371,7 @@ fn lista_40_com_identidade_duplicada_recusa_sem_abrir_cadastro() {
     assert!(matches!(
         resultado,
         Err(ErroCriar::Lista(ErroListaDeTipos::ChaveDoCadastroIlegivel(
-            ErroChaveDaConsulta::Repetida {
-                chave: "id_tipo_procedimento"
-            }
+            ErroParametroDaUrl::ParametroRepetido("id_tipo_procedimento")
         )))
     ));
     assert_eq!(requests.len(), 2);
@@ -401,8 +399,8 @@ fn lista_40_com_duas_acoes_recusa_sem_abrir_cadastro() {
     });
     assert!(matches!(
         resultado,
-        Err(ErroCriar::Lista(ErroListaDeTipos::ChaveDoCadastroIlegivel(
-            ErroChaveDaConsulta::Repetida { chave: "acao" }
+        Err(ErroCriar::Lista(ErroListaDeTipos::AcaoDoCadastroIlegivel(
+            crate::consulta_do_controlador::ErroAcaoDaUrl::AcaoRepetida
         )))
     ));
     assert_eq!(requests.len(), 2);

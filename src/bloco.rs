@@ -3,7 +3,7 @@
 use crate::acao_do_sei::AcaoDoSei;
 use crate::bloco_estado::EstadoDoBloco;
 use crate::consulta_do_controlador::{
-    ConsultaDoControlador, ErroChaveDaConsulta, ErroConsultaDoControlador, menciona_acao,
+    ConsultaDoControlador, ErroConsultaDoControlador, ErroParametroDaUrl, menciona_acao,
 };
 use crate::instalacao::Instalacao;
 use crate::legenda::{ErroLegenda, Faixa, Legenda, ler_legenda};
@@ -45,7 +45,7 @@ pub(crate) enum ErroBloco {
     /// A consulta do link de bloco não se deixa ler em pares.
     ConsultaDoLinkDeBloco(#[source] ErroConsultaDoControlador),
     /// `acao`, `infra_hash` do link de bloco ausentes ou repetidos.
-    ChaveDoLinkDeBloco(#[source] ErroChaveDaConsulta),
+    ChaveDoLinkDeBloco(#[source] ErroParametroDaUrl),
     /// A coluna Estado traz um texto fora do conjunto que o SEI publica.
     EstadoDoBlocoDesconhecido(String),
     LegendaDeBlocosInvalida,

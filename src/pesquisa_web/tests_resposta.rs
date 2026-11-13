@@ -229,9 +229,7 @@ fn linha_invalida_da_tabela_e_erro_de_resultado() {
     assert_eq!(
         ler_resposta_html(&html),
         Err(ErroRespostaDaPesquisa::Resultado(
-            ErroResultadoPesquisa::AcaoDoLinkNaoLida(
-                crate::consulta_do_controlador::ErroChaveDaConsulta::AcaoDesconhecida
-            )
+            ErroResultadoPesquisa::LinkDePesquisaNaoAbreProcesso
         ))
     );
 }

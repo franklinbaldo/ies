@@ -254,8 +254,8 @@ fn link_do_nivel_com_causa_de_consulta_ou_chave_repetida() {
     let (resultado, _) = colunas(repetida, vec![]);
     assert_eq!(
         resultado.unwrap_err(),
-        ErroVisaoDoControle::ChaveDoNivelIlegivel(
-            crate::consulta_do_controlador::ErroChaveDaConsulta::Repetida { chave: "acao" }
+        ErroVisaoDoControle::AcaoDoNivelIlegivel(
+            crate::consulta_do_controlador::ErroAcaoDaUrl::AcaoRepetida
         )
     );
     let outra_acao = d().html().replacen(
@@ -266,9 +266,7 @@ fn link_do_nivel_com_causa_de_consulta_ou_chave_repetida() {
     let (resultado, _) = colunas(outra_acao, vec![]);
     assert_eq!(
         resultado.unwrap_err(),
-        ErroVisaoDoControle::ChaveDoNivelIlegivel(
-            crate::consulta_do_controlador::ErroChaveDaConsulta::AcaoDesconhecida
-        )
+        ErroVisaoDoControle::LinkDoNivelDeDetalheNaoReconhecido
     );
     let par_sem_igual = d().html().replacen(
         "acao=procedimento_configurar_detalhe&amp;",

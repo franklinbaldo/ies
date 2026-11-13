@@ -148,7 +148,7 @@ fn localizacao_esperada(local: Option<&str>, origem: &str, id: &str) -> bool {
     let Ok(consulta) = ConsultaDoControlador::ler(consulta) else {
         return false;
     };
-    consulta.acao() == Ok(AcaoDoSei::ProcedimentoConsultarHistorico)
+    consulta.acao() == Ok(AcaoDoSei::ProcedimentoConsultarHistorico.como_na_url())
         && consulta.unico("id_procedimento") == Ok(id)
 }
 pub(crate) struct Resultado {

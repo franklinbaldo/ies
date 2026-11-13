@@ -48,7 +48,7 @@ pub(crate) fn link_da_pesquisa(
         }
         ErroConsultaDoControlador::ParSemIgual => nao(),
     })?;
-    if consulta.acao() != Ok(AcaoDoSei::ProtocoloPesquisar)
+    if consulta.acao() != Ok(AcaoDoSei::ProtocoloPesquisar.como_na_url())
         || consulta.valores("acao_ajax").next().is_some()
         || !consulta
             .unico("infra_hash")

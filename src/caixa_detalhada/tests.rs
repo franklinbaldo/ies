@@ -268,8 +268,8 @@ fn link_do_processo_com_acao_repetida_tem_a_causa() {
             &[crate::tela_html::HtmlServido::de_teste(&repetida)],
             Some("PPI")
         ),
-        Err(ErroDetalhada::ChaveDoLinkDoProcessoDetalhado(
-            crate::consulta_do_controlador::ErroChaveDaConsulta::Repetida { chave: "acao" }
+        Err(ErroDetalhada::AcaoDoLinkDoProcessoDetalhado(
+            crate::consulta_do_controlador::ErroAcaoDaUrl::AcaoRepetida
         ))
     );
 }

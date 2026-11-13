@@ -334,7 +334,7 @@ pub(crate) fn redirecionamento_esperado(
     let Ok(consulta) = ConsultaDoControlador::ler(consulta) else {
         return false;
     };
-    consulta.acao() == Ok(AcaoDoSei::ArvoreVisualizar)
-        && consulta.acao_de_origem() == Ok(AcaoDoSei::ProcedimentoEnviar)
+    consulta.acao() == Ok(AcaoDoSei::ArvoreVisualizar.como_na_url())
+        && consulta.acao_de_origem() == Ok(AcaoDoSei::ProcedimentoEnviar.como_na_url())
         && consulta.unico("id_procedimento") == Ok(id)
 }

@@ -339,8 +339,8 @@ pub(super) fn aceite_da_atribuicao(redir: &Redirecionamento302, id: &str) -> boo
     let Ok(consulta) = ConsultaDoControlador::ler(consulta) else {
         return false;
     };
-    consulta.acao() == Ok(AcaoDoSei::AndamentoMarcadorGerenciar)
-        && consulta.acao_de_origem() == Ok(AcaoDoSei::AndamentoMarcadorCadastrar)
+    consulta.acao() == Ok(AcaoDoSei::AndamentoMarcadorGerenciar.como_na_url())
+        && consulta.acao_de_origem() == Ok(AcaoDoSei::AndamentoMarcadorCadastrar.como_na_url())
         && consulta.unico("id_procedimento") == Ok(id)
 }
 

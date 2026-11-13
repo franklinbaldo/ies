@@ -2,7 +2,7 @@
 //! e o `src` assinado do único `iframe#ifrArvore`, conferido e resolvido.
 use crate::acao_do_sei::AcaoDoSei;
 use crate::consulta_do_controlador::{
-    ConsultaDoControlador, ErroChaveDaConsulta, ErroConsultaDoControlador,
+    ConsultaDoControlador, ErroConsultaDoControlador, ErroParametroDaUrl,
 };
 use crate::instalacao::Instalacao;
 
@@ -51,7 +51,7 @@ pub(crate) enum ErroTelaDoProcesso {
     /// A consulta do `src` da árvore não se deixa ler em pares.
     ConsultaDaArvoreIlegivel(#[source] ErroConsultaDoControlador),
     /// O `src` da tela pesquisada não traz exatamente um `id_procedimento`.
-    IdDoProcessoNaArvore(#[source] ErroChaveDaConsulta),
+    IdDoProcessoNaArvore(#[source] ErroParametroDaUrl),
     IdentificacaoDaUnidadeAusenteNaTelaDoProcesso,
 }
 

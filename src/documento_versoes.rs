@@ -18,12 +18,12 @@ pub enum ErroVersao {
     LinkInseguro,
     /// A consulta do link não se deixa ler em pares.
     ConsultaDoLinkIlegivel(#[source] crate::consulta_do_controlador::ErroConsultaDoControlador),
-    /// A `acao` do link não é única nem conhecida.
-    AcaoDoLinkNaoLida(#[source] crate::consulta_do_controlador::ErroChaveDaConsulta),
+    /// A `acao` do link ausente ou repetida.
+    AcaoDoLinkNaoLida(#[source] crate::consulta_do_controlador::ErroAcaoDaUrl),
     /// A `versao` do link não é única.
-    VersaoDoLinkNaoLida(#[source] crate::consulta_do_controlador::ErroChaveDaConsulta),
+    VersaoDoLinkNaoLida(#[source] crate::consulta_do_controlador::ErroParametroDaUrl),
     /// O `infra_hash` do link não é único.
-    HashDoLinkNaoLido(#[source] crate::consulta_do_controlador::ErroChaveDaConsulta),
+    HashDoLinkNaoLido(#[source] crate::consulta_do_controlador::ErroParametroDaUrl),
     DocumentoDivergente,
     ListaIncompleta,
     VersaoPedidaAusenteNoHistorico,
@@ -125,7 +125,7 @@ fn conferir_link(href: &str, id: &str, versao: VersaoDocumento) -> Result<(), Er
     let hash = pares
         .unico("infra_hash")
         .map_err(ErroVersao::HashDoLinkNaoLido)?;
-    if acao != AcaoDoSei::DocumentoVisualizar
+    if acao != AcaoDoSei::DocumentoVisualizar.como_na_url()
         || versao_observada != versao.numero().to_string().as_str()
     {
         return Err(ErroVersao::LinkInseguro);
@@ -408,7 +408,7 @@ pub(crate) mod testes {
         assert_eq!(
             interpretar_historico(&html, "42", None),
             Err(ErroVersao::AcaoDoLinkNaoLida(
-                crate::consulta_do_controlador::ErroChaveDaConsulta::Repetida { chave: "acao" }
+                crate::consulta_do_controlador::ErroAcaoDaUrl::AcaoRepetida
             ))
         );
     }

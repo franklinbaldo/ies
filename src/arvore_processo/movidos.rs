@@ -71,7 +71,7 @@ fn endereco_observado(url: &str, pai: &str) -> bool {
         return false;
     };
     ConsultaDoControlador::ler(consulta).is_ok_and(|consulta| {
-        consulta.acao() == Ok(AcaoDoSei::ArvoreVisualizar)
+        consulta.acao() == Ok(AcaoDoSei::ArvoreVisualizar.como_na_url())
             && consulta.unico("id_procedimento") == Ok(pai)
             && consulta.valores("id_documento").next().is_none()
     })

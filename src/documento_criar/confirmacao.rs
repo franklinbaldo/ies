@@ -66,10 +66,12 @@ pub(crate) fn redirecionamento_do_mesmo_controlador(
         // árvore, não apenas navegar para qualquer ação do controlador.
         ConsultaDoControlador::ler(consulta).is_ok_and(|consulta| {
             matches!(
-                consulta.acao(),
-                Ok(AcaoDoSei::DocumentoVisualizar
-                    | AcaoDoSei::ArvoreVisualizar
-                    | AcaoDoSei::ProcedimentoVisualizar)
+                consulta.acao().map(AcaoDoSei::ler),
+                Ok(Some(
+                    AcaoDoSei::DocumentoVisualizar
+                        | AcaoDoSei::ArvoreVisualizar
+                        | AcaoDoSei::ProcedimentoVisualizar
+                ))
             ) && consulta.unico("id_documento") == Ok(id_novo)
         })
     })

@@ -14,7 +14,7 @@ mod tests_escrita;
 mod tests_fluxo;
 
 use crate::arvore_processo::ErroRelacionarNaBarra;
-use crate::consulta_do_controlador::ErroChaveDaConsulta;
+use crate::consulta_do_controlador::ErroParametroDaUrl;
 use crate::formulario_web::{
     ConsultaAjax, EfeitoAvaliado, ErroSubmissaoFormulario, TelaServida, derivar_consulta_ajax,
 };
@@ -64,7 +64,7 @@ pub(crate) enum FalhaRelacionar {
     /// A consulta da URL de origem não se lê em pares `chave=valor`.
     ConsultaDaOrigemIlegivel(#[source] crate::consulta_do_controlador::ErroConsultaDoControlador),
     /// A URL de origem não tem exatamente um `id_procedimento`.
-    IdDaOrigemIlegivel(#[source] ErroChaveDaConsulta),
+    IdDaOrigemIlegivel(#[source] ErroParametroDaUrl),
     ActionDeRemocaoDeOutroProcesso,
     ConsultaDerivacao(ErroSubmissaoFormulario),
     ConsultaTransporte(FalhaTransporte),

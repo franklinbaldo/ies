@@ -192,7 +192,7 @@ fn id_da_escolha_literal(onclick: &str) -> Option<String> {
 fn link_de_tipo_externo(href: &str, onclick: Option<&str>) -> bool {
     href.strip_prefix("controlador.php?")
         .and_then(|consulta| ConsultaDoControlador::ler(consulta).ok())
-        .is_some_and(|consulta| consulta.acao() == Ok(AcaoDoSei::DocumentoReceber))
+        .is_some_and(|consulta| consulta.acao() == Ok(AcaoDoSei::DocumentoReceber.como_na_url()))
         || onclick.is_some_and(|chamada| chamada.trim().trim_end_matches(';') == "escolher(-1)")
 }
 
@@ -202,7 +202,7 @@ fn link_de_tipo_interno(href: &str, onclick: Option<&str>) -> bool {
         && (href
             .strip_prefix("controlador.php?")
             .and_then(|consulta| ConsultaDoControlador::ler(consulta).ok())
-            .is_some_and(|consulta| consulta.acao() == Ok(AcaoDoSei::DocumentoGerar))
+            .is_some_and(|consulta| consulta.acao() == Ok(AcaoDoSei::DocumentoGerar.como_na_url()))
             || ((href == "#" || href == "javascript:void(0);")
                 && onclick.and_then(id_da_escolha_literal).is_some()))
 }

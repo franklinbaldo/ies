@@ -1,5 +1,5 @@
 use super::*;
-use crate::consulta_do_controlador::{ErroChaveDaConsulta, ErroConsultaDoControlador};
+use crate::consulta_do_controlador::{ErroConsultaDoControlador, ErroParametroDaUrl};
 use crate::tela_html::HtmlServido;
 
 const ORIGEM: &str = "https://sei.treinamento.unb.br/sei";
@@ -261,7 +261,7 @@ fn link_de_retorno_com_causa_de_consulta_ou_chave_repetida() {
     assert!(matches!(
         conferir("acao=retorno_programado_listar"),
         Err(ErroLeituraRetornos::ChaveDoLinkIlegivel(
-            ErroChaveDaConsulta::Repetida { chave: "acao" }
+            ErroParametroDaUrl::ParametroRepetido("acao")
         ))
     ));
     assert!(matches!(
@@ -522,7 +522,7 @@ fn link_de_retorno_com_acao_repetida_nao_some_em_silencio() {
             &instalacao()
         ),
         Err(ErroLeituraRetornos::ChaveDoLinkIlegivel(
-            ErroChaveDaConsulta::Repetida { chave: "acao" }
+            ErroParametroDaUrl::ParametroRepetido("acao")
         ))
     ));
 }

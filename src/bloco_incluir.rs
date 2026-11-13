@@ -420,7 +420,7 @@ fn redirecionamento_da_inclusao(
         return false;
     };
     ConsultaDoControlador::ler(consulta).is_ok_and(|consulta| {
-        consulta.acao() == Ok(AcaoDoSei::BlocoEscolher)
+        consulta.acao() == Ok(AcaoDoSei::BlocoEscolher.como_na_url())
             && consulta.unico("id_procedimento") == Ok(id_procedimento)
             && consulta.unico("id_documento") == Ok(id_documento)
     })

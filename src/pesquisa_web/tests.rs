@@ -44,9 +44,7 @@ fn link_para_outra_acao_nao_vira_processo() {
     );
     assert_eq!(
         ler_resultados(&html),
-        Err(ErroResultadoPesquisa::AcaoDoLinkNaoLida(
-            crate::consulta_do_controlador::ErroChaveDaConsulta::AcaoDesconhecida
-        ))
+        Err(ErroResultadoPesquisa::LinkDePesquisaNaoAbreProcesso)
     );
 }
 
@@ -68,7 +66,7 @@ fn recusa_duas_acoes_no_mesmo_link_antes_de_projetar_nup() {
     assert_eq!(
         ler_resultados(&html),
         Err(ErroResultadoPesquisa::AcaoDoLinkNaoLida(
-            crate::consulta_do_controlador::ErroChaveDaConsulta::Repetida { chave: "acao" }
+            crate::consulta_do_controlador::ErroAcaoDaUrl::AcaoRepetida
         ))
     );
 }

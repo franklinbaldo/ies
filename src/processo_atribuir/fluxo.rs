@@ -307,8 +307,8 @@ fn redirecionamento_esperado(resposta: &Redirecionamento302, id: &str) -> bool {
     // atribuição/remoção concorrente de outro agente, não deste POST.
     // O 302 é apenas inspecionado, nunca seguido.
     let acao_esperada = matches!(
-        consulta.acao(),
-        Ok(AcaoDoSei::ArvoreVisualizar | AcaoDoSei::Principal)
+        consulta.acao().map(AcaoDoSei::ler),
+        Ok(Some(AcaoDoSei::ArvoreVisualizar | AcaoDoSei::Principal))
     );
     // O aceite observado publica também a ação que originou o 302.
     // Sem essa ligação ao POST de atribuição, a árvore coincidente

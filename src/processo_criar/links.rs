@@ -12,7 +12,8 @@ pub(super) fn id_do_link(link: &str) -> Result<&str, crate::consulta_do_controla
 /// Exige exatamente uma ocorrência do parâmetro acao, com valor literal
 /// esperado. Uma segunda ação diferente também torna a URL ambígua.
 fn acao_unica(consulta: &str, esperada: AcaoDoSei) -> bool {
-    ConsultaDoControlador::ler(consulta).is_ok_and(|consulta| consulta.acao() == Ok(esperada))
+    ConsultaDoControlador::ler(consulta)
+        .is_ok_and(|consulta| consulta.acao() == Ok(esperada.como_na_url()))
 }
 
 pub(super) fn resolver_link(
@@ -97,7 +98,7 @@ pub(super) fn retorno_da_criacao(
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::consulta_do_controlador::ErroChaveDaConsulta;
+    use crate::consulta_do_controlador::ErroParametroDaUrl;
 
     const ENVIO: &str = "https://sei.exemplo.test/sei/controlador.php?acao=procedimento_gerar";
 
@@ -113,9 +114,7 @@ mod tests {
                 "controlador.php?acao=procedimento_trabalhar&id_procedimento=12&id_procedimento=13"
             ),
             Err(ErroCriar::IdDoRetornoIlegivel(
-                ErroChaveDaConsulta::Repetida {
-                    chave: "id_procedimento"
-                }
+                ErroParametroDaUrl::ParametroRepetido("id_procedimento")
             ))
         ));
     }
@@ -125,9 +124,7 @@ mod tests {
         assert!(matches!(
             retorno("controlador.php?acao=procedimento_trabalhar"),
             Err(ErroCriar::IdDoRetornoIlegivel(
-                ErroChaveDaConsulta::Ausente {
-                    chave: "id_procedimento"
-                }
+                ErroParametroDaUrl::ParametroAusente("id_procedimento")
             ))
         ));
     }

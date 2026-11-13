@@ -112,7 +112,7 @@ fn conferir_identidade(
     let acao = pares
         .acao()
         .map_err(ErroMarcadores::AcaoDoFormularioNaoLida)?;
-    if acao != AcaoDoSei::AndamentoMarcadorGerenciar {
+    if acao != AcaoDoSei::AndamentoMarcadorGerenciar.como_na_url() {
         return Err(ErroMarcadores::TelaDosMarcadoresAusente);
     }
     let id_observado = pares

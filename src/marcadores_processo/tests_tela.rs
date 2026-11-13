@@ -99,7 +99,7 @@ fn acao_e_id_do_formulario_ilegiveis_levam_a_causa() {
             &format!("{gerenciar}acao=andamento_marcador_gerenciar&")
         )),
         ErroMarcadores::AcaoDoFormularioNaoLida(
-            crate::consulta_do_controlador::ErroChaveDaConsulta::Repetida { chave: "acao" }
+            crate::consulta_do_controlador::ErroAcaoDaUrl::AcaoRepetida
         )
     );
 }

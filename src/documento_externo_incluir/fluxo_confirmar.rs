@@ -71,7 +71,7 @@ pub(crate) fn conferir_upload(
         [informado] if *informado == processo => {}
         _ => return Err(ErroIncluirExterno::UploadParaOutroProcesso),
     }
-    if consulta.acao() != Ok(AcaoDoSei::DocumentoUploadAnexo)
+    if consulta.acao() != Ok(AcaoDoSei::DocumentoUploadAnexo.como_na_url())
         || consulta.valores("acao_ajax").next().is_some()
         || !consulta
             .unico("infra_hash")
