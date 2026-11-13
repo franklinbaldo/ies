@@ -13,7 +13,6 @@ pub(crate) enum ErroMenu {
     LinkDeIniciarProcessoAusente,
     LinkDeIniciarProcessoNaoReconhecido,
     LinkDeIniciarProcessoRepetido,
-    ConsultaDoLinkRecusada(#[source] crate::transporte::FalhaTransporte),
     /// A consulta do link não se lê em pares `chave=valor`.
     ConsultaDoLinkIlegivel(#[source] ErroConsultaDoControlador),
     /// `acao` ou `infra_hash` do link não tem exatamente um valor aceito.
@@ -54,12 +53,8 @@ pub(crate) fn link_de_iniciar(
     if href.contains(['#', '\\', '\'']) || !href.bytes().all(|b| (33..=126).contains(&b)) {
         return Err(ErroMenu::LinkDeIniciarProcessoNaoReconhecido);
     }
-    let consulta = ConsultaDoControlador::ler(consulta).map_err(|erro| match erro {
-        ErroConsultaDoControlador::RecusadaPeloTransporte(falha) => {
-            ErroMenu::ConsultaDoLinkRecusada(falha)
-        }
-        outro @ ErroConsultaDoControlador::ParSemIgual => ErroMenu::ConsultaDoLinkIlegivel(outro),
-    })?;
+    let consulta =
+        ConsultaDoControlador::ler(consulta).map_err(ErroMenu::ConsultaDoLinkIlegivel)?;
     let acao = consulta.acao().map_err(ErroMenu::AcaoDoLinkIlegivel)?;
     let hash = consulta
         .unico("infra_hash")

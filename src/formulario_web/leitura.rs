@@ -1,7 +1,7 @@
 //! Leitura estrita do `<form>` servido: localização, `action` e controles.
 use super::{EnvioDoFormulario, ErroSubmissaoFormulario, OperacaoDeFormulario};
 use crate::acao_do_sei::AcaoDoSei;
-use crate::consulta_do_controlador::{ConsultaDoControlador, ErroConsultaDoControlador};
+use crate::consulta_do_controlador::ConsultaDoControlador;
 use crate::instalacao::Instalacao;
 use crate::transporte::FalhaTransporte;
 pub(super) use crate::url_observada::UrlHttps;
@@ -127,14 +127,8 @@ pub(super) fn resolver_action_no_host(
     {
         return Err(ErroSubmissaoFormulario::AcaoDoFormularioForaDaInstalacao);
     }
-    ConsultaDoControlador::ler(alvo.consulta.unwrap_or_default()).map_err(|erro| match erro {
-        ErroConsultaDoControlador::RecusadaPeloTransporte(falha) => {
-            ErroSubmissaoFormulario::Transporte(falha)
-        }
-        ErroConsultaDoControlador::ParSemIgual => {
-            ErroSubmissaoFormulario::Transporte(FalhaTransporte::UrlInvalida)
-        }
-    })?;
+    ConsultaDoControlador::ler(alvo.consulta.unwrap_or_default())
+        .map_err(|_| ErroSubmissaoFormulario::Transporte(FalhaTransporte::UrlInvalida))?;
     Ok(absoluta)
 }
 
@@ -174,14 +168,8 @@ pub(super) fn conferir_consulta(
     consulta: &str,
     acao: AcaoDoSei,
 ) -> Result<(), ErroSubmissaoFormulario> {
-    let consulta = ConsultaDoControlador::ler(consulta).map_err(|erro| match erro {
-        ErroConsultaDoControlador::RecusadaPeloTransporte(falha) => {
-            ErroSubmissaoFormulario::Transporte(falha)
-        }
-        ErroConsultaDoControlador::ParSemIgual => {
-            ErroSubmissaoFormulario::Transporte(FalhaTransporte::UrlInvalida)
-        }
-    })?;
+    let consulta = ConsultaDoControlador::ler(consulta)
+        .map_err(|_| ErroSubmissaoFormulario::Transporte(FalhaTransporte::UrlInvalida))?;
     if consulta.acao() != Ok(acao.como_na_url()) {
         return Err(ErroSubmissaoFormulario::AcaoDoFormularioDiferenteDaOperacao);
     }

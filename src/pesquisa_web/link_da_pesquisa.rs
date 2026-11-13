@@ -7,7 +7,6 @@ use crate::consulta_do_controlador::{
     ConsultaDoControlador, ErroConsultaDoControlador, menciona_acao,
 };
 use crate::instalacao::Instalacao;
-use crate::transporte::FalhaTransporte;
 
 /// um erro por fato verificável do link no Controle.
 #[derive(Clone, Debug, PartialEq, Eq, thiserror::Error)]
@@ -18,8 +17,8 @@ pub(crate) enum ErroLinkDaPesquisa {
     LinkDaPesquisaAusenteNoControle,
     LinkDaPesquisaNaoReconhecido,
     LinksDaPesquisaRepetidosNoControle,
-    /// Chave ou valor da consulta do link recusado pelo transporte.
-    ConsultaDoLinkRecusadaPeloTransporte(#[source] FalhaTransporte),
+    /// A consulta do link não se lê em pares `chave=valor` canônicos.
+    ConsultaDoLinkIlegivel(#[source] ErroConsultaDoControlador),
 }
 
 /// URL absoluta do link de pesquisa do Controle, resolvida contra a URL
@@ -42,12 +41,8 @@ pub(crate) fn link_da_pesquisa(
     if !href.bytes().all(|b| (33..=126).contains(&b)) || href.contains(['#', '\\', '\'']) {
         return Err(nao());
     }
-    let consulta = ConsultaDoControlador::ler(consulta).map_err(|erro| match erro {
-        ErroConsultaDoControlador::RecusadaPeloTransporte(falha) => {
-            ErroLinkDaPesquisa::ConsultaDoLinkRecusadaPeloTransporte(falha)
-        }
-        ErroConsultaDoControlador::ParSemIgual => nao(),
-    })?;
+    let consulta =
+        ConsultaDoControlador::ler(consulta).map_err(ErroLinkDaPesquisa::ConsultaDoLinkIlegivel)?;
     if consulta.acao() != Ok(AcaoDoSei::ProtocoloPesquisar.como_na_url())
         || consulta.valores("acao_ajax").next().is_some()
         || !consulta

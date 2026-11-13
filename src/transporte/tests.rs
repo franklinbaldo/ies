@@ -215,7 +215,7 @@ fn nomes_que_php_normaliza_nao_podem_sobrescrever_acao_ou_hash() {
     ] {
         assert_eq!(
             validar_url(&format!("{legitima}&{alias}")),
-            Err(FalhaTransporte::ChaveDeConsultaNaoCanonica),
+            Err(FalhaTransporte::UrlInvalida),
             "{alias}"
         );
     }
@@ -228,7 +228,7 @@ fn ponto_e_virgula_na_query_nao_muda_acao_apos_parse_php() {
         validar_url(&format!(
             "{legitima}&origem=publica;acao=procedimento_excluir"
         )),
-        Err(FalhaTransporte::SeparadorDeConsultaAmbiguo)
+        Err(FalhaTransporte::UrlInvalida)
     );
 }
 

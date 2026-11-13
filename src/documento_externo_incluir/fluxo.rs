@@ -111,7 +111,9 @@ pub(crate) enum ErroIncluirExterno {
     UploadParaOutroProcesso,
     OrigemDaSessaoNaoInterpretada,
     /// A consulta do endereço de upload tem chave ou valor fora da forma canônica.
-    ConsultaDoUploadForaDaForma(#[source] FalhaTransporte),
+    ConsultaDoUploadForaDaForma(
+        #[source] crate::consulta_do_controlador::ErroConsultaDoControlador,
+    ),
     CampoDoCadastroNaoOferecido(CampoExigidoDoCadastro),
     Confirmacao(#[from] FalhaConfirmacao),
 }

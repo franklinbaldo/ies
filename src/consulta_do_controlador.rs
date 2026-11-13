@@ -1,9 +1,8 @@
 //! A consulta (`?...`) de uma URL do `controlador.php` lida uma vez só (#751).
-//! Cada par precisa de `=`, a chave e o valor passam pelas mesmas regras do
-//! transporte (`conferir_chave_de_consulta`, `conferir_valor_de_consulta`) e
+//! Cada par precisa de `=`, a chave e o valor seguem a forma canônica
+//! (`conferir_chave_de_consulta`, `conferir_valor_de_consulta`) e
 //! a leitura de uma chave exige exatamente um valor.
 use crate::acao_do_sei::AcaoDoSei;
-use crate::transporte::{FalhaTransporte, conferir_chave_de_consulta, conferir_valor_de_consulta};
 
 /// Os pares `chave=valor` da consulta, na ordem publicada, emprestados da URL.
 pub(crate) struct ConsultaDoControlador<'a> {
@@ -16,8 +15,25 @@ pub(crate) struct ConsultaDoControlador<'a> {
 pub(crate) enum ErroConsultaDoControlador {
     /// Um trecho entre `&` não tem `=`.
     ParSemIgual,
-    /// A chave ou o valor fora da forma que o transporte aceita enviar.
-    RecusadaPeloTransporte(#[from] FalhaTransporte),
+    ChaveDeConsultaNaoCanonica,
+    SeparadorDeConsultaAmbiguo,
+}
+
+// PHP decodifica percent/plus e converte pontos/espaços em underscores;
+// preservar a rejeição de nomes não literais.
+pub(crate) fn conferir_chave_de_consulta(chave: &str) -> Result<(), ErroConsultaDoControlador> {
+    if chave.is_empty() || !chave.bytes().all(|b| b.is_ascii_lowercase() || b == b'_') {
+        return Err(ErroConsultaDoControlador::ChaveDeConsultaNaoCanonica);
+    }
+    Ok(())
+}
+
+// Alguns servidores PHP tratam ';' como separador adicional de parâmetros.
+pub(crate) fn conferir_valor_de_consulta(valor: &str) -> Result<(), ErroConsultaDoControlador> {
+    if valor.contains(';') {
+        return Err(ErroConsultaDoControlador::SeparadorDeConsultaAmbiguo);
+    }
+    Ok(())
 }
 
 /// O parâmetro pedido não tem exatamente um valor na URL.
@@ -111,8 +127,8 @@ pub(crate) enum ErroIdDaUrl {
     ForaDoControlador,
     /// Um trecho entre `&` não tem `=`.
     ParSemIgual,
-    /// A chave ou o valor fora da forma que o transporte aceita enviar.
-    RecusadaPeloTransporte(#[source] FalhaTransporte),
+    ChaveDeConsultaNaoCanonica,
+    SeparadorDeConsultaAmbiguo,
     ParametroAusente(&'static str),
     ParametroRepetido(&'static str),
     /// O valor não é decimal; ids do SEI são números, então o valor vai junto.
@@ -138,8 +154,11 @@ pub(crate) fn id_decimal<'a>(url: &'a str, chave: &'static str) -> Result<&'a st
     let (_, texto) = url.split_once('?').ok_or(ErroIdDaUrl::SemConsulta)?;
     let consulta = ConsultaDoControlador::ler(texto).map_err(|erro| match erro {
         ErroConsultaDoControlador::ParSemIgual => ErroIdDaUrl::ParSemIgual,
-        ErroConsultaDoControlador::RecusadaPeloTransporte(falha) => {
-            ErroIdDaUrl::RecusadaPeloTransporte(falha)
+        ErroConsultaDoControlador::ChaveDeConsultaNaoCanonica => {
+            ErroIdDaUrl::ChaveDeConsultaNaoCanonica
+        }
+        ErroConsultaDoControlador::SeparadorDeConsultaAmbiguo => {
+            ErroIdDaUrl::SeparadorDeConsultaAmbiguo
         }
     })?;
     let mut valores = consulta.valores(chave);

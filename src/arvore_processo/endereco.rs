@@ -4,8 +4,8 @@
 //! `infra_hash` de 64 hex, chaves canônicas. Resolvido contra a instalação;
 //! sem regex.
 use crate::acao_do_sei::AcaoDoSei;
+use crate::consulta_do_controlador::{conferir_chave_de_consulta, conferir_valor_de_consulta};
 use crate::instalacao::Instalacao;
-use crate::transporte::{conferir_chave_de_consulta, conferir_valor_de_consulta};
 
 #[derive(Clone, Copy, Debug, PartialEq, Eq, thiserror::Error)]
 #[error("{self:?}")]

@@ -140,8 +140,6 @@ pub(crate) enum ErroVisaoDoControle {
     VisaoDoControleNaoReconhecida,
     /// O valor da página atual não cabe no tipo do paginador.
     PaginaAtualDaVisaoDetalhadaNaoCabeNoTipo(#[source] std::num::ParseIntError),
-    /// Chave ou valor da consulta do nível recusado pelo transporte.
-    ConsultaDoNivelRecusadaPeloTransporte(#[source] FalhaTransporte),
     /// A consulta do link do nível não se lê em pares `chave=valor`.
     ConsultaDoNivelIlegivel(#[source] crate::consulta_do_controlador::ErroConsultaDoControlador),
     /// `infra_hash` do link do nível ausente ou repetido.
@@ -164,7 +162,6 @@ impl ErroVisaoDoControle {
             | Self::UnidadeAlteradaAoTrocarVisao
             | Self::PaginaAtualDaVisaoDetalhadaIlegivel
             | Self::PaginaAtualDaVisaoDetalhadaNaoCabeNoTipo(_)
-            | Self::ConsultaDoNivelRecusadaPeloTransporte(_)
             | Self::ConsultaDoNivelIlegivel(_)
             | Self::ChaveDoNivelIlegivel(_)
             | Self::AcaoDoNivelIlegivel(_)

@@ -157,14 +157,8 @@ fn conferir_link(
     let consulta = alvo
         .consulta
         .ok_or(ErroLeituraRetornos::LinkDeRetornosForaDaInstalacao)?;
-    let leitura = ConsultaDoControlador::ler(consulta).map_err(|erro| match erro {
-        ErroConsultaDoControlador::RecusadaPeloTransporte(falha) => {
-            ErroLeituraRetornos::Transporte(falha)
-        }
-        outro @ ErroConsultaDoControlador::ParSemIgual => {
-            ErroLeituraRetornos::ConsultaDoLinkIlegivel(outro)
-        }
-    })?;
+    let leitura = ConsultaDoControlador::ler(consulta)
+        .map_err(ErroLeituraRetornos::ConsultaDoLinkIlegivel)?;
     let acao = leitura
         .acao()
         .map_err(ErroLeituraRetornos::AcaoDoLinkIlegivel)?;

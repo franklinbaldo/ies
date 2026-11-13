@@ -4,7 +4,7 @@ use super::envio::{EnvioDoControle, Sessao, TelaAtual};
 use super::passos::{contexto, trocar, unidade_da_tela};
 use super::{ErroVisaoDoControle, Visao};
 use crate::acao_do_sei::AcaoDoSei;
-use crate::consulta_do_controlador::{ConsultaDoControlador, ErroConsultaDoControlador};
+use crate::consulta_do_controlador::ConsultaDoControlador;
 use crate::instalacao::Instalacao;
 use crate::nivel_de_detalhe::{NivelDeDetalhe, ler_nivel_de_detalhe};
 use crate::transporte::decodificar_resposta;
@@ -94,14 +94,8 @@ pub(super) fn link_do_nivel_de_detalhe(
     if !relativo.bytes().all(|b| (33..=126).contains(&b)) || relativo.contains(['#', '\\', '\'']) {
         return Err(invalido);
     }
-    let leitura = ConsultaDoControlador::ler(consulta).map_err(|erro| match erro {
-        ErroConsultaDoControlador::RecusadaPeloTransporte(falha) => {
-            super::ErroVisaoDoControle::ConsultaDoNivelRecusadaPeloTransporte(falha)
-        }
-        outro @ ErroConsultaDoControlador::ParSemIgual => {
-            super::ErroVisaoDoControle::ConsultaDoNivelIlegivel(outro)
-        }
-    })?;
+    let leitura = ConsultaDoControlador::ler(consulta)
+        .map_err(super::ErroVisaoDoControle::ConsultaDoNivelIlegivel)?;
     let acao = leitura
         .acao()
         .map_err(super::ErroVisaoDoControle::AcaoDoNivelIlegivel)?;
