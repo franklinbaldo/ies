@@ -25,7 +25,7 @@ pub(crate) fn escolher_externo(
     let dom = crate::tela_html::arvore(html);
     let mut escolhas = Vec::new();
     for no in dom.elementos("a") {
-        let Some(href) = no.atributo("href").map(str::to_owned) else {
+        let Some(href) = no.atributo("href") else {
             continue;
         };
         let onclick = no.atributo("onclick");
@@ -40,7 +40,7 @@ pub(crate) fn escolher_externo(
             continue;
         }
         if pelo_link && onclick.is_none_or(str::is_empty) {
-            escolhas.push(EscolhaExterna::Url(href));
+            escolhas.push(EscolhaExterna::Url(href.to_owned()));
         } else if (href == "#" || href == "javascript:void(0);") && pelo_script {
             let formularios = dom.com_id("frmDocumentoEscolherTipo").collect::<Vec<_>>();
             let [no] = formularios.as_slice() else {
