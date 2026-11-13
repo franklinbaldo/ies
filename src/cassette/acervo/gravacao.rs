@@ -91,13 +91,17 @@ pub(crate) fn localizacao(interacao: &Value) -> Option<&str> {
         .and_then(|(_, valor)| valor.as_str())
 }
 
-/// O corpo gravado (base64), vazio se ausente ou ilegível.
+/// O corpo ausente é vazio; corpo presente precisa ser base64 íntegro.
+/// Erro na gravação invalida o replay, em vez de criar uma resposta vazia.
 pub(crate) fn corpo(interacao: &Value) -> Vec<u8> {
     use base64::Engine as _;
-    interacao["response"]["body_base64"]
-        .as_str()
-        .and_then(|b| base64::engine::general_purpose::STANDARD.decode(b).ok())
-        .unwrap_or_default()
+    match &interacao["response"]["body_base64"] {
+        Value::Null => Vec::new(),
+        Value::String(codificado) => base64::engine::general_purpose::STANDARD
+            .decode(codificado)
+            .expect("body_base64 inválido na cassette"),
+        _ => panic!("body_base64 não é texto na cassette"),
+    }
 }
 
 /// O `Content-Type` gravado, vazio se ausente.
@@ -111,4 +115,31 @@ pub(crate) fn mime(interacao: &Value) -> String {
         })
         .unwrap_or("")
         .to_owned()
+}
+
+#[cfg(test)]
+mod testes {
+    use super::corpo;
+    use serde_json::json;
+
+    #[test]
+    fn corpo_ausente_e_vazio_e_base64_valido_preserva_bytes() {
+        assert_eq!(corpo(&json!({"response": {}})), Vec::<u8>::new());
+        assert_eq!(
+            corpo(&json!({"response": {"body_base64": "AP8="}})),
+            vec![0, 255]
+        );
+    }
+
+    #[test]
+    #[should_panic(expected = "body_base64 inválido na cassette")]
+    fn corpo_base64_corrompido_nao_vira_resposta_vazia() {
+        let _ = corpo(&json!({"response": {"body_base64": "%"}}));
+    }
+
+    #[test]
+    #[should_panic(expected = "body_base64 não é texto na cassette")]
+    fn corpo_de_tipo_errado_nao_vira_resposta_vazia() {
+        let _ = corpo(&json!({"response": {"body_base64": 42}}));
+    }
 }
