@@ -68,10 +68,33 @@ fn indice_entre<'a>(linha: &'a str, variavel: &str) -> Option<(usize, &'a str)> 
     Some((indice.parse().ok()?, resto))
 }
 
+fn indice_de_atributo(linha: &str, atributo: &str) -> Option<usize> {
+    let (indice, resto) = indice_entre(linha, "Nos[")?;
+    resto.starts_with(atributo).then_some(indice)
+}
+
+fn ler_atributo(
+    linha: &str,
+    atributo: &str,
+    erro: fn(Box<ErroArvore>) -> ErroArvore,
+    fora: ErroArvore,
+) -> Result<Option<(usize, String)>, ErroArvore> {
+    let linha = linha.strip_suffix('\r').unwrap_or(linha);
+    let Some((indice, resto)) = indice_entre(linha, "Nos[") else {
+        return Ok(None);
+    };
+    let Some(resto) = resto.strip_prefix(atributo) else {
+        return Ok(None);
+    };
+    match ler_literal(resto).map_err(|e| erro(Box::new(e)))? {
+        (Literal::Texto(texto), ";") => Ok(Some((indice, texto))),
+        _ => Err(fora),
+    }
+}
+
 /// O `i` de uma linha `Nos[i].acoes = …`, sem ler o resto.
 pub(super) fn indice_da_barra(linha: &str) -> Option<usize> {
-    let (indice, resto) = indice_entre(linha, "Nos[")?;
-    resto.starts_with(BARRA).then_some(indice)
+    indice_de_atributo(linha, BARRA)
 }
 
 /// O `i` da linha inteira `Nos[i].acoes = Nos[i].acoes.concat('');`, servida
@@ -88,48 +111,37 @@ pub(super) fn concatenacao_vazia_da_barra(linha: &str) -> Option<usize> {
 /// `Ok(Some((i, texto)))` para a linha inteira `Nos[i].acoes = '<texto>';`;
 /// `Ok(None)` se a linha não atribui `.acoes` a um nó.
 pub(super) fn ler_barra(linha: &str) -> Result<Option<(usize, HtmlServido)>, ErroArvore> {
-    let linha = linha.strip_suffix('\r').unwrap_or(linha);
-    let Some((indice, resto)) = indice_entre(linha, "Nos[") else {
-        return Ok(None);
-    };
-    let Some(resto) = resto.strip_prefix(BARRA) else {
-        return Ok(None);
-    };
-    let fora = || ErroArvore::BarraDeNoForaDaFormaObservada;
-    match ler_literal(resto).map_err(|e| ErroArvore::BarraDeNoIlegivel(Box::new(e)))? {
-        (Literal::Texto(texto), ";") => Ok(Some((indice, HtmlServido::novo(texto)?))),
-        _ => Err(fora()),
+    match ler_atributo(
+        linha,
+        BARRA,
+        ErroArvore::BarraDeNoIlegivel,
+        ErroArvore::BarraDeNoForaDaFormaObservada,
+    )? {
+        Some((indice, texto)) => Ok(Some((indice, HtmlServido::novo(texto)?))),
+        None => Ok(None),
     }
 }
 
 /// O `i` de uma linha `Nos[i].src = …`, sem ler o resto.
 pub(super) fn indice_do_src(linha: &str) -> Option<usize> {
-    let (indice, resto) = indice_entre(linha, "Nos[")?;
-    resto.starts_with(SRC).then_some(indice)
+    indice_de_atributo(linha, SRC)
 }
 
 /// `Ok(Some((i, texto)))` para a linha inteira `Nos[i].src = '<texto>';`
 /// (o link do conteúdo do nó, Refs #60); `Ok(None)` se a linha não atribui
 /// `.src` a um nó.
 pub(super) fn ler_src(linha: &str) -> Result<Option<(usize, String)>, ErroArvore> {
-    let linha = linha.strip_suffix('\r').unwrap_or(linha);
-    let Some((indice, resto)) = indice_entre(linha, "Nos[") else {
-        return Ok(None);
-    };
-    let Some(resto) = resto.strip_prefix(SRC) else {
-        return Ok(None);
-    };
-    let fora = || ErroArvore::SrcDeNoForaDaFormaObservada;
-    match ler_literal(resto).map_err(|e| ErroArvore::SrcDeNoIlegivel(Box::new(e)))? {
-        (Literal::Texto(texto), ";") => Ok(Some((indice, texto))),
-        _ => Err(fora()),
-    }
+    ler_atributo(
+        linha,
+        SRC,
+        ErroArvore::SrcDeNoIlegivel,
+        ErroArvore::SrcDeNoForaDaFormaObservada,
+    )
 }
 
 /// O `i` de uma linha `Nos[i].html = …`, sem ler o resto.
 pub(super) fn indice_do_html(linha: &str) -> Option<usize> {
-    let (indice, resto) = indice_entre(linha, "Nos[")?;
-    resto.starts_with(HTML_ANTES).then_some(indice)
+    indice_de_atributo(linha, HTML_ANTES)
 }
 
 /// `Ok(Some((i, texto)))` para `Nos[i].html = '<texto>';`, sozinha ou
