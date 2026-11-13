@@ -115,6 +115,11 @@ impl<'a> ConsultaDoControlador<'a> {
             .filter(move |(nome, _)| *nome == chave)
             .map(|(_, valor)| *valor)
     }
+
+    pub(crate) fn sem_chaves_repetidas(&self) -> bool {
+        let mut vistos = std::collections::HashSet::with_capacity(self.pares.len());
+        self.pares.iter().all(|(chave, _)| vistos.insert(*chave))
+    }
 }
 
 /// Por que a URL não traz um id decimal único na chave pedida.

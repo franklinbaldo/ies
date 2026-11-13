@@ -331,7 +331,7 @@ enum UnidadeAcao {
     Retornos {
         /// Mes AAAA-MM (ausente: mes marcado como hoje pelo SEI)
         #[arg(long, value_name = "AAAA-MM", value_parser = unidade_retornos_web::mes_da_cli)]
-        mes: Option<(u16, u8)>,
+        mes: Option<unidade_retornos::MesAno>,
     },
 }
 

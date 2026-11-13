@@ -7,7 +7,7 @@ use crate::consulta_do_controlador::{
 };
 use crate::instalacao::Instalacao;
 use crate::transporte::FalhaTransporte;
-use crate::unidade_retornos::{self, ErroRetornos, Retorno};
+use crate::unidade_retornos::{self, DataCivil, ErroRetornos, MesAno, Retorno};
 use crate::url_observada::{UrlHttps, pasta};
 use std::collections::HashSet;
 
@@ -53,72 +53,20 @@ impl ErroLeituraRetornos {
 
 /// `--mes AAAA-MM` (parser do clap: saída 2): somente numeros e limites do
 /// mes, sem depender do fuso da maquina.
-pub(crate) fn mes_da_cli(s: &str) -> Result<(u16, u8), ErroLeituraRetornos> {
-    let (Some((a, m)), true) = (s.split_once('-'), s.len() == 7) else {
-        return Err(ErroLeituraRetornos::MesDaCliInvalido);
-    };
-    if !a.bytes().all(|b| b.is_ascii_digit()) || !m.bytes().all(|b| b.is_ascii_digit()) {
-        return Err(ErroLeituraRetornos::MesDaCliInvalido);
-    }
-    let (Ok(a), Ok(m)) = (a.parse::<u16>(), m.parse::<u8>()) else {
-        return Err(ErroLeituraRetornos::MesDaCliInvalido);
-    };
-    if unidade_retornos::ultimo_dia(a, m).is_none() {
-        return Err(ErroLeituraRetornos::MesDaCliInvalido);
-    }
-    Ok((a, m))
+pub(crate) fn mes_da_cli(s: &str) -> Result<MesAno, ErroLeituraRetornos> {
+    MesAno::ler_cli(s).ok_or(ErroLeituraRetornos::MesDaCliInvalido)
 }
 
 /// Nao pode aparecer em logs: contem URL assinada.
 struct Link {
     url: String,
-    pares: Vec<(String, String)>,
-}
-impl Link {
-    fn valor(&self, chave: &str) -> Option<&str> {
-        self.pares
-            .iter()
-            .find(|(k, _)| k == chave)
-            .map(|(_, v)| v.as_str())
-    }
+    data_inicial: Option<DataCivil>,
+    data_final: Option<DataCivil>,
+    data_atual: Option<DataCivil>,
 }
 
-fn decodificar_data(valor: &str) -> Option<String> {
-    let mut out = Vec::new();
-    let bytes = valor.as_bytes();
-    let mut i = 0;
-    while let Some(&byte) = bytes.get(i) {
-        if byte == b'%' {
-            let d = |b: u8| -> Option<u8> {
-                match b {
-                    b'0'..=b'9' => Some(b - b'0'),
-                    b'A'..=b'F' => Some(b - b'A' + 10),
-                    b'a'..=b'f' => Some(b - b'a' + 10),
-                    _ => None,
-                }
-            };
-            let hi = d(*bytes.get(i + 1)?)?;
-            let lo = d(*bytes.get(i + 2)?)?;
-            out.push(hi * 16 + lo);
-            i += 3;
-        } else {
-            out.push(byte);
-            i += 1;
-        }
-    }
-    String::from_utf8(out).ok()
-}
-
-fn data_da_consulta(valor: &str) -> Option<(u16, u8, u8)> {
-    let s = decodificar_data(valor)?;
-    if !unidade_retornos::data_valida(&s) {
-        return None;
-    }
-    let mut partes = s.split('/');
-    let d = partes.next()?.parse().ok()?;
-    let m = partes.next()?.parse().ok()?;
-    let a = partes.next()?.parse().ok()?;
-    Some((a, m, d))
+fn data_da_consulta(valor: &str) -> Option<DataCivil> {
+    DataCivil::ler(&valor.replace("%2F", "/").replace("%2f", "/"))
 }
 
 /// Aceita apenas URLs assinadas de `retorno_programado_listar` no controlador
@@ -128,35 +76,29 @@ fn conferir_link(
     url_servida: &str,
     instalacao: &Instalacao,
 ) -> Result<Link, ErroLeituraRetornos> {
-    let nao = ErroLeituraRetornos::LinkDeRetornosForaDaInstalacao;
-    let href = bruto.to_owned();
-    if !href.bytes().all(|b| (33..=126).contains(&b))
-        || href.contains(['#', '\\', '\''])
-        || href.contains("..")
+    let nao = || ErroLeituraRetornos::LinkDeRetornosForaDaInstalacao;
+    if !bruto.bytes().all(|b| (33..=126).contains(&b))
+        || bruto.contains(['#', '\\', '\''])
+        || bruto.contains("..")
     {
-        return Err(nao);
+        return Err(nao());
     }
-    let servida = UrlHttps::interpretar(url_servida)
-        .ok_or(ErroLeituraRetornos::LinkDeRetornosForaDaInstalacao)?;
-    let url = if href.starts_with("https://") {
-        href
-    } else if href.starts_with('/') {
-        format!("https://{}{href}", servida.host)
-    } else if href.starts_with("controlador.php?") {
-        let dir =
-            pasta(servida.caminho).ok_or(ErroLeituraRetornos::LinkDeRetornosForaDaInstalacao)?;
-        format!("https://{}/{dir}/{href}", servida.host)
+    let servida = UrlHttps::interpretar(url_servida).ok_or_else(nao)?;
+    let url = if bruto.starts_with("https://") {
+        bruto.to_owned()
+    } else if bruto.starts_with('/') {
+        format!("https://{}{bruto}", servida.host)
+    } else if bruto.starts_with("controlador.php?") {
+        let dir = pasta(servida.caminho).ok_or_else(nao)?;
+        format!("https://{}/{dir}/{bruto}", servida.host)
     } else {
-        return Err(nao);
+        return Err(nao());
     };
-    let alvo =
-        UrlHttps::interpretar(&url).ok_or(ErroLeituraRetornos::LinkDeRetornosForaDaInstalacao)?;
+    let alvo = UrlHttps::interpretar(&url).ok_or_else(nao)?;
     if !instalacao.autoriza_controlador(alvo.host, alvo.caminho) {
-        return Err(nao);
+        return Err(nao());
     }
-    let consulta = alvo
-        .consulta
-        .ok_or(ErroLeituraRetornos::LinkDeRetornosForaDaInstalacao)?;
+    let consulta = alvo.consulta.ok_or_else(nao)?;
     let leitura = ConsultaDoControlador::ler(consulta)
         .map_err(ErroLeituraRetornos::ConsultaDoLinkIlegivel)?;
     let acao = leitura
@@ -169,20 +111,22 @@ fn conferir_link(
         || leitura.valores("acao_ajax").next().is_some()
         || hash.len() != 64
         || !hash.bytes().all(|b| b.is_ascii_hexdigit())
+        || !leitura.sem_chaves_repetidas()
     {
-        return Err(nao);
+        return Err(nao());
     }
-    // Nome repetido recusa; o leitor aceita.
-    let mut vistos = HashSet::new();
-    let mut pares = Vec::new();
-    for par in consulta.split('&') {
-        let (k, v) = par.split_once('=').unwrap_or((par, ""));
-        if !vistos.insert(k) {
-            return Err(nao);
-        }
-        pares.push((k.to_owned(), v.to_owned()));
-    }
-    Ok(Link { url, pares })
+    let ler_data = |chave| leitura.valores(chave).next().and_then(data_da_consulta);
+    let (data_inicial, data_final, data_atual) = (
+        ler_data("data_inicial"),
+        ler_data("data_final"),
+        ler_data("data_atual"),
+    );
+    Ok(Link {
+        url,
+        data_inicial,
+        data_final,
+        data_atual,
+    })
 }
 
 /// Somente links de retorno da propria pagina servida. Outros links de menu
@@ -195,12 +139,13 @@ fn links(
     let dom = crate::tela_html::arvore(html);
     let mut saida = Vec::new();
     for no in dom.elementos("a") {
-        let href = no.atributo("href").map(str::to_owned);
-        let Some(href) = href else { continue };
+        let Some(href) = no.atributo("href") else {
+            continue;
+        };
         // Seleção tolerante pela ação exata (decodificada antes); a conferência
         // estrita fica em `conferir_link`.
-        if menciona_acao(&href, AcaoDoSei::RetornoProgramadoListar) {
-            saida.push(conferir_link(&href, servida, instalacao)?);
+        if menciona_acao(href, AcaoDoSei::RetornoProgramadoListar) {
+            saida.push(conferir_link(href, servida, instalacao)?);
         }
     }
     Ok(saida)
@@ -211,30 +156,24 @@ fn menu(
     servida: &str,
     instalacao: &Instalacao,
 ) -> Result<String, ErroLeituraRetornos> {
-    let todos = links(html, servida, instalacao)?;
+    let mut todos = links(html, servida, instalacao)?;
     match todos.len() {
         0 => Err(ErroLeituraRetornos::LinkDeRetornosAusente),
-        1 => Ok(todos.into_iter().next().map_or_else(String::new, |l| l.url)),
+        1 => Ok(todos.swap_remove(0).url),
         _ => Err(ErroLeituraRetornos::LinkDeRetornosAmbiguo),
     }
 }
 
 /// Link unico de "Ver todo o mes": o primeiro dia e o ultimo dia do mesmo mes.
-fn mes_inteiro(links: &[Link]) -> Result<((u16, u8), &str), ErroLeituraRetornos> {
-    let mut encontrado = None;
+fn mes_inteiro(links: &[Link]) -> Result<(MesAno, &str), ErroLeituraRetornos> {
+    let mut encontrado: Option<(MesAno, &str)> = None;
     for link in links {
-        let (Some(inicio), Some(fim)) = (link.valor("data_inicial"), link.valor("data_final"))
-        else {
+        let (Some(inicio), Some(fim)) = (link.data_inicial, link.data_final) else {
             continue;
         };
-        let (Some((ano, mes, 1)), Some((ano_fim, mes_fim, dia_fim))) =
-            (data_da_consulta(inicio), data_da_consulta(fim))
-        else {
-            continue;
-        };
-        if ano != ano_fim
-            || mes != mes_fim
-            || Some(dia_fim) != unidade_retornos::ultimo_dia(ano, mes)
+        if inicio.dia != 1
+            || inicio.mes_ano != fim.mes_ano
+            || fim.dia != inicio.mes_ano.ultimo_dia()
         {
             continue;
         }
@@ -242,9 +181,9 @@ fn mes_inteiro(links: &[Link]) -> Result<((u16, u8), &str), ErroLeituraRetornos>
         // (cabecalho/rodape) nas sete instalacoes. Duplicata identica
         // nao e uma segunda escolha; URL assinada diferente continua ambigua.
         match encontrado {
-            Some((anterior, url)) if anterior == (ano, mes) && url == link.url => {}
+            Some((anterior, url)) if anterior == inicio.mes_ano && url == link.url => {}
             Some(_) => return Err(ErroLeituraRetornos::CalendarioDosRetornosDesconhecido),
-            None => encontrado = Some(((ano, mes), link.url.as_str())),
+            None => encontrado = Some((inicio.mes_ano, link.url.as_str())),
         }
     }
     encontrado.ok_or(ErroLeituraRetornos::CalendarioDosRetornosDesconhecido)
@@ -256,9 +195,9 @@ fn hoje_na_tela(
     html: &crate::tela_html::HtmlServido,
     servida: &str,
     instalacao: &Instalacao,
-) -> Result<Option<(u16, u8)>, ErroLeituraRetornos> {
+) -> Result<Option<MesAno>, ErroLeituraRetornos> {
     let dom = crate::tela_html::arvore(html);
-    let mut marcado = None;
+    let mut marcado: Option<DataCivil> = None;
     let mut celulas_marcadas = 0;
     for no in dom.elementos("td") {
         let classe = no.atributo("class");
@@ -267,11 +206,11 @@ fn hoje_na_tela(
         }
         celulas_marcadas += 1;
         for filho in no.elementos("a") {
-            let Some(href) = filho.atributo("href").map(str::to_owned) else {
+            let Some(href) = filho.atributo("href") else {
                 continue;
             };
-            let link = conferir_link(&href, servida, instalacao)?;
-            if let Some(data) = link.valor("data_atual").and_then(data_da_consulta)
+            let link = conferir_link(href, servida, instalacao)?;
+            if let Some(data) = link.data_atual
                 && marcado.replace(data).is_some()
             {
                 return Err(ErroLeituraRetornos::CalendarioDosRetornosDesconhecido);
@@ -280,27 +219,14 @@ fn hoje_na_tela(
     }
     match (celulas_marcadas, marcado) {
         (0, None) => Ok(None),
-        (1, Some((ano, mes, _))) => Ok(Some((ano, mes))),
+        (1, Some(data)) => Ok(Some(data.mes_ano)),
         _ => Err(ErroLeituraRetornos::CalendarioDosRetornosDesconhecido),
     }
 }
 
-fn mes_vizinho((a, m): (u16, u8), rumo: i32) -> Option<(u16, u8)> {
-    match (m, rumo) {
-        (12, 1) => Some((a.checked_add(1)?, 1)),
-        (1, -1) => Some((a.checked_sub(1)?, 12)),
-        (1..=11, 1) => Some((a, m + 1)),
-        (2..=12, -1) => Some((a, m - 1)),
-        _ => None,
-    }
-}
-fn posicao((a, m): (u16, u8)) -> i32 {
-    i32::from(a) * 12 + i32::from(m)
-}
-
 /// Data civil UTC, apenas pista de navegacao. O mes publicado na saida
 /// vem exclusivamente da celula diaHoje do SEI, nunca deste relogio.
-fn data_utc_de_dias(dias: i64) -> Option<(u16, u8, u8)> {
+fn data_utc_de_dias(dias: i64) -> Option<DataCivil> {
     let z = dias.checked_add(719_468)?;
     let era = z.div_euclid(146_097);
     let doe = z - era * 146_097;
@@ -311,13 +237,14 @@ fn data_utc_de_dias(dias: i64) -> Option<(u16, u8, u8)> {
     let dia = doy - (153 * mp + 2) / 5 + 1;
     let mes = mp + if mp < 10 { 3 } else { -9 };
     let ano = y + i64::from(mes <= 2);
-    Some((
+    DataCivil::new(
         u16::try_from(ano).ok()?,
         u8::try_from(mes).ok()?,
         u8::try_from(dia).ok()?,
-    ))
+    )
 }
-fn data_utc_agora() -> Option<(u16, u8, u8)> {
+
+fn data_utc_agora() -> Option<DataCivil> {
     let segundos = std::time::SystemTime::now()
         .duration_since(std::time::UNIX_EPOCH)
         .ok()?
@@ -332,33 +259,38 @@ fn navegar_ate_mes<F>(
     tela: &mut crate::tela_html::HtmlServido,
     servida: &mut String,
     instalacao: &Instalacao,
-    alvo: (u16, u8),
+    alvo: MesAno,
     get: &mut F,
     requisicoes: &mut u8,
-) -> Result<(), ErroLeituraRetornos>
+) -> Result<String, ErroLeituraRetornos>
 where
     F: FnMut(&str) -> Result<crate::tela_html::HtmlServido, ErroLeituraRetornos>,
 {
     let mut vistos = HashSet::new();
     for _ in 0..=24 {
         let candidatos = links(tela, servida, instalacao)?;
-        let (atual, _) = mes_inteiro(&candidatos)?;
+        let (atual, link_mes) = mes_inteiro(&candidatos)?;
         if atual == alvo {
-            return Ok(());
+            return Ok(link_mes.to_owned());
         }
         if !vistos.insert(atual) || *requisicoes >= 26 {
             return Err(ErroLeituraRetornos::MesDosRetornosInacessivel);
         }
-        let rumo = if posicao(alvo) > posicao(atual) {
+        let rumo = if alvo.posicao() > atual.posicao() {
             1
         } else {
             -1
         };
-        let proximo =
-            mes_vizinho(atual, rumo).ok_or(ErroLeituraRetornos::MesDosRetornosInacessivel)?;
+        let proximo = atual
+            .vizinho(rumo)
+            .ok_or(ErroLeituraRetornos::MesDosRetornosInacessivel)?;
         let mut escolhido: Option<&str> = None;
         for link in candidatos.iter().filter(|link| {
-            link.valor("data_atual").and_then(data_da_consulta) == Some((proximo.0, proximo.1, 1))
+            link.data_atual
+                == Some(DataCivil {
+                    mes_ano: proximo,
+                    dia: 1,
+                })
         }) {
             match escolhido {
                 Some(url) if url == link.url => {}
@@ -389,7 +321,7 @@ pub(crate) fn ler_com<F>(
     controle_url: &str,
     controle_html: &crate::tela_html::HtmlServido,
     instalacao: &Instalacao,
-    mes: Option<(u16, u8)>,
+    mes: Option<MesAno>,
     get: F,
 ) -> Result<Leitura, ErroLeituraRetornos>
 where
@@ -397,7 +329,10 @@ where
 {
     // Nao consulta o relogio quando o pedido ja indicou o mes.
     let hoje_utc = if mes.is_some() {
-        (1970, 1, 1)
+        DataCivil {
+            mes_ano: MesAno { ano: 1970, mes: 1 },
+            dia: 1,
+        }
     } else {
         data_utc_agora().ok_or(ErroLeituraRetornos::CalendarioDosRetornosDesconhecido)?
     };
@@ -411,8 +346,8 @@ fn ler_com_data_utc<F>(
     controle_url: &str,
     controle_html: &crate::tela_html::HtmlServido,
     instalacao: &Instalacao,
-    mes: Option<(u16, u8)>,
-    hoje_utc: (u16, u8, u8),
+    mes: Option<MesAno>,
+    hoje_utc: DataCivil,
     mut get: F,
 ) -> Result<Leitura, ErroLeituraRetornos>
 where
@@ -427,18 +362,14 @@ where
     } else if let Some(observado) = hoje_na_tela(&tela, &servida, instalacao)? {
         observado
     } else {
-        let (ano, mes, dia) = hoje_utc;
-        if !unidade_retornos::data_valida(&format!("{dia:02}/{mes:02}/{ano:04}")) {
-            return Err(ErroLeituraRetornos::CalendarioDosRetornosDesconhecido);
-        }
-        let mut candidatos = vec![(ano, mes)];
-        if dia == 1
-            && let Some(anterior) = mes_vizinho((ano, mes), -1)
+        let mut candidatos = vec![hoje_utc.mes_ano];
+        if hoje_utc.dia == 1
+            && let Some(anterior) = hoje_utc.mes_ano.vizinho(-1)
         {
             candidatos.push(anterior);
         }
-        if Some(dia) == unidade_retornos::ultimo_dia(ano, mes)
-            && let Some(seguinte) = mes_vizinho((ano, mes), 1)
+        if hoje_utc.dia == hoje_utc.mes_ano.ultimo_dia()
+            && let Some(seguinte) = hoje_utc.mes_ano.vizinho(1)
         {
             candidatos.push(seguinte);
         }
@@ -459,7 +390,7 @@ where
         }
         hoje_do_sei.ok_or(ErroLeituraRetornos::CalendarioDosRetornosDesconhecido)?
     };
-    navegar_ate_mes(
+    let link_mes = navegar_ate_mes(
         &mut tela,
         &mut servida,
         instalacao,
@@ -467,16 +398,11 @@ where
         &mut get,
         &mut requisicoes,
     )?;
-    let candidatos = links(&tela, &servida, instalacao)?;
-    let (atual, link_mes) = mes_inteiro(&candidatos)?;
-    if atual != alvo {
-        return Err(ErroLeituraRetornos::MesDosRetornosInacessivel);
-    }
-    let html = get(link_mes)?;
+    let html = get(&link_mes)?;
     requisicoes += 1;
     let itens = unidade_retornos::extrair_retornos(&html)?;
     Ok(Leitura {
-        mes: format!("{:04}-{:02}", alvo.0, alvo.1),
+        mes: alvo.to_string(),
         itens,
         requisicoes,
     })
@@ -502,12 +428,11 @@ pub(crate) fn conferir_calendario_gravado(
         instalacao,
     )?
     .is_some();
-    let anterior = mes_vizinho(mes, -1);
-    let proximo = mes_vizinho(mes, 1);
+    let anterior = mes.vizinho(-1);
+    let proximo = mes.vizinho(1);
     let vizinho = candidatos.iter().any(|link| {
-        let data = link.valor("data_atual").and_then(data_da_consulta);
-        data.is_some_and(|(ano, mes, dia)| {
-            dia == 1 && (Some((ano, mes)) == anterior || Some((ano, mes)) == proximo)
+        link.data_atual.is_some_and(|data| {
+            data.dia == 1 && (Some(data.mes_ano) == anterior || Some(data.mes_ano) == proximo)
         })
     });
     Ok((marcado, vizinho))

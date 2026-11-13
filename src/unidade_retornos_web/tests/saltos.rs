@@ -11,7 +11,7 @@ fn calendario_deslocado_dois_meses_adiante_obedece_links_e_contagem() {
         &HtmlServido::de_teste(&controle()),
         &instalacao(),
         None,
-        (2026, 11, 5),
+        d(2026, 11, 5),
         |url| {
             pedidos.push(url.to_owned());
             if url.contains("data_inicial=") {
@@ -54,7 +54,7 @@ fn calendario_deslocado_dois_meses_atras_exige_ambos_links_publicados() {
         &HtmlServido::de_teste(&controle()),
         &instalacao(),
         None,
-        (2026, 11, 5),
+        d(2026, 11, 5),
         |url| {
             pedidos.push(url.to_owned());
             if url.contains("data_inicial=") {
@@ -89,7 +89,7 @@ fn virada_utc_para_ano_novo_somente_publica_o_dia_hoje_servido() {
         &HtmlServido::de_teste(&controle()),
         &instalacao(),
         None,
-        (2026, 12, 31),
+        d(2026, 12, 31),
         |url| {
             pedidos.push(url.to_owned());
             if url.contains("data_inicial=") {
@@ -125,7 +125,7 @@ fn virada_de_ano_sem_link_de_janeiro_recusa_sem_consulta_mensal() {
         &HtmlServido::de_teste(&controle()),
         &instalacao(),
         None,
-        (2026, 12, 31),
+        d(2026, 12, 31),
         |url| {
             pedidos.push(url.to_owned());
             Ok(HtmlServido::de_teste(&dezembro_sem_janeiro.clone()))
@@ -156,8 +156,8 @@ fn link_de_outra_acao_com_origem_retornos_nao_bloqueia_calendario() {
         CONTROLE,
         &HtmlServido::de_teste(&controle()),
         &instalacao(),
-        Some((2026, 10)),
-        (2026, 10, 15),
+        Some(m(2026, 10)),
+        d(2026, 10, 15),
         |url| {
             requisicoes += 1;
             if url.contains("data_inicial=") {
@@ -191,8 +191,8 @@ fn nome_de_parametro_com_sufixo_acao_nao_simula_acao_de_retornos() {
         CONTROLE,
         &HtmlServido::de_teste(&controle()),
         &instalacao(),
-        Some((2026, 11)),
-        (2026, 11, 5),
+        Some(m(2026, 11)),
+        d(2026, 11, 5),
         |url| {
             requisicoes += 1;
             if url.contains("data_inicial=") {

@@ -10,7 +10,7 @@ use serde_json::json;
 pub(super) fn listar(
     unidade: Option<&str>,
     json_mode: bool,
-    alvo: Option<(u16, u8)>,
+    alvo: Option<crate::unidade_retornos::MesAno>,
 ) -> anyhow::Result<()> {
     let arquivos = configuracao::arquivos_de_acesso()?;
     let indice = IndiceLocal::da_configuracao(&arquivos);
