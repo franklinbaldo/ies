@@ -36,9 +36,11 @@ fn escolher_ignora_codigo_em_template_json_ou_comentario_html() {
         let tela = HtmlServido::de_teste(&format!("{}{}", script_inerte(ESCOLHER, forma), tabela));
         assert_eq!(
             escolha_do_tipo(&instalacao, &tela, "4864", "Despacho"),
-            Err(ErroCriar::NavegacaoNaoComprovadaPorScript(
-                super::guarda_navegacao::ErroGuardaDeNavegacao::FuncaoNaoDeclaradaEmScriptAtivo
-            )),
+            Err(
+                super::ErroListaDeTiposDocumento::NavegacaoNaoComprovadaPorScript(
+                    super::guarda_navegacao::ErroGuardaDeNavegacao::FuncaoNaoDeclaradaEmScriptAtivo
+                )
+            ),
             "forma inerte {forma} não pode autorizar navegação POST"
         );
     }
@@ -58,9 +60,11 @@ fn filtro_exibir_todos_ignora_script_inerte() {
         let tela = HtmlServido::de_teste(&format!("{}{}", script_inerte(EXIBIR, forma), botoes));
         assert_eq!(
             filtro_de_todos(&tela),
-            Err(ErroCriar::NavegacaoNaoComprovadaPorScript(
-                super::guarda_navegacao::ErroGuardaDeNavegacao::FuncaoNaoDeclaradaEmScriptAtivo
-            )),
+            Err(
+                super::ErroListaDeTiposDocumento::NavegacaoNaoComprovadaPorScript(
+                    super::guarda_navegacao::ErroGuardaDeNavegacao::FuncaoNaoDeclaradaEmScriptAtivo
+                )
+            ),
             "forma inerte {forma} não pode autorizar POST do filtro"
         );
     }
@@ -100,7 +104,7 @@ fn comentario_string_e_bloco_inalcancavel_nao_provam_navegacao() {
         let tela = HtmlServido::de_teste(&format!("<script>{montar}</script>{tabela}"));
         assert_eq!(
             escolha_do_tipo(&instalacao, &tela, "4864", "Despacho"),
-            Err(ErroCriar::NavegacaoNaoComprovadaPorScript(motivo)),
+            Err(super::ErroListaDeTiposDocumento::NavegacaoNaoComprovadaPorScript(motivo)),
             "função escolher inerte em JS ativo forma {forma}"
         );
     }
@@ -122,7 +126,7 @@ fn comentario_string_e_bloco_inalcancavel_nao_provam_navegacao() {
         let tela = HtmlServido::de_teste(&format!("<script>{montar}</script>{filtro}"));
         assert_eq!(
             filtro_de_todos(&tela),
-            Err(ErroCriar::NavegacaoNaoComprovadaPorScript(motivo)),
+            Err(super::ErroListaDeTiposDocumento::NavegacaoNaoComprovadaPorScript(motivo)),
             "função exibirSeries inerte em JS ativo forma {forma}"
         );
     }
@@ -146,9 +150,11 @@ fn expressao_nomeada_nao_publica_funcao_global_de_navegacao() {
         let html = HtmlServido::de_teste(&format!("<script>{expressao}</script>{tabela}"));
         assert_eq!(
             escolha_do_tipo(&instalacao, &html, "4864", "Despacho"),
-            Err(ErroCriar::NavegacaoNaoComprovadaPorScript(
-                super::guarda_navegacao::ErroGuardaDeNavegacao::ScriptForaDaFormaObservada
-            )),
+            Err(
+                super::ErroListaDeTiposDocumento::NavegacaoNaoComprovadaPorScript(
+                    super::guarda_navegacao::ErroGuardaDeNavegacao::ScriptForaDaFormaObservada
+                )
+            ),
             "expressão não-global não autoriza POST de escolha"
         );
     }
@@ -159,9 +165,11 @@ fn expressao_nomeada_nao_publica_funcao_global_de_navegacao() {
         let html = HtmlServido::de_teste(&format!("<script>{expressao}</script>{filtro}"));
         assert_eq!(
             filtro_de_todos(&html),
-            Err(ErroCriar::NavegacaoNaoComprovadaPorScript(
-                super::guarda_navegacao::ErroGuardaDeNavegacao::ScriptForaDaFormaObservada
-            )),
+            Err(
+                super::ErroListaDeTiposDocumento::NavegacaoNaoComprovadaPorScript(
+                    super::guarda_navegacao::ErroGuardaDeNavegacao::ScriptForaDaFormaObservada
+                )
+            ),
             "expressão não-global não autoriza POST de filtro"
         );
     }
@@ -212,8 +220,8 @@ fn expressao_na_lista_servida_recusa_post_com_orcamento_exato() {
         });
     assert!(matches!(
         resultado,
-        Err(ErroDocumentoCriar::Tipo(
-            ErroCriar::NavegacaoNaoComprovadaPorScript(
+        Err(ErroDocumentoCriar::ListaDeTipos(
+            super::ErroListaDeTiposDocumento::NavegacaoNaoComprovadaPorScript(
                 super::guarda_navegacao::ErroGuardaDeNavegacao::ScriptForaDaFormaObservada
             )
         ))
@@ -252,7 +260,7 @@ fn controles_de_tipo_dentro_de_template_nao_sao_oferta() {
     );
     assert_eq!(
         escolha_do_tipo(&instalacao, &apenas_inerte, "4864", "Despacho"),
-        Err(ErroCriar::TipoAusente)
+        Err(super::ErroListaDeTiposDocumento::TipoAusente)
     );
 }
 

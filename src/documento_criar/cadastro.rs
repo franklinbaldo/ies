@@ -1,6 +1,14 @@
 //! Validação estrutural do cadastro de documento interno (#246).
 //! Formulário/controles provêm exclusivamente da tela servida pelo SEI.
-use super::ErroCriar;
+#[derive(Clone, Debug, PartialEq, Eq, thiserror::Error)]
+#[error("{self:?}")]
+pub(crate) enum ErroCadastroDoDocumento {
+    CadastroForaDaForma,
+    TipoDoCadastroDiferente,
+    DescricaoNaoOferecida,
+    NivelNaoOferecido,
+    CampoObrigatorioNaoAtendido,
+}
 
 /// Um id presente no documento não equivale a um campo do cadastro: o
 /// controle precisa estar dentro do form.
@@ -19,34 +27,34 @@ pub(crate) fn conferir_cadastro(
     tipo: &str,
     descricao: Option<&str>,
     nivel: Option<&str>,
-) -> Result<(), ErroCriar> {
+) -> Result<(), ErroCadastroDoDocumento> {
     let dom = crate::tela_html::arvore(html);
     let formularios = dom.com_id("frmDocumentoCadastro").collect::<Vec<_>>();
     let [formulario] = formularios.as_slice() else {
-        return Err(ErroCriar::CadastroForaDaForma);
+        return Err(ErroCadastroDoDocumento::CadastroForaDaForma);
     };
     let formulario = *formulario;
     if !formulario.nome().eq_ignore_ascii_case("form")
         || formulario.atributo("method") != Some("post")
     {
-        return Err(ErroCriar::CadastroForaDaForma);
+        return Err(ErroCadastroDoDocumento::CadastroForaDaForma);
     }
     let rotulos = dom.com_id("lblSerieTitulo").collect::<Vec<_>>();
     let [rotulo] = rotulos.as_slice() else {
-        return Err(ErroCriar::CadastroForaDaForma);
+        return Err(ErroCadastroDoDocumento::CadastroForaDaForma);
     };
     let rotulo = *rotulo;
     if !rotulo.nome().eq_ignore_ascii_case("label") {
-        return Err(ErroCriar::CadastroForaDaForma);
+        return Err(ErroCadastroDoDocumento::CadastroForaDaForma);
     }
     let lido = super::nome_visivel(&rotulo.texto());
     if lido != tipo {
-        return Err(ErroCriar::TipoDoCadastroDiferente);
+        return Err(ErroCadastroDoDocumento::TipoDoCadastroDiferente);
     }
     if descricao.is_some_and(|valor| !valor.is_empty()) {
         let controles = dom.com_id("txtDescricao").collect::<Vec<_>>();
         let [controle] = controles.as_slice() else {
-            return Err(ErroCriar::DescricaoNaoOferecida);
+            return Err(ErroCadastroDoDocumento::DescricaoNaoOferecida);
         };
         let controle = *controle;
         if !controle.nome().eq_ignore_ascii_case("input")
@@ -54,7 +62,7 @@ pub(crate) fn conferir_cadastro(
             || controle.atributo("name") != Some("txtDescricao")
             || controle.presente("disabled")
         {
-            return Err(ErroCriar::DescricaoNaoOferecida);
+            return Err(ErroCadastroDoDocumento::DescricaoNaoOferecida);
         }
     }
     if let Some(nivel) = nivel {
@@ -62,11 +70,11 @@ pub(crate) fn conferir_cadastro(
             "publico" => ("optPublico", "0"),
             "restrito" => ("optRestrito", "1"),
             "sigiloso" => ("optSigiloso", "2"),
-            _ => return Err(ErroCriar::NivelNaoOferecido),
+            _ => return Err(ErroCadastroDoDocumento::NivelNaoOferecido),
         };
         let controles = dom.com_id(id).collect::<Vec<_>>();
         let [controle] = controles.as_slice() else {
-            return Err(ErroCriar::NivelNaoOferecido);
+            return Err(ErroCadastroDoDocumento::NivelNaoOferecido);
         };
         let controle = *controle;
         if !controle.nome().eq_ignore_ascii_case("input")
@@ -76,7 +84,7 @@ pub(crate) fn conferir_cadastro(
             || controle.atributo("value") != Some(valor)
             || controle.presente("disabled")
         {
-            return Err(ErroCriar::NivelNaoOferecido);
+            return Err(ErroCadastroDoDocumento::NivelNaoOferecido);
         }
     }
     if nivel.is_some() {
@@ -92,7 +100,7 @@ fn conferir_controles_obrigatorios(
     formulario: crate::tela_html::Elemento<'_>,
     descricao: Option<&str>,
     nivel: Option<&str>,
-) -> Result<(), ErroCriar> {
+) -> Result<(), ErroCadastroDoDocumento> {
     for tag in formulario.descendentes() {
         let nome_tag = tag.nome();
         if !nome_tag.eq_ignore_ascii_case("input")
@@ -118,7 +126,7 @@ fn conferir_controles_obrigatorios(
             _ => false,
         };
         if !atendido {
-            return Err(ErroCriar::CampoObrigatorioNaoAtendido);
+            return Err(ErroCadastroDoDocumento::CampoObrigatorioNaoAtendido);
         }
     }
     Ok(())

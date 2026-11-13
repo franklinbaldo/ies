@@ -199,7 +199,7 @@ fn dois_documentos_novos_sao_nao_confirmado_apos_post_unico() {
     assert_eq!(
         resultado,
         Err(ErroConfirmacaoDaCriacao::NaoDemonstradoNaArvore(
-            ErroCriar::NaoConfirmado
+            crate::documento_criar::ErroConferenciaDeCriacao::NaoConfirmado
         ))
     );
     assert_eq!(rede.chamadas, ["POST criador", "GET arvore"]);

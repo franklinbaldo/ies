@@ -21,35 +21,36 @@ use crate::instalacao::Instalacao;
 
 #[derive(Clone, Debug, PartialEq, Eq, thiserror::Error)]
 #[error("{self:?}")]
-pub(crate) enum ErroCriar {
+pub(crate) enum ErroListaDeTiposDocumento {
     ListaForaDaForma,
     TipoAusente,
     TipoAmbiguo,
-    NaoAplicado,
-    NaoConfirmado,
     LinkDoTipoNaoNavegavel,
     /// O link é literal, mas a função de navegação que ele chama não foi
     /// comprovada em script ativo.
     NavegacaoNaoComprovadaPorScript(#[source] guarda_navegacao::ErroGuardaDeNavegacao),
     EnderecoDoTipoNaoReconhecido(EnderecoRecusado),
-    CadastroForaDaForma,
-    TipoDoCadastroDiferente,
-    DescricaoNaoOferecida,
-    NivelNaoOferecido,
-    CampoObrigatorioNaoAtendido,
 }
+
+#[derive(Clone, Debug, PartialEq, Eq, thiserror::Error)]
+#[error("{self:?}")]
+pub(crate) enum ErroConferenciaDeCriacao {
+    NaoAplicado,
+    NaoConfirmado,
+}
+
 /// Apenas nomes publicados em table#tblSeries; nunca interpreta JS como código.
 pub(crate) fn tipos_oferecidos(
     html: &crate::tela_html::HtmlServido,
-) -> Result<Vec<String>, ErroCriar> {
+) -> Result<Vec<String>, ErroListaDeTiposDocumento> {
     let dom = crate::tela_html::arvore(html);
     let tabelas = dom.com_id("tblSeries").collect::<Vec<_>>();
     let [tabela] = tabelas.as_slice() else {
-        return Err(ErroCriar::ListaForaDaForma);
+        return Err(ErroListaDeTiposDocumento::ListaForaDaForma);
     };
     let tabela = *tabela;
     if !tabela.nome().eq_ignore_ascii_case("table") {
-        return Err(ErroCriar::ListaForaDaForma);
+        return Err(ErroListaDeTiposDocumento::ListaForaDaForma);
     }
     let mut tipos = Vec::new();
     for tag in tabela.descendentes() {
@@ -83,11 +84,14 @@ fn nome_visivel(texto: &str) -> String {
         .join(" ")
 }
 
-pub(crate) fn conferir_tipo(tipo: &str, oferecidos: &[String]) -> Result<(), ErroCriar> {
+pub(crate) fn conferir_tipo(
+    tipo: &str,
+    oferecidos: &[String],
+) -> Result<(), ErroListaDeTiposDocumento> {
     match oferecidos.iter().filter(|s| s.as_str() == tipo).count() {
-        0 => Err(ErroCriar::TipoAusente),
+        0 => Err(ErroListaDeTiposDocumento::TipoAusente),
         1 => Ok(()),
-        _ => Err(ErroCriar::TipoAmbiguo),
+        _ => Err(ErroListaDeTiposDocumento::TipoAmbiguo),
     }
 }
 /// Sucesso apenas com um id novo, número SEI e rótulo esperados, mantendo
@@ -96,7 +100,7 @@ pub(crate) fn conferir_criacao(
     antes: &[DocumentoNaArvore],
     depois: &[DocumentoNaArvore],
     tipo: &str,
-) -> Result<String, ErroCriar> {
+) -> Result<String, ErroConferenciaDeCriacao> {
     conferir_criacao_com_rotulo(antes, depois, |rotulo, numero| {
         // `Despacho 0012274` (UnB, PEN, UFRJ) ou, com numeração própria do
         // tipo, `Despacho 1407 (8446460)` (GO 5.0.3, live de 10/11/2026).
@@ -115,24 +119,24 @@ pub(crate) fn conferir_criacao_com_rotulo(
     antes: &[DocumentoNaArvore],
     depois: &[DocumentoNaArvore],
     rotulo_confere: impl Fn(&str, &str) -> bool,
-) -> Result<String, ErroCriar> {
+) -> Result<String, ErroConferenciaDeCriacao> {
     // Uma árvore inicial ambígua também inviabiliza provar unicidade:
     // não basta a leitura posterior ter IDs distintos.
     let mut originais = std::collections::HashSet::new();
     for doc in antes {
         if doc.id.is_empty() || !originais.insert(doc.id.as_str()) {
-            return Err(ErroCriar::NaoConfirmado);
+            return Err(ErroConferenciaDeCriacao::NaoConfirmado);
         }
     }
     let mut ids = std::collections::HashSet::new();
     for doc in depois {
         if doc.id.is_empty() || !ids.insert(doc.id.as_str()) {
-            return Err(ErroCriar::NaoConfirmado);
+            return Err(ErroConferenciaDeCriacao::NaoConfirmado);
         }
     }
     for original in antes {
         if !depois.iter().any(|doc| doc == original) {
-            return Err(ErroCriar::NaoConfirmado);
+            return Err(ErroConferenciaDeCriacao::NaoConfirmado);
         }
     }
     let novos: Vec<_> = depois
@@ -140,15 +144,15 @@ pub(crate) fn conferir_criacao_com_rotulo(
         .filter(|doc| !antes.iter().any(|d| d.id == doc.id))
         .collect();
     let novo = match novos.as_slice() {
-        [] => return Err(ErroCriar::NaoAplicado),
+        [] => return Err(ErroConferenciaDeCriacao::NaoAplicado),
         [doc] => *doc,
-        _ => return Err(ErroCriar::NaoConfirmado),
+        _ => return Err(ErroConferenciaDeCriacao::NaoConfirmado),
     };
     let numero = novo
         .numero_sei
         .as_deref()
         .filter(|s| !s.is_empty() && s.bytes().all(|b| b.is_ascii_digit()))
-        .ok_or(ErroCriar::NaoConfirmado)?;
+        .ok_or(ErroConferenciaDeCriacao::NaoConfirmado)?;
     if !rotulo_confere(&novo.rotulo, numero)
         || antes
             .iter()
@@ -159,7 +163,7 @@ pub(crate) fn conferir_criacao_com_rotulo(
             .count()
             != 1
     {
-        return Err(ErroCriar::NaoConfirmado);
+        return Err(ErroConferenciaDeCriacao::NaoConfirmado);
     }
     Ok(numero.to_owned())
 }
@@ -231,28 +235,30 @@ fn script_prova_escolha(
 /// A lista inicial pode mostrar apenas tipos recentes. O frontend 4.0/4.1
 /// declara o botão "Exibir todos" por exibirSeries('T'), que altera apenas
 /// o filtro da sessão. Nunca executar JS ou inferir a função pelo botão.
-pub(crate) fn filtro_de_todos(html: &crate::tela_html::HtmlServido) -> Result<bool, ErroCriar> {
+pub(crate) fn filtro_de_todos(
+    html: &crate::tela_html::HtmlServido,
+) -> Result<bool, ErroListaDeTiposDocumento> {
     let dom = crate::tela_html::arvore(html);
     let botoes = dom.com_id("ancExibirSeries").collect::<Vec<_>>();
     let [botao] = botoes.as_slice() else {
         return if botoes.is_empty() {
             Ok(false)
         } else {
-            Err(ErroCriar::ListaForaDaForma)
+            Err(ErroListaDeTiposDocumento::ListaForaDaForma)
         };
     };
     let tag = *botao;
     if !tag.nome().eq_ignore_ascii_case("a") {
-        return Err(ErroCriar::ListaForaDaForma);
+        return Err(ErroListaDeTiposDocumento::ListaForaDaForma);
     }
     let href = tag
         .atributo("href")
         .map(str::to_owned)
-        .ok_or(ErroCriar::LinkDoTipoNaoNavegavel)?;
+        .ok_or(ErroListaDeTiposDocumento::LinkDoTipoNaoNavegavel)?;
     let onclick = tag
         .atributo("onclick")
         .map(str::to_owned)
-        .ok_or(ErroCriar::LinkDoTipoNaoNavegavel)?;
+        .ok_or(ErroListaDeTiposDocumento::LinkDoTipoNaoNavegavel)?;
     let chamada = onclick.trim().trim_end_matches(';').trim();
     // Filtro da sessão já em "todos": o botão volta a oferecer só os
     // utilizados, e a lista servida já está completa (UnB, 10/11/2026).
@@ -262,14 +268,14 @@ pub(crate) fn filtro_de_todos(html: &crate::tela_html::HtmlServido) -> Result<bo
     if (href != "#" && href != "javascript:void(0);")
         || (chamada != "exibirSeries('T')" && chamada != "exibirSeries(\"T\")")
     {
-        return Err(ErroCriar::LinkDoTipoNaoNavegavel);
+        return Err(ErroListaDeTiposDocumento::LinkDoTipoNaoNavegavel);
     }
     guarda_navegacao::script_publica_funcao_de_navegacao(
         html,
         "functionexibirSeries(",
         "functionexibirSeries(tipo){document.getElementById('hdnFiltroSerie').value=tipo;document.getElementById('frmDocumentoEscolherTipo').submit();}",
     )
-    .map_err(ErroCriar::NavegacaoNaoComprovadaPorScript)?;
+    .map_err(ErroListaDeTiposDocumento::NavegacaoNaoComprovadaPorScript)?;
     Ok(true)
 }
 
@@ -280,15 +286,15 @@ pub(crate) fn escolha_do_tipo(
     html: &crate::tela_html::HtmlServido,
     id_procedimento: &str,
     tipo: &str,
-) -> Result<EscolhaDoDocumento, ErroCriar> {
+) -> Result<EscolhaDoDocumento, ErroListaDeTiposDocumento> {
     let dom = crate::tela_html::arvore(html);
     let tabelas = dom.com_id("tblSeries").collect::<Vec<_>>();
     let [tabela] = tabelas.as_slice() else {
-        return Err(ErroCriar::ListaForaDaForma);
+        return Err(ErroListaDeTiposDocumento::ListaForaDaForma);
     };
     let tabela = *tabela;
     if !tabela.nome().eq_ignore_ascii_case("table") {
-        return Err(ErroCriar::ListaForaDaForma);
+        return Err(ErroListaDeTiposDocumento::ListaForaDaForma);
     }
     let mut links = Vec::new();
     for tag in tabela.descendentes() {
@@ -303,29 +309,30 @@ pub(crate) fn escolha_do_tipo(
         let href = tag
             .atributo("href")
             .map(str::to_owned)
-            .ok_or(ErroCriar::LinkDoTipoNaoNavegavel)?;
+            .ok_or(ErroListaDeTiposDocumento::LinkDoTipoNaoNavegavel)?;
         if link_de_tipo_externo(&href, onclick.as_deref()) {
             continue;
         }
         links.push((href, onclick));
     }
     let (href, onclick) = match links.as_slice() {
-        [] => return Err(ErroCriar::TipoAusente),
+        [] => return Err(ErroListaDeTiposDocumento::TipoAusente),
         [link] => link,
-        _ => return Err(ErroCriar::TipoAmbiguo),
+        _ => return Err(ErroListaDeTiposDocumento::TipoAmbiguo),
     };
     if href.starts_with("controlador.php?") {
         let link = link_do_tipo::conferir_link_do_tipo(instalacao, href, id_procedimento)?;
         return Ok(EscolhaDoDocumento::Link(link));
     }
     if href != "#" && href != "javascript:void(0);" {
-        return Err(ErroCriar::LinkDoTipoNaoNavegavel);
+        return Err(ErroListaDeTiposDocumento::LinkDoTipoNaoNavegavel);
     }
     let id = onclick
         .as_deref()
         .and_then(id_da_escolha_literal)
-        .ok_or(ErroCriar::LinkDoTipoNaoNavegavel)?;
-    script_prova_escolha(html).map_err(ErroCriar::NavegacaoNaoComprovadaPorScript)?;
+        .ok_or(ErroListaDeTiposDocumento::LinkDoTipoNaoNavegavel)?;
+    script_prova_escolha(html)
+        .map_err(ErroListaDeTiposDocumento::NavegacaoNaoComprovadaPorScript)?;
     Ok(EscolhaDoDocumento::Formulario(id))
 }
 
@@ -335,7 +342,7 @@ pub(crate) fn cadastro_redirecionado(
     instalacao: &Instalacao,
     location: &str,
     id_procedimento: &str,
-) -> Result<String, ErroCriar> {
+) -> Result<String, ErroListaDeTiposDocumento> {
     let base = format!("{}/", instalacao.url_base());
     let relativo = location.strip_prefix(&base).unwrap_or(location);
     conferir_endereco_relativo(
@@ -344,7 +351,7 @@ pub(crate) fn cadastro_redirecionado(
         AcaoDoSei::DocumentoGerar,
         id_procedimento,
     )
-    .map_err(ErroCriar::EnderecoDoTipoNaoReconhecido)
+    .map_err(ErroListaDeTiposDocumento::EnderecoDoTipoNaoReconhecido)
 }
 
 #[cfg(test)]

@@ -3,7 +3,7 @@
 use crate::acao_do_sei::AcaoDoSei;
 use crate::arvore_processo::{ArvoreLida, DocumentoNaArvore};
 use crate::consulta_do_controlador::ConsultaDoControlador;
-use crate::documento_criar::{ErroCriar, conferir_criacao};
+use crate::documento_criar::conferir_criacao;
 use crate::formulario_web::{ErroSubmissaoFormulario, RespostaDoPost, SubmissaoDerivada};
 use crate::formulario_web::{RespostaDoEnvio, enviar_submissao_via};
 use crate::processo_obter::ErroProcessoObter;
@@ -88,7 +88,7 @@ pub(crate) enum ErroConfirmacaoDaCriacao {
     /// A releitura não demonstra um documento novo único do tipo pedido.
     NaoConfirmado,
     /// A releitura não traz um documento novo do tipo pedido; guarda o motivo.
-    NaoDemonstradoNaArvore(#[source] ErroCriar),
+    NaoDemonstradoNaArvore(#[source] crate::documento_criar::ErroConferenciaDeCriacao),
     /// O POST pode ter produzido efeito mesmo com falha HTTP ou de rede;
     /// preservar sua causa sem autorizar uma segunda tentativa.
     NaoConfirmadoNoEnvio(#[source] ErroSubmissaoFormulario),
