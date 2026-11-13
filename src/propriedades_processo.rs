@@ -55,23 +55,7 @@ impl std::fmt::Debug for EnderecoDasPropriedades {
     }
 }
 
-/// `rdoNivelAcesso` marcado.
-#[derive(Clone, Copy, Debug, PartialEq, Eq)]
-pub(crate) enum NivelDeAcesso {
-    Publico,
-    Restrito,
-    Sigiloso,
-}
-
-impl NivelDeAcesso {
-    pub(crate) fn como_texto(self) -> &'static str {
-        match self {
-            Self::Publico => "publico",
-            Self::Restrito => "restrito",
-            Self::Sigiloso => "sigiloso",
-        }
-    }
-}
+pub(crate) use crate::dominio::NivelDeAcesso;
 
 /// Uma `option` de `selAssuntos`: `<código> - <descrição>`.
 #[derive(Clone, Debug, PartialEq, Eq)]
