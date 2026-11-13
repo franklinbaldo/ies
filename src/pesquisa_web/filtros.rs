@@ -33,11 +33,6 @@ pub(crate) fn ano_mes_dia(data: &str) -> Option<(u32, u32, u32)> {
     Some((numero(ano, 4)?, numero(mes, 2)?, numero(dia, 2)?))
 }
 
-/// Datas DD/MM/AAAA, sem normalização silenciosa e sem dependências novas.
-pub(crate) fn data_valida(data: &str) -> bool {
-    crate::unidade_retornos::data_valida(data)
-}
-
 #[derive(Clone, Copy, Debug, PartialEq, Eq, thiserror::Error)]
 #[error("{self:?}")]
 pub(crate) enum ErroFiltro {
@@ -130,11 +125,11 @@ mod tests {
     use super::*;
     #[test]
     fn datas_validas_e_invalidas() {
-        assert!(data_valida("29/02/2024"));
-        assert!(data_valida("31/12/2026"));
-        assert!(!data_valida("29/02/2025"));
-        assert!(!data_valida("31/11/2026"));
-        assert!(!data_valida("01-01-2026"));
+        assert!(DataCivil::ler("29/02/2024").is_some());
+        assert!(DataCivil::ler("31/12/2026").is_some());
+        assert!(DataCivil::ler("29/02/2025").is_none());
+        assert!(DataCivil::ler("31/11/2026").is_none());
+        assert!(DataCivil::ler("01-01-2026").is_none());
     }
     #[test]
     fn tipo_exato_e_recusa_de_ausencia() {

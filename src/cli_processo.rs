@@ -208,7 +208,7 @@ pub(crate) enum ProcessoAcao {
         ate: Option<String>,
         /// Dias corridos positivos (a contagem exata é do SEI)
         #[arg(long, conflicts_with = "excluir", value_parser = crate::processo_prazo::dias_do_prazo)]
-        dias: Option<u32>,
+        dias: Option<u16>,
         /// Remove o controle de prazo pela lista da unidade
         #[arg(long)]
         excluir: bool,
