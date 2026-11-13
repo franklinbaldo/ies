@@ -8,7 +8,7 @@ pub(super) fn valores_ocultos(html: &crate::tela_html::HtmlServido, id: &str) ->
     let dom = crate::tela_html::arvore(html);
     let mut valores = Vec::new();
     for no in dom.com_id(id) {
-        valores.push(no.atributo("value").map(str::to_owned).unwrap_or_default());
+        valores.push(no.atributo("value").unwrap_or_default().to_owned());
     }
     valores
 }

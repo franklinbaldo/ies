@@ -30,12 +30,11 @@ pub(crate) fn link_de_iniciar(
     let dom = crate::tela_html::arvore(html);
     let mut candidatos = Vec::new();
     for no in dom.elementos("a") {
-        let Some(href) = no.atributo("href").map(str::to_owned) else {
+        let Some(href) = no.atributo("href") else {
             continue;
         };
-        let aponta = menciona_acao(&href, AcaoDoSei::ProcedimentoEscolherTipo);
-        if aponta {
-            candidatos.push(href);
+        if menciona_acao(href, AcaoDoSei::ProcedimentoEscolherTipo) {
+            candidatos.push(href.to_owned());
         }
     }
     let [href] = candidatos.as_slice() else {

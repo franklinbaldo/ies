@@ -37,7 +37,7 @@ pub(super) fn controles(html: &str, prefixo: &str) -> Vec<String> {
     let mut achados = Vec::new();
     for seletor in ["a", "select"] {
         for no in dom.elementos(seletor) {
-            let Some(id) = no.atributo("id").map(str::to_owned) else {
+            let Some(id) = no.atributo("id") else {
                 continue;
             };
             let tipo = if seletor == "a" { "lnk" } else { "sel" };
