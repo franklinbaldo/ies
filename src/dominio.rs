@@ -46,7 +46,7 @@ impl Categoria {
 }
 
 /// `rdoNivelAcesso` marcado no SEI (processo ou documento).
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, clap::ValueEnum)]
 #[serde(rename_all = "snake_case")]
 pub enum NivelDeAcesso {
     Publico,
