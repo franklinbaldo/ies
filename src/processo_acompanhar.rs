@@ -4,7 +4,7 @@
 
 use crate::acao_do_sei::AcaoDoSei;
 use crate::consulta_do_controlador::{
-    ConsultaDoControlador, ErroConsultaDoControlador, ErroParametroDaUrl,
+    ConsultaDoControlador, ErroAcaoDaUrl, ErroConsultaDoControlador, ErroParametroDaUrl,
 };
 
 mod exclusao;
@@ -34,8 +34,9 @@ pub(crate) enum ErroAcompanhar {
     CadastroDeOutroProcesso,
     /// A action do cadastro não se lê em pares `chave=valor`.
     ConsultaDoCadastroIlegivel(#[source] ErroConsultaDoControlador),
-    /// A action do cadastro não tem exatamente um `acao` nem um `id_procedimento`.
+    /// A action do cadastro não tem exatamente um `id_procedimento`.
     ChaveDoCadastroIlegivel(#[source] ErroParametroDaUrl),
+    AcaoDoCadastroIlegivel(#[source] ErroAcaoDaUrl),
     GruposNaoPublicados,
     GrupoNaoOferecido,
     GrupoAmbiguo,
@@ -157,12 +158,12 @@ fn conferir_action_do_cadastro(action: &str, id_procedimento: &str) -> Result<()
     let consulta =
         ConsultaDoControlador::ler(consulta).map_err(ErroAcompanhar::ConsultaDoCadastroIlegivel)?;
     let acao = consulta
-        .unico("acao")
-        .map_err(ErroAcompanhar::ChaveDoCadastroIlegivel)?;
+        .acao()
+        .map_err(ErroAcompanhar::AcaoDoCadastroIlegivel)?;
     let id = consulta
         .unico("id_procedimento")
         .map_err(ErroAcompanhar::ChaveDoCadastroIlegivel)?;
-    if AcaoDoSei::ler(acao) != Some(AcaoDoSei::AcompanhamentoCadastrar) || id != id_procedimento {
+    if acao != AcaoDoSei::AcompanhamentoCadastrar.como_na_url() || id != id_procedimento {
         return Err(ErroAcompanhar::CadastroDeOutroProcesso);
     }
     Ok(())

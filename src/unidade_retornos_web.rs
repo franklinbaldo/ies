@@ -2,7 +2,8 @@
 //! Oraculo: Todos `retorno_programado.py` @323eb01, cassette unidade-listar-retornos-unb.
 use crate::acao_do_sei::AcaoDoSei;
 use crate::consulta_do_controlador::{
-    ConsultaDoControlador, ErroConsultaDoControlador, ErroParametroDaUrl, menciona_acao,
+    ConsultaDoControlador, ErroAcaoDaUrl, ErroConsultaDoControlador, ErroParametroDaUrl,
+    menciona_acao,
 };
 use crate::instalacao::Instalacao;
 use crate::transporte::FalhaTransporte;
@@ -25,6 +26,7 @@ pub(crate) enum ErroLeituraRetornos {
     UnidadeDiferenteDaSolicitada,
     ConsultaDoLinkIlegivel(#[source] ErroConsultaDoControlador),
     ChaveDoLinkIlegivel(#[source] ErroParametroDaUrl),
+    AcaoDoLinkIlegivel(#[source] ErroAcaoDaUrl),
 }
 
 impl ErroLeituraRetornos {
@@ -43,7 +45,8 @@ impl ErroLeituraRetornos {
             | Self::MesDaCliInvalido
             | Self::UnidadeDiferenteDaSolicitada
             | Self::ConsultaDoLinkIlegivel(_)
-            | Self::ChaveDoLinkIlegivel(_) => false,
+            | Self::ChaveDoLinkIlegivel(_)
+            | Self::AcaoDoLinkIlegivel(_) => false,
         }
     }
 }
@@ -163,12 +166,12 @@ fn conferir_link(
         }
     })?;
     let acao = leitura
-        .unico("acao")
-        .map_err(ErroLeituraRetornos::ChaveDoLinkIlegivel)?;
+        .acao()
+        .map_err(ErroLeituraRetornos::AcaoDoLinkIlegivel)?;
     let hash = leitura
         .unico("infra_hash")
         .map_err(ErroLeituraRetornos::ChaveDoLinkIlegivel)?;
-    if AcaoDoSei::ler(acao) != Some(AcaoDoSei::RetornoProgramadoListar)
+    if acao != AcaoDoSei::RetornoProgramadoListar.como_na_url()
         || leitura.valores("acao_ajax").next().is_some()
         || hash.len() != 64
         || !hash.bytes().all(|b| b.is_ascii_hexdigit())

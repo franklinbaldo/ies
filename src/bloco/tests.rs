@@ -144,9 +144,7 @@ fn link_de_bloco_com_chave_repetida_ou_par_sem_igual_tem_a_causa() {
         link(format!(
             "acao=bloco_interno_listar&acao=bloco_interno_listar&infra_hash={HASH}"
         )),
-        Err(ErroBloco::ChaveDoLinkDeBloco(
-            ErroParametroDaUrl::ParametroRepetido("acao")
-        ))
+        Err(ErroBloco::AcaoDoLinkDeBloco(ErroAcaoDaUrl::AcaoRepetida))
     );
     assert_eq!(
         link(format!("acao=bloco_interno_listar&lixo&infra_hash={HASH}")),

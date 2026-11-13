@@ -55,6 +55,7 @@ pub(crate) fn unidade_do_controle(
                 | ErroDetalhada::IdentificadorDetalhadoInvalido(_)
                 | ErroDetalhada::ConsultaDoMarcadorIlegivel(_)
                 | ErroDetalhada::ChaveDoMarcadorDetalhado(_)
+                | ErroDetalhada::AcaoDoMarcadorDetalhado(_)
                 | ErroDetalhada::ConsultaDoLinkDoProcessoIlegivel(_)
                 | ErroDetalhada::ChaveDoLinkDoProcessoDetalhado(_)
                 | ErroDetalhada::AcaoDoLinkDoProcessoDetalhado(_)

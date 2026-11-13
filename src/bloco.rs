@@ -3,7 +3,8 @@
 use crate::acao_do_sei::AcaoDoSei;
 use crate::bloco_estado::EstadoDoBloco;
 use crate::consulta_do_controlador::{
-    ConsultaDoControlador, ErroConsultaDoControlador, ErroParametroDaUrl, menciona_acao,
+    ConsultaDoControlador, ErroAcaoDaUrl, ErroConsultaDoControlador, ErroParametroDaUrl,
+    menciona_acao,
 };
 use crate::instalacao::Instalacao;
 use crate::legenda::{ErroLegenda, Faixa, Legenda, ler_legenda};
@@ -44,8 +45,9 @@ pub(crate) enum ErroBloco {
     Legenda(#[from] ErroLegenda),
     /// A consulta do link de bloco não se deixa ler em pares.
     ConsultaDoLinkDeBloco(#[source] ErroConsultaDoControlador),
-    /// `acao`, `infra_hash` do link de bloco ausentes ou repetidos.
+    /// `infra_hash` do link de bloco ausente ou repetido.
     ChaveDoLinkDeBloco(#[source] ErroParametroDaUrl),
+    AcaoDoLinkDeBloco(#[source] ErroAcaoDaUrl),
     /// A coluna Estado traz um texto fora do conjunto que o SEI publica.
     EstadoDoBlocoDesconhecido(String),
     LegendaDeBlocosInvalida,
@@ -272,9 +274,7 @@ pub(crate) fn resolver_link(
     }
     let consulta =
         ConsultaDoControlador::ler(consulta).map_err(ErroBloco::ConsultaDoLinkDeBloco)?;
-    let acao_lida = consulta
-        .unico("acao")
-        .map_err(ErroBloco::ChaveDoLinkDeBloco)?;
+    let acao_lida = consulta.acao().map_err(ErroBloco::AcaoDoLinkDeBloco)?;
     let hash = consulta
         .unico("infra_hash")
         .map_err(ErroBloco::ChaveDoLinkDeBloco)?;
@@ -283,7 +283,7 @@ pub(crate) fn resolver_link(
         Some(n) => ids == [n],
         None => ids.is_empty(),
     };
-    if AcaoDoSei::ler(acao_lida) != Some(acao)
+    if acao_lida != acao.como_na_url()
         || hash.len() != 64
         || !hash.bytes().all(|b| b.is_ascii_hexdigit())
         || consulta.valores("acao_ajax").next().is_some()

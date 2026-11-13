@@ -172,8 +172,8 @@ fn link_do_marcador_com_acao_repetida_tem_a_causa() {
     );
     assert_eq!(
         com_marcadores(&repetida).map(|_| ()),
-        Err(ErroDetalhada::ChaveDoMarcadorDetalhado(
-            crate::consulta_do_controlador::ErroParametroDaUrl::ParametroRepetido("acao")
+        Err(ErroDetalhada::AcaoDoMarcadorDetalhado(
+            crate::consulta_do_controlador::ErroAcaoDaUrl::AcaoRepetida
         ))
     );
 }
