@@ -75,9 +75,7 @@ pub(crate) fn link_da_troca(
     let nos = dom.com_id("lnkInfraUnidade").collect::<Vec<_>>();
     let mut onclicks = Vec::new();
     for no in nos {
-        if let Some(bruto) = no.atributo("onclick").map(str::to_owned) {
-            onclicks.push(bruto);
-        }
+        onclicks.extend(no.atributo("onclick"));
     }
     let Some(primeiro) = onclicks.first() else {
         return Err(ErroTroca::LinkDeTrocaDeUnidadeAusente);
@@ -223,14 +221,10 @@ fn filtro(
         return Err(ErroTroca::TelaDeTrocaDeUnidadeNaoReconhecida);
     };
     let tag = *no;
-    let valor = |t: crate::tela_html::Elemento<'_>| -> Result<String, super::ErroTroca> {
-        match t.atributo("value").map(str::to_owned) {
-            None => Ok(String::new()),
-            Some(bruto) => Ok(bruto),
-        }
-    };
+    let valor =
+        |t: crate::tela_html::Elemento<'_>| t.atributo("value").unwrap_or_default().to_owned();
     if tag.nome() != "select" {
-        return Ok((nome, valor(tag)?));
+        return Ok((nome, valor(tag)));
     }
     let opcoes = tags(tag, "option");
     let mut escolhida = opcoes.first().copied();
@@ -240,7 +234,7 @@ fn filtro(
         }
     }
     let opcao = escolhida.ok_or(ErroTroca::TelaDeTrocaDeUnidadeNaoReconhecida)?;
-    Ok((nome, valor(opcao)?))
+    Ok((nome, valor(opcao)))
 }
 
 /// O script da tela define `selecionarUnidade`, cria `selInfraUnidades` e
