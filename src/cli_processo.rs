@@ -205,7 +205,7 @@ pub(crate) enum ProcessoAcao {
             conflicts_with_all = ["dias", "excluir"],
             value_parser = crate::processo_prazo::data_do_prazo
         )]
-        ate: Option<String>,
+        ate: Option<crate::unidade_retornos::DataCivil>,
         /// Dias corridos positivos (a contagem exata é do SEI)
         #[arg(long, conflicts_with = "excluir", value_parser = crate::processo_prazo::dias_do_prazo)]
         dias: Option<u16>,
