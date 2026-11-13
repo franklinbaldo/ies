@@ -85,14 +85,14 @@ fn link_fora_da_forma_observada_e_recusado() {
     }
     assert_eq!(
         link(&controle(&menu(&ponto_e_virgula))),
-        Err(ErroLinkDaPesquisa::ConsultaDoLinkRecusadaPeloTransporte(
-            crate::transporte::FalhaTransporte::SeparadorDeConsultaAmbiguo
+        Err(ErroLinkDaPesquisa::ConsultaDoLinkIlegivel(
+            crate::consulta_do_controlador::ErroConsultaDoControlador::SeparadorDeConsultaAmbiguo
         ))
     );
     assert_eq!(
         link(&controle(&menu(&chave_estranha))),
-        Err(ErroLinkDaPesquisa::ConsultaDoLinkRecusadaPeloTransporte(
-            crate::transporte::FalhaTransporte::ChaveDeConsultaNaoCanonica
+        Err(ErroLinkDaPesquisa::ConsultaDoLinkIlegivel(
+            crate::consulta_do_controlador::ErroConsultaDoControlador::ChaveDeConsultaNaoCanonica
         ))
     );
 }

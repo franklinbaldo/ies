@@ -3,13 +3,12 @@
 //! POSTs 6 e 10: `Location` relativo para `procedimento_trabalhar`.
 //! Contrato: docs/arquitetura/0002-submeter-formulario-observado.md.
 use crate::acao_do_sei::AcaoDoSei;
-use crate::consulta_do_controlador::{ConsultaDoControlador, ErroConsultaDoControlador};
+use crate::consulta_do_controlador::ConsultaDoControlador;
 use crate::dominio::IdProcedimento;
 use crate::erro_web::ErroCaixa;
 use crate::formulario_web::Redirecionamento302;
 use crate::instalacao::Instalacao;
 use crate::sessao_login::redirecionamento::{ErroDeOrigem, esquema_http, sufixo_da_mesma_origem};
-use crate::transporte::FalhaTransporte;
 use crate::url_observada::{esquema_e_resto, partes_https, pasta, tem_esquema};
 
 #[derive(Clone, Debug, PartialEq, Eq, thiserror::Error)]
@@ -20,12 +19,8 @@ pub(crate) enum ErroRedirecionamentoDaPesquisa {
     LocalizacaoDoRedirecionamentoNaoEhUrlHttps,
     LocalizacaoDoRedirecionamentoForaDaInstalacao,
     ParametroNaoCanonicoNaLocalizacaoDoRedirecionamento,
-    /// Chave ou valor de consulta recusado pelo transporte.
-    ParametroDeConsultaRecusadoNoRedirecionamento(#[source] FalhaTransporte),
     /// Um trecho da URL do envio não tem `=`.
     ParametroNaoCanonicoNaUrlDoEnvio,
-    /// Chave ou valor da URL do envio recusado pelo transporte.
-    ParametroDeConsultaRecusadoNaUrlDoEnvio(#[source] FalhaTransporte),
     RedirecionamentoParaAcaoDiferenteDeProcedimentoTrabalhar,
     AcaoDeOrigemAusenteNoRedirecionamento,
     AcaoDeOrigemRepetidaNoRedirecionamento,
@@ -190,13 +185,8 @@ fn resolver(
 fn parametros(
     consulta: Option<&str>,
 ) -> Result<ConsultaDoControlador<'_>, ErroRedirecionamentoDaPesquisa> {
-    ConsultaDoControlador::da_url(consulta).map_err(|erro| match erro {
-        ErroConsultaDoControlador::RecusadaPeloTransporte(falha) => {
-            ErroRedirecionamentoDaPesquisa::ParametroDeConsultaRecusadoNoRedirecionamento(falha)
-        }
-        ErroConsultaDoControlador::ParSemIgual => {
-            ErroRedirecionamentoDaPesquisa::ParametroNaoCanonicoNaLocalizacaoDoRedirecionamento
-        }
+    ConsultaDoControlador::da_url(consulta).map_err(|_| {
+        ErroRedirecionamentoDaPesquisa::ParametroNaoCanonicoNaLocalizacaoDoRedirecionamento
     })
 }
 
@@ -204,14 +194,8 @@ fn parametros_do_envio(
     url_do_envio: &str,
 ) -> Result<ConsultaDoControlador<'_>, ErroRedirecionamentoDaPesquisa> {
     let consulta = partir_https(url_do_envio).and_then(|(_, _, consulta)| consulta);
-    ConsultaDoControlador::da_url(consulta).map_err(|erro| match erro {
-        ErroConsultaDoControlador::RecusadaPeloTransporte(falha) => {
-            ErroRedirecionamentoDaPesquisa::ParametroDeConsultaRecusadoNaUrlDoEnvio(falha)
-        }
-        ErroConsultaDoControlador::ParSemIgual => {
-            ErroRedirecionamentoDaPesquisa::ParametroNaoCanonicoNaUrlDoEnvio
-        }
-    })
+    ConsultaDoControlador::da_url(consulta)
+        .map_err(|_| ErroRedirecionamentoDaPesquisa::ParametroNaoCanonicoNaUrlDoEnvio)
 }
 
 fn unidade_do_envio(url_do_envio: &str) -> Result<String, ErroRedirecionamentoDaPesquisa> {

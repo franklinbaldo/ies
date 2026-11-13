@@ -141,9 +141,7 @@ fn chave_amp_acao_no_primeiro_parametro_nao_e_acao_valida() {
     assert_eq!(
         ler_resultados(&html),
         Err(ErroResultadoPesquisa::ConsultaDoLinkIlegivel(
-            crate::consulta_do_controlador::ErroConsultaDoControlador::RecusadaPeloTransporte(
-                crate::transporte::FalhaTransporte::ChaveDeConsultaNaoCanonica
-            )
+            crate::consulta_do_controlador::ErroConsultaDoControlador::ChaveDeConsultaNaoCanonica
         ))
     );
 }
@@ -227,9 +225,7 @@ fn chaves_que_o_php_pode_normalizar_nao_alteram_identidade_silenciosamente() {
         assert_eq!(
             ler_resultados(&html),
             Err(ErroResultadoPesquisa::ConsultaDoLinkIlegivel(
-                crate::consulta_do_controlador::ErroConsultaDoControlador::RecusadaPeloTransporte(
-                    crate::transporte::FalhaTransporte::ChaveDeConsultaNaoCanonica
-                )
+                crate::consulta_do_controlador::ErroConsultaDoControlador::ChaveDeConsultaNaoCanonica
             )),
             "chave alternativa nao pode mudar a acao ou o ID: {extra}"
         );

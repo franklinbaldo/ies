@@ -12,23 +12,6 @@ pub use falha::{FalhaTransporte, StatusHttpRecusado};
 #[path = "transporte/falha.rs"]
 mod falha;
 
-// PHP decodifica percent/plus e converte pontos/espaços em underscores;
-// preservar a rejeição de nomes não literais já exigida pelo transporte.
-pub(crate) fn conferir_chave_de_consulta(chave: &str) -> Result<(), FalhaTransporte> {
-    if chave.is_empty() || !chave.bytes().all(|b| b.is_ascii_lowercase() || b == b'_') {
-        return Err(FalhaTransporte::ChaveDeConsultaNaoCanonica);
-    }
-    Ok(())
-}
-
-// Alguns servidores PHP tratam ';' como separador adicional de parâmetros.
-pub(crate) fn conferir_valor_de_consulta(valor: &str) -> Result<(), FalhaTransporte> {
-    if valor.contains(';') {
-        return Err(FalhaTransporte::SeparadorDeConsultaAmbiguo);
-    }
-    Ok(())
-}
-
 fn validar_url(url: &str) -> Result<(&str, &str), FalhaTransporte> {
     let partes =
         crate::url_observada::UrlHttps::interpretar(url).ok_or(FalhaTransporte::UrlInvalida)?;
@@ -44,8 +27,10 @@ fn validar_url(url: &str) -> Result<(&str, &str), FalhaTransporte> {
     let mut hashes = 0;
     for item in query.split('&') {
         let (nome, valor) = item.split_once('=').ok_or(FalhaTransporte::UrlInvalida)?;
-        conferir_chave_de_consulta(nome)?;
-        conferir_valor_de_consulta(valor)?;
+        crate::consulta_do_controlador::conferir_chave_de_consulta(nome)
+            .map_err(|_| FalhaTransporte::UrlInvalida)?;
+        crate::consulta_do_controlador::conferir_valor_de_consulta(valor)
+            .map_err(|_| FalhaTransporte::UrlInvalida)?;
         match nome {
             "acao" if AcaoDoSei::ler(valor) == Some(AcaoDoSei::ProcedimentoControlar) => {
                 actions += 1;

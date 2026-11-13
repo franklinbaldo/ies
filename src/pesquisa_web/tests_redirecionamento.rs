@@ -183,9 +183,6 @@ fn nomes_de_parametro_nao_canonicos_ou_ponto_e_virgula_sao_recusados() {
             matches!(
                 erro(&alterado),
                 ErroRedirecionamentoDaPesquisa::ParametroNaoCanonicoNaLocalizacaoDoRedirecionamento
-                    | ErroRedirecionamentoDaPesquisa::ParametroDeConsultaRecusadoNoRedirecionamento(
-                        _
-                    )
             ),
             "{alterado}"
         );

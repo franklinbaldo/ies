@@ -24,8 +24,6 @@ impl StatusHttpRecusado {
 #[derive(Clone, Debug, PartialEq, Eq, thiserror::Error)]
 #[error("{self:?}")]
 pub enum FalhaTransporte {
-    ChaveDeConsultaNaoCanonica,
-    SeparadorDeConsultaAmbiguo,
     OrigemNaoAutorizada,
     /// URL assinada inválida: falha da validação do transporte.
     UrlInvalida,
@@ -72,9 +70,7 @@ impl FalhaTransporte {
             Self::ControleRedirecionadoParaOLogin(_) | Self::PaginaDeLoginRecebidaNoControle => {
                 true
             }
-            Self::ChaveDeConsultaNaoCanonica
-            | Self::SeparadorDeConsultaAmbiguo
-            | Self::OrigemNaoAutorizada
+            Self::OrigemNaoAutorizada
             | Self::UrlInvalida
             | Self::CookieInvalido
             | Self::TipoDeConteudoNaoHtml
@@ -101,9 +97,7 @@ impl FalhaTransporte {
             Self::Status(recusa)
             | Self::BloqueioDeSegurancaDaInstalacao(recusa)
             | Self::ControleRedirecionadoParaOLogin(recusa) => Some(recusa),
-            Self::ChaveDeConsultaNaoCanonica
-            | Self::SeparadorDeConsultaAmbiguo
-            | Self::OrigemNaoAutorizada
+            Self::OrigemNaoAutorizada
             | Self::UrlInvalida
             | Self::CookieInvalido
             | Self::TipoDeConteudoNaoHtml
@@ -140,9 +134,7 @@ impl FalhaTransporte {
         match self {
             Self::RespostaExcessiva => FatoDaResposta::CorpoAcimaDoLimite,
             Self::PaginaDeLoginRecebidaNoControle => FatoDaResposta::TelaDeLoginNoLugarDaResposta,
-            Self::ChaveDeConsultaNaoCanonica
-            | Self::SeparadorDeConsultaAmbiguo
-            | Self::OrigemNaoAutorizada
+            Self::OrigemNaoAutorizada
             | Self::UrlInvalida
             | Self::CookieInvalido
             | Self::TipoDeConteudoNaoHtml

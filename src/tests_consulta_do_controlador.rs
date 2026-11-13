@@ -3,7 +3,6 @@ use super::{
     ErroParametroDaUrl, id_decimal, id_decimal_do_controlador, menciona_acao,
 };
 use crate::acao_do_sei::AcaoDoSei;
-use crate::transporte::FalhaTransporte;
 
 #[test]
 fn le_acao_e_valor_unico() {
@@ -26,15 +25,11 @@ fn cada_recusa_tem_o_seu_erro() {
         ),
         (
             "Acao=arvore_visualizar",
-            ErroConsultaDoControlador::RecusadaPeloTransporte(
-                FalhaTransporte::ChaveDeConsultaNaoCanonica,
-            ),
+            ErroConsultaDoControlador::ChaveDeConsultaNaoCanonica,
         ),
         (
             "acao=arvore_visualizar;x",
-            ErroConsultaDoControlador::RecusadaPeloTransporte(
-                FalhaTransporte::SeparadorDeConsultaAmbiguo,
-            ),
+            ErroConsultaDoControlador::SeparadorDeConsultaAmbiguo,
         ),
     ];
     for (texto, erro) in casos {

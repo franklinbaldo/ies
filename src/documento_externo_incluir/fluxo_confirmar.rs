@@ -8,7 +8,7 @@ use super::{
     recibo::{FalhaUpload, ReciboUpload},
 };
 use crate::acao_do_sei::AcaoDoSei;
-use crate::consulta_do_controlador::{ConsultaDoControlador, ErroConsultaDoControlador};
+use crate::consulta_do_controlador::ConsultaDoControlador;
 use crate::formulario_web::{CodificacaoDaTela, TelaServida, enviar_submissao_via};
 use crate::indice_local::IndiceLocal;
 use crate::instalacao::Instalacao;
@@ -56,12 +56,8 @@ pub(crate) fn conferir_upload(
     if relativo.len() > 8_192 || !relativo.bytes().all(|b| (33..=126).contains(&b)) {
         return Err(ErroIncluirExterno::EnderecoDeUploadRecusado);
     }
-    let consulta = ConsultaDoControlador::ler(consulta).map_err(|erro| match erro {
-        ErroConsultaDoControlador::RecusadaPeloTransporte(falha) => {
-            ErroIncluirExterno::ConsultaDoUploadForaDaForma(falha)
-        }
-        ErroConsultaDoControlador::ParSemIgual => ErroIncluirExterno::EnderecoDeUploadRecusado,
-    })?;
+    let consulta = ConsultaDoControlador::ler(consulta)
+        .map_err(ErroIncluirExterno::ConsultaDoUploadForaDaForma)?;
     match consulta
         .valores("id_procedimento")
         .collect::<Vec<_>>()
