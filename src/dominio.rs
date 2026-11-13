@@ -64,6 +64,38 @@ impl NivelDeAcesso {
     }
 }
 
+/// `rdoNivelAcesso` aceito na criação de processo (`publico` ou `restrito`).
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Default, Serialize, clap::ValueEnum)]
+#[serde(rename_all = "snake_case")]
+pub enum NivelDeCriacao {
+    #[default]
+    Publico,
+    Restrito,
+}
+
+impl NivelDeCriacao {
+    pub fn como_texto(self) -> &'static str {
+        match self {
+            Self::Publico => "publico",
+            Self::Restrito => "restrito",
+        }
+    }
+
+    pub fn valor_radio(self) -> &'static str {
+        match self {
+            Self::Publico => "0",
+            Self::Restrito => "1",
+        }
+    }
+
+    pub fn como_acesso(self) -> NivelDeAcesso {
+        match self {
+            Self::Publico => NivelDeAcesso::Publico,
+            Self::Restrito => NivelDeAcesso::Restrito,
+        }
+    }
+}
+
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct Tabela<T> {
     pub processos: Vec<T>,

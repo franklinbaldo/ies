@@ -104,17 +104,30 @@ fn ler_cadastro(html: &str) -> Resultado {
     };
     // A tela pode oferecer dois níveis; basta um nível validado pelos
     // mesmos predicados do comando, sem concluir pela ausência do outro.
-    for nivel in ["publico", "restrito"] {
+    for nivel in [
+        crate::dominio::NivelDeCriacao::Publico,
+        crate::dominio::NivelDeCriacao::Restrito,
+    ] {
         if conferir_cadastro(&HtmlServido::de_teste(html), &id, nivel).is_ok() {
             return Resultado::Lido;
         }
     }
-    if conferir_cadastro_com_ajax_pendente(&HtmlServido::de_teste(html), &id, "restrito").is_ok() {
+    if conferir_cadastro_com_ajax_pendente(
+        &HtmlServido::de_teste(html),
+        &id,
+        crate::dominio::NivelDeCriacao::Restrito,
+    )
+    .is_ok()
+    {
         return Resultado::NaoAplicavel("hipotese_restrita_pendente_de_ajax".to_owned());
     }
     // Após a mesma validação ter falhado, não invente uma forma:
     // preserve a causa tipada concreta.
-    match conferir_cadastro(&HtmlServido::de_teste(html), &id, "publico") {
+    match conferir_cadastro(
+        &HtmlServido::de_teste(html),
+        &id,
+        crate::dominio::NivelDeCriacao::Publico,
+    ) {
         Ok(_) => Resultado::Lido,
         Err(erro) => Resultado::Recusado(format!("{erro:?}")),
     }

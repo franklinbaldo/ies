@@ -37,7 +37,7 @@ pub(super) fn verificar<V: EnvioDoControle>(
             .map_err(ErroCriar::Propriedades)?;
     if propriedades.tipo != feito.tipo
         || propriedades.especificacao != pedido.especificacao
-        || propriedades.nivel_de_acesso.como_texto() != pedido.nivel
+        || propriedades.nivel_de_acesso != pedido.nivel.como_acesso()
         || !super::reconciliacao::desfechos::interessados_conferem(
             &feito.interessados,
             &propriedades.interessados,

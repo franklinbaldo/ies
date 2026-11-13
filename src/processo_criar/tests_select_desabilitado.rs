@@ -10,7 +10,10 @@ use crate::processo_concluir::tests_apoio::{ambiente, ok, rodar_com};
 #[test]
 fn select_desabilitado_recusa_confirmacao_antes_do_post_criador() {
     let amb = ambiente();
-    for (nivel, campo) in [("publico", "selAssuntos"), ("restrito", "selHipoteseLegal")] {
+    for (nivel, campo) in [
+        (crate::dominio::NivelDeCriacao::Publico, "selAssuntos"),
+        (crate::dominio::NivelDeCriacao::Restrito, "selHipoteseLegal"),
+    ] {
         let mut solicitado = pedido(true);
         solicitado.nivel = nivel;
         let cadastro_desabilitado = cadastro().replace(

@@ -85,7 +85,7 @@ pub(crate) struct PedidoCriar<'a> {
     pub(crate) tipo: &'a str,
     pub(crate) especificacao: &'a str,
     pub(crate) interessados: &'a [String],
-    pub(crate) nivel: &'a str,
+    pub(crate) nivel: crate::dominio::NivelDeCriacao,
     pub(crate) unidade: Option<&'a str>,
     pub(crate) hipotese_legal: Option<&'a str>,
     pub(crate) confirmar: bool,
@@ -95,7 +95,7 @@ pub(crate) struct PedidoCriar<'a> {
 pub(crate) struct Criacao {
     pub(crate) tipo: String,
     pub(crate) assunto: String,
-    pub(crate) nivel: String,
+    pub(crate) nivel: crate::dominio::NivelDeCriacao,
     pub(crate) hipotese_legal: Option<String>,
     pub(crate) unidade: String,
     pub(crate) confirmado: bool,
@@ -272,7 +272,9 @@ pub(crate) fn criar_com_contagem<V: EnvioDoControle>(
     };
     let mut observado = match conferir_cadastro(&cadastro.html, &id_tipo, pedido.nivel) {
         Ok(observado) => observado,
-        Err(ErroCadastro::HipoteseLegalNaoIdentificada) if pedido.nivel == "restrito" => {
+        Err(ErroCadastro::HipoteseLegalNaoIdentificada)
+            if pedido.nivel == crate::dominio::NivelDeCriacao::Restrito =>
+        {
             conferir_cadastro_com_ajax_pendente(&cadastro.html, &id_tipo, pedido.nivel)
                 .map_err(ErroCriar::Cadastro)?
         }
@@ -297,7 +299,9 @@ pub(crate) fn criar_com_contagem<V: EnvioDoControle>(
             ErroHipotese::EscolhaInlineNaoVerificada,
         ));
     }
-    if pedido.nivel == "restrito" && observado.hipotese_legal.is_none() {
+    if pedido.nivel == crate::dominio::NivelDeCriacao::Restrito
+        && observado.hipotese_legal.is_none()
+    {
         observado.hipotese_legal = Some(
             resolver_hipotese(
                 envio,
@@ -322,7 +326,7 @@ pub(crate) fn criar_com_contagem<V: EnvioDoControle>(
     let mut feito = Criacao {
         tipo: escolhido.nome,
         assunto: observado.assunto.clone(),
-        nivel: pedido.nivel.to_owned(),
+        nivel: pedido.nivel,
         hipotese_legal: observado.hipotese_legal.clone(),
         unidade,
         confirmado: false,
@@ -332,12 +336,11 @@ pub(crate) fn criar_com_contagem<V: EnvioDoControle>(
         requisicoes: *requisicoes,
     };
     let lupa = format!("{}±{}", observado.id_assunto, observado.assunto);
-    let nivel = if pedido.nivel == "publico" { "0" } else { "1" };
     let mut campos = vec![
         ("hdnFlagProcedimentoCadastro", "2"),
         ("hdnAssuntos", lupa.as_str()),
         ("txtDescricao", pedido.especificacao),
-        ("rdoNivelAcesso", nivel),
+        ("rdoNivelAcesso", pedido.nivel.valor_radio()),
     ];
     if let Some(hipotese) = observado.hipotese_legal.as_deref() {
         campos.push(("selHipoteseLegal", hipotese));
