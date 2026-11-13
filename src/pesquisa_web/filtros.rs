@@ -21,7 +21,7 @@ pub(crate) fn data_da_cli(data: &str) -> Result<DataCivil, DataForaDoCalendario>
 }
 
 /// `(ano, mes, dia)` de uma data DD/MM/AAAA só com dígitos ASCII; a tupla
-/// ordena como o calendário. Não confere o calendário: ver `data_valida`.
+/// ordena como o calendário. A validade é conferida por `DataCivil::ler`.
 pub(crate) fn ano_mes_dia(data: &str) -> Option<(u32, u32, u32)> {
     let (dia, resto) = data.split_once('/')?;
     let (mes, ano) = resto.split_once('/')?;
@@ -31,11 +31,6 @@ pub(crate) fn ano_mes_dia(data: &str) -> Option<(u32, u32, u32)> {
             .flatten()
     };
     Some((numero(ano, 4)?, numero(mes, 2)?, numero(dia, 2)?))
-}
-
-/// Datas DD/MM/AAAA, sem normalização silenciosa e sem dependências novas.
-pub(crate) fn data_valida(data: &str) -> bool {
-    crate::unidade_retornos::data_valida(data)
 }
 
 #[derive(Clone, Copy, Debug, PartialEq, Eq, thiserror::Error)]
@@ -130,11 +125,11 @@ mod tests {
     use super::*;
     #[test]
     fn datas_validas_e_invalidas() {
-        assert!(data_valida("29/02/2024"));
-        assert!(data_valida("31/12/2026"));
-        assert!(!data_valida("29/02/2025"));
-        assert!(!data_valida("31/11/2026"));
-        assert!(!data_valida("01-01-2026"));
+        assert!(DataCivil::ler("29/02/2024").is_some());
+        assert!(DataCivil::ler("31/12/2026").is_some());
+        assert!(DataCivil::ler("29/02/2025").is_none());
+        assert!(DataCivil::ler("31/11/2026").is_none());
+        assert!(DataCivil::ler("01-01-2026").is_none());
     }
     #[test]
     fn tipo_exato_e_recusa_de_ausencia() {
