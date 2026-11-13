@@ -224,12 +224,40 @@ fn ler_linhas(
     Ok((itens, links))
 }
 
+const LISTA_VAZIA: &str = "Nenhum registro encontrado.";
+
+/// Verdadeiro só para a forma observada no acervo: a área da tabela tem como
+/// único conteúdo um rótulo com a marca de vazio, e `tblBlocos` não existe.
+fn lista_vazia(dom: &crate::tela_html::Documento) -> bool {
+    let areas = dom.com_id("divInfraAreaTabela").collect::<Vec<_>>();
+    let [area] = areas.as_slice() else {
+        return false;
+    };
+    let area = *area;
+    let mut rotulos = area.elementos("label");
+    let rotulo = rotulos.next();
+    rotulos.next().is_none()
+        && rotulo.is_some_and(|r| texto_do_elemento(r) == LISTA_VAZIA)
+        && texto_do_elemento(area) == LISTA_VAZIA
+}
+
 pub(crate) fn ler_lista(
     html: &crate::tela_html::HtmlServido,
     tipo: TipoBloco,
 ) -> Result<ListaComLinks, ErroBloco> {
     let dom = crate::tela_html::arvore(html);
     let tabelas = dom.com_id("tblBlocos").collect::<Vec<_>>();
+    if tabelas.is_empty() && lista_vazia(&dom) {
+        return Ok(ListaComLinks {
+            lista: ListaDeBlocos {
+                tipo,
+                total_declarado: 0,
+                faixa_observada: None,
+                itens: Vec::new(),
+            },
+            links: Vec::new(),
+        });
+    }
     let tabela = match tabelas.as_slice() {
         [] => return Err(ErroBloco::TabelaDeBlocosAusente),
         [no] => *no,
@@ -331,5 +359,7 @@ pub(crate) fn link_do_menu(
     }
 }
 
+#[cfg(test)]
+mod acervo;
 #[cfg(test)]
 mod tests;
