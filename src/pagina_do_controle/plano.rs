@@ -48,7 +48,7 @@ fn pagina_atual(
             ErroPaginaDoControle::CamposDePaginaAtualDaTabelaRepetidos { categoria }
         });
     };
-    let valor = no.atributo("value").map(str::to_owned).unwrap_or_default();
+    let valor = no.atributo("value").unwrap_or_default();
     if valor.is_empty() || !valor.bytes().all(|b| b.is_ascii_digit()) {
         return Err(ilegivel());
     }

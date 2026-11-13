@@ -119,9 +119,9 @@ fn caixas_de_documento(
     for caixa in CAIXAS_DE_DOCUMENTO {
         let mut achadas = Vec::new();
         for tag in tags.iter().filter(|t| eh(**t, "input")) {
-            let id = tag.atributo("id").map(str::to_owned);
-            let nome = tag.atributo("name").map(str::to_owned);
-            if id.as_deref() == Some(caixa) || nome.as_deref() == Some(caixa) {
+            let id = tag.atributo("id");
+            let nome = tag.atributo("name");
+            if id == Some(caixa) || nome == Some(caixa) {
                 achadas.push((*tag, id, nome));
             }
         }
@@ -250,7 +250,7 @@ fn maxlength_do_termo(
         [campo] => *campo,
         _ => return Err(ErroRegraDoFormularioDePesquisa::CamposDoTermoRepetidosNaTela),
     };
-    let Some(valor) = campo.atributo("maxlength").map(str::to_owned) else {
+    let Some(valor) = campo.atributo("maxlength") else {
         return Err(ErroRegraDoFormularioDePesquisa::MaxlengthDoTermoAusenteNaTela);
     };
     if valor.is_empty() || !valor.bytes().all(|b| b.is_ascii_digit()) {
