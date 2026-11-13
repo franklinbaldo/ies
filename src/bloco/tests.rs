@@ -183,3 +183,32 @@ fn singular_da_legenda_e_aceito_com_um_bloco() {
         ErroBloco::Legenda(crate::legenda::ErroLegenda::SingularComTotalDiferenteDeUm { total: 2 })
     );
 }
+
+#[test]
+fn lista_vazia_observada_no_acervo_e_contraprovas() {
+    for label in [
+        "<label>Nenhum registro encontrado.</label>",
+        "<label class=\"infraLabelTabelaNenhumRegistro\">Nenhum registro encontrado.</label>",
+    ] {
+        let html = crate::tela_html::HtmlServido::de_teste(&format!(
+            "<div id=\"divInfraAreaTabela\" class=\"infraAreaTabela\">{label}</div>"
+        ));
+        let lida = ler_lista(&html, TipoBloco::Interno).unwrap();
+        assert_eq!(lida.lista.total_declarado, 0);
+        assert_eq!(lida.lista.faixa_observada, None);
+        assert_eq!(lida.lista.itens, []);
+    }
+
+    // Contraprova: outra mensagem ou conteúdo extra continua sendo TabelaDeBlocosAusente.
+    for html_recusado in [
+        "<div id=\"divInfraAreaTabela\"><label>Outro texto.</label></div>",
+        "<div id=\"divInfraAreaTabela\"><label>Nenhum registro encontrado.</label><span>extra</span></div>",
+        "<div><label>Nenhum registro encontrado.</label></div>",
+    ] {
+        let html = crate::tela_html::HtmlServido::de_teste(html_recusado);
+        assert_eq!(
+            ler_lista(&html, TipoBloco::Assinatura).err(),
+            Some(ErroBloco::TabelaDeBlocosAusente)
+        );
+    }
+}
