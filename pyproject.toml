@@ -16,5 +16,9 @@ Repository = "https://github.com/franklinbaldo/ies"
 
 [tool.maturin]
 bindings = "bin"
-targets = [{ name = "ies", kind = "bin" }]
+targets = [
+  { name = "ies", kind = "bin" },
+  { name = "sei", kind = "bin" },
+  { name = "ies-sei", kind = "bin" },
+]
 locked = true

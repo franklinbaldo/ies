@@ -31,7 +31,12 @@ O binário Rust `ies` também pode ser distribuído como wheel pelo
 `ies-sei` estiver publicado com wheels pré-compilados:
 
 ```sh
-uvx --from ies-sei ies --help
+uvx ies-sei --help
+# Instalar os tres comandos permanentemente:
+uv tool install ies-sei
+ies --help
+sei --help
+ies-sei --help
 ```
 
 O pacote **ainda não foi publicado no PyPI**. Veja o

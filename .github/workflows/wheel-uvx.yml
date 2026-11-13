@@ -45,6 +45,10 @@ jobs:
           test "${#wheels[@]}" -eq 1
           uvx --from "${wheels[0]}" ies --version
           uvx --from "${wheels[0]}" ies --help
+          uvx --from "${wheels[0]}" sei --version
+          uvx --from "${wheels[0]}" sei --help
+          uvx --from "${wheels[0]}" ies-sei --version
+          uvx --from "${wheels[0]}" ies-sei --help
 
       - name: Disponibilizar wheel temporario (sem comitar binarios)
         uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2

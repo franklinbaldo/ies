@@ -31,6 +31,14 @@ anti-ies = { path = "crates/anti-ies" }
 sha1 = "0.11"
 zip = { version = "9", default-features = false, features = ["deflate-flate2-zlib-rs"] }
 
+[[bin]]
+name = "sei"
+path = "src/main.rs"
+
+[[bin]]
+name = "ies-sei"
+path = "src/main.rs"
+
 [workspace]
 members = ["xtask", "crates/iesei", "crates/anti-ies"]
 resolver = "3"
