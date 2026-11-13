@@ -171,9 +171,9 @@ fn mes_inteiro(links: &[Link]) -> Result<(MesAno, &str), ErroLeituraRetornos> {
         let (Some(inicio), Some(fim)) = (link.data_inicial, link.data_final) else {
             continue;
         };
-        if inicio.dia != 1
-            || inicio.mes_ano != fim.mes_ano
-            || fim.dia != inicio.mes_ano.ultimo_dia()
+        if inicio.dia() != 1
+            || inicio.mes_ano() != fim.mes_ano()
+            || fim.dia() != inicio.mes_ano().ultimo_dia()
         {
             continue;
         }
@@ -181,9 +181,9 @@ fn mes_inteiro(links: &[Link]) -> Result<(MesAno, &str), ErroLeituraRetornos> {
         // (cabecalho/rodape) nas sete instalacoes. Duplicata identica
         // nao e uma segunda escolha; URL assinada diferente continua ambigua.
         match encontrado {
-            Some((anterior, url)) if anterior == inicio.mes_ano && url == link.url => {}
+            Some((anterior, url)) if anterior == inicio.mes_ano() && url == link.url => {}
             Some(_) => return Err(ErroLeituraRetornos::CalendarioDosRetornosDesconhecido),
-            None => encontrado = Some((inicio.mes_ano, link.url.as_str())),
+            None => encontrado = Some((inicio.mes_ano(), link.url.as_str())),
         }
     }
     encontrado.ok_or(ErroLeituraRetornos::CalendarioDosRetornosDesconhecido)
@@ -219,7 +219,7 @@ fn hoje_na_tela(
     }
     match (celulas_marcadas, marcado) {
         (0, None) => Ok(None),
-        (1, Some(data)) => Ok(Some(data.mes_ano)),
+        (1, Some(data)) => Ok(Some(data.mes_ano())),
         _ => Err(ErroLeituraRetornos::CalendarioDosRetornosDesconhecido),
     }
 }
@@ -285,13 +285,10 @@ where
             .vizinho(rumo)
             .ok_or(ErroLeituraRetornos::MesDosRetornosInacessivel)?;
         let mut escolhido: Option<&str> = None;
-        for link in candidatos.iter().filter(|link| {
-            link.data_atual
-                == Some(DataCivil {
-                    mes_ano: proximo,
-                    dia: 1,
-                })
-        }) {
+        for link in candidatos
+            .iter()
+            .filter(|link| link.data_atual == DataCivil::new(proximo.ano(), proximo.mes(), 1))
+        {
             match escolhido {
                 Some(url) if url == link.url => {}
                 Some(_) => return Err(ErroLeituraRetornos::CalendarioDosRetornosDesconhecido),
@@ -309,7 +306,7 @@ where
 }
 
 pub(crate) struct Leitura {
-    pub(crate) mes: String,
+    pub(crate) mes: MesAno,
     pub(crate) itens: Vec<Retorno>,
     pub(crate) requisicoes: u8,
 }
@@ -329,10 +326,7 @@ where
 {
     // Nao consulta o relogio quando o pedido ja indicou o mes.
     let hoje_utc = if mes.is_some() {
-        DataCivil {
-            mes_ano: MesAno { ano: 1970, mes: 1 },
-            dia: 1,
-        }
+        DataCivil::new(1970, 1, 1).unwrap_or_else(|| unreachable!())
     } else {
         data_utc_agora().ok_or(ErroLeituraRetornos::CalendarioDosRetornosDesconhecido)?
     };
@@ -362,14 +356,14 @@ where
     } else if let Some(observado) = hoje_na_tela(&tela, &servida, instalacao)? {
         observado
     } else {
-        let mut candidatos = vec![hoje_utc.mes_ano];
-        if hoje_utc.dia == 1
-            && let Some(anterior) = hoje_utc.mes_ano.vizinho(-1)
+        let mut candidatos = vec![hoje_utc.mes_ano()];
+        if hoje_utc.dia() == 1
+            && let Some(anterior) = hoje_utc.mes_ano().vizinho(-1)
         {
             candidatos.push(anterior);
         }
-        if hoje_utc.dia == hoje_utc.mes_ano.ultimo_dia()
-            && let Some(seguinte) = hoje_utc.mes_ano.vizinho(1)
+        if hoje_utc.dia() == hoje_utc.mes_ano().ultimo_dia()
+            && let Some(seguinte) = hoje_utc.mes_ano().vizinho(1)
         {
             candidatos.push(seguinte);
         }
@@ -402,7 +396,7 @@ where
     requisicoes += 1;
     let itens = unidade_retornos::extrair_retornos(&html)?;
     Ok(Leitura {
-        mes: alvo.to_string(),
+        mes: alvo,
         itens,
         requisicoes,
     })
@@ -432,7 +426,7 @@ pub(crate) fn conferir_calendario_gravado(
     let proximo = mes.vizinho(1);
     let vizinho = candidatos.iter().any(|link| {
         link.data_atual.is_some_and(|data| {
-            data.dia == 1 && (Some(data.mes_ano) == anterior || Some(data.mes_ano) == proximo)
+            data.dia() == 1 && (Some(data.mes_ano()) == anterior || Some(data.mes_ano()) == proximo)
         })
     });
     Ok((marcado, vizinho))

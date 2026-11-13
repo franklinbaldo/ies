@@ -42,7 +42,8 @@ fn calendario(ano: u16, mes: u8, hoje: bool) -> String {
         href(&format!("data_atual={data_hoje}")),
         href(&format!(
             "data_atual=01%2F{:02}%2F{:04}",
-            seguinte.mes, seguinte.ano
+            seguinte.mes(),
+            seguinte.ano()
         )),
     )
 }
@@ -75,7 +76,7 @@ fn mes_da_tela_custa_dois_get_apos_o_controle() {
         },
     )
     .unwrap();
-    assert_eq!(resultado.mes, "2026-10");
+    assert_eq!(resultado.mes, m(2026, 10));
     assert_eq!(resultado.requisicoes, 3);
     assert_eq!(resultado.itens.len(), 1);
     assert_eq!(resultado.itens[0].numero, "001/2026");
@@ -105,7 +106,7 @@ fn proximo_mes_usa_um_get_adicional_sem_repetir_pagina() {
         },
     )
     .unwrap();
-    assert_eq!(resultado.mes, "2026-11");
+    assert_eq!(resultado.mes, m(2026, 11));
     assert_eq!(resultado.requisicoes, 4);
     assert_eq!(resultado.itens.len(), 0);
     assert_eq!(chamados.len(), 3);
@@ -137,7 +138,7 @@ fn dois_links_mensais_identicos_sao_uma_unica_oferta() {
         },
     )
     .unwrap();
-    assert_eq!(lido.mes, "2026-10");
+    assert_eq!(lido.mes, m(2026, 10));
     assert_eq!(lido.itens.len(), 1);
     assert_eq!(lido.requisicoes, 3);
     assert_eq!(chamados, 2);
@@ -196,7 +197,7 @@ fn mes_anterior_segue_link_publicado_sem_inventar_url() {
         },
     )
     .unwrap();
-    assert_eq!(resultado.mes, "2026-09");
+    assert_eq!(resultado.mes, m(2026, 9));
     assert_eq!(resultado.requisicoes, 4);
     assert_eq!(resultado.itens.len(), 0);
     assert_eq!(chamados.len(), 3);
@@ -316,10 +317,7 @@ fn mes_invalido_recusado_antes_de_acesso_a_sessao() {
     ] {
         assert!(mes_da_cli(valor).is_err(), "{valor}");
     }
-    assert!(matches!(
-        mes_da_cli("2026-10"),
-        Ok(MesAno { ano: 2026, mes: 10 })
-    ));
+    assert_eq!(mes_da_cli("2026-10").unwrap(), m(2026, 10));
 }
 
 #[test]
@@ -349,7 +347,7 @@ fn sem_mes_encontra_dia_hoje_em_mes_anterior_ao_aberto() {
         },
     )
     .unwrap();
-    assert_eq!(lido.mes, "2026-10");
+    assert_eq!(lido.mes, m(2026, 10));
     assert_eq!(lido.itens.len(), 1);
     assert_eq!(lido.requisicoes, 4);
     assert_eq!(pedidos.len(), 3);
@@ -384,7 +382,7 @@ fn sem_mes_na_virada_utc_nao_converte_hoje_da_maquina_em_hoje_do_sei() {
         },
     )
     .unwrap();
-    assert_eq!(lido.mes, "2026-10");
+    assert_eq!(lido.mes, m(2026, 10));
     assert_eq!(lido.requisicoes, 4);
     assert_eq!(pedidos.len(), 3);
 }
@@ -446,7 +444,7 @@ fn primeiro_dia_duplicado_com_url_identica_nao_inventa_ambiguidade() {
         },
     )
     .unwrap();
-    assert_eq!(lido.mes, "2026-10");
+    assert_eq!(lido.mes, m(2026, 10));
     assert_eq!(lido.requisicoes, 4);
     assert_eq!(pedidos.len(), 3);
 }

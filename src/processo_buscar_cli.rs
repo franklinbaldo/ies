@@ -104,11 +104,10 @@ fn buscar(
     pagina: Option<u32>,
     filtros: FiltrosDaPesquisa<'_>,
 ) -> anyhow::Result<()> {
-    if let (Some(de), Some(ate)) = (filtros.de, filtros.ate) {
-        let ano_mes_dia = crate::pesquisa_web::filtros::ano_mes_dia;
-        if ano_mes_dia(de) > ano_mes_dia(ate) {
-            crate::uso_invalido::recusar(crate::uso_invalido::UsoInvalido::PeriodoInvertido);
-        }
+    if let (Some(de), Some(ate)) = (filtros.de, filtros.ate)
+        && de > ate
+    {
+        crate::uso_invalido::recusar(crate::uso_invalido::UsoInvalido::PeriodoInvertido);
     }
     if opcoes_de_leitura_presentes(comando) {
         crate::uso_invalido::recusar(crate::uso_invalido::UsoInvalido::OpcoesDeLeituraComBuscar);
@@ -187,8 +186,8 @@ pub(crate) fn tentar_buscar(cli: &Cli) -> Option<anyhow::Result<()>> {
         FiltrosDaPesquisa {
             tipo: tipo.as_deref(),
             assunto: assunto.as_deref(),
-            de: de.as_deref(),
-            ate: ate.as_deref(),
+            de: *de,
+            ate: *ate,
         },
     ))
 }

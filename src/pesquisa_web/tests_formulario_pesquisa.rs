@@ -374,8 +374,8 @@ fn filtro_de_tipo_exato_e_periodo_usam_mesmo_post() {
     let url = url_servida();
     let filtros = FiltrosDaPesquisa {
         tipo: Some("Administrativo"),
-        de: Some("01/01/2026"),
-        ate: Some("31/12/2026"),
+        de: crate::unidade_retornos::DataCivil::ler("01/01/2026"),
+        ate: crate::unidade_retornos::DataCivil::ler("31/12/2026"),
         ..Default::default()
     };
     let envio = derivar_pesquisa_em_filtrada(
@@ -400,7 +400,7 @@ fn filtro_ausente_na_tela_falha_antes_do_post() {
         &tela_iso(&url, &HtmlServido::de_teste(&observado())),
         ("UNIDADE TESTE", "0001"),
         FiltrosDaPesquisa {
-            de: Some("01/01/2026"),
+            de: crate::unidade_retornos::DataCivil::ler("01/01/2026"),
             ..Default::default()
         },
     )

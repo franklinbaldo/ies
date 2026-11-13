@@ -1,12 +1,14 @@
 //! Filtros opcionais da pesquisa: somente controles comprovados na tela servida.
 //! Todos é oráculo de nomes, mas cada instalação precisa publicar os controles.
 
+use crate::unidade_retornos::DataCivil;
+
 #[derive(Clone, Copy, Debug, Default, PartialEq, Eq)]
 pub(crate) struct FiltrosDaPesquisa<'a> {
     pub(crate) tipo: Option<&'a str>,
     pub(crate) assunto: Option<&'a str>,
-    pub(crate) de: Option<&'a str>,
-    pub(crate) ate: Option<&'a str>,
+    pub(crate) de: Option<DataCivil>,
+    pub(crate) ate: Option<DataCivil>,
 }
 
 /// `--de`/`--ate` DD/MM/AAAA que existe no calendário (parser do clap: saída 2).
@@ -14,12 +16,8 @@ pub(crate) struct FiltrosDaPesquisa<'a> {
 #[error("{self:?}")]
 pub(crate) struct DataForaDoCalendario;
 
-pub(crate) fn data_da_cli(data: &str) -> Result<String, DataForaDoCalendario> {
-    if data_valida(data) {
-        Ok(data.to_owned())
-    } else {
-        Err(DataForaDoCalendario)
-    }
+pub(crate) fn data_da_cli(data: &str) -> Result<DataCivil, DataForaDoCalendario> {
+    DataCivil::ler(data).ok_or(DataForaDoCalendario)
 }
 
 /// `(ano, mes, dia)` de uma data DD/MM/AAAA só com dígitos ASCII; a tupla
@@ -121,7 +119,7 @@ pub(crate) fn derivar_campos(
             if campo.atributo("type").is_some_and(|v| v != "text") {
                 return Err(ErroFiltro::CriterioNaoOferecidoPelaTela);
             }
-            campos.push((nome, data.to_owned()));
+            campos.push((nome, data.to_string()));
         }
     }
     Ok(campos)
@@ -148,7 +146,7 @@ mod tests {
         let form = dom.elementos("form").next().unwrap();
         let filtros = FiltrosDaPesquisa {
             tipo: Some("Judicial"),
-            de: Some("01/01/2026"),
+            de: DataCivil::ler("01/01/2026"),
             ..Default::default()
         };
         assert_eq!(
