@@ -30,14 +30,7 @@ pub(crate) struct PropriedadesLidas {
     pub(crate) descricao: String,
     pub(crate) nome_na_arvore: String,
     pub(crate) observacoes: String,
-    pub(crate) nivel_de_acesso: Nivel,
-}
-#[derive(Debug, PartialEq, Eq, Serialize)]
-#[serde(rename_all = "snake_case")]
-pub(crate) enum Nivel {
-    Publico,
-    Restrito,
-    Sigiloso,
+    pub(crate) nivel_de_acesso: crate::dominio::NivelDeAcesso,
 }
 
 /// O cadastro do documento (barra, formulário, anexo) fora da forma observada:
@@ -81,7 +74,7 @@ fn valor(tag: Tag<'_>) -> Result<String, ErroPropriedadesDocumento> {
 fn texto(tag: Tag<'_>) -> String {
     tag.texto()
 }
-fn nivel(form: Tag<'_>) -> Result<Nivel, ErroPropriedadesDocumento> {
+fn nivel(form: Tag<'_>) -> Result<crate::dominio::NivelDeAcesso, ErroPropriedadesDocumento> {
     let mut marcados = Vec::new();
     for no in form.elementos("input") {
         if no.atributo("name") == Some("rdoNivelAcesso") && no.presente("checked") {
@@ -90,9 +83,9 @@ fn nivel(form: Tag<'_>) -> Result<Nivel, ErroPropriedadesDocumento> {
     }
     match marcados.as_slice() {
         [] => Err(ErroPropriedadesDocumento::NivelDeAcessoNaoMarcado),
-        [Some(x)] if x == "0" => Ok(Nivel::Publico),
-        [Some(x)] if x == "1" => Ok(Nivel::Restrito),
-        [Some(x)] if x == "2" => Ok(Nivel::Sigiloso),
+        [Some(x)] if x == "0" => Ok(crate::dominio::NivelDeAcesso::Publico),
+        [Some(x)] if x == "1" => Ok(crate::dominio::NivelDeAcesso::Restrito),
+        [Some(x)] if x == "2" => Ok(crate::dominio::NivelDeAcesso::Sigiloso),
         _ => Err(ErroPropriedadesDocumento::NivelCadastroDocumentoInesperado),
     }
 }
@@ -206,9 +199,9 @@ pub(crate) fn linha_humana(props: &PropriedadesDocumento) -> Option<String> {
         PropriedadesDocumento::NaoPedidas => None,
         PropriedadesDocumento::Lidas(p) => {
             let nivel = match &p.nivel_de_acesso {
-                Nivel::Publico => "público",
-                Nivel::Restrito => "restrito",
-                Nivel::Sigiloso => "sigiloso",
+                crate::dominio::NivelDeAcesso::Publico => "público",
+                crate::dominio::NivelDeAcesso::Restrito => "restrito",
+                crate::dominio::NivelDeAcesso::Sigiloso => "sigiloso",
             };
             Some(format!(
                 "Cadastro: tipo {}; descrição {}; nome na árvore {}; observações {}; acesso {}.",
@@ -325,7 +318,7 @@ mod tests {
         let lida = ler_formulario(&html, "21", "10").unwrap();
         assert_eq!(lida.tipo, "Anexo");
         assert_eq!(lida.descricao, "Backup de teste");
-        assert_eq!(lida.nivel_de_acesso, Nivel::Publico);
+        assert_eq!(lida.nivel_de_acesso, crate::dominio::NivelDeAcesso::Publico);
     }
 
     #[test]
@@ -346,7 +339,7 @@ mod tests {
             (lida.tipo.as_str(), lida.descricao.as_str()),
             ("Ofício", "Revisão")
         );
-        assert_eq!(lida.nivel_de_acesso, Nivel::Publico);
+        assert_eq!(lida.nivel_de_acesso, crate::dominio::NivelDeAcesso::Publico);
         assert!(ler_formulario(&html, "21", "11").is_err());
     }
 }

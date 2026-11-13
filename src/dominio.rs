@@ -45,6 +45,25 @@ impl Categoria {
     }
 }
 
+/// `rdoNivelAcesso` marcado no SEI (processo ou documento).
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize)]
+#[serde(rename_all = "snake_case")]
+pub enum NivelDeAcesso {
+    Publico,
+    Restrito,
+    Sigiloso,
+}
+
+impl NivelDeAcesso {
+    pub fn como_texto(self) -> &'static str {
+        match self {
+            Self::Publico => "publico",
+            Self::Restrito => "restrito",
+            Self::Sigiloso => "sigiloso",
+        }
+    }
+}
+
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct Tabela<T> {
     pub processos: Vec<T>,
