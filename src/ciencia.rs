@@ -184,12 +184,13 @@ fn atividade_do_endereco(url: &str, alvo: AlvoDaCiencia<'_>) -> Option<String> {
     if caminho != "controlador.php" {
         return None;
     }
-    let consulta = ConsultaDoControlador::ler(
+    let Ok(consulta) = ConsultaDoControlador::ler(
         restante
             .split_once('#')
             .map_or(restante, |(antes, _)| antes),
-    )
-    .ok()?;
+    ) else {
+        return None;
+    };
     let (id_procedimento, marca, id_documento) = match alvo {
         AlvoDaCiencia::Processo { id_procedimento } => {
             (id_procedimento, "procedimento_visualizar_ciencias", None)
@@ -211,7 +212,9 @@ fn atividade_do_endereco(url: &str, alvo: AlvoDaCiencia<'_>) -> Option<String> {
     {
         return None;
     }
-    let atividade = consulta.unico("id_atividade").ok()?;
+    let Ok(atividade) = consulta.unico("id_atividade") else {
+        return None;
+    };
     identificador(atividade).then(|| atividade.to_owned())
 }
 

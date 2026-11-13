@@ -200,33 +200,25 @@ fn html_200(resposta: RespostaHttp) -> Result<(crate::tela_html::HtmlServido, St
 }
 
 /// Controle de Processos na URL assinada da instalação, com cookie.
-/// `None` se a URL não é a do Controle.
 fn como_controle(
     url: &str,
     (html, mime): (&crate::tela_html::HtmlServido, &str),
-    origem: &str,
     pote: &PoteDeCookies,
-) -> Option<Result<SessaoObtida, ErroLogin>> {
-    transporte::validar_origem(url, origem).ok()?;
-    Some(
-        unidade_do_controle(html)
-            .map_err(ErroLogin::ControleAposOLoginNaoReconhecido)
-            .and_then(|unidade| {
-                let cookie = pote.cabecalho(url);
-                if cookie.is_empty() || transporte::validar_cookie(&cookie).is_err() {
-                    return Err(ErroLogin::CookieDaSessaoNaoRecebido);
-                }
-                Ok(SessaoObtida {
-                    url: url.to_owned(),
-                    cookie,
-                    unidade,
-                    controle: ControleObtido {
-                        html: html.to_owned(),
-                        mime: mime.to_owned(),
-                    },
-                })
-            }),
-    )
+) -> Result<SessaoObtida, ErroLogin> {
+    let unidade = unidade_do_controle(html).map_err(ErroLogin::ControleAposOLoginNaoReconhecido)?;
+    let cookie = pote.cabecalho(url);
+    if cookie.is_empty() || transporte::validar_cookie(&cookie).is_err() {
+        return Err(ErroLogin::CookieDaSessaoNaoRecebido);
+    }
+    Ok(SessaoObtida {
+        url: url.to_owned(),
+        cookie,
+        unidade,
+        controle: ControleObtido {
+            html: html.to_owned(),
+            mime: mime.to_owned(),
+        },
+    })
 }
 
 /// Tela de login servida pela raiz, antes de qualquer credencial.
@@ -281,8 +273,8 @@ fn autenticar<T: TransporteDeLogin>(
         _ => (url_do_post, resposta),
     };
     let (html, mime) = html_200(resposta)?;
-    if let Some(obtida) = como_controle(&url, (&html, &mime), origem, &pote) {
-        return obtida;
+    if transporte::validar_origem(&url, origem).is_ok() {
+        return como_controle(&url, (&html, &mime), &pote);
     }
     if tela::captcha_exigido(&html) {
         return Err(ErroLogin::CaptchaExigido);
@@ -301,11 +293,8 @@ fn autenticar<T: TransporteDeLogin>(
     transporte::validar_origem(&destino, origem).map_err(ErroLogin::Transporte)?;
     let (url, resposta) = navegar(transporte, &mut pote, host, destino)?;
     let (html, mime) = html_200(resposta)?;
-    como_controle(&url, (&html, &mime), origem, &pote).unwrap_or(Err(
-        ErroLogin::ControleAposOLoginNaoReconhecido(
-            ErroCaixa::IdentificacaoDaUnidadeAusenteNoControle,
-        ),
-    ))
+    transporte::validar_origem(&url, origem).map_err(ErroLogin::Transporte)?;
+    como_controle(&url, (&html, &mime), &pote)
 }
 
 fn conferir_unidade(pedido: &PedidoDeLogin<'_>, unidade: &str) -> Result<(), ErroLogin> {

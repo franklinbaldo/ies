@@ -108,7 +108,10 @@ pub(crate) fn tentar_obter(cli: &Cli) -> Option<anyhow::Result<()>> {
         }
     }
     let saida = comando.saida.as_deref().map(Path::new);
-    let mut versoes = documento_versao_cli::pedido(comando.versao, saida.is_some())?;
+    let mut versoes = match documento_versao_cli::pedido(comando.versao, saida.is_some()) {
+        Ok(versoes) => versoes,
+        Err(erro) => return Some(Err(erro.into())),
+    };
     versoes.cache = crate::cache_documento::habilitado_ambiente(comando.sem_cache);
     Some(obter(
         cli,

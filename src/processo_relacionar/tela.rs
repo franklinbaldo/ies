@@ -46,8 +46,12 @@ pub(crate) enum ErroDestinoDaConsulta {
 
 fn id_do_processo(href: &str) -> Option<&str> {
     let query = href.strip_prefix("controlador.php?")?;
-    let query = ConsultaDoControlador::ler(query).ok()?;
-    let id = query.unico("id_procedimento").ok()?;
+    let Ok(query) = ConsultaDoControlador::ler(query) else {
+        return None;
+    };
+    let Ok(id) = query.unico("id_procedimento") else {
+        return None;
+    };
     (query.acao() == Ok(AcaoDoSei::ProcedimentoTrabalhar.como_na_url())
         && !id.is_empty()
         && id.bytes().all(|c| c.is_ascii_digit()))
