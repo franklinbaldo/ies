@@ -79,7 +79,7 @@ fn ler_linhas(
     let mut processos = Vec::new();
     let linhas = primeira.elementos("tr");
     for linha in linhas {
-        let Some(id) = linha.atributo("id").map(str::to_owned) else {
+        let Some(id) = linha.atributo("id") else {
             // Cabeçalhos e avisos podem aparecer entre as linhas.
             continue;
         };
@@ -90,11 +90,8 @@ fn ler_linhas(
         let links = linha.elementos("a");
         let mut encontrado = None;
         for link in links {
-            let classes = link
-                .atributo("class")
-                .map(str::to_owned)
-                .unwrap_or_default();
-            let estado = estado_do_link(&classes).map_err(|motivo| {
+            let classes = link.atributo("class").unwrap_or_default();
+            let estado = estado_do_link(classes).map_err(|motivo| {
                 ErroCaixa::ClassesDeEstadoDiferentesNoLinkDoProcesso {
                     categoria,
                     id: id.as_str().to_owned(),

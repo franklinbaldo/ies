@@ -127,14 +127,10 @@ fn marcador(
     if ancora.atributo("class") != Some("ancMarcador") {
         return Err(FORA);
     }
-    let id = id_do_href(
-        &ancora.atributo("href").map(str::to_owned).ok_or(FORA)?,
-        id_procedimento,
-    )?;
+    let id = id_do_href(ancora.atributo("href").ok_or(FORA)?, id_procedimento)?;
     let texto = ancora
         .atributo("onmouseover")
-        .map(str::to_owned)
-        .map(|v| texto_do_tooltip(&v))
+        .map(texto_do_tooltip)
         .transpose()?
         .map(|t| texto_colapsado(&t))
         .filter(|t| !t.is_empty());
@@ -150,7 +146,7 @@ fn marcador(
     if img.nome() != "img" {
         return Err(FORA);
     }
-    let cor = cor(&img.atributo("src").map(str::to_owned).ok_or(FORA)?)?;
+    let cor = cor(img.atributo("src").ok_or(FORA)?)?;
     let so_texto = rotulo
         .nos()
         .all(|no| matches!(no, crate::tela_html::No::Texto(_)));

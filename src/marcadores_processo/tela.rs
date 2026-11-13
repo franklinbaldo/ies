@@ -184,7 +184,7 @@ fn linha(celulas: &[Tag<'_>]) -> Result<MarcadorDoProcesso, ErroMarcadores> {
         return Err(LINHA);
     }
     for ancora in descendentes(selecao, "a") {
-        if let Some(id_ancora) = ancora.atributo("id").map(str::to_owned)
+        if let Some(id_ancora) = ancora.atributo("id")
             && id_ancora
                 .strip_prefix("lnkInfraID-")
                 .is_some_and(|resto| resto != id)
@@ -194,7 +194,6 @@ fn linha(celulas: &[Tag<'_>]) -> Result<MarcadorDoProcesso, ErroMarcadores> {
     }
     if texto_td
         .atributo("id")
-        .map(str::to_owned)
         .is_some_and(|v| v != format!("tdAndamentoMarcador{id}"))
     {
         return Err(LINHA);
@@ -208,10 +207,10 @@ fn linha(celulas: &[Tag<'_>]) -> Result<MarcadorDoProcesso, ErroMarcadores> {
     let [icone] = descendentes(marcador, "img")[..] else {
         return Err(LINHA);
     };
-    let cor = cor(&icone.atributo("src").map(str::to_owned).ok_or(LINHA)?)?;
+    let cor = cor(icone.atributo("src").ok_or(LINHA)?)?;
     for tag in [icone, *caixa] {
-        if let Some(titulo) = tag.atributo("title").map(str::to_owned)
-            && texto_colapsado(&titulo) != nome
+        if let Some(titulo) = tag.atributo("title")
+            && texto_colapsado(titulo) != nome
         {
             return Err(LINHA);
         }
