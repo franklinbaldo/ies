@@ -63,8 +63,8 @@ fn recusa_cadastro_de_outro_processo_e_acao_duplicada() {
     ));
     assert_eq!(
         grupos_do_cadastro(&duplicado, ID),
-        Err(ErroAcompanhar::ChaveDoCadastroIlegivel(
-            ErroParametroDaUrl::ParametroRepetido("acao")
+        Err(ErroAcompanhar::AcaoDoCadastroIlegivel(
+            ErroAcaoDaUrl::AcaoRepetida
         ))
     );
 }

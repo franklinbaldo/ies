@@ -59,8 +59,8 @@ fn id_do_href(href: &str, id_procedimento: &str) -> Result<Option<String>, ErroD
     let consulta =
         ConsultaDoControlador::ler(query).map_err(ErroDetalhada::ConsultaDoMarcadorIlegivel)?;
     let acao = consulta
-        .unico("acao")
-        .map_err(ErroDetalhada::ChaveDoMarcadorDetalhado)?;
+        .acao()
+        .map_err(ErroDetalhada::AcaoDoMarcadorDetalhado)?;
     let id_lido = consulta
         .unico("id_procedimento")
         .map_err(ErroDetalhada::ChaveDoMarcadorDetalhado)?;

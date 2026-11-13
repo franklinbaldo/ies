@@ -86,8 +86,9 @@ pub(crate) enum ErroDetalhada {
     IdentificadorDetalhadoInvalido(#[source] crate::erro_web::ErroCaixa),
     /// A consulta do marcador da célula não se deixa ler em pares.
     ConsultaDoMarcadorIlegivel(#[source] crate::consulta_do_controlador::ErroConsultaDoControlador),
-    /// `acao` ou `id_procedimento` do marcador ausente ou repetido.
+    /// `id_procedimento` do marcador ausente ou repetido.
     ChaveDoMarcadorDetalhado(#[source] crate::consulta_do_controlador::ErroParametroDaUrl),
+    AcaoDoMarcadorDetalhado(#[source] crate::consulta_do_controlador::ErroAcaoDaUrl),
     /// A consulta do link do processo não se deixa ler em pares.
     ConsultaDoLinkDoProcessoIlegivel(
         #[source] crate::consulta_do_controlador::ErroConsultaDoControlador,
