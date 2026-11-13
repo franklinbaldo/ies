@@ -4,7 +4,7 @@
 //! `infra_hash` de 64 hex, chaves canônicas. Resolvido contra a instalação;
 //! sem regex.
 use crate::acao_do_sei::AcaoDoSei;
-use crate::consulta_do_controlador::{conferir_chave_de_consulta, conferir_valor_de_consulta};
+use crate::consulta_do_controlador::ConsultaDoControlador;
 use crate::instalacao::Instalacao;
 
 #[derive(Clone, Copy, Debug, PartialEq, Eq, thiserror::Error)]
@@ -12,6 +12,35 @@ use crate::instalacao::Instalacao;
 pub(crate) enum EnderecoRecusado {
     NaoReconhecido,
     DeOutroProcesso,
+}
+
+fn ler_consulta_do_endereco(src: &str) -> Result<ConsultaDoControlador<'_>, EnderecoRecusado> {
+    let consulta = src
+        .strip_prefix("controlador.php?")
+        .ok_or(EnderecoRecusado::NaoReconhecido)?;
+    if src.len() > 8_192
+        || !src.bytes().all(|b| (33..=126).contains(&b))
+        || src.contains(['#', '\\', '\'', '"'])
+    {
+        return Err(EnderecoRecusado::NaoReconhecido);
+    }
+    ConsultaDoControlador::ler(consulta).map_err(|_| EnderecoRecusado::NaoReconhecido)
+}
+
+fn conferir_acao_e_hash(
+    leitura: &ConsultaDoControlador<'_>,
+    acao: AcaoDoSei,
+) -> Result<(), EnderecoRecusado> {
+    if leitura.acao() != Ok(acao.como_na_url()) || leitura.valores("acao_ajax").next().is_some() {
+        return Err(EnderecoRecusado::NaoReconhecido);
+    }
+    let Ok(hash) = leitura.unico("infra_hash") else {
+        return Err(EnderecoRecusado::NaoReconhecido);
+    };
+    if hash.len() != 64 || !hash.bytes().all(|b| b.is_ascii_hexdigit()) {
+        return Err(EnderecoRecusado::NaoReconhecido);
+    }
+    Ok(())
 }
 
 /// Devolve a URL absoluta na instalação.
@@ -33,37 +62,9 @@ pub(crate) fn conferir_endereco_relativo_por(
     chave_do_id: &str,
     id: &str,
 ) -> Result<String, EnderecoRecusado> {
-    let consulta = src
-        .strip_prefix("controlador.php?")
-        .ok_or(EnderecoRecusado::NaoReconhecido)?;
-    if src.len() > 8_192
-        || !src.bytes().all(|b| (33..=126).contains(&b))
-        || src.contains(['#', '\\', '\'', '"'])
-    {
-        return Err(EnderecoRecusado::NaoReconhecido);
-    }
-    let (mut acoes, mut hashes, mut ids) = (0, 0, Vec::new());
-    for par in consulta.split('&') {
-        let (nome, valor) = par
-            .split_once('=')
-            .ok_or(EnderecoRecusado::NaoReconhecido)?;
-        if conferir_chave_de_consulta(nome).is_err() || conferir_valor_de_consulta(valor).is_err() {
-            return Err(EnderecoRecusado::NaoReconhecido);
-        }
-        match nome {
-            "acao" if AcaoDoSei::ler(valor) == Some(acao) => acoes += 1,
-            "infra_hash" if valor.len() == 64 && valor.bytes().all(|b| b.is_ascii_hexdigit()) => {
-                hashes += 1;
-            }
-            "acao" | "acao_ajax" | "infra_hash" => return Err(EnderecoRecusado::NaoReconhecido),
-            _ if nome == chave_do_id => ids.push(valor),
-            _ => {}
-        }
-    }
-    if acoes != 1 || hashes != 1 {
-        return Err(EnderecoRecusado::NaoReconhecido);
-    }
-    match ids.as_slice() {
+    let leitura = ler_consulta_do_endereco(src)?;
+    conferir_acao_e_hash(&leitura, acao)?;
+    match leitura.valores(chave_do_id).collect::<Vec<_>>().as_slice() {
         [unico] if *unico == id => {}
         [_] => return Err(EnderecoRecusado::DeOutroProcesso),
         _ => return Err(EnderecoRecusado::NaoReconhecido),
@@ -74,41 +75,27 @@ pub(crate) fn conferir_endereco_relativo_por(
 /// Como [`conferir_endereco_relativo`], aceitando a segunda ocorrência
 /// literalmente igual de `id_procedimento` que o SEI 4.0.9 publica nos links
 /// da lista de tipos (`documento_gerar` e `documento_receber`, `UnB`).
-/// Só a cópia usada para validação perde a duplicata; a URL devolvida é a
-/// original, sem reconstruir a assinatura. Valores divergentes ou mais de
-/// duas ocorrências continuam recusados.
+/// Valores divergentes ou mais de duas ocorrências continuam recusados.
 pub(crate) fn conferir_endereco_com_identidade_repetida(
     instalacao: &Instalacao,
     href: &str,
     acao: AcaoDoSei,
     id_procedimento: &str,
 ) -> Result<String, EnderecoRecusado> {
-    let consulta = href
-        .strip_prefix("controlador.php?")
-        .ok_or(EnderecoRecusado::NaoReconhecido)?;
-    let mut copia = String::from("controlador.php?");
-    let mut identidades = 0_u8;
-    for parametro in consulta.split('&') {
-        let (nome, valor) = parametro
-            .split_once('=')
-            .ok_or(EnderecoRecusado::NaoReconhecido)?;
-        if nome == "id_procedimento" {
-            identidades += 1;
-            if identidades > 2 {
-                return Err(EnderecoRecusado::NaoReconhecido);
-            }
-            if valor != id_procedimento {
-                return Err(EnderecoRecusado::DeOutroProcesso);
-            }
-            if identidades == 2 {
-                continue;
-            }
+    let leitura = ler_consulta_do_endereco(href)?;
+    match leitura
+        .valores("id_procedimento")
+        .collect::<Vec<_>>()
+        .as_slice()
+    {
+        [unico] if *unico == id_procedimento => {}
+        [primeiro, segundo] if *primeiro == id_procedimento && *segundo == id_procedimento => {}
+        [unico] if *unico != id_procedimento => return Err(EnderecoRecusado::DeOutroProcesso),
+        [primeiro, segundo] if *primeiro != id_procedimento || *segundo != id_procedimento => {
+            return Err(EnderecoRecusado::DeOutroProcesso);
         }
-        if !copia.ends_with('?') {
-            copia.push('&');
-        }
-        copia.push_str(parametro);
+        _ => return Err(EnderecoRecusado::NaoReconhecido),
     }
-    conferir_endereco_relativo(instalacao, &copia, acao, id_procedimento)?;
+    conferir_acao_e_hash(&leitura, acao)?;
     Ok(format!("{}/{href}", instalacao.url_base()))
 }
