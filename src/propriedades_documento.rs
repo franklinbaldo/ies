@@ -117,7 +117,8 @@ pub(crate) fn ler_link(
         let acao = href
             .strip_prefix("controlador.php?")
             .and_then(|q| ConsultaDoControlador::ler(q).ok())
-            .and_then(|q| q.acao().ok());
+            .and_then(|q| q.acao().ok())
+            .and_then(AcaoDoSei::ler);
         // UFRJ 4.1: processo fechado oferece consultar em lugar de alterar;
         // externos publicam as ações `_recebido` (cassette UFRJ #60).
         let Some(

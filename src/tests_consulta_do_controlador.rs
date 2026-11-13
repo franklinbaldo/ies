@@ -1,6 +1,6 @@
 use super::{
-    ConsultaDoControlador, ErroChaveDaConsulta, ErroConsultaDoControlador, ErroIdDaUrl, id_decimal,
-    id_decimal_do_controlador, menciona_acao,
+    ConsultaDoControlador, ErroAcaoDaUrl, ErroConsultaDoControlador, ErroIdDaUrl,
+    ErroParametroDaUrl, id_decimal, id_decimal_do_controlador, menciona_acao,
 };
 use crate::acao_do_sei::AcaoDoSei;
 use crate::transporte::FalhaTransporte;
@@ -10,7 +10,10 @@ fn le_acao_e_valor_unico() {
     let consulta =
         ConsultaDoControlador::ler("acao=arvore_visualizar&id_procedimento=42&infra_hash=ab")
             .unwrap();
-    assert_eq!(consulta.acao(), Ok(AcaoDoSei::ArvoreVisualizar));
+    assert_eq!(
+        consulta.acao(),
+        Ok(AcaoDoSei::ArvoreVisualizar.como_na_url())
+    );
     assert_eq!(consulta.unico("id_procedimento"), Ok("42"));
 }
 
@@ -44,19 +47,31 @@ fn cada_recusa_tem_o_seu_erro() {
 }
 
 #[test]
-fn chave_ausente_repetida_e_acao_desconhecida() {
+fn parametro_ausente_repetido_e_acao_como_servida() {
     let consulta = ConsultaDoControlador::ler("acao=nao_existe&id=1&id=2").unwrap();
     assert_eq!(
         consulta.unico("id_procedimento"),
-        Err(ErroChaveDaConsulta::Ausente {
-            chave: "id_procedimento"
-        })
+        Err(ErroParametroDaUrl::ParametroAusente("id_procedimento"))
     );
     assert_eq!(
         consulta.unico("id"),
-        Err(ErroChaveDaConsulta::Repetida { chave: "id" })
+        Err(ErroParametroDaUrl::ParametroRepetido("id"))
     );
-    assert_eq!(consulta.acao(), Err(ErroChaveDaConsulta::AcaoDesconhecida));
+    assert_eq!(consulta.acao(), Ok("nao_existe"));
+    assert_eq!(
+        ConsultaDoControlador::ler("id=1").unwrap().acao(),
+        Err(ErroAcaoDaUrl::AcaoAusente)
+    );
+    assert_eq!(
+        ConsultaDoControlador::ler("acao=a&acao=a").unwrap().acao(),
+        Err(ErroAcaoDaUrl::AcaoRepetida)
+    );
+    assert_eq!(
+        ConsultaDoControlador::ler("acao_origem=a&acao_origem=b")
+            .unwrap()
+            .acao_de_origem(),
+        Err(ErroAcaoDaUrl::AcaoRepetida)
+    );
     assert_eq!(consulta.valores("id").collect::<Vec<_>>(), ["1", "2"]);
 }
 

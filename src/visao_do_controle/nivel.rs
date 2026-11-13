@@ -104,11 +104,11 @@ pub(super) fn link_do_nivel_de_detalhe(
     })?;
     let acao = leitura
         .acao()
-        .map_err(super::ErroVisaoDoControle::ChaveDoNivelIlegivel)?;
+        .map_err(super::ErroVisaoDoControle::AcaoDoNivelIlegivel)?;
     let hash = leitura
         .unico("infra_hash")
         .map_err(super::ErroVisaoDoControle::ChaveDoNivelIlegivel)?;
-    if acao != AcaoDoSei::ProcedimentoConfigurarDetalhe
+    if acao != AcaoDoSei::ProcedimentoConfigurarDetalhe.como_na_url()
         || leitura.valores("acao_ajax").next().is_some()
         || hash.len() != 64
         || !hash.bytes().all(|b| b.is_ascii_hexdigit())

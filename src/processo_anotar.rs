@@ -174,8 +174,8 @@ fn redirecionamento_esperado(localizacao: Option<&str>, url: &str, id: &str) -> 
     let Ok(consulta) = ConsultaDoControlador::ler(consulta) else {
         return false;
     };
-    consulta.acao() == Ok(AcaoDoSei::ArvoreVisualizar)
-        && consulta.acao_de_origem() == Ok(AcaoDoSei::AnotacaoRegistrar)
+    consulta.acao() == Ok(AcaoDoSei::ArvoreVisualizar.como_na_url())
+        && consulta.acao_de_origem() == Ok(AcaoDoSei::AnotacaoRegistrar.como_na_url())
         && consulta.unico("id_procedimento") == Ok(id)
 }
 #[cfg(test)]

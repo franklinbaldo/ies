@@ -160,5 +160,5 @@ fn id_anexo_unico(src: &str) -> Result<&str, crate::consulta_do_controlador::Err
 /// A `acao` única de `controlador.php?…`, sem conferir o resto.
 fn acao_unica(src: &str) -> Option<AcaoDoSei> {
     let consulta = src.strip_prefix("controlador.php?")?;
-    ConsultaDoControlador::ler(consulta).ok()?.acao().ok()
+    AcaoDoSei::ler(ConsultaDoControlador::ler(consulta).ok()?.acao().ok()?)
 }

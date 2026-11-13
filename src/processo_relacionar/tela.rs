@@ -48,7 +48,7 @@ fn id_do_processo(href: &str) -> Option<&str> {
     let query = href.strip_prefix("controlador.php?")?;
     let query = ConsultaDoControlador::ler(query).ok()?;
     let id = query.unico("id_procedimento").ok()?;
-    (query.acao() == Ok(AcaoDoSei::ProcedimentoTrabalhar)
+    (query.acao() == Ok(AcaoDoSei::ProcedimentoTrabalhar.como_na_url())
         && !id.is_empty()
         && id.bytes().all(|c| c.is_ascii_digit()))
     .then_some(id)

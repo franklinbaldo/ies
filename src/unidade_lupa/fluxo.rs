@@ -103,7 +103,7 @@ fn url_publicada_autorizada(url: &str, origem: &str, acao: AcaoDoSei) -> bool {
     let Ok(query) = ConsultaDoControlador::ler(query) else {
         return false;
     };
-    query.acao() == Ok(acao)
+    query.acao() == Ok(acao.como_na_url())
         && query.valores("acao_ajax").next().is_none()
         && query
             .unico("infra_hash")

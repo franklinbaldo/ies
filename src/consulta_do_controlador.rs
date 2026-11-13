@@ -20,18 +20,20 @@ pub(crate) enum ErroConsultaDoControlador {
     RecusadaPeloTransporte(#[from] FalhaTransporte),
 }
 
-/// A chave pedida não tem exatamente um valor aceito.
+/// O parâmetro pedido não tem exatamente um valor na URL.
 #[derive(Clone, Copy, Debug, PartialEq, Eq, thiserror::Error)]
 #[error("{self:?}")]
-pub(crate) enum ErroChaveDaConsulta {
-    Ausente {
-        chave: &'static str,
-    },
-    Repetida {
-        chave: &'static str,
-    },
-    /// `acao=` ou `acao_origem=` com valor fora de `AcaoDoSei`.
-    AcaoDesconhecida,
+pub(crate) enum ErroParametroDaUrl {
+    ParametroAusente(&'static str),
+    ParametroRepetido(&'static str),
+}
+
+/// A URL não traz exatamente uma ação do SEI reconhecida.
+#[derive(Clone, Debug, PartialEq, Eq, thiserror::Error)]
+#[error("{self:?}")]
+pub(crate) enum ErroAcaoDaUrl {
+    AcaoAusente,
+    AcaoRepetida,
 }
 
 impl<'a> ConsultaDoControlador<'a> {
@@ -60,29 +62,34 @@ impl<'a> ConsultaDoControlador<'a> {
     }
 
     /// O único valor de `chave`.
-    pub(crate) fn unico(&self, chave: &'static str) -> Result<&'a str, ErroChaveDaConsulta> {
+    pub(crate) fn unico(&self, chave: &'static str) -> Result<&'a str, ErroParametroDaUrl> {
         let mut valores = self.valores(chave);
         let valor = valores
             .next()
-            .ok_or(ErroChaveDaConsulta::Ausente { chave })?;
+            .ok_or(ErroParametroDaUrl::ParametroAusente(chave))?;
         match valores.next() {
-            Some(_) => Err(ErroChaveDaConsulta::Repetida { chave }),
+            Some(_) => Err(ErroParametroDaUrl::ParametroRepetido(chave)),
             None => Ok(valor),
         }
     }
 
-    /// A única `acao=`, lida no conjunto fechado do SEI.
-    pub(crate) fn acao(&self) -> Result<AcaoDoSei, ErroChaveDaConsulta> {
+    /// A única `acao=`, como servida.
+    pub(crate) fn acao(&self) -> Result<&'a str, ErroAcaoDaUrl> {
         self.acao_em("acao")
     }
 
-    /// A única `acao_origem=`, lida no conjunto fechado do SEI.
-    pub(crate) fn acao_de_origem(&self) -> Result<AcaoDoSei, ErroChaveDaConsulta> {
+    /// A única `acao_origem=`, como servida.
+    pub(crate) fn acao_de_origem(&self) -> Result<&'a str, ErroAcaoDaUrl> {
         self.acao_em("acao_origem")
     }
 
-    fn acao_em(&self, chave: &'static str) -> Result<AcaoDoSei, ErroChaveDaConsulta> {
-        AcaoDoSei::ler(self.unico(chave)?).ok_or(ErroChaveDaConsulta::AcaoDesconhecida)
+    fn acao_em(&self, chave: &str) -> Result<&'a str, ErroAcaoDaUrl> {
+        let mut valores = self.valores(chave);
+        let valor = valores.next().ok_or(ErroAcaoDaUrl::AcaoAusente)?;
+        match valores.next() {
+            Some(_) => Err(ErroAcaoDaUrl::AcaoRepetida),
+            None => Ok(valor),
+        }
     }
 
     /// Todos os valores de `chave`, na ordem publicada.

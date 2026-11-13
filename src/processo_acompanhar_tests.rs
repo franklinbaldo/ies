@@ -64,7 +64,7 @@ fn recusa_cadastro_de_outro_processo_e_acao_duplicada() {
     assert_eq!(
         grupos_do_cadastro(&duplicado, ID),
         Err(ErroAcompanhar::ChaveDoCadastroIlegivel(
-            ErroChaveDaConsulta::Repetida { chave: "acao" }
+            ErroParametroDaUrl::ParametroRepetido("acao")
         ))
     );
 }
@@ -89,9 +89,7 @@ fn action_com_par_sem_igual_recusa_com_a_causa() {
     assert_eq!(
         grupos_do_cadastro(&id_repetido, ID),
         Err(ErroAcompanhar::ChaveDoCadastroIlegivel(
-            ErroChaveDaConsulta::Repetida {
-                chave: "id_procedimento"
-            }
+            ErroParametroDaUrl::ParametroRepetido("id_procedimento")
         ))
     );
 }

@@ -70,7 +70,7 @@ pub(super) fn aceite_da_remocao(localizacao: &str, url_post: &str, id: &str) -> 
         return false;
     };
     let ids: Vec<_> = query.valores("id_procedimento").collect();
-    query.acao() == Ok(AcaoDoSei::ProcedimentoRelacionar)
+    query.acao() == Ok(AcaoDoSei::ProcedimentoRelacionar.como_na_url())
         && query.unico("resultado") == Ok("1")
         && (ids.is_empty() || ids == [id])
 }
@@ -231,9 +231,9 @@ mod tests {
                 "https://h/sei/controlador.php?acao=x&id_procedimento=1&id_procedimento=2"
             ),
             Err(FalhaRelacionar::IdDaOrigemIlegivel(
-                crate::consulta_do_controlador::ErroChaveDaConsulta::Repetida {
-                    chave: "id_procedimento"
-                }
+                crate::consulta_do_controlador::ErroParametroDaUrl::ParametroRepetido(
+                    "id_procedimento"
+                )
             ))
         ));
         assert!(matches!(

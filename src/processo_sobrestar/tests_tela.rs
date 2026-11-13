@@ -1,7 +1,7 @@
 //! Molde sintético da `UnB`, sem URLs assinadas de contas reais.
 //! Caso: `todos tests/test_ciclo_sobrestar_010.py` @323eb01.
 use super::tela::{ErroTela, conferir_formulario};
-use crate::consulta_do_controlador::{ErroChaveDaConsulta, ErroConsultaDoControlador};
+use crate::consulta_do_controlador::{ErroConsultaDoControlador, ErroParametroDaUrl};
 use crate::tela_html::HtmlServido;
 const ID: &str = "10";
 pub(super) fn formulario() -> String {
@@ -69,9 +69,7 @@ fn action_com_par_sem_igual_ou_id_repetido_recusa_com_a_causa() {
             ID
         ),
         Err(ErroTela::ChaveDaActionIlegivel(
-            ErroChaveDaConsulta::Repetida {
-                chave: "id_procedimento"
-            }
+            ErroParametroDaUrl::ParametroRepetido("id_procedimento")
         ))
     );
 }

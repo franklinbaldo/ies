@@ -33,7 +33,7 @@ pub(crate) fn escolher_externo(
         let pelo_link = href
             .strip_prefix("controlador.php?")
             .and_then(|q| ConsultaDoControlador::ler(q).ok())
-            .is_some_and(|q| q.acao() == Ok(AcaoDoSei::DocumentoReceber));
+            .is_some_and(|q| q.acao() == Ok(AcaoDoSei::DocumentoReceber.como_na_url()));
         let pelo_script =
             onclick.is_some_and(|v| v.trim().trim_end_matches(';').trim() == "escolher(-1)");
         if !pelo_link && !pelo_script {

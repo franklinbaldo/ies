@@ -2,7 +2,7 @@
 //! Parser puro: não executa links nem presume permissão/resultado live.
 use crate::acao_do_sei::AcaoDoSei;
 use crate::consulta_do_controlador::{
-    ConsultaDoControlador, ErroChaveDaConsulta, ErroConsultaDoControlador, menciona_acao,
+    ConsultaDoControlador, ErroConsultaDoControlador, menciona_acao,
 };
 use crate::processo::{NumeroProcesso, NumeroProcessoInvalido};
 use serde::Serialize;
@@ -25,7 +25,7 @@ pub enum ErroResultadoPesquisa {
     /// A consulta do link de pesquisa não se deixa ler em pares.
     ConsultaDoLinkIlegivel(#[source] ErroConsultaDoControlador),
     /// A `acao` do link de pesquisa não é única nem conhecida.
-    AcaoDoLinkNaoLida(#[source] ErroChaveDaConsulta),
+    AcaoDoLinkNaoLida(#[source] crate::consulta_do_controlador::ErroAcaoDaUrl),
     LinkDePesquisaComIdentificadorDoProcessoNaoDecimal,
     NumeroDePesquisa(#[from] NumeroProcessoInvalido),
     /// `a.protocoloNormal` de `documento_visualizar` na linha cujo link do
@@ -55,7 +55,7 @@ fn validar_href_de_processo(href: &str) -> Result<&str, ErroResultadoPesquisa> {
     let acao = pares
         .acao()
         .map_err(ErroResultadoPesquisa::AcaoDoLinkNaoLida)?;
-    if acao != AcaoDoSei::ProcedimentoTrabalhar {
+    if acao != AcaoDoSei::ProcedimentoTrabalhar.como_na_url() {
         return Err(ErroResultadoPesquisa::LinkDePesquisaNaoAbreProcesso);
     }
     // Um link de trabalho sem ID interno não endereça um processo.

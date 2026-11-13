@@ -164,7 +164,7 @@ fn id_do_aceite<'a>(local: &'a str, url_post: &str, id_processo: &str) -> Option
         _ => false,
     };
     let id = consulta.unico("id_comentario").ok()?;
-    (consulta.acao() == Ok(AcaoDoSei::ComentarioListar) && processo_confere)
+    (consulta.acao() == Ok(AcaoDoSei::ComentarioListar.como_na_url()) && processo_confere)
         .then_some(id)
         .filter(|valor| !valor.is_empty() && valor.bytes().all(|b| b.is_ascii_digit()))
 }

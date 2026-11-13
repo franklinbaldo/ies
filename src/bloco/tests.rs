@@ -111,9 +111,7 @@ fn tipo_certo_e_hash_unico_sao_obrigatorios() {
             None
         ),
         Err(ErroBloco::ChaveDoLinkDeBloco(
-            crate::consulta_do_controlador::ErroChaveDaConsulta::Repetida {
-                chave: "infra_hash"
-            }
+            crate::consulta_do_controlador::ErroParametroDaUrl::ParametroRepetido("infra_hash")
         ))
     );
     assert_eq!(
@@ -147,7 +145,7 @@ fn link_de_bloco_com_chave_repetida_ou_par_sem_igual_tem_a_causa() {
             "acao=bloco_interno_listar&acao=bloco_interno_listar&infra_hash={HASH}"
         )),
         Err(ErroBloco::ChaveDoLinkDeBloco(
-            ErroChaveDaConsulta::Repetida { chave: "acao" }
+            ErroParametroDaUrl::ParametroRepetido("acao")
         ))
     );
     assert_eq!(

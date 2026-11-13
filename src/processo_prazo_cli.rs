@@ -242,7 +242,7 @@ fn aceite_confirmacao(local: &str, url_post: &str, id: &str) -> bool {
         return false;
     };
     let processos: Vec<_> = consulta.valores("id_procedimento").collect();
-    consulta.acao() == Ok(AcaoDoSei::ControlePrazoDefinir)
+    consulta.acao() == Ok(AcaoDoSei::ControlePrazoDefinir.como_na_url())
         && consulta.unico("resultado") == Ok("1")
         && (processos.is_empty() || processos == [id])
 }

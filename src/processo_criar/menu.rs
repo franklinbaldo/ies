@@ -2,7 +2,7 @@
 //! Não inferir URL, não executar JS e não seguir redirecionamento.
 use crate::acao_do_sei::AcaoDoSei;
 use crate::consulta_do_controlador::{
-    ConsultaDoControlador, ErroChaveDaConsulta, ErroConsultaDoControlador, menciona_acao,
+    ConsultaDoControlador, ErroConsultaDoControlador, ErroParametroDaUrl, menciona_acao,
 };
 use crate::instalacao::Instalacao;
 
@@ -17,7 +17,8 @@ pub(crate) enum ErroMenu {
     /// A consulta do link não se lê em pares `chave=valor`.
     ConsultaDoLinkIlegivel(#[source] ErroConsultaDoControlador),
     /// `acao` ou `infra_hash` do link não tem exatamente um valor aceito.
-    ChaveDoLinkIlegivel(#[source] ErroChaveDaConsulta),
+    ChaveDoLinkIlegivel(#[source] ErroParametroDaUrl),
+    AcaoDoLinkIlegivel(#[source] crate::consulta_do_controlador::ErroAcaoDaUrl),
 }
 
 /// O href literal do menu; apenas o padrão relativo demonstrado pelo SEI.
@@ -59,11 +60,11 @@ pub(crate) fn link_de_iniciar(
         }
         outro @ ErroConsultaDoControlador::ParSemIgual => ErroMenu::ConsultaDoLinkIlegivel(outro),
     })?;
-    let acao = consulta.acao().map_err(ErroMenu::ChaveDoLinkIlegivel)?;
+    let acao = consulta.acao().map_err(ErroMenu::AcaoDoLinkIlegivel)?;
     let hash = consulta
         .unico("infra_hash")
         .map_err(ErroMenu::ChaveDoLinkIlegivel)?;
-    if acao != AcaoDoSei::ProcedimentoEscolherTipo
+    if acao != AcaoDoSei::ProcedimentoEscolherTipo.como_na_url()
         || consulta.valores("acao_ajax").next().is_some()
         || hash.len() != 64
         || !hash.bytes().all(|b| b.is_ascii_hexdigit())
@@ -158,8 +159,8 @@ mod tests {
         ));
         assert_eq!(
             link_de_iniciar(&instalacao, url, &duas_acoes),
-            Err(ErroMenu::ChaveDoLinkIlegivel(
-                ErroChaveDaConsulta::Repetida { chave: "acao" }
+            Err(ErroMenu::AcaoDoLinkIlegivel(
+                crate::consulta_do_controlador::ErroAcaoDaUrl::AcaoRepetida
             ))
         );
         let par_sem_igual = crate::tela_html::HtmlServido::de_teste(&format!(
@@ -192,9 +193,7 @@ mod tests {
         assert_eq!(
             link_de_iniciar(&instalacao, url, &sem_assinatura),
             Err(ErroMenu::ChaveDoLinkIlegivel(
-                ErroChaveDaConsulta::Ausente {
-                    chave: "infra_hash"
-                }
+                ErroParametroDaUrl::ParametroAusente("infra_hash")
             ))
         );
     }

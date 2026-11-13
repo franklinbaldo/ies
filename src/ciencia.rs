@@ -203,7 +203,7 @@ fn atividade_do_endereco(url: &str, alvo: AlvoDaCiencia<'_>) -> Option<String> {
             Some(id_documento),
         ),
     };
-    if consulta.acao() != Ok(AcaoDoSei::ProcedimentoVisualizar)
+    if consulta.acao() != Ok(AcaoDoSei::ProcedimentoVisualizar.como_na_url())
         || consulta.unico("id_procedimento") != Ok(id_procedimento)
         || consulta.unico(marca) != Ok("1")
         || id_documento.is_some_and(|doc| consulta.unico("id_documento") != Ok(doc))

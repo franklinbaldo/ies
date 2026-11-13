@@ -3,7 +3,7 @@
 //! Caso de testes: `Todos` `tests/test_ciclo_prazo_010.py` @323eb01.
 use crate::acao_do_sei::AcaoDoSei;
 use crate::consulta_do_controlador::{
-    ConsultaDoControlador, ErroChaveDaConsulta, ErroConsultaDoControlador,
+    ConsultaDoControlador, ErroConsultaDoControlador, ErroParametroDaUrl,
 };
 
 #[derive(Clone, Debug, PartialEq, Eq)]
@@ -27,7 +27,8 @@ pub(crate) enum ErroPrazo {
     /// A consulta do `action` não se lê em pares `chave=valor`.
     ConsultaDoDestinoIlegivel(#[source] ErroConsultaDoControlador),
     /// O `action` não tem exatamente um `acao` aceito nem um `id_procedimento`.
-    ChaveDoDestinoIlegivel(#[source] ErroChaveDaConsulta),
+    ChaveDoDestinoIlegivel(#[source] ErroParametroDaUrl),
+    AcaoDoDestinoIlegivel(#[source] crate::consulta_do_controlador::ErroAcaoDaUrl),
     /// O formulário não publica as opções `rdoPrazo`: não há estado a ler.
     OpcoesDoPrazoAusentes,
     /// A opção marcada ou o valor de dias não formam um prazo.
@@ -144,8 +145,8 @@ fn conferir_destino(
     }
     let consulta =
         ConsultaDoControlador::ler(consulta).map_err(ErroPrazo::ConsultaDoDestinoIlegivel)?;
-    let acao = consulta.acao().map_err(ErroPrazo::ChaveDoDestinoIlegivel)?;
-    if acao != AcaoDoSei::ControlePrazoDefinir {
+    let acao = consulta.acao().map_err(ErroPrazo::AcaoDoDestinoIlegivel)?;
+    if acao != AcaoDoSei::ControlePrazoDefinir.como_na_url() {
         return Err(ErroPrazo::FormularioDeOutroDestino);
     }
     let id = consulta
@@ -299,9 +300,7 @@ mod tests {
                 "12"
             ),
             Err(ErroPrazo::ChaveDoDestinoIlegivel(
-                ErroChaveDaConsulta::Repetida {
-                    chave: "id_procedimento"
-                }
+                ErroParametroDaUrl::ParametroRepetido("id_procedimento")
             ))
         );
     }

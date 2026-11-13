@@ -284,7 +284,7 @@ pub(crate) fn conferir_trabalho(
         return Err(ErroRedirecionamentoDaPesquisa::LocalizacaoDoRedirecionamentoForaDaInstalacao);
     }
     let pares = parametros(consulta)?;
-    if pares.acao() != Ok(AcaoDoSei::ProcedimentoTrabalhar) {
+    if pares.acao() != Ok(AcaoDoSei::ProcedimentoTrabalhar.como_na_url()) {
         return Err(ErroRedirecionamentoDaPesquisa::RedirecionamentoParaAcaoDiferenteDeProcedimentoTrabalhar);
     }
     conferir_acao_de_origem(&pares, &origem)?;

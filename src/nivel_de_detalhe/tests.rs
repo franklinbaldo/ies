@@ -145,9 +145,7 @@ fn opcoes_faltando_repetidas_extras_ou_com_rotulo_trocado_sao_recusadas() {
     );
     assert_eq!(
         ler_nivel_de_detalhe(&HtmlServido::de_teste(&acao)),
-        Err(ErroNivelDeDetalhe::AcaoDoFormularioNaoLida(
-            crate::consulta_do_controlador::ErroChaveDaConsulta::AcaoDesconhecida
-        ))
+        Err(ErroNivelDeDetalhe::AcaoDoFormularioDoNivelDeDetalheDiferente)
     );
     let repetida = HtmlServido::de_teste(&base.replacen(
         "acao=procedimento_configurar_detalhe&amp;",
@@ -157,7 +155,7 @@ fn opcoes_faltando_repetidas_extras_ou_com_rotulo_trocado_sao_recusadas() {
     assert_eq!(
         ler_nivel_de_detalhe(&repetida),
         Err(ErroNivelDeDetalhe::AcaoDoFormularioNaoLida(
-            crate::consulta_do_controlador::ErroChaveDaConsulta::Repetida { chave: "acao" }
+            crate::consulta_do_controlador::ErroAcaoDaUrl::AcaoRepetida
         ))
     );
     let solta = HtmlServido::de_teste(&base.replacen(

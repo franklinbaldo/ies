@@ -92,8 +92,8 @@ pub(super) fn aceite_da_remocao(redir: &Redirecionamento302, id: &str) -> bool {
     let Ok(consulta) = ConsultaDoControlador::ler(consulta) else {
         return false;
     };
-    consulta.acao() == Ok(AcaoDoSei::AndamentoMarcadorGerenciar)
-        && consulta.acao_de_origem() == Ok(AcaoDoSei::AndamentoMarcadorRemover)
+    consulta.acao() == Ok(AcaoDoSei::AndamentoMarcadorGerenciar.como_na_url())
+        && consulta.acao_de_origem() == Ok(AcaoDoSei::AndamentoMarcadorRemover.como_na_url())
         && consulta.unico("id_procedimento") == Ok(id)
 }
 

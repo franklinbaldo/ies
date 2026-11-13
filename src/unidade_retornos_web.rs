@@ -2,7 +2,7 @@
 //! Oraculo: Todos `retorno_programado.py` @323eb01, cassette unidade-listar-retornos-unb.
 use crate::acao_do_sei::AcaoDoSei;
 use crate::consulta_do_controlador::{
-    ConsultaDoControlador, ErroChaveDaConsulta, ErroConsultaDoControlador, menciona_acao,
+    ConsultaDoControlador, ErroConsultaDoControlador, ErroParametroDaUrl, menciona_acao,
 };
 use crate::instalacao::Instalacao;
 use crate::transporte::FalhaTransporte;
@@ -24,7 +24,7 @@ pub(crate) enum ErroLeituraRetornos {
     MesDaCliInvalido,
     UnidadeDiferenteDaSolicitada,
     ConsultaDoLinkIlegivel(#[source] ErroConsultaDoControlador),
-    ChaveDoLinkIlegivel(#[source] ErroChaveDaConsulta),
+    ChaveDoLinkIlegivel(#[source] ErroParametroDaUrl),
 }
 
 impl ErroLeituraRetornos {

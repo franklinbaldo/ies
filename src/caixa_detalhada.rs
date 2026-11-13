@@ -87,13 +87,14 @@ pub(crate) enum ErroDetalhada {
     /// A consulta do marcador da célula não se deixa ler em pares.
     ConsultaDoMarcadorIlegivel(#[source] crate::consulta_do_controlador::ErroConsultaDoControlador),
     /// `acao` ou `id_procedimento` do marcador ausente ou repetido.
-    ChaveDoMarcadorDetalhado(#[source] crate::consulta_do_controlador::ErroChaveDaConsulta),
+    ChaveDoMarcadorDetalhado(#[source] crate::consulta_do_controlador::ErroParametroDaUrl),
     /// A consulta do link do processo não se deixa ler em pares.
     ConsultaDoLinkDoProcessoIlegivel(
         #[source] crate::consulta_do_controlador::ErroConsultaDoControlador,
     ),
-    /// `acao` ou `id_procedimento` do link do processo ausente ou repetido.
-    ChaveDoLinkDoProcessoDetalhado(#[source] crate::consulta_do_controlador::ErroChaveDaConsulta),
+    /// `id_procedimento` do link do processo ausente ou repetido.
+    ChaveDoLinkDoProcessoDetalhado(#[source] crate::consulta_do_controlador::ErroParametroDaUrl),
+    AcaoDoLinkDoProcessoDetalhado(#[source] crate::consulta_do_controlador::ErroAcaoDaUrl),
     /// O link do processo não é `controlador.php` com a ação de trabalhar ou visualizar.
     LinkDoProcessoDetalhadoForaDaForma,
     /// O link do processo aponta para outro `id_procedimento` que o da linha.
@@ -180,11 +181,14 @@ fn conferir_link_do_processo(href: &str, id: &str) -> Result<(), ErroDetalhada> 
         .map_err(ErroDetalhada::ConsultaDoLinkDoProcessoIlegivel)?;
     let acao = consulta
         .acao()
-        .map_err(ErroDetalhada::ChaveDoLinkDoProcessoDetalhado)?;
-    if !matches!(
-        acao,
-        AcaoDoSei::ProcedimentoTrabalhar | AcaoDoSei::ProcedimentoVisualizar
-    ) {
+        .map_err(ErroDetalhada::AcaoDoLinkDoProcessoDetalhado)?;
+    if ![
+        AcaoDoSei::ProcedimentoTrabalhar,
+        AcaoDoSei::ProcedimentoVisualizar,
+    ]
+    .map(AcaoDoSei::como_na_url)
+    .contains(&acao)
+    {
         return Err(ErroDetalhada::LinkDoProcessoDetalhadoForaDaForma);
     }
     let alvo = consulta

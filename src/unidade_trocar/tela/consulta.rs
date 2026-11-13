@@ -31,7 +31,7 @@ fn conferir(
 ) -> Option<Vec<String>> {
     let consulta = ConsultaDoControlador::ler(consulta).ok()?;
     let hash = consulta.unico("infra_hash").ok()?;
-    if consulta.acao() != Ok(acao)
+    if consulta.acao() != Ok(acao.como_na_url())
         || consulta.valores("acao_ajax").next().is_some()
         || !comprimento(hash)
         || !hash.bytes().all(|b| b.is_ascii_hexdigit())

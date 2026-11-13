@@ -2,9 +2,7 @@
 //! Nada é salvo: `sbmSalvar` não é enviado por este módulo.
 use super::{ColunaDoDetalhe, NivelDeDetalhe, OpcaoDoDetalhe};
 use crate::acao_do_sei::AcaoDoSei;
-use crate::consulta_do_controlador::{
-    ConsultaDoControlador, ErroChaveDaConsulta, ErroConsultaDoControlador,
-};
+use crate::consulta_do_controlador::{ConsultaDoControlador, ErroConsultaDoControlador};
 use crate::formulario_web::{ErroSubmissaoFormulario, localizar_formulario};
 use std::collections::HashMap;
 
@@ -19,7 +17,7 @@ pub(crate) enum ErroNivelDeDetalhe {
     /// A `action` do formulário não se deixa ler em pares `chave=valor`.
     ConsultaDoFormularioIlegivel(#[source] ErroConsultaDoControlador),
     /// A `acao` do formulário não é única nem conhecida.
-    AcaoDoFormularioNaoLida(#[source] ErroChaveDaConsulta),
+    AcaoDoFormularioNaoLida(#[source] crate::consulta_do_controlador::ErroAcaoDaUrl),
     /// O formulário não publica nenhuma das 12 caixas do catálogo.
     /// Uma caixa do catálogo ausente não é erro: sai com `disponivel: false`.
     NenhumaOpcaoDoDetalhePublicada,
@@ -58,7 +56,7 @@ fn conferir_acao(form: crate::tela_html::Elemento<'_>) -> Result<(), E> {
     let (_, consulta) = acao.split_once('?').ok_or_else(diferente)?;
     let pares = ConsultaDoControlador::ler(consulta).map_err(E::ConsultaDoFormularioIlegivel)?;
     let lida = pares.acao().map_err(E::AcaoDoFormularioNaoLida)?;
-    if lida == AcaoDoSei::ProcedimentoConfigurarDetalhe {
+    if lida == AcaoDoSei::ProcedimentoConfigurarDetalhe.como_na_url() {
         Ok(())
     } else {
         Err(diferente())

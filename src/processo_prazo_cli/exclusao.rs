@@ -3,7 +3,7 @@
 use super::*;
 use crate::acao_do_sei::AcaoDoSei;
 use crate::consulta_do_controlador::{
-    ConsultaDoControlador, ErroChaveDaConsulta, ErroConsultaDoControlador, menciona_acao,
+    ConsultaDoControlador, ErroConsultaDoControlador, ErroParametroDaUrl, menciona_acao,
 };
 use crate::formulario_web::derivar_submissao_com_action;
 use crate::url_observada::UrlHttps;
@@ -49,7 +49,7 @@ pub(crate) enum ErroLinkDaLista {
     /// A consulta do link não se deixa ler em pares.
     ConsultaDoLinkIlegivel(#[source] ErroConsultaDoControlador),
     /// O link não traz exatamente um `infra_hash`.
-    InfraHashDoLink(#[source] ErroChaveDaConsulta),
+    InfraHashDoLink(#[source] ErroParametroDaUrl),
 }
 
 /// Lê o href realmente publicado na pagina do Controle, sem fabricar token.
@@ -81,7 +81,7 @@ pub(super) fn link_da_lista(
             .ok_or(ErroLinkDaLista::LinkDaListaForaDaForma)?;
         let consulta = ConsultaDoControlador::ler(consulta)
             .map_err(ErroLinkDaLista::ConsultaDoLinkIlegivel)?;
-        if consulta.acao() != Ok(AcaoDoSei::ControlePrazoListar) {
+        if consulta.acao() != Ok(AcaoDoSei::ControlePrazoListar.como_na_url()) {
             return Err(ErroLinkDaLista::LinkDaListaForaDaForma);
         }
         let hash = consulta

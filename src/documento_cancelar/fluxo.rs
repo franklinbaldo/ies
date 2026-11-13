@@ -264,7 +264,7 @@ pub(super) fn localizacao_aceita(
     let Ok(consulta) = ConsultaDoControlador::ler(consulta) else {
         return false;
     };
-    consulta.acao() == Ok(AcaoDoSei::ArvoreVisualizar)
+    consulta.acao() == Ok(AcaoDoSei::ArvoreVisualizar.como_na_url())
         && consulta.unico("id_procedimento") == Ok(id_proc)
         && consulta.unico("id_documento") == Ok(id_doc)
         && consulta.unico("atualizar_arvore") == Ok("1")

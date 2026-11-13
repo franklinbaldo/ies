@@ -14,7 +14,7 @@ fn eh_link_do_processo(href: &str, id: &str) -> bool {
     let Ok(consulta) = ConsultaDoControlador::ler(consulta) else {
         return false;
     };
-    consulta.acao() == Ok(AcaoDoSei::ProcedimentoTrabalhar)
+    consulta.acao() == Ok(AcaoDoSei::ProcedimentoTrabalhar.como_na_url())
         && consulta.unico("id_procedimento") == Ok(id)
 }
 

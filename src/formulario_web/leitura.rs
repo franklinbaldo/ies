@@ -182,7 +182,7 @@ pub(super) fn conferir_consulta(
             ErroSubmissaoFormulario::Transporte(FalhaTransporte::UrlInvalida)
         }
     })?;
-    if consulta.acao() != Ok(acao) {
+    if consulta.acao() != Ok(acao.como_na_url()) {
         return Err(ErroSubmissaoFormulario::AcaoDoFormularioDiferenteDaOperacao);
     }
     if !consulta

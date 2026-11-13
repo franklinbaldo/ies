@@ -2,7 +2,7 @@
 //! Fonte: `Todos tests/test_ciclo_sobrestar_010.py` @323eb01.
 use crate::acao_do_sei::AcaoDoSei;
 use crate::consulta_do_controlador::{
-    ConsultaDoControlador, ErroChaveDaConsulta, ErroConsultaDoControlador,
+    ConsultaDoControlador, ErroConsultaDoControlador, ErroParametroDaUrl,
 };
 use crate::formulario_web::{
     ConferenciaDaUnidade, EfeitoAvaliado, EnvioDoFormulario, ErroSubmissaoFormulario,
@@ -19,7 +19,7 @@ pub(crate) enum ErroTela {
     /// A consulta do `action` não se lê em pares `chave=valor`.
     ConsultaDaActionIlegivel(#[source] ErroConsultaDoControlador),
     /// O `action` não tem exatamente um `id_procedimento`.
-    ChaveDaActionIlegivel(#[source] ErroChaveDaConsulta),
+    ChaveDaActionIlegivel(#[source] ErroParametroDaUrl),
     OpcaoNaoOferecida,
     DestinoPreenchido,
     CampoInesperado,
@@ -219,7 +219,7 @@ pub(crate) fn redirecionamento_esperado(
     let Ok(consulta) = ConsultaDoControlador::ler(consulta) else {
         return false;
     };
-    consulta.acao() == Ok(AcaoDoSei::ArvoreVisualizar)
-        && consulta.acao_de_origem() == Ok(AcaoDoSei::ProcedimentoSobrestar)
+    consulta.acao() == Ok(AcaoDoSei::ArvoreVisualizar.como_na_url())
+        && consulta.acao_de_origem() == Ok(AcaoDoSei::ProcedimentoSobrestar.como_na_url())
         && consulta.unico("id_procedimento") == Ok(id)
 }
