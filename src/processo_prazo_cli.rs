@@ -80,7 +80,7 @@ pub(crate) fn tentar_prazo(cli: &Cli) -> Option<anyhow::Result<()>> {
     };
     let nup = numero.clone();
     // O clap já conferiu formatos, exclusividade e que --confirmar tem o que gravar.
-    let pedido = match interpretar_pedido(ate.as_deref(), *dias, *excluir) {
+    let pedido = match interpretar_pedido(*ate, *dias, *excluir) {
         Ok(pedido) => pedido,
         Err(erro) => return Some(Err(FalhaDoPrazo::from(erro).into())),
     };
@@ -163,13 +163,13 @@ fn publicar_previa(
 ) {
     let atual = match &tela.estado {
         EstadoDoPrazo::SemPrazo => json!({"tipo": "sem_prazo"}),
-        EstadoDoPrazo::Data(data) => json!({"tipo": "data", "data": data}),
+        EstadoDoPrazo::Data(data) => json!({"tipo": "data", "data": data.to_string()}),
         EstadoDoPrazo::Dias(dias) => json!({"tipo": "dias", "dias": dias}),
         EstadoDoPrazo::Concluido => json!({"tipo": "concluido"}),
     };
     // `solicitado` só existe para `--ate` e `--dias`; sem valor, a chave sai.
     let solicitado = match pedido {
-        PedidoDePrazo::Ate(data) => Some(json!({"ate": data})),
+        PedidoDePrazo::Ate(data) => Some(json!({"ate": data.to_string()})),
         PedidoDePrazo::Dias(dias) => Some(json!({"dias": dias})),
         PedidoDePrazo::Ler | PedidoDePrazo::Excluir => None,
     };
@@ -318,7 +318,7 @@ mod tests {
             Ok(PedidoDePrazo::Excluir)
         );
         assert_eq!(
-            interpretar_pedido(Some("31/02/2027"), None, false),
+            crate::processo_prazo::data_do_prazo("31/02/2027"),
             Err(ErroPrazo::DataInvalida)
         );
     }
