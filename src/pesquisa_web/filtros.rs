@@ -21,7 +21,7 @@ pub(crate) fn data_da_cli(data: &str) -> Result<DataCivil, DataForaDoCalendario>
 }
 
 /// `(ano, mes, dia)` de uma data DD/MM/AAAA só com dígitos ASCII; a tupla
-/// ordena como o calendário. Não confere o calendário: ver `data_valida`.
+/// ordena como o calendário. A validade é conferida por `DataCivil::ler`.
 pub(crate) fn ano_mes_dia(data: &str) -> Option<(u32, u32, u32)> {
     let (dia, resto) = data.split_once('/')?;
     let (mes, ano) = resto.split_once('/')?;
