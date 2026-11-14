@@ -20,8 +20,6 @@ pub(crate) enum ErroPrazo {
     OpcoesIncompativeis,
     DataInvalida,
     DiasInvalidos,
-    /// O valor de dias não cabe no tipo do pedido; guarda a conversão recusada.
-    DiasNaoCabemEmU16(#[source] std::num::TryFromIntError),
     /// O `action` do formulário não é `controle_prazo_definir` em `controlador.php`.
     FormularioDeOutroDestino,
     /// A consulta do `action` não se lê em pares `chave=valor`.
@@ -64,8 +62,8 @@ pub(crate) fn data_do_prazo(valor: &str) -> Result<String, ErroPrazo> {
 }
 
 /// `--dias`: de 1 a 999; o clap recusa o resto (saída 2).
-pub(crate) fn dias_do_prazo(valor: &str) -> Result<u32, ErroPrazo> {
-    match valor.parse::<u32>() {
+pub(crate) fn dias_do_prazo(valor: &str) -> Result<u16, ErroPrazo> {
+    match valor.parse::<u16>() {
         Ok(dias @ 1..=999) => Ok(dias),
         _ => Err(ErroPrazo::DiasInvalidos),
     }
@@ -73,7 +71,7 @@ pub(crate) fn dias_do_prazo(valor: &str) -> Result<u32, ErroPrazo> {
 
 pub(crate) fn interpretar_pedido(
     ate: Option<&str>,
-    dias: Option<u32>,
+    dias: Option<u16>,
     excluir: bool,
 ) -> Result<PedidoDePrazo, ErroPrazo> {
     let quantas = u8::from(ate.is_some()) + u8::from(dias.is_some()) + u8::from(excluir);
@@ -84,7 +82,6 @@ pub(crate) fn interpretar_pedido(
         return Ok(PedidoDePrazo::Excluir);
     }
     if let Some(dias) = dias {
-        let dias = u16::try_from(dias).map_err(ErroPrazo::DiasNaoCabemEmU16)?;
         if !(1..=999).contains(&dias) {
             return Err(ErroPrazo::DiasInvalidos);
         }
@@ -99,7 +96,6 @@ pub(crate) fn interpretar_pedido(
     Ok(PedidoDePrazo::Ler)
 }
 
-/// Data `DD/MM/AAAA` existente no calendário.
 fn data(valor: &str) -> Option<time::Date> {
     let formato = time::macros::format_description!("[day]/[month]/[year]");
     (valor.len() == 10)
@@ -135,7 +131,6 @@ fn conferir_destino(
 ) -> Result<(), ErroPrazo> {
     let action = form
         .atributo("action")
-        .map(str::to_owned)
         .ok_or(ErroPrazo::FormularioDeOutroDestino)?;
     let (caminho, consulta) = action
         .split_once('?')
@@ -188,17 +183,17 @@ fn ler_controles_da_tela(
     id_procedimento: &str,
 ) -> Result<TelaDoPrazo, ErroPrazo> {
     let mut opcoes_publicadas = false;
-    let mut marcada: Option<String> = None;
+    let mut marcada: Option<&str> = None;
     let mut data = String::new();
     let mut dias = String::new();
     let mut valor_dos_uteis = "on".to_owned();
     let mut id_conferido = false;
     for tag in form.descendentes() {
-        let Some(nome) = tag.atributo("name").map(str::to_owned) else {
+        let Some(nome) = tag.atributo("name") else {
             continue;
         };
-        let valor = tag.atributo("value").map(str::to_owned);
-        match nome.as_str() {
+        let valor = tag.atributo("value");
+        match nome {
             "rdoPrazo" => {
                 opcoes_publicadas = true;
                 if tag.presente("checked") {
@@ -206,16 +201,16 @@ fn ler_controles_da_tela(
                 }
             }
             "hdnIdProcedimentos" => {
-                if valor.as_deref() != Some(id_procedimento) {
+                if valor != Some(id_procedimento) {
                     return Err(ErroPrazo::OutroProcesso);
                 }
                 id_conferido = true;
             }
-            "txtPrazo" => data = valor.unwrap_or_default(),
-            "txtDias" => dias = valor.unwrap_or_default(),
+            "txtPrazo" => valor.unwrap_or_default().clone_into(&mut data),
+            "txtDias" => valor.unwrap_or_default().clone_into(&mut dias),
             "chkSinDiasUteis" => {
                 if let Some(v) = valor {
-                    valor_dos_uteis = v;
+                    v.clone_into(&mut valor_dos_uteis);
                 }
             }
             _ => {}
@@ -224,7 +219,7 @@ fn ler_controles_da_tela(
     if !id_conferido {
         return Err(ErroPrazo::IdDoProcessoAusenteNoFormulario);
     }
-    let estado = estado_dos_controles(opcoes_publicadas, marcada.as_deref(), data, &dias)?;
+    let estado = estado_dos_controles(opcoes_publicadas, marcada, data, &dias)?;
     Ok(TelaDoPrazo {
         estado,
         valor_dos_uteis,
