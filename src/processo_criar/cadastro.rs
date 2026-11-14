@@ -90,7 +90,7 @@ fn conferir_cadastro_interno(
         let nome = handle.atributo("name");
         match nome {
             Some("hdnIdTipoProcedimento") => {
-                ids.push(handle.atributo("value").map(str::to_owned));
+                ids.push(handle.atributo("value"));
             }
             Some("txtDescricao") => {
                 if handle.presente("disabled") {
@@ -100,7 +100,6 @@ fn conferir_cadastro_interno(
                 // um valor fixo extrapolado de outras instalações.
                 limite_especificacao = handle
                     .atributo("maxlength")
-                    .map(str::to_owned)
                     .map(|literal| {
                         literal
                             .parse::<usize>()
@@ -110,14 +109,14 @@ fn conferir_cadastro_interno(
                 descricoes += 1;
             }
             Some("rdoNivelAcesso") => {
-                let valor = handle.atributo("value").map(str::to_owned);
+                let valor = handle.atributo("value");
                 let desabilitado = handle.presente("disabled");
                 radios.push((valor, desabilitado));
             }
             _ => {}
         }
     }
-    if ids.as_slice() != [Some(id_tipo.to_owned())] {
+    if ids.as_slice() != [Some(id_tipo)] {
         return Err(ErroCadastro::TipoDeCadastroDivergente);
     }
     if descricoes != 1 {
@@ -130,7 +129,7 @@ fn conferir_cadastro_interno(
     };
     let correspondentes: Vec<_> = radios
         .iter()
-        .filter(|(valor, _)| valor.as_deref() == Some(valor_nivel))
+        .filter(|(valor, _)| *valor == Some(valor_nivel))
         .collect();
     match correspondentes.as_slice() {
         [(_, false)] => {}

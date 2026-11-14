@@ -9,7 +9,7 @@ fn id_selecionado_na_tela(html: &str) -> Option<String> {
     let [iframe] = iframes.as_slice() else {
         return None;
     };
-    let src = iframe.atributo("src").map(str::to_owned)?;
+    let src = iframe.atributo("src")?;
     let consulta = src.split_once('?')?.1;
     let ids: Vec<_> = consulta
         .split('&')

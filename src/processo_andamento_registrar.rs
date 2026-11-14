@@ -67,26 +67,23 @@ pub(crate) fn conferir_formulario(
         ) {
             continue;
         }
-        let attr = |nome| Ok(tag.atributo(nome).map(str::to_owned));
-        let Some(nome) = attr("name")?.filter(|s| !s.is_empty()) else {
+        let Some(nome) = tag.atributo("name").filter(|s| !s.is_empty()) else {
             continue;
         };
-        let tipo = attr("type")?
-            .unwrap_or_else(|| {
-                if elemento == "button" {
-                    "submit"
-                } else {
-                    "text"
-                }
-                .to_owned()
+        let tipo = tag
+            .atributo("type")
+            .unwrap_or(if elemento == "button" {
+                "submit"
+            } else {
+                "text"
             })
             .to_ascii_lowercase();
-        if attr("disabled")?.is_some() {
+        if tag.atributo("disabled").is_some() {
             continue;
         }
-        match (elemento.as_str(), tipo.as_str(), nome.as_str()) {
+        match (elemento.as_str(), tipo.as_str(), nome) {
             ("input", "hidden", "hdnIdProtocolo") => {
-                protocolo.push(attr("value")?.unwrap_or_default());
+                protocolo.push(tag.atributo("value").unwrap_or_default().to_owned());
             }
             ("input", "hidden", "hdnIdAtividade") => atividade += 1,
             ("textarea", _, TEXTO) => descricao += 1,
