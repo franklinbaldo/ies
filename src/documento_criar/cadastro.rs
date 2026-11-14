@@ -112,9 +112,8 @@ fn conferir_controles_obrigatorios(
         if !tag.presente("required") || tag.presente("disabled") {
             continue;
         }
-        let tipo_controle = tag.atributo("type").map(str::to_owned);
         if matches!(
-            tipo_controle.as_deref(),
+            tag.atributo("type"),
             Some("hidden" | "submit" | "button" | "reset" | "image")
         ) {
             continue;

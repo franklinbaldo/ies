@@ -305,15 +305,14 @@ pub(crate) fn escolha_do_tipo(
         if nome != tipo {
             continue;
         }
-        let onclick = tag.atributo("onclick").map(str::to_owned);
+        let onclick = tag.atributo("onclick");
         let href = tag
             .atributo("href")
-            .map(str::to_owned)
             .ok_or(ErroListaDeTiposDocumento::LinkDoTipoNaoNavegavel)?;
-        if link_de_tipo_externo(&href, onclick.as_deref()) {
+        if link_de_tipo_externo(href, onclick) {
             continue;
         }
-        links.push((href, onclick));
+        links.push((href.to_owned(), onclick.map(str::to_owned)));
     }
     let (href, onclick) = match links.as_slice() {
         [] => return Err(ErroListaDeTiposDocumento::TipoAusente),
