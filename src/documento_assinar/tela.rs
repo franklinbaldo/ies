@@ -107,16 +107,17 @@ pub(crate) fn conferir_tela_de_assinatura(
         };
         let tipo = tag
             .atributo("type")
-            .map(str::to_owned)
-            .map_or_else(|| padrao.to_owned(), |t| t.to_ascii_lowercase());
-        let servido = tag.atributo("value").map(str::to_owned).unwrap_or_default();
+            .map_or_else(|| padrao.to_owned(), str::to_ascii_lowercase);
+        let servido = tag.atributo("value").unwrap_or_default();
         match (elemento.as_str(), tipo.as_str(), nome.as_str()) {
-            ("input", "hidden", DOCUMENTOS) => documentos = Some(servido),
-            ("input", "hidden", ID_USUARIO) => id_usuario = Some(servido),
+            ("input", "hidden", DOCUMENTOS) => documentos = Some(servido.to_owned()),
+            ("input", "hidden", ID_USUARIO) => id_usuario = Some(servido.to_owned()),
             ("input", "hidden", n) if OCULTOS.contains(&n) => {}
             // `button`/`reset` não participam do envio (`submit()` por script).
             ("input" | "button", "button" | "reset", _) => {}
-            ("input", "text", USUARIO) if assinante.is_none() => assinante = Some(servido),
+            ("input", "text", USUARIO) if assinante.is_none() => {
+                assinante = Some(servido.to_owned());
+            }
             ("input", "password", SENHA) if !senha => senha = true,
             ("select", _, ORGAO) if orgao.is_none() => orgao = Some(opcoes(tag)?),
             ("select", _, CARGO) if cargos.is_none() => cargos = Some(opcoes(tag)?),

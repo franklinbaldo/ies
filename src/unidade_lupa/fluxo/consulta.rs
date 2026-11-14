@@ -55,9 +55,9 @@ fn envio_da_lupa(html: &crate::tela_html::HtmlServido) -> Result<EnvioDoFormular
         if tag.presente("disabled") {
             continue;
         }
-        let nome = tag.atributo("name").map(str::to_owned);
+        let nome = tag.atributo("name");
         let id = tag.atributo("id");
-        if nome.as_deref() == Some("btnPesquisar") {
+        if nome == Some("btnPesquisar") {
             nomeados += 1;
         } else if nome.is_none() && id == Some("btnPesquisar") {
             sem_nome += 1;

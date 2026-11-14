@@ -78,14 +78,14 @@ fn nivel(form: Tag<'_>) -> Result<crate::dominio::NivelDeAcesso, ErroPropriedade
     let mut marcados = Vec::new();
     for no in form.elementos("input") {
         if no.atributo("name") == Some("rdoNivelAcesso") && no.presente("checked") {
-            marcados.push(no.atributo("value").map(str::to_owned));
+            marcados.push(no.atributo("value"));
         }
     }
     match marcados.as_slice() {
         [] => Err(ErroPropriedadesDocumento::NivelDeAcessoNaoMarcado),
-        [Some(x)] if x == "0" => Ok(crate::dominio::NivelDeAcesso::Publico),
-        [Some(x)] if x == "1" => Ok(crate::dominio::NivelDeAcesso::Restrito),
-        [Some(x)] if x == "2" => Ok(crate::dominio::NivelDeAcesso::Sigiloso),
+        [Some("0")] => Ok(crate::dominio::NivelDeAcesso::Publico),
+        [Some("1")] => Ok(crate::dominio::NivelDeAcesso::Restrito),
+        [Some("2")] => Ok(crate::dominio::NivelDeAcesso::Sigiloso),
         _ => Err(ErroPropriedadesDocumento::NivelCadastroDocumentoInesperado),
     }
 }
@@ -104,7 +104,7 @@ pub(crate) fn ler_link(
     let dom = crate::tela_html::arvore(&barra);
     let mut encontrado = None;
     for no in dom.elementos("a") {
-        let Some(href) = no.atributo("href").map(str::to_owned) else {
+        let Some(href) = no.atributo("href") else {
             continue;
         };
         let acao = href
@@ -123,10 +123,10 @@ pub(crate) fn ler_link(
         else {
             continue;
         };
-        conferir_endereco_relativo_por(instalacao, &href, fonte, "id_procedimento", processo)
+        conferir_endereco_relativo_por(instalacao, href, fonte, "id_procedimento", processo)
             .map_err(ErroPropriedadesDocumento::LinkCadastroDocumentoInvalido)?;
         let url =
-            conferir_endereco_relativo_por(instalacao, &href, fonte, "id_documento", documento)
+            conferir_endereco_relativo_por(instalacao, href, fonte, "id_documento", documento)
                 .map_err(ErroPropriedadesDocumento::LinkCadastroDocumentoInvalido)?;
         if encontrado.replace(LinkDoCadastro { url, fonte }).is_some() {
             return Err(ErroPropriedadesDocumento::LinksCadastroDocumentoRepetidos);

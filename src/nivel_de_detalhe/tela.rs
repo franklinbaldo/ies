@@ -102,7 +102,8 @@ pub(crate) fn ler_nivel_de_detalhe(
             | ErroSubmissaoFormulario::BotoesDeEnvioRepetidosNoFormulario
             | ErroSubmissaoFormulario::FormularioAusenteNaTela
             | ErroSubmissaoFormulario::IdentificacaoDaUnidadeAusenteNaTela
-            | ErroSubmissaoFormulario::IdentificacoesDaUnidadeRepetidasNaTela(_)) => {
+            | ErroSubmissaoFormulario::IdentificacoesDaUnidadeRepetidasNaTela(_)
+            | ErroSubmissaoFormulario::ConsultaDaAcaoIlegivel(_)) => {
                 E::FormularioDoNivelDeDetalheAusente(outro)
             }
         })?;
@@ -120,12 +121,11 @@ pub(crate) fn ler_nivel_de_detalhe(
         let caixa = elemento == "input"
             && tag
                 .atributo("type")
-                .map(str::to_owned)
                 .is_some_and(|t| t.eq_ignore_ascii_case("checkbox"));
         let Some(nome) = tag
             .atributo("name")
-            .map(str::to_owned)
             .filter(|n| caixa && n.starts_with("chkSin"))
+            .map(str::to_owned)
         else {
             continue;
         };

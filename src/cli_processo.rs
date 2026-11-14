@@ -74,8 +74,8 @@ pub(crate) enum ProcessoAcao {
         especificacao: String,
         #[arg(long, value_parser = crate::processo_criar_cli::argumento_de_criacao)]
         interessado: Vec<String>,
-        #[arg(long, default_value = "publico", value_parser = ["publico", "restrito"])]
-        nivel: String,
+        #[arg(long, value_enum, default_value_t)]
+        nivel: crate::dominio::NivelDeCriacao,
         /// ID#NOME exatos da hipótese observada no AJAX de acesso restrito.
         #[arg(long, value_name = "ID#NOME", value_parser = crate::processo_criar_cli::hipotese_legal)]
         hipotese_legal: Option<String>,
@@ -205,10 +205,10 @@ pub(crate) enum ProcessoAcao {
             conflicts_with_all = ["dias", "excluir"],
             value_parser = crate::processo_prazo::data_do_prazo
         )]
-        ate: Option<String>,
+        ate: Option<crate::unidade_retornos::DataCivil>,
         /// Dias corridos positivos (a contagem exata é do SEI)
         #[arg(long, conflicts_with = "excluir", value_parser = crate::processo_prazo::dias_do_prazo)]
-        dias: Option<u32>,
+        dias: Option<u16>,
         /// Remove o controle de prazo pela lista da unidade
         #[arg(long)]
         excluir: bool,

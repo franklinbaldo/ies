@@ -45,7 +45,7 @@ pub(super) fn informar_sucesso(json_mode: bool, feito: Criacao, especificacao: &
         if !feito.interessados.is_empty() {
             println!("Interessados: {}", feito.interessados.join("; "));
         }
-        println!("Acesso: {}", feito.nivel);
+        println!("Acesso: {}", feito.nivel.como_texto());
         if let Some(hipotese) = feito.hipotese_legal {
             println!("Hipótese legal observada (ID): {hipotese}");
         }

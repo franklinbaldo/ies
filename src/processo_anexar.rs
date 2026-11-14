@@ -73,7 +73,7 @@ pub(crate) fn ler_tela(
         let elemento = tag.nome();
         // `UnB` 4.0.9 publica o envio como <button type="submit">.
         if (elemento.eq_ignore_ascii_case("input") || elemento.eq_ignore_ascii_case("button"))
-            && let Some(nome) = tag.atributo("name").map(str::to_owned)
+            && let Some(nome) = tag.atributo("name")
             && let Some(pos) = esperados.iter().position(|c| *c == nome)
             && let Some(visto) = vistos.get_mut(pos)
         {

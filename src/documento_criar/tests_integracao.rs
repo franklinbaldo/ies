@@ -97,7 +97,7 @@ fn executar(
             unidade: None,
             tipo: "Despacho",
             descricao: Some("Ensaio"),
-            nivel: Some("publico"),
+            nivel: Some(crate::dominio::NivelDeAcesso::Publico),
         };
         executar_criacao(sessao, &pedido, indice, rede, confirmar)
     })
@@ -140,7 +140,7 @@ fn dado_descricao_e_nivel_quando_vejo_previa_entao_sao_exibidos_sem_post() {
         Err(erro) => panic!("previa falhou: {erro:?}"),
     };
     assert_eq!(previa.descricao.as_deref(), Some("Ensaio"));
-    assert_eq!(previa.nivel.as_deref(), Some("publico"));
+    assert_eq!(previa.nivel, Some(crate::dominio::NivelDeAcesso::Publico));
     assert_eq!(previa.requisicoes, 5);
     assert_eq!(pedidos, pedidos_antes_da_escrita());
 }
@@ -252,7 +252,7 @@ fn executar_com_cadastro_sintetico(
             unidade: None,
             tipo: "Despacho",
             descricao: Some("Ensaio"),
-            nivel: Some("publico"),
+            nivel: Some(crate::dominio::NivelDeAcesso::Publico),
         };
         executar_criacao(sessao, &pedido, indice, rede, true)
     })
@@ -284,7 +284,7 @@ fn botao_salvar_sem_name_conserva_post_unico_e_releitura() {
             unidade: None,
             tipo: "Despacho",
             descricao: Some("Ensaio"),
-            nivel: Some("publico"),
+            nivel: Some(crate::dominio::NivelDeAcesso::Publico),
         };
         executar_criacao(sessao, &pedido, indice, rede, true)
     });
@@ -372,7 +372,7 @@ fn incerteza_conserva_contagem_da_rede_externa() {
                 unidade: None,
                 tipo: "Despacho",
                 descricao: Some("Ensaio"),
-                nivel: Some("publico"),
+                nivel: Some(crate::dominio::NivelDeAcesso::Publico),
             };
             let mut contagem = Contador::novo(envio);
             let resultado = executar_criacao(sessao, &pedido, indice, &mut contagem, true);

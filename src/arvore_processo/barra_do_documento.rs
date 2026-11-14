@@ -77,18 +77,15 @@ pub(crate) fn ler_barra_do_documento(
     let dom = crate::tela_html::arvore(&texto);
     let (mut links, mut edicoes) = (Vec::new(), Vec::new());
     for no in dom.elementos("a") {
-        let valor = |nome| -> Result<Option<String>, ErroBarraDoDocumento> {
-            Ok(no.atributo(nome).map(str::to_owned))
-        };
-        if let Some(href) = valor("href")?
-            && menciona_acao(&href, AcaoDoSei::DocumentoVersaoListar)
+        if let Some(href) = no.atributo("href")
+            && menciona_acao(href, AcaoDoSei::DocumentoVersaoListar)
         {
-            links.push(href);
+            links.push(href.to_owned());
         }
-        if let Some(onclick) = valor("onclick")?
+        if let Some(onclick) = no.atributo("onclick")
             && onclick.contains("editarConteudo")
         {
-            edicoes.push(match onclick.as_str() {
+            edicoes.push(match onclick {
                 "editarConteudo('N');" => EdicaoNaBarra::NaoAssinado,
                 "editarConteudo('S');" => EdicaoNaBarra::Assinado,
                 _ => EdicaoNaBarra::ForaDaForma,

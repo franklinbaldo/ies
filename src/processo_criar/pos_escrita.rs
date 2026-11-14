@@ -64,7 +64,7 @@ fn link_do_gerado(
             if link.texto().trim() != candidato.nup {
                 continue;
             }
-            let href = link.atributo("href").map(str::to_owned).ok_or_else(erro)?;
+            let href = link.atributo("href").ok_or_else(erro)?;
             if encontrado.replace(href).is_some() {
                 return Err(ErroCriar::Fotografia(
                     reconciliacao::ErroFotografia::LinksDoCandidatoRepetidos,
@@ -72,7 +72,7 @@ fn link_do_gerado(
             }
         }
     }
-    encontrado.ok_or_else(erro)
+    encontrado.ok_or_else(erro).map(str::to_owned)
 }
 
 #[allow(clippy::too_many_arguments)] // contexto e identidade explícitos
@@ -119,7 +119,7 @@ fn conferir_candidato<V: EnvioDoControle>(
         nup: candidato.nup.clone(),
         tipo: propriedades.tipo,
         especificacao: propriedades.especificacao,
-        nivel: propriedades.nivel_de_acesso.como_texto().to_owned(),
+        nivel: propriedades.nivel_de_acesso,
         interessados: propriedades.interessados,
     })
 }
@@ -175,7 +175,7 @@ pub(super) fn reconciliar<V: EnvioDoControle>(
             )?;
             if conferido.tipo == feito.tipo
                 && conferido.especificacao == especificacao
-                && conferido.nivel == feito.nivel
+                && conferido.nivel == feito.nivel.como_acesso()
                 && reconciliacao::desfechos::interessados_conferem(
                     &feito.interessados,
                     &conferido.interessados,
@@ -190,7 +190,7 @@ pub(super) fn reconciliar<V: EnvioDoControle>(
             &provas,
             &feito.tipo,
             especificacao,
-            &feito.nivel,
+            feito.nivel,
             &feito.interessados,
         )
         .map_err(ErroCriar::Conferencia)?;

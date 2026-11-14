@@ -3,7 +3,6 @@ use super::{EnvioDoFormulario, ErroSubmissaoFormulario, OperacaoDeFormulario};
 use crate::acao_do_sei::AcaoDoSei;
 use crate::consulta_do_controlador::ConsultaDoControlador;
 use crate::instalacao::Instalacao;
-use crate::transporte::FalhaTransporte;
 pub(super) use crate::url_observada::UrlHttps;
 use crate::url_observada::{pasta, tem_esquema};
 use std::collections::HashSet;
@@ -120,8 +119,7 @@ pub(super) fn resolver_action_no_host(
     {
         return Err(ErroSubmissaoFormulario::AcaoDoFormularioForaDaInstalacao);
     }
-    ConsultaDoControlador::da_url(alvo.consulta)
-        .map_err(|_| ErroSubmissaoFormulario::Transporte(FalhaTransporte::UrlInvalida))?;
+    ConsultaDoControlador::da_url(alvo.consulta)?;
     Ok(absoluta)
 }
 
@@ -160,8 +158,7 @@ fn conferir_consulta_url(
     consulta: Option<&str>,
     acao: AcaoDoSei,
 ) -> Result<(), ErroSubmissaoFormulario> {
-    let consulta = ConsultaDoControlador::da_url(consulta)
-        .map_err(|_| ErroSubmissaoFormulario::Transporte(FalhaTransporte::UrlInvalida))?;
+    let consulta = ConsultaDoControlador::da_url(consulta)?;
     if consulta.acao() != Ok(acao.como_na_url()) {
         return Err(ErroSubmissaoFormulario::AcaoDoFormularioDiferenteDaOperacao);
     }

@@ -334,7 +334,8 @@ pub(crate) fn falha_do_envio(erro: ErroSubmissaoFormulario) -> ErroPesquisaProto
         | ErroSubmissaoFormulario::BotoesDeEnvioRepetidosNoFormulario
         | ErroSubmissaoFormulario::FormularioAusenteNaTela
         | ErroSubmissaoFormulario::IdentificacaoDaUnidadeAusenteNaTela
-        | ErroSubmissaoFormulario::IdentificacoesDaUnidadeRepetidasNaTela(_)) => {
+        | ErroSubmissaoFormulario::IdentificacoesDaUnidadeRepetidasNaTela(_)
+        | ErroSubmissaoFormulario::ConsultaDaAcaoIlegivel(_)) => {
             ErroPesquisaProtocolo::Submissao(outro)
         }
     }

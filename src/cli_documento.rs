@@ -33,8 +33,8 @@ pub(crate) enum DocumentoAcao {
         tipo: String,
         #[arg(long)]
         descricao: Option<String>,
-        #[arg(long, value_parser = ["publico", "restrito", "sigiloso"])]
-        nivel: Option<String>,
+        #[arg(long, value_enum)]
+        nivel: Option<crate::dominio::NivelDeAcesso>,
         #[arg(long)]
         confirmar: bool,
     },

@@ -6,10 +6,12 @@ use crate::consulta_do_controlador::{
     ConsultaDoControlador, ErroConsultaDoControlador, ErroParametroDaUrl,
 };
 
+use crate::unidade_retornos::DataCivil;
+
 #[derive(Clone, Debug, PartialEq, Eq)]
 pub(crate) enum PedidoDePrazo {
     Ler,
-    Ate(String),
+    Ate(DataCivil),
     Dias(u16),
     Excluir,
 }
@@ -20,8 +22,6 @@ pub(crate) enum ErroPrazo {
     OpcoesIncompativeis,
     DataInvalida,
     DiasInvalidos,
-    /// O valor de dias não cabe no tipo do pedido; guarda a conversão recusada.
-    DiasNaoCabemEmU16(#[source] std::num::TryFromIntError),
     /// O `action` do formulário não é `controle_prazo_definir` em `controlador.php`.
     FormularioDeOutroDestino,
     /// A consulta do `action` não se lê em pares `chave=valor`.
@@ -43,7 +43,7 @@ pub(crate) enum ErroPrazo {
 #[derive(Clone, Debug, PartialEq, Eq)]
 pub(crate) enum EstadoDoPrazo {
     SemPrazo,
-    Data(String),
+    Data(DataCivil),
     Dias(u16),
     Concluido,
 }
@@ -55,25 +55,21 @@ pub(crate) struct TelaDoPrazo {
 }
 
 /// `--ate`: o clap recusa a data inexistente (saída 2) antes da sessão.
-pub(crate) fn data_do_prazo(valor: &str) -> Result<String, ErroPrazo> {
-    if data_valida(valor) {
-        Ok(valor.to_owned())
-    } else {
-        Err(ErroPrazo::DataInvalida)
-    }
+pub(crate) fn data_do_prazo(valor: &str) -> Result<DataCivil, ErroPrazo> {
+    DataCivil::ler(valor).ok_or(ErroPrazo::DataInvalida)
 }
 
 /// `--dias`: de 1 a 999; o clap recusa o resto (saída 2).
-pub(crate) fn dias_do_prazo(valor: &str) -> Result<u32, ErroPrazo> {
-    match valor.parse::<u32>() {
+pub(crate) fn dias_do_prazo(valor: &str) -> Result<u16, ErroPrazo> {
+    match valor.parse::<u16>() {
         Ok(dias @ 1..=999) => Ok(dias),
         _ => Err(ErroPrazo::DiasInvalidos),
     }
 }
 
 pub(crate) fn interpretar_pedido(
-    ate: Option<&str>,
-    dias: Option<u32>,
+    ate: Option<DataCivil>,
+    dias: Option<u16>,
     excluir: bool,
 ) -> Result<PedidoDePrazo, ErroPrazo> {
     let quantas = u8::from(ate.is_some()) + u8::from(dias.is_some()) + u8::from(excluir);
@@ -84,32 +80,15 @@ pub(crate) fn interpretar_pedido(
         return Ok(PedidoDePrazo::Excluir);
     }
     if let Some(dias) = dias {
-        let dias = u16::try_from(dias).map_err(ErroPrazo::DiasNaoCabemEmU16)?;
         if !(1..=999).contains(&dias) {
             return Err(ErroPrazo::DiasInvalidos);
         }
         return Ok(PedidoDePrazo::Dias(dias));
     }
     if let Some(data) = ate {
-        if !data_valida(data) {
-            return Err(ErroPrazo::DataInvalida);
-        }
-        return Ok(PedidoDePrazo::Ate(data.to_owned()));
+        return Ok(PedidoDePrazo::Ate(data));
     }
     Ok(PedidoDePrazo::Ler)
-}
-
-/// Data `DD/MM/AAAA` existente no calendário.
-fn data(valor: &str) -> Option<time::Date> {
-    let formato = time::macros::format_description!("[day]/[month]/[year]");
-    (valor.len() == 10)
-        .then(|| time::Date::parse(valor, formato).ok())
-        .flatten()
-        .filter(|d| d.year() > 0)
-}
-
-fn data_valida(valor: &str) -> bool {
-    data(valor).is_some()
 }
 
 /// Lê a tela do prazo. Só o que protege a escrita é conferido: o `action`
@@ -135,7 +114,6 @@ fn conferir_destino(
 ) -> Result<(), ErroPrazo> {
     let action = form
         .atributo("action")
-        .map(str::to_owned)
         .ok_or(ErroPrazo::FormularioDeOutroDestino)?;
     let (caminho, consulta) = action
         .split_once('?')
@@ -162,14 +140,16 @@ fn conferir_destino(
 fn estado_dos_controles(
     opcoes_publicadas: bool,
     marcada: Option<&str>,
-    data: String,
+    data: &str,
     dias: &str,
 ) -> Result<EstadoDoPrazo, ErroPrazo> {
     if !opcoes_publicadas {
         return Err(ErroPrazo::OpcoesDoPrazoAusentes);
     }
     match marcada {
-        Some("1") if data_valida(&data) => Ok(EstadoDoPrazo::Data(data)),
+        Some("1") => DataCivil::ler(data)
+            .map(EstadoDoPrazo::Data)
+            .ok_or(ErroPrazo::PrazoAtualIlegivel),
         Some("2") => dias
             .parse::<u16>()
             .ok()
@@ -188,17 +168,17 @@ fn ler_controles_da_tela(
     id_procedimento: &str,
 ) -> Result<TelaDoPrazo, ErroPrazo> {
     let mut opcoes_publicadas = false;
-    let mut marcada: Option<String> = None;
-    let mut data = String::new();
-    let mut dias = String::new();
+    let mut marcada: Option<&str> = None;
+    let mut data = "";
+    let mut dias = "";
     let mut valor_dos_uteis = "on".to_owned();
     let mut id_conferido = false;
     for tag in form.descendentes() {
-        let Some(nome) = tag.atributo("name").map(str::to_owned) else {
+        let Some(nome) = tag.atributo("name") else {
             continue;
         };
-        let valor = tag.atributo("value").map(str::to_owned);
-        match nome.as_str() {
+        let valor = tag.atributo("value");
+        match nome {
             "rdoPrazo" => {
                 opcoes_publicadas = true;
                 if tag.presente("checked") {
@@ -206,7 +186,7 @@ fn ler_controles_da_tela(
                 }
             }
             "hdnIdProcedimentos" => {
-                if valor.as_deref() != Some(id_procedimento) {
+                if valor != Some(id_procedimento) {
                     return Err(ErroPrazo::OutroProcesso);
                 }
                 id_conferido = true;
@@ -215,7 +195,7 @@ fn ler_controles_da_tela(
             "txtDias" => dias = valor.unwrap_or_default(),
             "chkSinDiasUteis" => {
                 if let Some(v) = valor {
-                    valor_dos_uteis = v;
+                    v.clone_into(&mut valor_dos_uteis);
                 }
             }
             _ => {}
@@ -224,7 +204,7 @@ fn ler_controles_da_tela(
     if !id_conferido {
         return Err(ErroPrazo::IdDoProcessoAusenteNoFormulario);
     }
-    let estado = estado_dos_controles(opcoes_publicadas, marcada.as_deref(), data, &dias)?;
+    let estado = estado_dos_controles(opcoes_publicadas, marcada, data, dias)?;
     Ok(TelaDoPrazo {
         estado,
         valor_dos_uteis,
@@ -232,9 +212,12 @@ fn ler_controles_da_tela(
 }
 
 /// Campos do usuário para a derivação segura do formulário observado.
-/// Dias civis desde 1970-01-01 de uma data `DD/MM/AAAA`.
-fn dias_civis(valor: &str) -> Option<i64> {
-    data(valor).map(|d| (d - time::OffsetDateTime::UNIX_EPOCH.date()).whole_days())
+/// Dias civis desde 1970-01-01 de uma data civil.
+fn dias_civis(valor: DataCivil) -> Option<i64> {
+    let mes = time::Month::try_from(valor.mes_ano().mes()).ok()?;
+    let data =
+        time::Date::from_calendar_date(i32::from(valor.mes_ano().ano()), mes, valor.dia()).ok()?;
+    Some((data - time::OffsetDateTime::UNIX_EPOCH.date()).whole_days())
 }
 
 /// A releitura confirma o pedido? Para `--dias N`, o SEI da `UnB` guarda e
@@ -253,7 +236,7 @@ pub(crate) fn releitura_confirma(
         }
         (PedidoDePrazo::Dias(n), EstadoDoPrazo::Dias(lidos)) => n == lidos,
         (PedidoDePrazo::Dias(n), EstadoDoPrazo::Data(lida)) => {
-            dias_civis(lida).is_some_and(|d| (d - hoje - i64::from(*n)).abs() <= 1)
+            dias_civis(*lida).is_some_and(|d| (d - hoje - i64::from(*n)).abs() <= 1)
         }
         _ => false,
     }
@@ -261,7 +244,7 @@ pub(crate) fn releitura_confirma(
 
 pub(crate) fn campos_do_pedido(pedido: &PedidoDePrazo) -> Vec<(&'static str, String)> {
     let (opcao, data, dias) = match pedido {
-        PedidoDePrazo::Ate(data) => ("1", data.clone(), String::new()),
+        PedidoDePrazo::Ate(data) => ("1", data.to_string(), String::new()),
         PedidoDePrazo::Dias(dias) => ("2", String::new(), dias.to_string()),
         PedidoDePrazo::Ler | PedidoDePrazo::Excluir => return Vec::new(),
     };
@@ -307,37 +290,38 @@ mod tests {
 
     #[test]
     fn dias_viram_data_certa_na_releitura_da_unb() {
+        let d = |s| DataCivil::ler(s).unwrap();
         // 10/11/2026 UTC; o SEI (09/11 em Brasília) gravou 19/11/2026.
-        let hoje = dias_civis("10/11/2026").unwrap();
+        let hoje = dias_civis(d("10/11/2026")).unwrap();
         let dez = PedidoDePrazo::Dias(10);
         for aceita in ["19/11/2026", "20/11/2026", "21/11/2026"] {
             assert!(
-                releitura_confirma(&dez, &EstadoDoPrazo::Data(aceita.into()), hoje),
+                releitura_confirma(&dez, &EstadoDoPrazo::Data(d(aceita)), hoje),
                 "{aceita}"
             );
         }
         for recusada in ["18/11/2026", "22/11/2026", "29/10/2026"] {
             assert!(
-                !releitura_confirma(&dez, &EstadoDoPrazo::Data(recusada.into()), hoje),
+                !releitura_confirma(&dez, &EstadoDoPrazo::Data(d(recusada)), hoje),
                 "{recusada}"
             );
         }
         assert!(releitura_confirma(&dez, &EstadoDoPrazo::Dias(10), hoje));
         assert!(!releitura_confirma(&dez, &EstadoDoPrazo::SemPrazo, hoje));
-        let ate = PedidoDePrazo::Ate("19/11/2026".into());
+        let ate = PedidoDePrazo::Ate(d("19/11/2026"));
         assert!(releitura_confirma(
             &ate,
-            &EstadoDoPrazo::Data("19/11/2026".into()),
+            &EstadoDoPrazo::Data(d("19/11/2026")),
             hoje
         ));
         assert!(!releitura_confirma(
             &ate,
-            &EstadoDoPrazo::Data("20/11/2026".into()),
+            &EstadoDoPrazo::Data(d("20/11/2026")),
             hoje
         ));
-        assert_eq!(dias_civis("01/01/1970"), Some(0));
+        assert_eq!(dias_civis(d("01/01/1970")), Some(0));
         assert_eq!(
-            dias_civis("01/03/2024").unwrap() - dias_civis("28/02/2024").unwrap(),
+            dias_civis(d("01/03/2024")).unwrap() - dias_civis(d("28/02/2024")).unwrap(),
             2
         );
     }
@@ -368,14 +352,13 @@ mod tests {
     // Casos de Todos tests/test_ciclo_prazo_010.py @323eb01.
     #[test]
     fn pedido_data_bissexta_valida_e_data_inexistente_recusada() {
+        let bissexta = DataCivil::ler("29/02/2028").unwrap();
+        assert_eq!(data_do_prazo("29/02/2028"), Ok(bissexta));
         assert_eq!(
-            interpretar_pedido(Some("29/02/2028"), None, false),
-            Ok(PedidoDePrazo::Ate("29/02/2028".to_owned()))
+            interpretar_pedido(Some(bissexta), None, false),
+            Ok(PedidoDePrazo::Ate(bissexta))
         );
-        assert_eq!(
-            interpretar_pedido(Some("29/02/2027"), None, false),
-            Err(ErroPrazo::DataInvalida)
-        );
+        assert_eq!(data_do_prazo("29/02/2027"), Err(ErroPrazo::DataInvalida));
     }
 
     #[test]
@@ -393,7 +376,7 @@ mod tests {
             Ok(PedidoDePrazo::Dias(15))
         );
         assert_eq!(
-            interpretar_pedido(Some("15/11/2026"), Some(3), false),
+            interpretar_pedido(Some(DataCivil::ler("15/11/2026").unwrap()), Some(3), false),
             Err(ErroPrazo::OpcoesIncompativeis)
         );
         assert_eq!(
@@ -411,7 +394,7 @@ mod tests {
             )
             .unwrap()
             .estado,
-            EstadoDoPrazo::Data("30/10/2026".to_owned())
+            EstadoDoPrazo::Data(DataCivil::ler("30/10/2026").unwrap())
         );
         assert_eq!(
             ler_tela(
@@ -467,7 +450,7 @@ mod tests {
             ]
         );
         assert_eq!(
-            campos_do_pedido(&PedidoDePrazo::Ate("15/11/2026".to_owned())),
+            campos_do_pedido(&PedidoDePrazo::Ate(DataCivil::ler("15/11/2026").unwrap())),
             vec![
                 ("rdoPrazo", "1".to_owned()),
                 ("txtPrazo", "15/11/2026".to_owned()),

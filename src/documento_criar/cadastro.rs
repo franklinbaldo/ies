@@ -26,7 +26,7 @@ pub(crate) fn conferir_cadastro(
     html: &crate::tela_html::HtmlServido,
     tipo: &str,
     descricao: Option<&str>,
-    nivel: Option<&str>,
+    nivel: Option<crate::dominio::NivelDeAcesso>,
 ) -> Result<(), ErroCadastroDoDocumento> {
     let dom = crate::tela_html::arvore(html);
     let formularios = dom.com_id("frmDocumentoCadastro").collect::<Vec<_>>();
@@ -67,10 +67,9 @@ pub(crate) fn conferir_cadastro(
     }
     if let Some(nivel) = nivel {
         let (id, valor) = match nivel {
-            "publico" => ("optPublico", "0"),
-            "restrito" => ("optRestrito", "1"),
-            "sigiloso" => ("optSigiloso", "2"),
-            _ => return Err(ErroCadastroDoDocumento::NivelNaoOferecido),
+            crate::dominio::NivelDeAcesso::Publico => ("optPublico", "0"),
+            crate::dominio::NivelDeAcesso::Restrito => ("optRestrito", "1"),
+            crate::dominio::NivelDeAcesso::Sigiloso => ("optSigiloso", "2"),
         };
         let controles = dom.com_id(id).collect::<Vec<_>>();
         let [controle] = controles.as_slice() else {
@@ -99,7 +98,7 @@ pub(crate) fn conferir_cadastro(
 fn conferir_controles_obrigatorios(
     formulario: crate::tela_html::Elemento<'_>,
     descricao: Option<&str>,
-    nivel: Option<&str>,
+    nivel: Option<crate::dominio::NivelDeAcesso>,
 ) -> Result<(), ErroCadastroDoDocumento> {
     for tag in formulario.descendentes() {
         let nome_tag = tag.nome();
@@ -112,9 +111,8 @@ fn conferir_controles_obrigatorios(
         if !tag.presente("required") || tag.presente("disabled") {
             continue;
         }
-        let tipo_controle = tag.atributo("type").map(str::to_owned);
         if matches!(
-            tipo_controle.as_deref(),
+            tag.atributo("type"),
             Some("hidden" | "submit" | "button" | "reset" | "image")
         ) {
             continue;

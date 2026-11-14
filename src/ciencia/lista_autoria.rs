@@ -40,10 +40,10 @@ pub(crate) fn usuario_da_atividade_na_lista(
     for no in tabela.elementos("tr") {
         let contem_atividade = no.elementos("input").any(|input| {
             let tipo = input.atributo("type");
-            let nome = input.atributo("name").map(str::to_owned);
+            let nome = input.atributo("name");
             let valor = input.atributo("value");
             tipo == Some("checkbox")
-                && nome.as_deref().is_some_and(|nome| {
+                && nome.is_some_and(|nome| {
                     nome.strip_prefix("chkInfraItem")
                         .is_some_and(|sufixo| sufixo.bytes().all(|b| b.is_ascii_digit()))
                 })

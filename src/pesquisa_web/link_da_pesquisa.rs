@@ -71,17 +71,16 @@ fn href_publicado(html: &crate::tela_html::HtmlServido) -> Result<String, ErroLi
     let dom = crate::tela_html::arvore(html);
     let mut achados = Vec::new();
     for no in dom.elementos("a") {
-        let Some(href) = no.atributo("href").map(str::to_owned) else {
+        let Some(href) = no.atributo("href") else {
             continue;
         };
-        let publica = menciona_acao(&href, AcaoDoSei::ProtocoloPesquisar);
-        if publica {
+        if menciona_acao(href, AcaoDoSei::ProtocoloPesquisar) {
             achados.push(href);
         }
     }
     match achados.len() {
         0 => Err(ErroLinkDaPesquisa::LinkDaPesquisaAusenteNoControle),
-        1 => Ok(achados.remove(0)),
+        1 => Ok(achados.remove(0).to_owned()),
         _ => Err(ErroLinkDaPesquisa::LinksDaPesquisaRepetidosNoControle),
     }
 }

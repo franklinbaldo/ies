@@ -51,7 +51,7 @@ pub(super) fn link_de_adicionar(
     dom.elementos("button")
         .filter(|tag| tag.atributo("id") == Some("btnAdicionar"))
         .find_map(|tag| {
-            let onclick = tag.atributo("onclick").map(str::to_owned)?;
+            let onclick = tag.atributo("onclick")?;
             let relativo = onclick
                 .strip_prefix("location.href='")?
                 .strip_suffix('\'')?;

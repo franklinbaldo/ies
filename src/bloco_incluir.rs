@@ -164,7 +164,7 @@ pub(crate) fn ler_tela_de_escolha(
     }
     let mut documentos: Vec<DocumentoOferecido> = Vec::new();
     for caixa in dom.elementos("input") {
-        let Some(nome) = caixa.atributo("name").map(str::to_owned) else {
+        let Some(nome) = caixa.atributo("name") else {
             continue;
         };
         let Some(indice) = nome.strip_prefix("chkDocumentosItem") else {
@@ -172,7 +172,7 @@ pub(crate) fn ler_tela_de_escolha(
         };
         if indice.is_empty()
             || !indice.bytes().all(|b| b.is_ascii_digit())
-            || caixa.atributo("id") != Some(nome.as_str())
+            || caixa.atributo("id") != Some(nome)
             || caixa.atributo("type") != Some("checkbox")
         {
             return Err(fora());
@@ -194,7 +194,11 @@ pub(crate) fn ler_tela_de_escolha(
         {
             return Err(ErroIncluir::CaixasDeDocumentosAmbiguas);
         }
-        documentos.push(DocumentoOferecido { nome, id, numero });
+        documentos.push(DocumentoOferecido {
+            nome: nome.to_owned(),
+            id,
+            numero,
+        });
     }
     Ok(TelaDeEscolha { blocos, documentos })
 }

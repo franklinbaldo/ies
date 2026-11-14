@@ -131,10 +131,11 @@ fn validar_url_de_leitura(url: &str, origem: &str) -> Result<(), FalhaDaLupa> {
 fn candidatos_do_controle(tag: crate::tela_html::Elemento<'_>) -> Vec<String> {
     let mut urls = Vec::new();
     for atributo in ["href", "onclick"] {
-        let bruto = tag.atributo(atributo).map(str::to_owned);
-        let Some(bruto) = bruto else { continue };
+        let Some(bruto) = tag.atributo(atributo) else {
+            continue;
+        };
         let literal = if atributo == "href" {
-            Some(bruto.as_str())
+            Some(bruto)
         } else {
             // Apenas literal entre aspas atribuído a location, sem JS.
             let local = bruto.split("location").nth(1);

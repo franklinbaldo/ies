@@ -205,7 +205,7 @@ fn ler_linha(
     tag: crate::tela_html::Elemento<'_>,
     papeis: &[colunas::PapelDaColuna],
 ) -> Result<Option<(ProcessoDetalhado, String)>, ErroDetalhada> {
-    let Some(id) = tag.atributo("id").map(str::to_owned) else {
+    let Some(id) = tag.atributo("id") else {
         return Ok(None);
     };
     let Some(id) = id.strip_prefix('P') else {
@@ -234,21 +234,18 @@ fn ler_linha(
     let links = celula.elementos("a");
     let mut escolhido = None;
     for link in links {
-        let Some(bruto) = link.atributo("href").map(str::to_owned) else {
+        let Some(bruto) = link.atributo("href") else {
             continue;
         };
-        if !menciona_processo(&bruto) {
+        if !menciona_processo(bruto) {
             continue;
         }
         if escolhido.is_some() {
             return Err(ErroDetalhada::LinksDoProcessoDetalhadoRepetidos);
         }
-        conferir_link_do_processo(&bruto, id.as_str())?;
-        let classe = link
-            .atributo("class")
-            .map(str::to_owned)
-            .unwrap_or_default();
-        let estado = crate::classe_link_processo::estado_do_link(&classe)
+        conferir_link_do_processo(bruto, id.as_str())?;
+        let classe = link.atributo("class").unwrap_or_default();
+        let estado = crate::classe_link_processo::estado_do_link(classe)
             .map_err(ErroDetalhada::ClassesDeEstadoDiferentesNoLink)?
             .ok_or(ErroDetalhada::EstadoDoLinkDoProcessoAusente)?;
         let numero = NumeroProcesso::novo(&link.texto())
@@ -262,7 +259,7 @@ fn ler_linha(
                 categoria: None,
                 colunas: ColunasDaLinha(configuradas.clone()),
             },
-            bruto,
+            bruto.to_owned(),
         ));
     }
     escolhido
