@@ -345,10 +345,10 @@ pub(crate) fn link_do_menu(
     let dom = crate::tela_html::arvore(html);
     let mut candidatos = Vec::new();
     for no in dom.elementos("a") {
-        let Some(bruto) = no.atributo("href").map(str::to_owned) else {
+        let Some(bruto) = no.atributo("href") else {
             continue;
         };
-        if menciona_acao(&bruto, tipo.acao()) {
+        if menciona_acao(bruto, tipo.acao()) {
             candidatos.push(bruto);
         }
     }
