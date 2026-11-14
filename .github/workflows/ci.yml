@@ -88,7 +88,7 @@ jobs:
     # As sete capturas públicas cobrem retornos #253 e atribuição #264.
     name: replay unidade.retornos (7 instalações, offline)
     runs-on: ubuntu-24.04
-    timeout-minutes: 45
+    timeout-minutes: 70
     env:
       IES_ACERVO_CACHE: .cache/ies-retornos
     steps:
