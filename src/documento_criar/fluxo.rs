@@ -80,7 +80,7 @@ pub(crate) struct PedidoCriacao<'a> {
     pub(crate) unidade: Option<&'a str>,
     pub(crate) tipo: &'a str,
     pub(crate) descricao: Option<&'a str>,
-    pub(crate) nivel: Option<&'a str>,
+    pub(crate) nivel: Option<crate::dominio::NivelDeAcesso>,
 }
 
 /// O resultado não permite representar uma confirmação sem número SEI.
@@ -95,7 +95,7 @@ pub(crate) struct ResultadoCriacao {
     pub(crate) tipo: String,
     pub(crate) unidade: String,
     pub(crate) descricao: Option<String>,
-    pub(crate) nivel: Option<String>,
+    pub(crate) nivel: Option<crate::dominio::NivelDeAcesso>,
     pub(crate) requisicoes: u8,
     pub(crate) estado: EstadoCriacao,
 }
@@ -137,12 +137,14 @@ fn erro_da_tela(falha: FalhaDaTela) -> ErroDocumentoCriar {
 /// Pre-condicao independente da sessao: a operacao ainda so resolve nivel publico.
 /// Uma unica regra atende tanto a fronteira CLI quanto o nucleo de escrita.
 pub(crate) fn validar_nivel_de_confirmacao(
-    nivel: Option<&str>,
+    nivel: Option<crate::dominio::NivelDeAcesso>,
 ) -> Result<(), ErroNivelDeConfirmacao> {
     match nivel {
-        Some("publico") => Ok(()),
+        Some(crate::dominio::NivelDeAcesso::Publico) => Ok(()),
         None => Err(ErroNivelDeConfirmacao::NivelNaoInformado),
-        _ => Err(ErroNivelDeConfirmacao::NivelRestritoSemHipotese),
+        Some(crate::dominio::NivelDeAcesso::Restrito | crate::dominio::NivelDeAcesso::Sigiloso) => {
+            Err(ErroNivelDeConfirmacao::NivelRestritoSemHipotese)
+        }
     }
 }
 
@@ -272,21 +274,13 @@ pub(crate) fn executar_criacao<V: EnvioDoProcesso>(
         tipo: pedido.tipo.to_owned(),
         unidade,
         descricao: pedido.descricao.map(str::to_owned),
-        nivel: pedido.nivel.map(str::to_owned),
+        nivel: pedido.nivel,
         requisicoes: rede.feitas(),
         estado: EstadoCriacao::Previa,
     };
     if !confirmar {
         return Ok(previa);
     }
-    // O cadastro restrito exige escolha de hipótese legal. Enquanto a
-    // operação não resolver esse controle, apenas o nível público é seguro.
-    conferir_cadastro(
-        &html_cadastro,
-        pedido.tipo,
-        pedido.descricao,
-        Some("publico"),
-    )?;
     if !cadastro_oferece_salvar(&html_cadastro) {
         return Err(ErroDocumentoCriar::SubmissaoNaoComprovada);
     }

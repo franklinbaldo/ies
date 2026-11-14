@@ -163,7 +163,12 @@ fn cadastro_recusa_nivel_com_valor_radio_diferente_do_observado() {
         </form>"#,
     );
     assert_eq!(
-        conferir_cadastro(&html, "Despacho", None, Some("publico")),
+        conferir_cadastro(
+            &html,
+            "Despacho",
+            None,
+            Some(crate::dominio::NivelDeAcesso::Publico)
+        ),
         Err(super::cadastro::ErroCadastroDoDocumento::NivelNaoOferecido)
     );
 }
@@ -182,7 +187,7 @@ fn cadastro_so_aceita_tipo_e_controles_publicados_habilitados() {
             &HtmlServido::de_teste(html),
             "Despacho",
             Some("Ensaio"),
-            Some("publico")
+            Some(crate::dominio::NivelDeAcesso::Publico)
         ),
         Ok(())
     );
@@ -195,7 +200,7 @@ fn cadastro_so_aceita_tipo_e_controles_publicados_habilitados() {
             &HtmlServido::de_teste(html),
             "Despacho",
             None,
-            Some("restrito")
+            Some(crate::dominio::NivelDeAcesso::Restrito)
         ),
         Err(super::cadastro::ErroCadastroDoDocumento::NivelNaoOferecido)
     );
@@ -204,7 +209,7 @@ fn cadastro_so_aceita_tipo_e_controles_publicados_habilitados() {
             &HtmlServido::de_teste(html),
             "Despacho",
             None,
-            Some("sigiloso")
+            Some(crate::dominio::NivelDeAcesso::Sigiloso)
         ),
         Err(super::cadastro::ErroCadastroDoDocumento::NivelNaoOferecido)
     );
@@ -242,7 +247,7 @@ fn controles_de_cadastro_em_template_ou_fora_do_formulario_nao_autorizam_escrita
             &dentro_de_template,
             "Despacho",
             Some("Prova"),
-            Some("publico")
+            Some(crate::dominio::NivelDeAcesso::Publico)
         ),
         Err(super::cadastro::ErroCadastroDoDocumento::DescricaoNaoOferecida)
     );
@@ -254,7 +259,7 @@ fn controles_de_cadastro_em_template_ou_fora_do_formulario_nao_autorizam_escrita
             &fora_do_formulario,
             "Despacho",
             Some("Prova"),
-            Some("publico")
+            Some(crate::dominio::NivelDeAcesso::Publico)
         ),
         Err(super::cadastro::ErroCadastroDoDocumento::DescricaoNaoOferecida)
     );
