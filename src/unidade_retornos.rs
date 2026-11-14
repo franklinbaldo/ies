@@ -185,10 +185,10 @@ pub(crate) fn extrair_retornos(
     let mut situacoes = HashSet::new();
     let mut lista = Vec::new();
     for no in dom.elementos("table") {
-        let Some(summary) = no.atributo("summary").map(str::to_owned) else {
+        let Some(summary) = no.atributo("summary") else {
             continue;
         };
-        let Some(situacao) = situacao_da_tabela(&summary) else {
+        let Some(situacao) = situacao_da_tabela(summary) else {
             continue;
         };
         if !situacoes.insert(situacao) || no.elementos("table").next().is_some() {
@@ -218,8 +218,8 @@ pub(crate) fn extrair_retornos(
             areas_aguardando += 1;
             let mut reconhecidas = Vec::new();
             for no in no.elementos("table") {
-                if let Some(summary) = no.atributo("summary").map(str::to_owned)
-                    && let Some(tipo) = situacao_da_tabela(&summary)
+                if let Some(summary) = no.atributo("summary")
+                    && let Some(tipo) = situacao_da_tabela(summary)
                 {
                     reconhecidas.push(tipo);
                 }

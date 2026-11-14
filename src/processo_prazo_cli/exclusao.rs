@@ -62,10 +62,10 @@ pub(super) fn link_da_lista(
         Instalacao::interpretar(origem).ok_or(ErroLinkDaLista::OrigemNaoInterpretada)?;
     let mut encontrados = Vec::new();
     for ancora in dom.elementos("a") {
-        let Some(href) = ancora.atributo("href").map(str::to_owned) else {
+        let Some(href) = ancora.atributo("href") else {
             continue;
         };
-        if !menciona_acao(&href, AcaoDoSei::ControlePrazoListar) {
+        if !menciona_acao(href, AcaoDoSei::ControlePrazoListar) {
             continue;
         }
         if href.starts_with('/') || href.contains("://") || href.contains("..") {
@@ -121,7 +121,7 @@ pub(super) fn id_na_lista(
         .map_err(ErroListaDePrazos::FormularioDaListaNaoLocalizado)?;
     let mut encontrado = None;
     for ancora in dom.elementos("a") {
-        let Some(acao) = ancora.atributo("onclick").map(str::to_owned) else {
+        let Some(acao) = ancora.atributo("onclick") else {
             continue;
         };
         let Some(resto) = acao.trim().strip_prefix("acaoExcluir('") else {

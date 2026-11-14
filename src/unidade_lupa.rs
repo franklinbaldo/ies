@@ -102,7 +102,7 @@ fn ler_unidades(
             return Err(ErroLupa::TabelaForaDaForma);
         };
         if let [aviso] = tds.as_slice()
-            && aviso.atributo("colspan").map(str::to_owned).is_some()
+            && aviso.atributo("colspan").is_some()
         {
             // O único aviso permitido é a lista realmente vazia.
             if total == 0 && unidades.is_empty() {
@@ -290,7 +290,7 @@ pub(crate) fn conferir_filtros_de_lista_integral(
         let opcoes = tags(seletor, "option");
         let mut selecionadas = Vec::new();
         for (i, opcao) in opcoes.iter().enumerate() {
-            if opcao.atributo("selected").map(str::to_owned).is_some() {
+            if opcao.atributo("selected").is_some() {
                 selecionadas.push(i);
             }
         }
