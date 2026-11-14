@@ -110,8 +110,8 @@ pub(super) fn ler_linhas(
             .descendentes()
             .filter(|tag| tag.nome().eq_ignore_ascii_case("a"))
         {
-            if let Some(href) = ancora.atributo("href").map(str::to_owned)
-                && let Some(id) = id_do_processo(&href)
+            if let Some(href) = ancora.atributo("href")
+                && let Some(id) = id_do_processo(href)
             {
                 let nup = ancora.texto();
                 if nup.trim().is_empty() {
@@ -119,7 +119,7 @@ pub(super) fn ler_linhas(
                 }
                 processos.push((id.to_owned(), nup.trim().to_owned()));
             }
-            remocoes.extend(ancora.atributo("onclick").map(str::to_owned));
+            remocoes.extend(ancora.atributo("onclick"));
         }
         match processos.as_slice() {
             [] => {}
@@ -128,7 +128,7 @@ pub(super) fn ler_linhas(
                     return Err(ErroTelaDeRelacionamentos::RelacionamentosRepetidosNaTela);
                 }
                 let chamada = format!("acaoRemover('{id}');");
-                let pode_remover = remocoes.iter().any(|acao| acao == &chamada);
+                let pode_remover = remocoes.iter().any(|acao| *acao == chamada);
                 lista.push(Relacionamento {
                     id: id.clone(),
                     nup: nup.clone(),

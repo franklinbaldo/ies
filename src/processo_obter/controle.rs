@@ -29,7 +29,7 @@ pub(super) fn link_do_processo_no_controle(
     let mut achado: Option<(String, String)> = None;
     let linhas = dom.elementos("tr");
     for linha in linhas {
-        let Some(id) = linha.atributo("id").map(str::to_owned) else {
+        let Some(id) = linha.atributo("id") else {
             continue;
         };
         let Some(id) = id
@@ -43,7 +43,7 @@ pub(super) fn link_do_processo_no_controle(
             if link.texto() != nup {
                 continue;
             }
-            let Some(href) = link.atributo("href").map(str::to_owned) else {
+            let Some(href) = link.atributo("href") else {
                 continue;
             };
             if !href.starts_with("controlador.php?acao=procedimento_trabalhar&") {
@@ -52,7 +52,7 @@ pub(super) fn link_do_processo_no_controle(
             if nesta_linha.is_some() {
                 return Err(ErroProcessoObter::LinksDoProcessoRepetidosNoControle);
             }
-            nesta_linha = Some(href);
+            nesta_linha = Some(href.to_owned());
         }
         let Some(href) = nesta_linha else {
             continue;
