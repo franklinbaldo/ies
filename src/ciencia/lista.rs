@@ -49,9 +49,8 @@ pub(crate) fn atividade_na_lista(
         if tipo != Some("checkbox") {
             continue;
         }
-        let nome = no.atributo("name").map(str::to_owned);
         let valor = no.atributo("value");
-        let Some(nome) = nome else {
+        let Some(nome) = no.atributo("name") else {
             return Err(ErroCiencia::ListaDeCienciasForaDaFormaObservada);
         };
         let Some(resto) = nome.strip_prefix("chkInfraItem") else {

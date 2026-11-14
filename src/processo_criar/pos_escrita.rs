@@ -64,7 +64,7 @@ fn link_do_gerado(
             if link.texto().trim() != candidato.nup {
                 continue;
             }
-            let href = link.atributo("href").map(str::to_owned).ok_or_else(erro)?;
+            let href = link.atributo("href").ok_or_else(erro)?;
             if encontrado.replace(href).is_some() {
                 return Err(ErroCriar::Fotografia(
                     reconciliacao::ErroFotografia::LinksDoCandidatoRepetidos,
@@ -72,7 +72,7 @@ fn link_do_gerado(
             }
         }
     }
-    encontrado.ok_or_else(erro)
+    encontrado.ok_or_else(erro).map(str::to_owned)
 }
 
 #[allow(clippy::too_many_arguments)] // contexto e identidade explícitos
