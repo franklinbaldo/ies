@@ -14,7 +14,12 @@ fn cadastro_recusa_controle_obrigatorio_nao_suportado() {
         </form>"#,
     );
     assert_eq!(
-        conferir_cadastro(&html, "Despacho", None, Some("publico")),
+        conferir_cadastro(
+            &html,
+            "Despacho",
+            None,
+            Some(crate::dominio::NivelDeAcesso::Publico)
+        ),
         Err(super::cadastro::ErroCadastroDoDocumento::CampoObrigatorioNaoAtendido)
     );
 }
@@ -29,7 +34,12 @@ fn cadastro_recusa_descricao_obrigatoria_nao_preenchida() {
         </form>"#,
     );
     assert_eq!(
-        conferir_cadastro(&html, "Despacho", None, Some("publico")),
+        conferir_cadastro(
+            &html,
+            "Despacho",
+            None,
+            Some(crate::dominio::NivelDeAcesso::Publico)
+        ),
         Err(super::cadastro::ErroCadastroDoDocumento::CampoObrigatorioNaoAtendido)
     );
 }
@@ -44,7 +54,12 @@ fn cadastro_recusa_selecao_obrigatoria_nao_suportada() {
         </form>"#,
     );
     assert_eq!(
-        conferir_cadastro(&html, "Despacho", None, Some("publico")),
+        conferir_cadastro(
+            &html,
+            "Despacho",
+            None,
+            Some(crate::dominio::NivelDeAcesso::Publico)
+        ),
         Err(super::cadastro::ErroCadastroDoDocumento::CampoObrigatorioNaoAtendido)
     );
 }
@@ -61,7 +76,12 @@ fn cadastro_aceita_controles_obrigatorios_atendidos_e_ignora_desabilitado() {
         </form>"#,
     );
     assert_eq!(
-        conferir_cadastro(&html, "Despacho", Some("Ensaio"), Some("publico")),
+        conferir_cadastro(
+            &html,
+            "Despacho",
+            Some("Ensaio"),
+            Some(crate::dominio::NivelDeAcesso::Publico)
+        ),
         Ok(())
     );
 }
@@ -76,7 +96,12 @@ fn cadastro_recusa_nivel_com_disabled_booleano() {
         </form>"#,
     );
     assert_eq!(
-        conferir_cadastro(&html, "Despacho", None, Some("publico")),
+        conferir_cadastro(
+            &html,
+            "Despacho",
+            None,
+            Some(crate::dominio::NivelDeAcesso::Publico)
+        ),
         Err(super::cadastro::ErroCadastroDoDocumento::NivelNaoOferecido)
     );
 }
@@ -91,7 +116,12 @@ fn cadastro_recusa_descricao_com_disabled_booleano() {
         </form>"#,
     );
     assert_eq!(
-        conferir_cadastro(&html, "Despacho", Some("texto"), Some("publico")),
+        conferir_cadastro(
+            &html,
+            "Despacho",
+            Some("texto"),
+            Some(crate::dominio::NivelDeAcesso::Publico)
+        ),
         Err(super::cadastro::ErroCadastroDoDocumento::DescricaoNaoOferecida)
     );
 }

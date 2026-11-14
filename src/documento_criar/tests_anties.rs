@@ -179,7 +179,7 @@ fn bdd_246_cadastro_e_arvore_antes_depois_consumidos_pelo_ies() {
         &HtmlServido::de_teste(html_cadastro),
         "Despacho",
         Some("Novo"),
-        Some("publico"),
+        Some(crate::dominio::NivelDeAcesso::Publico),
     )
     .unwrap();
     assert!(super::guarda_script::cadastro_oferece_salvar(

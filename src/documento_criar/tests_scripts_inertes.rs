@@ -214,7 +214,7 @@ fn expressao_na_lista_servida_recusa_post_com_orcamento_exato() {
                 unidade: None,
                 tipo: "Despacho",
                 descricao: Some("Ensaio"),
-                nivel: Some("publico"),
+                nivel: Some(crate::dominio::NivelDeAcesso::Publico),
             };
             executar_criacao(sessao, &pedido, indice, rede, true)
         });
