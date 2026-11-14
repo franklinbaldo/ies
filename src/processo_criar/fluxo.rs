@@ -412,7 +412,7 @@ pub(crate) fn criar_com_contagem<V: EnvioDoControle>(
             )?;
             return Ok(feito);
         }
-        Err(_) => return Err(ErroCriar::Formulario),
+        Err(causa_post) => return Err(ErroCriar::Submissao(causa_post)),
     };
     let RespostaDoEnvio::Redirecionamento(redirecionamento) = resposta else {
         pos_escrita::reconciliar(
