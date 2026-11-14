@@ -37,18 +37,7 @@ pub(crate) fn ano_mes_dia(data: &str) -> Option<(u32, u32, u32)> {
 
 /// Datas DD/MM/AAAA, sem normalização silenciosa e sem dependências novas.
 pub(crate) fn data_valida(data: &str) -> bool {
-    let Some((ano, mes, dia)) = ano_mes_dia(data) else {
-        return false;
-    };
-    let bissexto = ano.is_multiple_of(4) && (!ano.is_multiple_of(100) || ano.is_multiple_of(400));
-    let limite = match mes {
-        1 | 3 | 5 | 7 | 8 | 10 | 12 => 31,
-        4 | 6 | 9 | 11 => 30,
-        2 if bissexto => 29,
-        2 => 28,
-        _ => 0,
-    };
-    ano > 0 && dia > 0 && dia <= limite
+    crate::unidade_retornos::data_valida(data)
 }
 
 #[derive(Clone, Copy, Debug, PartialEq, Eq, thiserror::Error)]
@@ -86,24 +75,20 @@ fn valor_do_tipo(
     let select = unico(tags, "select", nome_campo)?;
     let mut escolhidos = Vec::new();
     for tag in select.descendentes() {
-        if !tag.nome().eq_ignore_ascii_case("option") {
-            continue;
-        }
-        if tag.atributo("disabled").map(str::to_owned).is_some() {
+        if !tag.nome().eq_ignore_ascii_case("option") || tag.atributo("disabled").is_some() {
             continue;
         }
         if tag.texto() == tipo {
             let valor = tag
                 .atributo("value")
-                .map(str::to_owned)
-                .filter(|v| !v.is_empty() && v != "null")
+                .filter(|v| !v.is_empty() && *v != "null")
                 .ok_or(ErroFiltro::TipoNaoOferecidoPelaTela)?;
             escolhidos.push(valor);
         }
     }
     match escolhidos.as_slice() {
         [] => Err(ErroFiltro::TipoNaoOferecidoPelaTela),
-        [valor] => Ok(valor.clone()),
+        [valor] => Ok((*valor).to_owned()),
         _ => Err(ErroFiltro::ControleDeFiltroAmbiguo),
     }
 }
