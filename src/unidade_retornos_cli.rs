@@ -65,7 +65,7 @@ pub(super) fn listar(
         let mut valor = json!({
             "unidade": atual,
             "origem":"web",
-            "mes":resultado.mes,
+            "mes":resultado.mes.to_string(),
             "total_declarado":quantidade,
             "retornos": resultado.itens,
             "requisicoes":requisicoes,

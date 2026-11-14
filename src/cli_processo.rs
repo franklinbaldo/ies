@@ -106,14 +106,14 @@ pub(crate) enum ProcessoAcao {
             value_name = "DD/MM/AAAA",
             value_parser = crate::pesquisa_web::filtros::data_da_cli
         )]
-        de: Option<String>,
+        de: Option<crate::unidade_retornos::DataCivil>,
         /// Data final no formato DD/MM/AAAA
         #[arg(
             long,
             value_name = "DD/MM/AAAA",
             value_parser = crate::pesquisa_web::filtros::data_da_cli
         )]
-        ate: Option<String>,
+        ate: Option<crate::unidade_retornos::DataCivil>,
     },
     /// Envia o processo a uma unidade (prévia; com --confirmar, um POST e a
     /// verificação por leitura)

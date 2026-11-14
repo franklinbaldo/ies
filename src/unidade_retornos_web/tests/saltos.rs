@@ -26,7 +26,7 @@ fn calendario_deslocado_dois_meses_adiante_obedece_links_e_contagem() {
         },
     )
     .unwrap();
-    assert_eq!(lido.mes, "2026-11");
+    assert_eq!(lido.mes, m(2026, 11));
     assert_eq!(lido.requisicoes, 5); // Controle + calendario + 2 saltos + mes.
     assert_eq!(pedidos.len(), 4);
     assert!(pedidos[1].contains("data_atual=01%2F10%2F2026"));
@@ -69,7 +69,7 @@ fn calendario_deslocado_dois_meses_atras_exige_ambos_links_publicados() {
         },
     )
     .unwrap();
-    assert_eq!(lido.mes, "2026-11");
+    assert_eq!(lido.mes, m(2026, 11));
     assert_eq!(lido.requisicoes, 5);
     assert_eq!(pedidos.len(), 4);
     assert!(pedidos[1].contains("data_atual=01%2F12%2F2026"));
@@ -102,7 +102,7 @@ fn virada_utc_para_ano_novo_somente_publica_o_dia_hoje_servido() {
         },
     )
     .unwrap();
-    assert_eq!(lido.mes, "2027-01");
+    assert_eq!(lido.mes, m(2027, 1));
     assert_eq!(lido.requisicoes, 4);
     assert_eq!(lido.itens.len(), 1);
     assert_eq!(pedidos.len(), 3);
@@ -168,7 +168,7 @@ fn link_de_outra_acao_com_origem_retornos_nao_bloqueia_calendario() {
         },
     )
     .expect("outra acao nao e link de retorno programado");
-    assert_eq!(lido.mes, "2026-10");
+    assert_eq!(lido.mes, m(2026, 10));
     assert_eq!(lido.itens.len(), 1);
     assert_eq!(lido.requisicoes, 3);
     assert_eq!(requisicoes, 2);
@@ -203,7 +203,7 @@ fn nome_de_parametro_com_sufixo_acao_nao_simula_acao_de_retornos() {
         },
     )
     .expect("link de outra operacao nao deve contaminar o calendario");
-    assert_eq!(lido.mes, "2026-11");
+    assert_eq!(lido.mes, m(2026, 11));
     assert_eq!(lido.requisicoes, 3);
     assert_eq!(requisicoes, 2); // Controle ja esta injetado.
 }

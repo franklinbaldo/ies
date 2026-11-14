@@ -1,12 +1,14 @@
 //! Filtros opcionais da pesquisa: somente controles comprovados na tela servida.
 //! Todos é oráculo de nomes, mas cada instalação precisa publicar os controles.
 
+use crate::unidade_retornos::DataCivil;
+
 #[derive(Clone, Copy, Debug, Default, PartialEq, Eq)]
 pub(crate) struct FiltrosDaPesquisa<'a> {
     pub(crate) tipo: Option<&'a str>,
     pub(crate) assunto: Option<&'a str>,
-    pub(crate) de: Option<&'a str>,
-    pub(crate) ate: Option<&'a str>,
+    pub(crate) de: Option<DataCivil>,
+    pub(crate) ate: Option<DataCivil>,
 }
 
 /// `--de`/`--ate` DD/MM/AAAA que existe no calendário (parser do clap: saída 2).
@@ -14,16 +16,12 @@ pub(crate) struct FiltrosDaPesquisa<'a> {
 #[error("{self:?}")]
 pub(crate) struct DataForaDoCalendario;
 
-pub(crate) fn data_da_cli(data: &str) -> Result<String, DataForaDoCalendario> {
-    if data_valida(data) {
-        Ok(data.to_owned())
-    } else {
-        Err(DataForaDoCalendario)
-    }
+pub(crate) fn data_da_cli(data: &str) -> Result<DataCivil, DataForaDoCalendario> {
+    DataCivil::ler(data).ok_or(DataForaDoCalendario)
 }
 
 /// `(ano, mes, dia)` de uma data DD/MM/AAAA só com dígitos ASCII; a tupla
-/// ordena como o calendário. Não confere o calendário: ver `data_valida`.
+/// ordena como o calendário. A validade é conferida por `DataCivil::ler`.
 pub(crate) fn ano_mes_dia(data: &str) -> Option<(u32, u32, u32)> {
     let (dia, resto) = data.split_once('/')?;
     let (mes, ano) = resto.split_once('/')?;
@@ -33,11 +31,6 @@ pub(crate) fn ano_mes_dia(data: &str) -> Option<(u32, u32, u32)> {
             .flatten()
     };
     Some((numero(ano, 4)?, numero(mes, 2)?, numero(dia, 2)?))
-}
-
-/// Datas DD/MM/AAAA, sem normalização silenciosa e sem dependências novas.
-pub(crate) fn data_valida(data: &str) -> bool {
-    crate::unidade_retornos::data_valida(data)
 }
 
 #[derive(Clone, Copy, Debug, PartialEq, Eq, thiserror::Error)]
@@ -121,7 +114,7 @@ pub(crate) fn derivar_campos(
             if campo.atributo("type").is_some_and(|v| v != "text") {
                 return Err(ErroFiltro::CriterioNaoOferecidoPelaTela);
             }
-            campos.push((nome, data.to_owned()));
+            campos.push((nome, data.to_string()));
         }
     }
     Ok(campos)
@@ -132,11 +125,11 @@ mod tests {
     use super::*;
     #[test]
     fn datas_validas_e_invalidas() {
-        assert!(data_valida("29/02/2024"));
-        assert!(data_valida("31/12/2026"));
-        assert!(!data_valida("29/02/2025"));
-        assert!(!data_valida("31/11/2026"));
-        assert!(!data_valida("01-01-2026"));
+        assert!(DataCivil::ler("29/02/2024").is_some());
+        assert!(DataCivil::ler("31/12/2026").is_some());
+        assert!(DataCivil::ler("29/02/2025").is_none());
+        assert!(DataCivil::ler("31/11/2026").is_none());
+        assert!(DataCivil::ler("01-01-2026").is_none());
     }
     #[test]
     fn tipo_exato_e_recusa_de_ausencia() {
@@ -148,7 +141,7 @@ mod tests {
         let form = dom.elementos("form").next().unwrap();
         let filtros = FiltrosDaPesquisa {
             tipo: Some("Judicial"),
-            de: Some("01/01/2026"),
+            de: DataCivil::ler("01/01/2026"),
             ..Default::default()
         };
         assert_eq!(

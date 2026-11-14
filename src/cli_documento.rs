@@ -69,11 +69,11 @@ pub(crate) enum DocumentoAcao {
         #[arg(long, value_name = "TEXTO")]
         assunto: Option<String>,
         /// Data inicial no formato DD/MM/AAAA
-        #[arg(long, value_name = "DD/MM/AAAA", value_parser = crate::documento_buscar_cli::data_do_calendario)]
-        de: Option<String>,
+        #[arg(long, value_name = "DD/MM/AAAA", value_parser = crate::pesquisa_web::filtros::data_da_cli)]
+        de: Option<crate::unidade_retornos::DataCivil>,
         /// Data final no formato DD/MM/AAAA
-        #[arg(long, value_name = "DD/MM/AAAA", value_parser = crate::documento_buscar_cli::data_do_calendario)]
-        ate: Option<String>,
+        #[arg(long, value_name = "DD/MM/AAAA", value_parser = crate::pesquisa_web::filtros::data_da_cli)]
+        ate: Option<crate::unidade_retornos::DataCivil>,
     },
     /// Cancela um documento com motivo, prévia e confirmação irreversível
     Cancelar {
