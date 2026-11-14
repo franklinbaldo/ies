@@ -69,7 +69,7 @@ pub(crate) fn tentar_criar(cli: &Cli) -> Option<anyhow::Result<()>> {
     else {
         return None;
     };
-    if hipotese_legal.is_some() && nivel != "restrito" {
+    if hipotese_legal.is_some() && *nivel != crate::dominio::NivelDeCriacao::Restrito {
         // Regra entre dois argumentos: erro de uso do clap (saída 2).
         use clap::CommandFactory as _;
         Cli::command()
@@ -84,7 +84,7 @@ pub(crate) fn tentar_criar(cli: &Cli) -> Option<anyhow::Result<()>> {
         tipo,
         especificacao,
         interessado,
-        nivel,
+        *nivel,
         hipotese_legal.as_deref(),
         *confirmar,
     ))
@@ -95,7 +95,7 @@ fn criar(
     tipo: &str,
     especificacao: &str,
     interessados: &[String],
-    nivel: &str,
+    nivel: crate::dominio::NivelDeCriacao,
     hipotese_legal: Option<&str>,
     confirmar: bool,
 ) -> anyhow::Result<()> {
