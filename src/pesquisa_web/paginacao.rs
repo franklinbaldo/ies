@@ -166,7 +166,7 @@ fn conferir_links_de_navegar(
     let dom = crate::tela_html::arvore(html);
     let mut publicados = 0;
     for no in dom.elementos("a") {
-        let Some(href) = no.atributo("href").map(str::to_owned) else {
+        let Some(href) = no.atributo("href") else {
             continue;
         };
         let Some(resto) = href.strip_prefix("javascript:navegar(") else {
