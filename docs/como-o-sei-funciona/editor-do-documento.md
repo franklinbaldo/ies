@@ -36,34 +36,34 @@ Nenhum JavaScript foi executado.
 ## Confronto estrutural direto: UnB e GO (15/11/2026)
 
 Offline, sem GET a instalações ou qualquer escrita. A fonte é o membro
-`documento-escritas-*.json» do ZIP original apontado por cada card.
-Verifiquei SHA-1 do ZIP, SHA-256 normalizado da cassette, `schema_version: 1»,
-`complete: true» e a origem:
+`documento-escritas-*.json` do ZIP original apontado por cada card.
+Verifiquei SHA-1 do ZIP, SHA-256 normalizado da cassette, `schema_version: 1`,
+`complete: true` e a origem:
 
-| Origem | ZIP SHA-1 | JSON SHA-256 (LF) | GETs `editor_montar» |
+| Origem | ZIP SHA-1 | JSON SHA-256 (LF) | GETs `editor_montar` |
 | --- | --- | --- | --- |
-| [UnB](../../cassettes/unb/documento-escritas-unb--36a904749e20.md) | `c7a4af8d9d70ddc3599cdd9bccbb98e6d726db78» | `36a904749e2042c769cb37034f2e21f05b1c6c02432ac458f6f8bad902d04c02» | 12, 20, 27 |
-| [GO](../../cassettes/go/documento-escritas-go--16f83179ecaa.md) | `42a08cd3714bb863d136ed98e517221510a31982» | `16f83179ecaabecb1de24598a8aeda51088954c116f998514cfa8cc3a8045100» | 15, 22, 29 |
+| [UnB](../../cassettes/unb/documento-escritas-unb--36a904749e20.md) | `c7a4af8d9d70ddc3599cdd9bccbb98e6d726db78` | `36a904749e2042c769cb37034f2e21f05b1c6c02432ac458f6f8bad902d04c02` | 12, 20, 27 |
+| [GO](../../cassettes/go/documento-escritas-go--16f83179ecaa.md) | `42a08cd3714bb863d136ed98e517221510a31982` | `16f83179ecaabecb1de24598a8aeda51088954c116f998514cfa8cc3a8045100` | 15, 22, 29 |
 
 - **UnB (SEI 4):** três GETs HTTP 200, ISO-8859-1, com
-  `form#frmEditor» `method=post», `hdnVersao» (1, 2, 2),
-  `hdnIgnorarNovaVersao=N», `hdnSiglaUnidade»,
-  `hdnInfraPrefixoCookie», `iframe#ifrEditorSalvar» e três seções
-  `txaEditor_368», `txaEditor_370», `txaEditor_372».
-  Não aparece `txaEditor_1» nem `output#assinaturasAtuais» do ensaio.
+  `form#frmEditor` `method=post`, `hdnVersao` (1, 2, 2),
+  `hdnIgnorarNovaVersao=N`, `hdnSiglaUnidade`,
+  `hdnInfraPrefixoCookie`, `iframe#ifrEditorSalvar` e três seções
+  `txaEditor_368`, `txaEditor_370`, `txaEditor_372`.
+  Não aparece `txaEditor_1` nem `output#assinaturasAtuais` do ensaio.
 - **GO (SEI 5):** três GETs HTTP 200, ISO-8859-1, com
-  `window.INFRA_EDITOR_CONFIG», `initialData», `rootsAttributes»,
-  `somenteLeitura» e `editor_salvar_conteudo». Não há `form#frmEditor»,
-  `iframe» ou `textarea» da família SEI 4.
-- As capturas contêm duas respostas de POST `editor_salvar» em UnB e duas
-  `editor_salvar_conteudo» em GO, mas não demonstram o payload integral,
-  efeito, assinaturas removidas nem promoção de versão. `documento_alterar»
+  `window.INFRA_EDITOR_CONFIG`, `initialData`, `rootsAttributes`,
+  `somenteLeitura` e `editor_salvar_conteudo`. Não há `form#frmEditor`,
+  `iframe` ou `textarea` da família SEI 4.
+- As capturas contêm duas respostas de POST `editor_salvar` em UnB e duas
+  `editor_salvar_conteudo` em GO, mas não demonstram o payload integral,
+  efeito, assinaturas removidas nem promoção de versão. `documento_alterar`
   é formulário de metadados, distinto do editor de conteúdo.
 
-O código `documento.salvar --confirmar» opera somente em `sei.test»;
+O código `documento.salvar --confirmar` opera somente em `sei.test`;
 o parser foi estendido apenas para **reconhecer** as duas famílias e
 **recusar** sua gravação sem protocolo validado. O teste ignorado
-`replay_editor_nativo_no_acervo» confronta a classificação estrutural
+`replay_editor_nativo_no_acervo` confronta a classificação estrutural
 com seis respostas originais e não executa a CLI completa ou o anti-IES.
 Os confrontos de transição/escrita e o live continuam **NOT_RUN**.
 
