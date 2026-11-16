@@ -385,10 +385,11 @@ fn logar_e_gravar<T: TransporteDeLogin>(
     indice: &IndiceLocal,
     transporte: &mut T,
 ) -> Result<String, ErroLogin> {
-    let caminho = pedido
-        .credenciais
-        .ok_or(ErroLogin::CaminhoDasCredenciaisNaoInformado)?;
-    let credenciais = Credenciais::ler(caminho)?;
+    let credenciais = match pedido.credenciais {
+        Some(caminho) => Credenciais::ler_com_cofre(caminho, origem)?,
+        None => Credenciais::do_cofre_ou_ambiente(origem)
+            .map_err(|_| ErroLogin::CaminhoDasCredenciaisNaoInformado)?,
+    };
     let obtida = autenticar(instalacao, origem, &credenciais, transporte)?;
     conferir_unidade(pedido, &obtida.unidade)?;
     gravacao::gravar(

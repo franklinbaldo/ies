@@ -92,13 +92,12 @@ fn invalida(json_mode: bool, subcodigo: &str, mensagem: &str) -> ExitCode {
     ExitCode::from(2)
 }
 
-/// As credenciais do arquivo privado, só com `--confirmar`.
-fn credenciais() -> Result<Credenciais, ErroLogin> {
-    let caminho = std::env::var_os("IES_CREDENCIAIS_FILE")
-        .filter(|valor| !valor.is_empty())
-        .map(PathBuf::from)
-        .ok_or(ErroLogin::CaminhoDasCredenciaisNaoInformado)?;
-    Credenciais::ler(&caminho)
+/// As credenciais do arquivo privado ou do cofre nativo, só com `--confirmar`.
+fn credenciais(origem: &str) -> Result<Credenciais, ErroLogin> {
+    match std::env::var_os("IES_CREDENCIAIS_FILE").filter(|valor| !valor.is_empty()).map(PathBuf::from) {
+        Some(caminho) => Credenciais::ler_com_cofre(&caminho, origem),
+        None => Credenciais::do_cofre_ou_ambiente(origem),
+    }
 }
 
 fn assinar_na_sessao(
@@ -108,7 +107,7 @@ fn assinar_na_sessao(
     entrada: &Entrada<'_>,
 ) -> ExitCode {
     let lidas = if entrada.confirmar {
-        match credenciais() {
+        match credenciais(sessao.origem) {
             Ok(lidas) => Some(lidas),
             Err(erro) => return publicar_falha(cli.json, &ErroAssinar::Credenciais(erro)),
         }

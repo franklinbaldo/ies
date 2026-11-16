@@ -10,6 +10,8 @@ mod caixa_detalhada;
 mod cassette;
 mod classe_link_processo;
 mod colheita_do_controle;
+pub(crate) mod cofre;
+mod credenciais_cli;
 mod configuracao;
 mod controle_contexto;
 mod controle_reconhecido;
@@ -75,6 +77,7 @@ mod unidade_trocar;
 mod unidade_trocar_cli;
 mod url_observada;
 mod visao_do_controle;
+mod wizard_cli;
 
 use clap::{Args, Parser, Subcommand};
 use serde_json::json;
@@ -113,6 +116,10 @@ enum Domain {
     /// --forcar, confere antes a sessão gravada com um GET e não loga se ela
     /// valer.
     Login(LoginArgs),
+    /// Gerencia credenciais no cofre seguro do sistema operacional
+    Credenciais(credenciais_cli::CredenciaisArgs),
+    /// Assistente interativo de configuração
+    Wizard(wizard_cli::WizardArgs),
     /// Mostra o contrato de saída (ainda não implementado)
     Esquema,
 }
@@ -391,6 +398,12 @@ fn run(cli: &Cli) -> ExitCode {
         return status;
     }
     match &cli.command {
+        Domain::Credenciais(args) => {
+            return credenciais_cli::executar_credenciais(args, cli.json);
+        }
+        Domain::Wizard(args) => {
+            return wizard_cli::executar_wizard(args, cli.json);
+        }
         Domain::Esquema => return esquema_cli::mostrar_esquema(cli.json),
         Domain::Setup(setup) => return setup_cli::executar_setup(setup, cli.json),
         Domain::Login(LoginArgs { forcar }) => {
