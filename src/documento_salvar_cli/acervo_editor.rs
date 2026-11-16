@@ -9,9 +9,10 @@ use std::path::{Path, PathBuf};
 fn conferir_recusa_no_original(card_relativo: &str) {
     let raiz = Path::new(env!("CARGO_MANIFEST_DIR"));
     let card = raiz.join(card_relativo);
-    let cache = std::env::var_os("IES_ACERVO_CACHE")
-        .map(PathBuf::from)
-        .unwrap_or_else(|| PathBuf::from(std::env::var("HOME").unwrap()).join(".cache/ies"));
+    let cache = std::env::var_os("IES_ACERVO_CACHE").map_or_else(
+        || PathBuf::from(std::env::var("HOME").unwrap()).join(".cache/ies"),
+        PathBuf::from,
+    );
     let nome_zip = archive_filename(&card).expect("ZIP do card");
     let zip = ZipDoAcervo::ler(&cache.join(nome_zip)).expect("ZIP original presente");
     let captura = conferir_cassette_ate(&card, &zip, 120_000_000)
