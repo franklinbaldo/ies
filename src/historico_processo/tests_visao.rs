@@ -5,6 +5,7 @@ use super::*;
 use crate::arvore_processo::tests::NUP;
 use crate::formulario_web::{CodificacaoDaTela, EfeitoAvaliado, TelaServida, derivar_submissao};
 use crate::instalacao::Instalacao;
+use crate::tela_html::HtmlServido;
 
 const ORIGEM: &str = "https://sei.exemplo.gov.br/sei";
 
@@ -48,7 +49,7 @@ fn post_reenvia_os_ocultos_servidos_com_o_tipo_p_e_sem_o_botao_de_escrita() {
     let url = format!("{ORIGEM}/{}", link_do_historico("10"));
     let tela = TelaServida {
         url: &url,
-        html: &html,
+        html: &HtmlServido::de_teste(&html),
         codificacao: CodificacaoDaTela::Iso88591,
     };
     let instalacao = Instalacao::interpretar(ORIGEM).unwrap();

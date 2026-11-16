@@ -114,7 +114,7 @@ pub(crate) fn ler_anexo<R: Read>(
 fn conferir_html(bytes: &[u8], tipo: &str) -> Result<(), ErroAnexo> {
     use crate::transporte::corpo_de_recusa::decodificar;
     use crate::transporte::texto_de_recusa::{e_excecao_do_sei, texto_do_html};
-    let html = decodificar(bytes, tipo);
+    let html = crate::tela_html::HtmlServido::novo(decodificar(bytes, tipo))?;
     if crate::tela_login::e_tela_login(&html) {
         return Err(ErroAnexo::TelaDeLogin(crate::erro_publico::SessaoEncerrada));
     }
@@ -141,7 +141,8 @@ fn texto_do_anexo(mime: &str, bytes: &[u8], tipo: &str) -> Result<String, ErroAn
             .to_owned()
     };
     if mime == "text/html" {
-        return crate::documento_web::texto_do_corpo(&texto).map_err(ErroAnexo::Corpo);
+        let html = crate::tela_html::HtmlServido::novo(texto)?;
+        return crate::documento_web::texto_do_corpo(&html).map_err(ErroAnexo::Corpo);
     }
     Ok(texto
         .replace("\r\n", "\n")

@@ -8,6 +8,7 @@
 //! grupo/outros, é falha: o índice se desliga. O IES não muda o modo do que
 //! não criou. Fora do Unix não há modo de arquivo: vale a ACL do perfil do
 //! usuário, como nos arquivos de sessão (`configuracao`, `sessao_login`).
+use crate::arquivo_privado::{ErroDaTrava, TravaDeArquivo, travar_com_espera};
 use rusqlite::{Connection, OpenFlags};
 use std::fs::{self, OpenOptions};
 use std::io::ErrorKind;
@@ -29,8 +30,7 @@ pub(crate) enum ErroAberturaDoIndice {
     ArquivoNaoPrivado,
     CriacaoDoBancoRecusada(#[source] crate::arquivo_privado::FalhaDaGravacao),
     BancoAusenteAposCriacao,
-    TravaDaPreparacaoIlegivel(#[source] std::io::Error),
-    TravaDaPreparacaoOcupada,
+    TravaDaPreparacao(#[source] crate::arquivo_privado::ErroDaTrava),
     ModoWalRecusado,
     VersaoDoEsquemaNegativa(i64, #[source] std::num::TryFromIntError),
     EsquemaDeBinarioMaisNovo,
@@ -70,11 +70,11 @@ impl serde::Serialize for ErroAberturaDoIndice {
             Self::BancoAusenteAposCriacao => {
                 mapa.serialize_entry("erro", "banco_ausente_apos_criacao")?;
             }
-            Self::TravaDaPreparacaoIlegivel(erro) => {
+            Self::TravaDaPreparacao(ErroDaTrava::Ilegivel(erro)) => {
                 mapa.serialize_entry("erro", "trava_da_preparacao_ilegivel")?;
                 mapa.serialize_entry("io", &format!("{:?}", erro.kind()))?;
             }
-            Self::TravaDaPreparacaoOcupada => {
+            Self::TravaDaPreparacao(ErroDaTrava::Ocupada) => {
                 mapa.serialize_entry("erro", "trava_da_preparacao_ocupada")?;
             }
             Self::ModoWalRecusado => mapa.serialize_entry("erro", "modo_wal_recusado")?,
@@ -289,7 +289,7 @@ pub(super) fn conectar(caminho: &Path, preparar: bool) -> Result<Connection, Err
         // Trocar para WAL exige lock exclusivo: com outra conexão aberta no
         // modo antigo, o SQLite devolve o modo anterior sem erro. A preparação
         // é serializada entre processos por um lock lateral.
-        let _trava = TravaDaPreparacao::obter(caminho)?;
+        let _trava = travar_a_preparacao(caminho)?;
         let modo: String =
             conexao.pragma_update_and_check(None, "journal_mode", "WAL", |l| l.get(0))?;
         if !modo.eq_ignore_ascii_case("wal") {
@@ -302,31 +302,12 @@ pub(super) fn conectar(caminho: &Path, preparar: bool) -> Result<Connection, Err
 
 /// Lock exclusivo de `<banco>.lock` (`0600`, sem seguir link simbólico),
 /// liberado ao sair de escopo; espera no máximo `ESPERA_DO_LOCK`.
-struct TravaDaPreparacao {
-    _arquivo: fs::File,
-}
-
-impl TravaDaPreparacao {
-    fn obter(banco: &Path) -> Result<Self, ErroAberturaDoIndice> {
-        let arquivo = opcoes_privadas(OpenOptions::new().write(true).create(true).truncate(false))
-            .open(lateral(banco, ".lock"))
-            .map_err(ErroAberturaDoIndice::TravaDaPreparacaoIlegivel)?;
-        let limite = std::time::Instant::now() + ESPERA_DO_LOCK;
-        loop {
-            match arquivo.try_lock() {
-                Ok(()) => return Ok(Self { _arquivo: arquivo }),
-                Err(fs::TryLockError::WouldBlock) if std::time::Instant::now() < limite => {
-                    std::thread::sleep(Duration::from_millis(10));
-                }
-                Err(fs::TryLockError::WouldBlock) => {
-                    return Err(ErroAberturaDoIndice::TravaDaPreparacaoOcupada);
-                }
-                Err(fs::TryLockError::Error(erro)) => {
-                    return Err(ErroAberturaDoIndice::TravaDaPreparacaoIlegivel(erro));
-                }
-            }
-        }
-    }
+fn travar_a_preparacao(banco: &Path) -> Result<TravaDeArquivo, ErroAberturaDoIndice> {
+    let arquivo = opcoes_privadas(OpenOptions::new().write(true).create(true).truncate(false))
+        .open(lateral(banco, ".lock"))
+        .map_err(|erro| ErroAberturaDoIndice::TravaDaPreparacao(ErroDaTrava::Ilegivel(erro)))?;
+    travar_com_espera(arquivo, ESPERA_DO_LOCK, Duration::from_millis(10))
+        .map_err(ErroAberturaDoIndice::TravaDaPreparacao)
 }
 
 /// O esquema e as migrações numa transação só: o que falhar no meio desfaz

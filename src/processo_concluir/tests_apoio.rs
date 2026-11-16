@@ -48,7 +48,7 @@ pub(crate) fn trabalhar_controle(id: &str) -> String {
 pub(crate) fn controle() -> String {
     format!(
         "<html><body><a id=\"lnkInfraUnidade\">{UNIDADE}</a>\
-         <table id=\"tblProcessosRecebidos\"><caption>1 registros - 1 a 1):</caption>\
+         <table id=\"tblProcessosRecebidos\"><caption>Processos recebidos (1 registros - 1 a 1):</caption>\
          <tr id=\"P{ID}\"><td><a href=\"{}\" class=\"processoVisualizado\">{NUP}</a></td></tr></table>\
          <table id=\"tblProcessosGerados\"><caption>0 registros:</caption></table></body></html>",
         trabalhar_controle(ID)
@@ -164,12 +164,18 @@ pub(crate) fn post(url: &str, corpo: &str) -> Pedido {
 /// Status, HTML e `Location`; ou falha de transporte.
 pub(crate) type Resposta = Result<(i32, String, Option<String>), FalhaTransporte>;
 
-#[allow(clippy::unnecessary_wraps)] // `Resposta` também carrega falhas de transporte.
+#[expect(
+    clippy::unnecessary_wraps,
+    reason = "`Resposta` também carrega falhas de transporte"
+)]
 pub(crate) fn ok(html: String) -> Resposta {
     Ok((200, html, None))
 }
 
-#[allow(clippy::unnecessary_wraps)]
+#[expect(
+    clippy::unnecessary_wraps,
+    reason = "`Resposta` também carrega falhas de transporte"
+)]
 pub(crate) fn r302(localizacao: &str) -> Resposta {
     Ok((302, String::new(), Some(localizacao.to_owned())))
 }

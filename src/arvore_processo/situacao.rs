@@ -7,8 +7,6 @@
 //! (sem `aberto_em`: a frase não publica unidades abertas). O texto vem do leitor de literais; as âncoras, do tokenizador de
 //! atributos. Qualquer outra forma é "não lida", nunca falha.
 use super::vinculo::texto_unico;
-use crate::formulario_web::decodificar_atributo;
-use crate::html_atributos::atributos;
 
 /// A pessoa a quem o processo está atribuído na unidade: login (texto do
 /// link) e nome (`alt` = `title`).
@@ -96,7 +94,7 @@ enum Peca {
 
 /// As unidades do texto do `.html` da raiz, ou `None` fora das formas
 /// observadas.
-pub(super) fn ler_unidades(texto: &str) -> Option<Vec<UnidadeAberta>> {
+pub(super) fn ler_unidades(texto: &crate::tela_html::HtmlServido) -> Option<Vec<UnidadeAberta>> {
     let pecas = pecas(texto)?;
     let unidades = match pecas.as_slice() {
         [Peca::Texto(t), Peca::Quebra] if t == NENHUMA => Vec::new(),
@@ -124,7 +122,9 @@ pub(super) fn ler_unidades(texto: &str) -> Option<Vec<UnidadeAberta>> {
 /// A unidade de "Processo sobrestado na unidade <a>.<br />", ou `None`
 /// fora dessa forma. Uma unidade; no SEI 4.1/5 (UFRJ e GO) com
 /// " (atribuído para <a>).", que não muda onde está sobrestado.
-pub(super) fn ler_sobrestamento(texto: &str) -> Option<Vec<UnidadeSobrestada>> {
+pub(super) fn ler_sobrestamento(
+    texto: &crate::tela_html::HtmlServido,
+) -> Option<Vec<UnidadeSobrestada>> {
     let pecas = pecas(texto)?;
     let [Peca::Texto(frase), resto @ ..] = pecas.as_slice() else {
         return None;
@@ -189,19 +189,18 @@ fn unidade(pecas: &[Peca]) -> Option<(UnidadeAberta, &[Peca])> {
 
 /// O primeiro nível do texto como peças; `None` para comentário, outra
 /// tag ou âncora fora da forma.
-fn pecas(texto: &str) -> Option<Vec<Peca>> {
-    let dom = tl::parse(texto, tl::ParserOptions::default()).ok()?;
-    let parser = dom.parser();
+fn pecas(texto: &crate::tela_html::HtmlServido) -> Option<Vec<Peca>> {
+    let dom = crate::tela_html::fragmento(texto);
     let mut pecas = Vec::new();
-    for no in dom.children() {
-        let peca = match no.get(parser)? {
-            tl::Node::Raw(bytes) => Peca::Texto(bytes.as_utf8_str().into_owned()),
-            tl::Node::Tag(tag) if tag.name() == "br" => {
-                let vazia = tag.children().top().len() == 0;
-                (vazia && atributos(tag).ok()?.total() == 0).then_some(Peca::Quebra)?
+    for no in dom.nos() {
+        let peca = match no {
+            crate::tela_html::No::Texto(bytes) => Peca::Texto(bytes.to_owned()),
+            crate::tela_html::No::Elemento(tag) if tag.nome() == "br" => {
+                let vazia = tag.nos().count() == 0;
+                (vazia && tag.total_de_atributos() == 0).then_some(Peca::Quebra)?
             }
-            tl::Node::Tag(tag) if tag.name() == "a" => ancora(tag, parser)?,
-            tl::Node::Tag(_) | tl::Node::Comment(_) => return None,
+            crate::tela_html::No::Elemento(tag) if tag.nome() == "a" => ancora(tag)?,
+            crate::tela_html::No::Elemento(_) | crate::tela_html::No::Comentario => return None,
         };
         pecas.push(peca);
     }
@@ -209,17 +208,16 @@ fn pecas(texto: &str) -> Option<Vec<Peca>> {
 }
 
 /// `<a alt="N" title="N" class="ancoraSigla">S</a>`, exatamente.
-fn ancora(tag: &tl::HTMLTag<'_>, parser: &tl::Parser<'_>) -> Option<Peca> {
-    let lidos = atributos(tag).ok()?;
-    if lidos.total() != 3 || lidos.valor("class").ok()? != Some("ancoraSigla") {
+fn ancora(tag: crate::tela_html::Elemento<'_>) -> Option<Peca> {
+    if tag.total_de_atributos() != 3 || tag.atributo("class") != Some("ancoraSigla") {
         return None;
     }
-    let (alt, title) = (lidos.valor("alt").ok()??, lidos.valor("title").ok()??);
-    let nome = decodificar_atributo(alt)?;
+    let (alt, title) = (tag.atributo("alt")?, tag.atributo("title")?);
+    let nome = alt.to_owned();
     if alt != title || nome.is_empty() || nome.trim() != nome {
         return None;
     }
-    let sigla = texto_unico(tag, parser);
+    let sigla = texto_unico(tag);
     if sigla.is_empty() || sigla.trim() != sigla || sigla.contains(['<', '>', '&']) {
         return None;
     }

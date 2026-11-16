@@ -1,7 +1,6 @@
 //! Leitor estrutural da lista mensal de retornos (somente leitura).
 //! Fonte dos cenarios: Todos `tests/test_unidade_listar_retornos_010.py` @323eb01.
 //! Nao interpreta JavaScript, nao escolhe linhas fora de tabela reconhecida.
-use crate::html_atributos::valor_do_atributo;
 use serde::{Serialize, Serializer};
 use std::collections::HashSet;
 
@@ -51,11 +50,8 @@ impl Serialize for PrazoRestante {
 #[derive(Clone, Debug, PartialEq, Eq, thiserror::Error)]
 #[error("{self:?}")]
 pub(crate) enum ErroRetornos {
-    /// O tokenizador de atributos recusou a tag.
-    Atributo(#[from] crate::html_atributos::ErroAtributoHtml),
     TelaDeRetornosDesconhecida,
-    ParseDaTelaDeRetornosFalhou(#[source] tl::ParseError),
-    PaginadorDosRetornosIlegivel(#[source] crate::erro_web::ErroCaixa),
+    Legenda(#[from] crate::legenda::ErroLegenda),
     ListaDeRetornosIncompleta,
     ListaDeRetornosComMaisDeUmaPagina,
     /// A tabela não tem a coluna "Data de Retorno Efetiva".
@@ -64,12 +60,8 @@ pub(crate) enum ErroRetornos {
     ColunaPrazoRestanteAusente,
 }
 
-fn texto(tag: &tl::HTMLTag<'_>, parser: &tl::Parser<'_>) -> String {
-    html_escape::decode_html_entities(&tag.inner_text(parser))
-        .into_owned()
-        .split_whitespace()
-        .collect::<Vec<_>>()
-        .join(" ")
+fn texto(tag: crate::tela_html::Elemento<'_>) -> String {
+    tag.texto().split_whitespace().collect::<Vec<_>>().join(" ")
 }
 
 fn identificador(s: &str) -> String {
@@ -90,69 +82,25 @@ fn situacao_da_tabela(summary: &str) -> Option<&'static str> {
     }
 }
 
-pub(crate) fn data_valida(s: &str) -> bool {
-    let partes: Vec<_> = s.split('/').collect();
-    let [dia, mes, ano] = partes.as_slice() else {
-        return false;
-    };
-    if dia.len() != 2
-        || mes.len() != 2
-        || ano.len() != 4
-        || !s.bytes().all(|b| b.is_ascii_digit() || b == b'/')
-    {
-        return false;
-    }
-    let (Ok(d), Ok(m), Ok(a)) = (dia.parse::<u8>(), mes.parse::<u8>(), ano.parse::<u16>()) else {
-        return false;
-    };
-    if a == 0 || !(1..=12).contains(&m) {
-        return false;
-    }
-    let bissexto = a.is_multiple_of(4) && (!a.is_multiple_of(100) || a.is_multiple_of(400));
-    let dias = match m {
-        2 if bissexto => 29,
-        2 => 28,
-        4 | 6 | 9 | 11 => 30,
-        _ => 31,
-    };
-    d >= 1 && d <= dias
-}
+mod data;
+pub(crate) use data::{DataCivil, MesAno};
 
-pub(crate) fn ultimo_dia(ano: u16, mes: u8) -> Option<u8> {
-    if ano == 0 || !(1..=12).contains(&mes) {
-        return None;
-    }
-    let bissexto = ano.is_multiple_of(4) && (!ano.is_multiple_of(100) || ano.is_multiple_of(400));
-    Some(match mes {
-        2 if bissexto => 29,
-        2 => 28,
-        4 | 6 | 9 | 11 => 30,
-        _ => 31,
-    })
+pub(crate) fn data_valida(s: &str) -> bool {
+    DataCivil::ler(s).is_some()
 }
 
 fn ler_tabela(
-    tabela: &tl::HTMLTag<'_>,
-    parser: &tl::Parser<'_>,
+    tabela: crate::tela_html::Elemento<'_>,
     situacao: &'static str,
 ) -> Result<Vec<Retorno>, ErroRetornos> {
-    let legendas: Vec<_> = tabela
-        .query_selector(parser, "caption")
-        .into_iter()
-        .flatten()
-        .filter_map(|n| n.get(parser).and_then(tl::Node::as_tag))
-        .collect();
+    let legendas: Vec<_> = tabela.elementos("caption").collect();
     let [legenda] = legendas.as_slice() else {
         return Err(ErroRetornos::TelaDeRetornosDesconhecida);
     };
-    let declarado = crate::caixa::total_da_legenda(&texto(legenda, parser))
-        .ok_or(ErroRetornos::TelaDeRetornosDesconhecida)?;
+    let declarado = crate::legenda::ler_legenda(&texto(*legenda))?.total;
     let titulos: Vec<String> = tabela
-        .query_selector(parser, "th")
-        .into_iter()
-        .flatten()
-        .filter_map(|n| n.get(parser).and_then(tl::Node::as_tag))
-        .map(|t| identificador(&texto(t, parser)))
+        .elementos("th")
+        .map(|t| identificador(&texto(t)))
         .collect();
     let indice = |nome: &str| {
         titulos
@@ -177,16 +125,8 @@ fn ler_tabela(
         .position(|c| c == "prazo restante")
         .ok_or(ErroRetornos::ColunaPrazoRestanteAusente)?;
     let mut lista = Vec::new();
-    for no in tabela.query_selector(parser, "tr").into_iter().flatten() {
-        let Some(linha) = no.get(parser).and_then(tl::Node::as_tag) else {
-            continue;
-        };
-        let celulas: Vec<_> = linha
-            .query_selector(parser, "td")
-            .into_iter()
-            .flatten()
-            .filter_map(|n| n.get(parser).and_then(tl::Node::as_tag))
-            .collect();
+    for no in tabela.elementos("tr") {
+        let celulas: Vec<_> = no.elementos("td").collect();
         if celulas.is_empty() {
             continue;
         }
@@ -196,7 +136,8 @@ fn ler_tabela(
         let valor = |pos: usize| {
             celulas
                 .get(pos)
-                .map(|celula| texto(celula, parser))
+                .copied()
+                .map(texto)
                 .ok_or(ErroRetornos::TelaDeRetornosDesconhecida)
         };
         let numero = valor(processo)?;
@@ -232,37 +173,28 @@ fn ler_tabela(
 
 /// So retorna uma lista quando cada situacao tem tabela conferida ou
 /// evidencia explicita da area sem registros.
-pub(crate) fn extrair_retornos(html: &str) -> Result<Vec<Retorno>, ErroRetornos> {
+pub(crate) fn extrair_retornos(
+    html: &crate::tela_html::HtmlServido,
+) -> Result<Vec<Retorno>, ErroRetornos> {
     for prefixo in ["Aguardando", "Devolver"] {
-        if crate::paginacao_controle::paginador_com_prefixo(html, prefixo)
-            .map_err(ErroRetornos::PaginadorDosRetornosIlegivel)?
-        {
+        if crate::paginacao_controle::paginador_com_prefixo(html, prefixo) {
             return Err(ErroRetornos::ListaDeRetornosComMaisDeUmaPagina);
         }
     }
-    let dom = tl::parse(html, tl::ParserOptions::default())
-        .map_err(ErroRetornos::ParseDaTelaDeRetornosFalhou)?;
-    let parser = dom.parser();
+    let dom = crate::tela_html::arvore(html);
     let mut situacoes = HashSet::new();
     let mut lista = Vec::new();
-    for no in dom.query_selector("table").into_iter().flatten() {
-        let Some(tabela) = no.get(parser).and_then(tl::Node::as_tag) else {
+    for no in dom.elementos("table") {
+        let Some(summary) = no.atributo("summary") else {
             continue;
         };
-        let Some(summary) = valor_do_atributo(tabela, "summary")? else {
+        let Some(situacao) = situacao_da_tabela(summary) else {
             continue;
         };
-        let Some(situacao) = situacao_da_tabela(&summary) else {
-            continue;
-        };
-        if !situacoes.insert(situacao)
-            || tabela
-                .query_selector(parser, "table")
-                .is_some_and(|mut it| it.next().is_some())
-        {
+        if !situacoes.insert(situacao) || no.elementos("table").next().is_some() {
             return Err(ErroRetornos::TelaDeRetornosDesconhecida);
         }
-        lista.extend(ler_tabela(tabela, parser, situacao)?);
+        lista.extend(ler_tabela(no, situacao)?);
     }
     // A lista mensal completa observada em todas as sete instalacoes pode
     // omitir "Para Devolver", mas so dentro da area mensal reconhecida.
@@ -271,11 +203,8 @@ pub(crate) fn extrair_retornos(html: &str) -> Result<Vec<Retorno>, ErroRetornos>
     let mut areas_aguardando = 0usize;
     let mut areas_observadas = HashSet::new();
     let mut area_aguardando_com_tabela = false;
-    for no in dom.query_selector("div").into_iter().flatten() {
-        let Some(area) = no.get(parser).and_then(tl::Node::as_tag) else {
-            continue;
-        };
-        let situacao = match valor_do_atributo(area, "id")?.as_deref() {
+    for no in dom.elementos("div") {
+        let situacao = match no.atributo("id") {
             Some("divAguardandoAreaTabela") => "aguardando",
             Some("divDevolverAreaTabela") => "devolver",
             _ => continue,
@@ -288,21 +217,16 @@ pub(crate) fn extrair_retornos(html: &str) -> Result<Vec<Retorno>, ErroRetornos>
         if situacao == "aguardando" {
             areas_aguardando += 1;
             let mut reconhecidas = Vec::new();
-            for no in area.query_selector(parser, "table").into_iter().flatten() {
-                let Some(tabela) = no.get(parser).and_then(tl::Node::as_tag) else {
-                    continue;
-                };
-                if let Some(summary) = valor_do_atributo(tabela, "summary")?
-                    && let Some(tipo) = situacao_da_tabela(&summary)
+            for no in no.elementos("table") {
+                if let Some(summary) = no.atributo("summary")
+                    && let Some(tipo) = situacao_da_tabela(summary)
                 {
                     reconhecidas.push(tipo);
                 }
             }
             area_aguardando_com_tabela = reconhecidas == ["aguardando"];
         }
-        if identificador(&texto(area, parser)) == "nenhum registro encontrado."
-            && !vazios.insert(situacao)
-        {
+        if identificador(&texto(no)) == "nenhum registro encontrado." && !vazios.insert(situacao) {
             return Err(ErroRetornos::TelaDeRetornosDesconhecida);
         }
     }
@@ -341,11 +265,11 @@ mod tests {
     #[test]
     fn mes_com_duas_situacoes_preserva_linhas_e_ordem() {
         // Caso Todos tests/test_unidade_listar_retornos_010.py @323eb01.
-        let html = format!(
+        let html = crate::tela_html::HtmlServido::de_teste(&format!(
             "{}{}",
             tabela("Aguardando Retorno de Outras Unidades", "NUP-A", "U1"),
             tabela("Para Devolver", "NUP-B", "U2")
-        );
+        ));
         let itens = extrair_retornos(&html).unwrap();
         assert_eq!(itens.len(), 2);
         assert_eq!(itens[0].situacao, "aguardando");
@@ -356,17 +280,23 @@ mod tests {
     #[test]
     fn mes_vazio_exige_aviso_estrutural() {
         // Caso Todos tests/test_unidade_listar_retornos_010.py @323eb01.
-        let html = "<div id='divAguardandoAreaTabela'>Nenhum registro encontrado.</div>";
-        assert_eq!(extrair_retornos(html).unwrap(), Vec::<Retorno>::new());
+        let html = crate::tela_html::HtmlServido::de_teste(
+            "<div id='divAguardandoAreaTabela'>Nenhum registro encontrado.</div>",
+        );
+        assert_eq!(extrair_retornos(&html).unwrap(), Vec::<Retorno>::new());
         assert_eq!(
-            extrair_retornos("<div>outra tela</div>"),
+            extrair_retornos(&crate::tela_html::HtmlServido::de_teste(
+                "<div>outra tela</div>"
+            )),
             Err(ErroRetornos::TelaDeRetornosDesconhecida)
         );
     }
     #[test]
     fn legenda_maior_que_as_linhas_nao_publica_resultado_parcial() {
-        let html = tabela("Aguardando Retorno de Outras Unidades", "NUP-A", "U1")
-            .replace("1 registro:", "2 registros:");
+        let html = crate::tela_html::HtmlServido::de_teste(
+            &tabela("Aguardando Retorno de Outras Unidades", "NUP-A", "U1")
+                .replace("1 registro:", "2 registros:"),
+        );
         assert_eq!(
             extrair_retornos(&html),
             Err(ErroRetornos::ListaDeRetornosIncompleta)
@@ -376,14 +306,16 @@ mod tests {
     fn tabelas_duplicadas_sao_recusadas() {
         let t = tabela("Para Devolver", "NUP-A", "U1");
         assert_eq!(
-            extrair_retornos(&format!("{t}{t}")),
+            extrair_retornos(&crate::tela_html::HtmlServido::de_teste(&format!("{t}{t}"))),
             Err(ErroRetornos::TelaDeRetornosDesconhecida)
         );
     }
     #[test]
     fn pagina_apresenta_paginador_sem_replay_falha_fechado() {
-        let html = tabela("Para Devolver", "NUP-A", "U1")
-            + "<a id='lnkDevolverProximaPaginaSuperior'>proxima</a>";
+        let html = crate::tela_html::HtmlServido::de_teste(
+            &(tabela("Para Devolver", "NUP-A", "U1")
+                + "<a id='lnkDevolverProximaPaginaSuperior'>proxima</a>"),
+        );
         assert_eq!(
             extrair_retornos(&html),
             Err(ErroRetornos::ListaDeRetornosComMaisDeUmaPagina)
@@ -392,7 +324,11 @@ mod tests {
     #[test]
     fn tabela_unica_sem_evidencia_da_outra_situacao_e_incompleta() {
         // Na UnB, as duas situacoes tem secoes independentes; nao publicar metade do mes.
-        let html = tabela("Aguardando Retorno de Outras Unidades", "NUP-A", "U1");
+        let html = crate::tela_html::HtmlServido::de_teste(&tabela(
+            "Aguardando Retorno de Outras Unidades",
+            "NUP-A",
+            "U1",
+        ));
         assert_eq!(
             extrair_retornos(&html),
             Err(ErroRetornos::ListaDeRetornosIncompleta)
@@ -402,14 +338,14 @@ mod tests {
     fn area_mensal_observada_com_aguardando_nao_inventa_devolver() {
         // Replay UnB/GO/PEN3: o mes completo pode omitir a tabela Para Devolver.
         // Uma tabela solta sem a area mensal continua recusada.
-        let html = format!(
+        let html = crate::tela_html::HtmlServido::de_teste(&format!(
             "<div id='divAguardandoAreaTabela'>{}<table><tr><td>layout</td></tr></table></div>",
             tabela(
                 "Tabela de processos aguardando retorno de outras unidades",
                 "NUP-A",
                 "U1"
             )
-        );
+        ));
         let itens = extrair_retornos(&html).unwrap();
         assert_eq!(itens.len(), 1);
         assert_eq!(itens[0].situacao, "aguardando");
@@ -417,8 +353,10 @@ mod tests {
     #[test]
     fn tabela_unica_com_outra_area_explicitamente_vazia_pode_ser_lida() {
         // A ausencia da outra tabela so vale se a sua area disser que nao ha registros.
-        let html = tabela("Aguardando Retorno de Outras Unidades", "NUP-A", "U1")
-            + "<div id='divDevolverAreaTabela'>Nenhum registro encontrado.</div>";
+        let html = crate::tela_html::HtmlServido::de_teste(
+            &(tabela("Aguardando Retorno de Outras Unidades", "NUP-A", "U1")
+                + "<div id='divDevolverAreaTabela'>Nenhum registro encontrado.</div>"),
+        );
         let itens = extrair_retornos(&html).unwrap();
         assert_eq!(itens.len(), 1);
         assert_eq!(itens[0].situacao, "aguardando");
@@ -426,18 +364,8 @@ mod tests {
     #[test]
     fn area_aguardando_duplicada_nao_parece_mes_vazio_completo() {
         // Estrutura sintética: area repetida torna ambigua a completude do mes.
-        let html = "<div id='divAguardandoAreaTabela'>Nenhum registro encontrado.</div>                    <div id='divAguardandoAreaTabela'>Area pendente de carregamento</div>";
-        assert_eq!(
-            extrair_retornos(html),
-            Err(ErroRetornos::TelaDeRetornosDesconhecida)
-        );
-    }
-    #[test]
-    fn area_devolver_duplicada_nao_parece_mes_completo() {
-        // O aviso de vazio de uma area nao prova a integridade da outra duplicata.
-        let html = format!(
-            "{}<div id='divDevolverAreaTabela'>Nenhum registro encontrado.</div>             <div id='divDevolverAreaTabela'>Area pendente de carregamento</div>",
-            tabela("Aguardando Retorno de Outras Unidades", "NUP-A", "U1")
+        let html = crate::tela_html::HtmlServido::de_teste(
+            "<div id='divAguardandoAreaTabela'>Nenhum registro encontrado.</div>                    <div id='divAguardandoAreaTabela'>Area pendente de carregamento</div>",
         );
         assert_eq!(
             extrair_retornos(&html),
@@ -445,8 +373,22 @@ mod tests {
         );
     }
     #[test]
+    fn area_devolver_duplicada_nao_parece_mes_completo() {
+        // O aviso de vazio de uma area nao prova a integridade da outra duplicata.
+        let html = crate::tela_html::HtmlServido::de_teste(&format!(
+            "{}<div id='divDevolverAreaTabela'>Nenhum registro encontrado.</div>             <div id='divDevolverAreaTabela'>Area pendente de carregamento</div>",
+            tabela("Aguardando Retorno de Outras Unidades", "NUP-A", "U1")
+        ));
+        assert_eq!(
+            extrair_retornos(&html),
+            Err(ErroRetornos::TelaDeRetornosDesconhecida)
+        );
+    }
+    #[test]
     fn data_fora_do_calendario_nao_e_publicada() {
-        let html = tabela("Para Devolver", "NUP-A", "U1").replace("15/10/2026", "31/02/2026");
+        let html = crate::tela_html::HtmlServido::de_teste(
+            &tabela("Para Devolver", "NUP-A", "U1").replace("15/10/2026", "31/02/2026"),
+        );
         assert_eq!(
             extrair_retornos(&html),
             Err(ErroRetornos::TelaDeRetornosDesconhecida)
@@ -462,7 +404,7 @@ mod tests {
     }
     #[test]
     fn celula_vazia_de_devolucao_e_prazo_nao_vira_null() {
-        let html = duas_tabelas("<td></td><td></td>");
+        let html = crate::tela_html::HtmlServido::de_teste(&duas_tabelas("<td></td><td></td>"));
         let itens = extrair_retornos(&html).unwrap();
         assert_eq!(itens[0].retornado_em, DataDeRetorno::Pendente);
         assert_eq!(itens[0].prazo_restante, PrazoRestante::SemPrazo);
@@ -472,7 +414,9 @@ mod tests {
     }
     #[test]
     fn celulas_preenchidas_sao_lidas_como_fato() {
-        let html = duas_tabelas("<td>16/10/2026</td><td>2 dias</td>");
+        let html = crate::tela_html::HtmlServido::de_teste(&duas_tabelas(
+            "<td>16/10/2026</td><td>2 dias</td>",
+        ));
         let itens = extrair_retornos(&html).unwrap();
         assert_eq!(
             itens[0].retornado_em,
@@ -488,13 +432,13 @@ mod tests {
         let sem_devolucao =
             duas_tabelas("<td></td><td></td>").replacen("<th>Data de Retorno Efetiva</th>", "", 1);
         assert_eq!(
-            extrair_retornos(&sem_devolucao),
+            extrair_retornos(&crate::tela_html::HtmlServido::de_teste(&sem_devolucao)),
             Err(ErroRetornos::ColunaDataDeRetornoAusente)
         );
         let sem_prazo =
             duas_tabelas("<td></td><td></td>").replacen("<th>Prazo Restante</th>", "", 1);
         assert_eq!(
-            extrair_retornos(&sem_prazo),
+            extrair_retornos(&crate::tela_html::HtmlServido::de_teste(&sem_prazo)),
             Err(ErroRetornos::ColunaPrazoRestanteAusente)
         );
     }

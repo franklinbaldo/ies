@@ -1,5 +1,6 @@
 //! Cadastro compartilhado: propriedades e anexo externo sem .src (#60).
 use super::{ErroDocumentoObter, fora_de_palpite};
+use crate::acao_do_sei::AcaoDoSei;
 use crate::arvore_processo::EnderecoDoConteudo;
 use crate::instalacao::Instalacao;
 use crate::processo_obter::EnvioDoProcesso;
@@ -44,8 +45,7 @@ pub(super) fn ler<V: EnvioDoProcesso>(
     if buscar_anexo
         && !matches!(
             link.fonte,
-            crate::acao_do_sei::AcaoDoSei::DocumentoAlterarRecebido
-                | crate::acao_do_sei::AcaoDoSei::DocumentoConsultarRecebido
+            AcaoDoSei::DocumentoAlterarRecebido | AcaoDoSei::DocumentoConsultarRecebido
         )
     {
         return Err(conteudo_nao_publicado());

@@ -6,6 +6,9 @@ use std::process::{Command, Output};
 #[path = "support/falha.rs"]
 mod falha_cli;
 use falha_cli::falha;
+#[path = "support/falha_por.rs"]
+mod falha_por_cli;
+use falha_por_cli::falha_por;
 
 fn sem_sessao(args: &[&str]) -> Output {
     Command::new(env!("CARGO_BIN_EXE_ies"))
@@ -41,12 +44,11 @@ fn sem_configuracao_falha_fechado_sem_rede() {
         }
         let saida = sem_sessao(&args);
         // Com --confirmar, o lock fica ao lado da URL: diretório ausente.
-        let erro = if confirmar {
-            "ArquivoDeLockDoLoginInacessivel"
+        if confirmar {
+            falha(&saida, "ArquivoDeLockDoLoginInacessivel");
         } else {
-            "ArquivoPrivadoAusenteOuInacessivel"
-        };
-        falha(&saida, erro);
+            falha_por(&saida, "UrlDoControleIlegivel", "Ausente");
+        }
     }
 }
 

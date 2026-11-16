@@ -3,6 +3,7 @@
 //! sem marcador observado, conferida por leitura posterior.
 use super::tests::{OPERACAO, instalacao, tela_iso, url_servida};
 use super::*;
+use crate::tela_html::HtmlServido;
 use crate::transporte::sessao::CookieDaSessao;
 use std::io::Cursor;
 
@@ -27,7 +28,7 @@ fn derivar(
     derivar_submissao(
         operacao,
         &instalacao(),
-        &tela_iso(&url, html),
+        &tela_iso(&url, &HtmlServido::de_teste(html)),
         Some("UNIDADE TESTE"),
         &[("txtProtocoloPesquisa", "1")],
     )
@@ -128,7 +129,7 @@ fn derivar_com(
     derivar_submissao(
         operacao,
         &instalacao(),
-        &tela_iso(&url, html),
+        &tela_iso(&url, &HtmlServido::de_teste(html)),
         solicitada,
         &[("txtProtocoloPesquisa", "1")],
     )

@@ -109,8 +109,6 @@ impl Visao {
 #[derive(Clone, Debug, PartialEq, Eq, thiserror::Error)]
 #[error("{self:?}")]
 pub(crate) enum ErroVisaoDoControle {
-    /// O tokenizador de atributos recusou a tag.
-    Atributo(#[source] crate::html_atributos::ErroAtributoHtml),
     CharsetDaTelaNaoSuportado,
     UnidadeDiferenteDaSolicitada,
     RedirecionamentoAoTrocarVisao,
@@ -142,12 +140,11 @@ pub(crate) enum ErroVisaoDoControle {
     VisaoDoControleNaoReconhecida,
     /// O valor da página atual não cabe no tipo do paginador.
     PaginaAtualDaVisaoDetalhadaNaoCabeNoTipo(#[source] std::num::ParseIntError),
-    /// O parser HTML recusou a tela do nível de detalhe.
-    HtmlDoNivelDeDetalheRecusadoPeloParser(#[source] tl::ParseError),
-    /// O parser HTML recusou o formulário de troca de visão.
-    HtmlDoFormularioDoControleRecusadoPeloParser(#[source] tl::ParseError),
-    /// Chave ou valor da consulta do nível recusado pelo transporte.
-    ConsultaDoNivelRecusadaPeloTransporte(#[source] FalhaTransporte),
+    /// A consulta do link do nível não se lê em pares `chave=valor`.
+    ConsultaDoNivelIlegivel(#[source] crate::consulta_do_controlador::ErroConsultaDoControlador),
+    /// `infra_hash` do link do nível ausente ou repetido.
+    ChaveDoNivelIlegivel(#[source] crate::consulta_do_controlador::ErroParametroDaUrl),
+    AcaoDoNivelIlegivel(#[source] crate::consulta_do_controlador::ErroAcaoDaUrl),
 }
 
 impl ErroVisaoDoControle {
@@ -165,9 +162,9 @@ impl ErroVisaoDoControle {
             | Self::UnidadeAlteradaAoTrocarVisao
             | Self::PaginaAtualDaVisaoDetalhadaIlegivel
             | Self::PaginaAtualDaVisaoDetalhadaNaoCabeNoTipo(_)
-            | Self::HtmlDoNivelDeDetalheRecusadoPeloParser(_)
-            | Self::HtmlDoFormularioDoControleRecusadoPeloParser(_)
-            | Self::ConsultaDoNivelRecusadaPeloTransporte(_)
+            | Self::ConsultaDoNivelIlegivel(_)
+            | Self::ChaveDoNivelIlegivel(_)
+            | Self::AcaoDoNivelIlegivel(_)
             | Self::PaginaAtualDaVisaoDetalhadaIncompativelComAFaixa
             | Self::PaginaForaDoIntervalo { .. }
             | Self::PaginadorDaVisaoDetalhadaNaoPublicado
@@ -183,7 +180,6 @@ impl ErroVisaoDoControle {
             | Self::LinkDoNivelDeDetalheAusente
             | Self::LinkDoNivelDeDetalheNaoReconhecido
             | Self::LinksDoNivelDeDetalheRepetidos
-            | Self::Atributo(_)
             | Self::VisaoDoControleNaoReconhecida => false,
         }
     }

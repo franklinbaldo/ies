@@ -21,7 +21,7 @@ NUP e texto são validados antes de consultar a sessão. Texto sem conteúdo ou 
 
 ## Orçamento
 
-Abertura do processo e histórico (variável conforme índice), mais 1 GET do formulário; com --confirmar soma 1 POST e nova leitura do processo/histórico. Sem consulta a marcadores ou propriedades. O comando informa as requisições realizadas na prévia e no sucesso.
+Abertura do processo e histórico (variável conforme índice), mais 1 GET do formulário; com --confirmar soma 1 POST e nova leitura do processo/histórico. Sem consulta a marcadores ou propriedades. O comando informa as requisições realizadas na prévia e no sucesso. No JSON, `total_depois` só existe depois da releitura confirmada e `resposta_inesperada` só quando o POST não devolveu o 302 esperado e a releitura comprovou o registro; a prévia omite as duas chaves, sem `null`.
 
 ## Evidência
 
@@ -46,7 +46,6 @@ Abertura do processo e histórico (variável conforme índice), mais 1 GET do fo
 | `ErroRegistrarAndamento::HistoricoNaoPublicado` | Recusa nomeada na operação de andamento; o erro sai no stderr. |
 | `ErroAndamentoNaBarra::LinksDeAtualizarAndamentoRepetidos` | Recusa nomeada na operação de andamento; o erro sai no stderr. |
 | `ErroRegistrarAndamento::Tela(SessaoEncerrada(..))` | Recusa nomeada na operação de andamento; o erro sai no stderr. |
-| `ErroTela::HtmlInvalido` | Recusa nomeada na operação de andamento; o erro sai no stderr. |
 | `ErroRegistrarAndamento::Tela` | Recusa nomeada na operação de andamento; o erro sai no stderr. |
 | `ErroRegistrarAndamento::UnidadeNaoPublicada` | Recusa nomeada na operação de andamento; o erro sai no stderr. |
 | erro do clap (saída 2) | Texto vazio ou com mais de 500 caracteres. |

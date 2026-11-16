@@ -1,5 +1,4 @@
 //! Recusas tipadas da derivação e do envio de formulário (uma por fato).
-use crate::html_atributos::ErroAtributoHtml;
 use crate::transporte::{FalhaTransporte, FatoDaResposta, StatusHttpRecusado};
 
 #[derive(Clone, Debug, PartialEq, Eq, thiserror::Error)]
@@ -17,9 +16,6 @@ pub(crate) enum ErroSubmissaoFormulario {
     AcaoDoFormularioForaDaInstalacao,
     AcaoDoFormularioDiferenteDaOperacao,
     AcaoDoFormularioSemInfraHashUnico,
-    EntidadeHtmlDesconhecidaNoAtributo {
-        campo: String,
-    },
     CampoOcultoAusenteNoFormulario {
         campo: String,
     },
@@ -48,8 +44,6 @@ pub(crate) enum ErroSubmissaoFormulario {
     /// HTTP 200 com `#txaInfraValidacao` não vazio: o SEI recusou o envio
     /// pela validação da Infra. Status 200 e a mensagem saneada.
     ValidacaoRecusadaPeloSei(String),
-    /// Tag de abertura servida que o tokenizador de atributos recusou.
-    AtributoHtml(#[from] ErroAtributoHtml),
     Transporte(#[from] FalhaTransporte),
     AcaoDoFormularioAusente,
     BotaoDeEnvioAusenteNoFormulario,
@@ -58,8 +52,6 @@ pub(crate) enum ErroSubmissaoFormulario {
     IdentificacaoDaUnidadeAusenteNaTela,
     /// A identificação da unidade publicada na tela repetiu: a causa é a do controle.
     IdentificacoesDaUnidadeRepetidasNaTela(#[source] crate::erro_web::ErroCaixa),
-    /// O parser de HTML recusou a tela do formulário.
-    HtmlDaTelaNaoInterpretado(#[source] tl::ParseError),
 }
 
 impl ErroSubmissaoFormulario {
@@ -79,7 +71,6 @@ impl ErroSubmissaoFormulario {
             | Self::AcaoDoFormularioForaDaInstalacao
             | Self::AcaoDoFormularioDiferenteDaOperacao
             | Self::AcaoDoFormularioSemInfraHashUnico
-            | Self::EntidadeHtmlDesconhecidaNoAtributo { .. }
             | Self::CampoOcultoAusenteNoFormulario { .. }
             | Self::CampoOcultoRepetidoNoFormulario { .. }
             | Self::HdnAcaoPublicadoSemRegraDaOperacao
@@ -91,14 +82,12 @@ impl ErroSubmissaoFormulario {
             | Self::TelaDeLoginRecebidaAposEnvio
             | Self::MarcadorDeResultadoAusenteNaResposta
             | Self::ValidacaoRecusadaPeloSei(_)
-            | Self::AtributoHtml(_)
             | Self::AcaoDoFormularioAusente
             | Self::BotaoDeEnvioAusenteNoFormulario
             | Self::BotoesDeEnvioRepetidosNoFormulario
             | Self::FormularioAusenteNaTela
             | Self::IdentificacaoDaUnidadeAusenteNaTela
-            | Self::IdentificacoesDaUnidadeRepetidasNaTela(_)
-            | Self::HtmlDaTelaNaoInterpretado(_) => false,
+            | Self::IdentificacoesDaUnidadeRepetidasNaTela(_) => false,
         }
     }
 }
@@ -119,7 +108,6 @@ impl ErroSubmissaoFormulario {
             | Self::AcaoDoFormularioForaDaInstalacao
             | Self::AcaoDoFormularioDiferenteDaOperacao
             | Self::AcaoDoFormularioSemInfraHashUnico
-            | Self::EntidadeHtmlDesconhecidaNoAtributo { .. }
             | Self::CampoOcultoAusenteNoFormulario { .. }
             | Self::CampoOcultoRepetidoNoFormulario { .. }
             | Self::HdnAcaoPublicadoSemRegraDaOperacao
@@ -131,14 +119,12 @@ impl ErroSubmissaoFormulario {
             | Self::TelaDeLoginRecebidaAposEnvio
             | Self::MarcadorDeResultadoAusenteNaResposta
             | Self::ValidacaoRecusadaPeloSei(_)
-            | Self::AtributoHtml(_)
             | Self::AcaoDoFormularioAusente
             | Self::BotaoDeEnvioAusenteNoFormulario
             | Self::BotoesDeEnvioRepetidosNoFormulario
             | Self::FormularioAusenteNaTela
             | Self::IdentificacaoDaUnidadeAusenteNaTela
-            | Self::IdentificacoesDaUnidadeRepetidasNaTela(_)
-            | Self::HtmlDaTelaNaoInterpretado(_) => None,
+            | Self::IdentificacoesDaUnidadeRepetidasNaTela(_) => None,
         }
     }
 }

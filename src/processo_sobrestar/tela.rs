@@ -1,24 +1,25 @@
 //! Conferência estrutural do formulário de sobrestamento observado na `UnB` (#269).
 //! Fonte: `Todos tests/test_ciclo_sobrestar_010.py` @323eb01.
 use crate::acao_do_sei::AcaoDoSei;
-use crate::consulta_do_controlador::ConsultaDoControlador;
+use crate::consulta_do_controlador::{
+    ConsultaDoControlador, ErroConsultaDoControlador, ErroParametroDaUrl,
+};
 use crate::formulario_web::{
     ConferenciaDaUnidade, EfeitoAvaliado, EnvioDoFormulario, ErroSubmissaoFormulario,
     EstadoDoProcesso, OperacaoDeFormulario, ResultadoDoEnvio, localizar_formulario,
 };
-use crate::html_atributos::{atributo_presente, valor_do_atributo};
 use std::collections::HashMap;
 
 #[derive(Clone, Debug, PartialEq, Eq, thiserror::Error)]
 #[error("{self:?}")]
 pub(crate) enum ErroTela {
-    /// O tokenizador de atributos recusou a tag.
-    Atributo(#[source] crate::html_atributos::ErroAtributoHtml),
     /// O tokenizador HTML recusou a tela.
-    NaoInterpretada,
-    HtmlNaoInterpretado(#[source] tl::ParseError),
     FormularioAusente(#[source] ErroSubmissaoFormulario),
     OutroProcesso,
+    /// A consulta do `action` não se lê em pares `chave=valor`.
+    ConsultaDaActionIlegivel(#[source] ErroConsultaDoControlador),
+    /// O `action` não tem exatamente um `id_procedimento`.
+    ChaveDaActionIlegivel(#[source] ErroParametroDaUrl),
     OpcaoNaoOferecida,
     DestinoPreenchido,
     CampoInesperado,
@@ -47,57 +48,37 @@ pub(crate) const OPERACAO: OperacaoDeFormulario = OperacaoDeFormulario {
 };
 
 /// Confere os controles antes de derivar um único POST.
-pub(crate) fn conferir_formulario(html: &str, id: &str) -> Result<(), ErroTela> {
-    let dom =
-        tl::parse(html, tl::ParserOptions::default()).map_err(ErroTela::HtmlNaoInterpretado)?;
+pub(crate) fn conferir_formulario(
+    html: &crate::tela_html::HtmlServido,
+    id: &str,
+) -> Result<(), ErroTela> {
+    let dom = crate::tela_html::arvore(html);
     let form =
         localizar_formulario(&dom, OPERACAO.formulario).map_err(ErroTela::FormularioAusente)?;
-    let atributo = |tag: &tl::HTMLTag<'_>, nome: &'static str| {
-        valor_do_atributo(tag, nome).map_err(ErroTela::Atributo)
-    };
-    let presente = |tag: &tl::HTMLTag<'_>, nome: &'static str| {
-        atributo_presente(tag, nome).map_err(ErroTela::Atributo)
-    };
-    let action = atributo(form, "action")?.ok_or(ErroTela::OutroProcesso)?;
-    let action =
-        crate::formulario_web::decodificar_atributo(&action).ok_or(ErroTela::NaoInterpretada)?;
-    let ids: Vec<_> = action
-        .split_once('?')
-        .map(|(_, consulta)| consulta)
-        .unwrap_or_default()
-        .split('&')
-        .filter_map(|par| par.strip_prefix("id_procedimento="))
-        .collect();
-    if ids.as_slice() != [id] {
-        return Err(ErroTela::OutroProcesso);
-    }
-    if !atributo(form, "method")?.is_some_and(|v| v.eq_ignore_ascii_case("post")) {
+    let action = form.atributo("action").ok_or(ErroTela::OutroProcesso)?;
+    conferir_processo_da_action(action, id)?;
+    if !form
+        .atributo("method")
+        .is_some_and(|v| v.eq_ignore_ascii_case("post"))
+    {
         return Err(ErroTela::CampoInesperado);
     }
     // An external form-associated field changes the browser POST.
     for elemento in ["input", "button", "select", "textarea"] {
-        for no in dom.query_selector(elemento).into_iter().flatten() {
-            let Some(tag) = no.get(dom.parser()).and_then(tl::Node::as_tag) else {
-                continue;
-            };
-            if atributo(tag, "form")?.is_some() {
+        for no in dom.elementos(elemento) {
+            if no.atributo("form").is_some() {
                 return Err(ErroTela::CampoInesperado);
             }
         }
     }
     let mut vistos: HashMap<String, usize> = HashMap::new();
-    for tag in form
-        .children()
-        .all(dom.parser())
-        .iter()
-        .filter_map(tl::Node::as_tag)
-    {
-        let elemento = tag.name().as_utf8_str().to_ascii_lowercase();
-        if elemento == "fieldset" && presente(tag, "disabled")? {
+    for tag in form.descendentes() {
+        let elemento = tag.nome().to_ascii_lowercase();
+        if elemento == "fieldset" && tag.presente("disabled") {
             return Err(ErroTela::CampoInesperado);
         }
         if elemento == "option" {
-            if presente(tag, "selected")? {
+            if tag.presente("selected") {
                 return Err(ErroTela::DestinoPreenchido);
             }
             continue;
@@ -108,10 +89,10 @@ pub(crate) fn conferir_formulario(html: &str, id: &str) -> Result<(), ErroTela> 
         ) {
             continue;
         }
-        if presente(tag, "disabled")? || atributo(tag, "form")?.is_some() {
+        if tag.presente("disabled") || tag.atributo("form").is_some() {
             return Err(ErroTela::CampoInesperado);
         }
-        conferir_campo(&dom, tag, id, &mut vistos)?;
+        conferir_campo(tag, id, &mut vistos)?;
     }
     let esperados = [
         ("hdnInfraTipoPagina", 1),
@@ -140,26 +121,20 @@ pub(crate) fn conferir_formulario(html: &str, id: &str) -> Result<(), ErroTela> 
 
 /// Um controle enviável, conferido contra a forma observada antes do POST.
 fn conferir_campo(
-    dom: &tl::VDom<'_>,
-    tag: &tl::HTMLTag<'_>,
+    tag: crate::tela_html::Elemento<'_>,
     id: &str,
     vistos: &mut HashMap<String, usize>,
 ) -> Result<(), ErroTela> {
-    let atributo = |nome: &'static str| valor_do_atributo(tag, nome).map_err(ErroTela::Atributo);
-    let presente = |nome: &'static str| atributo_presente(tag, nome).map_err(ErroTela::Atributo);
-    let elemento = tag.name().as_utf8_str().to_ascii_lowercase();
-    let nome = atributo("name")?.ok_or(ErroTela::CampoInesperado)?;
-    let tipo = atributo("type")?.unwrap_or_else(|| {
-        if elemento == "button" {
-            "submit"
-        } else {
-            "text"
-        }
-        .to_owned()
+    let elemento = tag.nome().to_ascii_lowercase();
+    let nome = tag.atributo("name").ok_or(ErroTela::CampoInesperado)?;
+    let tipo = tag.atributo("type").unwrap_or(if elemento == "button" {
+        "submit"
+    } else {
+        "text"
     });
-    let valor = atributo("value")?.unwrap_or_default();
-    *vistos.entry(nome.clone()).or_default() += 1;
-    let valido = match (elemento.as_str(), tipo.as_str(), nome.as_str()) {
+    let valor = tag.atributo("value").unwrap_or_default();
+    *vistos.entry(nome.to_owned()).or_default() += 1;
+    let valido = match (elemento.as_str(), tipo, nome) {
         ("input", "hidden", "hdnIdProtocolos") => {
             if valor != id {
                 return Err(ErroTela::OutroProcesso);
@@ -173,29 +148,27 @@ fn conferir_campo(
         }
         ("input", "radio", "rdoSobrestar") => {
             // "S" pode vir marcado (UFRJ e GO): é a opção enviada.
-            let valido = valor == "S" || (valor == "V" && !presente("checked")?);
+            let valido = valor == "S" || (valor == "V" && !tag.presente("checked"));
             if valido {
                 *vistos.entry(format!("rdoSobrestar:{valor}")).or_default() += 1;
             }
             valido
         }
-        ("textarea", _, "txaMotivo") => {
-            !presente("readonly")? && tag.inner_text(dom.parser()).is_empty()
-        }
+        ("textarea", _, "txaMotivo") => !tag.presente("readonly") && tag.texto().is_empty(),
         ("input" | "button", "submit", "sbmSalvar") => {
             valor == "Salvar"
-                && !presente("formaction")?
-                && !presente("formmethod")?
-                && !presente("formenctype")?
+                && !tag.presente("formaction")
+                && !tag.presente("formmethod")
+                && !tag.presente("formenctype")
         }
         ("input" | "button", "button", "btnCancelar" | "btnPesquisar") => true,
-        ("select", _, "selProcedimentos") => presente("multiple")?,
+        ("select", _, "selProcedimentos") => tag.presente("multiple"),
         _ => false,
     };
     if valido {
         Ok(())
     } else {
-        match nome.as_str() {
+        match nome {
             "hdnIdProcedimentoDestino"
             | "txtProcedimentoDestino"
             | "txtIdentificacaoProcedimentoDestino"
@@ -207,6 +180,22 @@ fn conferir_campo(
             _ => Err(ErroTela::CampoInesperado),
         }
     }
+}
+
+/// O `action` aponta para o processo `id`, com `id_procedimento` uma vez só.
+fn conferir_processo_da_action(action: &str, id: &str) -> Result<(), ErroTela> {
+    let Some((_, consulta)) = action.split_once('?') else {
+        return Err(ErroTela::OutroProcesso);
+    };
+    let consulta =
+        ConsultaDoControlador::ler(consulta).map_err(ErroTela::ConsultaDaActionIlegivel)?;
+    let processo = consulta
+        .unico("id_procedimento")
+        .map_err(ErroTela::ChaveDaActionIlegivel)?;
+    if processo != id {
+        return Err(ErroTela::OutroProcesso);
+    }
+    Ok(())
 }
 
 /// Aceite da resposta HTTP 302 da sobrestada: mesmo processo, ação e origem.
@@ -224,7 +213,7 @@ pub(crate) fn redirecionamento_esperado(
     let Ok(consulta) = ConsultaDoControlador::ler(consulta) else {
         return false;
     };
-    consulta.acao() == Ok(AcaoDoSei::ArvoreVisualizar)
-        && consulta.unico("acao_origem") == Ok(AcaoDoSei::ProcedimentoSobrestar.como_na_url())
+    consulta.acao() == Ok(AcaoDoSei::ArvoreVisualizar.como_na_url())
+        && consulta.acao_de_origem() == Ok(AcaoDoSei::ProcedimentoSobrestar.como_na_url())
         && consulta.unico("id_procedimento") == Ok(id)
 }

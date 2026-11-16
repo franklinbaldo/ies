@@ -1,0 +1,15 @@
+id: 05c-como-texto
+language: rust
+message: 'n.get(parser).and_then(tl::Node::as_raw) vira n.como_texto()'
+severity: hint
+rule:
+  all:
+    - pattern: '$F.get($P).and_then(tl::Node::as_raw)'
+    - not:
+        inside:
+          stopBy: end
+          kind: mod_item
+          follows:
+            kind: attribute_item
+            regex: 'cfg\(test\)'
+fix: '$F.como_texto()'

@@ -7,7 +7,7 @@ use crate::documento_obter_cli::falha_da_leitura;
 use crate::indice_local::{self, IndiceLocal};
 use crate::pesquisa_web::documentos::{EmDocumentos, RespostaDeDocumentos};
 use crate::pesquisa_web::erro_busca::ErroBuscaDeProcesso;
-use crate::pesquisa_web::filtros::{FiltrosDaPesquisa, data_valida};
+use crate::pesquisa_web::filtros::FiltrosDaPesquisa;
 use crate::pesquisa_web::fluxo::{
     BuscaRealizada, PedidoDeBusca, SessaoDaBusca, buscar_colhendo_filtrado,
 };
@@ -39,19 +39,6 @@ pub(crate) fn validar_termo(termo: &str) -> Result<&str, TermoDeDocumentoInvalid
 pub(crate) fn termo_de_documento(termo: &str) -> Result<String, TermoDeDocumentoInvalido> {
     validar_termo(termo).map(str::to_owned)
 }
-
-/// `DD/MM/AAAA` existente no calendário (saída 2 pelo clap).
-pub(crate) fn data_do_calendario(data: &str) -> Result<String, DataForaDoCalendario> {
-    if data_valida(data) {
-        Ok(data.to_owned())
-    } else {
-        Err(DataForaDoCalendario)
-    }
-}
-
-#[derive(Clone, Copy, Debug, PartialEq, Eq, thiserror::Error)]
-#[error("{self:?}")]
-pub(crate) struct DataForaDoCalendario;
 
 /// Argumentos de leitura de `ies documento DOC` que não combinam com `buscar`.
 fn opcoes_de_leitura_presentes(comando: &Documento) -> bool {
@@ -159,11 +146,10 @@ fn buscar(
     filtros: FiltrosDaPesquisa<'_>,
 ) -> anyhow::Result<()> {
     // O formato das datas e o termo já foram conferidos pelo clap.
-    if let (Some(de), Some(ate)) = (filtros.de, filtros.ate) {
-        let ano_mes_dia = crate::pesquisa_web::filtros::ano_mes_dia;
-        if ano_mes_dia(de) > ano_mes_dia(ate) {
-            crate::uso_invalido::recusar(crate::uso_invalido::UsoInvalido::PeriodoInvertido);
-        }
+    if let (Some(de), Some(ate)) = (filtros.de, filtros.ate)
+        && de > ate
+    {
+        crate::uso_invalido::recusar(crate::uso_invalido::UsoInvalido::PeriodoInvertido);
     }
     if opcoes_de_leitura_presentes(comando) {
         crate::uso_invalido::recusar(crate::uso_invalido::UsoInvalido::OpcoesDeLeituraComBuscar);
@@ -242,8 +228,8 @@ pub(crate) fn tentar_buscar(cli: &Cli) -> Option<anyhow::Result<()>> {
         FiltrosDaPesquisa {
             tipo: tipo.as_deref(),
             assunto: assunto.as_deref(),
-            de: de.as_deref(),
-            ate: ate.as_deref(),
+            de: *de,
+            ate: *ate,
         },
     ))
 }

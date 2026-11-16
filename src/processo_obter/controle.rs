@@ -5,12 +5,6 @@
 use super::ErroProcessoObter;
 use crate::acao_do_sei::AcaoDoSei;
 use crate::consulta_do_controlador::ConsultaDoControlador;
-use crate::formulario_web::decodificar_atributo;
-use crate::html_atributos::valor_do_atributo;
-
-fn ilegivel<T>(_: T) -> ErroProcessoObter {
-    ErroProcessoObter::LinhaDoControleIlegivel
-}
 
 /// `href` relativo de `procedimento_trabalhar` para o id da linha.
 fn eh_link_do_processo(href: &str, id: &str) -> bool {
@@ -20,7 +14,7 @@ fn eh_link_do_processo(href: &str, id: &str) -> bool {
     let Ok(consulta) = ConsultaDoControlador::ler(consulta) else {
         return false;
     };
-    consulta.acao() == Ok(AcaoDoSei::ProcedimentoTrabalhar)
+    consulta.acao() == Ok(AcaoDoSei::ProcedimentoTrabalhar.como_na_url())
         && consulta.unico("id_procedimento") == Ok(id)
 }
 
@@ -28,18 +22,14 @@ fn eh_link_do_processo(href: &str, id: &str) -> bool {
 /// linha e o `href` com entidades decodificadas, ainda relativo. NUP em
 /// duas linhas, ou dois links para ele na mesma linha, é recusa.
 pub(super) fn link_do_processo_no_controle(
-    html: &str,
+    html: &crate::tela_html::HtmlServido,
     nup: &str,
 ) -> Result<Option<(String, String)>, ErroProcessoObter> {
-    let dom = tl::parse(html, tl::ParserOptions::default()).map_err(ilegivel)?;
-    let parser = dom.parser();
+    let dom = crate::tela_html::arvore(html);
     let mut achado: Option<(String, String)> = None;
-    let linhas = dom.query_selector("tr").into_iter().flatten();
+    let linhas = dom.elementos("tr");
     for linha in linhas {
-        let Some(linha) = linha.get(parser).and_then(tl::Node::as_tag) else {
-            continue;
-        };
-        let Some(id) = valor_do_atributo(linha, "id").map_err(ilegivel)? else {
+        let Some(id) = linha.atributo("id") else {
             continue;
         };
         let Some(id) = id
@@ -49,24 +39,20 @@ pub(super) fn link_do_processo_no_controle(
             continue;
         };
         let mut nesta_linha: Option<String> = None;
-        for link in linha.query_selector(parser, "a").into_iter().flatten() {
-            let Some(link) = link.get(parser).and_then(tl::Node::as_tag) else {
-                continue;
-            };
-            if link.inner_text(parser) != nup {
+        for link in linha.elementos("a") {
+            if link.texto() != nup {
                 continue;
             }
-            let Some(href) = valor_do_atributo(link, "href").map_err(ilegivel)? else {
+            let Some(href) = link.atributo("href") else {
                 continue;
             };
-            let href = decodificar_atributo(&href).ok_or_else(|| ilegivel(()))?;
             if !href.starts_with("controlador.php?acao=procedimento_trabalhar&") {
                 continue;
             }
             if nesta_linha.is_some() {
                 return Err(ErroProcessoObter::LinksDoProcessoRepetidosNoControle);
             }
-            nesta_linha = Some(href);
+            nesta_linha = Some(href.to_owned());
         }
         let Some(href) = nesta_linha else {
             continue;

@@ -14,12 +14,10 @@ use super::Destino;
 use super::erro::ErroTelaDeEnvio;
 use crate::acao_do_sei::AcaoDoSei;
 use crate::consulta_do_controlador::ConsultaDoControlador;
-use crate::formulario_web::decodificar_atributo;
 use crate::formulario_web::{
     ConferenciaDaUnidade, ConsultaAjax, EfeitoAvaliado, EnvioDoFormulario, EstadoDoProcesso,
     OperacaoDeFormulario, ResultadoDoEnvio, consulta_do_controlador, localizar_formulario,
 };
-use crate::html_atributos::{atributo_presente, valor_do_atributo};
 
 pub(crate) const FORMULARIO_DE_ENVIO: &str = "frmAtividadeListar";
 const BOTAO_ENVIAR: &str = "sbmEnviar";
@@ -122,10 +120,11 @@ pub(crate) struct TelaDeEnvio {
 /// Confere a tela servida antes de qualquer POST: lista fechada de
 /// controles enviáveis, o processo, nada preenchido, o órgão efetivo e as
 /// duas linhas do script.
-pub(crate) fn conferir_tela_de_envio(html: &str, id: &str) -> Result<TelaDeEnvio, ErroTelaDeEnvio> {
-    let dom = tl::parse(html, tl::ParserOptions::default())
-        .map_err(ErroTelaDeEnvio::ParseDaTelaDeEnvioFalhou)?;
-    let parser = dom.parser();
+pub(crate) fn conferir_tela_de_envio(
+    html: &crate::tela_html::HtmlServido,
+    id: &str,
+) -> Result<TelaDeEnvio, ErroTelaDeEnvio> {
+    let dom = crate::tela_html::arvore(html);
     let form = localizar_formulario(&dom, FORMULARIO_DE_ENVIO)
         .map_err(ErroTelaDeEnvio::FormularioDeEnvioAusente)?;
     let mut preenchida = false;
@@ -135,21 +134,16 @@ pub(crate) fn conferir_tela_de_envio(html: &str, id: &str) -> Result<TelaDeEnvio
     let mut orgao: Option<String> = None;
     let mut orgao_primeira: Option<String> = None;
     let mut orgaos = Vec::new();
-    for tag in form
-        .children()
-        .all(parser)
-        .iter()
-        .filter_map(tl::Node::as_tag)
-    {
-        let elemento = tag.name().as_utf8_str().to_ascii_lowercase();
+    for tag in form.descendentes() {
+        let elemento = tag.nome().to_ascii_lowercase();
         if elemento == "option" {
-            let valor = decodificado(tag, "value")?
-                .ok_or(ErroTelaDeEnvio::CampoNaoPrevistoNaTelaDeEnvio)?;
-            let marcada = atributo_presente(tag, "selected")?;
+            let valor =
+                decodificado(tag, "value").ok_or(ErroTelaDeEnvio::CampoNaoPrevistoNaTelaDeEnvio)?;
+            let marcada = tag.presente("selected");
             match selecao.as_deref() {
                 Some(ORGAO) => {
                     orgao_primeira.get_or_insert_with(|| valor.clone());
-                    orgaos.push((valor.clone(), rotulo(tag, parser)));
+                    orgaos.push((valor.clone(), rotulo(tag)));
                     if marcada {
                         orgao = Some(valor);
                     }
@@ -167,10 +161,10 @@ pub(crate) fn conferir_tela_de_envio(html: &str, id: &str) -> Result<TelaDeEnvio
             continue;
         }
         selecao = None;
-        if atributo_presente(tag, "disabled")? {
+        if tag.presente("disabled") {
             continue;
         }
-        let Some(nome) = decodificado(tag, "name")?.filter(|n| !n.is_empty()) else {
+        let Some(nome) = decodificado(tag, "name").filter(|n| !n.is_empty()) else {
             continue;
         };
         let padrao = if elemento == "button" {
@@ -178,10 +172,10 @@ pub(crate) fn conferir_tela_de_envio(html: &str, id: &str) -> Result<TelaDeEnvio
         } else {
             "text"
         };
-        let tipo = decodificado(tag, "type")?
-            .map_or_else(|| padrao.to_owned(), |t| t.to_ascii_lowercase());
-        let marcado = atributo_presente(tag, "checked")?;
-        let servido = decodificado(tag, "value")?.unwrap_or_default();
+        let tipo =
+            decodificado(tag, "type").map_or_else(|| padrao.to_owned(), |t| t.to_ascii_lowercase());
+        let marcado = tag.presente("checked");
+        let servido = decodificado(tag, "value").unwrap_or_default();
         match (elemento.as_str(), tipo.as_str(), nome.as_str()) {
             ("input", "hidden", "hdnIdProtocolos") if servido != id => {
                 return Err(ErroTelaDeEnvio::TelaDeEnvioDeOutroProcesso);
@@ -262,24 +256,16 @@ fn ler_script(html: &str) -> Result<(String, bool), ErroTelaDeEnvio> {
 }
 
 /// O texto visível da opção: entidades decodificadas, espaços colapsados.
-fn rotulo(opcao: &tl::HTMLTag<'_>, parser: &tl::Parser<'_>) -> String {
-    html_escape::decode_html_entities(&opcao.inner_text(parser))
-        .into_owned()
+fn rotulo(opcao: crate::tela_html::Elemento<'_>) -> String {
+    opcao
+        .texto()
         .split_whitespace()
         .collect::<Vec<_>>()
         .join(" ")
 }
 
-fn decodificado(
-    tag: &tl::HTMLTag<'_>,
-    nome: &'static str,
-) -> Result<Option<String>, ErroTelaDeEnvio> {
-    valor_do_atributo(tag, nome)
-        .map_err(ErroTelaDeEnvio::TelaDeEnvioComAtributoIlegivel)?
-        .map(|bruto| {
-            decodificar_atributo(&bruto).ok_or(ErroTelaDeEnvio::TelaDeEnvioNaoInterpretada)
-        })
-        .transpose()
+fn decodificado(tag: crate::tela_html::Elemento<'_>, nome: &'static str) -> Option<String> {
+    tag.atributo(nome).map(str::to_owned)
 }
 
 /// Os pares do `prepararExecucao`: a sigla, o órgão efetivo e, no 4.1/5.0,
@@ -348,7 +334,7 @@ pub(crate) fn redirecionamento_esperado(
     let Ok(consulta) = ConsultaDoControlador::ler(consulta) else {
         return false;
     };
-    consulta.acao() == Ok(AcaoDoSei::ArvoreVisualizar)
-        && consulta.unico("acao_origem") == Ok(AcaoDoSei::ProcedimentoEnviar.como_na_url())
+    consulta.acao() == Ok(AcaoDoSei::ArvoreVisualizar.como_na_url())
+        && consulta.acao_de_origem() == Ok(AcaoDoSei::ProcedimentoEnviar.como_na_url())
         && consulta.unico("id_procedimento") == Ok(id)
 }

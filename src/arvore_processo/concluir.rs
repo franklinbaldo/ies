@@ -137,7 +137,7 @@ pub(crate) enum ErroFuncaoDeConcluir {
     EnderecoDaConclusaoDeOutroProcesso,
     EnderecoDaConclusaoNaoReconhecido,
     FuncaoDeConcluirAusenteNaTelaDoNo,
-    FuncaoDeConcluirForaDaFormaObservada,
+    FuncaoDeConcluirForaDaFormaObservada(#[source] FuncaoForaDaForma),
     FuncoesDeConcluirRepetidasNaTelaDoNo,
 }
 
@@ -211,7 +211,7 @@ pub(crate) fn ler_funcao_de_concluir(
     id: &str,
 ) -> Result<EnderecoDeEscrita, ErroFuncaoDeConcluir> {
     let achados = urls_das_funcoes(html, "concluirProcesso")
-        .map_err(|FuncaoForaDaForma| ErroFuncaoDeConcluir::FuncaoDeConcluirForaDaFormaObservada)?;
+        .map_err(ErroFuncaoDeConcluir::FuncaoDeConcluirForaDaFormaObservada)?;
     let url = match achados.as_slice() {
         [] => return Err(ErroFuncaoDeConcluir::FuncaoDeConcluirAusenteNaTelaDoNo),
         [url] => *url,

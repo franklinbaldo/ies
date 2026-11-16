@@ -70,8 +70,10 @@ acoes_do_sei! {
         DocumentoEscolherTipo => "documento_escolher_tipo",
         DocumentoGerar => "documento_gerar",
         DocumentoReceber => "documento_receber",
+        DocumentoUploadAnexo => "documento_upload_anexo",
         DocumentoVersaoListar => "documento_versao_listar",
         DocumentoVisualizar => "documento_visualizar",
+        EditorMontar => "editor_montar",
         EditorSalvar => "editor_salvar",
         GrupoUnidadeCadastrar => "grupo_unidade_cadastrar",
         GrupoUnidadeListar => "grupo_unidade_listar",
@@ -102,6 +104,7 @@ acoes_do_sei! {
         ProtocoloPesquisaRapida => "protocolo_pesquisa_rapida",
         ProtocoloPesquisar => "protocolo_pesquisar",
         RelBlocoProtocoloListar => "rel_bloco_protocolo_listar",
+        RetornoProgramadoListar => "retorno_programado_listar",
         UnidadeSelecionarEnvioProcesso => "unidade_selecionar_envio_processo",
         UsuarioValidarAcesso => "usuario_validar_acesso",
     }

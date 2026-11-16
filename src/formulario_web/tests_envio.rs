@@ -1,6 +1,7 @@
 //! RED/GREEN do envio injetável: resposta sintética, no máximo uma chamada.
 use super::tests::{OPERACAO, instalacao, tela_iso, url_servida};
 use super::*;
+use crate::tela_html::HtmlServido;
 use crate::transporte::sessao::CookieDaSessao;
 use std::cell::Cell;
 use std::fs;
@@ -20,7 +21,7 @@ fn submissao() -> SubmissaoDerivada {
     derivar_submissao(
         &OPERACAO,
         &instalacao(),
-        &tela_iso(&url, FORM),
+        &tela_iso(&url, &HtmlServido::de_teste(FORM)),
         Some("UNIDADE TESTE"),
         &[("txtProtocoloPesquisa", "0001")],
     )
@@ -35,7 +36,8 @@ impl Drop for Pasta {
     }
 }
 
-fn cookie(modo: u32) -> (Pasta, PathBuf) {
+/// O cookie da sessão num arquivo privado (`0600` no Unix).
+fn cookie() -> (Pasta, PathBuf) {
     use std::sync::atomic::{AtomicUsize, Ordering};
     static N: AtomicUsize = AtomicUsize::new(0);
     let pasta = std::env::temp_dir().join(format!(
@@ -49,10 +51,8 @@ fn cookie(modo: u32) -> (Pasta, PathBuf) {
     #[cfg(unix)]
     {
         use std::os::unix::fs::PermissionsExt;
-        fs::set_permissions(&arquivo, fs::Permissions::from_mode(modo)).unwrap();
+        fs::set_permissions(&arquivo, fs::Permissions::from_mode(0o600)).unwrap();
     }
-    #[cfg(not(unix))]
-    let _ = modo;
     (Pasta(pasta), arquivo)
 }
 
@@ -70,13 +70,13 @@ fn html(
     r: Result<RespostaDoEnvio, ErroSubmissaoFormulario>,
 ) -> Result<String, ErroSubmissaoFormulario> {
     r.map(|resposta| match resposta {
-        RespostaDoEnvio::Html(html) => html,
+        RespostaDoEnvio::Html(html) => html.as_str().to_owned(),
         RespostaDoEnvio::Redirecionamento(_) => panic!("302 inesperado"),
     })
 }
 
 fn enviar_com(status_code: i32, html_: &str) -> (Result<String, ErroSubmissaoFormulario>, usize) {
-    let (_pasta, arquivo) = cookie(0o600);
+    let (_pasta, arquivo) = cookie();
     let chamadas = Cell::new(0);
     let r = enviar_submissao_via(submissao(), &CookieDaSessao::ler(&arquivo), |_, _| {
         chamadas.set(chamadas.get() + 1);
@@ -96,7 +96,7 @@ fn resposta_com_marcador_de_resultado_e_aceita_com_uma_chamada() {
 
 #[test]
 fn marcador_com_booleano_antes_da_classe_e_reconhecido() {
-    let html = crate::html_atributos::com_booleano_antes_dos_atributos(RESULTADO);
+    let html = crate::tela_html::teste::com_booleano_antes_dos_atributos(RESULTADO);
     let (r, n) = enviar_com(200, &html);
     assert_eq!(r.unwrap(), html);
     assert_eq!(n, 1);
@@ -104,7 +104,7 @@ fn marcador_com_booleano_antes_da_classe_e_reconhecido() {
 
 #[test]
 fn closure_recebe_post_corpo_cabecalhos_e_cookie_da_sessao() {
-    let (_pasta, arquivo) = cookie(0o600);
+    let (_pasta, arquivo) = cookie();
     let r = enviar_submissao_via(submissao(), &CookieDaSessao::ler(&arquivo), |s, cookie| {
         assert_eq!(SubmissaoDerivada::METODO, "POST");
         assert_eq!(
@@ -170,7 +170,7 @@ fn resposta_200_sem_marcador_de_resultado_e_recusada() {
 
 #[test]
 fn falha_de_rede_nao_repete_o_envio() {
-    let (_pasta, arquivo) = cookie(0o600);
+    let (_pasta, arquivo) = cookie();
     let chamadas = Cell::new(0);
     let r = enviar_submissao_via::<Cursor<Vec<u8>>, _>(
         submissao(),
@@ -190,7 +190,9 @@ fn falha_de_rede_nao_repete_o_envio() {
 #[cfg(unix)]
 #[test]
 fn cookie_com_permissao_insegura_impede_qualquer_envio() {
-    let (_pasta, arquivo) = cookie(0o644);
+    use std::os::unix::fs::PermissionsExt;
+    let (_pasta, arquivo) = cookie();
+    fs::set_permissions(&arquivo, fs::Permissions::from_mode(0o644)).unwrap();
     let chamadas = Cell::new(0);
     let r = enviar_submissao_via(submissao(), &CookieDaSessao::ler(&arquivo), |_, _| {
         chamadas.set(chamadas.get() + 1);
@@ -198,7 +200,9 @@ fn cookie_com_permissao_insegura_impede_qualquer_envio() {
     });
     assert_eq!(
         r.unwrap_err(),
-        ErroSubmissaoFormulario::Transporte(FalhaTransporte::ArquivoPrivadoComPermissoesInseguras)
+        ErroSubmissaoFormulario::Transporte(FalhaTransporte::CookieDaSessaoIlegivel(
+            crate::arquivo_privado::ErroArquivoPrivado::PermissoesAbertas
+        ))
     );
     assert_eq!(chamadas.get(), 0);
 }
@@ -216,7 +220,7 @@ fn enviar_com_redirecionamento(
     status: u16,
     localizacao: Option<&str>,
 ) -> (Result<RespostaDoEnvio, ErroSubmissaoFormulario>, usize) {
-    let (_pasta, arquivo) = cookie(0o600);
+    let (_pasta, arquivo) = cookie();
     let chamadas = Cell::new(0);
     let r = enviar_submissao_via(submissao(), &CookieDaSessao::ler(&arquivo), |_, _| {
         chamadas.set(chamadas.get() + 1);

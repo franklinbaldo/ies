@@ -1,0 +1,29 @@
+id: 01e-tag-de-fatia-no-match-ok
+language: rust
+message: 'Handle de um padrão de fatia ([h]) num braço de match que devolve o Result (sem ?): o elemento vem por cópia'
+severity: hint
+rule:
+  all:
+    - any:
+        - pattern: '$H.get($P).and_then(tl::Node::as_tag).ok_or($E)'
+        - pattern: '$H.get($P).and_then(tl::Node::as_tag).ok_or_else($E)'
+    - not:
+        inside:
+          kind: try_expression
+    - inside:
+        kind: match_arm
+        field: value
+        has:
+          field: pattern
+          has:
+            kind: slice_pattern
+            has:
+              pattern: $H
+    - not:
+        inside:
+          stopBy: end
+          kind: mod_item
+          follows:
+            kind: attribute_item
+            regex: 'cfg\(test\)'
+fix: 'Ok(*$H)'

@@ -50,7 +50,7 @@ impl SemVersaoAtual {
 #[derive(Clone, PartialEq, Eq)]
 pub(crate) struct FotoDaVersao {
     pub(crate) versao: VersaoDocumento,
-    pub(crate) html: String,
+    pub(crate) html: crate::tela_html::HtmlServido,
 }
 
 impl std::fmt::Debug for FotoDaVersao {
@@ -67,7 +67,7 @@ pub(crate) struct VersoesDoDocumento {
     /// Só com `--saida` e num documento interno.
     pub(crate) foto: Option<FotoDaVersao>,
     /// HTML lido para o cache, mesmo quando a versão é desconhecida.
-    pub(crate) cache_html: Option<String>,
+    pub(crate) cache_html: Option<crate::tela_html::HtmlServido>,
     pub(crate) crc_rodape: Option<String>,
 }
 
@@ -228,7 +228,10 @@ fn ler_versao<V: EnvioDoProcesso>(
 
 /// A foto da versão N, se o HTML servido não traz `infra_hash`
 /// (credencial de sessão nunca vai a arquivo).
-fn fotografar(versao: VersaoDocumento, html: String) -> Result<FotoDaVersao, ErroDocumentoObter> {
+fn fotografar(
+    versao: VersaoDocumento,
+    html: crate::tela_html::HtmlServido,
+) -> Result<FotoDaVersao, ErroDocumentoObter> {
     if html.contains("infra_hash") {
         return Err(ErroDocumentoObter::ConteudoComLinkAssinado);
     }
@@ -256,7 +259,7 @@ fn ler_pagina<V: EnvioDoProcesso>(
     rede: &mut Rede<'_, V>,
     url: &str,
     numero: &str,
-) -> Result<(String, String, String), ErroDocumentoObter> {
+) -> Result<(String, String, crate::tela_html::HtmlServido), ErroDocumentoObter> {
     let html = match rede.get(url).map_err(ErroDocumentoObter::Processo)? {
         Lida::Html { html, .. } => html,
         outra @ (Lida::Redirecionamento(_) | Lida::Login | Lida::Falha(_)) => {

@@ -30,7 +30,7 @@ pub(crate) fn url_do_salto(
     }
     let base = url_anterior
         .strip_prefix("https://")
-        .and_then(|r| r.split('?').next())
+        .map(|r| r.split_once('?').map_or(r, |(antes, _)| antes))
         .ok_or(super::FalhaDepoisDoEnvio::LocalizacaoForaDaFormaObservada)?;
     Ok(format!("https://{base}?{consulta}"))
 }

@@ -3,8 +3,6 @@
 //! 02/11/2026 (PEN1, PEN3, PEN4, Goiás, UnB): `txtBloco`, caixas de seleção
 //! `chk{T}Item*` desmarcadas e, quando há várias páginas, `sel{T}Paginacao*`.
 //! Nada de JavaScript é executado ou interpretado aqui.
-use crate::formulario_web::decodificar_atributo;
-use crate::html_atributos::{ErroAtributoHtml, atributo_presente, valor_do_atributo};
 
 /// Únicos controles de usuário que o POST do paginador repete.
 pub(super) const CAMPOS_USUARIO: &[&str] = &[
@@ -24,35 +22,21 @@ pub(crate) enum ErroControleDoFormulario {
     PaginadorComMaisDeUmaOpcaoSelecionada { campo: String },
     OpcaoSelecionadaDoPaginadorSemValor { campo: String },
     ControleRepetidoNoFormularioDoControle { campo: String },
-    EntidadeHtmlDesconhecidaNoControle { campo: String },
-    AtributoHtml(#[from] ErroAtributoHtml),
-}
-
-fn decodificado(bruto: &str, campo: &str) -> Result<String, ErroControleDoFormulario> {
-    decodificar_atributo(bruto).ok_or_else(|| {
-        ErroControleDoFormulario::EntidadeHtmlDesconhecidaNoControle {
-            campo: campo.to_owned(),
-        }
-    })
 }
 
 /// Valor que o navegador envia para um `<select>` simples: a única opção
 /// marcada `selected`. Nenhuma, várias ou sem `value` são recusas.
 fn opcao_selecionada(
-    select: &tl::HTMLTag<'_>,
-    parser: &tl::Parser<'_>,
+    select: crate::tela_html::Elemento<'_>,
     campo: &str,
 ) -> Result<String, ErroControleDoFormulario> {
     let mut escolhidas = Vec::new();
     for opcao in select
-        .children()
-        .all(parser)
-        .iter()
-        .filter_map(tl::Node::as_tag)
-        .filter(|t| t.name().as_utf8_str().eq_ignore_ascii_case("option"))
+        .descendentes()
+        .filter(|t| t.nome().eq_ignore_ascii_case("option"))
     {
-        if atributo_presente(opcao, "selected")? {
-            escolhidas.push(valor_do_atributo(opcao, "value")?);
+        if opcao.presente("selected") {
+            escolhidas.push(opcao.atributo("value"));
         }
     }
     let campo_owned = || campo.to_owned();
@@ -60,7 +44,7 @@ fn opcao_selecionada(
         [] => Err(ErroControleDoFormulario::PaginadorSemOpcaoSelecionada {
             campo: campo_owned(),
         }),
-        [Some(valor)] => decodificado(valor, campo),
+        [Some(valor)] => Ok((*valor).to_owned()),
         [None] => Err(
             ErroControleDoFormulario::OpcaoSelecionadaDoPaginadorSemValor {
                 campo: campo_owned(),
@@ -79,37 +63,37 @@ fn opcao_selecionada(
 /// caixas desmarcadas não são enviadas; qualquer outro controle recusa.
 /// `permitidos` são os `select` que a operação repete (seus `CAMPOS_USUARIO`).
 pub(crate) fn campos_do_usuario(
-    form: &tl::HTMLTag<'_>,
-    parser: &tl::Parser<'_>,
+    form: crate::tela_html::Elemento<'_>,
     permitidos: &[&str],
 ) -> Result<Vec<(String, String)>, ErroControleDoFormulario> {
     let mut campos: Vec<(String, String)> = Vec::new();
-    for tag in form
-        .children()
-        .all(parser)
-        .iter()
-        .filter_map(tl::Node::as_tag)
-    {
-        let elemento = tag.name().as_utf8_str().to_ascii_lowercase();
+    for tag in form.descendentes() {
+        let elemento = tag.nome().to_ascii_lowercase();
         if !matches!(
             elemento.as_str(),
             "input" | "select" | "textarea" | "button"
-        ) || atributo_presente(tag, "disabled")?
+        ) || tag.presente("disabled")
         {
             continue;
         }
-        let Some(bruto) = valor_do_atributo(tag, "name")?.filter(|n| !n.is_empty()) else {
+        let Some(bruto) = tag
+            .atributo("name")
+            .map(str::to_owned)
+            .filter(|n| !n.is_empty())
+        else {
             continue;
         };
-        let nome = decodificado(&bruto, &bruto)?;
-        let tipo = valor_do_atributo(tag, "type")?
+        let nome = bruto;
+        let tipo = tag
+            .atributo("type")
+            .map(str::to_owned)
             .map_or_else(|| "text".to_owned(), |t| t.to_ascii_lowercase());
         let valor = match (elemento.as_str(), tipo.as_str()) {
             ("input", "hidden" | "submit" | "button" | "reset" | "image") | ("button", _) => {
                 continue;
             }
             ("input", "checkbox" | "radio") => {
-                if atributo_presente(tag, "checked")? {
+                if tag.presente("checked") {
                     return Err(
                         ErroControleDoFormulario::CaixaDeSelecaoMarcadaNoFormularioDoControle {
                             campo: nome,
@@ -119,12 +103,10 @@ pub(crate) fn campos_do_usuario(
                 continue;
             }
             ("input", "text") if nome == "txtBloco" => {
-                decodificado(&valor_do_atributo(tag, "value")?.unwrap_or_default(), &nome)?
+                tag.atributo("value").unwrap_or_default().to_owned()
             }
-            ("select", _)
-                if permitidos.contains(&nome.as_str()) && !atributo_presente(tag, "multiple")? =>
-            {
-                opcao_selecionada(tag, parser, &nome)?
+            ("select", _) if permitidos.contains(&nome.as_str()) && !tag.presente("multiple") => {
+                opcao_selecionada(tag, &nome)?
             }
             _ => {
                 return Err(

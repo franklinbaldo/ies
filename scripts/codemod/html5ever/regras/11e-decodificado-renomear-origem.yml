@@ -1,0 +1,50 @@
+id: 11e-decodificado-renomear-origem
+language: rust
+message: 'let y = decodificar_atributo(&b) com b lido por atributo()/texto(): b passa a se chamar y (o valor já vem decodificado)'
+severity: hint
+rule:
+  all:
+    - kind: identifier
+    - pattern: $B
+    - not:
+        inside:
+          kind: shorthand_field_initializer
+    - inside:
+        stopBy: end
+        kind: block
+        all:
+            - has:
+                any:
+                  - pattern: 'let $Y = decodificar_atributo(&$B);'
+                  - pattern: 'let $Y = crate::formulario_web::decodificar_atributo(&$B);'
+            - has:
+                kind: let_declaration
+                all:
+                  - has:
+                      field: pattern
+                      any:
+                        - pattern: $B
+                        - has:
+                            stopBy: end
+                            pattern: $B
+                  - has:
+                      field: value
+                      stopBy: end
+                      any:
+                        - pattern: $T.atributo($K)
+                        - pattern: $T.texto()
+    - not:
+        pattern: $Y
+    - not:
+        inside:
+          stopBy: end
+          kind: mod_item
+          follows:
+            kind: attribute_item
+            regex: 'cfg\(test\)'
+constraints:
+  B:
+    kind: identifier
+  Y:
+    kind: identifier
+fix: '$Y'

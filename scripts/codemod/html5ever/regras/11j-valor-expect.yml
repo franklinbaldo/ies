@@ -1,0 +1,23 @@
+id: 11j-valor-expect
+language: rust
+message: 'valor_do_atributo(t, k).expect(m)/.unwrap() (acervo e testes de leitura): a tag sempre é legível'
+severity: hint
+rule:
+  all:
+    - any:
+        - pattern: 'valor_do_atributo($T, $K).expect($M)'
+        - pattern: 'crate::html_atributos::valor_do_atributo($T, $K).expect($M)'
+        - pattern: 'valor_do_atributo($T, $K).unwrap()'
+        - pattern: 'crate::html_atributos::valor_do_atributo($T, $K).unwrap()'
+        - pattern: 'valor_decodificado($T, $K).expect($M)'
+        - pattern: 'crate::html_atributos::valor_decodificado($T, $K).expect($M)'
+        - pattern: 'valor_decodificado($T, $K).unwrap()'
+        - pattern: 'crate::html_atributos::valor_decodificado($T, $K).unwrap()'
+    - not:
+        inside:
+          stopBy: end
+          kind: mod_item
+          follows:
+            kind: attribute_item
+            regex: 'cfg\(test\)'
+fix: '$T.atributo($K).map(str::to_owned)'

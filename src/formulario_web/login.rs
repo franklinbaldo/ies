@@ -37,12 +37,11 @@ pub(crate) fn derivar_submissao_de_login(
             FalhaTransporte::OrigemNaoAutorizada,
         ));
     }
-    let dom = tl::parse(tela.html, tl::ParserOptions::default())
-        .map_err(ErroSubmissaoFormulario::HtmlDaTelaNaoInterpretado)?;
+    let dom = crate::tela_html::arvore(tela.html);
     let form = localizar_formulario(&dom, operacao.formulario)?;
     conferir_metodo_e_codificacao(form)?;
     let url = resolver_action_no_host(form, &servida, instalacao)?;
-    let controles = ler_controles(form, dom.parser(), operacao)?;
+    let controles = ler_controles(form, operacao)?;
     let ordenados = ordenar_campos(&controles, operacao, campos)?;
     let corpo = codificar_corpo(&ordenados, tela.codificacao)?;
     Ok(SubmissaoDerivada {

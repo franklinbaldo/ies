@@ -6,6 +6,7 @@ use crate::cassette::acervo::gravacao;
 use crate::cassette::{ZipDoAcervo, conferir_cassette_ate, html_da_resposta};
 use crate::documento::NumeroDocumento;
 use crate::documento_versoes::{HistoricoDocumento, VersaoDocumento, interpretar_historico};
+use crate::tela_html::HtmlServido;
 use iesei::banco_cassettes::{self, ControleResumido, Linha, iniciar};
 use iesei::documento_versoes::{DocumentoSimulado, Revisao, guardar};
 use iesei::observacao::{TabelaObservada, UnidadeExibida};
@@ -171,7 +172,7 @@ fn confrontar_historico_http(
     let resposta = pedir(endereco, "GET", &alvo);
     let (cabecalho, html) = resposta.split_once("\r\n\r\n").unwrap();
     assert!(cabecalho.starts_with("HTTP/1.1 200 OK"), "{cabecalho}");
-    let simulado = interpretar_historico(html, id, Some(original.len()))
+    let simulado = interpretar_historico(&HtmlServido::de_teste(html), id, Some(original.len()))
         .expect("leitor real do IES no histórico HTTP simulado");
     assert_eq!(simulado.atual(), original.atual());
     for n in 1..=original.atual().unwrap().numero() {
@@ -225,7 +226,7 @@ fn cassette_unb_arvore_concluida_retira_link_de_versoes_no_http() {
                 && gravacao::parametro(r.interacao, "id_documento").contains(&id.as_str())
         })
         .expect("conteúdo da mesma identidade");
-    let html_original = html_da_resposta(original.interacao).unwrap();
+    let html_original = HtmlServido::de_teste(&html_da_resposta(original.interacao).unwrap());
     let identidade = crate::documento_web::identidade_do_titulo(&html_original).unwrap();
     let texto = crate::documento_web::texto_do_corpo(&html_original).unwrap();
     let conclusao = respostas
@@ -234,7 +235,7 @@ fn cassette_unb_arvore_concluida_retira_link_de_versoes_no_http() {
         .expect("conclusão registrada")
         .passo;
 
-    let html_historico = html_da_resposta(historico.interacao).unwrap();
+    let html_historico = HtmlServido::de_teste(&html_da_resposta(historico.interacao).unwrap());
     let barras = barras_observadas(respostas, &instalacao, &id, &identidade.numero);
     let antes = barras
         .iter()

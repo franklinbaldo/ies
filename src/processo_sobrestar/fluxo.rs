@@ -12,9 +12,7 @@ use crate::indice_local::IndiceLocal;
 use crate::instalacao::Instalacao;
 use crate::pagina_do_controle::codificacao_da_tela;
 use crate::processo_concluir::FalhaDoEnvio;
-use crate::processo_concluir::escrita::{
-    Contador, FalhaDaTela, leitura, ler_cookie, obter_tela, pela_funcao,
-};
+use crate::processo_concluir::escrita::{Contador, FalhaDaTela, leitura, obter_tela, pela_funcao};
 use crate::processo_obter::{EnvioDoProcesso, ErroProcessoObter, SessaoDoProcesso, obter_processo};
 use crate::transporte::FalhaTransporte;
 use crate::visao_do_controle::EnvioDoControle as _;
@@ -38,14 +36,14 @@ pub(crate) fn executar<V: EnvioDoProcesso>(
         return Err(ErroSobrestamento::MotivoVazio);
     }
     let mut rede = Contador::novo(envio);
-    let (mut previa, endereco) = preparar_com_acao(sessao, nup, unidade, acao, indice, &mut rede)?;
+    let (mut previa, endereco, cookie) =
+        preparar_com_acao(sessao, nup, unidade, acao, indice, &mut rede)?;
     if !confirmar {
         return Ok(previa);
     }
     let instalacao = Instalacao::interpretar(sessao.origem).ok_or(ErroSobrestamento::Abertura(
         ErroProcessoObter::Transporte(FalhaTransporte::OrigemNaoAutorizada),
     ))?;
-    let cookie = ler_cookie(sessao)?;
     let resposta_de_escrita_aceita = match acao {
         Acao::Sobrestar => {
             let (html, mime) =

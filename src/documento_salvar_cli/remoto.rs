@@ -59,7 +59,6 @@ enum ErroSalvarNoSei {
     /// Só a instalação sintética (`sei.test`) tem o editor observado.
     InstalacaoSemEditorObservado,
     LeituraDoDocumento(#[source] ErroDocumentoObter),
-    Cookie(#[source] crate::transporte::FalhaTransporte),
     VersaoAlterada,
     BaseAlterada,
     /// A base não é UTF-8; guarda a causa da conversão.
@@ -87,14 +86,12 @@ fn ler_par(
     let seguinte =
         VersaoDocumento::nova(n.numero() + 1).map_err(ErroSalvarNoSei::ProximaVersaoInvalida)?;
     let ler = |v, ausente| {
-        ler_regular(
+        let bytes = ler_regular(
             &pasta.join(crate::foto_documento::nome(numero.as_str(), v)),
             ausente,
         )
-        .map_err(ErroSalvarNoSei::Local)
-        .and_then(|bytes| {
-            String::from_utf8(bytes).map_err(|erro| ErroSalvarNoSei::BaseNaoUtf8(erro.utf8_error()))
-        })
+        .map_err(ErroSalvarNoSei::Local)?;
+        String::from_utf8(bytes).map_err(|erro| ErroSalvarNoSei::BaseNaoUtf8(erro.utf8_error()))
     };
     Ok((
         ler(n, ErroCopia::BaseVersaoAusente)?,
@@ -112,25 +109,21 @@ enum Resultado {
 /// além da resposta ao único POST. Sem essa prova, o efeito é incerto.
 /// A contagem é informação explícita no editor sintético, não heurística
 /// sobre a presença de blocos de assinatura no HTML da versão.
-fn assinaturas_no_editor(html: &str) -> Option<u32> {
-    let dom = tl::parse(html, tl::ParserOptions::default()).ok()?;
-    let parser = dom.parser();
+fn assinaturas_no_editor(html: &crate::tela_html::HtmlServido) -> Option<u32> {
+    let dom = crate::tela_html::arvore(html);
     let mut contagem = None;
-    for handle in dom.query_selector("output")? {
-        let node = handle.get(parser)?;
-        let tag = node.as_tag()?;
-        let attrs = crate::html_atributos::atributos(tag).ok()?;
-        if attrs.valor("id").ok()? == Some("assinaturasAtuais") {
+    for handle in dom.elementos("output") {
+        if handle.atributo("id") == Some("assinaturasAtuais") {
             if contagem.is_some() {
                 return None;
             }
-            contagem = Some(node.inner_text(parser).parse().ok()?);
+            contagem = Some(handle.texto().parse().ok()?);
         }
     }
     contagem
 }
 
-fn editor_observado(html: &str, versao_base: u32) -> bool {
+fn editor_observado(html: &crate::tela_html::HtmlServido, versao_base: u32) -> bool {
     html.contains(&format!("name='hdnVersao' value='{versao_base}'"))
         && html.contains("name='hdnIgnorarNovaVersao' value='N'")
         && html.contains("name='txaEditor_1'")
@@ -160,7 +153,8 @@ fn verificar_publicacao(envio: &mut EnvioHttps, dados: &ConferenciaPublicacao<'_
         respondeu,
     } = dados;
     let url = format!(
-        "{origem}/controlador.php?acao=documento_visualizar&id_documento={id_documento}&versao={versao_nova}"
+        "{origem}/controlador.php?acao={acao}&id_documento={id_documento}&versao={versao_nova}",
+        acao = AcaoDoSei::DocumentoVisualizar.como_na_url()
     );
     let Ok(html) = envio.get(&url, cookie).and_then(decodificar_resposta) else {
         return Resultado::Incerto;
@@ -265,13 +259,12 @@ fn executar(
         Err(falha) => return Resultado::Recusado(falha),
     };
     let url = format!(
-        "{}/controlador.php?acao=editor_montar&id_documento={}",
-        sessao.origem, lido.id_documento
+        "{}/controlador.php?acao={acao}&id_documento={}",
+        sessao.origem,
+        lido.id_documento,
+        acao = AcaoDoSei::EditorMontar.como_na_url()
     );
-    let cookie = match sessao.cookie.valor() {
-        Ok(cookie) => cookie,
-        Err(falha) => return Resultado::Recusado(ErroSalvarNoSei::Cookie(falha)),
-    };
+    let cookie: &str = &lido.cookie;
     let editor = match envio.get(&url, cookie).and_then(decodificar_resposta) {
         Ok(editor) => editor,
         Err(falha) => return Resultado::Recusado(ErroSalvarNoSei::EditorNaoServido(falha)),
@@ -347,6 +340,9 @@ pub(super) fn confirmar(
         }
     })
 }
+
+#[cfg(test)]
+mod acervo_editor;
 
 #[cfg(test)]
 mod testes_moldura {

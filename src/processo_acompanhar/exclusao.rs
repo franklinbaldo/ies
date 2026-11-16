@@ -8,7 +8,7 @@ use crate::instalacao::Instalacao;
 /// Confere formulário, linha e literal do script observado para o processo.
 pub(super) fn destino_oferecido(
     instalacao: &Instalacao,
-    html: &str,
+    html: &crate::tela_html::HtmlServido,
     id_procedimento: &str,
     id_alvo: &str,
 ) -> Result<String, ErroAcompanhar> {
@@ -16,13 +16,10 @@ pub(super) fn destino_oferecido(
     if !id_alvo.bytes().all(|b| b.is_ascii_digit()) || id_alvo.is_empty() {
         return Err(recusada());
     }
-    let dom = tl::parse(html, tl::ParserOptions::default())
-        .map_err(ErroAcompanhar::HtmlDaTelaDeExclusaoRecusadoPeloParser)?;
-    let parser = dom.parser();
+    let dom = crate::tela_html::arvore(html);
     let form = crate::formulario_web::localizar_formulario(&dom, "frmGerenciarAcompanhamento")
         .map_err(ErroAcompanhar::Formulario)?;
-    let action = campo(form, "action")?.ok_or_else(recusada)?;
-    let action = decodificar_atributo(&action).ok_or_else(recusada)?;
+    let action = campo(form, "action").ok_or_else(recusada)?;
     crate::arvore_processo::conferir_endereco_relativo(
         instalacao,
         &action,
@@ -35,18 +32,16 @@ pub(super) fn destino_oferecido(
     let mut campos = 0;
     let mut links = 0;
     let assinatura = format!("acaoExcluir('{id_alvo}',");
-    for no in form.children().all(parser) {
-        let Some(tag) = no.as_tag() else { continue };
-        if tag.name() == "input"
-            && campo(tag, "name")?.as_deref() == Some("hdnInfraItemId")
-            && campo(tag, "id")?.as_deref() == Some("hdnInfraItemId")
-            && campo(tag, "type")?.as_deref() == Some("hidden")
+    for tag in form.descendentes() {
+        if tag.nome() == "input"
+            && campo(tag, "name").as_deref() == Some("hdnInfraItemId")
+            && campo(tag, "id").as_deref() == Some("hdnInfraItemId")
+            && campo(tag, "type").as_deref() == Some("hidden")
         {
             campos += 1;
         }
-        if tag.name() == "a" {
-            let onclick = campo(tag, "onclick")?.unwrap_or_default();
-            let onclick = decodificar_atributo(&onclick).ok_or_else(recusada)?;
+        if tag.nome() == "a" {
+            let onclick = campo(tag, "onclick").unwrap_or_default();
             if onclick.trim().starts_with(&assinatura) && onclick.trim().ends_with(");") {
                 links += 1;
             }
@@ -60,11 +55,8 @@ pub(super) fn destino_oferecido(
     let gravar = "document.getElementById('hdnInfraItemId').value=id;";
     let enviar = "document.getElementById('frmGerenciarAcompanhamento').submit();";
     let mut destinos = Vec::new();
-    for no in dom.query_selector("script").into_iter().flatten() {
-        let Some(tag) = no.get(parser).and_then(tl::Node::as_tag) else {
-            continue;
-        };
-        let codigo = tag.inner_text(parser).to_string();
+    for no in dom.elementos("script") {
+        let codigo = no.texto();
         if !codigo.contains("function acaoExcluir(") {
             continue;
         }
@@ -76,7 +68,7 @@ pub(super) fn destino_oferecido(
         {
             return Err(recusada());
         }
-        let destino = decodificar_atributo(destino).ok_or_else(recusada)?;
+        let destino = decodificar_atributo(destino);
         crate::arvore_processo::conferir_endereco_relativo(
             instalacao,
             &destino,

@@ -182,6 +182,8 @@ pub(crate) enum ErroAnexo {
     PublicacaoDoCacheFalhou(#[source] crate::cache_documento::FalhaCache),
     /// O corpo de texto não decodifica como UTF-8 no charset declarado.
     CorpoNaoUtf8NoCharsetDeclarado(#[source] std::str::Utf8Error),
+    /// O HTML decodificado não cabe no limite do HTML interpretado.
+    HtmlAcimaDoLimite(#[from] crate::tela_html::HtmlAcimaDoLimite),
 }
 
 impl ErroAnexo {
@@ -206,7 +208,8 @@ impl ErroAnexo {
             | Self::EscritaFalhou
             | Self::GravacaoDoParcialFalhou(_)
             | Self::PublicacaoDoCacheFalhou(_)
-            | Self::CorpoNaoUtf8NoCharsetDeclarado(_) => false,
+            | Self::CorpoNaoUtf8NoCharsetDeclarado(_)
+            | Self::HtmlAcimaDoLimite(_) => false,
         }
     }
 }

@@ -1,0 +1,20 @@
+id: 16e-for-descendentes
+language: rust
+message: 'for sobre children().all(parser) que pula o que não é tag: os elementos descendentes'
+severity: hint
+rule:
+  all:
+    - any:
+        - pattern: 'for $N in $T.children().all($P) { let Some($X) = $N.as_tag() else { continue }; $$$B }'
+        - pattern: 'for $N in $T.children().all($P) { let Some($X) = $N.as_tag() else { continue; }; $$$B }'
+    - not:
+        inside:
+          stopBy: end
+          kind: mod_item
+          follows:
+            kind: attribute_item
+            regex: 'cfg\(test\)'
+fix: |-
+  for $X in $T.descendentes() {
+      $$$B
+  }

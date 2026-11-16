@@ -1,0 +1,21 @@
+id: 40b-tipo-tag-com-tempo
+language: rust
+message: "&'a tl::HTMLTag e &'a tl::Node viram Elemento<'a>"
+severity: hint
+rule:
+  all:
+    - kind: reference_type
+    - has:
+        field: type
+        regex: '^tl::(HTMLTag|Node)<'
+    - has:
+        kind: lifetime
+        pattern: $R
+    - not:
+        inside:
+          stopBy: end
+          kind: mod_item
+          follows:
+            kind: attribute_item
+            regex: 'cfg\(test\)'
+fix: "crate::tela_html::Elemento<$R>"

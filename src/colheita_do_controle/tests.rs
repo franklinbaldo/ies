@@ -4,7 +4,9 @@
 //! válidas e inválidas, e o conteúdo **exato** do índice depois. Hosts,
 //! hashes, ids e números inventados; sem rede.
 use super::*;
+use crate::acao_do_sei::AcaoDoSei;
 use crate::configuracao::ArquivosDeAcesso;
+use crate::tela_html::HtmlServido;
 use std::fmt::Write as _;
 use std::path::PathBuf;
 
@@ -114,7 +116,7 @@ fn pagina_d(linhas: &[(&str, &str, String)]) -> String {
     format!(
         "<html><body>{}<input id='hdnTipoVisualizacao' value='D'>\
          <input id='hdnRecebidosHashCriterios' value='r'><input id='hdnGeradosHashCriterios' value='g'>\
-         <table id='tblProcessosDetalhado'><caption>({n} registros - 1 a {n}):</caption>\
+         <table id='tblProcessosDetalhado'><caption>Processos ({n} registros - 1 a {n}):</caption>\
          <tr><th></th><th>Processo</th><th>Tipo</th></tr>{html}</table></body></html>",
         menu()
     )
@@ -148,19 +150,20 @@ pub(crate) fn geracao() -> String {
 }
 
 fn colher(indice: &IndiceLocal, html: &str, mime: Option<&str>) {
-    Colheita::do_cookie(indice, &instalacao(), COOKIE, &url_controle()).colher(html, mime);
+    Colheita::do_cookie(indice, &instalacao(), COOKIE, &url_controle())
+        .colher(&HtmlServido::de_teste(html), mime);
 }
 
 pub(crate) fn processo(nup: &str, id: &str) -> [String; 3] {
     [ORIGEM.to_owned(), nup.to_owned(), id.to_owned()]
 }
 
-pub(crate) fn link(acao: &str, objeto: &str, url: &str) -> [String; 6] {
+pub(crate) fn link(acao: AcaoDoSei, objeto: &str, url: &str) -> [String; 6] {
     [
         ORIGEM.to_owned(),
         geracao(),
         UNIDADE_ID.to_owned(),
-        acao.to_owned(),
+        acao.como_na_url().to_owned(),
         objeto.to_owned(),
         url.to_owned(),
     ]
@@ -170,12 +173,12 @@ pub(crate) fn link(acao: &str, objeto: &str, url: &str) -> [String; 6] {
 pub(crate) fn links_do_menu() -> [[String; 6]; 2] {
     [
         link(
-            "protocolo_pesquisa_rapida",
+            AcaoDoSei::ProtocoloPesquisaRapida,
             "",
             &format!("{ORIGEM}/{}", action_rapida().replace("&amp;", "&")),
         ),
         link(
-            "protocolo_pesquisar",
+            AcaoDoSei::ProtocoloPesquisar,
             "",
             &format!("{ORIGEM}/{}", href_da_pesquisa().replace("&amp;", "&")),
         ),
@@ -224,16 +227,8 @@ fn visao_r_grava_so_as_linhas_conferidas_e_os_links_do_menu() {
     assert_eq!(
         links,
         [
-            link(
-                AcaoDoSei::ProcedimentoTrabalhar.como_na_url(),
-                "10",
-                &trabalho("10", 'c')
-            ),
-            link(
-                AcaoDoSei::ProcedimentoTrabalhar.como_na_url(),
-                "11",
-                &trabalho("11", 'd')
-            ),
+            link(AcaoDoSei::ProcedimentoTrabalhar, "10", &trabalho("10", 'c')),
+            link(AcaoDoSei::ProcedimentoTrabalhar, "11", &trabalho("11", 'd')),
             rapida,
             pesquisa,
         ]
@@ -262,16 +257,8 @@ fn visao_d_grava_as_linhas_conferidas() {
     assert_eq!(
         links,
         [
-            link(
-                AcaoDoSei::ProcedimentoTrabalhar.como_na_url(),
-                "30",
-                &trabalho("30", 'f')
-            ),
-            link(
-                AcaoDoSei::ProcedimentoTrabalhar.como_na_url(),
-                "33",
-                &trabalho("33", 'f')
-            ),
+            link(AcaoDoSei::ProcedimentoTrabalhar, "30", &trabalho("30", 'f')),
+            link(AcaoDoSei::ProcedimentoTrabalhar, "33", &trabalho("33", 'f')),
             rapida,
             pesquisa,
         ]
@@ -293,11 +280,7 @@ fn id_em_duas_linhas_pula_as_duas() {
     assert_eq!(processos, [processo("NUP-Z", "41")]);
     assert_eq!(
         links[0],
-        link(
-            AcaoDoSei::ProcedimentoTrabalhar.como_na_url(),
-            "41",
-            &trabalho("41", 'c')
-        )
+        link(AcaoDoSei::ProcedimentoTrabalhar, "41", &trabalho("41", 'c'))
     );
     assert_eq!(links.len(), 3);
 }
@@ -335,7 +318,10 @@ fn sem_mime_a_pesquisa_rapida_nao_e_colhida() {
 #[test]
 fn url_do_controle_sem_unidade_nao_grava_nada() {
     let (_pasta, indice) = indice();
-    let html = pagina_r(&[("10", "NUP-A", Some(href_da_linha("10", 'c')))], &[]);
+    let html = HtmlServido::de_teste(&pagina_r(
+        &[("10", "NUP-A", Some(href_da_linha("10", 'c')))],
+        &[],
+    ));
     let url = url_controle().replace("&infra_unidade_atual=110000001", "");
     Colheita::do_cookie(&indice, &instalacao(), COOKIE, &url).colher(&html, Some(MIME));
     assert_eq!(indice.conteudo(), (Vec::new(), Vec::new()));
@@ -355,7 +341,7 @@ fn indice_desligado_e_nenhuma_nao_fazem_nada() {
     let html = pagina_r(&[("10", "NUP-A", Some(href_da_linha("10", 'c')))], &[]);
     let desligado = IndiceLocal::desligado();
     colher(&desligado, &html, Some(MIME));
-    Colheita::nenhuma().colher(&html, Some(MIME));
+    Colheita::nenhuma().colher(&HtmlServido::de_teste(&html), Some(MIME));
     assert!(!desligado.ligado());
 }
 

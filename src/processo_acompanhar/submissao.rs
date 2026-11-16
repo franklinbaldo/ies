@@ -5,7 +5,7 @@ use super::ErroAcompanhar;
 use super::{escolher_grupo, grupos_do_cadastro};
 use crate::acao_do_sei::AcaoDoSei;
 use crate::formulario_web::{
-    ConferenciaDaUnidade, EfeitoAvaliado, EnvioDoFormulario, EstadoDoProcesso,
+    CampoDeTexto, ConferenciaDaUnidade, EfeitoAvaliado, EnvioDoFormulario, EstadoDoProcesso,
     OperacaoDeFormulario, ResultadoDoEnvio, SubmissaoDerivada, TelaServida, derivar_submissao,
 };
 use crate::instalacao::Instalacao;
@@ -35,7 +35,7 @@ pub(crate) fn derivar_inclusao(
     id_procedimento: &str,
     unidade: &str,
     grupo: Option<&str>,
-    observacao: &str,
+    observacao: CampoDeTexto<'_>,
 ) -> Result<SubmissaoDerivada, ErroAcompanhar> {
     let grupos = grupos_do_cadastro(tela.html, id_procedimento)?;
     let escolhido = escolher_grupo(&grupos, grupo)?;
@@ -46,7 +46,7 @@ pub(crate) fn derivar_inclusao(
         Some(unidade),
         &[
             ("selGrupoAcompanhamento", &escolhido.valor),
-            ("txaObservacao", observacao),
+            ("txaObservacao", observacao.enviado()),
         ],
     )
     .map_err(ErroAcompanhar::Formulario)

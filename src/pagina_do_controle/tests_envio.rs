@@ -1,6 +1,7 @@
 //! RED/GREEN do envio de `--pagina N`: resposta sintética, no máximo um POST.
 use super::tests::{Tab, Tela, instalacao, pen1, tela, url};
 use super::*;
+use crate::tela_html::HtmlServido;
 use crate::transporte::RespostaWeb;
 use crate::transporte::sessao::CookieDaSessao;
 use Categoria::Recebidos;
@@ -59,12 +60,12 @@ fn obter(
     status: i32,
     devolvida: &str,
     chamadas: &Cell<usize>,
-) -> Result<Option<String>, ErroPaginaDoControle> {
+) -> Result<Option<HtmlServido>, ErroPaginaDoControle> {
     let (_pasta, arquivo) = cookie();
     let (url, html) = (url(), pen1().html());
     obter_pagina_via(
         &instalacao(),
-        &tela(&url, &html),
+        &tela(&url, &HtmlServido::de_teste(&html)),
         "TESTE",
         Recebidos,
         pagina,

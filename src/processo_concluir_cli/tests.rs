@@ -4,6 +4,7 @@ use super::{humano, json_de_sucesso};
 use crate::processo_concluir::{
     DesfechoDaConclusao, FalhaDoEnvio, FormaDaConclusao, ProcessoConcluido,
 };
+use crate::tela_html::HtmlServido;
 use serde_json::json;
 
 fn previa() -> ProcessoConcluido {
@@ -87,11 +88,11 @@ fn saida_tipificada_serializa_direto_sem_value_intermediario() {
 #[test]
 fn falha_do_envio_no_sucesso_nao_vaza_segredo_do_texto_do_sei() {
     let hash = "ab".repeat(32);
-    let html = format!(
+    let html = HtmlServido::de_teste(&format!(
         "<html><textarea id='txaInfraValidacao'>Recusado em \
          https://sei.exemplo.gov.br/sei/controlador.php?acao=x&amp;infra_hash={hash} \
          com PHPSESSID=segredo1</textarea></html>"
-    );
+    ));
     let mensagem = crate::transporte::validacao_da_infra::mensagem_de_validacao_da_infra(&html)
         .expect("a validação da Infra rende texto");
     let feito = concluido(

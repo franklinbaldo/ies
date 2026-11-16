@@ -8,6 +8,7 @@ mod arvore_processo;
 mod bloco;
 mod bloco_cli;
 mod bloco_detalhe;
+mod bloco_estado;
 mod bloco_incluir;
 mod bloco_incluir_cli;
 mod cache_documento;
@@ -53,10 +54,10 @@ mod formulario_web;
 mod foto_documento;
 mod historico;
 mod historico_processo;
-mod html_atributos;
 mod indice_caminho_cli;
 mod indice_local;
 mod instalacao;
+mod legenda;
 mod marcadores_processo;
 mod mime_web;
 mod nivel_de_detalhe;
@@ -115,6 +116,7 @@ mod processo_sobrestar_cli;
 mod propriedades_documento;
 mod propriedades_processo;
 mod relogin_cli;
+mod resposta_ajax;
 mod rodape_do_documento;
 mod saida;
 mod sessao_login;
@@ -122,6 +124,7 @@ mod sessao_login_cli;
 mod setup_cli;
 mod status_cli;
 mod status_web;
+mod tela_html;
 mod tela_login;
 mod transporte;
 mod unidade_atual_cli;
@@ -328,7 +331,7 @@ enum UnidadeAcao {
     Retornos {
         /// Mes AAAA-MM (ausente: mes marcado como hoje pelo SEI)
         #[arg(long, value_name = "AAAA-MM", value_parser = unidade_retornos_web::mes_da_cli)]
-        mes: Option<(u16, u8)>,
+        mes: Option<unidade_retornos::MesAno>,
     },
 }
 

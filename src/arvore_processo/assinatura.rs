@@ -13,8 +13,6 @@ use super::concluir::EnderecoDeEscrita;
 use super::endereco::{EnderecoRecusado, conferir_endereco_relativo_por};
 use super::literais::{Literal, ler_chamada, ler_declaracao};
 use crate::acao_do_sei::AcaoDoSei;
-use crate::formulario_web::decodificar_atributo;
-use crate::html_atributos::atributos;
 use crate::instalacao::Instalacao;
 
 const ONCLICK: &str = "assinarDocumento();";
@@ -42,10 +40,7 @@ pub(crate) struct AssinaturaNaArvore {
 #[derive(Clone, Debug, PartialEq, Eq, thiserror::Error)]
 #[error("{self:?}")]
 pub(crate) enum ErroAssinaturaNaArvore {
-    ParseDaBarraDoDocumentoFalhou(#[source] tl::ParseError),
     BarraDoDocumentoIlegivel(#[source] super::ErroBarraDoDocumento),
-    /// O tokenizador de atributos recusou a tag.
-    Atributo(#[source] crate::html_atributos::ErroAtributoHtml),
     AcoesDeAssinarRepetidasNaBarra,
     AssinaturasDoDocumentoForaDaFormaObservada,
     AssinaturasDoDocumentoRepetidasNaArvore,
@@ -62,23 +57,19 @@ pub(crate) fn ler_assinatura_na_arvore(
         super::ErroBarraDoDocumento::BarrasRepetidasNaArvore => {
             ErroAssinaturaNaArvore::BarrasDoDocumentoRepetidasNaArvore
         }
-        super::ErroBarraDoDocumento::AtributoDeLinkDaBarra(_)
-        | super::ErroBarraDoDocumento::EnderecoDasVersoesDeOutroDocumento
-        | super::ErroBarraDoDocumento::BarraDaCienciaDoDocumentoForaDaForma
+        super::ErroBarraDoDocumento::EnderecoDasVersoesDeOutroDocumento
         | super::ErroBarraDoDocumento::BarraDoDocumentoForaDaFormaObservada
         | super::ErroBarraDoDocumento::BotoesDeCienciaDoDocumentoRepetidos
         | super::ErroBarraDoDocumento::LinkDasVersoesNaoReconhecido
         | super::ErroBarraDoDocumento::LinkDasVersoesRepetidoNaBarra => {
             ErroAssinaturaNaArvore::BarraDoDocumentoForaDaFormaObservada
         }
-        outro @ (super::ErroBarraDoDocumento::ParseDaBarraDoDocumentoFalhou(_)
-        | super::ErroBarraDoDocumento::ParseDaBarraDaCienciaFalhou(_)
-        | super::ErroBarraDoDocumento::LinhaDaBarraDoDocumentoIlegivel(_)) => {
+        outro @ super::ErroBarraDoDocumento::LinhaDaBarraDoDocumentoIlegivel(_) => {
             ErroAssinaturaNaArvore::BarraDoDocumentoIlegivel(outro)
         }
     })?;
     let acoes = match barra {
-        Some(texto) => acoes_de_assinar(&texto)?,
+        Some(texto) => acoes_de_assinar(&texto),
         None => 0,
     };
     if acoes > 1 {
@@ -91,26 +82,16 @@ pub(crate) fn ler_assinatura_na_arvore(
 }
 
 /// Quantas âncoras da barra têm exatamente `onclick="assinarDocumento();"`.
-fn acoes_de_assinar(texto: &str) -> Result<usize, ErroAssinaturaNaArvore> {
-    let fora = || ErroAssinaturaNaArvore::BarraDoDocumentoForaDaFormaObservada;
-    let dom = tl::parse(texto, tl::ParserOptions::default())
-        .map_err(ErroAssinaturaNaArvore::ParseDaBarraDoDocumentoFalhou)?;
-    let parser = dom.parser();
+fn acoes_de_assinar(texto: &crate::tela_html::HtmlServido) -> usize {
+    let dom = crate::tela_html::arvore(texto);
     let mut contagem = 0;
-    for no in dom.query_selector("a").into_iter().flatten() {
-        let Some(tag) = no.get(parser).and_then(tl::Node::as_tag) else {
-            continue;
-        };
-        let lidos = atributos(tag).map_err(ErroAssinaturaNaArvore::Atributo)?;
-        if let Some(bruto) = lidos
-            .valor("onclick")
-            .map_err(ErroAssinaturaNaArvore::Atributo)?
-        {
-            let onclick = decodificar_atributo(bruto).ok_or_else(fora)?;
+    for no in dom.elementos("a") {
+        if let Some(bruto) = no.atributo("onclick") {
+            let onclick = bruto.to_owned();
             contagem += usize::from(onclick == ONCLICK);
         }
     }
-    Ok(contagem)
+    contagem
 }
 
 /// Os assinantes da única caneta do documento; toda linha de caneta precisa

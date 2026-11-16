@@ -4,10 +4,14 @@ use super::*;
 use crate::dominio::IdProcedimento;
 use crate::pesquisa_web::resposta::ler_resposta_html;
 use crate::pesquisa_web::tests_fixtures::resultado;
+use crate::tela_html::HtmlServido;
 
 fn lista(inicio: u64, fim: u64, total: &str) -> (RespostaDaPesquisa, String) {
     let html = resultado("00001", inicio, fim, total);
-    (ler_resposta_html(&html).unwrap(), html)
+    (
+        ler_resposta_html(&HtmlServido::de_teste(&html)).unwrap(),
+        html,
+    )
 }
 
 fn planejar(
@@ -15,7 +19,7 @@ fn planejar(
     resposta: &RespostaDaPesquisa,
     n: u32,
 ) -> Result<Option<PedidoDePaginaDaPesquisa>, ErroPaginacaoDaPesquisa> {
-    planejar_pagina(resposta, Some(html), n)
+    planejar_pagina(resposta, Some(&HtmlServido::de_teste(html)), n)
 }
 
 fn faixa(inicio: u64, fim: u64) -> FaixaDaPesquisa {

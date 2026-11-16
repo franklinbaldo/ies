@@ -10,7 +10,7 @@ use super::{
     codificar_corpo,
 };
 use crate::acao_do_sei::{AcaoAjaxDoSei, AcaoDaSubmissao};
-use crate::consulta_do_controlador::{ConsultaDoControlador, ErroConsultaDoControlador};
+use crate::consulta_do_controlador::ConsultaDoControlador;
 use crate::instalacao::Instalacao;
 use crate::transporte::FalhaTransporte;
 
@@ -91,14 +91,8 @@ fn conferir_consulta_ajax(
     consulta: &str,
     acao_ajax: AcaoAjaxDoSei,
 ) -> Result<(), ErroSubmissaoFormulario> {
-    let consulta = ConsultaDoControlador::ler(consulta).map_err(|erro| match erro {
-        ErroConsultaDoControlador::RecusadaPeloTransporte(falha) => {
-            ErroSubmissaoFormulario::Transporte(falha)
-        }
-        ErroConsultaDoControlador::ParSemIgual => {
-            ErroSubmissaoFormulario::Transporte(FalhaTransporte::UrlInvalida)
-        }
-    })?;
+    let consulta = ConsultaDoControlador::ler(consulta)
+        .map_err(|_| ErroSubmissaoFormulario::Transporte(FalhaTransporte::UrlInvalida))?;
     if consulta
         .unico("acao_ajax")
         .ok()

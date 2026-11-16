@@ -1,8 +1,9 @@
 //! Conferência da entrada antes de gravar, e a URL assinada redigida.
 //! Sem expressões regulares: só comparação de bytes.
 use super::ChaveDoLink;
+use crate::acao_do_sei::AcaoDoSei;
+use crate::consulta_do_controlador::{conferir_chave_de_consulta, conferir_valor_de_consulta};
 use crate::instalacao::Instalacao;
-use crate::transporte::{conferir_chave_de_consulta, conferir_valor_de_consulta};
 use std::fmt;
 
 /// Entrada recusada antes de tocar no banco. Sem dados: nunca carrega a URL,
@@ -140,7 +141,7 @@ pub(super) fn conferir_url(
             return Err(RegistroRecusado::LinkComConsultaNaoCanonica);
         }
         match nome {
-            "acao" if valor == chave.acao.como_na_url() => acoes += 1,
+            "acao" if AcaoDoSei::ler(valor) == Some(chave.acao) => acoes += 1,
             "acao" => return Err(RegistroRecusado::LinkSemAcaoUnicaIgual),
             "infra_hash" if hash_valido(valor) => hashes += 1,
             "infra_hash" => return Err(RegistroRecusado::LinkSemInfraHashUnico),

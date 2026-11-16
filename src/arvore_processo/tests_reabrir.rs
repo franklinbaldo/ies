@@ -3,6 +3,7 @@
 //! `reabrirProcesso()` (sete instalações), a função de três linhas (`UnB`
 //! 4.0.9, PEN1 4.0.12) e a linha `var linkReabrirProcesso` (UFRJ 4.1.5,
 //! PEN2 4.1.5, GO 5.0.3, PEN3 e PEN4 5.0.4). Hosts, hashes e ids inventados.
+use super::concluir::FuncaoForaDaForma;
 use super::reabrir::{
     ErroEnderecoDeReabrir, ErroReabrirNaBarra, FormaDaReabertura, ler_endereco_de_reabrir,
     ler_reabrir_da_barra,
@@ -131,6 +132,19 @@ fn url_de_reabrir_ausente_fora_da_forma_repetida_ou_recusada() {
     // O `confirm` ativo foi observado na `UnB` 4.0.9 (retirada do
     // sobrestamento, live de 10/11/2026): a mesma forma, aceita.
     assert!(ler(&ativo).is_ok());
+    let fora = funcao.replace(
+        "//if (confirm('Confirma reabetura",
+        "//if (window.confirm('Confirma reabetura",
+    );
+    let erro = ler(&fora).unwrap_err();
+    assert_eq!(
+        erro,
+        ErroEnderecoDeReabrir::FuncaoDeReabrirForaDaFormaObservada(FuncaoForaDaForma)
+    );
+    assert_eq!(
+        std::error::Error::source(&erro).and_then(|c| c.downcast_ref::<FuncaoForaDaForma>()),
+        Some(&FuncaoForaDaForma)
+    );
     let por_aspas = variavel.replace(
         &format!("var linkReabrirProcesso = '{}';", link_de_reabrir("10")),
         &format!("var linkReabrirProcesso = \"{}\";", link_de_reabrir("10")),

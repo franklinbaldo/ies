@@ -32,49 +32,34 @@ const CONSULTAR: OperacaoDeFormulario = OperacaoDeFormulario {
 /// O GO serve dois submits com id btnPesquisar, ambos sem name.
 /// O navegador nao transmite botao sem name. A forma sintética mais antiga
 /// serve um submit nomeado: nesse caso, seu par entra no corpo.
-fn envio_da_lupa(html: &str) -> Result<EnvioDoFormulario, FalhaDaLupa> {
-    let dom =
-        tl::parse(html, tl::ParserOptions::default()).map_err(FalhaDaLupa::HtmlNaoInterpretado)?;
+fn envio_da_lupa(html: &crate::tela_html::HtmlServido) -> Result<EnvioDoFormulario, FalhaDaLupa> {
+    let dom = crate::tela_html::arvore(html);
     let form = crate::formulario_web::localizar_formulario(&dom, "frmUnidadeLista")
         .map_err(FalhaDaLupa::FormularioAusente)?;
     let mut nomeados = 0;
     let mut sem_nome = 0;
-    for tag in form
-        .children()
-        .all(dom.parser())
-        .iter()
-        .filter_map(tl::Node::as_tag)
-    {
-        let elemento = tag.name().as_utf8_str();
+    for tag in form.descendentes() {
+        let elemento = tag.nome();
         if elemento != "input" && elemento != "button" {
             continue;
         }
-        let tipo =
-            crate::html_atributos::valor_do_atributo(tag, "type").map_err(FalhaDaLupa::Atributo)?;
+        let tipo = tag.atributo("type");
         let padrao = if elemento == "button" {
             "submit"
         } else {
             "text"
         };
-        if !tipo
-            .as_deref()
-            .unwrap_or(padrao)
-            .eq_ignore_ascii_case("submit")
-        {
+        if !tipo.unwrap_or(padrao).eq_ignore_ascii_case("submit") {
             continue;
         }
-        if crate::html_atributos::atributo_presente(tag, "disabled")
-            .map_err(FalhaDaLupa::Atributo)?
-        {
+        if tag.presente("disabled") {
             continue;
         }
-        let nome =
-            crate::html_atributos::valor_do_atributo(tag, "name").map_err(FalhaDaLupa::Atributo)?;
-        let id =
-            crate::html_atributos::valor_do_atributo(tag, "id").map_err(FalhaDaLupa::Atributo)?;
-        if nome.as_deref() == Some("btnPesquisar") {
+        let nome = tag.atributo("name");
+        let id = tag.atributo("id");
+        if nome == Some("btnPesquisar") {
             nomeados += 1;
-        } else if nome.is_none() && id.as_deref() == Some("btnPesquisar") {
+        } else if nome.is_none() && id == Some("btnPesquisar") {
             sem_nome += 1;
         }
     }
@@ -90,7 +75,7 @@ fn envio_da_lupa(html: &str) -> Result<EnvioDoFormulario, FalhaDaLupa> {
 pub(super) fn consulta(
     instalacao: &Instalacao,
     url: &str,
-    html: &str,
+    html: &crate::tela_html::HtmlServido,
     mime: &str,
     pagina: usize,
 ) -> Result<SubmissaoDerivada, FalhaDaLupa> {
@@ -110,24 +95,14 @@ pub(super) fn consulta(
     // campos de formulário ausentes; a identidade e o paginador da página
     // são conferidos estruturalmente antes de derivar o único POST.
     let lida = super::ler_pagina(html).map_err(FalhaDaLupa::Tela)?;
-    let dom =
-        tl::parse(html, tl::ParserOptions::default()).map_err(FalhaDaLupa::HtmlNaoInterpretado)?;
+    let dom = crate::tela_html::arvore(html);
     let form = crate::formulario_web::localizar_formulario(&dom, "frmUnidadeLista")
         .map_err(FalhaDaLupa::FormularioAusente)?;
     let mut superior = 0;
     let mut inferior = 0;
-    for no in form
-        .query_selector(dom.parser(), "select")
-        .into_iter()
-        .flatten()
-    {
-        let tag = no
-            .get(dom.parser())
-            .and_then(tl::Node::as_tag)
-            .ok_or(FalhaDaLupa::FormularioInesperado)?;
-        let nome =
-            crate::html_atributos::valor_do_atributo(tag, "name").map_err(FalhaDaLupa::Atributo)?;
-        match nome.as_deref() {
+    for no in form.elementos("select") {
+        let nome = no.atributo("name");
+        match nome {
             Some("selInfraPaginacaoSuperior") => superior += 1,
             Some("selInfraPaginacaoInferior") => inferior += 1,
             _ => {}
@@ -195,8 +170,10 @@ mod replay_integral_go {
                 post += 1;
                 atual
             };
-            let html = html_da_resposta(resposta.interacao)
-                .unwrap_or_else(|_| panic!("HTML ilegivel no passo {}", resposta.passo));
+            let html = crate::tela_html::HtmlServido::de_teste(
+                &html_da_resposta(resposta.interacao)
+                    .unwrap_or_else(|_| panic!("HTML ilegivel no passo {}", resposta.passo)),
+            );
             let url = gravacao::url_sem_consulta(&conferida.json, resposta.interacao);
             let mime = gravacao::mime(resposta.interacao);
             consulta(&instalacao, &url, &html, &mime, pagina)

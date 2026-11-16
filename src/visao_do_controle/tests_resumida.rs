@@ -2,6 +2,7 @@
 use super::tests::{EnvioRoteirizado, TelaD, TelaR, cookie, instalacao, tela_atual, tela_nivel};
 use super::*;
 use crate::dominio::Categoria;
+use crate::tela_html::HtmlServido;
 use crate::transporte::sessao::CookieDaSessao;
 
 fn r() -> TelaR {
@@ -17,7 +18,7 @@ fn resumida(
     categoria: Categoria,
     pagina: Option<usize>,
     respostas: Vec<(i32, String)>,
-) -> (Result<String, ErroVisaoDoControle>, Vec<String>) {
+) -> (Result<HtmlServido, ErroVisaoDoControle>, Vec<String>) {
     let (_pasta, arquivo) = cookie();
     let mut envio = EnvioRoteirizado::novo(respostas);
     let resultado = obter_na_visao_resumida(
@@ -244,15 +245,49 @@ fn d_sem_link_do_nivel_de_detalhe_e_recusada_sem_get() {
 }
 
 #[test]
+fn link_do_nivel_com_causa_de_consulta_ou_chave_repetida() {
+    let repetida = d().html().replacen(
+        "acao=procedimento_configurar_detalhe&amp;",
+        "acao=procedimento_configurar_detalhe&amp;acao=procedimento_configurar_detalhe&amp;",
+        1,
+    );
+    let (resultado, _) = colunas(repetida, vec![]);
+    assert_eq!(
+        resultado.unwrap_err(),
+        ErroVisaoDoControle::AcaoDoNivelIlegivel(
+            crate::consulta_do_controlador::ErroAcaoDaUrl::AcaoRepetida
+        )
+    );
+    let outra_acao = d().html().replacen(
+        "acao=procedimento_configurar_detalhe&amp;",
+        "acao=procedimento_excluir&amp;",
+        1,
+    );
+    let (resultado, _) = colunas(outra_acao, vec![]);
+    assert_eq!(
+        resultado.unwrap_err(),
+        ErroVisaoDoControle::LinkDoNivelDeDetalheNaoReconhecido
+    );
+    let par_sem_igual = d().html().replacen(
+        "acao=procedimento_configurar_detalhe&amp;",
+        "lixo&amp;acao=procedimento_configurar_detalhe&amp;",
+        1,
+    );
+    let (resultado, _) = colunas(par_sem_igual, vec![]);
+    assert_eq!(
+        resultado.unwrap_err(),
+        ErroVisaoDoControle::ConsultaDoNivelIlegivel(
+            crate::consulta_do_controlador::ErroConsultaDoControlador::ParSemIgual
+        )
+    );
+}
+
+#[test]
 fn link_do_nivel_de_detalhe_fora_da_forma_observada_e_recusado() {
     for troca in [
         (
             "acaoConfigurarDetalhe('controlador.php?",
             "acaoConfigurarDetalhe('https://outro.gov.br/controlador.php?",
-        ),
-        (
-            "acao=procedimento_configurar_detalhe&amp;",
-            "acao=procedimento_excluir&amp;",
         ),
         ("infra_hash=eeee", "infra_hash=zzzz"),
     ] {

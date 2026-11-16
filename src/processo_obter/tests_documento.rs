@@ -241,7 +241,8 @@ fn propriedades_consulta_apenas_o_cadastro_servido_sem_escrita() {
     // Quando peço --com-propriedades, então faço um único GET adicional,
     // confiro os IDs do formulário e não envio POST de cadastro.
     use crate::arvore_processo::tests_barra_documento::{HASH_VERSOES, barra, com_barra};
-    use crate::propriedades_documento::{Nivel, PropriedadesDocumento};
+    use crate::dominio::NivelDeAcesso;
+    use crate::propriedades_documento::PropriedadesDocumento;
 
     let amb = ambiente();
     let arvore = arvore_com(&src_visualizar(ID_DOC));
@@ -292,7 +293,7 @@ fn propriedades_consulta_apenas_o_cadastro_servido_sem_escrita() {
         PropriedadesDocumento::Lidas(p) => {
             assert_eq!(p.descricao, "Cadastro");
             assert_eq!(p.tipo, "Despacho");
-            assert_eq!(p.nivel_de_acesso, Nivel::Publico);
+            assert_eq!(p.nivel_de_acesso, NivelDeAcesso::Publico);
         }
         outra @ PropriedadesDocumento::NaoPedidas => {
             panic!("cadastro publicado deveria ser lido: {outra:?}")

@@ -52,13 +52,9 @@ pub(crate) struct AndamentosLidos {
 #[derive(Clone, Debug, PartialEq, Eq, thiserror::Error)]
 #[error("{self:?}")]
 pub(crate) enum ErroLinkDoHistorico {
-    /// O tokenizador de atributos recusou a tag.
-    Atributo(#[source] crate::html_atributos::ErroAtributoHtml),
     LinkDoHistoricoAusenteNaArvore,
     EnderecoDoHistoricoDeOutroProcesso,
     EnderecoDoHistoricoNaoReconhecido,
-    /// O tokenizador HTML recusou a árvore onde o link é procurado.
-    HtmlDaArvoreNaoInterpretado(#[source] tl::ParseError),
     LinkDoHistoricoForaDaFormaObservada,
     LinksDoHistoricoRepetidosNaArvore,
 }
@@ -67,8 +63,8 @@ pub(crate) enum ErroLinkDoHistorico {
 #[derive(Clone, Debug, PartialEq, Eq, thiserror::Error)]
 #[error("{self:?}")]
 pub(crate) enum ErroAndamentos {
-    /// O tokenizador de atributos recusou a tag.
-    Atributo(#[source] crate::html_atributos::ErroAtributoHtml),
+    Legenda(#[from] crate::legenda::ErroLegenda),
+    TotalDeclaradoNaoCabeEmU64(#[source] std::num::TryFromIntError),
     /// Título, tabela ou linhas (leitor de `crate::historico`).
     Historico(#[from] ErroHistorico),
     AndamentosAlemDoTotalDeclarado,
@@ -81,8 +77,6 @@ pub(crate) enum ErroAndamentos {
     VisaoDoHistoricoDiferenteDaPedida,
     LegendaDosAndamentosAusente,
     LegendaDosAndamentosForaDaFormaObservada,
-    TabelaDoHistoricoNaoInterpretada(#[source] tl::ParseError),
-    NumeroDeRegistrosIlegivel(#[source] std::num::ParseIntError),
     FormularioDoTipoNaoLocalizado(#[source] crate::formulario_web::ErroSubmissaoFormulario),
 }
 

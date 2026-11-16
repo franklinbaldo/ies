@@ -2,6 +2,7 @@
 //! nomes e a estrutura observados (rádio `D` marcado, órgão `multiple`).
 use super::*;
 use crate::formulario_web::tests::{instalacao, tela_iso, url_servida};
+use crate::tela_html::HtmlServido;
 
 const OPCOES_DE_ORGAO: &str = "<option value='1' selected>A</option>\
     <option value='2'>B</option><option value='3' selected='selected'>C</option>";
@@ -61,7 +62,7 @@ fn derivar(html: &str) -> Result<SubmissaoDerivada, ErroPesquisaProtocolo> {
     let url = url_servida();
     derivar_pesquisa_de_protocolo(
         &instalacao(),
-        &tela_iso(&url, html),
+        &tela_iso(&url, &HtmlServido::de_teste(html)),
         "UNIDADE TESTE",
         "0001",
     )
@@ -175,18 +176,30 @@ fn orgao_sem_selecao_servida_ou_opcao_sem_valor_e_recusado_sem_inventar_orgao() 
         regra(&pagina(&interior(&sem_valor))),
         ErroRegraDoFormularioDePesquisa::OpcaoDeOrgaoSelecionadaSemValorNaTela
     );
+}
+
+#[test]
+fn entidade_desconhecida_no_orgao_fica_literal_como_no_navegador() {
     let entidade = select_de_orgao("<option value='1&desconhecida;' selected>A</option>");
+    let escapada = select_de_orgao("<option value='1&amp;desconhecida;' selected>A</option>");
+    let submissao = derivar(&pagina(&interior(&entidade))).unwrap();
     assert_eq!(
-        regra(&pagina(&interior(&entidade))),
-        ErroRegraDoFormularioDePesquisa::AtributoHtml(
-            crate::html_atributos::ErroAtributoHtml::EntidadeHtmlDesconhecida,
-        )
+        String::from_utf8(submissao.corpo().to_vec()).unwrap(),
+        "hdnInfraTipoPagina=1&sbmPesquisar=Pesquisar&rdoPesquisarEm=P\
+         &selOrgaoPesquisa%5B%5D=1%26desconhecida%3B\
+         &hdnIdUnidade=&hdnIdAssunto=&hdnIdAssinante=&hdnIdContato=\
+         &txtProtocoloPesquisa=0001\
+         &hdnIdUsuarioGerador1=&hdnIdUsuarioGerador2=&hdnIdUsuarioGerador3=&hdnInicio=0"
+    );
+    assert_eq!(
+        derivar(&pagina(&interior(&escapada))).unwrap().corpo(),
+        submissao.corpo()
     );
 }
 
 /// Forma bruta servida nas quatro instalações: `multiple` sem valor antes
-/// de `id`. O defeito do tl 0.7.8 (`id` lido como `d`) foi corrigido pelo
-/// tokenizador `html_atributos`; o `select` continua localizado pelo
+/// de `id`. Regressão do `tl` 0.7.8 (`id` lido como `d`), removido na #676; o
+/// `select` continua localizado pelo
 /// `name`, que é o nome efetivamente serializado no POST.
 #[test]
 fn forma_bruta_observada_do_select_com_multiple_sem_valor_e_lida() {
@@ -202,7 +215,7 @@ fn forma_bruta_observada_do_select_com_multiple_sem_valor_e_lida() {
 #[test]
 fn booleano_antes_de_cada_atributo_preserva_regras_e_corpo() {
     let esperado = derivar(&observado()).unwrap();
-    let html = crate::html_atributos::com_booleano_antes_dos_atributos(&observado());
+    let html = crate::tela_html::teste::com_booleano_antes_dos_atributos(&observado());
     let obtido = derivar(&html).unwrap();
     assert_eq!(obtido.corpo(), esperado.corpo());
     assert_eq!(obtido.url(), esperado.url());
@@ -266,7 +279,7 @@ fn recusas_do_primitivo_continuam_tipadas_na_operacao() {
     assert_eq!(
         derivar_pesquisa_de_protocolo(
             &instalacao(),
-            &tela_iso(&url, &html),
+            &tela_iso(&url, &HtmlServido::de_teste(&html)),
             "OUTRA UNIDADE",
             "0001",
         )
@@ -327,7 +340,12 @@ fn com_campo_do_termo(campo: &str) -> String {
 
 fn derivar_termo(html: &str, termo: &str) -> Result<SubmissaoDerivada, ErroPesquisaProtocolo> {
     let url = url_servida();
-    derivar_pesquisa_de_protocolo(&instalacao(), &tela_iso(&url, html), "UNIDADE TESTE", termo)
+    derivar_pesquisa_de_protocolo(
+        &instalacao(),
+        &tela_iso(&url, &HtmlServido::de_teste(html)),
+        "UNIDADE TESTE",
+        termo,
+    )
 }
 
 fn regra_do_termo(html: &str, termo: &str) -> ErroRegraDoFormularioDePesquisa {
@@ -348,16 +366,16 @@ fn termo_no_limite_do_maxlength_servido_e_enviado() {
 
 #[test]
 fn filtro_de_tipo_exato_e_periodo_usam_mesmo_post() {
-    let html = observado()
+    let html = HtmlServido::de_teste(&observado()
         .replace("<option value='null'>-</option></select>",
                  "<option value='null'>-</option><option value='73'>Administrativo</option></select>")
         .replace("<input type='hidden' id='hdnInicio'",
-                 "<input type='text' id='txtDataInicio' name='txtDataInicio' value=''><input type='text' id='txtDataFim' name='txtDataFim' value=''><input type='hidden' id='hdnInicio'");
+                 "<input type='text' id='txtDataInicio' name='txtDataInicio' value=''><input type='text' id='txtDataFim' name='txtDataFim' value=''><input type='hidden' id='hdnInicio'"));
     let url = url_servida();
     let filtros = FiltrosDaPesquisa {
         tipo: Some("Administrativo"),
-        de: Some("01/01/2026"),
-        ate: Some("31/12/2026"),
+        de: crate::unidade_retornos::DataCivil::ler("01/01/2026"),
+        ate: crate::unidade_retornos::DataCivil::ler("31/12/2026"),
         ..Default::default()
     };
     let envio = derivar_pesquisa_em_filtrada(
@@ -379,10 +397,10 @@ fn filtro_ausente_na_tela_falha_antes_do_post() {
     let _erro = derivar_pesquisa_em_filtrada(
         PesquisarEm::Processos,
         &instalacao(),
-        &tela_iso(&url, &observado()),
+        &tela_iso(&url, &HtmlServido::de_teste(&observado())),
         ("UNIDADE TESTE", "0001"),
         FiltrosDaPesquisa {
-            de: Some("01/01/2026"),
+            de: crate::unidade_retornos::DataCivil::ler("01/01/2026"),
             ..Default::default()
         },
     )
@@ -394,7 +412,7 @@ fn assunto_nao_vira_texto_sem_id_de_autocompletar() {
     let _erro = derivar_pesquisa_em_filtrada(
         PesquisarEm::Processos,
         &instalacao(),
-        &tela_iso(&url, &observado()),
+        &tela_iso(&url, &HtmlServido::de_teste(&observado())),
         ("UNIDADE TESTE", "0001"),
         FiltrosDaPesquisa {
             assunto: Some("023.1"),

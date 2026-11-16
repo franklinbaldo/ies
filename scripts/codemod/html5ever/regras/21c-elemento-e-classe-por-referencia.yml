@@ -1,0 +1,20 @@
+id: 21c-elemento-e-classe-por-referencia
+language: rust
+message: 'Elementos por nome e classe, com o documento já por referência.'
+severity: hint
+rule:
+  all:
+    - any:
+        - pattern: nos_por_elemento_e_classe($D, None, $N, $C).map_err($E)?
+        - pattern: nos_por_elemento_e_classe($D, None, $N, $C)?
+    - not:
+        inside:
+          stopBy: end
+          kind: mod_item
+          follows:
+            kind: attribute_item
+            regex: 'cfg\(test\)'
+constraints:
+  D:
+    regex: '^[^&]'
+fix: '$D.elementos($N).filter(|elemento| elemento.tem_classe($C)).collect::<Vec<_>>()'

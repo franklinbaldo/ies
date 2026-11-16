@@ -4,6 +4,7 @@ use super::super::fluxo;
 use super::{ZipDoAcervo, conferir_cassette_ate, gravacao, html_da_resposta, ler_pagina};
 use crate::acao_do_sei::AcaoDoSei;
 use crate::formulario_web::{RespostaDoPost, SubmissaoDerivada};
+use crate::tela_html::HtmlServido;
 use crate::transporte::{FalhaTransporte, RespostaWeb};
 use std::io::Cursor;
 use std::path::Path;
@@ -62,38 +63,34 @@ impl fluxo::TransporteLupa for TransporteGravado {
 }
 
 fn observar_formulario_da_lupa_unb(html: &str, passo: usize) {
-    let dom = tl::parse(html, tl::ParserOptions::default()).expect("lupa UnB HTML");
+    let servido = HtmlServido::de_teste(html);
+    let dom = crate::tela_html::arvore(&servido);
     let form = crate::formulario_web::localizar_formulario(&dom, "frmUnidadeLista")
         .expect("formulario da lupa UnB");
     let mut submits_nomeados = 0;
     let mut submits_sem_nome = 0;
     let mut controles = 0;
-    for tag in form
-        .children()
-        .all(dom.parser())
-        .iter()
-        .filter_map(tl::Node::as_tag)
-    {
-        let elemento = tag.name().as_utf8_str();
+    for tag in form.descendentes() {
+        let elemento = tag.nome();
         if elemento != "input" && elemento != "button" {
             continue;
         }
         controles += 1;
-        let tipo = crate::html_atributos::valor_do_atributo(tag, "type").expect("tipo UnB");
+        let tipo = tag.atributo("type").map(str::to_owned);
         if tipo
             .as_deref()
             .is_some_and(|tipo| tipo.eq_ignore_ascii_case("submit"))
         {
-            let nome = crate::html_atributos::valor_do_atributo(tag, "name").expect("nome UnB");
-            let id = crate::html_atributos::valor_do_atributo(tag, "id").expect("id UnB");
-            let id_publico = id.as_deref().filter(|x| {
+            let nome = tag.atributo("name").map(str::to_owned);
+            let id = tag.atributo("id");
+            let id_publico = id.filter(|x| {
                 x.len() <= 32 && x.bytes().all(|b| b.is_ascii_alphanumeric() || b == b'_')
             });
             println!(
                 "observacao UnB submit passo {passo}: id={:?}, name_btnPesquisar={}, desabilitado={}",
                 id_publico.unwrap_or("<sem-id-ou-opaco>"),
                 nome.as_deref() == Some("btnPesquisar"),
-                crate::html_atributos::atributo_presente(tag, "disabled").expect("disabled UnB")
+                tag.presente("disabled")
             );
             if nome.as_deref() == Some("btnPesquisar") {
                 submits_nomeados += 1;
@@ -105,7 +102,8 @@ fn observar_formulario_da_lupa_unb(html: &str, passo: usize) {
     println!(
         "observacao UnB formulario passo {passo}: controles={controles}, submits_nomeados={submits_nomeados}, submits_sem_nome={submits_sem_nome}"
     );
-    let lida = ler_pagina(html).unwrap_or_else(|e| panic!("lupa UnB passo {passo}: {e:?}"));
+    let lida = ler_pagina(&HtmlServido::de_teste(html))
+        .unwrap_or_else(|e| panic!("lupa UnB passo {passo}: {e:?}"));
     assert!(lida.paginas >= 1);
     assert!(lida.pagina < lida.paginas);
     assert!(lida.unidades.len() <= lida.total);
@@ -114,6 +112,32 @@ fn observar_formulario_da_lupa_unb(html: &str, passo: usize) {
         lida.paginas,
         lida.unidades.len()
     );
+}
+
+/// Como a lista `UnB` publica o `btnNovo` (observação, sem asserção).
+fn observar_btn_novo_unb(html: &HtmlServido) {
+    let dom = crate::tela_html::arvore(html);
+    for no in dom.com_id("btnNovo") {
+        let tag = no;
+        let href = tag.atributo("href").map(str::to_owned);
+        let onclick = tag.atributo("onclick").map(str::to_owned);
+        println!(
+            "observacao UnB btnNovo: tag={}, href_url={}, onclick_url={}, onclick_location={}, onclick_urls={}, alvo_cadastro={}",
+            tag.nome(),
+            href.as_deref()
+                .is_some_and(|x| x.contains("controlador.php?")),
+            onclick
+                .as_deref()
+                .is_some_and(|x| x.contains("controlador.php?")),
+            onclick.as_deref().is_some_and(|x| x.contains("location")),
+            onclick
+                .as_deref()
+                .map_or(0, |x| x.matches("controlador.php?").count()),
+            onclick
+                .as_deref()
+                .is_some_and(|x| x.contains("acao=grupo_unidade_cadastrar"))
+        );
+    }
 }
 
 #[test]
@@ -163,41 +187,14 @@ fn observacao_dos_links_da_lupa_unb_no_acervo() {
             None
         };
         let Some(proxima) = proxima else { continue };
-        let html = html_da_resposta(resposta.interacao)
-            .unwrap_or_else(|_| panic!("resposta UnB ilegível no passo {}", resposta.passo));
+        let html = html_da_resposta(resposta.interacao).map_or_else(
+            |_| panic!("resposta UnB ilegível no passo {}", resposta.passo),
+            |html| HtmlServido::de_teste(&html),
+        );
         if resposta.operacao == "grupo_unidade_listar" {
-            let dom = tl::parse(&html, tl::ParserOptions::default()).expect("lista UnB analisável");
-            for no in crate::html_atributos::nos_com_id(&dom, "btnNovo")
-                .expect("id do btnNovo sem ambiguidade")
-            {
-                let tag = no
-                    .get(dom.parser())
-                    .and_then(tl::Node::as_tag)
-                    .expect("btnNovo é elemento HTML");
-                let href =
-                    crate::html_atributos::valor_do_atributo(tag, "href").expect("href válido");
-                let onclick = crate::html_atributos::valor_do_atributo(tag, "onclick")
-                    .expect("onclick válido");
-                println!(
-                    "observacao UnB btnNovo: tag={}, href_url={}, onclick_url={}, onclick_location={}, onclick_urls={}, alvo_cadastro={}",
-                    tag.name().as_utf8_str(),
-                    href.as_deref()
-                        .is_some_and(|x| x.contains("controlador.php?")),
-                    onclick
-                        .as_deref()
-                        .is_some_and(|x| x.contains("controlador.php?")),
-                    onclick.as_deref().is_some_and(|x| x.contains("location")),
-                    onclick
-                        .as_deref()
-                        .map_or(0, |x| x.matches("controlador.php?").count()),
-                    onclick
-                        .as_deref()
-                        .is_some_and(|x| x.contains("acao=grupo_unidade_cadastrar"))
-                );
-            }
+            observar_btn_novo_unb(&html);
         }
-        let candidatos =
-            fluxo::candidatos(&html, proxima).expect("controle UnB precisa ser analisável");
+        let candidatos = fluxo::candidatos(&html, proxima);
         let distintos: std::collections::HashSet<_> = candidatos
             .iter()
             .filter(|u| u.contains(&format!("acao={}", proxima.como_na_url())))

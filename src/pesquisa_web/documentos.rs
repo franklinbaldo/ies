@@ -8,7 +8,6 @@
 use super::ErroResultadoPesquisa;
 use super::resposta::FaixaDaPesquisa;
 use crate::dominio::IdProcedimento;
-use crate::html_atributos::ErroAtributoHtml;
 use crate::processo::{NumeroProcesso, NumeroProcessoInvalido};
 
 mod envio;
@@ -65,7 +64,6 @@ pub(crate) enum RespostaDeDocumentos {
 pub(crate) enum ErroDocumentoDaPesquisa {
     /// Recusa da leitura comum do link do processo e da árvore.
     Linha(#[from] ErroResultadoPesquisa),
-    AtributoHtml(#[from] ErroAtributoHtml),
     LinhaDeDocumentoSemIdDocumentoNoLinkDoProcesso,
     LinkDoDocumentoDiferenteDoProcesso,
     NumeroSeiComLinkDiferenteDoDocumento,

@@ -3,8 +3,8 @@
 use super::confirmacao::{ErroConfirmacaoDaCriacao, FotoDaCriacao, postar_e_verificar};
 use super::guarda_script::cadastro_oferece_salvar;
 use super::{
-    ErroCriar, EscolhaDoDocumento, cadastro_redirecionado, conferir_cadastro, conferir_tipo,
-    escolha_do_tipo, filtro_de_todos, tipos_oferecidos,
+    EscolhaDoDocumento, cadastro_redirecionado, conferir_cadastro, conferir_tipo, escolha_do_tipo,
+    filtro_de_todos, tipos_oferecidos,
 };
 use crate::acao_do_sei::AcaoDoSei;
 use crate::arvore_processo::{ErroLinkIncluirDocumento, MotivoAbertoEm};
@@ -17,9 +17,8 @@ use crate::indice_local::IndiceLocal;
 use crate::instalacao::Instalacao;
 use crate::pagina_do_controle::codificacao_da_tela;
 use crate::processo::NumeroProcesso;
-use crate::processo_concluir::escrita::CookieIlegivel;
 use crate::processo_concluir::escrita::{
-    Contador, FalhaDaTela, leitura, ler_cookie, obter_tela, siglas_abertas,
+    Contador, FalhaDaTela, leitura, obter_tela, siglas_abertas,
 };
 use crate::processo_obter::{
     EnvioDoProcesso, ErroProcessoObter, SessaoDoProcesso, abrir_para_escrever, obter_processo,
@@ -81,7 +80,7 @@ pub(crate) struct PedidoCriacao<'a> {
     pub(crate) unidade: Option<&'a str>,
     pub(crate) tipo: &'a str,
     pub(crate) descricao: Option<&'a str>,
-    pub(crate) nivel: Option<&'a str>,
+    pub(crate) nivel: Option<crate::dominio::NivelDeAcesso>,
 }
 
 /// O resultado não permite representar uma confirmação sem número SEI.
@@ -96,7 +95,7 @@ pub(crate) struct ResultadoCriacao {
     pub(crate) tipo: String,
     pub(crate) unidade: String,
     pub(crate) descricao: Option<String>,
-    pub(crate) nivel: Option<String>,
+    pub(crate) nivel: Option<crate::dominio::NivelDeAcesso>,
     pub(crate) requisicoes: u8,
     pub(crate) estado: EstadoCriacao,
 }
@@ -104,8 +103,6 @@ pub(crate) struct ResultadoCriacao {
 #[derive(Debug, PartialEq, Eq, thiserror::Error)]
 #[error("{self:?}")]
 pub(crate) enum ErroDocumentoCriar {
-    /// O cookie privado da sessão não pôde ser lido.
-    Cookie(#[from] CookieIlegivel),
     Abertura(#[from] ErroProcessoObter),
     OrigemNaoAutorizada,
     UnidadeNaoPublicada,
@@ -116,7 +113,8 @@ pub(crate) enum ErroDocumentoCriar {
     TelaTransporte(#[from] FalhaTransporte),
     TelaRedirecionada,
     SessaoEncerrada(#[source] crate::erro_publico::SessaoEncerrada),
-    Tipo(#[from] ErroCriar),
+    ListaDeTipos(#[from] super::ErroListaDeTiposDocumento),
+    Cadastro(#[from] super::cadastro::ErroCadastroDoDocumento),
     Formulario(#[from] ErroSubmissaoFormulario),
     Nivel(#[from] ErroNivelDeConfirmacao),
     SubmissaoNaoComprovada,
@@ -139,12 +137,14 @@ fn erro_da_tela(falha: FalhaDaTela) -> ErroDocumentoCriar {
 /// Pre-condicao independente da sessao: a operacao ainda so resolve nivel publico.
 /// Uma unica regra atende tanto a fronteira CLI quanto o nucleo de escrita.
 pub(crate) fn validar_nivel_de_confirmacao(
-    nivel: Option<&str>,
+    nivel: Option<crate::dominio::NivelDeAcesso>,
 ) -> Result<(), ErroNivelDeConfirmacao> {
     match nivel {
-        Some("publico") => Ok(()),
+        Some(crate::dominio::NivelDeAcesso::Publico) => Ok(()),
         None => Err(ErroNivelDeConfirmacao::NivelNaoInformado),
-        _ => Err(ErroNivelDeConfirmacao::NivelRestritoSemHipotese),
+        Some(crate::dominio::NivelDeAcesso::Restrito | crate::dominio::NivelDeAcesso::Sigiloso) => {
+            Err(ErroNivelDeConfirmacao::NivelRestritoSemHipotese)
+        }
     }
 }
 
@@ -192,7 +192,7 @@ pub(crate) fn executar_criacao<V: EnvioDoProcesso>(
         return Err(ErroDocumentoCriar::ProcessoNaoAbertoNaUnidade);
     }
     let link = acoes.incluir?.ok_or(ErroDocumentoCriar::LinkNaoPublicado)?;
-    let cookie = ler_cookie(sessao)?;
+    let cookie = acoes.cookie.clone();
     let (mut html_lista, mime_lista) =
         obter_tela(&mut rede, &cookie, link.as_str()).map_err(erro_da_tela)?;
     let mut tipos = tipos_oferecidos(&html_lista)?;
@@ -274,21 +274,13 @@ pub(crate) fn executar_criacao<V: EnvioDoProcesso>(
         tipo: pedido.tipo.to_owned(),
         unidade,
         descricao: pedido.descricao.map(str::to_owned),
-        nivel: pedido.nivel.map(str::to_owned),
+        nivel: pedido.nivel,
         requisicoes: rede.feitas(),
         estado: EstadoCriacao::Previa,
     };
     if !confirmar {
         return Ok(previa);
     }
-    // O cadastro restrito exige escolha de hipótese legal. Enquanto a
-    // operação não resolver esse controle, apenas o nível público é seguro.
-    conferir_cadastro(
-        &html_cadastro,
-        pedido.tipo,
-        pedido.descricao,
-        Some("publico"),
-    )?;
     if !cadastro_oferece_salvar(&html_cadastro) {
         return Err(ErroDocumentoCriar::SubmissaoNaoComprovada);
     }
@@ -348,6 +340,10 @@ mod tests;
 #[cfg(test)]
 #[path = "tests_confirmacao.rs"]
 mod tests_confirmacao;
+
+#[cfg(test)]
+#[path = "tests_confirmacao_recusas.rs"]
+mod tests_confirmacao_recusas;
 
 #[cfg(test)]
 #[path = "tests_integracao.rs"]

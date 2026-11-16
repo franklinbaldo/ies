@@ -21,8 +21,6 @@ pub(crate) use resolucao::ler_bloco_por_numero_via;
 #[derive(Debug, thiserror::Error)]
 #[error("{self:?}")]
 pub(crate) enum FalhaLeitura {
-    /// O tokenizador de atributos recusou a tag.
-    Atributo(#[source] crate::html_atributos::ErroAtributoHtml),
     Transporte(#[from] FalhaTransporte),
     Controle(#[from] ErroCaixa),
     Bloco(#[from] ErroBloco),
@@ -32,8 +30,6 @@ pub(crate) enum FalhaLeitura {
     HtmlDeBlocosInvalido,
     IdentidadeDoBlocoAmbigua,
     ListaParcialNaoExcluiColisao,
-    /// O parser HTML recusou a lista de blocos.
-    HtmlDeBlocosRecusadoPeloParser(#[source] tl::ParseError),
 }
 /// Lista ou detalhe de bloco, já tipados.
 pub(crate) enum Leitura {
@@ -145,8 +141,7 @@ pub(crate) fn ler_tipado_via<V: EnvioDoControle>(
             .iter()
             .find(|b| b.numero == numero)
             .ok_or(FalhaLeitura::Bloco(ErroBloco::BlocoNaoEncontradoNaPagina))?
-            .estado
-            .as_str();
+            .estado;
         let detalhe = bloco_detalhe::ler_detalhe(&html, numero, tipo, estado)
             .map_err(crate::bloco_cli::FalhaLeitura::Detalhe)?;
         return Ok(Lido {

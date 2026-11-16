@@ -5,6 +5,7 @@
 use super::super::sobrestar::ler_endereco_de_retomar;
 use super::{url_da_ciencia, url_da_ciencia_do_documento};
 use crate::instalacao::Instalacao;
+use crate::tela_html::HtmlServido;
 
 const TELA: &str = r#"<html><head>
 <script type="text/javascript" charset="iso-8859-1" >
@@ -46,7 +47,7 @@ fn ciencia_do_processo_ignora_a_funcao_do_processo_anexado() {
 
 #[test]
 fn ciencia_do_documento_le_script_em_cdata() {
-    let r = url_da_ciencia_do_documento(&unb(), TELA, "51898", "51897");
+    let r = url_da_ciencia_do_documento(&unb(), &HtmlServido::de_teste(TELA), "51898", "51897");
     assert!(r.is_ok(), "{r:?}");
 }
 
@@ -66,4 +67,47 @@ fn ciencia_do_processo_pela_variavel_do_sei_41_e_50() {
     );
     let r = url_da_ciencia(&unb(), &tela, "51897");
     assert!(r.is_ok(), "{r:?}");
+}
+
+#[test]
+fn recusas_da_ciencia_do_processo_retem_a_causa() {
+    use super::super::concluir::FuncaoForaDaForma;
+    use super::super::endereco::EnderecoRecusado;
+    use super::ErroCienciaNaArvore;
+    use std::error::Error;
+    let fora = TELA.replace(
+        "//if (confirm('Confirma ciência no processo?')){",
+        "//if (window.confirm('Confirma ciência no processo?')){",
+    );
+    let funcao = url_da_ciencia(&unb(), &fora, "51897").unwrap_err();
+    assert_eq!(
+        funcao,
+        ErroCienciaNaArvore::FuncaoDeCienciaForaDaForma(FuncaoForaDaForma)
+    );
+    assert_eq!(
+        funcao
+            .source()
+            .and_then(|c| c.downcast_ref::<FuncaoForaDaForma>()),
+        Some(&FuncaoForaDaForma)
+    );
+    let outro = url_da_ciencia(&unb(), TELA, "51898").unwrap_err();
+    assert_eq!(
+        outro,
+        ErroCienciaNaArvore::EnderecoDaCienciaNaoReconhecido(EnderecoRecusado::DeOutroProcesso)
+    );
+    assert_eq!(
+        outro
+            .source()
+            .and_then(|c| c.downcast_ref::<EnderecoRecusado>()),
+        Some(&EnderecoRecusado::DeOutroProcesso)
+    );
+    let lista = ErroCienciaNaArvore::EnderecoDaListaDeCienciasNaoReconhecido(
+        EnderecoRecusado::NaoReconhecido,
+    );
+    assert_eq!(
+        lista
+            .source()
+            .and_then(|c| c.downcast_ref::<EnderecoRecusado>()),
+        Some(&EnderecoRecusado::NaoReconhecido)
+    );
 }

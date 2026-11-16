@@ -49,6 +49,7 @@ outra vez, confira a Lista de Ciências. Uma ciência por usuário por dia.
 | `ErroCienciaProcesso::CienciaNaoOferecida` | Barra sem ação de ciência |
 | `ErroCienciaProcesso::UnidadeNaoPublicada` | Unidade ausente na abertura |
 | `ErroCienciaNaArvore::Barra(ErroBarraDoProcesso::BarraDoProcessoForaDaFormaObservada)` | Atributos da barra recusados |
+| `ErroCienciaNaArvore::Barra(ErroBarraDoProcesso::BarrasDoProcessoRepetidasNaArvore)` | Mais de uma barra para o nó raiz na árvore |
 | `CienciaRepetidaNaBarra` | Mais de uma ação |
 | `TelaDeCienciaNaoPublicada` | Tela do nó ausente |
 | `FuncaoDeCienciaAusenteNaTela` | Função ausente |
@@ -71,6 +72,7 @@ outra vez, confira a Lista de Ciências. Uma ciência por usuário por dia.
 - `ErroCienciaProcesso::CienciaNaoOferecida`
 - `ErroCienciaProcesso::UnidadeNaoPublicada`
 - `ErroCienciaNaArvore::Barra(ErroBarraDoProcesso::BarraDoProcessoForaDaFormaObservada)`
+- `ErroCienciaNaArvore::Barra(ErroBarraDoProcesso::BarrasDoProcessoRepetidasNaArvore)`
 - `CienciaRepetidaNaBarra`
 - `TelaDeCienciaNaoPublicada`
 - `FuncaoDeCienciaAusenteNaTela`

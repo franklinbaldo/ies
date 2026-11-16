@@ -14,7 +14,7 @@ use std::collections::BTreeSet;
 use std::fs;
 use std::path::Path;
 
-#[derive(Debug, Clone, Copy, PartialEq, Eq, thiserror::Error)]
+#[derive(Debug, Clone, PartialEq, Eq, thiserror::Error)]
 #[error("{self:?}")]
 pub enum ErroCopia {
     /// `--saida DIR` ausente ou não diretório.
@@ -41,7 +41,8 @@ pub enum ErroCopia {
     LeituraDoArquivoFalhou(std::io::ErrorKind),
     EdicaoIgualABase,
     BaseVersaoAusente,
-    NomeVersaoLocalInvalido,
+    /// O nome `DOC.vN.html` não traz uma versão válida (o motivo da leitura).
+    NomeVersaoLocalInvalido(#[source] crate::documento_versoes::ErroVersao),
     VersaoEditadaAusente,
     VersaoLocalRepetida,
 }
@@ -79,8 +80,8 @@ pub(crate) fn versoes_locais(
         else {
             continue;
         };
-        let versao = VersaoDocumento::interpretar(digitos)
-            .map_err(|_| ErroCopia::NomeVersaoLocalInvalido)?;
+        let versao =
+            VersaoDocumento::interpretar(digitos).map_err(ErroCopia::NomeVersaoLocalInvalido)?;
         if !versoes.insert(versao) {
             return Err(ErroCopia::VersaoLocalRepetida);
         }
@@ -243,11 +244,7 @@ fn par(
             _ => maior,
         }
     };
-    let seguinte = base
-        .numero()
-        .checked_add(1)
-        .ok_or(ErroCopia::VersaoEditadaAusente)?;
-    let editada = VersaoDocumento::nova(seguinte).map_err(|_| ErroCopia::VersaoEditadaAusente)?;
+    let editada = base.seguinte().ok_or(ErroCopia::VersaoEditadaAusente)?;
     Ok((base, editada))
 }
 

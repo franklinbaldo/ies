@@ -1,0 +1,25 @@
+id: 20-juntar-comentario-de-duas-linhas
+language: rust
+message: 'Motivo em duas linhas de comentário acima do allow: vira uma linha só, para a regra 21.'
+severity: hint
+rule:
+  kind: line_comment
+  regex: '^//[^/!]'
+  pattern: $C1
+  precedes:
+    kind: line_comment
+    regex: '^//[^/!]'
+    pattern: $C2
+    precedes:
+      pattern: '#[allow(clippy::$L)]'
+transform:
+  P2:
+    replace:
+      source: $C2
+      replace: '^//\s*'
+      by: ''
+fix:
+  template: '$C1 $P2'
+  expandEnd:
+    kind: line_comment
+    regex: '^//[^/!]'

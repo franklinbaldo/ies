@@ -20,6 +20,9 @@ use std::time::Duration;
 #[path = "support/falha.rs"]
 mod falha_cli;
 use falha_cli::falha;
+#[path = "support/falha_por.rs"]
+mod falha_por_cli;
+use falha_por_cli::falha_por;
 
 #[path = "aies_documento_criar_cli/fixture_tls.rs"]
 mod fixture_tls;

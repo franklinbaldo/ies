@@ -4,6 +4,7 @@
 //! hashes inventados.
 use super::tests_colunas::{ler, rotulo, tabela};
 use super::*;
+use crate::tela_html::HtmlServido;
 use serde_json::json;
 
 const HASH: &str = "5555555555555555555555555555555555555555555555555555555555555555";
@@ -138,7 +139,7 @@ fn colheita_da_pagina_d_com_marcadores_continua_dando_o_link() {
         ancora("7", "31", "amarelo", "", "A"),
         ancora("7", "32", "azul", "", "B")
     );
-    let html = tabela(&[rotulo("Marcadores")], &[&celula(&conteudo)]);
+    let html = HtmlServido::de_teste(&tabela(&[rotulo("Marcadores")], &[&celula(&conteudo)]));
     let linhas = linhas_com_link(&html).unwrap();
     assert_eq!(linhas.len(), 1);
     assert_eq!(linhas[0].id, "7");
@@ -147,5 +148,32 @@ fn colheita_da_pagina_d_com_marcadores_continua_dando_o_link() {
             .href
             .as_deref()
             .is_some_and(|h| h.contains("acao=procedimento_trabalhar"))
+    );
+}
+
+#[test]
+fn link_do_marcador_com_par_sem_igual_e_recusado_com_a_causa() {
+    let boa = ancora("7", "31", "azul", "", "M");
+    let com_lixo = boa.replace("&infra_sistema", "&lixo&infra_sistema");
+    assert_eq!(
+        com_marcadores(&com_lixo).map(|_| ()),
+        Err(ErroDetalhada::ConsultaDoMarcadorIlegivel(
+            crate::consulta_do_controlador::ErroConsultaDoControlador::ParSemIgual
+        ))
+    );
+}
+
+#[test]
+fn link_do_marcador_com_acao_repetida_tem_a_causa() {
+    let boa = ancora("7", "31", "azul", "", "M");
+    let repetida = boa.replace(
+        "&infra_sistema",
+        "&acao=andamento_marcador_gerenciar&infra_sistema",
+    );
+    assert_eq!(
+        com_marcadores(&repetida).map(|_| ()),
+        Err(ErroDetalhada::AcaoDoMarcadorDetalhado(
+            crate::consulta_do_controlador::ErroAcaoDaUrl::AcaoRepetida
+        ))
     );
 }

@@ -280,7 +280,7 @@ fn dado_pedido_de_previa_web_quando_sem_sessao_entao_nao_finge_inspecao_local() 
     assert_eq!(saida.stdout, b"");
     let erro = String::from_utf8_lossy(&saida.stderr);
     assert!(
-        erro.starts_with("Error: ArquivoPrivadoAusenteOuInacessivel"),
+        erro.starts_with("Error: UrlDoControleIlegivel(Ausente)"),
         "{erro}"
     );
 }

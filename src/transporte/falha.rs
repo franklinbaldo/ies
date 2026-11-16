@@ -1,5 +1,6 @@
 //! Falhas tipadas do transporte Web: um erro por fato
 //! (docs/erros-tipados.md). Contrato: contracts/cli.md.
+use crate::arquivo_privado::ErroArquivoPrivado;
 
 /// Status de uma recusa HTTP e o texto que o SEI enviou junto, já saneado
 /// (`corpo_de_recusa`).
@@ -23,8 +24,6 @@ impl StatusHttpRecusado {
 #[derive(Clone, Debug, PartialEq, Eq, thiserror::Error)]
 #[error("{self:?}")]
 pub enum FalhaTransporte {
-    ChaveDeConsultaNaoCanonica,
-    SeparadorDeConsultaAmbiguo,
     OrigemNaoAutorizada,
     /// URL assinada inválida: falha da validação do transporte.
     UrlInvalida,
@@ -34,18 +33,14 @@ pub enum FalhaTransporte {
     TipoDeConteudoNaoHtml,
     /// A consulta AJAX não declarou `application/xml` nem `text/xml`.
     TipoDeConteudoNaoXml,
-    /// O arquivo não existe ou não pode ser consultado (o motivo do sistema).
-    ArquivoPrivadoAusenteOuInacessivel(std::io::ErrorKind),
-    #[cfg(unix)]
-    ArquivoPrivadoComPermissoesInseguras,
-    CaminhoDeArquivoNaoEhArquivo,
-    ArquivoPrivadoLinkSimbolico,
-    ArquivoPrivadoVazio,
-    ArquivoPrivadoAcimaDoLimite,
-    /// O arquivo não pôde ser aberto ou lido (o motivo do sistema).
-    ArquivoPrivadoNaoPodeSerLido(std::io::ErrorKind),
-    /// O conteúdo do arquivo não é UTF-8 (só a posição do erro, sem o texto).
-    ArquivoPrivadoNaoUtf8(#[source] std::str::Utf8Error),
+    /// O arquivo da URL assinada do Controle não foi lido.
+    UrlDoControleIlegivel(#[source] ErroArquivoPrivado),
+    /// O arquivo da origem autorizada não foi lido.
+    OrigemIlegivel(#[source] ErroArquivoPrivado),
+    /// O arquivo do cookie da sessão não foi lido.
+    CookieDaSessaoIlegivel(#[source] ErroArquivoPrivado),
+    /// O marcador `.geracao` existe e não foi lido.
+    MarcadorDaSessaoIlegivel(#[source] ErroArquivoPrivado),
     /// O marcador `.geracao` mudou (ou não confere com URL e cookie) nas
     /// duas leituras locais da sessão: outro processo gravou no meio.
     SessaoTrocadaDuranteALeitura,
@@ -75,22 +70,15 @@ impl FalhaTransporte {
             Self::ControleRedirecionadoParaOLogin(_) | Self::PaginaDeLoginRecebidaNoControle => {
                 true
             }
-            #[cfg(unix)]
-            Self::ArquivoPrivadoComPermissoesInseguras => false,
-            Self::ChaveDeConsultaNaoCanonica
-            | Self::SeparadorDeConsultaAmbiguo
-            | Self::OrigemNaoAutorizada
+            Self::OrigemNaoAutorizada
             | Self::UrlInvalida
             | Self::CookieInvalido
             | Self::TipoDeConteudoNaoHtml
             | Self::TipoDeConteudoNaoXml
-            | Self::ArquivoPrivadoAusenteOuInacessivel(_)
-            | Self::CaminhoDeArquivoNaoEhArquivo
-            | Self::ArquivoPrivadoLinkSimbolico
-            | Self::ArquivoPrivadoVazio
-            | Self::ArquivoPrivadoAcimaDoLimite
-            | Self::ArquivoPrivadoNaoPodeSerLido(_)
-            | Self::ArquivoPrivadoNaoUtf8(_)
+            | Self::UrlDoControleIlegivel(_)
+            | Self::OrigemIlegivel(_)
+            | Self::CookieDaSessaoIlegivel(_)
+            | Self::MarcadorDaSessaoIlegivel(_)
             | Self::SessaoTrocadaDuranteALeitura
             | Self::Status(_)
             | Self::BloqueioDeSegurancaDaInstalacao(_)
@@ -109,22 +97,15 @@ impl FalhaTransporte {
             Self::Status(recusa)
             | Self::BloqueioDeSegurancaDaInstalacao(recusa)
             | Self::ControleRedirecionadoParaOLogin(recusa) => Some(recusa),
-            #[cfg(unix)]
-            Self::ArquivoPrivadoComPermissoesInseguras => None,
-            Self::ChaveDeConsultaNaoCanonica
-            | Self::SeparadorDeConsultaAmbiguo
-            | Self::OrigemNaoAutorizada
+            Self::OrigemNaoAutorizada
             | Self::UrlInvalida
             | Self::CookieInvalido
             | Self::TipoDeConteudoNaoHtml
             | Self::TipoDeConteudoNaoXml
-            | Self::ArquivoPrivadoAusenteOuInacessivel(_)
-            | Self::CaminhoDeArquivoNaoEhArquivo
-            | Self::ArquivoPrivadoLinkSimbolico
-            | Self::ArquivoPrivadoVazio
-            | Self::ArquivoPrivadoAcimaDoLimite
-            | Self::ArquivoPrivadoNaoPodeSerLido(_)
-            | Self::ArquivoPrivadoNaoUtf8(_)
+            | Self::UrlDoControleIlegivel(_)
+            | Self::OrigemIlegivel(_)
+            | Self::CookieDaSessaoIlegivel(_)
+            | Self::MarcadorDaSessaoIlegivel(_)
             | Self::SessaoTrocadaDuranteALeitura
             | Self::CorpoNaoDecodificavelNoCharsetDeclarado(_)
             | Self::PaginaDeLoginRecebidaNoControle
@@ -153,22 +134,15 @@ impl FalhaTransporte {
         match self {
             Self::RespostaExcessiva => FatoDaResposta::CorpoAcimaDoLimite,
             Self::PaginaDeLoginRecebidaNoControle => FatoDaResposta::TelaDeLoginNoLugarDaResposta,
-            #[cfg(unix)]
-            Self::ArquivoPrivadoComPermissoesInseguras => FatoDaResposta::NenhumAlemDoTransporte,
-            Self::ChaveDeConsultaNaoCanonica
-            | Self::SeparadorDeConsultaAmbiguo
-            | Self::OrigemNaoAutorizada
+            Self::OrigemNaoAutorizada
             | Self::UrlInvalida
             | Self::CookieInvalido
             | Self::TipoDeConteudoNaoHtml
             | Self::TipoDeConteudoNaoXml
-            | Self::ArquivoPrivadoAusenteOuInacessivel(_)
-            | Self::CaminhoDeArquivoNaoEhArquivo
-            | Self::ArquivoPrivadoLinkSimbolico
-            | Self::ArquivoPrivadoVazio
-            | Self::ArquivoPrivadoAcimaDoLimite
-            | Self::ArquivoPrivadoNaoPodeSerLido(_)
-            | Self::ArquivoPrivadoNaoUtf8(_)
+            | Self::UrlDoControleIlegivel(_)
+            | Self::OrigemIlegivel(_)
+            | Self::CookieDaSessaoIlegivel(_)
+            | Self::MarcadorDaSessaoIlegivel(_)
             | Self::SessaoTrocadaDuranteALeitura
             | Self::Status(_)
             | Self::BloqueioDeSegurancaDaInstalacao(_)

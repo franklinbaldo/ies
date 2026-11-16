@@ -1,0 +1,17 @@
+id: 16c-as-tag-resto
+language: rust
+message: 'filter_map/and_then(tl::Node::as_tag) sobre o que já é elemento some'
+severity: hint
+rule:
+  all:
+    - any:
+        - pattern: '$R.filter_map(tl::Node::as_tag)'
+        - pattern: '$R.and_then(tl::Node::as_tag)'
+    - not:
+        inside:
+          stopBy: end
+          kind: mod_item
+          follows:
+            kind: attribute_item
+            regex: 'cfg\(test\)'
+fix: '$R'

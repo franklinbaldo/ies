@@ -1,0 +1,19 @@
+id: 11i-valor-ok-flatten
+language: rust
+message: 'valor_do_atributo(t, k).ok().flatten(): a tag sempre é legível'
+severity: hint
+rule:
+  all:
+    - any:
+        - pattern: 'valor_do_atributo($T, $K).ok().flatten()'
+        - pattern: 'crate::html_atributos::valor_do_atributo($T, $K).ok().flatten()'
+        - pattern: 'valor_decodificado($T, $K).ok().flatten()'
+        - pattern: 'crate::html_atributos::valor_decodificado($T, $K).ok().flatten()'
+    - not:
+        inside:
+          stopBy: end
+          kind: mod_item
+          follows:
+            kind: attribute_item
+            regex: 'cfg\(test\)'
+fix: '$T.atributo($K).map(str::to_owned)'

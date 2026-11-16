@@ -1,8 +1,9 @@
-//! RED/GREEN do defeito do `tl` 0.7.8 na derivação: um booleano sem valor
+//! Regressão do `tl` 0.7.8 (removido na #676) na derivação: um booleano sem valor
 //! antes de `disabled`, `name`, `type` ou `value` não pode abrir o formulário.
 use super::tests::{OPERACAO, instalacao, tela_iso, url_servida};
 use super::*;
-use crate::html_atributos::{ErroAtributoHtml, com_booleano_antes_dos_atributos};
+use crate::tela_html::HtmlServido;
+use crate::tela_html::teste::com_booleano_antes_dos_atributos;
 
 fn pagina(interior: &str) -> String {
     format!(
@@ -25,7 +26,7 @@ fn derivar(
     derivar_submissao(
         &OPERACAO,
         &instalacao(),
-        &tela_iso(&url, html),
+        &tela_iso(&url, &HtmlServido::de_teste(html)),
         Some("UNIDADE TESTE"),
         campos,
     )
@@ -93,12 +94,11 @@ fn select_com_multiple_antes_do_name_aceita_repeticao() {
 }
 
 #[test]
-fn name_repetido_num_controle_nao_escolhe_um_dos_valores() {
-    let html = pagina("<input type='hidden' name='hdnExtra' NAME='hdnOutro' value='1'>");
+fn name_repetido_num_controle_vale_o_primeiro() {
+    let repetido = pagina("<input type='hidden' name='hdnExtra' NAME='hdnOutro' value='1'>");
+    let unico = pagina("<input type='hidden' name='hdnExtra' value='1'>");
     assert_eq!(
-        derivar(&html, &[]).unwrap_err(),
-        ErroSubmissaoFormulario::AtributoHtml(ErroAtributoHtml::AtributoRepetidoNaTag {
-            atributo: "name"
-        })
+        derivar(&repetido, &[]).unwrap().corpo(),
+        derivar(&unico, &[]).unwrap().corpo()
     );
 }

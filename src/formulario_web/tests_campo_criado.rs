@@ -4,6 +4,7 @@
 use super::tests::{instalacao, tela_iso};
 use super::*;
 use crate::acao_do_sei::AcaoDoSei;
+use crate::tela_html::HtmlServido;
 
 const OPERACAO: OperacaoDeFormulario = OperacaoDeFormulario {
     acao: AcaoDoSei::InfraTrocarUnidade,
@@ -48,7 +49,7 @@ fn derivar(
     campos: &[(&str, &str)],
 ) -> Result<SubmissaoDerivada, ErroSubmissaoFormulario> {
     let url = url();
-    let pagina = html(interior);
+    let pagina = HtmlServido::de_teste(&html(interior));
     derivar_submissao(
         &OPERACAO,
         &instalacao(),

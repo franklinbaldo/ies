@@ -1,0 +1,11 @@
+id: funcao-antiga
+message: 'A leitura privada em transporte.rs, para conferir que modelos/leitura.rs ainda a reproduz.'
+language: rust
+severity: hint
+rule:
+  kind: function_item
+  has:
+    field: name
+    regex: '^arquivo_privado$'
+  inside:
+    kind: source_file

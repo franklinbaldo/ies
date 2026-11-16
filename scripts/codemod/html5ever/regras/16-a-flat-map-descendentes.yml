@@ -1,0 +1,15 @@
+id: 16-a-flat-map-descendentes
+language: rust
+message: 'flat_map(|t| t.children().all(p).iter()).filter_map(as_tag): os descendentes elementos de cada t (Elemento::descendentes, sem fecho)'
+severity: hint
+rule:
+  all:
+    - pattern: '$X.flat_map(|$S| $S.children().all($P).iter()).filter_map(tl::Node::as_tag)'
+    - not:
+        inside:
+          stopBy: end
+          kind: mod_item
+          follows:
+            kind: attribute_item
+            regex: 'cfg\(test\)'
+fix: '$X.flat_map(crate::tela_html::Elemento::descendentes)'

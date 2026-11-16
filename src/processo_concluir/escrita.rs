@@ -59,20 +59,6 @@ pub(crate) fn verificar<V: EnvioDoProcesso>(
     }
 }
 
-/// O cookie do retrato da sessão (#222), lido do arquivo privado e conferido.
-/// O cookie privado da sessão não pôde ser lido, antes de qualquer
-/// requisição. Tipo próprio da etapa: os fluxos o recebem por `From` como
-/// erro `Cookie`, distinto do transporte das telas.
-#[derive(Clone, Debug, PartialEq, Eq, thiserror::Error)]
-#[error("{self:?}")]
-pub(crate) enum CookieIlegivel {
-    Arquivo(#[from] FalhaTransporte),
-}
-
-pub(crate) fn ler_cookie(sessao: &SessaoDoProcesso<'_>) -> Result<String, CookieIlegivel> {
-    Ok(sessao.cookie.valor()?.to_owned())
-}
-
 /// Por que uma tela pedida antes da escrita não foi servida.
 #[derive(Debug, thiserror::Error)]
 #[error("{self:?}")]
@@ -87,7 +73,7 @@ pub(crate) fn obter_tela<V: EnvioDoProcesso>(
     rede: &mut Contador<'_, V>,
     cookie: &str,
     url: &str,
-) -> Result<(String, String), FalhaDaTela> {
+) -> Result<(crate::tela_html::HtmlServido, String), FalhaDaTela> {
     let resposta = rede.get_sem_seguir(url, cookie)?;
     if resposta.resposta.status_code == 302 {
         return Err(FalhaDaTela::Redirecionada);
@@ -174,7 +160,7 @@ impl<V: EnvioDoProcesso> EnvioDoControle for Contador<'_, V> {
         self.feitas.registrar();
         self.envio.get(url, cookie)
     }
-    fn colher_controle(&mut self, html: &str, mime: Option<&str>) {
+    fn colher_controle(&mut self, html: &crate::tela_html::HtmlServido, mime: Option<&str>) {
         self.envio.colher_controle(html, mime);
     }
 }

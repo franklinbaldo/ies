@@ -1,0 +1,18 @@
+id: 11r-valor-is-ok-and-igual
+language: rust
+message: 'valor_do_atributo(t, k).is_ok_and(|v| v.as_deref() == x): a tag sempre é legível; compara o atributo direto'
+severity: hint
+rule:
+  all:
+    - any:
+        - pattern: 'valor_do_atributo($T, $K).is_ok_and(|$V| $V.as_deref() == $X)'
+        - pattern: 'crate::html_atributos::valor_do_atributo($T, $K).is_ok_and(|$V| $V.as_deref() == $X)'
+        - pattern: 'valor_decodificado($T, $K).is_ok_and(|$V| $V.as_deref() == $X)'
+    - not:
+        inside:
+          stopBy: end
+          kind: mod_item
+          follows:
+            kind: attribute_item
+            regex: 'cfg\(test\)'
+fix: '$T.atributo($K) == $X'

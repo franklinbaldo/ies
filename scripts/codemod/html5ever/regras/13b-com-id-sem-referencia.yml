@@ -1,0 +1,19 @@
+id: 13b-com-id-sem-referencia
+language: rust
+message: 'Elementos com id no documento, quando o documento já chega por referência.'
+severity: hint
+rule:
+  any:
+    - pattern: nos_com_id($D, $I).map_err($E)?
+    - pattern: nos_com_id($D, $I)?
+  not:
+    inside:
+      stopBy: end
+      kind: mod_item
+      follows:
+        kind: attribute_item
+        regex: 'cfg\(test\)'
+constraints:
+  D:
+    regex: '^[^&]'
+fix: '$D.com_id($I).collect::<Vec<_>>()'

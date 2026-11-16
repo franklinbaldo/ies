@@ -1,6 +1,7 @@
 //! #245 — cenários sintéticos derivados do cadastro do Todos @323eb01.
 //! O AJAX apenas consulta hipóteses. Nunca cria processo.
 use super::*;
+use crate::acao_do_sei::AcaoDoSei;
 use crate::processo_concluir::tests_apoio::{
     UNIDADE, ambiente, arvore, controle, ok, r302, rodar_com, trabalhar,
 };
@@ -14,7 +15,7 @@ fn arvore_verificadora() -> String {
     arvore(
         &[UNIDADE],
         &[acao_da_barra(&link_das_propriedades(
-            "procedimento_alterar",
+            AcaoDoSei::ProcedimentoAlterar,
             "10",
         ))],
     )
@@ -77,7 +78,7 @@ fn restrito(confirmar: bool) -> PedidoCriar<'static> {
         tipo: TIPO,
         especificacao: "Ensaio restrito",
         interessados: &[],
-        nivel: "restrito",
+        nivel: crate::dominio::NivelDeCriacao::Restrito,
         unidade: None,
         hipotese_legal: None,
         confirmar,
@@ -106,7 +107,7 @@ fn previa_restrita_liga_ajax_publicado_e_nao_cria() {
         )
     });
     let feito = resultado.expect("a unica opcao AJAX deve ser observada");
-    assert_eq!(feito.nivel, "restrito");
+    assert_eq!(feito.nivel, crate::dominio::NivelDeCriacao::Restrito);
     assert!(!feito.confirmado);
     assert_eq!(feito.requisicoes, 4);
     assert_eq!(pedidos.len(), 4);

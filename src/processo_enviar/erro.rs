@@ -2,9 +2,9 @@
 //! (contracts/cli/processo-enviar.md). Um erro por fato.
 use crate::arvore_processo::{ErroEnviarNaBarra, MotivoAbertoEm};
 use crate::formulario_web::ErroSubmissaoFormulario;
-use crate::processo_concluir::escrita::CookieIlegivel;
 use crate::processo_concluir::{FalhaDoEnvio, VerificacaoPorLeitura};
 use crate::processo_obter::ErroProcessoObter;
+use crate::resposta_ajax::ErroXml;
 use crate::transporte::FalhaTransporte;
 
 /// Recusas da tela "Enviar Processo", antes de qualquer POST.
@@ -18,13 +18,10 @@ pub(crate) enum ErroTelaDeEnvio {
     ConsultaDoAutocompletarForaDaFormaObservada,
     CampoNaoPrevistoNaTelaDeEnvio,
     FormularioDeEnvioAusente(#[source] crate::formulario_web::ErroSubmissaoFormulario),
-    TelaDeEnvioNaoInterpretada,
-    ParseDaTelaDeEnvioFalhou(#[source] tl::ParseError),
-    TelaDeEnvioComAtributoIlegivel(#[from] crate::html_atributos::ErroAtributoHtml),
 }
 
 /// Por que a consulta do autocomplete não deu a lista de unidades.
-#[derive(Clone, Debug, PartialEq, Eq, thiserror::Error)]
+#[derive(Clone, Debug, thiserror::Error)]
 #[error("{self:?}")]
 pub(crate) enum FalhaDaConsulta {
     /// Derivação ou cookie: nada saiu.
@@ -33,16 +30,14 @@ pub(crate) enum FalhaDaConsulta {
     Transporte(#[from] FalhaTransporte),
     /// 200 sem `application/xml`/`text/xml` (tela de login, outra página).
     RespostaDoAutocompletarNaoXml,
-    AtributoDoItemIlegivel(#[from] crate::html_atributos::ErroAtributoHtml),
     RespostaDoAutocompletarForaDaFormaObservada,
-    ParseDaRespostaDoAutocompletarFalhou(#[source] tl::ParseError),
+    /// O XML da resposta não foi lido (`ErroXml` leva a causa do `quick-xml`).
+    Xml(#[from] ErroXml),
 }
 
-#[derive(Clone, Debug, PartialEq, Eq, thiserror::Error)]
+#[derive(Clone, Debug, thiserror::Error)]
 #[error("{self:?}")]
 pub(crate) enum ErroEnviar {
-    /// O cookie privado da sessão não pôde ser lido.
-    Cookie(#[from] CookieIlegivel),
     /// A abertura do processo (a de `ies processo NUP`) falhou.
     Abertura(#[from] ErroProcessoObter),
     UnidadeDaSessaoNaoPublicada,

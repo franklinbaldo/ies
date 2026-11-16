@@ -134,7 +134,7 @@ pub(super) fn abrir_trabalho<V: EnvioDoProcesso>(
     contexto: &Contexto<'_>,
     trabalho: &str,
     id: &str,
-    (html, mime): (&str, &str),
+    (html, mime): (&crate::tela_html::HtmlServido, &str),
 ) -> Result<(ArvoreAberta, String), ErroProcessoObter> {
     let tela = match ler_tela_do_processo(&contexto.instalacao, html, id, contexto.unidade_pedida) {
         Ok(tela) => tela,

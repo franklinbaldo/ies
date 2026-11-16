@@ -2,6 +2,7 @@
 //! (04/11/2026): a barra do nó `PROCESSO` com os links assinados e a tela
 //! "Alterar Processo" (`form#frmProcedimentoCadastro`). Hosts, hashes, ids,
 //! nomes, assuntos e datas inventados; nenhum valor servido.
+use crate::acao_do_sei::AcaoDoSei;
 use std::fmt::Write as _;
 
 pub(crate) const HASH_PROPRIEDADES: &str =
@@ -10,9 +11,10 @@ const HASH_OUTRO: &str = "444444444444444444444444444444444444444444444444444444
 const CONTEXTO: &str = "infra_sistema=100000100&infra_unidade_atual=110000001";
 
 /// O link relativo da tela, como a barra o publica (`&` cru).
-pub(crate) fn link_das_propriedades(acao: &str, id: &str) -> String {
+pub(crate) fn link_das_propriedades(acao: AcaoDoSei, id: &str) -> String {
     format!(
-        "controlador.php?acao={acao}&acao_origem=arvore_visualizar&acao_retorno=arvore_visualizar&id_procedimento={id}&arvore=1&{CONTEXTO}&infra_hash={HASH_PROPRIEDADES}"
+        "controlador.php?acao={acao}&acao_origem=arvore_visualizar&acao_retorno=arvore_visualizar&id_procedimento={id}&arvore=1&{CONTEXTO}&infra_hash={HASH_PROPRIEDADES}",
+        acao = acao.como_na_url()
     )
 }
 

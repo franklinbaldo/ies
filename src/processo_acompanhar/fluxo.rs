@@ -7,12 +7,12 @@ use super::{
 };
 use crate::acao_do_sei::AcaoDoSei;
 use crate::formulario_web::{
-    RespostaDoEnvio, SubmissaoDerivada, decodificar_atributo, enviar_submissao_via,
+    CampoDeTexto, RespostaDoEnvio, SubmissaoDerivada, enviar_submissao_via,
 };
 use crate::indice_local::IndiceLocal;
 use crate::instalacao::Instalacao;
 use crate::processo::NumeroProcesso;
-use crate::processo_concluir::escrita::{Contador, leitura, ler_cookie};
+use crate::processo_concluir::escrita::{Contador, leitura};
 use crate::processo_obter::{EnvioDoProcesso, SessaoDoProcesso, abrir_para_escrever};
 use crate::transporte::decodificar_resposta;
 use crate::visao_do_controle::EnvioDoControle as _;
@@ -91,27 +91,20 @@ fn redirecionamento_do_gerenciar(
 /// Apenas `btnAdicionar` da lista pode abrir um cadastro adicional.
 fn adicionar_da_lista(
     instalacao: &Instalacao,
-    html: &str,
+    html: &crate::tela_html::HtmlServido,
     id: &str,
 ) -> Result<String, ErroAcompanhar> {
-    let dom = tl::parse(html, tl::ParserOptions::default())
-        .map_err(ErroAcompanhar::TelaDeAcompanhamentoRecusadaPeloParser)?;
+    let dom = crate::tela_html::arvore(html);
     let mut urls = Vec::new();
-    for no in dom.query_selector("button").into_iter().flatten() {
-        let tag = no
-            .get(dom.parser())
-            .and_then(tl::Node::as_tag)
-            .ok_or(ErroAcompanhar::TelaDeAcompanhamentoInesperada)?;
-        let identificador = crate::html_atributos::valor_do_atributo(tag, "id")
-            .map_err(ErroAcompanhar::Atributo)?;
-        if identificador.as_deref() != Some("btnAdicionar") {
+    for no in dom.elementos("button") {
+        let identificador = no.atributo("id");
+        if identificador != Some("btnAdicionar") {
             continue;
         }
-        let onclick = crate::html_atributos::valor_do_atributo(tag, "onclick")
-            .map_err(ErroAcompanhar::Atributo)?
+        let onclick = no
+            .atributo("onclick")
+            .map(str::to_owned)
             .ok_or(ErroAcompanhar::TelaDeAcompanhamentoInesperada)?;
-        let onclick =
-            decodificar_atributo(&onclick).ok_or(ErroAcompanhar::TelaDeAcompanhamentoInesperada)?;
         let url = onclick
             .strip_prefix("location.href='")
             .and_then(|v| v.strip_suffix("';").or_else(|| v.strip_suffix("'")))
@@ -129,7 +122,7 @@ fn html_da_tela<V: EnvioDoProcesso>(
     rede: &mut Contador<'_, V>,
     cookie: &str,
     url: &str,
-) -> Result<(String, String), ErroAcompanhar> {
+) -> Result<(crate::tela_html::HtmlServido, String), ErroAcompanhar> {
     let resposta = rede.get_sem_seguir(url, cookie)?;
     if resposta.resposta.status_code == 302 {
         return Err(ErroAcompanhar::RedirecionamentoDeAcompanhamentoInesperado);
@@ -165,7 +158,9 @@ fn selecionar_previa(
             unidade: unidade.to_owned(),
             operacao: "deixar",
             grupo: alvo
-                .map_or(pedido.grupo.unwrap_or(""), |a| a.grupo.as_str())
+                .map_or(pedido.grupo.unwrap_or(super::SEM_GRUPO), |a| {
+                    a.grupo.as_str()
+                })
                 .to_owned(),
             observacao: alvo.map_or("", |a| a.observacao.as_str()).to_owned(),
             id_de_remocao: alvo.map(|a| a.id.clone()),
@@ -182,7 +177,7 @@ fn selecionar_previa(
         unidade: unidade.to_owned(),
         operacao: "acompanhar",
         grupo: selecionado.nome.clone(),
-        observacao: pedido.observacao.unwrap_or("").to_owned(),
+        observacao: CampoDeTexto::de(pedido.observacao).enviado().to_owned(),
         id_de_remocao: None,
         estado: EstadoDoAcompanhamento::Previa {
             ja_estava: super::conferir_novo_grupo(antes, &selecionado.nome).is_err(),
@@ -272,7 +267,7 @@ pub(crate) fn previa<V: EnvioDoProcesso>(
     let unidade = aberto.unidade.ok_or(ErroAcompanhar::UnidadeNaoPublicada)?;
     let id = aberto.arvore.processo.id;
     let link = acoes.acompanhar?.ok_or(ErroAcompanhar::LinkNaoPublicado)?;
-    let cookie = ler_cookie(sessao)?;
+    let cookie = acoes.cookie.clone();
     let LeituraDoGerenciador {
         antes,
         url_cadastro,
@@ -307,7 +302,7 @@ pub(crate) fn previa<V: EnvioDoProcesso>(
             &id,
             &unidade,
             pedido.grupo,
-            pedido.observacao.unwrap_or(""),
+            CampoDeTexto::de(pedido.observacao),
         )?;
         if pedido.confirmar {
             submissao = Some(derivada);

@@ -4,6 +4,7 @@
 use super::extrair_retornos;
 use crate::cassette::acervo::gravacao;
 use crate::cassette::{ZipDoAcervo, conferir_cassette_ate, html_da_resposta};
+use crate::tela_html::HtmlServido;
 use std::path::{Path, PathBuf};
 
 const CARDS: [(&str, &str); 7] = [
@@ -26,11 +27,8 @@ fn pasta_do_acervo() -> PathBuf {
 /// Conta somente elementos e nomes de parametros de links gravados.
 /// Nunca publica href, corpo HTML, `infra_hash`, URL assinada ou cookie.
 fn diagnosticar_calendario(html: &str, instalacao: &str, passo: usize) {
-    let Ok(dom) = tl::parse(html, tl::ParserOptions::default()) else {
-        println!("{instalacao}: calendario passo={passo} html_nao_estruturado");
-        return;
-    };
-    let parser = dom.parser();
+    let servido = HtmlServido::de_teste(html);
+    let dom = crate::tela_html::arvore(&servido);
     let mut links = 0usize;
     let mut links_de_mes = 0usize;
     let mut hrefs_mensais = std::collections::HashSet::new();
@@ -41,43 +39,40 @@ fn diagnosticar_calendario(html: &str, instalacao: &str, passo: usize) {
     let mut links_de_dia = 0usize;
     let mut acoes_js = 0usize;
     let mut hoje = 0usize;
-    for no in dom.query_selector("a").into_iter().flatten() {
-        if let Some(tag) = no.get(parser).and_then(tl::Node::as_tag) {
-            links += 1;
-            if let Ok(Some(href)) = crate::html_atributos::valor_do_atributo(tag, "href") {
-                if href.contains("retorno_programado_listar") {
-                    hrefs_operacao += 1;
-                    absolutos_https += usize::from(href.starts_with("https://"));
-                    if let Some(valor) = href.split("infra_hash=").nth(1) {
-                        tamanhos_hash.insert(valor.split('&').next().unwrap_or("").len());
-                    }
-                }
-                if href.contains("data_inicial=") && href.contains("data_final=") {
-                    links_de_mes += 1;
-                    hrefs_mensais.insert(href.clone());
-                    if let Some(data) = href
-                        .split("data_inicial=")
-                        .nth(1)
-                        .and_then(|parte| parte.split('&').next())
-                    {
-                        // Parametro de data isolado, nunca o restante da URL assinada.
-                        datas_mensais.insert(data.to_owned());
-                    }
-                }
-                if href.contains("data_atual=") {
-                    links_de_dia += 1;
+    for tag in dom.elementos("a") {
+        links += 1;
+        if let Some(href) = tag.atributo("href").map(str::to_owned) {
+            if href.contains("retorno_programado_listar") {
+                hrefs_operacao += 1;
+                absolutos_https += usize::from(href.starts_with("https://"));
+                if let Some(valor) = href.split("infra_hash=").nth(1) {
+                    tamanhos_hash.insert(valor.split('&').next().unwrap_or("").len());
                 }
             }
-            if let Ok(Some(acao)) = crate::html_atributos::valor_do_atributo(tag, "onclick")
-                && acao.contains("retorno_programado")
-            {
-                acoes_js += 1;
+            if href.contains("data_inicial=") && href.contains("data_final=") {
+                links_de_mes += 1;
+                hrefs_mensais.insert(href.clone());
+                if let Some(data) = href
+                    .split("data_inicial=")
+                    .nth(1)
+                    .and_then(|parte| parte.split('&').next())
+                {
+                    // Parametro de data isolado, nunca o restante da URL assinada.
+                    datas_mensais.insert(data.to_owned());
+                }
+            }
+            if href.contains("data_atual=") {
+                links_de_dia += 1;
             }
         }
+        if let Some(acao) = tag.atributo("onclick").map(str::to_owned)
+            && acao.contains("retorno_programado")
+        {
+            acoes_js += 1;
+        }
     }
-    for no in dom.query_selector("td").into_iter().flatten() {
-        if let Some(tag) = no.get(parser).and_then(tl::Node::as_tag)
-            && let Ok(Some(classe)) = crate::html_atributos::valor_do_atributo(tag, "class")
+    for tag in dom.elementos("td") {
+        if let Some(classe) = tag.atributo("class").map(str::to_owned)
             && classe.split_whitespace().any(|classe| classe == "diaHoje")
         {
             hoje += 1;
@@ -177,7 +172,7 @@ fn replay_retornos_no_acervo() {
                 println!("{instalacao}: passo {} sem HTML legivel", resposta.passo);
                 continue;
             };
-            match extrair_retornos(&html) {
+            match extrair_retornos(&HtmlServido::de_teste(&html)) {
                 Ok(itens) => {
                     lidos += 1;
                     println!(

@@ -3,13 +3,12 @@
 //! POSTs 6 e 10: `Location` relativo para `procedimento_trabalhar`.
 //! Contrato: docs/arquitetura/0002-submeter-formulario-observado.md.
 use crate::acao_do_sei::AcaoDoSei;
-use crate::consulta_do_controlador::{ConsultaDoControlador, ErroConsultaDoControlador};
+use crate::consulta_do_controlador::ConsultaDoControlador;
 use crate::dominio::IdProcedimento;
 use crate::erro_web::ErroCaixa;
 use crate::formulario_web::Redirecionamento302;
 use crate::instalacao::Instalacao;
 use crate::sessao_login::redirecionamento::{ErroDeOrigem, esquema_http, sufixo_da_mesma_origem};
-use crate::transporte::FalhaTransporte;
 use crate::url_observada::{esquema_e_resto, partes_https, pasta, tem_esquema};
 
 #[derive(Clone, Debug, PartialEq, Eq, thiserror::Error)]
@@ -20,8 +19,8 @@ pub(crate) enum ErroRedirecionamentoDaPesquisa {
     LocalizacaoDoRedirecionamentoNaoEhUrlHttps,
     LocalizacaoDoRedirecionamentoForaDaInstalacao,
     ParametroNaoCanonicoNaLocalizacaoDoRedirecionamento,
-    /// Chave ou valor de consulta recusado pelo transporte.
-    ParametroDeConsultaRecusadoNoRedirecionamento(#[source] FalhaTransporte),
+    /// Um trecho da URL do envio não tem `=`.
+    ParametroNaoCanonicoNaUrlDoEnvio,
     RedirecionamentoParaAcaoDiferenteDeProcedimentoTrabalhar,
     AcaoDeOrigemAusenteNoRedirecionamento,
     AcaoDeOrigemRepetidaNoRedirecionamento,
@@ -107,14 +106,14 @@ pub(crate) enum OrigemDoTrabalho<'a> {
 }
 
 impl OrigemDoTrabalho<'_> {
-    fn acao_de_origem(self) -> Option<&'static str> {
+    fn acao_de_origem(self) -> Option<AcaoDoSei> {
         match self {
-            Self::Pesquisa => Some("protocolo_pesquisar"),
+            Self::Pesquisa => Some(AcaoDoSei::ProtocoloPesquisar),
             Self::PesquisaRapida | Self::PesquisaRapidaDocumento => {
-                Some("protocolo_pesquisa_rapida")
+                Some(AcaoDoSei::ProtocoloPesquisaRapida)
             }
             Self::EntradaPorId { .. } | Self::EntradaPorIdComDocumento { .. } => None,
-            Self::Controle { .. } => Some("procedimento_controlar"),
+            Self::Controle { .. } => Some(AcaoDoSei::ProcedimentoControlar),
         }
     }
     fn chave_do_id(self) -> &'static str {
@@ -133,10 +132,10 @@ impl OrigemDoTrabalho<'_> {
 /// teto dos arquivos privados de URL assinada.
 const LIMITE_DA_LOCALIZACAO: usize = 8_192;
 
-/// Host, caminho e consulta de uma URL `https://` absoluta.
-fn partir_https(url: &str) -> Option<(&str, &str, &str)> {
+/// Host, caminho e consulta (se houver `?`) de uma URL `https://` absoluta.
+fn partir_https(url: &str) -> Option<(&str, &str, Option<&str>)> {
     let partes = partes_https(url)?;
-    Some((partes.host, partes.caminho, partes.consulta.unwrap_or("")))
+    Some((partes.host, partes.caminho, partes.consulta))
 }
 
 /// Resolve como o navegador resolveria, sem normalizar `..`: o caminho
@@ -183,35 +182,27 @@ fn resolver(
 }
 
 /// Parâmetros da consulta do 302: nomes canônicos e sem `;`, cada um com `=`.
-fn parametros(consulta: &str) -> Result<ConsultaDoControlador<'_>, ErroRedirecionamentoDaPesquisa> {
-    ConsultaDoControlador::ler(consulta).map_err(|erro| match erro {
-        ErroConsultaDoControlador::RecusadaPeloTransporte(falha) => {
-            ErroRedirecionamentoDaPesquisa::ParametroDeConsultaRecusadoNoRedirecionamento(falha)
-        }
-        ErroConsultaDoControlador::ParSemIgual => {
-            ErroRedirecionamentoDaPesquisa::ParametroNaoCanonicoNaLocalizacaoDoRedirecionamento
-        }
+fn parametros(
+    consulta: Option<&str>,
+) -> Result<ConsultaDoControlador<'_>, ErroRedirecionamentoDaPesquisa> {
+    ConsultaDoControlador::da_url(consulta).map_err(|_| {
+        ErroRedirecionamentoDaPesquisa::ParametroNaoCanonicoNaLocalizacaoDoRedirecionamento
     })
 }
 
-fn valores<'a>(parametros: &[(&str, &'a str)], nome: &str) -> Vec<&'a str> {
-    parametros
-        .iter()
-        .filter(|(n, _)| *n == nome)
-        .map(|(_, v)| *v)
-        .collect()
-}
-
-fn parametros_do_envio(url_do_envio: &str) -> Vec<(&str, &str)> {
-    let consulta = partir_https(url_do_envio).map_or("", |(_, _, consulta)| consulta);
-    consulta
-        .split('&')
-        .filter_map(|i| i.split_once('='))
-        .collect()
+fn parametros_do_envio(
+    url_do_envio: &str,
+) -> Result<ConsultaDoControlador<'_>, ErroRedirecionamentoDaPesquisa> {
+    let consulta = partir_https(url_do_envio).and_then(|(_, _, consulta)| consulta);
+    ConsultaDoControlador::da_url(consulta)
+        .map_err(|_| ErroRedirecionamentoDaPesquisa::ParametroNaoCanonicoNaUrlDoEnvio)
 }
 
 fn unidade_do_envio(url_do_envio: &str) -> Result<String, ErroRedirecionamentoDaPesquisa> {
-    match valores(&parametros_do_envio(url_do_envio), "infra_unidade_atual").as_slice() {
+    let unidades = parametros_do_envio(url_do_envio)?
+        .valores("infra_unidade_atual")
+        .collect::<Vec<_>>();
+    match unidades.as_slice() {
         [] => Err(ErroRedirecionamentoDaPesquisa::UnidadeAtualAusenteNaUrlDoEnvio),
         [unidade] => Ok((*unidade).to_owned()),
         _ => Err(ErroRedirecionamentoDaPesquisa::UnidadeAtualRepetidaNaUrlDoEnvio),
@@ -225,7 +216,10 @@ fn decimal(valor: &str) -> bool {
 /// O POST observado é o `action` assinado do formulário, que traz
 /// `infra_sistema`; sem ele não há com o que comparar: falha fechada.
 fn sistema_do_envio(url_do_envio: &str) -> Result<String, ErroRedirecionamentoDaPesquisa> {
-    match valores(&parametros_do_envio(url_do_envio), "infra_sistema").as_slice() {
+    let sistemas = parametros_do_envio(url_do_envio)?
+        .valores("infra_sistema")
+        .collect::<Vec<_>>();
+    match sistemas.as_slice() {
         [] => Err(ErroRedirecionamentoDaPesquisa::InfraSistemaAusenteNaUrlDoEnvio),
         [sistema] if decimal(sistema) => Ok((*sistema).to_owned()),
         [_] => Err(ErroRedirecionamentoDaPesquisa::InfraSistemaNaoDecimalNaUrlDoEnvio),
@@ -274,7 +268,7 @@ pub(crate) fn conferir_trabalho(
         return Err(ErroRedirecionamentoDaPesquisa::LocalizacaoDoRedirecionamentoForaDaInstalacao);
     }
     let pares = parametros(consulta)?;
-    if pares.acao() != Ok(AcaoDoSei::ProcedimentoTrabalhar) {
+    if pares.acao() != Ok(AcaoDoSei::ProcedimentoTrabalhar.como_na_url()) {
         return Err(ErroRedirecionamentoDaPesquisa::RedirecionamentoParaAcaoDiferenteDeProcedimentoTrabalhar);
     }
     conferir_acao_de_origem(&pares, &origem)?;
@@ -370,7 +364,7 @@ fn conferir_acao_de_origem(
         ([_, ..], None) => {
             return Err(ErroRedirecionamentoDaPesquisa::AcaoDeOrigemInesperadaNoRedirecionamento);
         }
-        ([observada], Some(esperada)) if *observada == esperada => {}
+        ([observada], Some(esperada)) if AcaoDoSei::ler(observada) == Some(esperada) => {}
         ([_], Some(_)) => {
             return Err(
                 ErroRedirecionamentoDaPesquisa::AcaoDeOrigemDoRedirecionamentoDiferenteDaPesquisa,
@@ -403,7 +397,7 @@ fn conferir_infra_hash(
 pub(crate) fn documento_do_trabalho(
     trabalho: &UrlDeTrabalho,
 ) -> Result<String, ErroRedirecionamentoDaPesquisa> {
-    let consulta = partir_https(trabalho.as_str()).map_or("", |(_, _, consulta)| consulta);
+    let consulta = partir_https(trabalho.as_str()).and_then(|(_, _, consulta)| consulta);
     let pares = parametros(consulta)?;
     match pares.valores("id_documento").collect::<Vec<_>>().as_slice() {
         [] | [""] => Err(ErroRedirecionamentoDaPesquisa::IdDocumentoAusenteNoRedirecionamento),

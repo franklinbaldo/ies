@@ -1,6 +1,5 @@
 //! Identidade e critérios Web do Controle de Processos. Sem rede ou persistência.
 use crate::erro_web::ErroCaixa;
-use crate::html_atributos::{nos_com_id, nos_com_id_em, valor_do_atributo};
 /// Contexto da página HTML: só é usado para conferir a junção.
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub(crate) struct ContextoPagina {
@@ -50,67 +49,50 @@ impl ContextoPagina {
     }
 }
 
-// `id`, `value` e `href` vêm da fonte da tag: o índice de `id` do tl 0.7.8
-// usa a chave corrompida após atributo booleano sem valor.
 fn primeiro_com_id<'d>(
-    dom: &'d tl::VDom<'_>,
+    dom: &'d crate::tela_html::Documento,
     id: &str,
-) -> Result<Option<&'d tl::HTMLTag<'d>>, ErroCaixa> {
-    let parser = dom.parser();
-    Ok(nos_com_id(dom, id)
-        .map_err(ErroCaixa::AtributoDaCaixaIlegivel)?
-        .first()
-        .and_then(|n| n.get(parser))
-        .and_then(tl::Node::as_tag))
+) -> Option<crate::tela_html::Elemento<'d>> {
+    dom.com_id(id).next()
 }
 
-fn unidade_html_original(dom: &tl::VDom<'_>) -> Result<Option<String>, ErroCaixa> {
-    let parser = dom.parser();
-    let Some(link) = primeiro_com_id(dom, "lnkInfraUnidade")? else {
-        return Ok(None);
-    };
-    if link.name() != "a" {
-        return Ok(None);
+fn unidade_html_original(dom: &crate::tela_html::Documento) -> Option<String> {
+    let link = primeiro_com_id(dom, "lnkInfraUnidade")?;
+    if link.nome() != "a" {
+        return None;
     }
-    let texto = link
-        .inner_text(parser)
-        .replace("&nbsp;", " ")
-        .replace("&#160;", " ")
-        .replace('\u{a0}', " ");
+    let texto = link.texto().replace('\u{a0}', " ");
     let unidade = texto.split_whitespace().collect::<Vec<_>>().join(" ");
-    Ok((!unidade.is_empty()).then_some(unidade))
+    (!unidade.is_empty()).then_some(unidade)
 }
 
 /// Verificador leve mantido para testes da identidade, sem uso no caminho de produção.
 #[cfg(test)]
 pub(crate) fn unidade_exibida_no_controle(html: &str) -> Result<String, ErroCaixa> {
-    let dom = tl::parse(html, tl::ParserOptions::default())
-        .map_err(ErroCaixa::HtmlDaCaixaRecusadoPeloParser)?;
+    let servido = crate::tela_html::HtmlServido::de_teste(html);
+    let dom = crate::tela_html::arvore(&servido);
     unidade_html(&dom)?.ok_or(ErroCaixa::IdentificacaoDaUnidadeAusenteNoControle)
 }
 
-fn valor_oculto_original(dom: &tl::VDom<'_>, id: &str) -> Result<Option<String>, ErroCaixa> {
-    let Some(elemento) = primeiro_com_id(dom, id)? else {
-        return Ok(None);
-    };
-    if elemento.name() != "input" {
-        return Ok(None);
+fn valor_oculto_original(dom: &crate::tela_html::Documento, id: &str) -> Option<String> {
+    let elemento = primeiro_com_id(dom, id)?;
+    if elemento.nome() != "input" {
+        return None;
     }
-    let Some(valor) =
-        valor_do_atributo(elemento, "value").map_err(ErroCaixa::AtributoDaCaixaIlegivel)?
-    else {
-        return Ok(None);
-    };
-    Ok((!valor.is_empty()).then_some(valor))
+    let valor = elemento.atributo("value")?;
+    (!valor.is_empty()).then(|| valor.to_owned())
 }
 
-pub(crate) fn contexto_da_pagina(html: &str) -> Result<ContextoPagina, ErroCaixa> {
-    let dom = tl::parse(html, tl::ParserOptions::default())
-        .map_err(ErroCaixa::HtmlDaCaixaRecusadoPeloParser)?;
+pub(crate) fn contexto_da_pagina(
+    html: &crate::tela_html::HtmlServido,
+) -> Result<ContextoPagina, ErroCaixa> {
+    let dom = crate::tela_html::arvore(html);
     contexto_do_dom(&dom)
 }
 
-pub(crate) fn contexto_do_dom(dom: &tl::VDom<'_>) -> Result<ContextoPagina, ErroCaixa> {
+pub(crate) fn contexto_do_dom(
+    dom: &crate::tela_html::Documento,
+) -> Result<ContextoPagina, ErroCaixa> {
     Ok(ContextoPagina {
         unidade: unidade_html(dom)?,
         modo: valor_oculto(dom, "hdnTipoVisualizacao")?,
@@ -121,74 +103,60 @@ pub(crate) fn contexto_do_dom(dom: &tl::VDom<'_>) -> Result<ContextoPagina, Erro
 /// `hdnIdMarcador{id da unidade}` com valor: a visão R mostra só os
 /// processos do marcador escolhido (POST de "Listar processos com o
 /// marcador", nas sete instalações do acervo; vazio em todas as telas GET).
-pub(crate) fn filtro_de_marcador_ativo(html: &str) -> Result<bool, ErroCaixa> {
-    let dom = tl::parse(html, tl::ParserOptions::default())
-        .map_err(ErroCaixa::HtmlDaCaixaRecusadoPeloParser)?;
-    let parser = dom.parser();
-    for no in dom.query_selector("input").into_iter().flatten() {
-        let Some(tag) = no.get(parser).and_then(tl::Node::as_tag) else {
-            continue;
-        };
-        let id = valor_do_atributo(tag, "id").map_err(ErroCaixa::AtributoDaCaixaIlegivel)?;
-        let do_marcador = id.as_deref().and_then(|i| i.strip_prefix("hdnIdMarcador"));
+pub(crate) fn filtro_de_marcador_ativo(html: &crate::tela_html::HtmlServido) -> bool {
+    let dom = crate::tela_html::arvore(html);
+    for no in dom.elementos("input") {
+        let id = no.atributo("id");
+        let do_marcador = id.and_then(|i| i.strip_prefix("hdnIdMarcador"));
         if do_marcador
             .is_some_and(|resto| !resto.is_empty() && resto.bytes().all(|b| b.is_ascii_digit()))
-            && valor_do_atributo(tag, "value")
-                .map_err(ErroCaixa::AtributoDaCaixaIlegivel)?
+            && no
+                .atributo("value")
+                .map(str::to_owned)
                 .is_some_and(|valor| !valor.is_empty())
         {
-            return Ok(true);
+            return true;
         }
     }
-    Ok(false)
+    false
 }
 
 // O primeiro ID nunca comprova unicidade. A única exceção de layout
 // é o par móvel/desktop demonstrado pela cassette UnB e02dbcfde8c4.
-fn id_repetido(dom: &tl::VDom<'_>, id: &str) -> Result<bool, ErroCaixa> {
-    Ok(nos_com_id(dom, id)
-        .map_err(ErroCaixa::AtributoDaCaixaIlegivel)?
-        .len()
-        >= 2)
+fn id_repetido(dom: &crate::tela_html::Documento, id: &str) -> bool {
+    dom.com_id(id).nth(1).is_some()
 }
 
 /// Falha só por tag ilegível (`HtmlInvalido`) ou por identificações
 /// repetidas fora do par móvel/desktop equivalente.
-pub(crate) fn unidade_html(dom: &tl::VDom<'_>) -> Result<Option<String>, ErroCaixa> {
-    if id_repetido(dom, "lnkInfraUnidade")? && !par_de_barras_equivalentes(dom)? {
+pub(crate) fn unidade_html(dom: &crate::tela_html::Documento) -> Result<Option<String>, ErroCaixa> {
+    if id_repetido(dom, "lnkInfraUnidade") && !par_de_barras_equivalentes(dom) {
         return Err(ErroCaixa::IdentificacoesDaUnidadeRepetidasNoControle);
     }
-    unidade_html_original(dom)
+    Ok(unidade_html_original(dom))
 }
 
-fn par_de_barras_equivalentes(dom: &tl::VDom<'_>) -> Result<bool, ErroCaixa> {
-    let parser = dom.parser();
-    if nos_com_id(dom, "lnkInfraUnidade")
-        .map_err(ErroCaixa::AtributoDaCaixaIlegivel)?
-        .len()
-        != 2
-    {
-        return Ok(false);
+fn par_de_barras_equivalentes(dom: &crate::tela_html::Documento) -> bool {
+    if dom.com_id("lnkInfraUnidade").count() != 2 {
+        return false;
     }
     let mut links = Vec::new();
     for id in ["divInfraBarraSistemaMovel", "divInfraBarraSistemaPadrao"] {
-        if id_repetido(dom, id)? {
-            return Ok(false);
+        if id_repetido(dom, id) {
+            return false;
         }
-        let Some(barra) = primeiro_com_id(dom, id)? else {
-            return Ok(false);
+        let Some(barra) = primeiro_com_id(dom, id) else {
+            return false;
         };
-        let mut achados = nos_com_id_em(barra, parser, "lnkInfraUnidade")
-            .map_err(ErroCaixa::AtributoDaCaixaIlegivel)?
-            .into_iter();
+        let mut achados = barra.com_id("lnkInfraUnidade");
         let Some(link) = achados.next() else {
-            return Ok(false);
+            return false;
         };
-        // tl mantém a barra desktop dentro da móvel neste HTML observado;
+        // A barra desktop fica dentro da móvel neste HTML observado;
         // ambas as ocorrências precisam pertencer ao par, sem terceiro link.
         if let Some(outro) = achados.next() {
             if id != "divInfraBarraSistemaMovel" || achados.next().is_some() {
-                return Ok(false);
+                return false;
             }
             if !links.contains(&outro) {
                 links.push(outro);
@@ -199,28 +167,22 @@ fn par_de_barras_equivalentes(dom: &tl::VDom<'_>) -> Result<bool, ErroCaixa> {
         }
     }
     if links.len() != 2 {
-        return Ok(false);
+        return false;
     }
-    let tags: Vec<_> = links
-        .iter()
-        .filter_map(|n| n.get(parser))
-        .filter_map(tl::Node::as_tag)
-        .collect();
-    let [primeira, segunda] = tags.as_slice() else {
-        return Ok(false);
+    let &[primeira, segunda] = links.as_slice() else {
+        return false;
     };
-    if !tags.iter().all(|tag| tag.name() == "a")
-        || primeira.inner_text(parser) != segunda.inner_text(parser)
-    {
-        return Ok(false);
+    if !links.iter().all(|tag| tag.nome() == "a") || primeira.texto() != segunda.texto() {
+        return false;
     }
     // `href` repetido numa das tags não comprova o par: não equivalente.
-    let href = |tag: &tl::HTMLTag<'_>| valor_do_atributo(tag, "href").ok().flatten();
-    Ok(href(primeira).is_some_and(|primeiro| href(segunda).is_some_and(|h| h == primeiro)))
+    primeira
+        .atributo("href")
+        .is_some_and(|primeiro| segunda.atributo("href") == Some(primeiro))
 }
 
-fn valor_oculto(dom: &tl::VDom<'_>, id: &str) -> Result<Option<String>, ErroCaixa> {
-    if id_repetido(dom, id)? {
+fn valor_oculto(dom: &crate::tela_html::Documento, id: &str) -> Result<Option<String>, ErroCaixa> {
+    if id_repetido(dom, id) {
         return Err(match id {
             "hdnTipoVisualizacao" => ErroCaixa::TiposDeVisualizacaoRepetidosNoControle,
             "hdnRecebidosHashCriterios" => ErroCaixa::HashesDeCriteriosRecebidosRepetidosNoControle,
@@ -228,7 +190,7 @@ fn valor_oculto(dom: &tl::VDom<'_>, id: &str) -> Result<Option<String>, ErroCaix
             _ => ErroCaixa::ContextoNaoVerificavel,
         });
     }
-    valor_oculto_original(dom, id)
+    Ok(valor_oculto_original(dom, id))
 }
 
 #[cfg(test)]
@@ -245,7 +207,8 @@ mod tests {
 
     #[test]
     fn diferenca_aponta_o_primeiro_campo_alterado() {
-        let base = contexto_da_pagina(&controle()).unwrap();
+        let base =
+            contexto_da_pagina(&crate::tela_html::HtmlServido::de_teste(&controle())).unwrap();
         assert_eq!(base.diferenca(&base.clone()), None);
         for (de, para, esperada) in [
             ("UNIDADE A", "UNIDADE B", DiferencaDeContexto::Unidade),
@@ -261,20 +224,25 @@ mod tests {
                 DiferencaDeContexto::CriteriosGerados,
             ),
         ] {
-            let outra = contexto_da_pagina(&controle().replace(de, para)).unwrap();
+            let outra = contexto_da_pagina(&crate::tela_html::HtmlServido::de_teste(
+                &controle().replace(de, para),
+            ))
+            .unwrap();
             assert_eq!(base.diferenca(&outra), Some(esperada), "{para}");
         }
     }
 
     #[test]
     fn booleano_antes_do_id_e_do_value_nao_apaga_o_contexto() {
-        let html = crate::html_atributos::com_booleano_antes_dos_atributos(&controle());
-        let contexto = contexto_da_pagina(&html).unwrap();
+        let html = crate::tela_html::teste::com_booleano_antes_dos_atributos(&controle());
+        let contexto = contexto_da_pagina(&crate::tela_html::HtmlServido::de_teste(&html)).unwrap();
         assert_eq!(contexto.unidade.as_deref(), Some("UNIDADE A"));
         assert_eq!(contexto.modo.as_deref(), Some("R"));
         assert_eq!(contexto.criterios_recebidos.as_deref(), Some("recebidos"));
         assert_eq!(contexto.criterios_gerados.as_deref(), Some("gerados"));
-        let repetido = format!("{html}<input disabled id='hdnTipoVisualizacao' value='D'>");
+        let repetido = crate::tela_html::HtmlServido::de_teste(&format!(
+            "{html}<input disabled id='hdnTipoVisualizacao' value='D'>"
+        ));
         assert_eq!(
             contexto_da_pagina(&repetido).unwrap_err(),
             ErroCaixa::TiposDeVisualizacaoRepetidosNoControle
@@ -289,14 +257,17 @@ mod tests {
             Err(ErroCaixa::IdentificacoesDaUnidadeRepetidasNoControle)
         );
         assert_eq!(
-            contexto_da_pagina(&html).unwrap_err(),
+            contexto_da_pagina(&crate::tela_html::HtmlServido::de_teste(&html)).unwrap_err(),
             ErroCaixa::IdentificacoesDaUnidadeRepetidasNoControle
         );
     }
 
     #[test]
     fn tipo_de_visualizacao_repetido_nao_prova_mesma_paginacao() {
-        let html = format!("{}<input id='hdnTipoVisualizacao' value='D'>", controle());
+        let html = crate::tela_html::HtmlServido::de_teste(&format!(
+            "{}<input id='hdnTipoVisualizacao' value='D'>",
+            controle()
+        ));
         assert_eq!(
             contexto_da_pagina(&html).unwrap_err(),
             ErroCaixa::TiposDeVisualizacaoRepetidosNoControle
@@ -315,14 +286,18 @@ mod tests {
                 ErroCaixa::HashesDeCriteriosGeradosRepetidosNoControle,
             ),
         ] {
-            let html = format!("{}<input id='{id}' value='CRITERIO ALTERADO'>", controle());
+            let html = crate::tela_html::HtmlServido::de_teste(&format!(
+                "{}<input id='{id}' value='CRITERIO ALTERADO'>",
+                controle()
+            ));
             assert_eq!(contexto_da_pagina(&html).unwrap_err(), esperado);
         }
     }
 
     #[test]
     fn controle_com_identificadores_unicos_preserva_o_contexto_original() {
-        let ctx = contexto_da_pagina(&controle()).unwrap();
+        let ctx =
+            contexto_da_pagina(&crate::tela_html::HtmlServido::de_teste(&controle())).unwrap();
         assert_eq!(ctx.unidade.as_deref(), Some("UNIDADE A"));
         assert!(ctx.verificavel());
     }

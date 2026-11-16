@@ -1,6 +1,7 @@
 //! Decisão tipada de `ies processo marcar` (#255).
 //! O módulo trabalha apenas com os marcadores que a tela Web efetivamente publicou.
 //! Não executa escrita remota nem presume catálogo ausente na tela.
+use crate::formulario_web::CampoDeTexto;
 use crate::indice_local::IndiceLocal;
 use crate::marcadores_processo::MarcadoresLidos;
 use crate::processo_concluir::escrita::Contador;
@@ -126,6 +127,17 @@ pub(crate) fn validar_texto(texto: &str) -> Result<(), ErroMarcar> {
         return Err(ErroMarcar::TextoDoMarcadorLongo);
     }
     Ok(())
+}
+
+/// A releitura mostra em `tdAndamentoMarcador<n>` o `txaTexto` enviado. A
+/// célula vazia, que o leitor lê como `None`, é o que o SEI publica tanto
+/// para o marcador sem texto quanto para o texto enviado vazio: na tela, os
+/// dois são o mesmo fato.
+pub(crate) fn texto_relido(lido: Option<&str>, enviado: CampoDeTexto<'_>) -> bool {
+    match (lido, enviado.enviado()) {
+        (None, enviado) => enviado.is_empty(),
+        (Some(lido), enviado) => lido == enviado,
+    }
 }
 
 /// `--texto`: o clap recusa o longo (saída 2) antes da sessão.

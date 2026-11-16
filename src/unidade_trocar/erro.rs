@@ -41,6 +41,7 @@ pub(crate) enum FalhaDepoisDoEnvio {
 #[derive(Clone, Debug, PartialEq, Eq, thiserror::Error)]
 #[error("{self:?}")]
 pub(crate) enum ErroTroca {
+    Legenda(#[from] crate::legenda::ErroLegenda),
     /// GET do Controle ou da tela de troca, antes do POST.
     Transporte(#[from] FalhaTransporte),
     ControleNaoReconhecido(#[from] ErroCaixa),
@@ -61,12 +62,9 @@ pub(crate) enum ErroTroca {
         falha: FalhaDepoisDoEnvio,
     },
     LinhaDeUnidadeForaDaFormaObservada,
-    AtributoDaLinhaDeUnidadeIlegivel(#[source] crate::html_atributos::ErroAtributoHtml),
     LinkDeTrocaDeUnidadeAusente,
     LinkDeTrocaDeUnidadeForaDaFormaObservada,
-    AtributoDoLinkDeTrocaIlegivel(#[source] crate::html_atributos::ErroAtributoHtml),
+    /// A consulta do link de troca não tem a forma conferida (`acao`, `infra_hash`).
+    ConsultaDoLinkDeTrocaForaDaForma(#[source] ConsultaForaDaForma),
     TelaDeTrocaDeUnidadeNaoReconhecida,
-    AtributoDaTelaDeTrocaIlegivel(#[source] crate::html_atributos::ErroAtributoHtml),
-    ParseDoLinkDeTrocaFalhou(#[source] tl::ParseError),
-    ParseDaTelaDeTrocaFalhou(#[source] tl::ParseError),
 }

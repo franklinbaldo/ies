@@ -23,13 +23,18 @@ pub(crate) fn ler<R: Read>(corpo: R, mime: &str) -> CorpoLido {
         };
     };
     let texto = decodificar(&bytes, mime);
-    let html = crate::mime_web::e_html(mime);
-    let bloqueio_de_seguranca =
-        html && super::bloqueio_de_seguranca::e_bloqueio_de_seguranca(&texto);
-    let bruto = if html {
-        super::texto_de_recusa::texto_do_html(&texto)
+    let (bruto, bloqueio_de_seguranca) = if crate::mime_web::e_html(mime) {
+        // Até `LIMITE` bytes: o texto cabe no `HtmlServido`; se não
+        // coubesse, seria um corpo sem mensagem legível.
+        match crate::tela_html::HtmlServido::novo(texto) {
+            Ok(html) => (
+                super::texto_de_recusa::texto_do_html(&html),
+                super::bloqueio_de_seguranca::e_bloqueio_de_seguranca(&html),
+            ),
+            Err(crate::tela_html::HtmlAcimaDoLimite) => (None, false),
+        }
     } else {
-        Some(texto)
+        (Some(texto), false)
     };
     CorpoLido {
         mensagem: bruto.and_then(|b| super::saneamento::sanear(&b)),

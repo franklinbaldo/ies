@@ -1,0 +1,19 @@
+id: 13e-com-id-ok
+language: rust
+message: 'nos_com_id(&d, id).ok()? / .ok() / let Ok(x) = … else: os elementos com o id'
+severity: hint
+rule:
+  all:
+    - any:
+        - pattern: 'nos_com_id(&$D, $I).ok()?'
+        - pattern: 'crate::html_atributos::nos_com_id(&$D, $I).ok()?'
+        - pattern: 'nos_com_id($D, $I).ok()?'
+        - pattern: 'crate::html_atributos::nos_com_id($D, $I).ok()?'
+    - not:
+        inside:
+          stopBy: end
+          kind: mod_item
+          follows:
+            kind: attribute_item
+            regex: 'cfg\(test\)'
+fix: '$D.com_id($I).collect::<Vec<_>>()'

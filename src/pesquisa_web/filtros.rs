@@ -1,13 +1,14 @@
 //! Filtros opcionais da pesquisa: somente controles comprovados na tela servida.
 //! Todos é oráculo de nomes, mas cada instalação precisa publicar os controles.
-use crate::html_atributos::valor_decodificado;
+
+use crate::unidade_retornos::DataCivil;
 
 #[derive(Clone, Copy, Debug, Default, PartialEq, Eq)]
 pub(crate) struct FiltrosDaPesquisa<'a> {
     pub(crate) tipo: Option<&'a str>,
     pub(crate) assunto: Option<&'a str>,
-    pub(crate) de: Option<&'a str>,
-    pub(crate) ate: Option<&'a str>,
+    pub(crate) de: Option<DataCivil>,
+    pub(crate) ate: Option<DataCivil>,
 }
 
 /// `--de`/`--ate` DD/MM/AAAA que existe no calendário (parser do clap: saída 2).
@@ -15,16 +16,12 @@ pub(crate) struct FiltrosDaPesquisa<'a> {
 #[error("{self:?}")]
 pub(crate) struct DataForaDoCalendario;
 
-pub(crate) fn data_da_cli(data: &str) -> Result<String, DataForaDoCalendario> {
-    if data_valida(data) {
-        Ok(data.to_owned())
-    } else {
-        Err(DataForaDoCalendario)
-    }
+pub(crate) fn data_da_cli(data: &str) -> Result<DataCivil, DataForaDoCalendario> {
+    DataCivil::ler(data).ok_or(DataForaDoCalendario)
 }
 
 /// `(ano, mes, dia)` de uma data DD/MM/AAAA só com dígitos ASCII; a tupla
-/// ordena como o calendário. Não confere o calendário: ver `data_valida`.
+/// ordena como o calendário. A validade é conferida por `DataCivil::ler`.
 pub(crate) fn ano_mes_dia(data: &str) -> Option<(u32, u32, u32)> {
     let (dia, resto) = data.split_once('/')?;
     let (mes, ano) = resto.split_once('/')?;
@@ -36,42 +33,22 @@ pub(crate) fn ano_mes_dia(data: &str) -> Option<(u32, u32, u32)> {
     Some((numero(ano, 4)?, numero(mes, 2)?, numero(dia, 2)?))
 }
 
-/// Datas DD/MM/AAAA, sem normalização silenciosa e sem dependências novas.
-pub(crate) fn data_valida(data: &str) -> bool {
-    let Some((ano, mes, dia)) = ano_mes_dia(data) else {
-        return false;
-    };
-    let bissexto = ano.is_multiple_of(4) && (!ano.is_multiple_of(100) || ano.is_multiple_of(400));
-    let limite = match mes {
-        1 | 3 | 5 | 7 | 8 | 10 | 12 => 31,
-        4 | 6 | 9 | 11 => 30,
-        2 if bissexto => 29,
-        2 => 28,
-        _ => 0,
-    };
-    ano > 0 && dia > 0 && dia <= limite
-}
-
 #[derive(Clone, Copy, Debug, PartialEq, Eq, thiserror::Error)]
 #[error("{self:?}")]
 pub(crate) enum ErroFiltro {
-    /// O tokenizador de atributos recusou a tag.
-    Atributo(#[from] crate::html_atributos::ErroAtributoHtml),
     CriterioNaoOferecidoPelaTela,
     TipoNaoOferecidoPelaTela,
     ControleDeFiltroAmbiguo,
 }
 
-fn unico<'a, 'html>(
-    tags: &[&'a tl::HTMLTag<'html>],
+fn unico<'a>(
+    tags: &[crate::tela_html::Elemento<'a>],
     elemento: &str,
     nome: &str,
-) -> Result<&'a tl::HTMLTag<'html>, ErroFiltro> {
+) -> Result<crate::tela_html::Elemento<'a>, ErroFiltro> {
     let mut encontrado = None;
     for tag in tags {
-        if tag.name().as_utf8_str().eq_ignore_ascii_case(elemento)
-            && valor_decodificado(tag, "name")?.as_deref() == Some(nome)
-        {
+        if tag.nome().eq_ignore_ascii_case(elemento) && tag.atributo("name") == Some(nome) {
             if encontrado.is_some() {
                 return Err(ErroFiltro::ControleDeFiltroAmbiguo);
             }
@@ -84,31 +61,27 @@ fn unico<'a, 'html>(
 /// Extrai o value correspondente ao nome *exatamente* mostrado numa option.
 /// Não usa índice, substring, normalização nem inventa IDs.
 fn valor_do_tipo(
-    tags: &[&tl::HTMLTag<'_>],
-    parser: &tl::Parser<'_>,
+    tags: &[crate::tela_html::Elemento<'_>],
     nome_campo: &str,
     tipo: &str,
 ) -> Result<String, ErroFiltro> {
     let select = unico(tags, "select", nome_campo)?;
     let mut escolhidos = Vec::new();
-    for node in select.children().all(parser) {
-        let Some(tag) = node.as_tag() else { continue };
-        if !tag.name().as_utf8_str().eq_ignore_ascii_case("option") {
+    for tag in select.descendentes() {
+        if !tag.nome().eq_ignore_ascii_case("option") || tag.atributo("disabled").is_some() {
             continue;
         }
-        if valor_decodificado(tag, "disabled")?.is_some() {
-            continue;
-        }
-        if tag.inner_text(parser) == tipo {
-            let valor = valor_decodificado(tag, "value")?
-                .filter(|v| !v.is_empty() && v != "null")
+        if tag.texto() == tipo {
+            let valor = tag
+                .atributo("value")
+                .filter(|v| !v.is_empty() && *v != "null")
                 .ok_or(ErroFiltro::TipoNaoOferecidoPelaTela)?;
             escolhidos.push(valor);
         }
     }
     match escolhidos.as_slice() {
         [] => Err(ErroFiltro::TipoNaoOferecidoPelaTela),
-        [valor] => Ok(valor.clone()),
+        [valor] => Ok((*valor).to_owned()),
         _ => Err(ErroFiltro::ControleDeFiltroAmbiguo),
     }
 }
@@ -116,17 +89,11 @@ fn valor_do_tipo(
 /// Pares próprios da operação, conservados até o POST do formulário observado.
 /// O assunto exige ID de autocompletar: texto isolado não filtra no SEI.
 pub(crate) fn derivar_campos(
-    form: &tl::HTMLTag<'_>,
-    parser: &tl::Parser<'_>,
+    form: crate::tela_html::Elemento<'_>,
     em_documentos: bool,
     filtros: FiltrosDaPesquisa<'_>,
 ) -> Result<Vec<(&'static str, String)>, ErroFiltro> {
-    let tags: Vec<_> = form
-        .children()
-        .all(parser)
-        .iter()
-        .filter_map(tl::Node::as_tag)
-        .collect();
+    let tags: Vec<_> = form.descendentes().collect();
     let mut campos = Vec::new();
     if let Some(tipo) = filtros.tipo {
         let nome = if em_documentos {
@@ -134,7 +101,7 @@ pub(crate) fn derivar_campos(
         } else {
             "selTipoProcedimentoPesquisa"
         };
-        campos.push((nome, valor_do_tipo(&tags, parser, nome, tipo)?));
+        campos.push((nome, valor_do_tipo(&tags, nome, tipo)?));
     }
     if filtros.assunto.is_some() {
         // txtAssunto + hdnIdAssunto são autocompletar; requerem resolução
@@ -144,13 +111,10 @@ pub(crate) fn derivar_campos(
     for (data, nome) in [(filtros.de, "txtDataInicio"), (filtros.ate, "txtDataFim")] {
         if let Some(data) = data {
             let campo = unico(&tags, "input", nome)?;
-            if valor_decodificado(campo, "type")?
-                .as_deref()
-                .is_some_and(|v| v != "text")
-            {
+            if campo.atributo("type").is_some_and(|v| v != "text") {
                 return Err(ErroFiltro::CriterioNaoOferecidoPelaTela);
             }
-            campos.push((nome, data.to_owned()));
+            campos.push((nome, data.to_string()));
         }
     }
     Ok(campos)
@@ -161,38 +125,39 @@ mod tests {
     use super::*;
     #[test]
     fn datas_validas_e_invalidas() {
-        assert!(data_valida("29/02/2024"));
-        assert!(data_valida("31/12/2026"));
-        assert!(!data_valida("29/02/2025"));
-        assert!(!data_valida("31/11/2026"));
-        assert!(!data_valida("01-01-2026"));
+        assert!(DataCivil::ler("29/02/2024").is_some());
+        assert!(DataCivil::ler("31/12/2026").is_some());
+        assert!(DataCivil::ler("29/02/2025").is_none());
+        assert!(DataCivil::ler("31/11/2026").is_none());
+        assert!(DataCivil::ler("01-01-2026").is_none());
     }
     #[test]
     fn tipo_exato_e_recusa_de_ausencia() {
-        let html = "<form><select name='selTipoProcedimentoPesquisa'><option value='null'>-</option><option value='7'>Administrativo</option><option value='8'>Judicial</option></select><input name='txtDataInicio' type='text'></form>";
-        let dom = tl::parse(html, tl::ParserOptions::default()).unwrap();
-        let form = dom.query_selector("form").unwrap().next().unwrap();
-        let form = form.get(dom.parser()).unwrap().as_tag().unwrap();
+        let html = crate::tela_html::HtmlServido::de_teste(
+            "<form><select name='selTipoProcedimentoPesquisa'><option value='null'>-</option><option value='7'>Administrativo</option><option value='8'>Judicial</option></select><input name='txtDataInicio' type='text'></form>",
+        );
+        let servido = html;
+        let dom = crate::tela_html::arvore(&servido);
+        let form = dom.elementos("form").next().unwrap();
         let filtros = FiltrosDaPesquisa {
             tipo: Some("Judicial"),
-            de: Some("01/01/2026"),
+            de: DataCivil::ler("01/01/2026"),
             ..Default::default()
         };
         assert_eq!(
-            derivar_campos(form, dom.parser(), false, filtros).unwrap(),
+            derivar_campos(form, false, filtros).unwrap(),
             vec![
                 ("selTipoProcedimentoPesquisa", "8".to_owned()),
                 ("txtDataInicio", "01/01/2026".to_owned())
             ]
         );
         assert_eq!(
-            derivar_campos(form, dom.parser(), true, filtros),
+            derivar_campos(form, true, filtros),
             Err(ErroFiltro::CriterioNaoOferecidoPelaTela)
         );
         assert_eq!(
             derivar_campos(
                 form,
-                dom.parser(),
                 false,
                 FiltrosDaPesquisa {
                     assunto: Some("Assunto"),

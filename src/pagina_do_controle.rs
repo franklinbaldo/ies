@@ -68,8 +68,6 @@ pub(crate) enum ErroPaginaDoControle {
         #[source]
         erro: std::num::ParseIntError,
     },
-    /// O parser HTML recusou a tela de envio.
-    HtmlDaTelaDeEnvioRecusadoPeloParser(#[source] tl::ParseError),
     CamposDePaginaAtualDaTabelaRepetidos {
         categoria: Categoria,
     },
@@ -110,7 +108,6 @@ impl ErroPaginaDoControle {
             | Self::CharsetDaTelaNaoSuportado
             | Self::PaginaAtualDaTabelaIlegivel { .. }
             | Self::PaginaAtualDaTabelaNaoCabeNoTipo { .. }
-            | Self::HtmlDaTelaDeEnvioRecusadoPeloParser(_)
             | Self::CamposDePaginaAtualDaTabelaRepetidos { .. }
             | Self::PaginaAtualDaTabelaIncompativelComAFaixa { .. }
             | Self::PaginaForaDoIntervalo { .. }

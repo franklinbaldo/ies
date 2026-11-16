@@ -6,6 +6,7 @@
 use super::tests::{NUP, arvore, no_documento, no_processo};
 use super::tests_tela::{instalacao, tela_do_processo};
 use super::*;
+use crate::tela_html::HtmlServido;
 
 pub(crate) const HASH_CONTEUDO: &str =
     "ffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffff";
@@ -93,19 +94,33 @@ fn link_do_anexo_fora_da_forma_e_recusado() {
     for (ruim, esperado) in [
         (
             src_anexo().replace("&id_anexo=901", ""),
-            nao_reconhecido.clone(),
+            Err(ErroConteudoNaArvore::IdDoAnexoIlegivel(
+                crate::consulta_do_controlador::ErroIdDaUrl::ParametroAusente("id_anexo"),
+            )),
         ),
         (
             src_anexo().replace("id_anexo=901", "id_anexo=901&id_anexo=902"),
-            nao_reconhecido.clone(),
+            Err(ErroConteudoNaArvore::IdDoAnexoIlegivel(
+                crate::consulta_do_controlador::ErroIdDaUrl::ParametroRepetido("id_anexo"),
+            )),
         ),
         (
             src_anexo().replace("id_anexo=901", "id_anexo=9a1"),
-            nao_reconhecido.clone(),
+            Err(ErroConteudoNaArvore::IdDoAnexoIlegivel(
+                crate::consulta_do_controlador::ErroIdDaUrl::IdNaoDecimal {
+                    chave: "id_anexo",
+                    valor: "9a1".to_owned(),
+                },
+            )),
         ),
         (
             src_anexo().replace("id_anexo=901", "id_anexo="),
-            nao_reconhecido.clone(),
+            Err(ErroConteudoNaArvore::IdDoAnexoIlegivel(
+                crate::consulta_do_controlador::ErroIdDaUrl::IdNaoDecimal {
+                    chave: "id_anexo",
+                    valor: String::new(),
+                },
+            )),
         ),
         (src_anexo().replace(HASH_CONTEUDO, "x"), recusado),
         (
@@ -171,7 +186,7 @@ fn recusas_do_link_do_conteudo() {
 #[test]
 fn tela_do_documento_devolve_o_processo_da_arvore() {
     let src = src_da_arvore_do_documento("10", "22");
-    let html = tela_do_processo("U", std::slice::from_ref(&src));
+    let html = HtmlServido::de_teste(&tela_do_processo("U", std::slice::from_ref(&src)));
     let (tela, processo) = ler_tela_do_documento(&instalacao(), &html, "22", None).unwrap();
     assert_eq!(processo, "10");
     assert_eq!(tela.unidade, "U");
@@ -184,7 +199,7 @@ fn tela_do_documento_devolve_o_processo_da_arvore() {
 #[test]
 fn tela_que_nao_seleciona_o_documento_pedido_e_recusada() {
     let ler = |src: String| {
-        let html = tela_do_processo("U", &[src]);
+        let html = HtmlServido::de_teste(&tela_do_processo("U", &[src]));
         ler_tela_do_documento(&instalacao(), &html, "22", None).map(|(_, p)| p)
     };
     assert_eq!(
@@ -202,7 +217,11 @@ fn tela_que_nao_seleciona_o_documento_pedido_e_recusada() {
     );
     assert_eq!(
         ler(dois),
-        Err(ErroTelaDoProcesso::EnderecoDaArvoreNaoReconhecido)
+        Err(ErroTelaDoProcesso::IdDoProcessoNaArvore(
+            crate::consulta_do_controlador::ErroParametroDaUrl::ParametroRepetido(
+                "id_procedimento"
+            )
+        ))
     );
 }
 

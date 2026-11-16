@@ -8,6 +8,7 @@ use crate::arvore_processo::{AbertoEm, ErroArvore, MotivoAbertoEm, ler_acao_de_a
 use crate::cassette::acervo::gravacao::{self, Resposta};
 use crate::processo_obter::abertura::{ArvoreAberta, ler_arvore_da_pagina};
 use crate::processo_obter::pastas::aberta_inteira_da_pagina;
+use crate::tela_html::HtmlServido;
 
 pub(super) fn ler(c: &Cassette<'_>, r: &Resposta<'_>, html: &str, id: &str) -> Vec<Registro> {
     // Árvore sem nó `PROCESSO` não declara NUP: o leitor diz por quê.
@@ -19,9 +20,9 @@ pub(super) fn ler(c: &Cassette<'_>, r: &Resposta<'_>, html: &str, id: &str) -> V
     };
     let abrir = gravacao::parametro(r.interacao, "abrir_pastas") == ["1"];
     let lida = if abrir {
-        aberta_inteira_da_pagina(&c.instalacao, nup, html, id)
+        aberta_inteira_da_pagina(&c.instalacao, nup, &HtmlServido::de_teste(html), id)
     } else {
-        ler_arvore_da_pagina(&c.instalacao, nup, html, id)
+        ler_arvore_da_pagina(&c.instalacao, nup, &HtmlServido::de_teste(html), id)
     };
     let aberta = match lida {
         Ok(aberta) => aberta,

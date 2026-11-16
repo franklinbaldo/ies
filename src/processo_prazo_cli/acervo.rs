@@ -14,6 +14,7 @@ use crate::arvore_processo::nup_declarado_na_arvore;
 use crate::cassette::acervo::{INSTALACOES, gravacao, percorrer, publicar};
 use crate::cassette::html_da_resposta;
 use crate::processo_prazo::{EstadoDoPrazo, ler_tela};
+use crate::tela_html::HtmlServido;
 use serde_json::Value;
 use std::collections::BTreeMap;
 use std::fmt::Write as _;
@@ -87,7 +88,10 @@ impl Estado {
         let Some(nup) = self.nup.as_deref() else {
             return vec![(LISTA, "NUP não lido na árvore".to_owned())];
         };
-        let classe = match (id_na_lista(&html, nup), self.apos_exclusao) {
+        let classe = match (
+            id_na_lista(&HtmlServido::de_teste(&html), nup),
+            self.apos_exclusao,
+        ) {
             (Err(erro), _) => format!("`{erro:?}`"),
             (Ok(Some(_)), false) => ANTES.to_owned(),
             (Ok(None), false) => SEM_LINHA_ANTES.to_owned(),
@@ -158,7 +162,7 @@ fn replay(json: &Value) -> Vec<(&'static str, String)> {
             }
             ("procedimento_controlar", "GET", 200) if excluiu => {
                 let classe = match html_da_resposta(r.interacao) {
-                    Ok(html) => match link_da_lista(&html, &origem) {
+                    Ok(html) => match link_da_lista(&HtmlServido::de_teste(&html), &origem) {
                         Ok(_) => "link da lista publicado".to_owned(),
                         Err(erro) => format!("`{erro:?}`"),
                     },
@@ -181,7 +185,7 @@ fn replay(json: &Value) -> Vec<(&'static str, String)> {
 
 fn tela(interacao: &Value, id: &str) -> String {
     match html_da_resposta(interacao) {
-        Ok(html) => match ler_tela(&html, id) {
+        Ok(html) => match ler_tela(&HtmlServido::de_teste(&html), id) {
             Ok(tela) => rotulo(&tela.estado).to_owned(),
             Err(erro) => format!("`{erro:?}`"),
         },

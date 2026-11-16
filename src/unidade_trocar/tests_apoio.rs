@@ -178,13 +178,18 @@ pub(crate) fn get(url: impl Into<String>) -> Pedido {
 
 pub(crate) type Resposta = Result<(i32, String, Option<String>), FalhaTransporte>;
 
-// O roteiro mistura respostas e falhas do transporte: `Resposta` é `Result`.
-#[allow(clippy::unnecessary_wraps)]
+#[expect(
+    clippy::unnecessary_wraps,
+    reason = "O roteiro mistura respostas e falhas do transporte: `Resposta` é `Result`"
+)]
 pub(crate) fn html(corpo: String) -> Resposta {
     Ok((200, corpo, None))
 }
 
-#[allow(clippy::unnecessary_wraps)]
+#[expect(
+    clippy::unnecessary_wraps,
+    reason = "O roteiro mistura respostas e falhas do transporte: `Resposta` é `Result`"
+)]
 pub(crate) fn redireciona(localizacao: String) -> Resposta {
     Ok((302, String::new(), Some(localizacao)))
 }

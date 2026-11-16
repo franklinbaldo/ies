@@ -22,9 +22,6 @@ pub(crate) enum ErroDasAnotacoes {
 #[derive(Clone, Debug, PartialEq, Eq, thiserror::Error)]
 #[error("{self:?}")]
 pub(crate) enum ErroLeituraDaAnotacao {
-    TelaDeAnotacoesNaoInterpretada,
-    ParseDaTelaDeAnotacoesFalhou(#[source] tl::ParseError),
-    TelaDeAnotacoesComAtributoIlegivel(#[source] crate::html_atributos::ErroAtributoHtml),
     FormularioDeAnotacoesAusente(#[source] crate::formulario_web::ErroSubmissaoFormulario),
     AnotacaoDeOutroProcesso,
     AnotacaoNaoPublicada,
@@ -47,73 +44,48 @@ pub(crate) const REGISTRAR_ANOTACAO: OperacaoDeFormulario = OperacaoDeFormulario
 };
 
 /// Sem o botão de salvar a tela não oferece edição, apenas leitura.
-pub(crate) fn salvar_oferecido(html: &str) -> Result<bool, ErroLeituraDaAnotacao> {
-    let dom = tl::parse(html, tl::ParserOptions::default())
-        .map_err(ErroLeituraDaAnotacao::ParseDaTelaDeAnotacoesFalhou)?;
+pub(crate) fn salvar_oferecido(
+    html: &crate::tela_html::HtmlServido,
+) -> Result<bool, ErroLeituraDaAnotacao> {
+    let dom = crate::tela_html::arvore(html);
     let form = crate::formulario_web::localizar_formulario(&dom, "frmAnotacaoCadastro")
         .map_err(ErroLeituraDaAnotacao::FormularioDeAnotacoesAusente)?;
-    for tag in form
-        .children()
-        .all(dom.parser())
-        .iter()
-        .filter_map(tl::Node::as_tag)
-    {
-        if !tag.name().as_utf8_str().eq_ignore_ascii_case("button") {
+    for tag in form.descendentes() {
+        if !tag.nome().eq_ignore_ascii_case("button") {
             continue;
         }
-        let nome = crate::html_atributos::valor_do_atributo(tag, "name")
-            .map_err(ErroLeituraDaAnotacao::TelaDeAnotacoesComAtributoIlegivel)?;
-        if nome.as_deref() == Some("sbmRegistrarAnotacao")
-            && !crate::html_atributos::atributo_presente(tag, "disabled")
-                .map_err(ErroLeituraDaAnotacao::TelaDeAnotacoesComAtributoIlegivel)?
-        {
+        let nome = tag.atributo("name");
+        if nome == Some("sbmRegistrarAnotacao") && !tag.presente("disabled") {
             return Ok(true);
         }
     }
     Ok(false)
 }
 
-pub(crate) fn texto_anotacao(html: &str, id: &str) -> Result<String, ErroLeituraDaAnotacao> {
-    use crate::formulario_web::{decodificar_atributo, localizar_formulario};
-    use crate::html_atributos::valor_do_atributo;
+pub(crate) fn texto_anotacao(
+    html: &crate::tela_html::HtmlServido,
+    id: &str,
+) -> Result<String, ErroLeituraDaAnotacao> {
+    use crate::formulario_web::localizar_formulario;
 
-    let dom = tl::parse(html, tl::ParserOptions::default())
-        .map_err(ErroLeituraDaAnotacao::ParseDaTelaDeAnotacoesFalhou)?;
+    let dom = crate::tela_html::arvore(html);
     let form = localizar_formulario(&dom, "frmAnotacaoCadastro")
         .map_err(ErroLeituraDaAnotacao::FormularioDeAnotacoesAusente)?;
-    let parser = dom.parser();
-    let valor = |tag: &tl::HTMLTag<'_>,
-                 nome: &'static str|
-     -> Result<Option<String>, ErroLeituraDaAnotacao> {
-        valor_do_atributo(tag, nome)
-            .map_err(ErroLeituraDaAnotacao::TelaDeAnotacoesComAtributoIlegivel)?
-            .map(|bruto| {
-                decodificar_atributo(&bruto)
-                    .ok_or(ErroLeituraDaAnotacao::TelaDeAnotacoesNaoInterpretada)
-            })
-            .transpose()
-    };
     let mut ids = Vec::new();
     let mut descricoes = Vec::new();
-    for tag in form
-        .children()
-        .all(parser)
-        .iter()
-        .filter_map(tl::Node::as_tag)
-    {
-        match tag.name().as_utf8_str().as_ref() {
-            "input" if valor(tag, "name")?.as_deref() == Some("hdnIdProtocolo") => {
-                ids.push(valor(tag, "value")?);
+    for tag in form.descendentes() {
+        match tag.nome() {
+            "input" if tag.atributo("name") == Some("hdnIdProtocolo") => {
+                ids.push(tag.atributo("value"));
             }
-            "textarea" if valor(tag, "name")?.as_deref() == Some("txaDescricao") => {
-                descricoes
-                    .push(html_escape::decode_html_entities(&tag.inner_text(parser)).into_owned());
+            "textarea" if tag.atributo("name") == Some("txaDescricao") => {
+                descricoes.push(tag.texto());
             }
             _ => {}
         }
     }
     match (ids.as_slice(), descricoes.as_slice()) {
-        ([Some(publicado)], [texto]) if publicado == id => Ok(texto.clone()),
+        ([Some(publicado)], [texto]) if *publicado == id => Ok(texto.clone()),
         ([Some(_)], [_]) => Err(ErroLeituraDaAnotacao::AnotacaoDeOutroProcesso),
         ([], _) | (_, []) => Err(ErroLeituraDaAnotacao::AnotacaoNaoPublicada),
         _ => Err(ErroLeituraDaAnotacao::CamposDeAnotacaoRepetidos),
@@ -121,7 +93,10 @@ pub(crate) fn texto_anotacao(html: &str, id: &str) -> Result<String, ErroLeitura
 }
 
 /// Ausência só é comprovada se a tela do mesmo processo publicar o texto vazio.
-pub(crate) fn anotacao_presente(html: &str, id: &str) -> Result<bool, ErroLeituraDaAnotacao> {
+pub(crate) fn anotacao_presente(
+    html: &crate::tela_html::HtmlServido,
+    id: &str,
+) -> Result<bool, ErroLeituraDaAnotacao> {
     texto_anotacao(html, id).map(|texto| !texto.trim().is_empty())
 }
 
@@ -144,13 +119,19 @@ mod tests {
     fn bdd_anotacao_presente_na_tela_do_processo() {
         // Dado formulário de anotação da UnB com texto publicado,
         // quando leio o mesmo processo, então há anotação verificável.
-        let html = formulario("50693", "Observa&ccedil;&atilde;o &amp; prioridade");
+        let html = crate::tela_html::HtmlServido::de_teste(&formulario(
+            "50693",
+            "Observa&ccedil;&atilde;o &amp; prioridade",
+        ));
         assert_eq!(anotacao_presente(&html, "50693"), Ok(true));
     }
 
     #[test]
     fn texto_do_formulario_e_lido_sem_perder_entidades() {
-        let html = formulario("50693", "Observa&ccedil;&atilde;o &amp; prioridade");
+        let html = crate::tela_html::HtmlServido::de_teste(&formulario(
+            "50693",
+            "Observa&ccedil;&atilde;o &amp; prioridade",
+        ));
         assert_eq!(
             texto_anotacao(&html, "50693"),
             Ok("Observação & prioridade".into())
@@ -162,11 +143,17 @@ mod tests {
         // Dado formulário da UnB com textarea vazia,
         // quando releio, então há ausência observada de anotação.
         assert_eq!(
-            anotacao_presente(&formulario("50693", ""), "50693"),
+            anotacao_presente(
+                &crate::tela_html::HtmlServido::de_teste(&formulario("50693", "")),
+                "50693"
+            ),
             Ok(false)
         );
         assert_eq!(
-            anotacao_presente(&formulario("50693", " \n  "), "50693"),
+            anotacao_presente(
+                &crate::tela_html::HtmlServido::de_teste(&formulario("50693", " \n  ")),
+                "50693"
+            ),
             Ok(false)
         );
     }
@@ -176,7 +163,10 @@ mod tests {
         // Dado formulário servido para outro id,
         // quando confiro, então não se infere existência nem ausência.
         assert_eq!(
-            anotacao_presente(&formulario("99999", "Anotação"), "50693"),
+            anotacao_presente(
+                &crate::tela_html::HtmlServido::de_teste(&formulario("99999", "Anotação")),
+                "50693"
+            ),
             Err(super::ErroLeituraDaAnotacao::AnotacaoDeOutroProcesso)
         );
     }

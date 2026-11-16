@@ -53,7 +53,6 @@ pub(crate) enum ErroProcessoObter {
     MarcadoresNaoPublicadosNaBarra,
     /// A tela de marcadores é a deste processo, mas sem `table#tblMarcadores`.
     TabelaDeMarcadoresNaoPublicadaNaTela,
-    LinhaDoControleIlegivel,
     LinksDoProcessoRepetidosNoControle,
     ProcessoRepetidoNoControle,
 }
@@ -86,8 +85,7 @@ impl ErroProcessoObter {
             | Self::MarcadoresNaoPublicadosNaBarra
             | Self::TabelaDeMarcadoresNaoPublicadaNaTela
             | Self::LinksDoProcessoRepetidosNoControle
-            | Self::ProcessoRepetidoNoControle
-            | Self::LinhaDoControleIlegivel => false,
+            | Self::ProcessoRepetidoNoControle => false,
         }
     }
 }

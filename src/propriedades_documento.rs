@@ -3,11 +3,9 @@
 use crate::acao_do_sei::AcaoDoSei;
 use crate::arvore_processo::{barra_do_no, endereco::conferir_endereco_relativo_por};
 use crate::consulta_do_controlador::ConsultaDoControlador;
-use crate::formulario_web::decodificar_atributo;
-use crate::html_atributos::{atributos, nos_com_id, nos_com_id_em, valor_decodificado};
 use crate::instalacao::Instalacao;
 use serde::Serialize;
-type Tag<'p> = &'p tl::HTMLTag<'p>;
+type Tag<'p> = crate::tela_html::Elemento<'p>;
 #[path = "propriedades_documento/anexo.rs"]
 mod anexo;
 pub(crate) use anexo::ler_anexo_publicado;
@@ -32,14 +30,7 @@ pub(crate) struct PropriedadesLidas {
     pub(crate) descricao: String,
     pub(crate) nome_na_arvore: String,
     pub(crate) observacoes: String,
-    pub(crate) nivel_de_acesso: Nivel,
-}
-#[derive(Debug, PartialEq, Eq, Serialize)]
-#[serde(rename_all = "snake_case")]
-pub(crate) enum Nivel {
-    Publico,
-    Restrito,
-    Sigiloso,
+    pub(crate) nivel_de_acesso: crate::dominio::NivelDeAcesso,
 }
 
 /// O cadastro do documento (barra, formulário, anexo) fora da forma observada:
@@ -49,17 +40,10 @@ pub(crate) enum Nivel {
 pub(crate) enum ErroPropriedadesDocumento {
     /// Nenhum `rdoNivelAcesso` marcado no cadastro do documento.
     NivelDeAcessoNaoMarcado,
-    /// O tokenizador de atributos recusou a tag.
-    Atributo(#[source] crate::html_atributos::ErroAtributoHtml),
     /// `EnderecoDoConteudo::do_cadastro` recusou o link do anexo.
     LinkAnexoCadastroInvalido(#[source] crate::arvore_processo::ErroConteudoNaArvore),
     AnexoDoCadastroDivergente,
     BarraCadastroDocumentoIlegivel(#[source] crate::arvore_processo::ErroBarraDoDocumento),
-    /// O parser HTML recusou a barra do documento.
-    BarraDoCadastroRecusadaPeloParser(#[source] tl::ParseError),
-    /// O parser HTML recusou a página do cadastro.
-    HtmlDoCadastroNaoInterpretado(#[source] tl::ParseError),
-    CadastroDocumentoIlegivel,
     CampoCadastroDocumentoAusente,
     CampoCadastroDocumentoRepetido,
     FormularioCadastroDocumentoAusente,
@@ -69,60 +53,39 @@ pub(crate) enum ErroPropriedadesDocumento {
     LinksAnexoCadastroRepetidos,
     LinksCadastroDocumentoRepetidos,
     NivelCadastroDocumentoInesperado,
-    TextoCadastroDocumentoIlegivel,
     TipoCadastroDocumentoRepetido,
     TipoCadastroDocumentoVazio,
     ValorCadastroDocumentoAusente,
-    NivelCadastroDocumentoIlegivel(#[source] crate::html_atributos::ErroAtributoHtml),
 }
 
-fn campo<'p>(
-    form: Tag<'p>,
-    parser: &'p tl::Parser<'p>,
-    id: &str,
-) -> Result<Tag<'p>, ErroPropriedadesDocumento> {
-    let nos = nos_com_id_em(form, parser, id).map_err(ErroPropriedadesDocumento::Atributo)?;
+fn campo<'p>(form: Tag<'p>, id: &str) -> Result<Tag<'p>, ErroPropriedadesDocumento> {
+    let nos = form.com_id(id).collect::<Vec<_>>();
     match nos.as_slice() {
-        [unico] => unico
-            .get(parser)
-            .and_then(tl::Node::as_tag)
-            .ok_or(ErroPropriedadesDocumento::CadastroDocumentoIlegivel),
+        [unico] => Ok(*unico),
         [] => Err(ErroPropriedadesDocumento::CampoCadastroDocumentoAusente),
         _ => Err(ErroPropriedadesDocumento::CampoCadastroDocumentoRepetido),
     }
 }
 fn valor(tag: Tag<'_>) -> Result<String, ErroPropriedadesDocumento> {
-    valor_decodificado(tag, "value")
-        .map_err(ErroPropriedadesDocumento::Atributo)?
+    tag.atributo("value")
+        .map(str::to_owned)
         .ok_or(ErroPropriedadesDocumento::ValorCadastroDocumentoAusente)
 }
-fn texto(tag: Tag<'_>, parser: &tl::Parser<'_>) -> Result<String, ErroPropriedadesDocumento> {
-    decodificar_atributo(&tag.inner_text(parser))
-        .ok_or(ErroPropriedadesDocumento::TextoCadastroDocumentoIlegivel)
+fn texto(tag: Tag<'_>) -> String {
+    tag.texto()
 }
-fn nivel(form: Tag<'_>, parser: &tl::Parser<'_>) -> Result<Nivel, ErroPropriedadesDocumento> {
+fn nivel(form: Tag<'_>) -> Result<crate::dominio::NivelDeAcesso, ErroPropriedadesDocumento> {
     let mut marcados = Vec::new();
-    for no in form.query_selector(parser, "input").into_iter().flatten() {
-        let Some(tag) = no.get(parser).and_then(tl::Node::as_tag) else {
-            continue;
-        };
-        let a =
-            atributos(tag).map_err(ErroPropriedadesDocumento::NivelCadastroDocumentoIlegivel)?;
-        if a.valor("name")
-            .map_err(ErroPropriedadesDocumento::NivelCadastroDocumentoIlegivel)?
-            == Some("rdoNivelAcesso")
-            && a.presente("checked")
-        {
-            marcados.push(
-                valor_decodificado(tag, "value").map_err(ErroPropriedadesDocumento::Atributo)?,
-            );
+    for no in form.elementos("input") {
+        if no.atributo("name") == Some("rdoNivelAcesso") && no.presente("checked") {
+            marcados.push(no.atributo("value"));
         }
     }
     match marcados.as_slice() {
         [] => Err(ErroPropriedadesDocumento::NivelDeAcessoNaoMarcado),
-        [Some(x)] if x == "0" => Ok(Nivel::Publico),
-        [Some(x)] if x == "1" => Ok(Nivel::Restrito),
-        [Some(x)] if x == "2" => Ok(Nivel::Sigiloso),
+        [Some("0")] => Ok(crate::dominio::NivelDeAcesso::Publico),
+        [Some("1")] => Ok(crate::dominio::NivelDeAcesso::Restrito),
+        [Some("2")] => Ok(crate::dominio::NivelDeAcesso::Sigiloso),
         _ => Err(ErroPropriedadesDocumento::NivelCadastroDocumentoInesperado),
     }
 }
@@ -138,22 +101,17 @@ pub(crate) fn ler_link(
     else {
         return Ok(None);
     };
-    let dom = tl::parse(&barra, tl::ParserOptions::default())
-        .map_err(ErroPropriedadesDocumento::BarraDoCadastroRecusadaPeloParser)?;
+    let dom = crate::tela_html::arvore(&barra);
     let mut encontrado = None;
-    for no in dom.query_selector("a").into_iter().flatten() {
-        let Some(tag) = no.get(dom.parser()).and_then(tl::Node::as_tag) else {
-            continue;
-        };
-        let Some(href) =
-            valor_decodificado(tag, "href").map_err(ErroPropriedadesDocumento::Atributo)?
-        else {
+    for no in dom.elementos("a") {
+        let Some(href) = no.atributo("href") else {
             continue;
         };
         let acao = href
             .strip_prefix("controlador.php?")
             .and_then(|q| ConsultaDoControlador::ler(q).ok())
-            .and_then(|q| q.acao().ok());
+            .and_then(|q| q.acao().ok())
+            .and_then(AcaoDoSei::ler);
         // UFRJ 4.1: processo fechado oferece consultar em lugar de alterar;
         // externos publicam as ações `_recebido` (cassette UFRJ #60).
         let Some(
@@ -165,10 +123,10 @@ pub(crate) fn ler_link(
         else {
             continue;
         };
-        conferir_endereco_relativo_por(instalacao, &href, fonte, "id_procedimento", processo)
+        conferir_endereco_relativo_por(instalacao, href, fonte, "id_procedimento", processo)
             .map_err(ErroPropriedadesDocumento::LinkCadastroDocumentoInvalido)?;
         let url =
-            conferir_endereco_relativo_por(instalacao, &href, fonte, "id_documento", documento)
+            conferir_endereco_relativo_por(instalacao, href, fonte, "id_documento", documento)
                 .map_err(ErroPropriedadesDocumento::LinkCadastroDocumentoInvalido)?;
         if encontrado.replace(LinkDoCadastro { url, fonte }).is_some() {
             return Err(ErroPropriedadesDocumento::LinksCadastroDocumentoRepetidos);
@@ -177,48 +135,45 @@ pub(crate) fn ler_link(
     Ok(encontrado)
 }
 /// Lê o cadastro pelo formulário servido, nunca o submete.
-pub(crate) fn ler_formulario(
-    html: &str,
+/// O `frmDocumentoCadastro` único da tela, conferido como o cadastro do
+/// `documento` no `processo` pedidos (`hdnIdDocumento`, `hdnIdProcedimento`).
+fn cadastro_do_documento<'p>(
+    dom: &'p crate::tela_html::Documento,
     documento: &str,
     processo: &str,
-) -> Result<PropriedadesLidas, ErroPropriedadesDocumento> {
-    let dom = tl::parse(html, tl::ParserOptions::default())
-        .map_err(ErroPropriedadesDocumento::HtmlDoCadastroNaoInterpretado)?;
-    let parser = dom.parser();
-    let nos =
-        nos_com_id(&dom, "frmDocumentoCadastro").map_err(ErroPropriedadesDocumento::Atributo)?;
+) -> Result<Tag<'p>, ErroPropriedadesDocumento> {
+    let nos = dom.com_id("frmDocumentoCadastro").collect::<Vec<_>>();
     let form = match nos.as_slice() {
-        [unico] => unico
-            .get(parser)
-            .and_then(tl::Node::as_tag)
-            .ok_or(ErroPropriedadesDocumento::CadastroDocumentoIlegivel)?,
+        [unico] => *unico,
         [] => return Err(ErroPropriedadesDocumento::FormularioCadastroDocumentoAusente),
         _ => {
             return Err(ErroPropriedadesDocumento::FormulariosCadastroDocumentoRepetidos);
         }
     };
-    if valor(campo(form, parser, "hdnIdDocumento")?)? != documento
-        || valor(campo(form, parser, "hdnIdProcedimento")?)? != processo
+    if valor(campo(form, "hdnIdDocumento")?)? != documento
+        || valor(campo(form, "hdnIdProcedimento")?)? != processo
     {
         return Err(ErroPropriedadesDocumento::IdentidadeCadastroDocumentoDivergente);
     }
-    let tipo = texto(campo(form, parser, "lblSerieTitulo")?, parser)?;
+    Ok(form)
+}
+
+pub(crate) fn ler_formulario(
+    html: &crate::tela_html::HtmlServido,
+    documento: &str,
+    processo: &str,
+) -> Result<PropriedadesLidas, ErroPropriedadesDocumento> {
+    let dom = crate::tela_html::arvore(html);
+    let form = cadastro_do_documento(&dom, documento, processo)?;
+    let tipo = texto(campo(form, "lblSerieTitulo")?);
     let tipo = if tipo.trim().is_empty() {
         // Cadastro do externo no SEI 4.0.9: o rótulo é vazio, mas o tipo
         // efetivamente escolhido está no option selecionado de selSerie.
-        let select = campo(form, parser, "selSerie")?;
+        let select = campo(form, "selSerie")?;
         let mut selecionados = Vec::new();
-        for no in select
-            .query_selector(parser, "option")
-            .into_iter()
-            .flatten()
-        {
-            let Some(tag) = no.get(parser).and_then(tl::Node::as_tag) else {
-                continue;
-            };
-            let a = atributos(tag).map_err(ErroPropriedadesDocumento::Atributo)?;
-            if a.presente("selected") {
-                selecionados.push(texto(tag, parser)?);
+        for no in select.elementos("option") {
+            if no.presente("selected") {
+                selecionados.push(texto(no));
             }
         }
         match selecionados.as_slice() {
@@ -232,10 +187,10 @@ pub(crate) fn ler_formulario(
     Ok(PropriedadesLidas {
         fonte: AcaoDoSei::DocumentoAlterar,
         tipo,
-        descricao: valor(campo(form, parser, "txtDescricao")?)?,
-        nome_na_arvore: valor(campo(form, parser, "txtNomeArvore")?)?,
-        observacoes: texto(campo(form, parser, "txaObservacoes")?, parser)?,
-        nivel_de_acesso: nivel(form, parser)?,
+        descricao: valor(campo(form, "txtDescricao")?)?,
+        nome_na_arvore: valor(campo(form, "txtNomeArvore")?)?,
+        observacoes: texto(campo(form, "txaObservacoes")?),
+        nivel_de_acesso: nivel(form)?,
     })
 }
 
@@ -244,9 +199,9 @@ pub(crate) fn linha_humana(props: &PropriedadesDocumento) -> Option<String> {
         PropriedadesDocumento::NaoPedidas => None,
         PropriedadesDocumento::Lidas(p) => {
             let nivel = match &p.nivel_de_acesso {
-                Nivel::Publico => "público",
-                Nivel::Restrito => "restrito",
-                Nivel::Sigiloso => "sigiloso",
+                crate::dominio::NivelDeAcesso::Publico => "público",
+                crate::dominio::NivelDeAcesso::Restrito => "restrito",
+                crate::dominio::NivelDeAcesso::Sigiloso => "sigiloso",
             };
             Some(format!(
                 "Cadastro: tipo {}; descrição {}; nome na árvore {}; observações {}; acesso {}.",
@@ -344,7 +299,8 @@ mod tests {
         // com lblSerieTitulo vazio e selSerie selecionando Anexo,
         // quando executo ies documento DOC --com-propriedades --json,
         // entao o tipo publicado e Anexo, nao tipo_cadastro_documento_vazio.
-        let html = r#"<form id="frmDocumentoCadastro">
+        let html = crate::tela_html::HtmlServido::de_teste(
+            r#"<form id="frmDocumentoCadastro">
             <input id="hdnIdDocumento" value="21">
             <input id="hdnIdProcedimento" value="10">
             <label id="lblSerieTitulo"></label>
@@ -357,30 +313,33 @@ mod tests {
             <input id="txtNomeArvore" value="Anexo externo">
             <textarea id="txaObservacoes"></textarea>
             <input name="rdoNivelAcesso" value="0" checked>
-        </form>"#;
-        let lida = ler_formulario(html, "21", "10").unwrap();
+        </form>"#,
+        );
+        let lida = ler_formulario(&html, "21", "10").unwrap();
         assert_eq!(lida.tipo, "Anexo");
         assert_eq!(lida.descricao, "Backup de teste");
-        assert_eq!(lida.nivel_de_acesso, Nivel::Publico);
+        assert_eq!(lida.nivel_de_acesso, crate::dominio::NivelDeAcesso::Publico);
     }
 
     #[test]
     fn dado_formulario_observado_quando_lido_entao_preserva_campos() {
         // Caso Todos tests/paginas_reais/documento_alterar.html @323eb01.
-        let html = r#"<form id="frmDocumentoCadastro" method="post">
+        let html = crate::tela_html::HtmlServido::de_teste(
+            r#"<form id="frmDocumentoCadastro" method="post">
             <input id="hdnIdDocumento" value="21"><input id="hdnIdProcedimento" value="10">
             <label id="lblSerieTitulo">Ofício</label>
             <input id="txtDescricao" value="Revisão">
             <input id="txtNomeArvore" value="Ofício 0000101">
             <textarea id="txaObservacoes">texto livre</textarea>
             <input name="rdoNivelAcesso" value="0" checked>
-            <input name="rdoNivelAcesso" value="1"></form>"#;
-        let lida = ler_formulario(html, "21", "10").unwrap();
+            <input name="rdoNivelAcesso" value="1"></form>"#,
+        );
+        let lida = ler_formulario(&html, "21", "10").unwrap();
         assert_eq!(
             (lida.tipo.as_str(), lida.descricao.as_str()),
             ("Ofício", "Revisão")
         );
-        assert_eq!(lida.nivel_de_acesso, Nivel::Publico);
-        assert!(ler_formulario(html, "21", "11").is_err());
+        assert_eq!(lida.nivel_de_acesso, crate::dominio::NivelDeAcesso::Publico);
+        assert!(ler_formulario(&html, "21", "11").is_err());
     }
 }

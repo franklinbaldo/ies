@@ -4,6 +4,7 @@ use super::{
     bloco_detalhe, controle_reconhecido, ler_tela_via, transporte,
 };
 use crate::acao_do_sei::AcaoDoSei;
+use crate::bloco_estado::EstadoDoBloco;
 
 /// Resolve um número pelas listas tipadas efetivamente publicadas, sem
 /// escolher assinatura por padrão. Uma página parcial não exclui colisões.
@@ -27,7 +28,7 @@ pub(crate) fn ler_bloco_por_numero_via<V: EnvioDoControle>(
         return Err(FalhaLeitura::UnidadeInesperada);
     }
     let cookie = sessao.cookie().valor()?;
-    let mut identidade: Option<(TipoBloco, String, String)> = None;
+    let mut identidade: Option<(TipoBloco, String, EstadoDoBloco)> = None;
     let mut lista_parcial_sem_numero = false;
     for tipo in [
         TipoBloco::Assinatura,
@@ -56,7 +57,7 @@ pub(crate) fn ler_bloco_por_numero_via<V: EnvioDoControle>(
                 AcaoDoSei::RelBlocoProtocoloListar,
                 Some(numero),
             )?;
-            identidade = Some((tipo, url, item.estado.clone()));
+            identidade = Some((tipo, url, item.estado));
         } else if lista.lista.itens.len() != lista.lista.total_declarado {
             lista_parcial_sem_numero = true;
         }
@@ -73,7 +74,7 @@ pub(crate) fn ler_bloco_por_numero_via<V: EnvioDoControle>(
     let resposta = envio.get(&url, cookie)?;
     let html = transporte::decodificar_resposta(resposta)?;
     let detalhe =
-        bloco_detalhe::ler_detalhe(&html, numero, tipo, &estado).map_err(FalhaLeitura::Detalhe)?;
+        bloco_detalhe::ler_detalhe(&html, numero, tipo, estado).map_err(FalhaLeitura::Detalhe)?;
     Ok(Lido {
         unidade,
         requisicoes,

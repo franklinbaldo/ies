@@ -83,8 +83,6 @@ pub(crate) enum ErroPesquisaProtocolo {
     Submissao(#[from] ErroSubmissaoFormulario),
     Redirecionamento(#[from] ErroRedirecionamentoDaPesquisa),
     Resposta(#[from] ErroRespostaDaPesquisa),
-    /// O parser HTML recusou a tela do formulário de pesquisa.
-    HtmlDaTelaDoFormularioNaoInterpretado(#[source] tl::ParseError),
 }
 
 impl ErroPesquisaProtocolo {
@@ -96,8 +94,7 @@ impl ErroPesquisaProtocolo {
             Self::Filtro(_)
             | Self::RegraDoFormulario(_)
             | Self::Redirecionamento(_)
-            | Self::Resposta(_)
-            | Self::HtmlDaTelaDoFormularioNaoInterpretado(_) => false,
+            | Self::Resposta(_) => false,
         }
     }
 }
@@ -227,10 +224,9 @@ fn derivar_com(
     }
     // As recusas de instalação e unidade vêm de `derivar_submissao`, depois
     // destas regras; ler a tela em memória não tem efeito.
-    let dom = tl::parse(tela.html, tl::ParserOptions::default())
-        .map_err(ErroPesquisaProtocolo::HtmlDaTelaDoFormularioNaoInterpretado)?;
+    let dom = crate::tela_html::arvore(tela.html);
     let form = localizar_formulario(&dom, operacao.formulario)?;
-    let regras = ler_regras_da_tela(form, dom.parser(), em)?;
+    let regras = ler_regras_da_tela(form, em)?;
     // O navegador conta `maxlength` em unidades UTF-16; termo maior não
     // seria digitável na tela servida e não sai em POST.
     let maxlength = regras.maxlength_do_termo;
@@ -247,7 +243,7 @@ fn derivar_com(
             .map(|(nome, valor)| (*nome, valor.as_str())),
     );
     campos.push(("txtProtocoloPesquisa", protocolo));
-    let extras = derivar_campos(form, dom.parser(), em == PesquisarEm::Documentos, filtros)?;
+    let extras = derivar_campos(form, em == PesquisarEm::Documentos, filtros)?;
     campos.extend(extras.iter().map(|(nome, valor)| (*nome, valor.as_str())));
     campos.extend(
         regras
@@ -272,7 +268,7 @@ fn derivar_com(
 /// de trabalho conferida (só `ies processo NUP` a abre).
 pub(crate) struct EnvioInterpretado<R = RespostaDaPesquisa> {
     pub(crate) resposta: R,
-    pub(crate) html: Option<String>,
+    pub(crate) html: Option<crate::tela_html::HtmlServido>,
     pub(crate) trabalho: Option<UrlDeTrabalho>,
 }
 
@@ -322,7 +318,6 @@ pub(crate) fn falha_do_envio(erro: ErroSubmissaoFormulario) -> ErroPesquisaProto
         | ErroSubmissaoFormulario::AcaoDoFormularioForaDaInstalacao
         | ErroSubmissaoFormulario::AcaoDoFormularioDiferenteDaOperacao
         | ErroSubmissaoFormulario::AcaoDoFormularioSemInfraHashUnico
-        | ErroSubmissaoFormulario::EntidadeHtmlDesconhecidaNoAtributo { .. }
         | ErroSubmissaoFormulario::CampoOcultoAusenteNoFormulario { .. }
         | ErroSubmissaoFormulario::CampoOcultoRepetidoNoFormulario { .. }
         | ErroSubmissaoFormulario::HdnAcaoPublicadoSemRegraDaOperacao
@@ -333,15 +328,13 @@ pub(crate) fn falha_do_envio(erro: ErroSubmissaoFormulario) -> ErroPesquisaProto
         | ErroSubmissaoFormulario::ValorNaoRepresentavelNaCodificacao { .. }
         | ErroSubmissaoFormulario::TelaDeLoginRecebidaAposEnvio
         | ErroSubmissaoFormulario::ValidacaoRecusadaPeloSei(_)
-        | ErroSubmissaoFormulario::AtributoHtml(_)
         | ErroSubmissaoFormulario::Transporte(_)
         | ErroSubmissaoFormulario::AcaoDoFormularioAusente
         | ErroSubmissaoFormulario::BotaoDeEnvioAusenteNoFormulario
         | ErroSubmissaoFormulario::BotoesDeEnvioRepetidosNoFormulario
         | ErroSubmissaoFormulario::FormularioAusenteNaTela
         | ErroSubmissaoFormulario::IdentificacaoDaUnidadeAusenteNaTela
-        | ErroSubmissaoFormulario::IdentificacoesDaUnidadeRepetidasNaTela(_)
-        | ErroSubmissaoFormulario::HtmlDaTelaNaoInterpretado(_)) => {
+        | ErroSubmissaoFormulario::IdentificacoesDaUnidadeRepetidasNaTela(_)) => {
             ErroPesquisaProtocolo::Submissao(outro)
         }
     }

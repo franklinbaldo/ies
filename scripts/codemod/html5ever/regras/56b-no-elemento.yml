@@ -1,0 +1,18 @@
+id: 56b-no-elemento
+language: rust
+message: "tl::Node::Tag(t) vira No::Elemento(t)"
+severity: hint
+rule:
+  all:
+    - any:
+        - pattern:
+            context: "match x { tl::Node::Tag($$$T) => 1 }"
+            selector: tuple_struct_pattern
+    - not:
+        inside:
+          stopBy: end
+          kind: mod_item
+          follows:
+            kind: attribute_item
+            regex: 'cfg\(test\)'
+fix: "crate::tela_html::No::Elemento($$$T)"

@@ -37,7 +37,10 @@ pub(crate) struct CassetteConferida {
 
 /// Conferência integral com teto para o membro JSON (o replay do acervo lê
 /// também as cassettes grandes de pastas, de até ~40 MB).
-#[allow(clippy::case_sensitive_file_extension_comparisons)]
+#[expect(
+    clippy::case_sensitive_file_extension_comparisons,
+    reason = "O acervo OKF exige os sufixos `.json` e `.zip` exatamente em minúsculas"
+)]
 pub(crate) fn conferir_cassette_ate(
     card: &Path,
     zip: &ZipDoAcervo,
