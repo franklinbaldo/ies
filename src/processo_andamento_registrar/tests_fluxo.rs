@@ -1,7 +1,7 @@
 //! Casos sintéticos de transporte: prévia, POST único, releitura e incerto.
 //! Casos derivados de Todos src/todos/andamento.py @323eb01.
 use super::{
-    Desfecho, ErroRegistrarAndamento, ErroTela, IncertezaDoAndamento, RespostaInesperada, registrar,
+    ErroRegistrarAndamento, ErroTela, IncertezaDoAndamento, RespostaInesperada, registrar,
 };
 use crate::arvore_processo::tests_concluir::absoluta;
 use crate::historico_processo::tests_apoio::{
@@ -78,9 +78,10 @@ fn previa_liga_barra_historico_e_formulario_sem_post() {
     let amb = ambiente();
     let (resultado, pedidos) = rodar(&amb, false, respostas_previa());
     let feito = resultado.expect("prévia da tela sintética");
-    assert_eq!(feito.desfecho, Desfecho::Previa);
+    assert!(!feito.confirmado);
     assert_eq!(feito.requisicoes, 5);
     assert_eq!(feito.total_antes, 1);
+    assert_eq!(feito.total_depois, None);
     assert_eq!(pedidos.len(), 5);
     assert!(pedidos.iter().all(|p| p.metodo == "GET"));
     assert_eq!(pedidos.last(), Some(&get(&absoluta(&link()))));
@@ -99,13 +100,8 @@ fn confirmacao_faz_exatamente_um_post_e_releitura() {
     respostas.push(ok(pagina_apos()));
     let (resultado, pedidos) = rodar(&amb, true, respostas);
     let feito = resultado.expect("andamento conferido");
-    assert_eq!(
-        feito.desfecho,
-        Desfecho::Registrado {
-            total_depois: 2,
-            resposta_inesperada: None,
-        }
-    );
+    assert!(feito.confirmado);
+    assert_eq!(feito.total_depois, Some(2));
     assert_eq!(feito.requisicoes, 9);
     assert_eq!(pedidos.len(), 9);
     assert_eq!(pedidos.iter().filter(|p| p.metodo == "POST").count(), 1);
@@ -126,11 +122,8 @@ fn resposta_inesperada_mas_releitura_confirma_sem_reenviar() {
     let (resultado, pedidos) = rodar(&amb, true, respostas);
     let feito = resultado.expect("reconciliação pela leitura");
     assert_eq!(
-        feito.desfecho,
-        Desfecho::Registrado {
-            total_depois: 2,
-            resposta_inesperada: Some(RespostaInesperada::RespostaDoAndamentoNaoEsperada),
-        }
+        feito.resposta_inesperada,
+        Some(RespostaInesperada::RespostaDoAndamentoNaoEsperada)
     );
     assert_eq!(feito.requisicoes, 9);
     assert_eq!(pedidos.iter().filter(|p| p.metodo == "POST").count(), 1);

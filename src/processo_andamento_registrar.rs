@@ -151,20 +151,11 @@ fn localizacao_esperada(local: Option<&str>, origem: &str, id: &str) -> bool {
 pub(crate) struct Resultado {
     pub(crate) numero: String,
     pub(crate) texto: String,
+    pub(crate) confirmado: bool,
     pub(crate) requisicoes: u8,
     pub(crate) total_antes: u64,
-    pub(crate) desfecho: Desfecho,
-}
-/// O desfecho do sucesso: prévia sem POST, ou registrado e relido.
-#[derive(Clone, Copy, Debug, PartialEq, Eq)]
-pub(crate) enum Desfecho {
-    /// Sem `--confirmar`: nenhum POST saiu.
-    Previa,
-    /// O POST saiu e a releitura do histórico comprovou o andamento.
-    Registrado {
-        total_depois: u64,
-        resposta_inesperada: Option<RespostaInesperada>,
-    },
+    pub(crate) total_depois: Option<u64>,
+    pub(crate) resposta_inesperada: Option<RespostaInesperada>,
 }
 /// O POST saiu, mas a resposta não foi o 302 de volta ao processo; a
 /// releitura decide. Publicada no JSON de sucesso (`resposta_inesperada`).
@@ -254,22 +245,24 @@ pub(crate) fn registrar<V: EnvioDoProcesso>(
         Some(unidade.as_str()),
         &[(TEXTO, texto)],
     )?;
-    let resultado = |requisicoes, desfecho| Resultado {
+    let mut resultado = Resultado {
         numero: numero.as_str().to_owned(),
         texto: texto.to_owned(),
-        requisicoes,
+        confirmado: confirmar,
+        requisicoes: rede.feitas(),
         total_antes: antes.total_declarado,
-        desfecho,
+        total_depois: None,
+        resposta_inesperada: None,
     };
     if !confirmar {
-        return Ok(resultado(rede.feitas(), Desfecho::Previa));
+        return Ok(resultado);
     }
     let mut enviado = false;
     let resposta = enviar_submissao_via(submissao, sessao.cookie, |sub, c| {
         enviado = true;
         rede.post(sub, c)
     });
-    let resposta_inesperada = match resposta {
+    resultado.resposta_inesperada = match resposta {
         Ok(RespostaDoEnvio::Redirecionamento(r))
             if localizacao_esperada(
                 r.localizacao(),
@@ -286,7 +279,7 @@ pub(crate) fn registrar<V: EnvioDoProcesso>(
     // A escrita saiu: mesmo se o POST falhou, jamais repetir.
     let incerto = |rede: &Contador<'_, V>, causa| ErroRegistrarAndamento::NaoConfirmado {
         requisicoes: rede.feitas(),
-        resposta_inesperada,
+        resposta_inesperada: resultado.resposta_inesperada,
         causa,
     };
     let depois = match obter_processo(sessao, &pedido, indice, &mut rede) {
@@ -302,13 +295,9 @@ pub(crate) fn registrar<V: EnvioDoProcesso>(
             IncertezaDoAndamento::AndamentoNaoInseridoUmaVez,
         ));
     }
-    Ok(resultado(
-        rede.feitas(),
-        Desfecho::Registrado {
-            total_depois: depois.total_declarado,
-            resposta_inesperada,
-        },
-    ))
+    resultado.total_depois = Some(depois.total_declarado);
+    resultado.requisicoes = rede.feitas();
+    Ok(resultado)
 }
 
 #[cfg(test)]
