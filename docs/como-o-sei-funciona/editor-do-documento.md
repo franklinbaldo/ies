@@ -60,11 +60,13 @@ Verifiquei SHA-1 do ZIP, SHA-256 normalizado da cassette, `schema_version: 1`,
   efeito, assinaturas removidas nem promoção de versão. `documento_alterar`
   é formulário de metadados, distinto do editor de conteúdo.
 
-O código `documento.salvar --confirmar` opera somente em `sei.test`;
-o parser foi estendido apenas para **reconhecer** as duas famílias e
-**recusar** sua gravação sem protocolo validado. O teste ignorado
-`replay_editor_nativo_no_acervo` confronta a classificação estrutural
-com seis respostas originais e não executa a CLI completa ou o anti-IES.
+O código `documento.salvar --confirmar` opera somente em `sei.test`.
+A guarda preexistente `InstalacaoSemEditorObservado` recusa origens reais
+antes de qualquer requisição. Não acrescentamos classificador SEI4/5 nem
+variante de erro para repetir essa recusa. O teste opt-in
+`replay_editor_nativo_no_acervo` lê seis respostas originais e comprova
+que não passam por `editor_observado`, fronteira exclusiva do ensaio
+sintético. **Não** executa a CLI completa ou o anti-IES.
 Os confrontos de transição/escrita e o live continuam **NOT_RUN**.
 
 **Risco para ensaio posterior:** GET de processo/editor pode registrar

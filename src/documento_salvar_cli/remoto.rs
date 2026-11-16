@@ -70,8 +70,6 @@ enum ErroSalvarNoSei {
     FotoLocalForaDaForma,
     EditorNaoServido(#[source] crate::transporte::FalhaTransporte),
     EditorForaDaForma,
-    /// A forma CKEditor 4/5 foi lida, mas o envio real nao foi validado.
-    EditorNativoSemProtocoloValidado,
     Formulario(#[source] crate::formulario_web::ErroSubmissaoFormulario),
     RegiaoNaoEditavelAlterada,
     /// O POST saiu e a releitura não comprovou a edição: não repita
@@ -123,53 +121,6 @@ fn assinaturas_no_editor(html: &crate::tela_html::HtmlServido) -> Option<u32> {
         }
     }
     contagem
-}
-
-/// Classificacao somente estrutural: nao interpreta JavaScript nem autoriza POST.
-/// O editor nativo CKEditor 4 ou 5 nao e o formulario do ensaio sintetico.
-#[derive(Clone, Copy, Debug, PartialEq, Eq)]
-enum FormatoNativo {
-    Sei4,
-    Sei5,
-}
-
-fn formato_nativo(html: &crate::tela_html::HtmlServido) -> Option<FormatoNativo> {
-    let dom = crate::tela_html::arvore(html);
-    if let Some(form) = dom
-        .elementos("form")
-        .find(|form| form.atributo("id") == Some("frmEditor"))
-    {
-        let campo = |nome: &str| {
-            form.elementos("input")
-                .any(|input| input.atributo("name") == Some(nome))
-        };
-        let secoes = form.elementos("textarea").any(|textarea| {
-            textarea
-                .atributo("name")
-                .is_some_and(|nome| nome.starts_with("txaEditor_"))
-        });
-        let retorno = dom
-            .elementos("iframe")
-            .any(|iframe| iframe.atributo("id") == Some("ifrEditorSalvar"));
-        if form
-            .atributo("method")
-            .is_some_and(|metodo| metodo.eq_ignore_ascii_case("post"))
-            && campo("hdnVersao")
-            && campo("hdnIgnorarNovaVersao")
-            && secoes
-            && retorno
-        {
-            return Some(FormatoNativo::Sei4);
-        }
-    }
-    let configuracao_publicada = dom.elementos("script").any(|script| {
-        let codigo = script.texto();
-        codigo.contains("window.INFRA_EDITOR_CONFIG")
-            && codigo.contains("initialData")
-            && codigo.contains("rootsAttributes")
-    });
-    (configuracao_publicada && html.contains("editor_salvar_conteudo"))
-        .then_some(FormatoNativo::Sei5)
 }
 
 fn editor_observado(html: &crate::tela_html::HtmlServido, versao_base: u32) -> bool {
@@ -319,12 +270,7 @@ fn executar(
         Err(falha) => return Resultado::Recusado(ErroSalvarNoSei::EditorNaoServido(falha)),
     };
     if !editor_observado(&editor, n.numero()) {
-        // Um editor nativo identificado nao autoriza sua conversao
-        // para o protocolo sintetico de gravacao.
-        return Resultado::Recusado(match formato_nativo(&editor) {
-            Some(_) => ErroSalvarNoSei::EditorNativoSemProtocoloValidado,
-            None => ErroSalvarNoSei::EditorForaDaForma,
-        });
+        return Resultado::Recusado(ErroSalvarNoSei::EditorForaDaForma);
     }
     let envio_unico = derivar_submissao(
         &EDITAR,
