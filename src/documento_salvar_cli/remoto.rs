@@ -342,6 +342,9 @@ pub(super) fn confirmar(
 }
 
 #[cfg(test)]
+mod acervo_editor;
+
+#[cfg(test)]
 mod testes_moldura {
     use super::corpos_da_edicao;
 
