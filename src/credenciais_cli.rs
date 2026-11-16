@@ -1,5 +1,5 @@
 //! Gerencia credenciais no cofre seguro do sistema operacional (Keyring).
-//! Utiliza exclusivamente o serviço "ies".
+//! Utiliza escopo canônico determinístico: "ies:<instancia>".
 
 use clap::{Args, Subcommand};
 use std::process::ExitCode;
@@ -16,7 +16,10 @@ pub(crate) enum ComandoCredenciais {
     Salvar {
         #[arg(long, help = "Nome de usuário no SEI")]
         usuario: String,
-        #[arg(long, help = "URL base da instalação (ex: https://sei.sistemas.ro.gov.br/sei)")]
+        #[arg(
+            long,
+            help = "URL base da instalação (ex: https://sei.sistemas.ro.gov.br/sei)"
+        )]
         origem: String,
     },
     /// Verifica se a senha está gravada no cofre nativo
@@ -46,12 +49,16 @@ pub(crate) fn executar_credenciais(args: &CredenciaisArgs, json_mode: bool) -> E
                     return ExitCode::from(1);
                 }
             };
+            let servico = crate::cofre::servico_do_cofre(origem);
             match crate::cofre::salvar_senha(usuario, origem, &senha) {
                 Ok(()) => {
                     if json_mode {
-                        println!(r#"{{"cofre":"ies","status":"gravado"}}"#);
+                        println!(r#"{{"cofre":"{}","status":"gravado"}}"#, servico);
                     } else {
-                        println!("✓ Senha gravada com sucesso no cofre seguro (Keyring: serviço 'ies').");
+                        println!(
+                            "✓ Senha gravada com sucesso no cofre seguro (Keyring: serviço '{}').",
+                            servico
+                        );
                     }
                     ExitCode::SUCCESS
                 }
@@ -62,23 +69,36 @@ pub(crate) fn executar_credenciais(args: &CredenciaisArgs, json_mode: bool) -> E
             }
         }
         ComandoCredenciais::Status { usuario, origem } => {
+            let servico = crate::cofre::servico_do_cofre(origem);
             let tem = crate::cofre::obter_senha(usuario, origem).is_some();
             if json_mode {
-                println!(r#"{{"cofre":"ies","presente":{}}}"#, tem);
+                println!(r#"{{"cofre":"{}","presente":{}}}"#, servico, tem);
             } else if tem {
-                println!("✓ Senha presente no cofre seguro (Keyring: serviço 'ies').");
+                println!(
+                    "✓ Senha presente no cofre seguro (Keyring: serviço '{}').",
+                    servico
+                );
             } else {
                 println!("✗ Nenhuma senha encontrada no cofre para este usuário/instalação.");
             }
-            if tem { ExitCode::SUCCESS } else { ExitCode::from(1) }
+            if tem {
+                ExitCode::SUCCESS
+            } else {
+                ExitCode::from(1)
+            }
         }
         ComandoCredenciais::Excluir { usuario, origem } => {
+            let servico = crate::cofre::servico_do_cofre(origem);
             match crate::cofre::excluir_senha(usuario, origem) {
                 Ok(()) => {
+                    if crate::cofre::obter_senha(usuario, origem).is_some() {
+                        eprintln!("Erro: credencial ainda presente no cofre após exclusão.");
+                        return ExitCode::from(1);
+                    }
                     if json_mode {
-                        println!(r#"{{"cofre":"ies","status":"excluido"}}"#);
+                        println!(r#"{{"cofre":"{}","status":"excluido"}}"#, servico);
                     } else {
-                        println!("✓ Credencial removida do cofre.");
+                        println!("✓ Credencial removida com sucesso do cofre.");
                     }
                     ExitCode::SUCCESS
                 }

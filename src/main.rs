@@ -9,14 +9,14 @@ mod caixa_detalhada;
 #[cfg(test)]
 mod cassette;
 mod classe_link_processo;
-mod colheita_do_controle;
 pub(crate) mod cofre;
-mod credenciais_cli;
+mod colheita_do_controle;
 mod configuracao;
 mod controle_contexto;
 mod controle_reconhecido;
 mod copia_documento;
 mod copia_listagem;
+mod credenciais_cli;
 mod documento;
 mod documento_assinar;
 mod documento_assinar_cli;
@@ -78,6 +78,7 @@ mod unidade_trocar_cli;
 mod url_observada;
 mod visao_do_controle;
 mod wizard_cli;
+mod wizard_sondagem;
 
 use clap::{Args, Parser, Subcommand};
 use serde_json::json;

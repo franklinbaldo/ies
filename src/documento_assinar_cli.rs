@@ -94,7 +94,10 @@ fn invalida(json_mode: bool, subcodigo: &str, mensagem: &str) -> ExitCode {
 
 /// As credenciais do arquivo privado ou do cofre nativo, só com `--confirmar`.
 fn credenciais(origem: &str) -> Result<Credenciais, ErroLogin> {
-    match std::env::var_os("IES_CREDENCIAIS_FILE").filter(|valor| !valor.is_empty()).map(PathBuf::from) {
+    match std::env::var_os("IES_CREDENCIAIS_FILE")
+        .filter(|valor| !valor.is_empty())
+        .map(PathBuf::from)
+    {
         Some(caminho) => Credenciais::ler_com_cofre(&caminho, origem),
         None => Credenciais::do_cofre_ou_ambiente(origem),
     }

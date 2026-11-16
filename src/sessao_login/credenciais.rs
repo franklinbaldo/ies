@@ -38,7 +38,11 @@ impl Credenciais {
 
     #[allow(dead_code)]
     pub(crate) fn nova(usuario: String, senha: String, orgao: String) -> Self {
-        Self { usuario, senha, orgao }
+        Self {
+            usuario,
+            senha,
+            orgao,
+        }
     }
 
     /// Arquivo privado pelas travas do transporte (`0600`, sem link, limite).
@@ -64,10 +68,23 @@ impl Credenciais {
             .map_err(|_| ErroLogin::CampoDasCredenciaisAusente(C::Usuario))?;
         let orgao = std::env::var("IES_ORGAO")
             .map_err(|_| ErroLogin::CampoDasCredenciaisAusente(C::Orgao))?;
-        let senha = crate::cofre::obter_senha(&usuario, origem)
+        let u = usuario.trim();
+        let o = orgao.trim();
+        if u.is_empty() {
+            return Err(ErroLogin::CampoDasCredenciaisVazio(C::Usuario));
+        }
+        if o.is_empty() {
+            return Err(ErroLogin::CampoDasCredenciaisVazio(C::Orgao));
+        }
+        let senha = crate::cofre::obter_senha(u, origem)
             .or_else(|| std::env::var("IES_SENHA").ok())
+            .filter(|s| !s.trim().is_empty())
             .ok_or(ErroLogin::CampoDasCredenciaisAusente(C::Senha))?;
-        Ok(Self { usuario, senha, orgao })
+        Ok(Self {
+            usuario: u.to_owned(),
+            senha,
+            orgao: o.to_owned(),
+        })
     }
 
     pub(crate) fn interpretar_com_cofre(texto: &str, origem: &str) -> Result<Self, ErroLogin> {
@@ -96,16 +113,20 @@ impl Credenciais {
             }
             valores[indice] = Some(valor.to_owned());
         }
-        let [usuario, mut senha, orgao] = valores;
+        let [usuario, senha, orgao] = valores;
         let u = usuario.ok_or(ErroLogin::CampoDasCredenciaisAusente(C::Usuario))?;
         let o = orgao.ok_or(ErroLogin::CampoDasCredenciaisAusente(C::Orgao))?;
-        if senha.as_deref().unwrap_or("").is_empty() {
-            if let Some(s) = crate::cofre::obter_senha(&u, origem) {
-                senha = Some(s);
-            }
-        }
-        let s = senha.ok_or(ErroLogin::CampoDasCredenciaisAusente(C::Senha))?;
-        Ok(Self { usuario: u, senha: s, orgao: o })
+        let s = match senha.filter(|s| !s.trim().is_empty()) {
+            Some(s) => s,
+            None => crate::cofre::obter_senha(&u, origem)
+                .filter(|s| !s.trim().is_empty())
+                .ok_or(ErroLogin::CampoDasCredenciaisAusente(C::Senha))?,
+        };
+        Ok(Self {
+            usuario: u,
+            senha: s,
+            orgao: o,
+        })
     }
 
     /// `usuario` e `orgao` aparados; `senha` exatamente como escrita depois
