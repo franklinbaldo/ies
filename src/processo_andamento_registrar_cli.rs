@@ -1,9 +1,9 @@
 //! CLI do registro de andamento: valida entrada antes da sessão, nunca retry.
-use crate::processo_andamento_registrar;
+use crate::processo_andamento_registrar::{self, Desfecho};
+use crate::processo_andamento_registrar::{RespostaInesperada, Resultado};
 use crate::processo_concluir_cli::com_sessao;
 use crate::visao_do_controle::EnvioHttps;
 use crate::{Cli, Domain, Processo, ProcessoAcao};
-use serde_json::json;
 
 pub(crate) fn tentar_registrar(cli: &Cli) -> Option<anyhow::Result<()>> {
     let Domain::Processo(Processo {
@@ -39,30 +39,58 @@ pub(crate) fn tentar_registrar(cli: &Cli) -> Option<anyhow::Result<()>> {
             &mut EnvioHttps,
         )?;
         if cli.json {
-            let mut valor = json!({
-                "numero": r.numero,
-                "texto": r.texto,
-                "confirmado": r.confirmado,
-                "alterado": r.total_depois.is_some(),
-                "origem": "web",
-                "total_antes": r.total_antes,
-                "total_depois": r.total_depois,
-                "requisicoes": r.requisicoes,
-                "resposta_inesperada": r.resposta_inesperada,
-            });
+            let mut valor = serde_json::to_value(saida(&r))?;
             crate::indice_local::anexar_avisos(&mut valor, indice);
             println!("{valor}");
-        } else if r.confirmado {
-            println!(
-                "Andamento registrado e conferido no processo {}. Requisições: {}",
-                r.numero, r.requisicoes
-            );
         } else {
-            println!(
-                "Prévia: registrar no processo {} o andamento: {:?}. Nenhuma escrita. Requisições: {}. Para gravar, use --confirmar.",
-                r.numero, r.texto, r.requisicoes
-            );
+            match r.desfecho {
+                Desfecho::Registrado { .. } => println!(
+                    "Andamento registrado e conferido no processo {}. Requisições: {}",
+                    r.numero, r.requisicoes
+                ),
+                Desfecho::Previa => println!(
+                    "Prévia: registrar no processo {} o andamento: {:?}. Nenhuma escrita. Requisições: {}. Para gravar, use --confirmar.",
+                    r.numero, r.texto, r.requisicoes
+                ),
+            }
         }
         Ok(())
     }))
+}
+
+/// Sem valor, a chave é omitida: a saída não traz null (#749).
+#[derive(serde::Serialize)]
+struct Saida<'a> {
+    alterado: bool,
+    confirmado: bool,
+    numero: &'a str,
+    origem: &'static str,
+    requisicoes: u8,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    resposta_inesperada: Option<RespostaInesperada>,
+    texto: &'a str,
+    total_antes: u64,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    total_depois: Option<u64>,
+}
+
+fn saida(r: &Resultado) -> Saida<'_> {
+    let (total_depois, resposta_inesperada) = match r.desfecho {
+        Desfecho::Previa => (None, None),
+        Desfecho::Registrado {
+            total_depois,
+            resposta_inesperada,
+        } => (Some(total_depois), resposta_inesperada),
+    };
+    Saida {
+        alterado: total_depois.is_some(),
+        confirmado: total_depois.is_some(),
+        numero: &r.numero,
+        origem: "web",
+        requisicoes: r.requisicoes,
+        resposta_inesperada,
+        texto: &r.texto,
+        total_antes: r.total_antes,
+        total_depois,
+    }
 }

@@ -345,14 +345,12 @@ fn verificar(
     assert_eq!(json["confirmado"], confirmar);
     assert_eq!(json["alterado"], confirmar);
     assert_eq!(json["total_antes"], 1);
+    // Prévia: sem releitura não há total_depois; a chave é omitida, sem null.
     assert_eq!(
-        json["total_depois"],
-        if confirmar {
-            serde_json::json!(2)
-        } else {
-            serde_json::Value::Null
-        }
+        json.get("total_depois").cloned(),
+        confirmar.then(|| serde_json::json!(2))
     );
+    assert_eq!(json.get("resposta_inesperada"), None);
     assert!(
         pedidos
             .iter()
