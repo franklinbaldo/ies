@@ -45,6 +45,8 @@ pub(crate) enum ErroSubmissaoFormulario {
     /// pela validação da Infra. Status 200 e a mensagem saneada.
     ValidacaoRecusadaPeloSei(String),
     Transporte(#[from] FalhaTransporte),
+    /// A consulta da `action` não se lê em pares: a causa é a do leitor.
+    ConsultaDaAcaoIlegivel(#[from] crate::consulta_do_controlador::ErroConsultaDoControlador),
     AcaoDoFormularioAusente,
     BotaoDeEnvioAusenteNoFormulario,
     BotoesDeEnvioRepetidosNoFormulario,
@@ -87,7 +89,8 @@ impl ErroSubmissaoFormulario {
             | Self::BotoesDeEnvioRepetidosNoFormulario
             | Self::FormularioAusenteNaTela
             | Self::IdentificacaoDaUnidadeAusenteNaTela
-            | Self::IdentificacoesDaUnidadeRepetidasNaTela(_) => false,
+            | Self::IdentificacoesDaUnidadeRepetidasNaTela(_)
+            | Self::ConsultaDaAcaoIlegivel(_) => false,
         }
     }
 }
@@ -124,7 +127,8 @@ impl ErroSubmissaoFormulario {
             | Self::BotoesDeEnvioRepetidosNoFormulario
             | Self::FormularioAusenteNaTela
             | Self::IdentificacaoDaUnidadeAusenteNaTela
-            | Self::IdentificacoesDaUnidadeRepetidasNaTela(_) => None,
+            | Self::IdentificacoesDaUnidadeRepetidasNaTela(_)
+            | Self::ConsultaDaAcaoIlegivel(_) => None,
         }
     }
 }

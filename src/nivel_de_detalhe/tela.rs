@@ -102,7 +102,8 @@ pub(crate) fn ler_nivel_de_detalhe(
             | ErroSubmissaoFormulario::BotoesDeEnvioRepetidosNoFormulario
             | ErroSubmissaoFormulario::FormularioAusenteNaTela
             | ErroSubmissaoFormulario::IdentificacaoDaUnidadeAusenteNaTela
-            | ErroSubmissaoFormulario::IdentificacoesDaUnidadeRepetidasNaTela(_)) => {
+            | ErroSubmissaoFormulario::IdentificacoesDaUnidadeRepetidasNaTela(_)
+            | ErroSubmissaoFormulario::ConsultaDaAcaoIlegivel(_)) => {
                 E::FormularioDoNivelDeDetalheAusente(outro)
             }
         })?;
