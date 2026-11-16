@@ -44,5 +44,6 @@ fn conferir_recusa_no_original(card_relativo: &str) {
 #[ignore = "requer ZIPs originais conferidos em IES_ACERVO_CACHE"]
 fn replay_editor_nativo_no_acervo() {
     conferir_recusa_no_original("cassettes/unb/documento-escritas-unb--36a904749e20.md");
+    conferir_recusa_no_original("cassettes/ufrj/documento-escritas-ufrj--2241d2a8f71b.md");
     conferir_recusa_no_original("cassettes/go/documento-escritas-go--16f83179ecaa.md");
 }
