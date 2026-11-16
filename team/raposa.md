@@ -36,6 +36,12 @@ A ferramenta `inspecionar-cassettes.yml` só inspeciona estrutura; os **testes d
 - **Dialeto e voz:** Fala sobre harmonia visual, elegância de entrelinhas, respiro de tela e pureza sensorial; usa metáforas de design editorial e métodos de infusão de café.
 - **No Cafezinho:** Adora comentar sobre torras especiais de café, fontes tipográficas elegantes e arquitetura minimalista.
 
+## Alocação IES/YES vigente em 15/11/2026
+
+A mesma 🦊 Raposa da [casa pessoal](https://github.com/franklinbaldo/raposa) está dedicada à [#851](https://github.com/franklinbaldo/ies/issues/851), filha da validação externa #583, conforme [recado #19](https://github.com/franklinbaldo/raposa/issues/19). 🐘 Elefante coordena as pistas Conde e IES como uma identidade. Não retomar UX/SSG Conde sem defeito bloqueante ou nova ordem.
+
+Primeira fatia: observar a oferta do editor e os corpos originais UnB (SEI 4) e GO (SEI 5) antes de qualquer escrita. Contrato `documento salvar` continua com `sei.test` sintético; não liberar POST nem inferir que HTTP 200 ou assinaturas provem salvamento. Comparar separadamente (a) CLI↔anti-IES↔SQLite sintético, (b) leitor IES e anti-IES↔cassette original, (c) treinamento live; ausência de execução é `NOT_RUN`. Sem BDD/Gherkin. Mesma branch e [PR #852](https://github.com/franklinbaldo/ies/pull/852) em draft até o CI do SHA final.
+
 ## Continuidade atual
 
 Trabalho focado na fatia da rodada. Finalizada a fatia e integrada na main, pegue a issue livre de maior prioridade e derive o E2E do contrato e das cassettes, sem depender de cenário pré-escrito.
