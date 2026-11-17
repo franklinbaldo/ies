@@ -148,6 +148,88 @@ fn bdd_381_04_previa_sem_inclusao_e_releitura_do_bloco_interno() {
 }
 
 #[test]
+fn confirmar_processo_ja_no_bloco_retorna_sucesso_sem_mutacao() {
+    let pasta = Pasta::nova();
+    preparar(&pasta);
+    let (mut banco, instalacao) = estado(&pasta.0.join("anti-ies.sqlite3"), true, 0, false);
+    let mut detalhe =
+        bloco_detalhe::ler(&banco, &instalacao, CENARIO, Tipo::Interno, BLOCO_INTERNO)
+            .unwrap()
+            .unwrap();
+    detalhe.itens[0].processo = NUP_INTERNO.into();
+    bloco_detalhe::guardar(&mut banco, &instalacao, CENARIO, &detalhe).unwrap();
+
+    let (saida, pedidos) = executar_ciencia_processo(
+        &pasta,
+        &[
+            "--json",
+            "bloco",
+            "incluir",
+            BLOCO_INTERNO,
+            "--processo",
+            NUP_INTERNO,
+            "--confirmar",
+        ],
+    );
+    assert_eq!(
+        saida.status.code(),
+        Some(0),
+        "stderr={}",
+        String::from_utf8_lossy(&saida.stderr),
+    );
+    let valor = json(&saida);
+    assert_eq!(valor["confirmado"], true);
+    assert_eq!(valor["alterado"], false);
+    assert_eq!(valor["presente_antes"], true);
+    assert_eq!(valor["presente_depois"], true);
+    assert!(
+        pedidos
+            .iter()
+            .all(|p| p.starts_with("GET ") || p == "POST protocolo_pesquisa_rapida"),
+        "{pedidos:?}",
+    );
+    assert_eq!(
+        bloco_detalhe::ler(&banco, &instalacao, CENARIO, Tipo::Interno, BLOCO_INTERNO).unwrap(),
+        Some(detalhe),
+    );
+}
+
+#[test]
+fn confirmar_processo_ausente_recusa_antes_de_abrir_o_processo() {
+    let pasta = Pasta::nova();
+    preparar(&pasta);
+    let (saida, pedidos) = executar_ciencia_processo(
+        &pasta,
+        &[
+            "--json",
+            "bloco",
+            "incluir",
+            BLOCO_INTERNO,
+            "--processo",
+            NUP_INTERNO,
+            "--confirmar",
+        ],
+    );
+    assert_eq!(saida.status.code(), Some(1));
+    assert!(
+        String::from_utf8_lossy(&saida.stderr).contains("inclusão de um processo ausente"),
+        "{saida:?}",
+    );
+    assert!(
+        pedidos
+            .iter()
+            .any(|p| p == "GET rel_bloco_protocolo_listar"),
+        "{pedidos:?}",
+    );
+    assert!(
+        pedidos.iter().all(|p| p.starts_with("GET ")
+            && !p.contains("procedimento_trabalhar")
+            && !p.contains("arvore_visualizar")),
+        "{pedidos:?}",
+    );
+}
+
+#[test]
 fn bdd_381_04_colisao_entre_tipos_nao_escolhe_o_primeiro() {
     let pasta = Pasta::nova();
     preparar(&pasta);
