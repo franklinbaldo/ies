@@ -32,9 +32,9 @@ impl FotoProcesso {
 pub(crate) enum FalhaConfirmacao {
     FotoInicialIncompleta,
     FotoInicialInconsistente,
-    UploadRecusado(FalhaUpload),
-    UploadIncerto(FalhaUpload),
-    TemporarioSemCadastro(FalhaCadastroEnvio),
+    UploadRecusado(#[source] FalhaUpload),
+    UploadIncerto(#[source] FalhaUpload),
+    TemporarioSemCadastro(#[source] FalhaCadastroEnvio),
     CadastroIncerto(#[source] ErroSubmissaoFormulario),
     ReleituraIncerta(#[source] ErroProcessoObter),
     /// A árvore lida depois do cadastro não prova o documento criado.
