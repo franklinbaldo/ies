@@ -142,8 +142,8 @@ fn publicar_resultado(
     };
     if json_mode {
         let mut valor = resultado_json(resultado);
-        if let Some(copia) = copia {
-            valor["copia_editavel"] = json!(copia);
+        if let (Some(copia), Some(objeto)) = (copia, valor.as_object_mut()) {
+            objeto.insert("copia_editavel".to_owned(), json!(copia));
         }
         crate::indice_local::anexar_avisos(&mut valor, indice);
         println!("{valor}");
