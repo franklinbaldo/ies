@@ -231,7 +231,7 @@ fn executar(
     let instalacao = match Instalacao::interpretar(sessao.origem) {
         Some(instalacao) => instalacao,
         None => return Resultado::Recusado(ErroSalvarNoSei::InstalacaoSemEditorObservado),
-    ;
+    };
     if instalacao.host() != "sei.test" {
         return Resultado::Recusado(ErroSalvarNoSei::InstalacaoSemEditorObservado);
     }
