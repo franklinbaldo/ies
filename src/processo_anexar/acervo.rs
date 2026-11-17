@@ -41,7 +41,10 @@ fn fatos_da_fonte(html: &str) -> FatosDoFormulario {
         .find(|tag| tag.atributo("id") == Some("frmProcedimentoAnexar"))
         .expect("formulário oferecido na fonte");
     assert_eq!(
-        formulario.atributo("method").unwrap_or_default().to_ascii_lowercase(),
+        formulario
+            .atributo("method")
+            .unwrap_or_default()
+            .to_ascii_lowercase(),
         "post",
         "método da oferta original"
     );
@@ -76,9 +79,14 @@ fn fatos_da_fonte(html: &str) -> FatosDoFormulario {
         tabelas += 1;
         for input in tabela.descendentes() {
             if input.nome().eq_ignore_ascii_case("input")
-                && input.atributo("type").is_some_and(|v| v.eq_ignore_ascii_case("checkbox"))
+                && input
+                    .atributo("type")
+                    .is_some_and(|v| v.eq_ignore_ascii_case("checkbox"))
             {
-                let id = input.atributo("value").expect("ID original de anexado").to_owned();
+                let id = input
+                    .atributo("value")
+                    .expect("ID original de anexado")
+                    .to_owned();
                 assert!(
                     !id.is_empty() && id.bytes().all(|b| b.is_ascii_digit()),
                     "ID original precisa ser decimal"
@@ -93,7 +101,10 @@ fn fatos_da_fonte(html: &str) -> FatosDoFormulario {
         anexados.windows(2).all(|par| par[0] != par[1]),
         "ID original duplicado"
     );
-    FatosDoFormulario { controles, anexados }
+    FatosDoFormulario {
+        controles,
+        anexados,
+    }
 }
 
 /// Consulta o anti-IES por HTTP local, sem usar a saída do IES como oráculo.
@@ -142,7 +153,8 @@ fn confrontar(instalacao: &str, json: &serde_json::Value) -> (usize, usize) {
             continue; // outros GETs da mesma operação não oferecem o formulário
         }
         let fonte = fatos_da_fonte(&html);
-        let observado = super::ler_tela(&crate::tela_html::HtmlServido::de_teste(&html)).expect("leitor Rust da tela original de anexação");
+        let observado = super::ler_tela(&crate::tela_html::HtmlServido::de_teste(&html))
+            .expect("leitor Rust da tela original de anexação");
         let mut ids_ies = observado.anexados;
         ids_ies.sort_unstable();
         assert_eq!(
@@ -185,7 +197,8 @@ fn confrontar(instalacao: &str, json: &serde_json::Value) -> (usize, usize) {
             fonte_simulada, fonte,
             "oferta/IDs do anti-IES divergem da fonte em {instalacao}"
         );
-        let projetado = super::ler_tela(&crate::tela_html::HtmlServido::de_teste(&simulado)).expect("leitor Rust da projeção do anti-IES");
+        let projetado = super::ler_tela(&crate::tela_html::HtmlServido::de_teste(&simulado))
+            .expect("leitor Rust da projeção do anti-IES");
         let mut ids_simulados = projetado.anexados;
         ids_simulados.sort_unstable();
         assert_eq!(
