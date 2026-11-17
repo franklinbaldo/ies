@@ -35,6 +35,14 @@ reescrita.
   `usuario` e `orgao` são aparados; `senha` sai como escrita. Linha sem
   chave conhecida, chave repetida, ausente ou vazia é recusa tipada.
   O arquivo só é lido quando um login é necessário.
+- **Senha no cofre.** Sem a linha `senha=`, a senha vem do
+  [cofre do sistema operacional](credenciais.md) (serviço `ies:<host>` da
+  origem, conta = `usuario=` do arquivo), consultado uma vez, só quando
+  o arquivo é lido. Entrada inexistente (ou senha vazia no cofre) é a
+  mesma recusa do arquivo (`CampoDasCredenciaisAusente(Senha)`,
+  `CampoDasCredenciaisVazio(Senha)`); qualquer outra falha do cofre é
+  `Cofre(ErroCofre)`, sem login. Com `senha=` no arquivo, o cofre nunca
+  é consultado; `senha=` vazia continua recusa.
 - `--forcar`: faz um novo login mesmo com sessão válida.
 - `--unidade SIGLA` (global): pré-condição conferida no Controle obtido.
   Diferença literal falha com `UnidadeExibidaDiferenteDaSolicitada`
@@ -160,7 +168,8 @@ rodar de novo resolve). Todas as requisições do comando e a colheita do
 
 `caminho_credenciais_nao_informado`, `CampoDasCredenciaisAusente`,
 `CampoDasCredenciaisRepetido`, `CampoDasCredenciaisVazio`,
-`LinhaDasCredenciaisSemCampoConhecido`, os de arquivo privado
+`LinhaDasCredenciaisSemCampoConhecido`, `Cofre(ErroCofre)`
+([cofre](credenciais.md#falhas-tipadas)), os de arquivo privado
 (`ArquivoDeCredenciais`, `OrigemIlegivel`, `ArquivoDaSessao`, cada um com
 o `ErroArquivoPrivado` do arquivo), `OrigemNaoAutorizada`,
 `LoginEmAndamentoEmOutroProcesso`,
