@@ -360,9 +360,7 @@ pub(crate) fn ler_arvore_com_modo(
             return Err(ErroArvore::IndiceDeNoForaDaSequencia);
         }
         proximo += 1;
-        let tipo = argumentos
-            .first()
-            .ok_or(ErroArvore::QuantidadeDeArgumentosDoNoDiferenteDaObservada)?;
+        let tipo = argumentos.first().ok_or(ErroArvore::NoSemArgumentos)?;
         match texto(tipo)? {
             "PROCESSO" => {
                 if processo.is_some() {
@@ -386,9 +384,7 @@ pub(crate) fn ler_arvore_com_modo(
                 documentos.push(lido);
             }
             "PASTA" | "AGUARDE" => {
-                let argumentos: [Literal; ARGUMENTOS_DA_PASTA] = argumentos
-                    .try_into()
-                    .map_err(|_| ErroArvore::QuantidadeDeArgumentosDoNoDiferenteDaObservada)?;
+                let argumentos: [Literal; ARGUMENTOS_DA_PASTA] = com_aridade(argumentos)?;
                 nos_de_pasta.push(pastas::ler_no_de_pasta(&argumentos)?);
             }
             _ => return Err(ErroArvore::TipoDeNoDaArvoreNaoSuportado),
@@ -424,10 +420,15 @@ pub(crate) fn ler_arvore_com_modo(
     })
 }
 
-fn com_aridade(argumentos: Vec<Literal>) -> Result<[Literal; ARGUMENTOS], ErroArvore> {
-    argumentos
-        .try_into()
-        .map_err(|_| ErroArvore::QuantidadeDeArgumentosDoNoDiferenteDaObservada)
+/// Os `N` argumentos do nó; a recusa guarda só as contagens, nunca os
+/// valores servidos.
+fn com_aridade<const N: usize>(argumentos: Vec<Literal>) -> Result<[Literal; N], ErroArvore> {
+    argumentos.try_into().map_err(|recusados: Vec<Literal>| {
+        ErroArvore::QuantidadeDeArgumentosDoNoDiferenteDaObservada {
+            esperada: N,
+            observada: recusados.len(),
+        }
+    })
 }
 
 fn texto(literal: &Literal) -> Result<&str, ErroArvore> {

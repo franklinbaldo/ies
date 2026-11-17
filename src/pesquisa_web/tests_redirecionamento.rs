@@ -183,9 +183,6 @@ fn nomes_de_parametro_nao_canonicos_ou_ponto_e_virgula_sao_recusados() {
             matches!(
                 erro(&alterado),
                 ErroRedirecionamentoDaPesquisa::ParametroNaoCanonicoNaLocalizacaoDoRedirecionamento
-                    | ErroRedirecionamentoDaPesquisa::ParametroDeConsultaRecusadoNoRedirecionamento(
-                        _
-                    )
             ),
             "{alterado}"
         );
@@ -294,6 +291,11 @@ fn unidade_atual_do_redirecionamento_precisa_ser_a_do_envio() {
     assert_eq!(
         interpretar_com_envio(Some(&observado()), &envio_repetido).unwrap_err(),
         ErroRedirecionamentoDaPesquisa::UnidadeAtualRepetidaNaUrlDoEnvio
+    );
+    let envio_solto = format!("{}&solto", url_do_envio());
+    assert_eq!(
+        interpretar_com_envio(Some(&observado()), &envio_solto).unwrap_err(),
+        ErroRedirecionamentoDaPesquisa::ParametroNaoCanonicoNaUrlDoEnvio
     );
 }
 

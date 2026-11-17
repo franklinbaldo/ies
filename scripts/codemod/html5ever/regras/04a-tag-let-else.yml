@@ -1,0 +1,18 @@
+id: 04a-tag-let-else
+language: rust
+message: 'let-else de um handle resolvido: o nome some e os usos passam ao handle (o let)'
+severity: hint
+rule:
+  all:
+    - pattern: 'let Some($X) = $H.get($P).and_then(tl::Node::as_tag) else { $$$B };'
+    - not:
+        inside:
+          stopBy: end
+          kind: mod_item
+          follows:
+            kind: attribute_item
+            regex: 'cfg\(test\)'
+constraints:
+  H:
+    kind: identifier
+fix: '/* ies-codemod: remover linha */'

@@ -16,8 +16,6 @@ use consulta::consulta;
 #[derive(Debug, PartialEq, Eq, thiserror::Error)]
 #[error("{self:?}")]
 pub(crate) enum FalhaDaLupa {
-    /// O tokenizador de atributos recusou a tag.
-    Atributo(#[source] crate::html_atributos::ErroAtributoHtml),
     Transporte(#[source] FalhaTransporte),
     Tela(ErroLupa),
     LinkAusente,
@@ -25,8 +23,6 @@ pub(crate) enum FalhaDaLupa {
     LinkForaDaInstalacao,
     CharsetInesperado,
     FormularioInesperado,
-    /// O parser de HTML recusou a página recebida.
-    HtmlNaoInterpretado(#[source] tl::ParseError),
     /// O formulário da lupa não foi localizado na página.
     FormularioAusente(#[source] crate::formulario_web::ErroSubmissaoFormulario),
     /// A submissão do formulário da lupa não pôde ser derivada.
@@ -80,7 +76,7 @@ fn obter<T: TransporteLupa>(
     cookie: &str,
     origem: &str,
     requisicoes: &mut usize,
-) -> Result<(String, String), FalhaDaLupa> {
+) -> Result<(crate::tela_html::HtmlServido, String), FalhaDaLupa> {
     validar_url_de_leitura(url, origem)?;
     *requisicoes += 1;
     let resposta = t.get(url, cookie).map_err(FalhaDaLupa::Transporte)?;
@@ -107,7 +103,7 @@ fn url_publicada_autorizada(url: &str, origem: &str, acao: AcaoDoSei) -> bool {
     let Ok(query) = ConsultaDoControlador::ler(query) else {
         return false;
     };
-    query.unico("acao") == Ok(acao.como_na_url())
+    query.acao() == Ok(acao.como_na_url())
         && query.valores("acao_ajax").next().is_none()
         && query
             .unico("infra_hash")
@@ -132,34 +128,28 @@ fn validar_url_de_leitura(url: &str, origem: &str) -> Result<(), FalhaDaLupa> {
 
 /// Extrai apenas URLs literais publicadas pelo controle fornecido.
 /// Não interpreta nem executa código JavaScript.
-fn candidatos_do_controle(tag: &tl::HTMLTag<'_>) -> Result<Vec<String>, FalhaDaLupa> {
+fn candidatos_do_controle(tag: crate::tela_html::Elemento<'_>) -> Vec<String> {
     let mut urls = Vec::new();
     for atributo in ["href", "onclick"] {
-        let bruto = crate::html_atributos::valor_do_atributo(tag, atributo)
-            .map_err(FalhaDaLupa::Atributo)?;
-        let Some(bruto) = bruto else { continue };
-        let decodificado =
-            crate::formulario_web::decodificar_atributo(&bruto).ok_or(FalhaDaLupa::LinkAmbiguo)?;
+        let Some(bruto) = tag.atributo(atributo) else {
+            continue;
+        };
         let literal = if atributo == "href" {
-            Some(decodificado.as_str())
+            Some(bruto)
         } else {
             // Apenas literal entre aspas atribuído a location, sem JS.
-            let local = decodificado.split("location").nth(1);
+            let local = bruto.split("location").nth(1);
             local.and_then(|s| s.split_once('=')).and_then(|(_, v)| {
                 let v = v.strip_prefix('\'').or_else(|| v.strip_prefix('"'))?;
-                let fim = if decodificado.contains("='") {
-                    '\''
-                } else {
-                    '"'
-                };
-                v.split(fim).next()
+                let fim = if bruto.contains("='") { '\'' } else { '"' };
+                Some(v.split_once(fim).map_or(v, |(antes, _)| antes))
             })
         };
         if let Some(literal) = literal.filter(|x| x.contains("controlador.php?")) {
             urls.push(literal.to_owned());
         }
     }
-    Ok(urls)
+    urls
 }
 
 /// Extrai somente o conteúdo integral de literais simples entre aspas do
@@ -199,33 +189,25 @@ fn literais_do_script(script: &str) -> Vec<String> {
 
 /// URL publicada em controle da tela; na lupa GO, também em literal
 /// estático de script da tela de cadastro, sem executar JavaScript.
-pub(super) fn candidatos(html: &str, acao: AcaoDoSei) -> Result<Vec<String>, FalhaDaLupa> {
-    let dom = tl::parse(html, tl::ParserOptions::default())
-        .map_err(|e| FalhaDaLupa::Tela(ErroLupa::HtmlNaoInterpretado(e)))?;
-    let parser = dom.parser();
+pub(super) fn candidatos(html: &crate::tela_html::HtmlServido, acao: AcaoDoSei) -> Vec<String> {
+    let dom = crate::tela_html::arvore(html);
     let mut urls = Vec::new();
     for seletor in ["a", "button", "input"] {
-        for no in dom.query_selector(seletor).into_iter().flatten() {
-            let Some(tag) = no.get(parser).and_then(tl::Node::as_tag) else {
-                continue;
-            };
-            urls.extend(candidatos_do_controle(tag)?);
+        for no in dom.elementos(seletor) {
+            urls.extend(candidatos_do_controle(no));
         }
     }
     if acao == AcaoDoSei::UnidadeSelecionarEnvioProcesso {
-        for no in dom.query_selector("script").into_iter().flatten() {
-            let Some(tag) = no.get(parser).and_then(tl::Node::as_tag) else {
-                continue;
-            };
+        for no in dom.elementos("script") {
             let chave_da_acao = format!("acao={}", acao.como_na_url());
             urls.extend(
-                literais_do_script(tag.raw().as_utf8_str().as_ref())
+                literais_do_script(no.texto().as_ref())
                     .into_iter()
                     .filter(|url| url.contains(&chave_da_acao)),
             );
         }
     }
-    Ok(urls)
+    urls
 }
 
 /// Resolve URL publicada, com ação única e hash hexadecimal; nunca gera hash.
@@ -243,7 +225,9 @@ fn destino_de_candidatos(
         let url = if relativo.starts_with("https://") {
             relativo
         } else if relativo.starts_with("controlador.php?") {
-            let base = url_da_tela.split('?').next().unwrap_or_default();
+            let base = url_da_tela
+                .split_once('?')
+                .map_or(url_da_tela, |(antes, _)| antes);
             let pasta = base
                 .rsplit_once('/')
                 .map(|(p, _)| p)
@@ -264,20 +248,21 @@ fn destino_de_candidatos(
 }
 
 pub(super) fn destino(
-    html: &str,
+    html: &crate::tela_html::HtmlServido,
     url_da_tela: &str,
     origem: &str,
     acao: AcaoDoSei,
 ) -> Result<String, FalhaDaLupa> {
-    destino_de_candidatos(candidatos(html, acao)?, url_da_tela, origem, acao)
+    destino_de_candidatos(candidatos(html, acao), url_da_tela, origem, acao)
 }
 
-fn botao_novo(html: &str, url: &str, origem: &str) -> Result<String, FalhaDaLupa> {
-    let dom =
-        tl::parse(html, tl::ParserOptions::default()).map_err(FalhaDaLupa::HtmlNaoInterpretado)?;
-    let parser = dom.parser();
-    let achados =
-        crate::html_atributos::nos_com_id(&dom, "btnNovo").map_err(FalhaDaLupa::Atributo)?;
+fn botao_novo(
+    html: &crate::tela_html::HtmlServido,
+    url: &str,
+    origem: &str,
+) -> Result<String, FalhaDaLupa> {
+    let dom = crate::tela_html::arvore(html);
+    let achados = dom.com_id("btnNovo").collect::<Vec<_>>();
     if achados.is_empty() {
         return Err(FalhaDaLupa::LinkAusente);
     }
@@ -288,12 +273,8 @@ fn botao_novo(html: &str, url: &str, origem: &str) -> Result<String, FalhaDaLupa
     let duplicados = achados.len() > 1;
     let mut destino_unico: Option<String> = None;
     for no in achados {
-        let tag = no
-            .get(parser)
-            .and_then(tl::Node::as_tag)
-            .ok_or(FalhaDaLupa::LinkAmbiguo)?;
         let candidato = match destino_de_candidatos(
-            candidatos_do_controle(tag)?,
+            candidatos_do_controle(no),
             url,
             origem,
             AcaoDoSei::GrupoUnidadeCadastrar,

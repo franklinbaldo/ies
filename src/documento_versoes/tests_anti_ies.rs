@@ -2,6 +2,7 @@
 use super::{VersaoDocumento, interpretar_historico};
 use crate::documento_web::{identidade_do_titulo, texto_do_corpo};
 use crate::rodape_do_documento::versao_do_rodape;
+use crate::tela_html::HtmlServido;
 use anti_ies::Estado;
 use anti_ies::documento_versoes::responder;
 use iesei::banco_cassettes::iniciar;
@@ -100,7 +101,8 @@ fn bdd_88_01_leitor_ies_confere_lista_e_visualiza_versao_servida() {
         "bdd-88",
     );
     assert_eq!(lista.estado, Estado::Ok);
-    let historico = interpretar_historico(&lista.corpo, "42", None).unwrap();
+    let historico =
+        interpretar_historico(&HtmlServido::de_teste(&lista.corpo), "42", None).unwrap();
     assert_eq!(historico.atual().unwrap().numero(), 3);
     let antiga = historico
         .selecionar(VersaoDocumento::nova(1).unwrap())
@@ -114,14 +116,14 @@ fn bdd_88_01_leitor_ies_confere_lista_e_visualiza_versao_servida() {
 
     let resposta = responder("GET", &format!("/sei/{link}"), &banco, &origem, "bdd-88");
     assert_eq!(resposta.estado, Estado::Ok);
-    let identidade = identidade_do_titulo(&resposta.corpo).unwrap();
+    let identidade = identidade_do_titulo(&HtmlServido::de_teste(&resposta.corpo)).unwrap();
     assert_eq!(identidade.numero, "0011519");
     assert_eq!(identidade.tipo, "Ofício");
     assert_eq!(
-        versao_do_rodape(&resposta.corpo).map(VersaoDocumento::numero),
+        versao_do_rodape(&HtmlServido::de_teste(&resposta.corpo)).map(VersaoDocumento::numero),
         Some(1)
     );
-    let texto = texto_do_corpo(&resposta.corpo).unwrap();
+    let texto = texto_do_corpo(&HtmlServido::de_teste(&resposta.corpo)).unwrap();
     assert!(texto.contains("Primeira redação"));
     assert!(!texto.contains("Terceira redação"));
 }

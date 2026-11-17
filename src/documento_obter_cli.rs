@@ -108,7 +108,10 @@ pub(crate) fn tentar_obter(cli: &Cli) -> Option<anyhow::Result<()>> {
         }
     }
     let saida = comando.saida.as_deref().map(Path::new);
-    let mut versoes = documento_versao_cli::pedido(comando.versao, saida.is_some())?;
+    let mut versoes = match documento_versao_cli::pedido(comando.versao, saida.is_some()) {
+        Ok(versoes) => versoes,
+        Err(erro) => return Some(Err(erro.into())),
+    };
     versoes.cache = crate::cache_documento::habilitado_ambiente(comando.sem_cache);
     Some(obter(
         cli,
@@ -388,10 +391,11 @@ fn publicar(
     for d in &obtidos {
         caches.push(registrar_cache(host, cache_ativo, d)?);
     }
-    let mut gravados = Vec::new();
-    if let Some(destino) = destino {
-        gravados = gravar(&mut obtidos, destino, &caches)?;
-    }
+    let gravados = if let Some(destino) = destino {
+        gravar(&mut obtidos, destino, &caches)?
+    } else {
+        Vec::new()
+    };
     let antes = nota.map_or(0, |n| u32::try_from(n.antes).unwrap_or(u32::MAX));
     let total: u32 = obtidos
         .iter()

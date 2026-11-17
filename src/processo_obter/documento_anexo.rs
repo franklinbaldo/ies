@@ -84,9 +84,8 @@ pub(super) fn ler<V: EnvioDoProcesso>(
         | ErroAnexo::EscritaFalhou
         | ErroAnexo::GravacaoDoParcialFalhou(_)
         | ErroAnexo::PublicacaoDoCacheFalhou(_)
-        | ErroAnexo::CorpoNaoUtf8NoCharsetDeclarado(_)) => {
-            super::erro::ErroDocumentoObter::Anexo(outro)
-        }
+        | ErroAnexo::CorpoNaoUtf8NoCharsetDeclarado(_)
+        | ErroAnexo::HtmlAcimaDoLimite(_)) => super::erro::ErroDocumentoObter::Anexo(outro),
     })?;
     Ok((
         String::new(),

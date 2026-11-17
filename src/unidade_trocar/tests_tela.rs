@@ -2,10 +2,14 @@
 //! Unidade, escolha da sigla, POST derivado e `Location` dos 302. Telas
 //! sintéticas na forma observada (ver `tests_apoio`).
 use super::retorno::{hash_do_salto, url_do_salto};
-use super::tela::{TROCAR_UNIDADE, campos_do_envio, escolher, ler_tela_de_troca, link_da_troca};
+use super::tela::{
+    ConsultaForaDaForma, TROCAR_UNIDADE, campos_do_envio, escolher, ler_tela_de_troca,
+    link_da_troca,
+};
 use super::tests_apoio::*;
 use crate::formulario_web::{CodificacaoDaTela, TelaServida, derivar_submissao};
 use crate::instalacao::Instalacao;
+use crate::tela_html::HtmlServido;
 
 fn instalacao() -> Instalacao {
     Instalacao::interpretar(ORIGEM).unwrap()
@@ -13,7 +17,7 @@ fn instalacao() -> Instalacao {
 
 #[test]
 fn link_da_troca_vem_do_par_de_lnk_infra_unidade() {
-    let html = controle("PR-A", ID_A);
+    let html = HtmlServido::de_teste(&controle("PR-A", ID_A));
     assert_eq!(
         link_da_troca(&instalacao(), &url_controle(ID_A), &html),
         Ok(url_da_troca(ID_A))
@@ -24,41 +28,54 @@ fn link_da_troca_vem_do_par_de_lnk_infra_unidade() {
 fn link_da_troca_ausente_divergente_ou_fora_da_forma_e_recusado() {
     let sei = instalacao();
     let url = url_controle(ID_A);
-    let sem = "<a id=\"lnkInfraUnidade\" href=\"#\">PR-A</a>";
+    let sem = HtmlServido::de_teste("<a id=\"lnkInfraUnidade\" href=\"#\">PR-A</a>");
     assert_eq!(
-        link_da_troca(&sei, &url, sem),
+        link_da_troca(&sei, &url, &sem),
         Err(super::ErroTroca::LinkDeTrocaDeUnidadeAusente)
     );
     assert_eq!(
-        link_da_troca(&sei, &url, "<p>x</p>"),
+        link_da_troca(&sei, &url, &HtmlServido::de_teste("<p>x</p>")),
         Err(super::ErroTroca::LinkDeTrocaDeUnidadeAusente)
     );
-    let divergente = barra("PR-A", ID_A).replacen(ID_A, ID_B, 1);
+    let divergente = HtmlServido::de_teste(&barra("PR-A", ID_A).replacen(ID_A, ID_B, 1));
     assert_eq!(
         link_da_troca(&sei, &url, &divergente),
         Err(super::ErroTroca::LinksDeTrocaDivergentes)
     );
-    for (de, para) in [
-        ("acao=infra_trocar_unidade", "acao=procedimento_controlar"),
+    let consulta = super::ErroTroca::ConsultaDoLinkDeTrocaForaDaForma(ConsultaForaDaForma);
+    assert_eq!(
+        std::error::Error::source(&consulta).and_then(|c| c.downcast_ref::<ConsultaForaDaForma>()),
+        Some(&ConsultaForaDaForma)
+    );
+    let forma = super::ErroTroca::LinkDeTrocaDeUnidadeForaDaFormaObservada;
+    for (de, para, esperado) in [
+        (
+            "acao=infra_trocar_unidade",
+            "acao=procedimento_controlar",
+            &consulta,
+        ),
         (
             "acao=infra_trocar_unidade",
             "acao=infra_trocar_unidade&acao=x",
+            &consulta,
         ),
         (
             "acao=infra_trocar_unidade",
             "acao=infra_trocar_unidade&acao_ajax=1",
+            &consulta,
         ),
-        ("&infra_hash=", "&infra_hash=1"),
-        ("window.location.href='", "location.href='"),
+        ("&infra_hash=", "&infra_hash=1", &consulta),
+        ("window.location.href='", "location.href='", &forma),
         (
             "controlador.php?",
             "https://outro.exemplo/sei/controlador.php?",
+            &forma,
         ),
     ] {
-        let html = barra("PR-A", ID_A).replace(de, para);
+        let html = HtmlServido::de_teste(&barra("PR-A", ID_A).replace(de, para));
         assert_eq!(
-            link_da_troca(&sei, &url, &html),
-            Err(super::ErroTroca::LinkDeTrocaDeUnidadeForaDaFormaObservada),
+            link_da_troca(&sei, &url, &html).as_ref(),
+            Err(esperado),
             "{para}"
         );
     }
@@ -66,7 +83,7 @@ fn link_da_troca_ausente_divergente_ou_fora_da_forma_e_recusado() {
 
 #[test]
 fn tela_de_troca_lida_com_unidades_marcada_e_filtros() {
-    let tela = ler_tela_de_troca(&tela()).unwrap();
+    let tela = ler_tela_de_troca(&HtmlServido::de_teste(&tela())).unwrap();
     let siglas: Vec<_> = tela.unidades.iter().map(|u| u.sigla.as_str()).collect();
     assert_eq!(siglas, ["PR-A", "PR-B"]);
     assert_eq!(tela.unidades[1].id_unidade, ID_B);
@@ -151,7 +168,7 @@ fn tela_de_troca_fora_da_forma_e_recusada() {
     ];
     for (html, esperado) in casos {
         assert_eq!(
-            ler_tela_de_troca(&html).map(|_| ()),
+            ler_tela_de_troca(&HtmlServido::de_teste(&html)).map(|_| ()),
             Err(esperado.clone()),
             "{esperado:?}"
         );
@@ -159,39 +176,27 @@ fn tela_de_troca_fora_da_forma_e_recusada() {
 }
 
 #[test]
-fn atributos_repetidos_preservam_a_causa_da_recusa_na_troca() {
-    use crate::html_atributos::ErroAtributoHtml;
-
-    // Contraprovas sintéticas: as cassettes da troca não registram
-    // um rádio ou filtro com o atributo value repetido.
-    let linha_repetida = tela().replacen(
+fn atributo_repetido_na_troca_vale_o_primeiro() {
+    // Como no navegador: a repetição do value não muda a leitura.
+    let original = ler_tela_de_troca(&HtmlServido::de_teste(&tela())).unwrap();
+    let linha_repetida = HtmlServido::de_teste(&tela().replacen(
         &format!("value=\"{ID_B}\" onclick="),
         &format!("value=\"{ID_B}\" value=\"{ID_C}\" onclick="),
         1,
-    );
-    assert!(matches!(
-        ler_tela_de_troca(&linha_repetida),
-        Err(super::ErroTroca::AtributoDaLinhaDeUnidadeIlegivel(
-            ErroAtributoHtml::AtributoRepetidoNaTag { atributo: "value" }
-        ))
     ));
+    assert_eq!(ler_tela_de_troca(&linha_repetida).unwrap(), original);
 
-    let filtro_repetido = tela().replacen(
+    let filtro_repetido = HtmlServido::de_teste(&tela().replacen(
         "id=\"txtInfraSiglaUnidade\" name=\"txtInfraSiglaUnidade\" class=\"infraText\" value=\"\"",
         "id=\"txtInfraSiglaUnidade\" name=\"txtInfraSiglaUnidade\" class=\"infraText\" value=\"\" value=\"outra\"",
         1,
-    );
-    assert!(matches!(
-        ler_tela_de_troca(&filtro_repetido),
-        Err(super::ErroTroca::AtributoDaTelaDeTrocaIlegivel(
-            ErroAtributoHtml::AtributoRepetidoNaTag { atributo: "value" }
-        ))
     ));
+    assert_eq!(ler_tela_de_troca(&filtro_repetido).unwrap(), original);
 }
 
 #[test]
 fn escolha_e_exata_e_recusa_ausente_e_ambigua() {
-    let tela = ler_tela_de_troca(&tela()).unwrap();
+    let tela = ler_tela_de_troca(&HtmlServido::de_teste(&tela())).unwrap();
     assert_eq!(escolher(&tela, "PR-B").unwrap().id_unidade, ID_B);
     let ausente = escolher(&tela, "pr-b");
     assert_eq!(
@@ -206,7 +211,13 @@ fn escolha_e_exata_e_recusa_ausente_e_ambigua() {
         linha("PR-B", ID_B, false),
         linha("PR-B", ID_C, false)
     );
-    let repetida = ler_tela_de_troca(&tela_com(("PR-A", ID_A), 3, &linhas, SCRIPT)).unwrap();
+    let repetida = ler_tela_de_troca(&HtmlServido::de_teste(&tela_com(
+        ("PR-A", ID_A),
+        3,
+        &linhas,
+        SCRIPT,
+    )))
+    .unwrap();
     match escolher(&repetida, "PR-B") {
         Err(super::ErroTroca::SiglaDeUnidadeAmbigua { candidatas }) => {
             let ids: Vec<_> = candidatas.iter().map(|u| u.id_unidade.as_str()).collect();
@@ -219,13 +230,13 @@ fn escolha_e_exata_e_recusa_ausente_e_ambigua() {
 #[test]
 fn post_derivado_e_o_do_navegador_com_sel_infra_unidades_no_fim() {
     let html = tela();
-    let lida = ler_tela_de_troca(&html).unwrap();
+    let lida = ler_tela_de_troca(&HtmlServido::de_teste(&html)).unwrap();
     let escolhida = escolher(&lida, "PR-B").unwrap();
     let campos = campos_do_envio(&lida, escolhida);
     let url = url_da_troca(ID_A);
     let servida = TelaServida {
         url: &url,
-        html: &html,
+        html: &HtmlServido::de_teste(&html),
         codificacao: CodificacaoDaTela::Iso88591,
     };
     let s = derivar_submissao(

@@ -19,7 +19,7 @@ const MAX_NOME: usize = 255;
 
 /// O tipo principal em minúsculas, ou `None` se vazio.
 pub(super) fn tipo_principal(valor: &str) -> Option<String> {
-    let principal = valor.split(';').next().unwrap_or_default().trim();
+    let principal = crate::mime_web::principal(valor);
     (!principal.is_empty()).then(|| principal.to_ascii_lowercase())
 }
 
@@ -180,7 +180,9 @@ fn estendido_rfc5987(valor: &str) -> Result<String, ErroDisposicao> {
 /// Último componente (por `/` ou `\`), sem controles, aparado, até
 /// [`MAX_NOME`] caracteres; vazio, `.` ou `..` não é nome.
 fn sanear_nome(nome: &str) -> Option<String> {
-    let base = nome.rsplit(['/', '\\']).next().unwrap_or_default();
+    let base = nome
+        .rsplit_once(['/', '\\'])
+        .map_or(nome, |(_, depois)| depois);
     let limpo: String = base.chars().filter(|c| !c.is_control()).collect();
     let limpo = limpo.trim();
     if limpo.is_empty() || limpo == "." || limpo == ".." {

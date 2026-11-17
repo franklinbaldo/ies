@@ -120,7 +120,8 @@ fn sugestoes_guardadas(
         return Vec::new();
     }
     let instalacao = crate::instalacao::Instalacao::interpretar(sessao.origem);
-    let ativa = crate::indice_local::unidade_dos_links(sessao.url_do_controle);
+    // Sugestões são melhor esforço: sem unidade legível, não sugere.
+    let ativa = crate::indice_local::unidade_dos_links(sessao.url_do_controle).ok();
     match (instalacao, ativa) {
         (Some(instalacao), Some(ativa)) => {
             indice.sugestoes_de_unidades_guardadas(&instalacao.url_base(), &ativa, para)

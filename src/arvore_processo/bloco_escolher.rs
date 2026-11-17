@@ -8,19 +8,13 @@ use super::concluir::EnderecoDeEscrita;
 use super::endereco::{EnderecoRecusado, conferir_endereco_relativo_por};
 use crate::acao_do_sei::AcaoDoSei;
 use crate::consulta_do_controlador::menciona_acao;
-use crate::formulario_web::decodificar_atributo;
-use crate::html_atributos::atributos;
 use crate::instalacao::Instalacao;
 
 #[derive(Clone, Debug, PartialEq, Eq, thiserror::Error)]
 #[error("{self:?}")]
 pub(crate) enum ErroBlocoNaBarra {
-    ParseDaBarraDoDocumentoFalhou(#[source] tl::ParseError),
-    /// O tokenizador de atributos recusou a tag.
-    Atributo(#[source] crate::html_atributos::ErroAtributoHtml),
     EnderecoDeOutroDocumento,
     Barra(#[from] ErroBarraDoDocumento),
-    BarraDoDocumentoForaDaFormaObservada,
     EnderecoDeEscolherBlocoNaoReconhecido,
     LinksDeEscolherBlocoRepetidosNaBarra,
 }
@@ -33,23 +27,16 @@ pub(crate) fn ler_bloco_escolher_da_barra(
     id_documento: &str,
     id_procedimento: &str,
 ) -> Result<Option<EnderecoDeEscrita>, ErroBlocoNaBarra> {
-    let fora = || ErroBlocoNaBarra::BarraDoDocumentoForaDaFormaObservada;
     let Some(texto) = barra_do_no(html, id_documento)? else {
         return Ok(None);
     };
-    let dom = tl::parse(&texto, tl::ParserOptions::default())
-        .map_err(ErroBlocoNaBarra::ParseDaBarraDoDocumentoFalhou)?;
-    let parser = dom.parser();
+    let dom = crate::tela_html::arvore(&texto);
     let mut links = Vec::new();
-    for no in dom.query_selector("a").into_iter().flatten() {
-        let Some(tag) = no.get(parser).and_then(tl::Node::as_tag) else {
+    for no in dom.elementos("a") {
+        let Some(bruto) = no.atributo("href") else {
             continue;
         };
-        let lidos = atributos(tag).map_err(ErroBlocoNaBarra::Atributo)?;
-        let Some(bruto) = lidos.valor("href").map_err(ErroBlocoNaBarra::Atributo)? else {
-            continue;
-        };
-        let href = decodificar_atributo(bruto).ok_or_else(fora)?;
+        let href = bruto.to_owned();
         if menciona_acao(&href, AcaoDoSei::BlocoEscolher) {
             links.push(href);
         }

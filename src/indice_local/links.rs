@@ -6,7 +6,6 @@
 use super::IndiceLocal;
 use super::validacao::{RegistroRecusado, UrlAssinada, conferir_chave, conferir_url};
 use crate::acao_do_sei::AcaoDoSei;
-use crate::consulta_do_controlador::ConsultaDoControlador;
 use crate::instalacao::Instalacao;
 use rusqlite::OptionalExtension;
 
@@ -24,11 +23,11 @@ pub(crate) struct ChaveDoLink<'a> {
 
 /// Unidade da chave dos links: o `infra_unidade_atual` único e decimal da
 /// URL privada do Controle. `None` se ausente, repetido ou não decimal.
-pub(crate) fn unidade_dos_links(url_do_controle: &str) -> Option<String> {
-    let consulta = ConsultaDoControlador::ler(url_do_controle.split_once('?')?.1).ok()?;
-    let unidade = consulta.unico("infra_unidade_atual").ok()?;
-    let decimal = !unidade.is_empty() && unidade.bytes().all(|b| b.is_ascii_digit());
-    decimal.then(|| unidade.to_owned())
+pub(crate) fn unidade_dos_links(
+    url_do_controle: &str,
+) -> Result<String, crate::consulta_do_controlador::ErroIdDaUrl> {
+    crate::consulta_do_controlador::id_decimal(url_do_controle, "infra_unidade_atual")
+        .map(str::to_owned)
 }
 
 impl IndiceLocal {
@@ -39,6 +38,7 @@ impl IndiceLocal {
         instalacao: &Instalacao,
         chave: ChaveDoLink<'_>,
     ) -> Option<UrlAssinada> {
+        // Cache local é melhor esforço: registro fora da forma é ignorado.
         conferir_chave(chave).ok()?;
         let origem = instalacao.url_base();
         let url: Option<String> = self.executar(None, |banco, _| {
@@ -58,6 +58,7 @@ impl IndiceLocal {
                 .optional()
         });
         let url = url?;
+        // Cache local é melhor esforço: registro fora da forma é ignorado.
         conferir_url(instalacao, chave, &url).ok()?;
         Some(UrlAssinada::guardada(url))
     }

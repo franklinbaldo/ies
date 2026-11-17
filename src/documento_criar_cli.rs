@@ -27,7 +27,7 @@ pub(crate) fn tentar_criar(cli: &Cli) -> Option<anyhow::Result<()>> {
     };
     // O nível de escrita é pré-condição independente da sessão: a recusa
     // vem antes de abrir arquivos privados.
-    if *confirmar && let Err(erro) = validar_nivel_de_confirmacao(nivel.as_deref()) {
+    if *confirmar && let Err(erro) = validar_nivel_de_confirmacao(*nivel) {
         return Some(Err(erro.into()));
     }
     Some(com_sessao(cli, |sessao, indice| {
@@ -36,7 +36,7 @@ pub(crate) fn tentar_criar(cli: &Cli) -> Option<anyhow::Result<()>> {
             unidade: cli.unidade.as_deref(),
             tipo,
             descricao: descricao.as_deref(),
-            nivel: nivel.as_deref(),
+            nivel: *nivel,
         };
         // A contagem externa sobrevive ao erro, inclusive depois do POST.
         let mut envio = EnvioHttps;
@@ -121,8 +121,8 @@ fn publicar_resultado(
     if let Some(descricao) = &resultado.descricao {
         println!("Descrição: {descricao}");
     }
-    if let Some(nivel) = &resultado.nivel {
-        println!("Nível: {nivel}");
+    if let Some(nivel) = resultado.nivel {
+        println!("Nível: {}", nivel.como_texto());
     }
     println!("Requisições: {}", resultado.requisicoes);
 }
@@ -140,7 +140,7 @@ mod tests {
             tipo: "Despacho".to_owned(),
             unidade: "UNIDADE TESTE".to_owned(),
             descricao: Some("Ensaio de despacho".to_owned()),
-            nivel: Some("publico".to_owned()),
+            nivel: Some(crate::dominio::NivelDeAcesso::Publico),
             requisicoes: 5,
             estado: EstadoCriacao::Previa,
         };

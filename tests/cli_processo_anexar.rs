@@ -5,6 +5,9 @@ use std::process::{Command, Output};
 #[path = "support/falha.rs"]
 mod falha_cli;
 use falha_cli::falha;
+#[path = "support/falha_por.rs"]
+mod falha_por_cli;
+use falha_por_cli::falha_por;
 
 const PRINCIPAL: &str = "00001.000001/2026-01";
 const ANEXADO: &str = "00001.000002/2026-01";
@@ -42,7 +45,7 @@ fn confirmar_recusa_sem_sessao_ativa() {
         "--confirmar",
         "--json",
     ]);
-    falha(&saida, "ArquivoPrivadoAusenteOuInacessivel");
+    falha_por(&saida, "UrlDoControleIlegivel", "Ausente");
 }
 
 #[test]
@@ -54,7 +57,7 @@ fn mesma_identidade_recusa_antes_da_sessao() {
 #[test]
 fn previa_sem_sessao_falha_fechado() {
     let saida = executar(&["processo", "anexar", ANEXADO, "--a", PRINCIPAL, "--json"]);
-    falha(&saida, "ArquivoPrivadoAusenteOuInacessivel");
+    falha_por(&saida, "UrlDoControleIlegivel", "Ausente");
 }
 
 #[test]

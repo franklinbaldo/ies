@@ -3,6 +3,7 @@
 //! `procedimento_configurar_detalhe` (PEN1 5.0.4 e GO 5.0.3: 12 opções;
 //! `UnB` 4.0.9: 11, sem Prioridade). Ids, hashes e unidade fictícios.
 use super::*;
+use crate::tela_html::HtmlServido;
 
 pub(crate) const HASH_DO_SALVAR: &str =
     "9999999999999999999999999999999999999999999999999999999999999999";
@@ -54,7 +55,10 @@ pub(crate) fn onze() -> Vec<ColunaDoDetalhe> {
 }
 
 fn nivel(publicadas: &[ColunaDoDetalhe], marcadas: &[ColunaDoDetalhe]) -> NivelDeDetalhe {
-    ler_nivel_de_detalhe(&tela_salvavel(publicadas, marcadas, "")).unwrap()
+    ler_nivel_de_detalhe(&HtmlServido::de_teste(&tela_salvavel(
+        publicadas, marcadas, "",
+    )))
+    .unwrap()
 }
 
 #[test]
@@ -221,7 +225,11 @@ fn salvar_declara_os_campos_do_catalogo_e_o_efeito_persistente() {
 #[test]
 fn formulario_observado_passa_na_conferencia_de_controles() {
     assert_eq!(
-        conferir_controles_do_formulario(&tela_salvavel(&ColunaDoDetalhe::TODAS, &[], "")),
+        conferir_controles_do_formulario(&HtmlServido::de_teste(&tela_salvavel(
+            &ColunaDoDetalhe::TODAS,
+            &[],
+            ""
+        ))),
         Ok(())
     );
     // Não enviados pelo navegador: botão `button`, `reset` e `disabled`.
@@ -229,7 +237,11 @@ fn formulario_observado_passa_na_conferencia_de_controles() {
                    <input type=\"reset\" name=\"btnLimpar\" value=\"Limpar\">\
                    <input type=\"text\" name=\"txtDesligado\" disabled>";
     assert_eq!(
-        conferir_controles_do_formulario(&tela_salvavel(&onze(), &[], inertes)),
+        conferir_controles_do_formulario(&HtmlServido::de_teste(&tela_salvavel(
+            &onze(),
+            &[],
+            inertes
+        ))),
         Ok(())
     );
 }
@@ -247,7 +259,11 @@ fn controle_enviavel_fora_do_observado_e_recusado() {
         "<input type=\"checkbox\" name=\"chkOutra\">",
     ] {
         assert_eq!(
-            conferir_controles_do_formulario(&tela_salvavel(&ColunaDoDetalhe::TODAS, &[], extra)),
+            conferir_controles_do_formulario(&HtmlServido::de_teste(&tela_salvavel(
+                &ColunaDoDetalhe::TODAS,
+                &[],
+                extra
+            ))),
             Err(ErroNivelDeDetalhe::CampoNaoPrevistoNoFormularioDoNivelDeDetalhe),
             "{extra}"
         );

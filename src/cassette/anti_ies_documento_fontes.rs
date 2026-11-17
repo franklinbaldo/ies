@@ -82,7 +82,7 @@ fn identidade_do_conteudo_observado(json: &serde_json::Value, id: &str) -> (Stri
         "histórico e conteúdo precisam referir o mesmo id_documento"
     );
     let identidade =
-        crate::documento_web::identidade_do_titulo(&html_da_resposta(conteudos[0].interacao).unwrap())
+        crate::documento_web::identidade_do_titulo(&HtmlServido::de_teste(&html_da_resposta(conteudos[0].interacao).unwrap()))
             .unwrap();
     (identidade.numero, identidade.tipo)
 }
@@ -106,14 +106,14 @@ fn revisao_do_conteudo_observado(
         !ids.is_empty() && ids.iter().all(|valor| *valor == id),
         "histórico e corpo devem pertencer ao mesmo documento"
     );
-    let html_historico = html_da_resposta(historicos[0].interacao).unwrap();
+    let html_historico = crate::tela_html::HtmlServido::de_teste(&html_da_resposta(historicos[0].interacao).unwrap());
     let lista = crate::documento_versoes::interpretar_historico(
         &html_historico,
         id,
         None,
     )
     .unwrap();
-    let versao = crate::rodape_do_documento::versao_do_rodape(html_conteudo)
+    let versao = crate::rodape_do_documento::versao_do_rodape(&HtmlServido::de_teste(html_conteudo))
         .expect("rodapé de versão do GET original");
     let metadados = lista
         .selecionar(versao)

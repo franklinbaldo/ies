@@ -1,0 +1,37 @@
+id: 10-tipo-principal-do-mime
+language: rust
+message: 'Tipo principal do MIME: mime_web::principal.'
+severity: hint
+rule:
+  any:
+    - pattern: $X.split(';').next().unwrap_or_default().trim()
+  not:
+    inside:
+      stopBy: end
+      kind: mod_item
+      follows:
+        kind: attribute_item
+        regex: 'cfg\((all\()?test\b'
+constraints:
+  X:
+    kind: identifier
+fix: 'crate::mime_web::principal($X)'
+---
+id: 10b-tipo-principal-do-mime-campo
+language: rust
+message: 'Tipo principal do MIME: mime_web::principal.'
+severity: hint
+rule:
+  any:
+    - pattern: $X.split(';').next().unwrap_or_default().trim()
+  not:
+    inside:
+      stopBy: end
+      kind: mod_item
+      follows:
+        kind: attribute_item
+        regex: 'cfg\((all\()?test\b'
+constraints:
+  X:
+    kind: field_expression
+fix: 'crate::mime_web::principal(&$X)'

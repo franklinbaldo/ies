@@ -1,0 +1,19 @@
+id: 52b-as-tag-let-else-expressao
+language: rust
+message: 'let Some(x) = n.as_tag() else {…} com n expressão'
+severity: hint
+rule:
+  all:
+    - pattern: 'let Some($X) = $H.as_tag() else { $$$B };'
+    - not:
+        inside:
+          stopBy: end
+          kind: mod_item
+          follows:
+            kind: attribute_item
+            regex: 'cfg\(test\)'
+constraints:
+  H:
+    not:
+      kind: identifier
+fix: 'let $X = $H;'

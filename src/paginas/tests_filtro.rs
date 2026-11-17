@@ -6,6 +6,7 @@
 //! singular: as mesmas telas publicam `1 registro:` e
 //! `Processos recebidos (1 registro):`, que a visão D já lê.
 use super::*;
+use crate::tela_html::HtmlServido;
 
 fn linha(id: u32) -> String {
     format!("<tr id='P{id}'><td><a class='processoVisualizado'>NUP-{id}</a></td></tr>")
@@ -32,33 +33,33 @@ fn pagina(marcador: &str, recebidos: &str, gerados: &str) -> String {
 
 #[test]
 fn filtro_de_marcador_ativo_e_recusado_antes_de_publicar() {
-    let html = pagina(
+    let html = HtmlServido::de_teste(&pagina(
         "3",
         &tabela("Recebidos", "6 registros:", &[1, 2, 3, 4, 5, 6]),
         &tabela("Gerados", "0 registros:", &[]),
-    );
+    ));
     let erro = juntar(&[html], None).err();
     assert_eq!(erro, Some(ErroCaixa::FiltroDeMarcadorAtivoNoControle));
 }
 
 #[test]
 fn campo_do_marcador_vazio_nao_e_filtro() {
-    let html = pagina(
+    let html = HtmlServido::de_teste(&pagina(
         "",
         &tabela("Recebidos", "2 registros:", &[1, 2]),
         &tabela("Gerados", "0 registros:", &[]),
-    );
+    ));
     assert!(juntar(&[html], None).is_ok());
 }
 
 #[test]
 fn legenda_no_singular_comprova_a_pagina_unica() {
     for legenda in ["1 registro:", "Processos recebidos (1 registro):"] {
-        let html = pagina(
+        let html = HtmlServido::de_teste(&pagina(
             "",
             &tabela("Recebidos", legenda, &[7]),
             &tabela("Gerados", "0 registros:", &[]),
-        );
+        ));
         let leitura = juntar(&[html], None).unwrap();
         assert_eq!(
             leitura.recebidos.faixa_observada(),

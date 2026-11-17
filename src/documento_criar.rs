@@ -17,97 +17,81 @@ use crate::acao_do_sei::AcaoDoSei;
 use crate::arvore_processo::DocumentoNaArvore;
 use crate::arvore_processo::endereco::{EnderecoRecusado, conferir_endereco_relativo};
 use crate::consulta_do_controlador::ConsultaDoControlador;
-use crate::formulario_web::decodificar_atributo;
-use crate::html_atributos::{nos_com_id, valor_do_atributo};
 use crate::instalacao::Instalacao;
 
 #[derive(Clone, Debug, PartialEq, Eq, thiserror::Error)]
 #[error("{self:?}")]
-pub(crate) enum ErroCriar {
-    /// O tokenizador de atributos recusou a tag.
-    Atributo(#[source] crate::html_atributos::ErroAtributoHtml),
+pub(crate) enum ErroListaDeTiposDocumento {
     ListaForaDaForma,
-    /// O tokenizador HTML recusou a lista de tipos.
-    ListaNaoInterpretada(#[source] tl::ParseError),
     TipoAusente,
     TipoAmbiguo,
-    NaoAplicado,
-    NaoConfirmado,
     LinkDoTipoNaoNavegavel,
     /// O link é literal, mas a função de navegação que ele chama não foi
     /// comprovada em script ativo.
     NavegacaoNaoComprovadaPorScript(#[source] guarda_navegacao::ErroGuardaDeNavegacao),
     EnderecoDoTipoNaoReconhecido(EnderecoRecusado),
-    CadastroForaDaForma,
-    /// O tokenizador HTML recusou a tela do cadastro.
-    CadastroNaoInterpretado(#[source] tl::ParseError),
-    TipoDoCadastroDiferente,
-    DescricaoNaoOferecida,
-    NivelNaoOferecido,
-    CampoObrigatorioNaoAtendido,
 }
+
+#[derive(Clone, Debug, PartialEq, Eq, thiserror::Error)]
+#[error("{self:?}")]
+pub(crate) enum ErroConferenciaDeCriacao {
+    NaoAplicado,
+    NaoConfirmado,
+}
+
 /// Apenas nomes publicados em table#tblSeries; nunca interpreta JS como código.
-pub(crate) fn tipos_oferecidos(html: &str) -> Result<Vec<String>, ErroCriar> {
-    let dom =
-        tl::parse(html, tl::ParserOptions::default()).map_err(ErroCriar::ListaNaoInterpretada)?;
-    let tabelas = nos_com_id(&dom, "tblSeries").map_err(ErroCriar::Atributo)?;
+pub(crate) fn tipos_oferecidos(
+    html: &crate::tela_html::HtmlServido,
+) -> Result<Vec<String>, ErroListaDeTiposDocumento> {
+    let dom = crate::tela_html::arvore(html);
+    let tabelas = dom.com_id("tblSeries").collect::<Vec<_>>();
     let [tabela] = tabelas.as_slice() else {
-        return Err(ErroCriar::ListaForaDaForma);
+        return Err(ErroListaDeTiposDocumento::ListaForaDaForma);
     };
-    let parser = dom.parser();
-    let faixas = guarda_script::faixas_inertes(&dom).ok_or(ErroCriar::ListaForaDaForma)?;
-    let ocultas = guarda_script::faixas_ocultas(&dom).ok_or(ErroCriar::ListaForaDaForma)?;
-    let tabela = tabela
-        .get(parser)
-        .and_then(tl::Node::as_tag)
-        .ok_or(ErroCriar::ListaForaDaForma)?;
-    if !tabela.name().as_utf8_str().eq_ignore_ascii_case("table") {
-        return Err(ErroCriar::ListaForaDaForma);
+    let tabela = *tabela;
+    if !tabela.nome().eq_ignore_ascii_case("table") {
+        return Err(ErroListaDeTiposDocumento::ListaForaDaForma);
     }
     let mut tipos = Vec::new();
-    for tag in tabela
-        .children()
-        .all(parser)
-        .iter()
-        .filter_map(tl::Node::as_tag)
-    {
-        // Um tipo no fragmento inerte de <template> não é oferecido.
-        if !tag.name().as_utf8_str().eq_ignore_ascii_case("a")
-            || guarda_script::dentro_de_template(tag.boundaries(parser).0, &faixas)
-            || guarda_script::dentro_de_faixa_oculta(tag.boundaries(parser).0, &ocultas)
-        {
+    for tag in tabela.descendentes() {
+        if !tag.nome().eq_ignore_ascii_case("a") {
             continue;
         }
-        let href = valor_do_atributo(tag, "href").map_err(ErroCriar::Atributo)?;
-        if href.is_none() {
+        let Some(href) = tag.atributo("href") else {
             continue;
-        }
-        let onclick = valor_do_atributo(tag, "onclick").map_err(ErroCriar::Atributo)?;
+        };
+        let onclick = tag.atributo("onclick");
         // Na 4.0 "Externo" usa documento_receber, e não documento_gerar.
         // Nas 4.1/5.0, escolher(-1) também é externo.
-        let href = decodificar_atributo(href.as_deref().unwrap_or_default())
-            .ok_or(ErroCriar::ListaForaDaForma)?;
-        if !link_de_tipo_interno(&href, onclick.as_deref()) {
+        if !link_de_tipo_interno(href, onclick) {
             continue;
         }
-        let nome = tag
-            .inner_text(parser)
-            .split_whitespace()
-            .collect::<Vec<_>>()
-            .join(" ");
-        // Texto, não atributo: o SEI 5 publica "Nome&nbsp;(Formulário)".
-        let nome = html_escape::decode_html_entities(&nome).into_owned();
+        let nome = nome_visivel(&tag.texto());
         if !nome.is_empty() {
             tipos.push(nome);
         }
     }
     Ok(tipos)
 }
-pub(crate) fn conferir_tipo(tipo: &str, oferecidos: &[String]) -> Result<(), ErroCriar> {
+/// Nome do tipo como o texto o publica, espaços colapsados. O U+00A0 fica:
+/// o SEI 5 publica "Nome&nbsp;(Formulário)", e o nome segue com o espaço
+/// inseparável, como se lia antes da #676.
+fn nome_visivel(texto: &str) -> String {
+    texto
+        .split(|c: char| c.is_whitespace() && c != '\u{a0}')
+        .filter(|parte| !parte.is_empty())
+        .collect::<Vec<_>>()
+        .join(" ")
+}
+
+pub(crate) fn conferir_tipo(
+    tipo: &str,
+    oferecidos: &[String],
+) -> Result<(), ErroListaDeTiposDocumento> {
     match oferecidos.iter().filter(|s| s.as_str() == tipo).count() {
-        0 => Err(ErroCriar::TipoAusente),
+        0 => Err(ErroListaDeTiposDocumento::TipoAusente),
         1 => Ok(()),
-        _ => Err(ErroCriar::TipoAmbiguo),
+        _ => Err(ErroListaDeTiposDocumento::TipoAmbiguo),
     }
 }
 /// Sucesso apenas com um id novo, número SEI e rótulo esperados, mantendo
@@ -116,7 +100,7 @@ pub(crate) fn conferir_criacao(
     antes: &[DocumentoNaArvore],
     depois: &[DocumentoNaArvore],
     tipo: &str,
-) -> Result<String, ErroCriar> {
+) -> Result<String, ErroConferenciaDeCriacao> {
     conferir_criacao_com_rotulo(antes, depois, |rotulo, numero| {
         // `Despacho 0012274` (UnB, PEN, UFRJ) ou, com numeração própria do
         // tipo, `Despacho 1407 (8446460)` (GO 5.0.3, live de 10/11/2026).
@@ -135,24 +119,24 @@ pub(crate) fn conferir_criacao_com_rotulo(
     antes: &[DocumentoNaArvore],
     depois: &[DocumentoNaArvore],
     rotulo_confere: impl Fn(&str, &str) -> bool,
-) -> Result<String, ErroCriar> {
+) -> Result<String, ErroConferenciaDeCriacao> {
     // Uma árvore inicial ambígua também inviabiliza provar unicidade:
     // não basta a leitura posterior ter IDs distintos.
     let mut originais = std::collections::HashSet::new();
     for doc in antes {
         if doc.id.is_empty() || !originais.insert(doc.id.as_str()) {
-            return Err(ErroCriar::NaoConfirmado);
+            return Err(ErroConferenciaDeCriacao::NaoConfirmado);
         }
     }
     let mut ids = std::collections::HashSet::new();
     for doc in depois {
         if doc.id.is_empty() || !ids.insert(doc.id.as_str()) {
-            return Err(ErroCriar::NaoConfirmado);
+            return Err(ErroConferenciaDeCriacao::NaoConfirmado);
         }
     }
     for original in antes {
         if !depois.iter().any(|doc| doc == original) {
-            return Err(ErroCriar::NaoConfirmado);
+            return Err(ErroConferenciaDeCriacao::NaoConfirmado);
         }
     }
     let novos: Vec<_> = depois
@@ -160,15 +144,15 @@ pub(crate) fn conferir_criacao_com_rotulo(
         .filter(|doc| !antes.iter().any(|d| d.id == doc.id))
         .collect();
     let novo = match novos.as_slice() {
-        [] => return Err(ErroCriar::NaoAplicado),
+        [] => return Err(ErroConferenciaDeCriacao::NaoAplicado),
         [doc] => *doc,
-        _ => return Err(ErroCriar::NaoConfirmado),
+        _ => return Err(ErroConferenciaDeCriacao::NaoConfirmado),
     };
     let numero = novo
         .numero_sei
         .as_deref()
         .filter(|s| !s.is_empty() && s.bytes().all(|b| b.is_ascii_digit()))
-        .ok_or(ErroCriar::NaoConfirmado)?;
+        .ok_or(ErroConferenciaDeCriacao::NaoConfirmado)?;
     if !rotulo_confere(&novo.rotulo, numero)
         || antes
             .iter()
@@ -179,7 +163,7 @@ pub(crate) fn conferir_criacao_com_rotulo(
             .count()
             != 1
     {
-        return Err(ErroCriar::NaoConfirmado);
+        return Err(ErroConferenciaDeCriacao::NaoConfirmado);
     }
     Ok(numero.to_owned())
 }
@@ -212,7 +196,7 @@ fn id_da_escolha_literal(onclick: &str) -> Option<String> {
 fn link_de_tipo_externo(href: &str, onclick: Option<&str>) -> bool {
     href.strip_prefix("controlador.php?")
         .and_then(|consulta| ConsultaDoControlador::ler(consulta).ok())
-        .is_some_and(|consulta| consulta.acao() == Ok(AcaoDoSei::DocumentoReceber))
+        .is_some_and(|consulta| consulta.acao() == Ok(AcaoDoSei::DocumentoReceber.como_na_url()))
         || onclick.is_some_and(|chamada| chamada.trim().trim_end_matches(';') == "escolher(-1)")
 }
 
@@ -222,7 +206,7 @@ fn link_de_tipo_interno(href: &str, onclick: Option<&str>) -> bool {
         && (href
             .strip_prefix("controlador.php?")
             .and_then(|consulta| ConsultaDoControlador::ler(consulta).ok())
-            .is_some_and(|consulta| consulta.acao() == Ok(AcaoDoSei::DocumentoGerar))
+            .is_some_and(|consulta| consulta.acao() == Ok(AcaoDoSei::DocumentoGerar.como_na_url()))
             || ((href == "#" || href == "javascript:void(0);")
                 && onclick.and_then(id_da_escolha_literal).is_some()))
 }
@@ -230,7 +214,9 @@ fn link_de_tipo_interno(href: &str, onclick: Option<&str>) -> bool {
 /// Reconhece só o corpo literal observado da função, com duas instruções
 /// (reescrita do id e submit da lista). Texto de JS não é executado.
 /// O parâmetro chama `id` (4.1) ou `idSerie` (SEI 5: PEN, UFRJ e GO).
-fn script_prova_escolha(html: &str) -> Result<(), guarda_navegacao::ErroGuardaDeNavegacao> {
+fn script_prova_escolha(
+    html: &crate::tela_html::HtmlServido,
+) -> Result<(), guarda_navegacao::ErroGuardaDeNavegacao> {
     let corpo = |parametro: &str| {
         format!(
             "functionescolher({parametro}){{document.getElementById('hdnIdSerie').value={parametro};document.getElementById('frmDocumentoEscolherTipo').submit();}}"
@@ -249,48 +235,30 @@ fn script_prova_escolha(html: &str) -> Result<(), guarda_navegacao::ErroGuardaDe
 /// A lista inicial pode mostrar apenas tipos recentes. O frontend 4.0/4.1
 /// declara o botão "Exibir todos" por exibirSeries('T'), que altera apenas
 /// o filtro da sessão. Nunca executar JS ou inferir a função pelo botão.
-pub(crate) fn filtro_de_todos(html: &str) -> Result<bool, ErroCriar> {
-    let dom =
-        tl::parse(html, tl::ParserOptions::default()).map_err(ErroCriar::ListaNaoInterpretada)?;
-    let faixas = guarda_script::faixas_inertes(&dom).ok_or(ErroCriar::ListaForaDaForma)?;
-    let ocultas = guarda_script::faixas_ocultas(&dom).ok_or(ErroCriar::ListaForaDaForma)?;
-    let botoes = nos_com_id(&dom, "ancExibirSeries")
-        .map_err(ErroCriar::Atributo)?
-        .into_iter()
-        .filter(|no| {
-            !no.get(dom.parser())
-                .and_then(tl::Node::as_tag)
-                .is_some_and(|tag| {
-                    guarda_script::dentro_de_template(tag.boundaries(dom.parser()).0, &faixas)
-                        || guarda_script::dentro_de_faixa_oculta(
-                            tag.boundaries(dom.parser()).0,
-                            &ocultas,
-                        )
-                })
-        })
-        .collect::<Vec<_>>();
+pub(crate) fn filtro_de_todos(
+    html: &crate::tela_html::HtmlServido,
+) -> Result<bool, ErroListaDeTiposDocumento> {
+    let dom = crate::tela_html::arvore(html);
+    let botoes = dom.com_id("ancExibirSeries").collect::<Vec<_>>();
     let [botao] = botoes.as_slice() else {
         return if botoes.is_empty() {
             Ok(false)
         } else {
-            Err(ErroCriar::ListaForaDaForma)
+            Err(ErroListaDeTiposDocumento::ListaForaDaForma)
         };
     };
-    let tag = botao
-        .get(dom.parser())
-        .and_then(tl::Node::as_tag)
-        .ok_or(ErroCriar::ListaForaDaForma)?;
-    if !tag.name().as_utf8_str().eq_ignore_ascii_case("a") {
-        return Err(ErroCriar::ListaForaDaForma);
+    let tag = *botao;
+    if !tag.nome().eq_ignore_ascii_case("a") {
+        return Err(ErroListaDeTiposDocumento::ListaForaDaForma);
     }
-    let href = valor_do_atributo(tag, "href")
-        .map_err(ErroCriar::Atributo)?
-        .ok_or(ErroCriar::LinkDoTipoNaoNavegavel)?;
-    let href = decodificar_atributo(&href).ok_or(ErroCriar::ListaForaDaForma)?;
-    let onclick = valor_do_atributo(tag, "onclick")
-        .map_err(ErroCriar::Atributo)?
-        .ok_or(ErroCriar::LinkDoTipoNaoNavegavel)?;
-    let onclick = decodificar_atributo(&onclick).ok_or(ErroCriar::ListaForaDaForma)?;
+    let href = tag
+        .atributo("href")
+        .map(str::to_owned)
+        .ok_or(ErroListaDeTiposDocumento::LinkDoTipoNaoNavegavel)?;
+    let onclick = tag
+        .atributo("onclick")
+        .map(str::to_owned)
+        .ok_or(ErroListaDeTiposDocumento::LinkDoTipoNaoNavegavel)?;
     let chamada = onclick.trim().trim_end_matches(';').trim();
     // Filtro da sessão já em "todos": o botão volta a oferecer só os
     // utilizados, e a lista servida já está completa (UnB, 10/11/2026).
@@ -300,14 +268,14 @@ pub(crate) fn filtro_de_todos(html: &str) -> Result<bool, ErroCriar> {
     if (href != "#" && href != "javascript:void(0);")
         || (chamada != "exibirSeries('T')" && chamada != "exibirSeries(\"T\")")
     {
-        return Err(ErroCriar::LinkDoTipoNaoNavegavel);
+        return Err(ErroListaDeTiposDocumento::LinkDoTipoNaoNavegavel);
     }
     guarda_navegacao::script_publica_funcao_de_navegacao(
         html,
         "functionexibirSeries(",
         "functionexibirSeries(tipo){document.getElementById('hdnFiltroSerie').value=tipo;document.getElementById('frmDocumentoEscolherTipo').submit();}",
     )
-    .map_err(ErroCriar::NavegacaoNaoComprovadaPorScript)?;
+    .map_err(ErroListaDeTiposDocumento::NavegacaoNaoComprovadaPorScript)?;
     Ok(true)
 }
 
@@ -315,74 +283,55 @@ pub(crate) fn filtro_de_todos(html: &str) -> Result<bool, ErroCriar> {
 /// O tipo externo (escolher(-1)) não é documento interno.
 pub(crate) fn escolha_do_tipo(
     instalacao: &Instalacao,
-    html: &str,
+    html: &crate::tela_html::HtmlServido,
     id_procedimento: &str,
     tipo: &str,
-) -> Result<EscolhaDoDocumento, ErroCriar> {
-    let dom =
-        tl::parse(html, tl::ParserOptions::default()).map_err(ErroCriar::ListaNaoInterpretada)?;
-    let tabelas = nos_com_id(&dom, "tblSeries").map_err(ErroCriar::Atributo)?;
+) -> Result<EscolhaDoDocumento, ErroListaDeTiposDocumento> {
+    let dom = crate::tela_html::arvore(html);
+    let tabelas = dom.com_id("tblSeries").collect::<Vec<_>>();
     let [tabela] = tabelas.as_slice() else {
-        return Err(ErroCriar::ListaForaDaForma);
+        return Err(ErroListaDeTiposDocumento::ListaForaDaForma);
     };
-    let tabela = tabela
-        .get(dom.parser())
-        .and_then(tl::Node::as_tag)
-        .ok_or(ErroCriar::ListaForaDaForma)?;
-    let faixas = guarda_script::faixas_inertes(&dom).ok_or(ErroCriar::ListaForaDaForma)?;
-    let ocultas = guarda_script::faixas_ocultas(&dom).ok_or(ErroCriar::ListaForaDaForma)?;
-    if !tabela.name().as_utf8_str().eq_ignore_ascii_case("table") {
-        return Err(ErroCriar::ListaForaDaForma);
+    let tabela = *tabela;
+    if !tabela.nome().eq_ignore_ascii_case("table") {
+        return Err(ErroListaDeTiposDocumento::ListaForaDaForma);
     }
     let mut links = Vec::new();
-    for tag in tabela
-        .children()
-        .all(dom.parser())
-        .iter()
-        .filter_map(tl::Node::as_tag)
-    {
-        if !tag.name().as_utf8_str().eq_ignore_ascii_case("a")
-            || guarda_script::dentro_de_template(tag.boundaries(dom.parser()).0, &faixas)
-            || guarda_script::dentro_de_faixa_oculta(tag.boundaries(dom.parser()).0, &ocultas)
-        {
+    for tag in tabela.descendentes() {
+        if !tag.nome().eq_ignore_ascii_case("a") {
             continue;
         }
-        let nome = tag
-            .inner_text(dom.parser())
-            .split_whitespace()
-            .collect::<Vec<_>>()
-            .join(" ");
-        let nome = html_escape::decode_html_entities(&nome).into_owned();
+        let nome = nome_visivel(&tag.texto());
         if nome != tipo {
             continue;
         }
-        let onclick = valor_do_atributo(tag, "onclick").map_err(ErroCriar::Atributo)?;
-        let href = valor_do_atributo(tag, "href")
-            .map_err(ErroCriar::Atributo)?
-            .ok_or(ErroCriar::LinkDoTipoNaoNavegavel)?;
-        let href = decodificar_atributo(&href).ok_or(ErroCriar::ListaForaDaForma)?;
-        if link_de_tipo_externo(&href, onclick.as_deref()) {
+        let onclick = tag.atributo("onclick");
+        let href = tag
+            .atributo("href")
+            .ok_or(ErroListaDeTiposDocumento::LinkDoTipoNaoNavegavel)?;
+        if link_de_tipo_externo(href, onclick) {
             continue;
         }
-        links.push((href, onclick));
+        links.push((href.to_owned(), onclick.map(str::to_owned)));
     }
     let (href, onclick) = match links.as_slice() {
-        [] => return Err(ErroCriar::TipoAusente),
+        [] => return Err(ErroListaDeTiposDocumento::TipoAusente),
         [link] => link,
-        _ => return Err(ErroCriar::TipoAmbiguo),
+        _ => return Err(ErroListaDeTiposDocumento::TipoAmbiguo),
     };
     if href.starts_with("controlador.php?") {
         let link = link_do_tipo::conferir_link_do_tipo(instalacao, href, id_procedimento)?;
         return Ok(EscolhaDoDocumento::Link(link));
     }
     if href != "#" && href != "javascript:void(0);" {
-        return Err(ErroCriar::LinkDoTipoNaoNavegavel);
+        return Err(ErroListaDeTiposDocumento::LinkDoTipoNaoNavegavel);
     }
     let id = onclick
         .as_deref()
         .and_then(id_da_escolha_literal)
-        .ok_or(ErroCriar::LinkDoTipoNaoNavegavel)?;
-    script_prova_escolha(html).map_err(ErroCriar::NavegacaoNaoComprovadaPorScript)?;
+        .ok_or(ErroListaDeTiposDocumento::LinkDoTipoNaoNavegavel)?;
+    script_prova_escolha(html)
+        .map_err(ErroListaDeTiposDocumento::NavegacaoNaoComprovadaPorScript)?;
     Ok(EscolhaDoDocumento::Formulario(id))
 }
 
@@ -392,7 +341,7 @@ pub(crate) fn cadastro_redirecionado(
     instalacao: &Instalacao,
     location: &str,
     id_procedimento: &str,
-) -> Result<String, ErroCriar> {
+) -> Result<String, ErroListaDeTiposDocumento> {
     let base = format!("{}/", instalacao.url_base());
     let relativo = location.strip_prefix(&base).unwrap_or(location);
     conferir_endereco_relativo(
@@ -401,11 +350,13 @@ pub(crate) fn cadastro_redirecionado(
         AcaoDoSei::DocumentoGerar,
         id_procedimento,
     )
-    .map_err(ErroCriar::EnderecoDoTipoNaoReconhecido)
+    .map_err(ErroListaDeTiposDocumento::EnderecoDoTipoNaoReconhecido)
 }
 
 #[cfg(test)]
 mod tests;
+#[cfg(test)]
+mod tests_cadastro_obrigatorio;
 #[cfg(test)]
 mod tests_scripts_inertes;
 #[cfg(test)]

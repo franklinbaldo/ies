@@ -1,0 +1,15 @@
+id: funcoes-com-acao
+language: rust
+message: 'Função com parâmetro acao: &str (a regra 30 o tipa).'
+severity: hint
+rule:
+  kind: function_item
+  all:
+    - has:
+        field: name
+        pattern: $F
+    - has:
+        field: parameters
+        has:
+          kind: parameter
+          regex: '^acao: &str$'

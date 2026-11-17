@@ -63,13 +63,17 @@ pub(crate) fn existente(pasta: &Path, nome: &str) -> Result<Option<Vec<u8>>, Err
 /// A foto local declara o mesmo documento e, se servir rodapé, a mesma
 /// versão do nome.
 fn coerente(bytes: &[u8], numero: &str, versao: VersaoDocumento) -> bool {
-    let Ok(html) = std::str::from_utf8(bytes) else {
+    let Ok(texto) = std::str::from_utf8(bytes) else {
+        return false;
+    };
+    // Uma foto do IES nunca passa do limite do HTML servido.
+    let Ok(html) = crate::tela_html::HtmlServido::novo(texto.to_owned()) else {
         return false;
     };
     let mesmo_documento =
-        crate::documento_web::identidade_do_titulo(html).is_ok_and(|id| id.numero == numero);
+        crate::documento_web::identidade_do_titulo(&html).is_ok_and(|id| id.numero == numero);
     let mesma_versao =
-        crate::rodape_do_documento::versao_do_rodape(html).is_none_or(|servida| servida == versao);
+        crate::rodape_do_documento::versao_do_rodape(&html).is_none_or(|servida| servida == versao);
     mesmo_documento && mesma_versao
 }
 

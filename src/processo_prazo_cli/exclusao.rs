@@ -3,7 +3,7 @@
 use super::*;
 use crate::acao_do_sei::AcaoDoSei;
 use crate::consulta_do_controlador::{
-    ConsultaDoControlador, ErroChaveDaConsulta, ErroConsultaDoControlador, menciona_acao,
+    ConsultaDoControlador, ErroConsultaDoControlador, ErroParametroDaUrl, menciona_acao,
 };
 use crate::formulario_web::derivar_submissao_com_action;
 use crate::url_observada::UrlHttps;
@@ -24,7 +24,7 @@ const EXCLUIR_PRAZO: OperacaoDeFormulario = OperacaoDeFormulario {
 
 struct ExclusaoPreparada {
     link_lista: String,
-    html_lista: String,
+    html_lista: crate::tela_html::HtmlServido,
     mime: String,
     id_controle: String,
     id_procedimento: String,
@@ -38,8 +38,6 @@ struct ExclusaoPreparada {
 #[derive(Debug, thiserror::Error)]
 #[error("{self:?}")]
 pub(crate) enum ErroLinkDaLista {
-    /// O HTML do Controle não pôde ser interpretado.
-    ControleIlegivel,
     /// A origem da sessão não é uma instalação reconhecida.
     OrigemNaoInterpretada,
     /// Nenhum link do Controle aponta para `controle_prazo_listar`.
@@ -51,31 +49,23 @@ pub(crate) enum ErroLinkDaLista {
     /// A consulta do link não se deixa ler em pares.
     ConsultaDoLinkIlegivel(#[source] ErroConsultaDoControlador),
     /// O link não traz exatamente um `infra_hash`.
-    InfraHashDoLink(#[source] ErroChaveDaConsulta),
+    InfraHashDoLink(#[source] ErroParametroDaUrl),
 }
 
 /// Lê o href realmente publicado na pagina do Controle, sem fabricar token.
-pub(super) fn link_da_lista(html: &str, origem: &str) -> Result<String, ErroLinkDaLista> {
-    let dom = tl::parse(html, tl::ParserOptions::default())
-        .map_err(|_| ErroLinkDaLista::ControleIlegivel)?;
+pub(super) fn link_da_lista(
+    html: &crate::tela_html::HtmlServido,
+    origem: &str,
+) -> Result<String, ErroLinkDaLista> {
+    let dom = crate::tela_html::arvore(html);
     let instalacao =
         Instalacao::interpretar(origem).ok_or(ErroLinkDaLista::OrigemNaoInterpretada)?;
     let mut encontrados = Vec::new();
-    for ancora in dom
-        .query_selector("a")
-        .into_iter()
-        .flatten()
-        .filter_map(|n| n.get(dom.parser()).and_then(tl::Node::as_tag))
-    {
-        let Some(bruto) = crate::html_atributos::valor_do_atributo(ancora, "href")
-            .map_err(|_| ErroLinkDaLista::ControleIlegivel)?
-        else {
+    for ancora in dom.elementos("a") {
+        let Some(href) = ancora.atributo("href") else {
             continue;
         };
-        let Some(href) = crate::formulario_web::decodificar_atributo(&bruto) else {
-            continue;
-        };
-        if !menciona_acao(&href, AcaoDoSei::ControlePrazoListar) {
+        if !menciona_acao(href, AcaoDoSei::ControlePrazoListar) {
             continue;
         }
         if href.starts_with('/') || href.contains("://") || href.contains("..") {
@@ -91,7 +81,7 @@ pub(super) fn link_da_lista(html: &str, origem: &str) -> Result<String, ErroLink
             .ok_or(ErroLinkDaLista::LinkDaListaForaDaForma)?;
         let consulta = ConsultaDoControlador::ler(consulta)
             .map_err(ErroLinkDaLista::ConsultaDoLinkIlegivel)?;
-        if consulta.acao() != Ok(AcaoDoSei::ControlePrazoListar) {
+        if consulta.acao() != Ok(AcaoDoSei::ControlePrazoListar.como_na_url()) {
             return Err(ErroLinkDaLista::LinkDaListaForaDaForma);
         }
         let hash = consulta
@@ -113,10 +103,7 @@ pub(super) fn link_da_lista(html: &str, origem: &str) -> Result<String, ErroLink
 #[derive(Debug, thiserror::Error)]
 #[error("{self:?}")]
 pub(crate) enum ErroListaDePrazos {
-    /// O parser de HTML recusou a lista de prazos.
-    HtmlDaListaRecusadoPeloParser(#[source] tl::ParseError),
     FormularioDaListaNaoLocalizado(#[source] crate::formulario_web::ErroSubmissaoFormulario),
-    AtributoDaLista(#[source] crate::html_atributos::ErroAtributoHtml),
     AcaoExcluirForaDaForma,
     IdDoControleNaoNumerico,
     /// Duas linhas com `acaoExcluir` para o mesmo NUP.
@@ -125,21 +112,16 @@ pub(crate) enum ErroListaDePrazos {
 
 /// Lê uma funcao de linha observada sem executar o JavaScript.
 /// Ausencia de acao ao confirmar a exclusao significa ausencia da linha.
-pub(super) fn id_na_lista(html: &str, nup: &str) -> Result<Option<String>, ErroListaDePrazos> {
-    let dom = tl::parse(html, tl::ParserOptions::default())
-        .map_err(ErroListaDePrazos::HtmlDaListaRecusadoPeloParser)?;
+pub(super) fn id_na_lista(
+    html: &crate::tela_html::HtmlServido,
+    nup: &str,
+) -> Result<Option<String>, ErroListaDePrazos> {
+    let dom = crate::tela_html::arvore(html);
     crate::formulario_web::localizar_formulario(&dom, "frmControlePrazoLista")
         .map_err(ErroListaDePrazos::FormularioDaListaNaoLocalizado)?;
     let mut encontrado = None;
-    for ancora in dom
-        .query_selector("a")
-        .into_iter()
-        .flatten()
-        .filter_map(|n| n.get(dom.parser()).and_then(tl::Node::as_tag))
-    {
-        let Some(acao) = crate::html_atributos::valor_do_atributo(ancora, "onclick")
-            .map_err(ErroListaDePrazos::AtributoDaLista)?
-        else {
+    for ancora in dom.elementos("a") {
+        let Some(acao) = ancora.atributo("onclick") else {
             continue;
         };
         let Some(resto) = acao.trim().strip_prefix("acaoExcluir('") else {
@@ -354,7 +336,7 @@ pub(super) fn executar(
     if acoes.prazo?.is_none() {
         return Err(FalhaDoPrazo::LeituraIndependenteNaoOferecida.into());
     }
-    let cookie = ler_cookie(sessao)?;
+    let cookie = acoes.cookie.clone();
     let (controle, _) = obter_tela(&mut rede, &cookie, sessao.url_do_controle)?;
     let link_lista =
         link_da_lista(&controle, sessao.origem).map_err(FalhaDoPrazo::LinkDaListaDePrazos)?;
@@ -443,7 +425,10 @@ mod tests {
             "controlador.php?acao=controle_prazo_listar&infra_sistema=1&infra_hash={}",
             hash()
         );
-        let link = link_da_lista(&controle_com(&href), "https://sei.exemplo/sei");
+        let link = link_da_lista(
+            &crate::tela_html::HtmlServido::de_teste(&controle_com(&href)),
+            "https://sei.exemplo/sei",
+        );
         assert_eq!(link.ok(), Some(format!("https://sei.exemplo/sei/{href}")));
     }
 
@@ -453,7 +438,11 @@ mod tests {
             "controlador.php?acao=outra&acao=controle_prazo_listar&infra_hash={}",
             hash()
         );
-        let erro = link_da_lista(&controle_com(&href), "https://sei.exemplo/sei").err();
+        let erro = link_da_lista(
+            &crate::tela_html::HtmlServido::de_teste(&controle_com(&href)),
+            "https://sei.exemplo/sei",
+        )
+        .err();
         assert!(
             matches!(erro, Some(ErroLinkDaLista::LinkDaListaForaDaForma)),
             "{erro:?}"

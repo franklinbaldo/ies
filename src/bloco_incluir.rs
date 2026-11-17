@@ -15,13 +15,10 @@ use crate::formulario_web::{
     OperacaoDeFormulario, RespostaDoEnvio, ResultadoDoEnvio, TelaServida, consulta_do_controlador,
     derivar_submissao, enviar_submissao_via,
 };
-use crate::html_atributos::valor_decodificado;
 use crate::indice_local::IndiceLocal;
 use crate::instalacao::Instalacao;
 use crate::pagina_do_controle::codificacao_da_tela;
-use crate::processo_concluir::escrita::{
-    Contador, CookieIlegivel, FalhaDaTela, ler_cookie, obter_tela,
-};
+use crate::processo_concluir::escrita::{Contador, FalhaDaTela, obter_tela};
 use crate::processo_obter::{
     DocumentoNaArvoreAberto, EnvioDoProcesso, ErroDocumentoObter, PedidoDoAnexo, PedidoDoDocumento,
     SessaoDoProcesso, abrir_documento_na_arvore,
@@ -99,13 +96,10 @@ impl DesfechoDaInclusao {
 #[derive(Debug, thiserror::Error)]
 #[error("{self:?}")]
 pub(crate) enum ErroIncluir {
-    /// O tokenizador de atributos recusou a tag.
-    Atributo(#[from] crate::html_atributos::ErroAtributoHtml),
     Abertura(#[from] ErroDocumentoObter),
     Barra(#[from] ErroBlocoNaBarra),
     /// A barra do documento não oferece "Incluir em Bloco de Assinatura".
     AcaoNaoOferecidaNaBarra,
-    Cookie(#[from] CookieIlegivel),
     Tela(#[from] FalhaDaTela),
     /// `selBloco` não oferece o bloco pedido.
     BlocoNaoOferecido,
@@ -129,24 +123,18 @@ pub(crate) enum ErroIncluir {
     SelecaoDeBlocoAusente,
     SelecoesDeBlocoRepetidas,
     TelaDeEscolherBlocoForaDaFormaObservada,
-    /// O parser de HTML recusou a tela de escolha do bloco.
-    HtmlDaEscolhaRecusadoPeloParser(#[source] tl::ParseError),
 }
 
 /// Lê o `frmBlocoEscolher`: um formulário, um `selBloco`.
-pub(crate) fn ler_tela_de_escolha(html: &str) -> Result<TelaDeEscolha, ErroIncluir> {
+pub(crate) fn ler_tela_de_escolha(
+    html: &crate::tela_html::HtmlServido,
+) -> Result<TelaDeEscolha, ErroIncluir> {
     let fora = || ErroIncluir::TelaDeEscolherBlocoForaDaFormaObservada;
-    let dom = tl::parse(html, tl::ParserOptions::default())
-        .map_err(ErroIncluir::HtmlDaEscolhaRecusadoPeloParser)?;
-    let parser = dom.parser();
-    let tags = |seletor: &str| -> Vec<&tl::HTMLTag<'_>> {
-        dom.query_selector(seletor)
-            .into_iter()
-            .flatten()
-            .filter_map(|n| n.get(parser).and_then(tl::Node::as_tag))
-            .collect()
+    let dom = crate::tela_html::arvore(html);
+    let com_id = |nome: &str, id: &'static str| -> Vec<crate::tela_html::Elemento<'_>> {
+        dom.com_id(id).filter(|e| e.nome() == nome).collect()
     };
-    let formularios = tags("form#frmBlocoEscolher");
+    let formularios = com_id("form", "frmBlocoEscolher");
     match formularios.len() {
         0 => return Err(ErroIncluir::FormularioDeEscolherBlocoAusente),
         1 => {}
@@ -154,18 +142,18 @@ pub(crate) fn ler_tela_de_escolha(html: &str) -> Result<TelaDeEscolha, ErroInclu
             return Err(ErroIncluir::FormulariosDeEscolherBlocoRepetidos);
         }
     }
-    let selecoes = tags("select#selBloco");
+    let selecoes = com_id("select", "selBloco");
     let selecao = match selecoes.as_slice() {
         [] => return Err(ErroIncluir::SelecaoDeBlocoAusente),
         [selecao] => *selecao,
         _ => return Err(ErroIncluir::SelecoesDeBlocoRepetidas),
     };
     let mut blocos = Vec::new();
-    for filho in selecao.children().all(parser) {
-        let Some(opcao) = filho.as_tag().filter(|t| t.name() == "option") else {
-            continue;
-        };
-        let valor = valor_decodificado(opcao, "value")?.ok_or_else(fora)?;
+    for opcao in selecao.elementos("option") {
+        let valor = opcao
+            .atributo("value")
+            .map(str::to_owned)
+            .ok_or_else(fora)?;
         if valor == "null" {
             continue;
         }
@@ -175,8 +163,8 @@ pub(crate) fn ler_tela_de_escolha(html: &str) -> Result<TelaDeEscolha, ErroInclu
         blocos.push(valor);
     }
     let mut documentos: Vec<DocumentoOferecido> = Vec::new();
-    for caixa in tags("input") {
-        let Some(nome) = valor_decodificado(caixa, "name")? else {
+    for caixa in dom.elementos("input") {
+        let Some(nome) = caixa.atributo("name") else {
             continue;
         };
         let Some(indice) = nome.strip_prefix("chkDocumentosItem") else {
@@ -184,13 +172,19 @@ pub(crate) fn ler_tela_de_escolha(html: &str) -> Result<TelaDeEscolha, ErroInclu
         };
         if indice.is_empty()
             || !indice.bytes().all(|b| b.is_ascii_digit())
-            || valor_decodificado(caixa, "id")?.as_deref() != Some(nome.as_str())
-            || valor_decodificado(caixa, "type")?.as_deref() != Some("checkbox")
+            || caixa.atributo("id") != Some(nome)
+            || caixa.atributo("type") != Some("checkbox")
         {
             return Err(fora());
         }
-        let id = valor_decodificado(caixa, "value")?.ok_or_else(fora)?;
-        let numero = valor_decodificado(caixa, "title")?.ok_or_else(fora)?;
+        let id = caixa
+            .atributo("value")
+            .map(str::to_owned)
+            .ok_or_else(fora)?;
+        let numero = caixa
+            .atributo("title")
+            .map(str::to_owned)
+            .ok_or_else(fora)?;
         if id.is_empty() || !id.bytes().all(|b| b.is_ascii_digit()) || numero.is_empty() {
             return Err(fora());
         }
@@ -200,7 +194,11 @@ pub(crate) fn ler_tela_de_escolha(html: &str) -> Result<TelaDeEscolha, ErroInclu
         {
             return Err(ErroIncluir::CaixasDeDocumentosAmbiguas);
         }
-        documentos.push(DocumentoOferecido { nome, id, numero });
+        documentos.push(DocumentoOferecido {
+            nome: nome.to_owned(),
+            id,
+            numero,
+        });
     }
     Ok(TelaDeEscolha { blocos, documentos })
 }
@@ -277,7 +275,7 @@ pub(crate) fn prever_documento<V: EnvioDoProcesso>(
         &aberto.processo.id,
     )?
     .ok_or(ErroIncluir::AcaoNaoOferecidaNaBarra)?;
-    let cookie = ler_cookie(sessao)?;
+    let cookie = aberto.cookie.clone();
     let (html, mime) = obter_tela(&mut rede, &cookie, link.as_str())?;
     let tela = ler_tela_de_escolha(&html)?;
     let caixa = caixa_do_documento(&tela, bloco, &aberto)?;
@@ -331,7 +329,7 @@ fn caixa_do_documento<'t>(
 /// A tela fresca da oferta de inclusão, sem persistir HTML assinado.
 struct TelaDaInclusao<'a> {
     url: &'a str,
-    html: &'a str,
+    html: &'a crate::tela_html::HtmlServido,
     mime: &'a str,
     nome_da_caixa: &'a str,
 }
@@ -426,7 +424,7 @@ fn redirecionamento_da_inclusao(
         return false;
     };
     ConsultaDoControlador::ler(consulta).is_ok_and(|consulta| {
-        consulta.acao() == Ok(AcaoDoSei::BlocoEscolher)
+        consulta.acao() == Ok(AcaoDoSei::BlocoEscolher.como_na_url())
             && consulta.unico("id_procedimento") == Ok(id_procedimento)
             && consulta.unico("id_documento") == Ok(id_documento)
     })

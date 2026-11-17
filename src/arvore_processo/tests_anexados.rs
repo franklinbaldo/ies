@@ -150,7 +150,10 @@ fn recusas_do_anexado() {
         ),
         (
             vec![p(), a().replace(",true,true,null,", ",true,true,")],
-            super::ErroArvore::QuantidadeDeArgumentosDoNoDiferenteDaObservada,
+            super::ErroArvore::QuantidadeDeArgumentosDoNoDiferenteDaObservada {
+                esperada: 16,
+                observada: 15,
+            },
         ),
     ];
     for (nos, esperado) in casos {

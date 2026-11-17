@@ -40,6 +40,8 @@ pub enum ErroCaixa {
     ClassesDeEstadoDiferentesNoLinkDoProcesso {
         categoria: Categoria,
         id: String,
+        #[source]
+        motivo: crate::classe_link_processo::ClassesDeEstadoDiferentesNoLink,
     },
     TotalExcedido {
         categoria: Categoria,
@@ -65,6 +67,12 @@ pub enum ErroCaixa {
     TotalNaoDeclaradoNaLegenda {
         categoria: Categoria,
     },
+    /// A legenda da tabela não está em nenhuma forma observada (leitor `legenda`).
+    LegendaIlegivel {
+        categoria: Categoria,
+        #[source]
+        motivo: crate::legenda::ErroLegenda,
+    },
     /// Legenda sem intervalo e total diferente do número de linhas.
     LegendaSemFaixaComTotalDiferenteDasLinhas {
         categoria: Categoria,
@@ -84,9 +92,6 @@ pub enum ErroCaixa {
     HashesDeCriteriosGeradosRepetidosNoControle,
     HashesDeCriteriosRecebidosRepetidosNoControle,
     HtmlDaCaixaInvalido,
-    /// `tl` recusou o HTML da caixa; a causa fica no `source`.
-    HtmlDaCaixaRecusadoPeloParser(#[source] tl::ParseError),
-    AtributoDaCaixaIlegivel(#[from] crate::html_atributos::ErroAtributoHtml),
     IdentificacoesDaUnidadeRepetidasNoControle,
     TiposDeVisualizacaoRepetidosNoControle,
     UnidadeInesperada,
@@ -112,6 +117,7 @@ impl ErroCaixa {
             | Self::FaixaAlterada { categoria }
             | Self::FaixaDescontinua { categoria }
             | Self::TotalNaoDeclaradoNaLegenda { categoria }
+            | Self::LegendaIlegivel { categoria, .. }
             | Self::LegendaSemFaixaComTotalDiferenteDasLinhas { categoria }
             | Self::PaginadorDaTabelaSemFaixaNaLegenda { categoria } => Some(*categoria),
             Self::IdInvalido
@@ -125,8 +131,6 @@ impl ErroCaixa {
             | Self::HashesDeCriteriosGeradosRepetidosNoControle
             | Self::HashesDeCriteriosRecebidosRepetidosNoControle
             | Self::HtmlDaCaixaInvalido
-            | Self::HtmlDaCaixaRecusadoPeloParser(_)
-            | Self::AtributoDaCaixaIlegivel(_)
             | Self::IdentificacoesDaUnidadeRepetidasNoControle
             | Self::TiposDeVisualizacaoRepetidosNoControle
             | Self::UnidadeInesperada => None,
@@ -152,6 +156,7 @@ impl ErroCaixa {
             | Self::FaixaAlterada { .. }
             | Self::FaixaDescontinua { .. }
             | Self::TotalNaoDeclaradoNaLegenda { .. }
+            | Self::LegendaIlegivel { .. }
             | Self::LegendaSemFaixaComTotalDiferenteDasLinhas { .. }
             | Self::PaginadorDaTabelaSemFaixaNaLegenda { .. }
             | Self::LimitePaginas
@@ -164,8 +169,6 @@ impl ErroCaixa {
             | Self::HashesDeCriteriosGeradosRepetidosNoControle
             | Self::HashesDeCriteriosRecebidosRepetidosNoControle
             | Self::HtmlDaCaixaInvalido
-            | Self::HtmlDaCaixaRecusadoPeloParser(_)
-            | Self::AtributoDaCaixaIlegivel(_)
             | Self::IdentificacoesDaUnidadeRepetidasNoControle
             | Self::TiposDeVisualizacaoRepetidosNoControle
             | Self::UnidadeInesperada => None,

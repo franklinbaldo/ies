@@ -1,0 +1,14 @@
+id: 01-interpretar
+language: rust
+message: 'A tela vira a árvore do html5ever.'
+severity: hint
+rule:
+  pattern: crate::tela_html::interpretar($H)
+  not:
+    inside:
+      stopBy: end
+      kind: mod_item
+      follows:
+        kind: attribute_item
+        regex: 'cfg\(test\)'
+fix: 'crate::tela_html::arvore($H)'

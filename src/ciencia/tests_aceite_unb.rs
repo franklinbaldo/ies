@@ -2,6 +2,7 @@
 //! script em `<!--//--><![CDATA[//><!--` e, em `inicializar()`, uma chamada
 //! simples antes da recarga; a segunda recarga, depois do `return`, não roda.
 use super::{AlvoDaCiencia as Alvo, ErroCiencia, atividade_do_aceite};
+use crate::tela_html::HtmlServido;
 
 fn aceite(antes: &str) -> String {
     format!(
@@ -32,7 +33,10 @@ fn processo() -> Alvo<'static> {
 #[test]
 fn aceite_em_cdata_com_chamada_simples_antes_da_recarga() {
     assert_eq!(
-        atividade_do_aceite(&aceite("exibirLinkVoltarArvoreVisualizar();"), processo()),
+        atividade_do_aceite(
+            &HtmlServido::de_teste(&aceite("exibirLinkVoltarArvoreVisualizar();")),
+            processo()
+        ),
         Ok("44935".into())
     );
 }
@@ -41,7 +45,7 @@ fn aceite_em_cdata_com_chamada_simples_antes_da_recarga() {
 fn desvio_de_fluxo_antes_da_recarga_nao_prova() {
     for antes in ["if (x) return;", "return;", "throw 1;", "while (x) {}"] {
         assert_eq!(
-            atividade_do_aceite(&aceite(antes), processo()),
+            atividade_do_aceite(&HtmlServido::de_teste(&aceite(antes)), processo()),
             Err(ErroCiencia::AceiteSemAtividade),
             "{antes}"
         );
@@ -52,8 +56,11 @@ fn desvio_de_fluxo_antes_da_recarga_nao_prova() {
 fn lista_com_contagem_na_legenda_comprova_atividade() {
     // UnB 4.0.9 ao vivo (10/11/2026): "Lista de Ciências (1 registro):".
     let html = "<html><table id='tblAndamentos' summary='Tabela de Ciências'><caption class='infraCaption'>Lista de Ciências (1 registro):</caption><tr><td><input class='infraCheckbox' id='chkInfraItem' name='chkInfraItem' type='checkbox' value='44936' /></td></tr></table></html>";
-    assert_eq!(super::atividade_na_lista(html, "44936"), Ok(true));
-    let outra = html.replace("(1 registro)", "(1 andamento)");
+    assert_eq!(
+        super::atividade_na_lista(&HtmlServido::de_teste(html), "44936"),
+        Ok(true)
+    );
+    let outra = HtmlServido::de_teste(&html.replace("(1 registro)", "(1 andamento)"));
     assert!(super::atividade_na_lista(&outra, "44936").is_err());
 }
 
@@ -62,9 +69,9 @@ fn aceite_do_sei_5_com_atribuicao_e_chamada_com_argumento_antes() {
     // PEN2 5.0.4 ao vivo (10/11/2026).
     assert_eq!(
         atividade_do_aceite(
-            &aceite(
+            &HtmlServido::de_teste(&aceite(
                 "HTML = \"\";\n  exibirVoltarAcoes(true);\n  inicializarBotaoEditarComentario();"
-            ),
+            )),
             processo()
         ),
         Ok("44935".into())

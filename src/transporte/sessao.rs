@@ -1,36 +1,84 @@
 //! Leitura compartilhada dos arquivos locais de sessão do SEI.
 //! Não faz login nem rede; a validade remota continua sendo conferida
 //! pela operação que efetivamente consulta o Controle.
-use super::{FalhaTransporte, arquivo_privado, validar_cookie, validar_origem};
+use super::{FalhaTransporte, cookie_no_formato, validar_origem};
+use crate::arquivo_privado::{self, ErroArquivoPrivado};
 use std::fmt;
 use std::path::Path;
 
-/// Cookie de um retrato da sessão, já lido do arquivo privado (`0600`,
-/// sem link, sintaxe validada) ou a falha da leitura. A falha só aparece
-/// onde a requisição pede o cookie, como antes da #222: as recusas offline
-/// que vêm antes dela continuam vencendo. Nunca sai no `Debug`.
+/// Cookie de um retrato da sessão: lido do arquivo privado (`0600`, sem
+/// link) e no formato do cabeçalho, ou o fato que o impediu. A falha só
+/// aparece onde a requisição pede o cookie, como antes da #222: as recusas
+/// offline que vêm antes dela continuam vencendo. Nunca sai no `Debug`.
 #[derive(Clone, PartialEq, Eq)]
-pub(crate) struct CookieDaSessao(Result<String, FalhaTransporte>);
+pub(crate) enum CookieDaSessao {
+    Lido(CookieLido),
+    /// O arquivo do cookie não foi lido.
+    Ilegivel(ErroArquivoPrivado),
+    /// O cookie lido está fora do formato do cabeçalho `Cookie`.
+    ForaDoFormato,
+    /// A URL do Controle não é da origem autorizada: o cookie nem foi
+    /// aberto (a recusa de `validar_origem`).
+    NaoAberto(FalhaTransporte),
+}
+
+/// O cookie lido e conferido: quem o tem não relê o arquivo nem falha.
+/// Só o retrato o cria. Nunca sai no `Debug`.
+#[derive(Clone, PartialEq, Eq)]
+pub(crate) struct CookieLido(String);
+
+impl std::ops::Deref for CookieLido {
+    type Target = str;
+    fn deref(&self) -> &str {
+        &self.0
+    }
+}
+
+impl fmt::Debug for CookieLido {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        f.write_str("CookieLido(<redigido>)")
+    }
+}
+
+impl CookieLido {
+    /// Cookie sintético dos testes, no formato do lido do arquivo.
+    #[cfg(test)]
+    pub(crate) fn sintetico(cookie: &str) -> Self {
+        assert!(cookie_no_formato(cookie));
+        Self(cookie.to_owned())
+    }
+}
 
 impl CookieDaSessao {
     /// O chamador deve ter autorizado a URL de destino antes desta função.
     pub(crate) fn ler(cookie_file: &Path) -> Self {
-        Self(arquivo_privado(cookie_file, 8_192).and_then(|texto| {
-            let cookie = texto.trim().to_owned();
-            validar_cookie(&cookie)?;
-            Ok(cookie)
-        }))
+        match arquivo_privado::ler(cookie_file, 8_192) {
+            Ok(texto) if cookie_no_formato(texto.trim()) => {
+                Self::Lido(CookieLido(texto.trim().to_owned()))
+            }
+            Ok(_) => Self::ForaDoFormato,
+            Err(erro) => Self::Ilegivel(erro),
+        }
     }
 
     /// Cookie sintético dos testes, validado como o lido do arquivo.
     #[cfg(test)]
     pub(crate) fn sintetico(cookie: &str) -> Self {
-        validar_cookie(cookie).unwrap();
-        Self(Ok(cookie.to_owned()))
+        Self::Lido(CookieLido::sintetico(cookie))
+    }
+
+    /// O cookie para a requisição; a falha, como o transporte a nomeia.
+    pub(crate) fn lido(&self) -> Result<CookieLido, FalhaTransporte> {
+        self.valor().map(|cookie| CookieLido(cookie.to_owned()))
     }
 
     pub(crate) fn valor(&self) -> Result<&str, FalhaTransporte> {
-        self.0.as_deref().map_err(Clone::clone)
+        match self {
+            Self::Lido(cookie) => Ok(cookie),
+            Self::Ilegivel(erro) => Err(FalhaTransporte::CookieDaSessaoIlegivel(*erro)),
+            Self::ForaDoFormato => Err(FalhaTransporte::CookieInvalido),
+            Self::NaoAberto(recusa) => Err(recusa.clone()),
+        }
     }
 }
 
@@ -88,14 +136,20 @@ impl ReferenciasDaSessao {
         entre: &mut impl FnMut(),
     ) -> Result<Option<Self>, FalhaTransporte> {
         let antes = marcador(url_file)?;
-        let url = arquivo_privado(url_file, 8_192)?.trim().to_owned();
-        let origem = arquivo_privado(origem_file, 512)?.trim().to_owned();
+        let url = arquivo_privado::ler(url_file, 8_192)
+            .map_err(FalhaTransporte::UrlDoControleIlegivel)?
+            .trim()
+            .to_owned();
+        let origem = arquivo_privado::ler(origem_file, 512)
+            .map_err(FalhaTransporte::OrigemIlegivel)?
+            .trim()
+            .to_owned();
         entre();
         // A origem é conferida ANTES de abrir o cookie; a recusa fica
         // guardada no lugar do cookie, para a primeira requisição.
         let cookie = match validar_origem(&url, &origem) {
             Ok(()) => CookieDaSessao::ler(cookie_file),
-            Err(falha) => CookieDaSessao(Err(falha)),
+            Err(falha) => CookieDaSessao::NaoAberto(falha),
         };
         let depois = marcador(url_file)?;
         let coerente = match (antes, depois) {
@@ -140,10 +194,10 @@ impl ReferenciasDaSessao {
 fn marcador(url_file: &Path) -> Result<Option<String>, FalhaTransporte> {
     let mut caminho = url_file.as_os_str().to_owned();
     caminho.push(".geracao");
-    match arquivo_privado(Path::new(&caminho), 4_096) {
+    match arquivo_privado::ler(Path::new(&caminho), 4_096) {
         Ok(texto) => Ok(Some(texto)),
-        Err(FalhaTransporte::ArquivoPrivadoAusenteOuInacessivel(_)) => Ok(None),
-        Err(falha) => Err(falha),
+        Err(ErroArquivoPrivado::Ausente) => Ok(None),
+        Err(falha) => Err(FalhaTransporte::MarcadorDaSessaoIlegivel(falha)),
     }
 }
 

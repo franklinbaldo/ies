@@ -1,31 +1,20 @@
 //! Download de anexo externo publicado no cadastro do SEI (#60).
 //! Fonte: Todos `tests/paginas_reais/documento_alterar_recebido.html`.
-use super::{ErroPropriedadesDocumento, campo, ler_formulario, valor};
+use super::{ErroPropriedadesDocumento, cadastro_do_documento, campo, valor};
 use crate::arvore_processo::EnderecoDoConteudo;
-use crate::html_atributos::nos_com_id;
 use crate::instalacao::Instalacao;
 
-/// Somente um vínculo inequívoco entre o `id_anexo` listado e o href servido.
+/// Somente um vínculo inequívoco entre o `id_anexo` listado e o href servido,
+/// no cadastro conferido como o do documento e processo pedidos.
 pub(crate) fn ler_anexo_publicado(
     instalacao: &Instalacao,
-    html: &str,
+    html: &crate::tela_html::HtmlServido,
     documento: &str,
     processo: &str,
 ) -> Result<Option<EnderecoDoConteudo>, ErroPropriedadesDocumento> {
-    let _ = ler_formulario(html, documento, processo)?;
-    let dom = tl::parse(html, tl::ParserOptions::default())
-        .map_err(ErroPropriedadesDocumento::HtmlDoCadastroNaoInterpretado)?;
-    let parser = dom.parser();
-    let nos =
-        nos_com_id(&dom, "frmDocumentoCadastro").map_err(ErroPropriedadesDocumento::Atributo)?;
-    let Some(form) = nos
-        .first()
-        .and_then(|no| no.get(parser))
-        .and_then(tl::Node::as_tag)
-    else {
-        return Err(ErroPropriedadesDocumento::FormularioCadastroDocumentoAusente);
-    };
-    let lista = valor(campo(form, parser, "hdnAnexos")?)?;
+    let dom = crate::tela_html::arvore(html);
+    let form = cadastro_do_documento(&dom, documento, processo)?;
+    let lista = valor(campo(form, "hdnAnexos")?)?;
     let mut encontrado = None;
     for linha in html.lines() {
         let Some((_, restante)) = linha.split_once("objTabelaAnexos.adicionarAcoes('") else {

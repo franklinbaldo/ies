@@ -290,7 +290,7 @@ pub enum ArquivoPrivado {
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, thiserror::Error)]
 #[error("{self:?}")]
-pub enum ErroArquivoPrivado {
+pub enum ErroArquivoDeAcesso {
     CaminhoNaoAbsoluto(ArquivoPrivado),
     Ausente(ArquivoPrivado),
     LinkSimbolico(ArquivoPrivado),
@@ -303,36 +303,36 @@ pub enum ErroArquivoPrivado {
 }
 
 /// Consulta apenas metadados: não lê conteúdo, credenciais nem acessa o SEI.
-pub fn verificar_arquivos_privados(arquivos: &ArquivosDeAcesso) -> Result<(), ErroArquivoPrivado> {
+pub fn verificar_arquivos_privados(arquivos: &ArquivosDeAcesso) -> Result<(), ErroArquivoDeAcesso> {
     for (tipo, caminho) in [
         (ArquivoPrivado::UrlControle, arquivos.url_controle.as_path()),
         (ArquivoPrivado::Cookie, arquivos.cookie.as_path()),
         (ArquivoPrivado::Origem, arquivos.origem.as_path()),
     ] {
         if !caminho.is_absolute() {
-            return Err(ErroArquivoPrivado::CaminhoNaoAbsoluto(tipo));
+            return Err(ErroArquivoDeAcesso::CaminhoNaoAbsoluto(tipo));
         }
         let info = std::fs::symlink_metadata(caminho).map_err(|erro| {
             if erro.kind() == std::io::ErrorKind::NotFound {
-                ErroArquivoPrivado::Ausente(tipo)
+                ErroArquivoDeAcesso::Ausente(tipo)
             } else {
-                ErroArquivoPrivado::MetadadosNaoLidos(tipo, erro.kind())
+                ErroArquivoDeAcesso::MetadadosNaoLidos(tipo, erro.kind())
             }
         })?;
         if info.file_type().is_symlink() {
-            return Err(ErroArquivoPrivado::LinkSimbolico(tipo));
+            return Err(ErroArquivoDeAcesso::LinkSimbolico(tipo));
         }
         if !info.is_file() {
-            return Err(ErroArquivoPrivado::NaoRegular(tipo));
+            return Err(ErroArquivoDeAcesso::NaoRegular(tipo));
         }
         if info.len() == 0 {
-            return Err(ErroArquivoPrivado::Vazio(tipo));
+            return Err(ErroArquivoDeAcesso::Vazio(tipo));
         }
         #[cfg(unix)]
         {
             use std::os::unix::fs::PermissionsExt;
             if info.permissions().mode() & 0o077 != 0 {
-                return Err(ErroArquivoPrivado::PermissoesInseguras(tipo));
+                return Err(ErroArquivoDeAcesso::PermissoesInseguras(tipo));
             }
         }
     }

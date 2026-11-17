@@ -7,67 +7,65 @@
 //! conjunto inteiro, na visão R com a unidade identificada, prova zero
 //! processos; qualquer parte ausente, repetida ou diferente mantém
 //! `tabela_ausente`.
-use crate::controle_contexto::contexto_do_dom;
+use crate::controle_contexto::contexto_da_pagina;
 use crate::dominio::Categoria;
-use crate::erro_web::ErroCaixa;
-use crate::html_atributos::{nos_com_id, valor_do_atributo};
 
-fn unico<'d>(dom: &'d tl::VDom<'_>, id: &str) -> Result<Option<&'d tl::HTMLTag<'d>>, ErroCaixa> {
-    let nos = nos_com_id(dom, id).map_err(ErroCaixa::AtributoDaCaixaIlegivel)?;
+fn unico<'d>(
+    dom: &'d crate::tela_html::Documento,
+    id: &str,
+) -> Option<crate::tela_html::Elemento<'d>> {
+    let nos = dom.com_id(id).collect::<Vec<_>>();
     let [no] = nos.as_slice() else {
-        return Ok(None);
+        return None;
     };
-    Ok(no.get(dom.parser()).and_then(tl::Node::as_tag))
+    Some(*no)
 }
 
 /// `div` única só com espaços: nenhuma tag, nenhum texto.
-fn div_vazia(dom: &tl::VDom<'_>, id: &str) -> Result<bool, ErroCaixa> {
-    let Some(div) = unico(dom, id)? else {
-        return Ok(false);
+fn div_vazia(dom: &crate::tela_html::Documento, id: &str) -> bool {
+    let Some(div) = unico(dom, id) else {
+        return false;
     };
-    let parser = dom.parser();
-    Ok(div.name() == "div"
-        && div.children().top().iter().all(|filho| {
+    div.nome() == "div"
+        && div.nos().all(|filho| {
             filho
-                .get(parser)
-                .and_then(tl::Node::as_raw)
-                .is_some_and(|texto| texto.as_utf8_str().trim().is_empty())
-        }))
+                .como_texto()
+                .is_some_and(|texto| texto.trim().is_empty())
+        })
 }
 
 /// `input` único com `value` exatamente `0`.
-fn oculto_zero(dom: &tl::VDom<'_>, id: &str) -> Result<bool, ErroCaixa> {
-    let Some(campo) = unico(dom, id)? else {
-        return Ok(false);
+fn oculto_zero(dom: &crate::tela_html::Documento, id: &str) -> bool {
+    let Some(campo) = unico(dom, id) else {
+        return false;
     };
-    let valor = valor_do_atributo(campo, "value").map_err(ErroCaixa::AtributoDaCaixaIlegivel)?;
-    Ok(campo.name() == "input" && valor.as_deref() == Some("0"))
+    let valor = campo.atributo("value");
+    campo.nome() == "input" && valor == Some("0")
 }
 
 /// A tela prova que a categoria não tem processos (ver o módulo).
 pub(crate) fn lista_vazia_comprovada(
-    dom: &tl::VDom<'_>,
+    html: &crate::tela_html::HtmlServido,
+    dom: &crate::tela_html::Documento,
     categoria: Categoria,
-) -> Result<bool, ErroCaixa> {
+) -> bool {
     let t = match categoria {
         Categoria::Recebidos => "Recebidos",
         Categoria::Gerados => "Gerados",
     };
-    let Ok(contexto) = contexto_do_dom(dom) else {
-        return Ok(false);
+    let Ok(contexto) = contexto_da_pagina(html) else {
+        return false;
     };
     if !contexto.eh_resumida() || contexto.unidade.is_none() {
-        return Ok(false);
+        return false;
     }
-    for div in [
+    [
         "AreaTabela",
         "AreaPaginacaoSuperior",
         "AreaPaginacaoInferior",
-    ] {
-        if !div_vazia(dom, &format!("div{t}{div}"))? {
-            return Ok(false);
-        }
-    }
-    Ok(oculto_zero(dom, &format!("hdn{t}NroItens"))?
-        && oculto_zero(dom, &format!("hdn{t}PaginaAtual"))?)
+    ]
+    .iter()
+    .all(|div| div_vazia(dom, &format!("div{t}{div}")))
+        && oculto_zero(dom, &format!("hdn{t}NroItens"))
+        && oculto_zero(dom, &format!("hdn{t}PaginaAtual"))
 }

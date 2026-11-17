@@ -4,6 +4,7 @@
 use super::abertura::ErroAberturaDoIndice;
 use super::tests::{instalacao, pasta};
 use super::*;
+use crate::acao_do_sei::AcaoDoSei;
 use crate::arquivo_privado::FalhaDaGravacao;
 use std::fs;
 
@@ -111,7 +112,7 @@ fn chave_sem_unidade() -> ChaveDoLink<'static> {
     ChaveDoLink {
         geracao_sessao: "g",
         unidade: "",
-        acao: crate::acao_do_sei::AcaoDoSei::ProtocoloPesquisar,
+        acao: AcaoDoSei::ProtocoloPesquisar,
         alvo: "",
     }
 }

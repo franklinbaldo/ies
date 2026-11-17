@@ -5,6 +5,7 @@
 use super::{AlvoDaCiencia, atividade_do_aceite, atividade_na_lista};
 use crate::cassette::acervo::{INSTALACOES, Resultado, gravacao, publicar, tabela};
 use crate::cassette::{ZipDoAcervo, archive_filename, conferir_cassette_ate, html_da_resposta};
+use crate::tela_html::HtmlServido;
 use serde_json::Value;
 use std::collections::HashMap;
 use std::path::{Path, PathBuf};
@@ -77,7 +78,7 @@ fn conferir_lista(interacao: &Value, atividade: Option<ProvaPendente>) -> Result
         }
         None => {}
     }
-    match atividade_na_lista(&html, id) {
+    match atividade_na_lista(&HtmlServido::de_teste(&html), id) {
         Ok(true) => Resultado::Lido,
         Ok(false) => Resultado::Recusado("atividade_nao_consta_da_lista".to_owned()),
         Err(erro) => Resultado::Recusado(format!("{erro:?}")),
@@ -242,7 +243,7 @@ fn ler_aceite(resposta: &gravacao::Resposta<'_>) -> Result<ProvaPendente, Result
             id_procedimento: processo,
         }
     };
-    let id = atividade_do_aceite(&html, alvo)
+    let id = atividade_do_aceite(&HtmlServido::de_teste(&html), alvo)
         .map_err(|erro| Resultado::Recusado(format!("{erro:?}")))?;
     Ok(match id_documento {
         Some(id_documento) if resposta.operacao == "documento_ciencia" => {

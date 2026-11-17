@@ -3,8 +3,10 @@
 use std::process::{Command, Output};
 
 #[path = "support/falha.rs"]
-mod support;
-use support::falha;
+mod falha_cli;
+#[path = "support/falha_por.rs"]
+mod falha_por_cli;
+use falha_por_cli::falha_por;
 
 fn sem_sessao(args: &[&str]) -> Output {
     Command::new(env!("CARGO_BIN_EXE_ies"))
@@ -79,7 +81,7 @@ fn sem_sessao_recusa_previa_e_confirmacao_sem_rede() {
             args.push("--confirmar");
         }
         let saida = sem_sessao(&args);
-        falha(&saida, "ArquivoPrivadoAusenteOuInacessivel");
+        falha_por(&saida, "UrlDoControleIlegivel", "Ausente");
     }
 }
 

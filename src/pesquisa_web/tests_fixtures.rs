@@ -54,7 +54,7 @@ pub(crate) fn controle(menu: &str) -> String {
         "<html><body><ul id=\"infraMenu\">{menu}\
          <li><a href=\"controlador.php?acao=protocolo_pesquisa_rapida&{CONTEXTO}&infra_hash={}\">R</a></li></ul>\
          <a id=\"lnkInfraUnidade\">{UNIDADE}</a>\
-         <table id=\"tblProcessosRecebidos\"><caption>1 registros - 1 a 1):</caption>\
+         <table id=\"tblProcessosRecebidos\"><caption>Processos (1 registros - 1 a 1):</caption>\
          <tr id=\"P1\"><td><a class=\"processoVisualizado\">R-0001</a></td></tr></table>\
          <table id=\"tblProcessosGerados\"><caption>0 registros:</caption></table></body></html>",
         hash('f')

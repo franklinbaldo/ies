@@ -7,17 +7,15 @@ use crate::arvore_processo::{Cancelamento, ProcessoNaArvore};
 use crate::consulta_do_controlador::ConsultaDoControlador;
 use crate::documento::NumeroDocumento;
 use crate::formulario_web::{
-    ConferenciaDaUnidade, EfeitoAvaliado, EnvioDoFormulario, ErroSubmissaoFormulario,
-    EstadoDoProcesso, OperacaoDeFormulario, RespostaDoEnvio, ResultadoDoEnvio, SubmissaoDerivada,
-    TelaServida, consulta_do_controlador, derivar_submissao, enviar_submissao_via,
-    localizar_formulario,
+    ConferenciaDaUnidade, EfeitoAvaliado, EnvioDoFormulario, EstadoDoProcesso,
+    OperacaoDeFormulario, RespostaDoEnvio, ResultadoDoEnvio, SubmissaoDerivada, TelaServida,
+    consulta_do_controlador, derivar_submissao, enviar_submissao_via, localizar_formulario,
 };
-use crate::html_atributos::valor_do_atributo;
 use crate::indice_local::IndiceLocal;
 use crate::instalacao::Instalacao;
 use crate::pagina_do_controle::codificacao_da_tela;
 use crate::processo::NumeroProcesso;
-use crate::processo_concluir::escrita::{Contador, FalhaDaTela, ler_cookie, obter_tela};
+use crate::processo_concluir::escrita::{Contador, FalhaDaTela, obter_tela};
 use crate::processo_obter::{
     EnvioDoProcesso, ErroDocumentoObter, ErroProcessoObter, PedidoDoAnexo, PedidoDoDocumento,
     SessaoDoProcesso, abrir_documento_na_arvore,
@@ -112,7 +110,7 @@ pub(crate) fn cancelar_documento<V: EnvioDoProcesso>(
     )
     .map_err(ErroCancelar::Link)?
     .ok_or(ErroCancelar::CancelamentoNaoOferecido)?;
-    let cookie = ler_cookie(sessao)?;
+    let cookie = aberto.cookie.clone();
     let (html, mime) = obter_tela(&mut rede, &cookie, link.as_str()).map_err(|f| match f {
         FalhaDaTela::Transporte(falha) => ErroCancelar::Tela(falha),
         FalhaDaTela::Redirecionada => ErroCancelar::TelaRedirecionada,
@@ -214,13 +212,11 @@ pub(super) fn conferir_formulario(
     documento: &str,
 ) -> Result<(), ErroCancelar> {
     use crate::arvore_processo::endereco::conferir_endereco_relativo_por;
-    let dom = tl::parse(tela.html, tl::ParserOptions::default())
-        .map_err(ErroCancelar::HtmlDoFormularioNaoInterpretado)?;
+    let dom = crate::tela_html::arvore(tela.html);
     let form = localizar_formulario(&dom, CANCELAR.formulario).map_err(ErroCancelar::Formulario)?;
-    let action = valor_do_atributo(form, "action")
-        .map_err(|f| ErroCancelar::Formulario(ErroSubmissaoFormulario::AtributoHtml(f)))?
-        .ok_or(ErroCancelar::FormularioDeOutroDocumento)?;
-    let action = crate::formulario_web::decodificar_atributo(&action)
+    let action = form
+        .atributo("action")
+        .map(str::to_owned)
         .ok_or(ErroCancelar::FormularioDeOutroDocumento)?;
     conferir_endereco_relativo_por(
         instalacao,
@@ -239,20 +235,10 @@ pub(super) fn conferir_formulario(
     )
     .map_err(ErroCancelar::EnderecoDoDocumentoRecusado)?;
     let mut motivos = 0;
-    for tag in form
-        .children()
-        .all(dom.parser())
-        .iter()
-        .filter_map(tl::Node::as_tag)
-    {
-        let nome = valor_do_atributo(tag, "name")
-            .map_err(|f| ErroCancelar::Formulario(ErroSubmissaoFormulario::AtributoHtml(f)))?;
-        if nome.as_deref() == Some("txaMotivo") {
-            if tag.name().as_utf8_str() != "textarea"
-                || crate::html_atributos::atributo_presente(tag, "disabled").map_err(|f| {
-                    ErroCancelar::Formulario(ErroSubmissaoFormulario::AtributoHtml(f))
-                })?
-            {
+    for tag in form.descendentes() {
+        let nome = tag.atributo("name");
+        if nome == Some("txaMotivo") {
+            if tag.nome() != "textarea" || tag.presente("disabled") {
                 return Err(ErroCancelar::MotivoNaoPublicadoNaTela);
             }
             motivos += 1;
@@ -278,7 +264,7 @@ pub(super) fn localizacao_aceita(
     let Ok(consulta) = ConsultaDoControlador::ler(consulta) else {
         return false;
     };
-    consulta.acao() == Ok(AcaoDoSei::ArvoreVisualizar)
+    consulta.acao() == Ok(AcaoDoSei::ArvoreVisualizar.como_na_url())
         && consulta.unico("id_procedimento") == Ok(id_proc)
         && consulta.unico("id_documento") == Ok(id_doc)
         && consulta.unico("atualizar_arvore") == Ok("1")

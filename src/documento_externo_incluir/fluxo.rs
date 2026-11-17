@@ -25,9 +25,8 @@ use crate::indice_local::IndiceLocal;
 use crate::instalacao::Instalacao;
 use crate::pagina_do_controle::codificacao_da_tela;
 use crate::processo::NumeroProcesso;
-use crate::processo_concluir::escrita::CookieIlegivel;
 use crate::processo_concluir::escrita::{
-    Contador, FalhaDaTela, leitura, ler_cookie, obter_tela, siglas_abertas,
+    Contador, FalhaDaTela, leitura, obter_tela, siglas_abertas,
 };
 use crate::processo_obter::{
     EnvioDoProcesso, ErroProcessoObter, SessaoDoProcesso, abrir_para_escrever,
@@ -76,7 +75,7 @@ pub(crate) struct CadastroPreparado {
     pub(crate) previa: PreviaExterna,
     pub(crate) cadastro: CadastroExterno,
     pub(crate) url_cadastro: String,
-    pub(crate) html_cadastro: String,
+    pub(crate) html_cadastro: crate::tela_html::HtmlServido,
     pub(crate) codificacao: CodificacaoDaTela,
     pub(crate) foto_antes: FotoProcesso,
 }
@@ -86,8 +85,6 @@ pub(crate) struct CadastroPreparado {
 #[derive(Debug, thiserror::Error)]
 #[error("{self:?}")]
 pub(crate) enum ErroIncluirExterno {
-    /// O cookie privado da sessão não pôde ser lido.
-    Cookie(#[from] CookieIlegivel),
     Abertura(#[from] ErroProcessoObter),
     Transporte(#[from] FalhaTransporte),
     Tela(#[from] FalhaDaTela),
@@ -114,7 +111,9 @@ pub(crate) enum ErroIncluirExterno {
     UploadParaOutroProcesso,
     OrigemDaSessaoNaoInterpretada,
     /// A consulta do endereço de upload tem chave ou valor fora da forma canônica.
-    ConsultaDoUploadForaDaForma(#[source] FalhaTransporte),
+    ConsultaDoUploadForaDaForma(
+        #[source] crate::consulta_do_controlador::ErroConsultaDoControlador,
+    ),
     CampoDoCadastroNaoOferecido(CampoExigidoDoCadastro),
     Confirmacao(#[from] FalhaConfirmacao),
 }
@@ -159,7 +158,7 @@ fn recarregar_tipo<V: EnvioDoProcesso>(
     tela: &TelaServida<'_>,
     unidade: &str,
     id_tipo: &str,
-) -> Result<String, ErroIncluirExterno> {
+) -> Result<crate::tela_html::HtmlServido, ErroIncluirExterno> {
     let submissao = derivar_submissao(
         &RECARREGAR_TIPO,
         instalacao,
@@ -203,7 +202,7 @@ pub(crate) fn preparar_previa<V: EnvioDoProcesso>(
         return Err(ErroIncluirExterno::ProcessoNaoAbertoNaUnidade);
     }
     let link = acoes.incluir?.ok_or(ErroIncluirExterno::LinkNaoPublicado)?;
-    let cookie = ler_cookie(sessao)?;
+    let cookie = acoes.cookie.clone();
     let (lista, mime_lista) = obter_tela(&mut rede, &cookie, link.as_str())?;
     let id_procedimento = &aberto.arvore.processo.id;
     let destino = match escolher_externo(&lista).map_err(ErroIncluirExterno::EscolhaNaoConferida)? {

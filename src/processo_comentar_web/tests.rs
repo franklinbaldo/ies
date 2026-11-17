@@ -1,4 +1,5 @@
 use super::*;
+use crate::tela_html::HtmlServido;
 
 const ORIGEM: &str = "https://sei.exemplo.gov.br/sei";
 
@@ -26,7 +27,7 @@ fn lista_com_botao(onclick: &str) -> String {
 fn botao_novo_com_location_href_e_aceito_pela_mesma_conferencia() {
     // Caso: SEI publica `<button id="btnNovo" onclick="location.href='…'">` na lista.
     let url = url_de_cadastro("10");
-    let html = lista_com_botao(&format!("location.href='{url}'"));
+    let html = HtmlServido::de_teste(&lista_com_botao(&format!("location.href='{url}'")));
     assert_eq!(
         link_do_cadastro(&instalacao(), &html, "10").ok(),
         Some(format!("{ORIGEM}/{url}"))
@@ -40,7 +41,7 @@ fn botao_novo_da_visao_de_protocolo_aceita_o_campo_do_protocolo() {
         "{}&id_rel_protocolo_protocolo=6453289",
         url_de_cadastro("10")
     );
-    let html = lista_com_botao(&format!("location.href='{url}'"));
+    let html = HtmlServido::de_teste(&lista_com_botao(&format!("location.href='{url}'")));
     assert_eq!(
         link_do_cadastro(&instalacao(), &html, "10").ok(),
         Some(format!("{ORIGEM}/{url}"))
@@ -55,7 +56,7 @@ fn botao_com_outra_forma_de_onclick_nao_conta_como_link() {
         format!("location.href='{url}'; return false;"),
         format!("location.href=\"{url}\""),
     ] {
-        let html = lista_com_botao(&onclick);
+        let html = HtmlServido::de_teste(&lista_com_botao(&onclick));
         assert!(
             matches!(
                 link_do_cadastro(&instalacao(), &html, "10"),
@@ -69,10 +70,10 @@ fn botao_com_outra_forma_de_onclick_nao_conta_como_link() {
 #[test]
 fn botao_e_link_do_mesmo_cadastro_somam_dois_e_sao_recusados() {
     let url = url_de_cadastro("10");
-    let html = format!(
+    let html = HtmlServido::de_teste(&format!(
         r#"<a href="{url}">Novo</a>{}"#,
         lista_com_botao(&format!("location.href='{url}'"))
-    );
+    ));
     assert!(matches!(
         link_do_cadastro(&instalacao(), &html, "10"),
         Err(ErroComentar::LinkDoCadastroNaoUnico)
@@ -81,7 +82,10 @@ fn botao_e_link_do_mesmo_cadastro_somam_dois_e_sao_recusados() {
 
 #[test]
 fn botao_de_outro_processo_e_recusado_pela_politica_de_endereco() {
-    let html = lista_com_botao(&format!("location.href='{}'", url_de_cadastro("11")));
+    let html = HtmlServido::de_teste(&lista_com_botao(&format!(
+        "location.href='{}'",
+        url_de_cadastro("11")
+    )));
     assert!(matches!(
         link_do_cadastro(&instalacao(), &html, "10"),
         Err(ErroComentar::LinkDoCadastroRecusado(

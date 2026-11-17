@@ -16,10 +16,10 @@ use crate::arvore_processo::endereco::conferir_endereco_relativo;
 use crate::arvore_processo::nup_declarado_na_arvore;
 use crate::cassette::acervo::{INSTALACOES, gravacao, percorrer, publicar};
 use crate::cassette::html_da_resposta;
-use crate::formulario_web::{Redirecionamento302, decodificar_atributo};
-use crate::html_atributos::{nos_com_id, valor_do_atributo};
+use crate::formulario_web::Redirecionamento302;
 use crate::marcadores_processo::{TelaDosMarcadores, ler_marcadores};
 use crate::processo_obter::marcadores::sem_marcadores;
+use crate::tela_html::HtmlServido;
 use std::collections::{BTreeMap, HashMap};
 use std::fmt::Write as _;
 
@@ -56,22 +56,14 @@ struct Estado {
 
 /// As opções do `select#selMarcador` servido, como `Rotulo` (id e texto).
 fn opcoes_do_select(html: &str) -> Vec<Rotulo> {
-    let Ok(dom) = tl::parse(html, tl::ParserOptions::default()) else {
-        return Vec::new();
-    };
-    let parser = dom.parser();
-    let Ok(selects) = nos_com_id(&dom, "selMarcador") else {
-        return Vec::new();
-    };
-    selects
-        .iter()
-        .filter_map(|h| h.get(parser).and_then(tl::Node::as_tag))
-        .flat_map(|select| select.children().all(parser).iter())
-        .filter_map(tl::Node::as_tag)
-        .filter(|tag| tag.name().as_utf8_str() == "option")
+    let servido = HtmlServido::de_teste(html);
+    let dom = crate::tela_html::arvore(&servido);
+    dom.com_id("selMarcador")
+        .flat_map(crate::tela_html::Elemento::descendentes)
+        .filter(|tag| tag.nome() == "option")
         .filter_map(|tag| {
-            let id = valor_do_atributo(tag, "value").ok()??;
-            let nome = decodificar_atributo(&tag.inner_text(parser))?;
+            let id = tag.atributo("value").map(str::to_owned)?;
+            let nome = tag.texto();
             Some(Rotulo { id, nome })
         })
         .collect()
@@ -108,7 +100,7 @@ impl Estado {
             leituras.push((TELA, "NUP do principal não lido na árvore".to_owned()));
             return leituras;
         };
-        let tela = ler_marcadores(&html, nup, id);
+        let tela = ler_marcadores(&HtmlServido::de_teste(&html), nup, id);
         match &tela {
             Ok(TelaDosMarcadores::Lidos(lidos)) => {
                 let n = lidos.itens.len();
@@ -121,7 +113,10 @@ impl Estado {
             Ok(TelaDosMarcadores::SemTabela) => leituras.push((TELA, "sem tabela".to_owned())),
             Err(erro) => leituras.push((TELA, format!("`{erro:?}`"))),
         }
-        leituras.push((CADASTRO, resultado(link_de_adicionar(&html), "lido")));
+        leituras.push((
+            CADASTRO,
+            resultado(link_de_adicionar(&HtmlServido::de_teste(&html)), "lido"),
+        ));
         if std::mem::take(&mut self.aceito_pendente) {
             let classe = match tela {
                 Ok(TelaDosMarcadores::Lidos(lidos)) => {
@@ -187,7 +182,15 @@ impl Estado {
         };
         opcoes_do_select(&html)
             .iter()
-            .map(|rotulo| (OPCOES, resultado(rotulo_oferecido(&html, rotulo), "lido")))
+            .map(|rotulo| {
+                (
+                    OPCOES,
+                    resultado(
+                        rotulo_oferecido(&HtmlServido::de_teste(&html), rotulo),
+                        "lido",
+                    ),
+                )
+            })
             .collect()
     }
 

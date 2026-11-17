@@ -3,13 +3,14 @@ use super::*;
 use crate::pesquisa_web::tests_fixtures::{
     ORIGEM, controle, hash, href_do_menu, menu, url_controle, url_da_tela,
 };
+use crate::tela_html::HtmlServido;
 
 fn instalacao() -> Instalacao {
     Instalacao::interpretar(ORIGEM).unwrap()
 }
 
 fn link(html: &str) -> Result<String, ErroLinkDaPesquisa> {
-    link_da_pesquisa(&instalacao(), &url_controle(), html)
+    link_da_pesquisa(&instalacao(), &url_controle(), &HtmlServido::de_teste(html))
 }
 
 #[test]
@@ -84,14 +85,14 @@ fn link_fora_da_forma_observada_e_recusado() {
     }
     assert_eq!(
         link(&controle(&menu(&ponto_e_virgula))),
-        Err(ErroLinkDaPesquisa::ConsultaDoLinkRecusadaPeloTransporte(
-            crate::transporte::FalhaTransporte::SeparadorDeConsultaAmbiguo
+        Err(ErroLinkDaPesquisa::ConsultaDoLinkIlegivel(
+            crate::consulta_do_controlador::ErroConsultaDoControlador::SeparadorDeConsultaAmbiguo
         ))
     );
     assert_eq!(
         link(&controle(&menu(&chave_estranha))),
-        Err(ErroLinkDaPesquisa::ConsultaDoLinkRecusadaPeloTransporte(
-            crate::transporte::FalhaTransporte::ChaveDeConsultaNaoCanonica
+        Err(ErroLinkDaPesquisa::ConsultaDoLinkIlegivel(
+            crate::consulta_do_controlador::ErroConsultaDoControlador::ChaveDeConsultaNaoCanonica
         ))
     );
 }

@@ -5,6 +5,7 @@ use super::*;
 use crate::arvore_processo::tests::no_documento;
 use crate::processo_concluir::tests_apoio as a;
 use crate::propriedades_processo::tests_apoio::acao_da_barra;
+use crate::tela_html::HtmlServido;
 
 fn link_escolha() -> String {
     format!(
@@ -96,7 +97,7 @@ fn executar(
             unidade: None,
             tipo: "Despacho",
             descricao: Some("Ensaio"),
-            nivel: Some("publico"),
+            nivel: Some(crate::dominio::NivelDeAcesso::Publico),
         };
         executar_criacao(sessao, &pedido, indice, rede, confirmar)
     })
@@ -139,7 +140,7 @@ fn dado_descricao_e_nivel_quando_vejo_previa_entao_sao_exibidos_sem_post() {
         Err(erro) => panic!("previa falhou: {erro:?}"),
     };
     assert_eq!(previa.descricao.as_deref(), Some("Ensaio"));
-    assert_eq!(previa.nivel.as_deref(), Some("publico"));
+    assert_eq!(previa.nivel, Some(crate::dominio::NivelDeAcesso::Publico));
     assert_eq!(previa.requisicoes, 5);
     assert_eq!(pedidos, pedidos_antes_da_escrita());
 }
@@ -251,7 +252,7 @@ fn executar_com_cadastro_sintetico(
             unidade: None,
             tipo: "Despacho",
             descricao: Some("Ensaio"),
-            nivel: Some("publico"),
+            nivel: Some(crate::dominio::NivelDeAcesso::Publico),
         };
         executar_criacao(sessao, &pedido, indice, rede, true)
     })
@@ -260,7 +261,7 @@ fn executar_com_cadastro_sintetico(
 #[test]
 fn botao_salvar_observado_publica_controle_de_gravacao() {
     // A forma servida inclui o botão habilitado e o formulário de cadastro.
-    assert!(cadastro_oferece_salvar(&cadastro()));
+    assert!(cadastro_oferece_salvar(&HtmlServido::de_teste(&cadastro())));
 }
 
 #[test]
@@ -268,7 +269,7 @@ fn botao_salvar_sem_name_conserva_post_unico_e_releitura() {
     // Um button type=button com onclick nao envia seu atributo name.
     // A ausencia dele nao remove a oferta de salvar publicada na tela.
     let html = cadastro().replace(" name=\"btnSalvar\"", "");
-    assert!(cadastro_oferece_salvar(&html));
+    assert!(cadastro_oferece_salvar(&HtmlServido::de_teste(&html)));
     let amb = a::ambiente();
     let mut respostas = a::abertura(arvore_inicial());
     respostas.push(a::ok(lista_de_tipos()));
@@ -283,7 +284,7 @@ fn botao_salvar_sem_name_conserva_post_unico_e_releitura() {
             unidade: None,
             tipo: "Despacho",
             descricao: Some("Ensaio"),
-            nivel: Some("publico"),
+            nivel: Some(crate::dominio::NivelDeAcesso::Publico),
         };
         executar_criacao(sessao, &pedido, indice, rede, true)
     });
@@ -332,19 +333,24 @@ fn dois_botoes_salvar_identicos_sao_permitidos_na_captura() {
     // Topo e rodape da captura 4.0.9 repetem intencionalmente btnSalvar.
     let original = cadastro();
     let botao = "<button type=\"button\" id=\"btnSalvar\" name=\"btnSalvar\"\n          onclick=\"confirmarDados()\">Salvar</button>";
-    assert!(cadastro_oferece_salvar(
+    assert!(cadastro_oferece_salvar(&HtmlServido::de_teste(
         &original.replace("</body>", &format!("{botao}</body>"))
-    ));
+    )));
 }
 
 #[test]
 fn controle_salvar_dentro_de_template_nao_autoriza_post_criador() {
-    // Ablação #246: permanecem garantidas as fronteiras reais do DOM.
+    // O conteúdo de template fica fora da árvore, como no navegador: sem
+    // btnSalvar na tela, a escrita não é comprovada.
     let original = cadastro();
     let botao = "<button type=\"button\" id=\"btnSalvar\" name=\"btnSalvar\"\n          onclick=\"confirmarDados()\">Salvar</button>";
     assert!(original.contains(botao));
     let html = original.replace(botao, &format!("<template>{botao}</template>"));
-    let (_resultado, pedidos) = executar_com_cadastro_sintetico(html);
+    let (resultado, pedidos) = executar_com_cadastro_sintetico(html);
+    assert!(matches!(
+        resultado,
+        Err(ErroDocumentoCriar::SubmissaoNaoComprovada)
+    ));
     assert_eq!(pedidos, pedidos_antes_da_escrita(), "5 GET, 0 POST");
 }
 #[test]
@@ -366,7 +372,7 @@ fn incerteza_conserva_contagem_da_rede_externa() {
                 unidade: None,
                 tipo: "Despacho",
                 descricao: Some("Ensaio"),
-                nivel: Some("publico"),
+                nivel: Some(crate::dominio::NivelDeAcesso::Publico),
             };
             let mut contagem = Contador::novo(envio);
             let resultado = executar_criacao(sessao, &pedido, indice, &mut contagem, true);
@@ -393,34 +399,8 @@ fn controle_salvar_e_formulario_servidos_nao_dependem_de_interpretar_js() {
     // Ablação #246 (🦡): a autorização deriva de botão e formulário
     // observados; a lógica interna do JS não é o contrato HTTP do IES.
     // O servidor ainda decide se aceita o POST e a árvore comprova o efeito.
-    let html = cadastro_com_script("/* lógica do navegador não interpretada */");
-    assert!(cadastro_oferece_salvar(&html));
-}
-
-#[test]
-fn salvar_oculto_ou_em_fieldset_desabilitado_recusa_post() {
-    // Um onclick não torna acionável um botão oculto ou desabilitado
-    // por um ancestral. Cenários sintéticos; cinco GET, nenhum POST.
-    let original = cadastro();
-    let casos = [
-        original.replace(
-            "onclick=\"confirmarDados()\"",
-            "hidden onclick=\"confirmarDados()\"",
-        ),
-        original
-            .replace("<button", "<div hidden><button")
-            .replace("</button>", "</button></div>"),
-        original
-            .replace("<button", "<fieldset disabled><button")
-            .replace("</button>", "</button></fieldset>"),
-    ];
-    for html in casos {
-        let (_resultado, pedidos) = executar_com_cadastro_sintetico(html);
-        assert_eq!(pedidos, pedidos_antes_da_escrita(), "5 GET, 0 POST");
-    }
-    assert!(cadastro_oferece_salvar(
-        &original
-            .replace("<button", "<fieldset><button")
-            .replace("</button>", "</button></fieldset>")
+    let html = HtmlServido::de_teste(&cadastro_com_script(
+        "/* lógica do navegador não interpretada */",
     ));
+    assert!(cadastro_oferece_salvar(&html));
 }

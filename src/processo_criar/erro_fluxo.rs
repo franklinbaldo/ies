@@ -1,5 +1,6 @@
 //! Erros tipados do fluxo de criação; o envio e a releitura preservam as causas.
 use super::reconciliacao;
+use crate::arquivo_privado::ErroArquivoPrivado;
 use crate::formulario_web::ErroSubmissaoFormulario;
 use crate::processo_criar_cadastro::ErroCadastro;
 use crate::processo_criar_hipotese::ErroHipotese;
@@ -72,19 +73,21 @@ impl DiagnosticoPosEscrita {
     }
 }
 
-#[derive(Debug, Clone, PartialEq, Eq, thiserror::Error)]
+#[derive(Debug, Clone, thiserror::Error)]
 #[error("{self:?}")]
 pub(crate) enum ErroCriar {
-    /// O tokenizador de atributos recusou a tag.
-    Atributo(#[source] crate::html_atributos::ErroAtributoHtml),
     /// Falha de transporte antes da escrita, com a causa original.
     Transporte(FalhaTransporte),
     /// O envio do formulário falhou antes de qualquer POST tentado.
     Submissao(ErroSubmissaoFormulario),
     /// Origem ou cookie da sessão local ilegíveis, antes da rede.
     SessaoLocalIlegivel,
-    /// Cookie da sessão recusado pelo transporte, antes da rede.
-    CookieDaSessaoIlegivel(#[source] FalhaTransporte),
+    /// O arquivo do cookie da sessão não foi lido, antes da rede.
+    CookieDaSessaoIlegivel(#[source] ErroArquivoPrivado),
+    /// O cookie da sessão está fora do formato do cabeçalho `Cookie`.
+    CookieForaDoFormato,
+    /// A URL do Controle não é da origem autorizada: o cookie não foi aberto.
+    ControleForaDaOrigem(#[source] FalhaTransporte),
     UnidadeDiferente,
     /// O Controle foi lido, mas a unidade publicada não pôde ser extraída.
     UnidadeDoControleIlegivel(#[source] crate::erro_web::ErroCaixa),
@@ -92,7 +95,11 @@ pub(crate) enum ErroCriar {
     Lista(ErroListaDeTipos),
     Cadastro(ErroCadastro),
     Formulario,
-    TipoSemIdentificador,
+    /// A URL do retorno da criação não se lê em pares `chave=valor`.
+    ConsultaDoRetornoIlegivel(#[source] crate::consulta_do_controlador::ErroConsultaDoControlador),
+    /// O retorno da criação não tem exatamente um `id_procedimento`.
+    IdDoRetornoIlegivel(#[source] crate::consulta_do_controlador::ErroParametroDaUrl),
+    TipoSemIdentificador(#[source] crate::consulta_do_controlador::ErroIdDaUrl),
     EscolhaInesperada,
     Interessado(ErroInteressado),
     Hipotese(ErroHipotese),

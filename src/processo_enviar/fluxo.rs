@@ -23,7 +23,7 @@ use crate::indice_local::IndiceLocal;
 use crate::instalacao::Instalacao;
 use crate::pagina_do_controle::codificacao_da_tela;
 use crate::processo_concluir::escrita::{
-    Contador, FalhaDaTela, leitura, ler_cookie, obter_tela, siglas_abertas, verificar,
+    Contador, FalhaDaTela, leitura, obter_tela, siglas_abertas, verificar,
 };
 use crate::processo_concluir::{FalhaDoEnvio, VerificacaoPorLeitura};
 use crate::processo_obter::{
@@ -35,7 +35,7 @@ use crate::visao_do_controle::EnvioDoControle as _;
 /// A tela servida e conferida: HTML, URL, charset e o que ela publica.
 struct TelaLida {
     url: String,
-    html: String,
+    html: crate::tela_html::HtmlServido,
     codificacao: CodificacaoDaTela,
     conferida: TelaDeEnvio,
 }
@@ -43,7 +43,7 @@ struct TelaLida {
 /// Mesmo formulário usado para observar e, quando autorizado, limpar.
 struct AnotacaoLida {
     presente: bool,
-    html: String,
+    html: crate::tela_html::HtmlServido,
     codificacao: CodificacaoDaTela,
 }
 
@@ -67,8 +67,8 @@ pub(crate) fn enviar_processo<V: EnvioDoProcesso>(
     let aberto_em = siglas_abertas(&aberto.arvore.aberto_em)
         .map_err(|motivo| ErroEnviar::SituacaoDoProcessoNaoLidaAntesDeEnviar { motivo })?;
     let link = conferir_link_do_envio(acoes.enviar, &aberto_em, &unidade)?;
-    let id = aberto.arvore.processo.id.clone();
-    let cookie = ler_cookie(sessao)?;
+    let id = aberto.arvore.processo.id;
+    let cookie = acoes.cookie.clone();
     let tela = ler_tela(&mut rede, &cookie, link.as_str(), &id)?;
     let (link_anotacao, anotacao_lida, metodo_remocao) = if pedido.remover_anotacoes {
         // Sem a tela de anotações a presença antes não é lida: a remoção
@@ -195,8 +195,7 @@ fn submeter_envio<V: EnvioDoProcesso>(
         .map_err(|causa| erro_apos_limpeza(feito, causa))?;
     enviar(rede, sessao, submissao, &feito.id_procedimento).map_err(|erro| match erro {
         ErroEnviar::Formulario(causa) => erro_apos_limpeza(feito, causa),
-        outro @ (ErroEnviar::Cookie(_)
-        | ErroEnviar::Abertura(_)
+        outro @ (ErroEnviar::Abertura(_)
         | ErroEnviar::UnidadeDaSessaoNaoPublicada
         | ErroEnviar::SituacaoDoProcessoNaoLidaAntesDeEnviar { .. }
         | ErroEnviar::ProcessoNaoAbertoNaUnidadeDaSessao { .. }

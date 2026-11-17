@@ -5,6 +5,7 @@ use crate::dominio::IdProcedimento;
 use crate::formulario_web::tests::{OPERACAO, instalacao, tela_iso, url_servida};
 use crate::formulario_web::{RespostaDoPost, derivar_submissao};
 use crate::pesquisa_web::ErroResultadoPesquisa;
+use crate::tela_html::HtmlServido;
 use crate::transporte::RespostaWeb;
 use crate::transporte::sessao::CookieDaSessao;
 use std::cell::Cell;
@@ -29,7 +30,7 @@ fn formulario() -> String {
 
 fn submissao() -> SubmissaoDerivada {
     let url = url_servida();
-    let html = formulario();
+    let html = HtmlServido::de_teste(&formulario());
     derivar_submissao(
         &OPERACAO,
         &instalacao(),

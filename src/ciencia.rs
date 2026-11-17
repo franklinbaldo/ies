@@ -33,14 +33,11 @@ pub(crate) enum AlvoDaCiencia<'a> {
 #[derive(Clone, Debug, PartialEq, Eq, thiserror::Error)]
 #[error("{self:?}")]
 pub(crate) enum ErroCiencia {
-    /// O tokenizador de atributos recusou a tag.
-    Atributo(#[source] crate::html_atributos::ErroAtributoHtml),
+    Legenda(#[from] crate::legenda::ErroLegenda),
     AceiteSemAtividade,
     AtividadesAmbiguas,
     ListaDeCienciasForaDaFormaObservada,
     AtividadesRepetidasNaLista,
-    ListaDeCienciasNaoInterpretada(#[source] tl::ParseError),
-    AceiteNaoInterpretado(#[source] tl::ParseError),
 }
 
 fn identificador(valor: &str) -> bool {
@@ -138,9 +135,8 @@ fn so_chamadas_simples(script: &str, inicio: usize, fim: usize) -> bool {
     !ativo.contains(['{', '}'])
         && ativo.split(';').map(str::trim).all(|instrucao| {
             let palavra = instrucao
-                .split(|c: char| !(c.is_ascii_alphanumeric() || c == '_'))
-                .next()
-                .unwrap_or_default();
+                .split_once(|c: char| !(c.is_ascii_alphanumeric() || c == '_'))
+                .map_or(instrucao, |(antes, _)| antes);
             !DESVIOS.contains(&palavra)
         })
 }
@@ -188,7 +184,13 @@ fn atividade_do_endereco(url: &str, alvo: AlvoDaCiencia<'_>) -> Option<String> {
     if caminho != "controlador.php" {
         return None;
     }
-    let consulta = ConsultaDoControlador::ler(restante.split('#').next()?).ok()?;
+    let Ok(consulta) = ConsultaDoControlador::ler(
+        restante
+            .split_once('#')
+            .map_or(restante, |(antes, _)| antes),
+    ) else {
+        return None;
+    };
     let (id_procedimento, marca, id_documento) = match alvo {
         AlvoDaCiencia::Processo { id_procedimento } => {
             (id_procedimento, "procedimento_visualizar_ciencias", None)
@@ -202,7 +204,7 @@ fn atividade_do_endereco(url: &str, alvo: AlvoDaCiencia<'_>) -> Option<String> {
             Some(id_documento),
         ),
     };
-    if consulta.acao() != Ok(AcaoDoSei::ProcedimentoVisualizar)
+    if consulta.acao() != Ok(AcaoDoSei::ProcedimentoVisualizar.como_na_url())
         || consulta.unico("id_procedimento") != Ok(id_procedimento)
         || consulta.unico(marca) != Ok("1")
         || id_documento.is_some_and(|doc| consulta.unico("id_documento") != Ok(doc))
@@ -210,7 +212,9 @@ fn atividade_do_endereco(url: &str, alvo: AlvoDaCiencia<'_>) -> Option<String> {
     {
         return None;
     }
-    let atividade = consulta.unico("id_atividade").ok()?;
+    let Ok(atividade) = consulta.unico("id_atividade") else {
+        return None;
+    };
     identificador(atividade).then(|| atividade.to_owned())
 }
 
@@ -220,41 +224,19 @@ fn atividade_do_endereco(url: &str, alvo: AlvoDaCiencia<'_>) -> Option<String> {
 /// processo/documento coerente contam. Duas atividades distintas recusam;
 /// a ausência não é confundida com sucesso ou ciência inexistente.
 pub(crate) fn atividade_do_aceite(
-    html: &str,
+    html: &crate::tela_html::HtmlServido,
     alvo: AlvoDaCiencia<'_>,
 ) -> Result<String, ErroCiencia> {
-    let dom = tl::parse(html, tl::ParserOptions::default())
-        .map_err(ErroCiencia::AceiteNaoInterpretado)?;
-    let parser = dom.parser();
-    // Com JavaScript ativo, scripts aninhados em <template> ou <noscript>
-    // não rodam. Ignore somente esses nós, em vez de recusar a resposta
-    // inteira quando há também um script ativo: marcação dentro de um literal
-    // JavaScript nem sequer cria um contêiner HTML.
-    let mut scripts_inertes = Vec::new();
-    for seletor in ["template", "noscript"] {
-        for no in dom.query_selector(seletor).into_iter().flatten() {
-            if let Some(tag) = no.get(parser).and_then(tl::Node::as_tag) {
-                scripts_inertes.extend(tag.query_selector(parser, "script").into_iter().flatten());
-            }
-        }
-    }
+    let dom = crate::tela_html::arvore(html);
+    // Com JavaScript ativo, scripts em <template> ou <noscript> não rodam;
+    // como no navegador, o conteúdo de <template> fica fora da árvore e o de
+    // <noscript> é texto, então esses scripts nem aparecem aqui.
     let mut atividades = Vec::new();
-    for script in dom.query_selector("script").into_iter().flatten() {
-        if scripts_inertes.contains(&script) {
-            continue;
-        }
-        let Some(tag) = script.get(parser).and_then(tl::Node::as_tag) else {
-            continue;
-        };
+    for script in dom.elementos("script") {
         // Scripts de dados (application/json, text/plain) e scripts com src
         // não executam seu conteúdo inline. Jamais publicar um id_atividade
         // apenas porque o HTML contém texto JavaScript inerte.
-        let Ok(atributos) = crate::html_atributos::atributos(tag) else {
-            continue;
-        };
-        let Ok(tipo) = atributos.valor("type") else {
-            continue;
-        };
+        let tipo = script.atributo("type");
         // O tipo de script clássico segue a semântica HTML: ausente,
         // vazio ou MIME JavaScript (sem parâmetros, independente de caixa).
         // Um tipo de dados ou um script externo não prova a atividade.
@@ -264,21 +246,14 @@ pub(crate) fn atividade_do_aceite(
                 || t.eq_ignore_ascii_case("text/javascript")
                 || t.eq_ignore_ascii_case("application/javascript")
         });
-        if atributos.presente("src") || !script_classico {
+        if script.presente("src") || !script_classico {
             continue;
         }
-        // Texto e fonte bruta: a `UnB` 4.0.9 envolve o script em
-        // `<!--//--><![CDATA[//><!--`, que inner_text omite (live 10/11/2026);
-        // um `<script>` dentro de literal JS, ao contrário, trunca a fonte bruta.
-        let texto = tag.inner_text(parser);
-        let fonte = tag.raw().as_utf8_str();
-        let bruto = fonte.split_once('>').map_or("", |(_, resto)| {
-            resto.rsplit_once("</").map_or(resto, |(c, _)| c)
-        });
-        for url in [texto.as_ref(), bruto]
-            .into_iter()
-            .flat_map(literais_de_atualizar_arvore)
-        {
+        // O conteúdo inteiro do script, como o navegador o guarda: inclusive o
+        // invólucro `<!--//--><![CDATA[//><!--` que a `UnB` 4.0.9 publica
+        // (live 10/11/2026).
+        let texto = script.texto();
+        for url in literais_de_atualizar_arvore(&texto) {
             let Some(atividade) = atividade_do_endereco(url, alvo) else {
                 continue;
             };

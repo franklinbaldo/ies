@@ -1,0 +1,75 @@
+id: 10-causa-descartada
+message: 'A causa descartada vira a fonte da variante: map_err(|_| E::V) -> map_err(E::V).'
+language: rust
+severity: hint
+rule:
+  pattern: '$R.map_err(|_| $V)'
+  not:
+    inside:
+      stopBy: end
+      kind: mod_item
+      follows:
+        kind: attribute_item
+        regex: 'cfg\((all\()?test\b'
+constraints:
+  V:
+    kind: scoped_identifier
+fix: '$R.map_err($V)'
+---
+id: 10b-causa-descartada-em-bloco
+message: 'A causa descartada vira a fonte da variante: map_err(|_| { E::V }) -> map_err(E::V).'
+language: rust
+severity: hint
+rule:
+  pattern: '$R.map_err(|_| { $V })'
+  not:
+    inside:
+      stopBy: end
+      kind: mod_item
+      follows:
+        kind: attribute_item
+        regex: 'cfg\((all\()?test\b'
+constraints:
+  V:
+    kind: scoped_identifier
+fix: '$R.map_err($V)'
+---
+id: 11-causa-nomeada-sem-uso
+message: 'A causa nomeada e não usada (|_e|, |_: T|, |StructUnitaria|) vira a fonte da variante: map_err(E::V).'
+language: rust
+severity: hint
+rule:
+  pattern: '$R.map_err(|$P| $V)'
+  not:
+    inside:
+      stopBy: end
+      kind: mod_item
+      follows:
+        kind: attribute_item
+        regex: 'cfg\((all\()?test\b'
+constraints:
+  P:
+    regex: '^(_[A-Za-z0-9_]*(\s*:\s*[A-Za-z0-9_:<>]+)?|[A-Z][A-Za-z0-9_]*)$'
+  V:
+    kind: scoped_identifier
+fix: '$R.map_err($V)'
+---
+id: 11b-causa-nomeada-sem-uso-em-bloco
+message: 'A causa nomeada e não usada (|_e|, |_: T|, |StructUnitaria|) vira a fonte da variante: map_err(E::V).'
+language: rust
+severity: hint
+rule:
+  pattern: '$R.map_err(|$P| { $V })'
+  not:
+    inside:
+      stopBy: end
+      kind: mod_item
+      follows:
+        kind: attribute_item
+        regex: 'cfg\((all\()?test\b'
+constraints:
+  P:
+    regex: '^(_[A-Za-z0-9_]*(\s*:\s*[A-Za-z0-9_:<>]+)?|[A-Z][A-Za-z0-9_]*)$'
+  V:
+    kind: scoped_identifier
+fix: '$R.map_err($V)'

@@ -10,8 +10,6 @@ use super::literais::{
 };
 use crate::acao_do_sei::AcaoDoSei;
 use crate::consulta_do_controlador::menciona_acao;
-use crate::formulario_web::decodificar_atributo;
-use crate::html_atributos::{ErroAtributoHtml, atributos};
 use crate::instalacao::Instalacao;
 
 /// URL absoluta da lista de versões, assinada: `Debug` redigido.
@@ -52,13 +50,9 @@ pub(crate) struct BarraDoDocumento {
 #[derive(Clone, Debug, PartialEq, Eq, thiserror::Error)]
 #[error("{self:?}")]
 pub(crate) enum ErroBarraDoDocumento {
-    ParseDaBarraDoDocumentoFalhou(#[source] tl::ParseError),
-    ParseDaBarraDaCienciaFalhou(#[source] tl::ParseError),
     LinhaDaBarraDoDocumentoIlegivel(#[source] super::ErroArvore),
     BarrasRepetidasNaArvore,
-    AtributoDeLinkDaBarra(#[source] ErroAtributoHtml),
     EnderecoDasVersoesDeOutroDocumento,
-    BarraDaCienciaDoDocumentoForaDaForma,
     BarraDoDocumentoForaDaFormaObservada,
     BotoesDeCienciaDoDocumentoRepetidos,
     LinkDasVersoesNaoReconhecido,
@@ -80,35 +74,18 @@ pub(crate) fn ler_barra_do_documento(
     let Some(texto) = barra_do_no(html, id_documento)? else {
         return Ok(nada);
     };
-    let dom = tl::parse(&texto, tl::ParserOptions::default())
-        .map_err(ErroBarraDoDocumento::ParseDaBarraDoDocumentoFalhou)?;
-    let parser = dom.parser();
+    let dom = crate::tela_html::arvore(&texto);
     let (mut links, mut edicoes) = (Vec::new(), Vec::new());
-    for no in dom.query_selector("a").into_iter().flatten() {
-        let Some(tag) = no.get(parser).and_then(tl::Node::as_tag) else {
-            continue;
-        };
-        let lidos = atributos(tag).map_err(ErroBarraDoDocumento::AtributoDeLinkDaBarra)?;
-        let valor = |nome| -> Result<Option<String>, ErroBarraDoDocumento> {
-            match lidos
-                .valor(nome)
-                .map_err(ErroBarraDoDocumento::AtributoDeLinkDaBarra)?
-            {
-                Some(bruto) => decodificar_atributo(bruto)
-                    .map(Some)
-                    .ok_or(ErroBarraDoDocumento::BarraDoDocumentoForaDaFormaObservada),
-                None => Ok(None),
-            }
-        };
-        if let Some(href) = valor("href")?
-            && menciona_acao(&href, AcaoDoSei::DocumentoVersaoListar)
+    for no in dom.elementos("a") {
+        if let Some(href) = no.atributo("href")
+            && menciona_acao(href, AcaoDoSei::DocumentoVersaoListar)
         {
-            links.push(href);
+            links.push(href.to_owned());
         }
-        if let Some(onclick) = valor("onclick")?
+        if let Some(onclick) = no.atributo("onclick")
             && onclick.contains("editarConteudo")
         {
-            edicoes.push(match onclick.as_str() {
+            edicoes.push(match onclick {
                 "editarConteudo('N');" => EdicaoNaBarra::NaoAssinado,
                 "editarConteudo('S');" => EdicaoNaBarra::Assinado,
                 _ => EdicaoNaBarra::ForaDaForma,
@@ -154,7 +131,10 @@ pub(crate) fn ler_barra_do_documento(
 }
 
 /// O texto da barra do nó `DOCUMENTO` de id `id`; duas barras são recusa.
-pub(crate) fn barra_do_no(html: &str, id: &str) -> Result<Option<String>, ErroBarraDoDocumento> {
+pub(crate) fn barra_do_no(
+    html: &str,
+    id: &str,
+) -> Result<Option<crate::tela_html::HtmlServido>, ErroBarraDoDocumento> {
     let mut indice = None;
     for linha in html.split('\n') {
         if let Ok(Some((i, argumentos))) = ler_declaracao(linha)

@@ -31,53 +31,23 @@ struct FatosDoFormulario {
     anexados: Vec<String>,
 }
 
-fn atributo_da_fonte(tag: &tl::HTMLTag<'_>, nome: &str) -> Option<String> {
-    // Leitura crua e restrita do atributo na fonte, sem usar o leitor do IES.
-    // O DOM localiza as tags; os bytes da tag oferecem o oráculo separado.
-    let fonte = std::str::from_utf8(tag.raw().as_bytes()).expect("tag UTF-8 na fonte");
-    for (posicao, _) in fonte.match_indices(nome) {
-        if posicao == 0 || !fonte.as_bytes()[posicao - 1].is_ascii_whitespace() {
-            continue;
-        }
-        let Some(restante) = fonte[posicao + nome.len()..].trim_start().strip_prefix('=') else {
-            continue;
-        };
-        let restante = restante.trim_start();
-        let valor = if let Some(texto) = restante.strip_prefix('"') {
-            texto.split('"').next()
-        } else if let Some(texto) = restante.strip_prefix('\'') {
-            texto.split('\'').next()
-        } else {
-            restante
-                .split(|c: char| c.is_ascii_whitespace() || c == '>' || c == '/')
-                .next()
-        };
-        if let Some(valor) = valor {
-            return Some(valor.to_owned());
-        }
-    }
-    None
-}
-
 fn fatos_da_fonte(html: &str) -> FatosDoFormulario {
-    let dom = tl::parse(html, tl::ParserOptions::default()).expect("DOM da fonte");
-    let parser = dom.parser();
+    // Fatos do HTML original, sem invocar ler_tela ou semear o banco
+    // a partir da saída do IES. Apenas o parser de HTML é compartilhado.
+    let servido = crate::tela_html::HtmlServido::de_teste(html);
+    let dom = crate::tela_html::arvore(&servido);
     let formulario = dom
-        .query_selector("form")
-        .into_iter()
-        .flatten()
-        .filter_map(|no| no.get(parser).and_then(tl::Node::as_tag))
-        .find(|tag| atributo_da_fonte(tag, "id").as_deref() == Some("frmProcedimentoAnexar"))
+        .elementos("form")
+        .find(|tag| tag.atributo("id") == Some("frmProcedimentoAnexar"))
         .expect("formulário oferecido na fonte");
     assert_eq!(
-        atributo_da_fonte(formulario, "method")
-            .unwrap_or_default()
-            .to_ascii_lowercase(),
+        formulario.atributo("method").unwrap_or_default().to_ascii_lowercase(),
         "post",
         "método da oferta original"
     );
     assert!(
-        atributo_da_fonte(formulario, "action")
+        formulario
+            .atributo("action")
             .is_some_and(|v| v.contains("acao=procedimento_anexar")),
         "ação do formulário da fonte"
     );
@@ -89,12 +59,9 @@ fn fatos_da_fonte(html: &str) -> FatosDoFormulario {
         "txtProtocolo",
     ];
     let mut controles: Vec<String> = formulario
-        .children()
-        .all(parser)
-        .iter()
-        .filter_map(tl::Node::as_tag)
-        .filter(|tag| matches!(tag.name().as_utf8_str().as_ref(), "input" | "button"))
-        .filter_map(|tag| atributo_da_fonte(tag, "name"))
+        .descendentes()
+        .filter(|tag| matches!(tag.nome(), "input" | "button"))
+        .filter_map(|tag| tag.atributo("name").map(str::to_owned))
         .filter(|nome| exigidos.contains(&nome.as_str()))
         .collect();
     controles.sort_unstable();
@@ -102,23 +69,16 @@ fn fatos_da_fonte(html: &str) -> FatosDoFormulario {
 
     let mut anexados = Vec::new();
     let mut tabelas = 0;
-    for tabela in dom.query_selector("table").into_iter().flatten() {
-        let Some(tag) = tabela.get(parser).and_then(tl::Node::as_tag) else {
-            continue;
-        };
-        if atributo_da_fonte(tag, "summary").as_deref() != Some("Lista de Processos Anexados") {
+    for tabela in dom.elementos("table") {
+        if tabela.atributo("summary") != Some("Lista de Processos Anexados") {
             continue;
         }
         tabelas += 1;
-        for filho in tag.children().all(parser) {
-            let Some(input) = filho.as_tag() else {
-                continue;
-            };
-            if input.name().as_utf8_str().eq_ignore_ascii_case("input")
-                && atributo_da_fonte(input, "type")
-                    .is_some_and(|v| v.eq_ignore_ascii_case("checkbox"))
+        for input in tabela.descendentes() {
+            if input.nome().eq_ignore_ascii_case("input")
+                && input.atributo("type").is_some_and(|v| v.eq_ignore_ascii_case("checkbox"))
             {
-                let id = atributo_da_fonte(input, "value").expect("ID original de anexado");
+                let id = input.atributo("value").expect("ID original de anexado").to_owned();
                 assert!(
                     !id.is_empty() && id.bytes().all(|b| b.is_ascii_digit()),
                     "ID original precisa ser decimal"
@@ -133,10 +93,7 @@ fn fatos_da_fonte(html: &str) -> FatosDoFormulario {
         anexados.windows(2).all(|par| par[0] != par[1]),
         "ID original duplicado"
     );
-    FatosDoFormulario {
-        controles,
-        anexados,
-    }
+    FatosDoFormulario { controles, anexados }
 }
 
 /// Consulta o anti-IES por HTTP local, sem usar a saída do IES como oráculo.
@@ -185,7 +142,7 @@ fn confrontar(instalacao: &str, json: &serde_json::Value) -> (usize, usize) {
             continue; // outros GETs da mesma operação não oferecem o formulário
         }
         let fonte = fatos_da_fonte(&html);
-        let observado = super::ler_tela(&html).expect("leitor Rust da tela original de anexação");
+        let observado = super::ler_tela(&crate::tela_html::HtmlServido::de_teste(&html)).expect("leitor Rust da tela original de anexação");
         let mut ids_ies = observado.anexados;
         ids_ies.sort_unstable();
         assert_eq!(
@@ -228,7 +185,7 @@ fn confrontar(instalacao: &str, json: &serde_json::Value) -> (usize, usize) {
             fonte_simulada, fonte,
             "oferta/IDs do anti-IES divergem da fonte em {instalacao}"
         );
-        let projetado = super::ler_tela(&simulado).expect("leitor Rust da projeção do anti-IES");
+        let projetado = super::ler_tela(&crate::tela_html::HtmlServido::de_teste(&simulado)).expect("leitor Rust da projeção do anti-IES");
         let mut ids_simulados = projetado.anexados;
         ids_simulados.sort_unstable();
         assert_eq!(

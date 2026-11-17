@@ -1,0 +1,15 @@
+id: 31c-to-owned-as-deref
+language: rust
+message: 'atributo(k).map(str::to_owned).as_deref() é atributo(k)'
+severity: hint
+rule:
+  all:
+    - pattern: '$T.atributo($K).map(str::to_owned).as_deref()'
+    - not:
+        inside:
+          stopBy: end
+          kind: mod_item
+          follows:
+            kind: attribute_item
+            regex: 'cfg\(test\)'
+fix: '$T.atributo($K)'

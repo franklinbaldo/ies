@@ -7,9 +7,10 @@ use super::tela::{
 use super::tests_apoio::*;
 use crate::arvore_processo::tests_tela::instalacao;
 use crate::formulario_web::{CodificacaoDaTela, TelaServida, derivar_submissao};
+use crate::tela_html::HtmlServido;
 
 fn conferir(html: &str) -> Result<(), super::erro::ErroTelaDeConclusao> {
-    conferir_tela_de_conclusao(html, ID)
+    conferir_tela_de_conclusao(&HtmlServido::de_teste(html), ID)
 }
 
 #[test]
@@ -19,7 +20,7 @@ fn tela_observada_passa_e_o_corpo_e_o_do_navegador() {
     let url = absoluta(&link_de_concluir(ID));
     let tela = TelaServida {
         url: &url,
-        html: &html,
+        html: &HtmlServido::de_teste(&html),
         codificacao: CodificacaoDaTela::Iso88591,
     };
     let submissao = derivar_submissao(
@@ -75,7 +76,7 @@ fn sem_formulario_de_outro_processo_ou_sem_somente_concluir() {
         )
     );
     assert_eq!(
-        conferir_tela_de_conclusao(&tela_de_conclusao("11"), ID),
+        conferir_tela_de_conclusao(&HtmlServido::de_teste(&tela_de_conclusao("11")), ID),
         Err(super::erro::ErroTelaDeConclusao::TelaDeConclusaoDeOutroProcesso)
     );
     let html = tela_de_conclusao(ID);

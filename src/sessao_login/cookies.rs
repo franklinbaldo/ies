@@ -197,7 +197,11 @@ impl PoteDeCookies {
     pub(crate) fn cabecalho(&self, url: &str) -> String {
         let no_host = url
             .strip_prefix("https://")
-            .and_then(|resto| resto.split(['/', '?']).next())
+            .map(|resto| {
+                resto
+                    .split_once(['/', '?'])
+                    .map_or(resto, |(antes, _)| antes)
+            })
             .is_some_and(|host| host.eq_ignore_ascii_case(&self.host));
         let Some(caminho) = caminho_da_url(url).filter(|_| no_host) else {
             return String::new();

@@ -59,4 +59,4 @@ o desliga, como antes. Nenhum subcódigo novo para `--saida` ou caixa.
 
 O nome final nunca é seguido em nenhum modo, e os arquivos da sessão
 continuam recusados como link no nome final
-(`arquivo_privado_link_simbolico`).
+(`ErroArquivoPrivado::LinkSimbolico`).

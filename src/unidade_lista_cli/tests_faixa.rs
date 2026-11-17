@@ -1,6 +1,7 @@
 //! Exportação da lista D: página observada, total e faixa.
 use super::*;
 use crate::caixa_detalhada::ler_paginas;
+use crate::tela_html::HtmlServido;
 use std::fs;
 use std::path::PathBuf;
 
@@ -29,7 +30,7 @@ fn detalhada(legenda: &str, classe: &str) -> String {
 }
 
 fn exportar_detalhada(html: &str, nome: &str) -> String {
-    let leitura = ler_paginas(&[html.to_owned()], Some("PPI")).unwrap();
+    let leitura = ler_paginas(&[HtmlServido::de_teste(html)], Some("PPI")).unwrap();
     let caminho = destino(nome);
     let indice = IndiceLocal::desligado();
     mostrar_caixa_detalhada(&leitura, "web", true, Some(&caminho), (None, &indice)).unwrap();
@@ -41,7 +42,7 @@ fn exportar_detalhada(html: &str, nome: &str) -> String {
 #[test]
 fn detalhada_parcial_exporta_faixa_observada() {
     let texto = exportar_detalhada(
-        &detalhada("(3 registros - 1 a 1):", "processoVisualizado"),
+        &detalhada("Processos (3 registros - 1 a 1):", "processoVisualizado"),
         "detalhada-faixa",
     );
     let valor: serde_json::Value = serde_json::from_str(&texto).unwrap();
@@ -63,7 +64,7 @@ fn detalhada_parcial_exporta_faixa_observada() {
 #[test]
 fn exportacao_detalhada_e_lista_unica_sem_categoria() {
     let texto = exportar_detalhada(
-        &detalhada("(1 registros - 1 a 1):", "processoVisualizado"),
+        &detalhada("Processos (1 registros - 1 a 1):", "processoVisualizado"),
         "detalhada-lista-unica",
     );
     let valor: serde_json::Value = serde_json::from_str(&texto).unwrap();
@@ -77,7 +78,10 @@ fn exportacao_detalhada_e_lista_unica_sem_categoria() {
 
 #[test]
 fn link_sem_classe_de_estado_recusa_a_exportacao() {
-    let html = detalhada("(1 registros - 1 a 1):", "outraClasse");
+    let html = HtmlServido::de_teste(&detalhada(
+        "Processos (1 registros - 1 a 1):",
+        "outraClasse",
+    ));
     assert_eq!(
         ler_paginas(&[html], Some("PPI")).map(|l| l.processos.len()),
         Err(crate::caixa_detalhada::ErroDetalhada::EstadoDoLinkDoProcessoAusente)

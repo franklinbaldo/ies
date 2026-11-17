@@ -2,7 +2,6 @@
 use super::ErroLinkCancelar;
 use crate::arvore_processo::Cancelamento;
 use crate::formulario_web::ErroSubmissaoFormulario;
-use crate::processo_concluir::escrita::CookieIlegivel;
 use crate::processo_obter::ErroDocumentoObter;
 use crate::transporte::FalhaTransporte;
 
@@ -26,8 +25,6 @@ pub(crate) enum VerificacaoDoCancelamento {
 #[derive(Clone, Debug, PartialEq, Eq, thiserror::Error)]
 #[error("{self:?}")]
 pub(crate) enum ErroCancelar {
-    /// O cookie privado da sessão não pôde ser lido.
-    Cookie(#[source] CookieIlegivel),
     Abertura(#[source] ErroDocumentoObter),
     Link(#[source] ErroLinkCancelar),
     CancelamentoNaoOferecido,
@@ -38,8 +35,6 @@ pub(crate) enum ErroCancelar {
     CharsetNaoSuportado,
     Formulario(#[source] ErroSubmissaoFormulario),
     FormularioDeOutroDocumento,
-    /// O HTML do formulário de cancelamento não pôde ser interpretado.
-    HtmlDoFormularioNaoInterpretado(#[source] tl::ParseError),
     /// O endereço do formulário não aponta para o processo aberto.
     EnderecoDoProcessoRecusado(#[source] crate::arvore_processo::endereco::EnderecoRecusado),
     /// O endereço do formulário não aponta para o documento pedido.
@@ -58,29 +53,28 @@ pub(crate) enum ErroCancelar {
     },
 }
 
-impl From<CookieIlegivel> for ErroCancelar {
-    fn from(erro: CookieIlegivel) -> Self {
-        Self::Cookie(erro)
-    }
-}
-
 #[cfg(test)]
 mod testes_cadeia_de_causas {
     use super::*;
     use std::error::Error as _;
 
+    fn barra() -> crate::arvore_processo::ErroBarraDoDocumento {
+        crate::arvore_processo::ErroBarraDoDocumento::LinhaDaBarraDoDocumentoIlegivel(
+            crate::arvore_processo::ErroArvore::EnderecoDeAbrirPastasRecusado(
+                crate::arvore_processo::endereco::EnderecoRecusado::NaoReconhecido,
+            ),
+        )
+    }
+
     #[test]
     fn erros_de_cancelamento_retêm_as_causas_tipadas() {
-        let atributo =
-            crate::html_atributos::ErroAtributoHtml::AtributoRepetidoNaTag { atributo: "href" };
         let exemplos = [
-            ErroCancelar::Cookie(CookieIlegivel::Arquivo(FalhaTransporte::Rede)),
             ErroCancelar::Abertura(ErroDocumentoObter::Processo(
                 crate::processo_obter::ErroProcessoObter::Transporte(FalhaTransporte::Rede),
             )),
-            ErroCancelar::Link(ErroLinkCancelar::Atributo(atributo)),
+            ErroCancelar::Link(ErroLinkCancelar::BarraDoDocumentoIlegivel(barra())),
             ErroCancelar::Tela(FalhaTransporte::Rede),
-            ErroCancelar::Formulario(ErroSubmissaoFormulario::AtributoHtml(atributo)),
+            ErroCancelar::Formulario(ErroSubmissaoFormulario::FormularioAusenteNaTela),
             ErroCancelar::EnderecoDoProcessoRecusado(
                 crate::arvore_processo::endereco::EnderecoRecusado::NaoReconhecido,
             ),
@@ -91,12 +85,14 @@ mod testes_cadeia_de_causas {
         for erro in exemplos {
             assert!(erro.source().is_some(), "perdeu a causa: {erro:?}");
         }
-        let link = ErroLinkCancelar::Atributo(atributo);
+        let link = ErroLinkCancelar::BarraDoDocumentoIlegivel(barra());
         assert!(
             link.source()
-                .and_then(|fonte| fonte.downcast_ref::<crate::html_atributos::ErroAtributoHtml>())
+                .and_then(
+                    |fonte| fonte.downcast_ref::<crate::arvore_processo::ErroBarraDoDocumento>()
+                )
                 .is_some(),
-            "a falha da tag deve sobreviver também ao leitor do link"
+            "a falha da barra deve sobreviver também ao leitor do link"
         );
     }
 }

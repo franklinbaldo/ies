@@ -4,6 +4,7 @@ use super::tests_apoio::*;
 use super::*;
 use crate::arvore_processo::tests::{NUP, arvore, no_processo};
 use crate::instalacao::Instalacao;
+use crate::tela_html::HtmlServido;
 
 const ID: &str = "10";
 const ORIGEM: &str = "https://sei.exemplo.gov.br/sei";
@@ -17,7 +18,11 @@ fn base() -> String {
 }
 
 fn ler(partes: &[(String, String)]) -> Result<EnderecoDoHistorico, super::ErroLinkDoHistorico> {
-    ler_link_do_historico(&instalacao(), &com_link(&base(), partes), ID)
+    ler_link_do_historico(
+        &instalacao(),
+        &HtmlServido::de_teste(&com_link(&base(), partes)),
+        ID,
+    )
 }
 
 fn esperado() -> String {
@@ -52,7 +57,7 @@ fn debug_nao_mostra_a_url() {
 #[test]
 fn sem_link_e_recusa() {
     assert_eq!(
-        ler_link_do_historico(&instalacao(), &base(), ID),
+        ler_link_do_historico(&instalacao(), &HtmlServido::de_teste(&base()), ID),
         Err(super::ErroLinkDoHistorico::LinkDoHistoricoAusenteNaArvore)
     );
 }

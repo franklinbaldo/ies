@@ -9,7 +9,6 @@ use crate::controle_reconhecido::unidade_do_controle;
 use crate::formulario_web::{
     RespostaDoEnvio, RespostaDoPost, SubmissaoDerivada, TelaServida, enviar_submissao_via,
 };
-use crate::html_atributos::{atributo_presente, nos_com_id};
 use crate::instalacao::Instalacao;
 use crate::pagina_do_controle::codificacao_da_tela;
 use crate::pesquisa_web::erro_busca::ErroBuscaDeProcesso;
@@ -19,6 +18,7 @@ use crate::pesquisa_web::formulario_pesquisa::{
 use crate::pesquisa_web::link_da_pesquisa::link_da_pesquisa;
 use crate::pesquisa_web::paginacao::{ErroPaginacaoDaPesquisa, planejar_pagina};
 use crate::pesquisa_web::resposta::{RespostaDaPesquisa, ler_resposta_html};
+use crate::tela_html::HtmlServido;
 use crate::transporte::sessao::CookieDaSessao;
 use crate::transporte::{RespostaWeb, decodificar_resposta};
 use std::path::PathBuf;
@@ -279,7 +279,11 @@ fn plano(
     unidade: &str,
 ) -> Registro {
     let html = decodificar_resposta(web(r)).ok();
-    let pedido = match planejar_pagina(resposta, html.as_deref(), 2) {
+    let pedido = match planejar_pagina(
+        resposta,
+        html.as_deref().map(HtmlServido::de_teste).as_ref(),
+        2,
+    ) {
         Ok(Some(pedido)) => pedido,
         Ok(None) => unreachable!("página 2 nunca é a página 1"),
         Err(ErroPaginacaoDaPesquisa::PaginaForaDoIntervalo { paginas: 1, .. }) => {
@@ -308,18 +312,16 @@ pub(super) enum Opcao {
 }
 
 /// O rádio `rdoPesquisarEm` marcado na tela de resultado (por
-/// `html_atributos`): exatamente um de `#optProcessos` e `#optDocumentos`.
+/// árvore `tela_html`): exatamente um de `#optProcessos` e `#optDocumentos`.
 fn opcao_marcada(html: &str) -> Opcao {
-    let Ok(dom) = tl::parse(html, tl::ParserOptions::default()) else {
-        return Opcao::Indeterminada;
-    };
+    let servido = HtmlServido::de_teste(html);
+    let dom = crate::tela_html::arvore(&servido);
     let marcado = |id: &str| -> Option<bool> {
-        let nos = nos_com_id(&dom, id).ok()?;
+        let nos = dom.com_id(id).collect::<Vec<_>>();
         let [no] = nos.as_slice() else {
             return None;
         };
-        let tag = no.get(dom.parser())?.as_tag()?;
-        atributo_presente(tag, "checked").ok()
+        Some(no.presente("checked"))
     };
     match (marcado("optProcessos"), marcado("optDocumentos")) {
         (Some(true), Some(false)) => Opcao::Processos,

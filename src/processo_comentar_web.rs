@@ -8,9 +8,8 @@ use crate::consulta_do_controlador::menciona_acao;
 use crate::formulario_web::{
     ConferenciaDaUnidade, EfeitoAvaliado, EnvioDoFormulario, ErroSubmissaoFormulario,
     EstadoDoProcesso, OperacaoDeFormulario, RespostaDoEnvio, ResultadoDoEnvio, TelaServida,
-    consulta_do_controlador, decodificar_atributo, derivar_submissao, enviar_submissao_via,
+    consulta_do_controlador, derivar_submissao, enviar_submissao_via,
 };
-use crate::html_atributos::atributos;
 use crate::indice_local::IndiceLocal;
 use crate::instalacao::Instalacao;
 use crate::processo::NumeroProcesso;
@@ -18,9 +17,7 @@ use crate::processo_comentar::{FalhaDaConferencia, conferir_efeito};
 use crate::processo_comentarios::{
     ErroComentarios, ErroLinkDosComentarios, TelaDosComentarios, ler_tela,
 };
-use crate::processo_concluir::escrita::{
-    Contador, CookieIlegivel, FalhaDaTela, leitura, ler_cookie, obter_tela,
-};
+use crate::processo_concluir::escrita::{Contador, FalhaDaTela, leitura, obter_tela};
 use crate::processo_obter::{
     EnvioDoProcesso, ErroProcessoObter, SessaoDoProcesso, abrir_para_escrever,
 };
@@ -62,14 +59,9 @@ pub(crate) enum ErroComentar {
     Abertura(#[from] ErroProcessoObter),
     Barra(#[from] ErroLinkDosComentarios),
     LinkDaListaNaoPublicado,
-    Cookie(#[from] CookieIlegivel),
     TelaDaLista(#[source] FalhaDaTela),
     ListaIlegivel(#[source] ErroComentarios),
     ListaForaDaForma,
-    /// O tokenizador HTML recusou a lista de comentários.
-    ListaHtmlNaoInterpretada(#[source] tl::ParseError),
-    /// O tokenizador de atributos recusou o `href` de um link da lista.
-    AtributoDaLinkIlegivel(#[source] crate::html_atributos::ErroAtributoHtml),
     /// Zero ou mais de um link `comentario_cadastrar` na lista.
     LinkDoCadastroNaoUnico,
     LinkDoCadastroRecusado(EnderecoRecusado),
@@ -126,36 +118,26 @@ fn url_do_botao_de_cadastro(onclick: &str) -> Option<&str> {
 /// Encontra exatamente um link de Novo Comentário publicado no HTML da lista,
 /// seja `<a href>` seja `<button onclick="location.href='…'">`.
 /// A URL é conferida pela política canônica do controlador e pela identidade.
-fn link_do_cadastro(instalacao: &Instalacao, html: &str, id: &str) -> Result<String, ErroComentar> {
-    let fora = || ErroComentar::ListaForaDaForma;
-    let dom = tl::parse(html, tl::ParserOptions::default())
-        .map_err(ErroComentar::ListaHtmlNaoInterpretada)?;
+fn link_do_cadastro(
+    instalacao: &Instalacao,
+    html: &crate::tela_html::HtmlServido,
+    id: &str,
+) -> Result<String, ErroComentar> {
+    let dom = crate::tela_html::arvore(html);
     let mut links = Vec::new();
-    for no in dom.query_selector("a").into_iter().flatten() {
-        let tag = no
-            .get(dom.parser())
-            .and_then(tl::Node::as_tag)
-            .ok_or_else(fora)?;
-        let href = atributos(tag)
-            .and_then(|a| a.valor("href"))
-            .map_err(ErroComentar::AtributoDaLinkIlegivel)?;
+    for no in dom.elementos("a") {
+        let href = no.atributo("href");
         if let Some(href) = href {
-            let href = decodificar_atributo(href).ok_or_else(fora)?;
+            let href = href.to_owned();
             if e_link_do_cadastro(&href) {
                 links.push(href);
             }
         }
     }
-    for no in dom.query_selector("button").into_iter().flatten() {
-        let tag = no
-            .get(dom.parser())
-            .and_then(tl::Node::as_tag)
-            .ok_or_else(fora)?;
-        let onclick = atributos(tag)
-            .and_then(|a| a.valor("onclick"))
-            .map_err(ErroComentar::AtributoDaLinkIlegivel)?;
+    for no in dom.elementos("button") {
+        let onclick = no.atributo("onclick");
         if let Some(onclick) = onclick {
-            let onclick = decodificar_atributo(onclick).ok_or_else(fora)?;
+            let onclick = onclick.to_owned();
             if let Some(url) = url_do_botao_de_cadastro(&onclick) {
                 links.push(url.to_owned());
             }
@@ -170,7 +152,9 @@ fn link_do_cadastro(instalacao: &Instalacao, html: &str, id: &str) -> Result<Str
 
 /// Confere a identidade do aceite sem seguir o redirecionamento.
 fn id_do_aceite<'a>(local: &'a str, url_post: &str, id_processo: &str) -> Option<&'a str> {
-    let consulta = ConsultaDoControlador::ler(consulta_do_controlador(local, url_post)?).ok()?;
+    let Ok(consulta) = ConsultaDoControlador::ler(consulta_do_controlador(local, url_post)?) else {
+        return None;
+    };
     // `id_procedimento` é opcional, mas repetido nunca casa.
     let processo_confere = match consulta
         .valores("id_procedimento")
@@ -181,8 +165,10 @@ fn id_do_aceite<'a>(local: &'a str, url_post: &str, id_processo: &str) -> Option
         [processo] => *processo == id_processo,
         _ => false,
     };
-    let id = consulta.unico("id_comentario").ok()?;
-    (consulta.acao() == Ok(AcaoDoSei::ComentarioListar) && processo_confere)
+    let Ok(id) = consulta.unico("id_comentario") else {
+        return None;
+    };
+    (consulta.acao() == Ok(AcaoDoSei::ComentarioListar.como_na_url()) && processo_confere)
         .then_some(id)
         .filter(|valor| !valor.is_empty() && valor.bytes().all(|b| b.is_ascii_digit()))
 }
@@ -262,7 +248,7 @@ pub(crate) fn prever<V: EnvioDoProcesso>(
     let link = acoes
         .comentarios?
         .ok_or(ErroComentar::LinkDaListaNaoPublicado)?;
-    let cookie = ler_cookie(sessao)?;
+    let cookie = acoes.cookie.clone();
     let (html, _) =
         obter_tela(&mut rede, &cookie, link.as_str()).map_err(ErroComentar::TelaDaLista)?;
     let TelaDosComentarios::Lista(_) = ler_tela(&html).map_err(ErroComentar::ListaIlegivel)? else {

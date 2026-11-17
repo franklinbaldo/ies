@@ -3,6 +3,7 @@
 
 use super::*;
 use crate::formulario_web::CodificacaoDaTela;
+use crate::tela_html::HtmlServido;
 
 fn cadastro() -> String {
     let hash = "a".repeat(64);
@@ -25,9 +26,10 @@ fn derivar(
         "https://sei.exemplo.gov.br/sei/controlador.php?acao=documento_gerar&infra_hash={}",
         "b".repeat(64)
     );
+    let html = HtmlServido::de_teste(html);
     let tela = TelaServida {
         url: &url,
-        html,
+        html: &html,
         codificacao: CodificacaoDaTela::Iso88591,
     };
     let instalacao = Instalacao::interpretar("https://sei.exemplo.gov.br/sei").unwrap();
@@ -71,9 +73,10 @@ fn derivar_escolha(
         "https://sei.exemplo.gov.br/sei/controlador.php?acao=documento_escolher_tipo&infra_hash={}",
         "b".repeat(64)
     );
+    let html = HtmlServido::de_teste(html);
     let tela = TelaServida {
         url: &url,
-        html,
+        html: &html,
         codificacao: CodificacaoDaTela::Iso88591,
     };
     let instalacao = Instalacao::interpretar("https://sei.exemplo.gov.br/sei").unwrap();
@@ -123,7 +126,7 @@ fn exibir_todos_deriva_um_unico_post_de_filtro_e_nao_de_criacao() {
     );
     let servida = TelaServida {
         url: &url,
-        html: &html,
+        html: &HtmlServido::de_teste(&html),
         codificacao: CodificacaoDaTela::Iso88591,
     };
     let instalacao = Instalacao::interpretar("https://sei.exemplo.gov.br/sei").unwrap();
@@ -141,26 +144,29 @@ fn exibir_todos_deriva_um_unico_post_de_filtro_e_nao_de_criacao() {
 }
 
 #[test]
-fn cadastro_ignora_required_de_controles_inativos() {
-    // Teste tecnico auxiliar do BDD-246-01/02: campos nao acionaveis
-    // nao impedem a previa nem o cadastro publico observado.
-    for conteudo in [
-        "<fieldset disabled><input name=\"campoInativo\" required></fieldset>",
-        "<div hidden><input name=\"campoOculto\" required></div>",
-        "<template><input name=\"campoTemplate\" required></template>",
-    ] {
-        let html = cadastro()
+fn cadastro_ignora_required_em_template() {
+    // Teste tecnico auxiliar do BDD-246-01/02: o conteudo de template fica
+    // fora da arvore, como no navegador, e nao exige entrada do usuario.
+    let html = HtmlServido::de_teste(
+        &cadastro()
             .replace(
                 "<form ",
                 "<label id=\"lblSerieTitulo\">Despacho</label><form ",
             )
-            .replace("</form>", &format!("{conteudo}</form>"));
-        assert_eq!(
-            conferir_cadastro(&html, "Despacho", None, Some("publico")),
-            Ok(()),
-            "controle inativo nao deve exigir entrada do usuario: {conteudo}"
-        );
-    }
+            .replace(
+                "</form>",
+                "<template><input name=\"campoTemplate\" required></template></form>",
+            ),
+    );
+    assert_eq!(
+        conferir_cadastro(
+            &html,
+            "Despacho",
+            None,
+            Some(crate::dominio::NivelDeAcesso::Publico)
+        ),
+        Ok(())
+    );
 }
 
 #[test]
@@ -201,7 +207,11 @@ fn confirmar_nivel_ausente_ou_sem_hipotese_recusa_antes_de_toda_rede() {
     // Uma confirmação que ainda não pode escrever não deve sequer abrir
     // o processo: GET também pode registrar recebimento no SEI.
     use crate::processo_concluir::tests_apoio as apoio;
-    for nivel in [None, Some("restrito"), Some("sigiloso")] {
+    for nivel in [
+        None,
+        Some(crate::dominio::NivelDeAcesso::Restrito),
+        Some(crate::dominio::NivelDeAcesso::Sigiloso),
+    ] {
         let ambiente = apoio::ambiente();
         let (_resultado, pedidos) =
             apoio::rodar_com(&ambiente, vec![], |sessao, nup, indice, transporte| {

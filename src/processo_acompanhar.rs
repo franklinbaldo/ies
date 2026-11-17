@@ -3,7 +3,9 @@
 //! pela resposta HTTP. Casos do Todos `tests/test_processo_acompanhar_010.py` @323eb01.
 
 use crate::acao_do_sei::AcaoDoSei;
-use crate::html_atributos::{atributo_presente, valor_do_atributo};
+use crate::consulta_do_controlador::{
+    ConsultaDoControlador, ErroAcaoDaUrl, ErroConsultaDoControlador, ErroParametroDaUrl,
+};
 
 mod exclusao;
 mod fluxo;
@@ -18,8 +20,6 @@ const TABELA: &str = "Tabela de Acompanhamentos.";
 #[derive(Debug, PartialEq, thiserror::Error)]
 #[error("{self:?}")]
 pub(crate) enum ErroAcompanhar {
-    /// O cookie privado da sessão não pôde ser lido.
-    Cookie(#[from] crate::processo_concluir::escrita::CookieIlegivel),
     Abertura(#[from] crate::processo_obter::ErroProcessoObter),
     OrigemNaoAutorizada,
     UnidadeNaoPublicada,
@@ -30,10 +30,13 @@ pub(crate) enum ErroAcompanhar {
     PedidoDeAcompanhamentoInvalido,
     RedirecionamentoDeAcompanhamentoInesperado,
     TelaDeAcompanhamentoInesperada,
-    /// O tokenizador de atributos recusou a tag.
-    Atributo(#[source] crate::html_atributos::ErroAtributoHtml),
     CadastroNaoPublicado,
     CadastroDeOutroProcesso,
+    /// A action do cadastro não se lê em pares `chave=valor`.
+    ConsultaDoCadastroIlegivel(#[source] ErroConsultaDoControlador),
+    /// A action do cadastro não tem exatamente um `id_procedimento`.
+    ChaveDoCadastroIlegivel(#[source] ErroParametroDaUrl),
+    AcaoDoCadastroIlegivel(#[source] ErroAcaoDaUrl),
     GruposNaoPublicados,
     GrupoNaoOferecido,
     GrupoAmbiguo,
@@ -54,12 +57,6 @@ pub(crate) enum ErroAcompanhar {
     OpcoesDeGrupoDeAcompanhamentoInvalidas,
     /// O endereço do cadastro de acompanhamento foi recusado.
     EnderecoDoCadastroRecusado(crate::arvore_processo::endereco::EnderecoRecusado),
-    /// O parser HTML recusou a tela de acompanhamento.
-    TelaDeAcompanhamentoRecusadaPeloParser(#[source] tl::ParseError),
-    /// O parser HTML recusou a lista de acompanhamentos.
-    HtmlDeAcompanhamentoRecusadoPeloParser(#[source] tl::ParseError),
-    /// O parser HTML recusou a tela de exclusão.
-    HtmlDaTelaDeExclusaoRecusadoPeloParser(#[source] tl::ParseError),
     /// O endereço de exclusão observado foi recusado.
     EnderecoDaExclusaoRecusado(crate::arvore_processo::endereco::EnderecoRecusado),
 }
@@ -78,37 +75,27 @@ pub(crate) struct Acompanhamento {
 }
 
 fn texto(texto: &str) -> String {
-    html_escape::decode_html_entities(texto)
-        .into_owned()
-        .split_whitespace()
-        .collect::<Vec<_>>()
-        .join(" ")
+    texto.split_whitespace().collect::<Vec<_>>().join(" ")
 }
 
-fn campo(tag: &tl::HTMLTag<'_>, nome: &'static str) -> Result<Option<String>, ErroAcompanhar> {
-    valor_do_atributo(tag, nome).map_err(ErroAcompanhar::Atributo)
+fn campo(tag: crate::tela_html::Elemento<'_>, nome: &'static str) -> Option<String> {
+    tag.atributo(nome).map(str::to_owned)
 }
 
 /// A página de cadastro da `UnB` 4.0.9 tem um form e o select publicado.
 /// Confere a identidade do processo no action E no oculto antes de escolher.
 pub(crate) fn grupos_do_cadastro(
-    html: &str,
+    html: &crate::tela_html::HtmlServido,
     id_procedimento: &str,
 ) -> Result<Vec<GrupoOferecido>, ErroAcompanhar> {
     if html.len() > crate::MAX_HTML_BYTES {
         return Err(ErroAcompanhar::HtmlDeAcompanhamentoInvalido);
     }
-    let dom = tl::parse(html, tl::ParserOptions::default())
-        .map_err(ErroAcompanhar::HtmlDeAcompanhamentoRecusadoPeloParser)?;
-    let parser = dom.parser();
+    let dom = crate::tela_html::arvore(html);
     let mut forms = Vec::new();
-    for no in dom.query_selector("form").into_iter().flatten() {
-        let tag = no
-            .get(parser)
-            .and_then(tl::Node::as_tag)
-            .ok_or(ErroAcompanhar::HtmlDeAcompanhamentoInvalido)?;
-        if campo(tag, "id")?.as_deref() == Some(FORMULARIO) {
-            forms.push(tag);
+    for no in dom.elementos("form") {
+        if campo(no, "id").as_deref() == Some(FORMULARIO) {
+            forms.push(no);
         }
     }
     let form = match forms.as_slice() {
@@ -116,26 +103,16 @@ pub(crate) fn grupos_do_cadastro(
         [form] => *form,
         _ => return Err(ErroAcompanhar::FormulariosDeAcompanhamentoRepetidos),
     };
-    let action = campo(form, "action")?.ok_or(ErroAcompanhar::CadastroNaoPublicado)?;
-    let action = crate::formulario_web::decodificar_atributo(&action)
-        .ok_or(ErroAcompanhar::HtmlDeAcompanhamentoInvalido)?;
-    if !parametro_unico(
-        &action,
-        "acao",
-        AcaoDoSei::AcompanhamentoCadastrar.como_na_url(),
-    ) || !parametro_unico(&action, "id_procedimento", id_procedimento)
-    {
-        return Err(ErroAcompanhar::CadastroDeOutroProcesso);
-    }
+    let action = campo(form, "action").ok_or(ErroAcompanhar::CadastroNaoPublicado)?;
+    conferir_action_do_cadastro(&action, id_procedimento)?;
     let mut protocolos = Vec::new();
     let mut selects = Vec::new();
-    for no in form.children().all(parser) {
-        let Some(tag) = no.as_tag() else { continue };
-        let nome_tag = tag.name().as_utf8_str();
-        if nome_tag == "input" && campo(tag, "name")?.as_deref() == Some(PROTOCOLO) {
-            protocolos.push(campo(tag, "value")?.unwrap_or_default());
+    for tag in form.descendentes() {
+        let nome_tag = tag.nome();
+        if nome_tag == "input" && campo(tag, "name").as_deref() == Some(PROTOCOLO) {
+            protocolos.push(campo(tag, "value").unwrap_or_default());
         }
-        if nome_tag == "select" && campo(tag, "name")?.as_deref() == Some(GRUPO) {
+        if nome_tag == "select" && campo(tag, "name").as_deref() == Some(GRUPO) {
             selects.push(tag);
         }
     }
@@ -147,17 +124,16 @@ pub(crate) fn grupos_do_cadastro(
         _ => return Err(ErroAcompanhar::GruposNaoPublicados),
     };
     let mut grupos = Vec::new();
-    for no in select.children().all(parser) {
-        let Some(tag) = no.as_tag() else { continue };
-        if tag.name() != "option" {
+    for tag in select.descendentes() {
+        if tag.nome() != "option" {
             continue;
         }
-        if atributo_presente(tag, "disabled").map_err(ErroAcompanhar::Atributo)? {
+        if tag.presente("disabled") {
             continue;
         }
         let valor =
-            campo(tag, "value")?.ok_or(ErroAcompanhar::OpcoesDeGrupoDeAcompanhamentoInvalidas)?;
-        let nome = texto(&tag.inner_text(parser));
+            campo(tag, "value").ok_or(ErroAcompanhar::OpcoesDeGrupoDeAcompanhamentoInvalidas)?;
+        let nome = texto(&tag.texto());
         if nome.is_empty() && valor.is_empty() {
             // Uma opção em branco pode ter valor vazio; não é ambiguidade de grupo.
             grupos.push(GrupoOferecido { valor, nome });
@@ -174,24 +150,37 @@ pub(crate) fn grupos_do_cadastro(
     Ok(grupos)
 }
 
-fn parametro_unico(url: &str, nome: &str, valor: &str) -> bool {
-    url.split_once('?').is_some_and(|(_, query)| {
-        query
-            .split('&')
-            .filter_map(|par| par.split_once('='))
-            .filter(|(chave, _)| *chave == nome)
-            .map(|(_, v)| v)
-            .collect::<Vec<_>>()
-            == [valor]
-    })
+/// A action do cadastro é este processo e esta ação, cada um uma vez na consulta.
+fn conferir_action_do_cadastro(action: &str, id_procedimento: &str) -> Result<(), ErroAcompanhar> {
+    let Some((_, consulta)) = action.split_once('?') else {
+        return Err(ErroAcompanhar::CadastroDeOutroProcesso);
+    };
+    let consulta =
+        ConsultaDoControlador::ler(consulta).map_err(ErroAcompanhar::ConsultaDoCadastroIlegivel)?;
+    let acao = consulta
+        .acao()
+        .map_err(ErroAcompanhar::AcaoDoCadastroIlegivel)?;
+    let id = consulta
+        .unico("id_procedimento")
+        .map_err(ErroAcompanhar::ChaveDoCadastroIlegivel)?;
+    if acao != AcaoDoSei::AcompanhamentoCadastrar.como_na_url() || id != id_procedimento {
+        return Err(ErroAcompanhar::CadastroDeOutroProcesso);
+    }
+    Ok(())
 }
 
-/// Casa APENAS pelo nome exato. O branco seleciona a opção vazia publicada.
+/// O nome da opção "sem grupo" do `selGrupoAcompanhamento` do cadastro: o
+/// SEI a publica como `<option value="null" selected="selected">&nbsp;</option>`
+/// (cassettes `processo-acompanhar-*`), e o texto colapsado fica vazio.
+pub(crate) const SEM_GRUPO: &str = "";
+
+/// Casa APENAS pelo nome exato. Sem grupo pedido, seleciona a opção
+/// [`SEM_GRUPO`] publicada.
 pub(crate) fn escolher_grupo<'a>(
     grupos: &'a [GrupoOferecido],
     pedido: Option<&str>,
 ) -> Result<&'a GrupoOferecido, ErroAcompanhar> {
-    let nome = pedido.unwrap_or("");
+    let nome = pedido.unwrap_or(SEM_GRUPO);
     let achados: Vec<_> = grupos.iter().filter(|g| g.nome == nome).collect();
     match achados.as_slice() {
         [] => Err(ErroAcompanhar::GrupoNaoOferecido),
@@ -202,21 +191,17 @@ pub(crate) fn escolher_grupo<'a>(
 
 /// Uma lista vazia SÓ é comprovada por tabela com cabeçalho, nunca por HTML
 /// cortado, tela de login ou ausência de tabela.
-pub(crate) fn acompanhamentos_da_lista(html: &str) -> Result<Vec<Acompanhamento>, ErroAcompanhar> {
+pub(crate) fn acompanhamentos_da_lista(
+    html: &crate::tela_html::HtmlServido,
+) -> Result<Vec<Acompanhamento>, ErroAcompanhar> {
     if html.len() > crate::MAX_HTML_BYTES {
         return Err(ErroAcompanhar::HtmlDeAcompanhamentoInvalido);
     }
-    let dom = tl::parse(html, tl::ParserOptions::default())
-        .map_err(ErroAcompanhar::HtmlDeAcompanhamentoRecusadoPeloParser)?;
-    let parser = dom.parser();
+    let dom = crate::tela_html::arvore(html);
     let mut tabelas = Vec::new();
-    for no in dom.query_selector("table").into_iter().flatten() {
-        let tag = no
-            .get(parser)
-            .and_then(tl::Node::as_tag)
-            .ok_or(ErroAcompanhar::HtmlDeAcompanhamentoInvalido)?;
-        if campo(tag, "summary")?.as_deref() == Some(TABELA) {
-            tabelas.push(tag);
+    for no in dom.elementos("table") {
+        if campo(no, "summary").as_deref() == Some(TABELA) {
+            tabelas.push(no);
         }
     }
     let tabela = match tabelas.as_slice() {
@@ -226,19 +211,17 @@ pub(crate) fn acompanhamentos_da_lista(html: &str) -> Result<Vec<Acompanhamento>
     };
     let mut cabecalho = false;
     let mut linhas = Vec::new();
-    for no in tabela.children().all(parser) {
-        let Some(tr) = no.as_tag() else { continue };
-        if tr.name() != "tr" {
+    for tr in tabela.descendentes() {
+        if tr.nome() != "tr" {
             continue;
         }
         let mut th = Vec::new();
         let mut td = Vec::new();
-        for celula in tr.children().all(parser) {
-            let Some(tag) = celula.as_tag() else { continue };
-            if tag.name() == "th" {
-                th.push(texto(&tag.inner_text(parser)));
+        for tag in tr.descendentes() {
+            if tag.nome() == "th" {
+                th.push(texto(&tag.texto()));
             }
-            if tag.name() == "td" {
+            if tag.nome() == "td" {
                 td.push(tag);
             }
         }
@@ -259,13 +242,12 @@ pub(crate) fn acompanhamentos_da_lista(html: &str) -> Result<Vec<Acompanhamento>
             return Err(ErroAcompanhar::LinhaDeAcompanhamentoInvalida);
         };
         let mut ids = Vec::new();
-        for item in selecao.children().all(parser) {
-            let Some(tag) = item.as_tag() else { continue };
-            if tag.name() != "input" {
+        for tag in selecao.descendentes() {
+            if tag.nome() != "input" {
                 continue;
             }
-            if campo(tag, "type")?.as_deref() == Some("checkbox") {
-                ids.push(campo(tag, "value")?.unwrap_or_default());
+            if campo(tag, "type").as_deref() == Some("checkbox") {
+                ids.push(campo(tag, "value").unwrap_or_default());
             }
         }
         let id = match ids.as_slice() {
@@ -277,8 +259,8 @@ pub(crate) fn acompanhamentos_da_lista(html: &str) -> Result<Vec<Acompanhamento>
         }
         linhas.push(Acompanhamento {
             id,
-            grupo: texto(&grupo.inner_text(parser)),
-            observacao: texto(&observacao.inner_text(parser)),
+            grupo: texto(&grupo.texto()),
+            observacao: texto(&observacao.texto()),
         });
     }
     if !cabecalho {

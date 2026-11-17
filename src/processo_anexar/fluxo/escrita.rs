@@ -33,19 +33,22 @@ pub(crate) fn aceite(localizacao: &str, url_post: &str, principal: &str) -> bool
         return false;
     };
     ConsultaDoControlador::ler(query).is_ok_and(|consulta| {
-        consulta.acao() == Ok(AcaoDoSei::ProcedimentoAnexar)
+        consulta.acao() == Ok(AcaoDoSei::ProcedimentoAnexar.como_na_url())
             && consulta.unico("resultado") == Ok("1")
             && consulta.unico("id_procedimento") == Ok(principal)
     })
 }
 
-#[allow(clippy::too_many_arguments)] // Dados da única tela, origem e transporte.
+#[expect(
+    clippy::too_many_arguments,
+    reason = "Dados da única tela, origem e transporte"
+)]
 pub(super) fn confirmar<V: EnvioDoProcesso>(
     sessao: &SessaoDoProcesso<'_>,
     instalacao: &Instalacao,
     cookie: &str,
     link: &str,
-    html: &str,
+    html: &crate::tela_html::HtmlServido,
     mime: &str,
     id_principal: &str,
     destino: &Destino,

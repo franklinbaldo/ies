@@ -5,8 +5,8 @@
 //! quando nada casa). A sigla é o texto de `descricao` antes de ` - `.
 use super::Destino;
 use super::erro::{ErroEnviar, FalhaDaConsulta};
-use crate::formulario_web::{RespostaDoPost, decodificar_atributo};
-use crate::html_atributos::valor_do_atributo;
+use crate::formulario_web::RespostaDoPost;
+use crate::resposta_ajax::RespostaAjax;
 use crate::transporte::{FalhaTransporte, ler_limitado, recusar_status};
 
 /// Mais itens que isso não é a resposta observada (o GO corta em 50).
@@ -20,13 +20,7 @@ pub(crate) fn ler_resposta_da_consulta<R: std::io::Read>(
     if resposta.status_code != 200 {
         return Err(FalhaDaConsulta::Transporte(recusar_status(resposta)));
     }
-    let principal = resposta
-        .mime
-        .split(';')
-        .next()
-        .unwrap_or_default()
-        .trim()
-        .to_ascii_lowercase();
+    let principal = crate::mime_web::principal(&resposta.mime).to_ascii_lowercase();
     if !matches!(principal.as_str(), "application/xml" | "text/xml") {
         return Err(FalhaDaConsulta::RespostaDoAutocompletarNaoXml);
     }
@@ -40,7 +34,7 @@ pub(crate) fn ler_resposta_da_consulta<R: std::io::Read>(
     }
     let bytes = ler_limitado(resposta.corpo, crate::MAX_HTML_BYTES)?;
     let texto =
-        crate::transporte::corpo::decode_http_body(&bytes, &resposta.mime).map_err(|erro| {
+        crate::tela_html::HtmlServido::do_corpo(&bytes, &resposta.mime).map_err(|erro| {
             FalhaDaConsulta::Transporte(FalhaTransporte::CorpoNaoDecodificavelNoCharsetDeclarado(
                 erro,
             ))
@@ -50,23 +44,16 @@ pub(crate) fn ler_resposta_da_consulta<R: std::io::Read>(
 
 /// Os itens de um `<itens>` único; cada `<item>` com `id` e `descricao`.
 pub(crate) fn itens_do_autocompletar(xml: &str) -> Result<Vec<(String, String)>, FalhaDaConsulta> {
-    let dom = tl::parse(xml, tl::ParserOptions::default())
-        .map_err(FalhaDaConsulta::ParseDaRespostaDoAutocompletarFalhou)?;
-    let parser = dom.parser();
-    let contar = |seletor: &str| dom.query_selector(seletor).map_or(0, Iterator::count);
-    if contar("itens") != 1 || contar("erro") != 0 {
+    let resposta = RespostaAjax::ler(xml)?;
+    if resposta.elementos("itens").len() != 1 || !resposta.elementos("erro").is_empty() {
         return Err(FalhaDaConsulta::RespostaDoAutocompletarForaDaFormaObservada);
     }
     let mut itens = Vec::new();
-    for no in dom.query_selector("item").into_iter().flatten() {
-        let tag = no
-            .get(parser)
-            .and_then(tl::Node::as_tag)
-            .ok_or(FalhaDaConsulta::RespostaDoAutocompletarForaDaFormaObservada)?;
-        let lido = |nome: &'static str| {
-            valor_do_atributo(tag, nome)?
-                .and_then(|bruto| decodificar_atributo(&bruto))
+    for item in resposta.elementos("item") {
+        let lido = |nome: &str| {
+            item.atributo(nome)
                 .filter(|valor| !valor.trim().is_empty())
+                .map(str::to_owned)
                 .ok_or(FalhaDaConsulta::RespostaDoAutocompletarForaDaFormaObservada)
         };
         itens.push((lido("id")?, lido("descricao")?));

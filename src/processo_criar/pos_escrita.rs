@@ -2,8 +2,7 @@
 //! independentes. Não fabrica links, não repete requisições e nunca executa JS.
 use super::erro_fluxo::CausaRespostaCriadora;
 use super::{Criacao, ErroCriar, get, reconciliacao, retorno_da_criacao};
-use crate::formulario_web::{ErroSubmissaoFormulario, decodificar_atributo};
-use crate::html_atributos::{nos_com_id, valor_do_atributo};
+use crate::formulario_web::ErroSubmissaoFormulario;
 use crate::instalacao::Instalacao;
 use crate::visao_do_controle::EnvioDoControle;
 use reconciliacao::desfechos::{Desfecho, ProcessoConferido, classificar};
@@ -43,46 +42,29 @@ impl CausaPosEscrita {
 /// Aceita o href servido na linha da tabela Gerados cujo par (ID, NUP)
 /// coincide integralmente com a fotografia. Duplicidades falham fechadas.
 fn link_do_gerado(
-    html: &str,
+    html: &crate::tela_html::HtmlServido,
     candidato: &reconciliacao::CandidatoGerado,
 ) -> Result<String, ErroCriar> {
     let erro =
         || ErroCriar::Fotografia(reconciliacao::ErroFotografia::LinkDoCandidatoNaoComprovado);
-    let dom = tl::parse(html, tl::ParserOptions::default()).map_err(|causa| {
-        ErroCriar::Fotografia(reconciliacao::ErroFotografia::HtmlDoControleNaoAnalisavel(
-            causa,
-        ))
-    })?;
-    let parser = dom.parser();
-    let tabelas = nos_com_id(&dom, "tblProcessosGerados").map_err(ErroCriar::Atributo)?;
+    let dom = crate::tela_html::arvore(html);
+    let tabelas = dom.com_id("tblProcessosGerados").collect::<Vec<_>>();
     let [tabela] = tabelas.as_slice() else {
         return Err(erro());
     };
-    let tabela = tabela
-        .get(parser)
-        .and_then(tl::Node::as_tag)
-        .ok_or_else(erro)?;
+    let tabela = *tabela;
     let alvo = format!("P{}", candidato.id);
     let mut encontrado = None;
-    for no in tabela.query_selector(parser, "tr").into_iter().flatten() {
-        let Some(linha) = no.get(parser).and_then(tl::Node::as_tag) else {
-            continue;
-        };
-        let id = valor_do_atributo(linha, "id").map_err(ErroCriar::Atributo)?;
-        if id.as_deref() != Some(alvo.as_str()) {
+    for no in tabela.elementos("tr") {
+        let id = no.atributo("id");
+        if id != Some(alvo.as_str()) {
             continue;
         }
-        for link in linha.query_selector(parser, "a").into_iter().flatten() {
-            let Some(ancora) = link.get(parser).and_then(tl::Node::as_tag) else {
-                continue;
-            };
-            if ancora.inner_text(parser).trim() != candidato.nup {
+        for link in no.elementos("a") {
+            if link.texto().trim() != candidato.nup {
                 continue;
             }
-            let href = valor_do_atributo(ancora, "href")
-                .map_err(ErroCriar::Atributo)?
-                .ok_or_else(erro)?;
-            let href = decodificar_atributo(&href).ok_or_else(erro)?;
+            let href = link.atributo("href").ok_or_else(erro)?;
             if encontrado.replace(href).is_some() {
                 return Err(ErroCriar::Fotografia(
                     reconciliacao::ErroFotografia::LinksDoCandidatoRepetidos,
@@ -90,7 +72,7 @@ fn link_do_gerado(
             }
         }
     }
-    encontrado.ok_or_else(erro)
+    encontrado.ok_or_else(erro).map(str::to_owned)
 }
 
 #[allow(clippy::too_many_arguments)] // contexto e identidade explícitos
@@ -100,7 +82,7 @@ fn conferir_candidato<V: EnvioDoControle>(
     url_controle: &str,
     cookie: &str,
     unidade: &str,
-    html_controle: &str,
+    html_controle: &crate::tela_html::HtmlServido,
     candidato: &reconciliacao::CandidatoGerado,
     requisicoes: &mut u32,
 ) -> Result<ProcessoConferido, ErroCriar> {
@@ -137,7 +119,7 @@ fn conferir_candidato<V: EnvioDoControle>(
         nup: candidato.nup.clone(),
         tipo: propriedades.tipo,
         especificacao: propriedades.especificacao,
-        nivel: propriedades.nivel_de_acesso.como_texto().to_owned(),
+        nivel: propriedades.nivel_de_acesso,
         interessados: propriedades.interessados,
     })
 }
@@ -193,7 +175,7 @@ pub(super) fn reconciliar<V: EnvioDoControle>(
             )?;
             if conferido.tipo == feito.tipo
                 && conferido.especificacao == especificacao
-                && conferido.nivel == feito.nivel
+                && conferido.nivel == feito.nivel.como_acesso()
                 && reconciliacao::desfechos::interessados_conferem(
                     &feito.interessados,
                     &conferido.interessados,
@@ -208,7 +190,7 @@ pub(super) fn reconciliar<V: EnvioDoControle>(
             &provas,
             &feito.tipo,
             especificacao,
-            &feito.nivel,
+            feito.nivel,
             &feito.interessados,
         )
         .map_err(ErroCriar::Conferencia)?;

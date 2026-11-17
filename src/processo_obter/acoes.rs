@@ -42,4 +42,6 @@ pub(crate) struct AcoesDeEstado {
     pub(crate) andamento: Result<Option<EnderecoDeEscrita>, ErroAndamentoNaBarra>,
     pub(crate) relacionar: Result<Option<EnderecoDeEscrita>, ErroRelacionarNaBarra>,
     pub(crate) acompanhar: Result<Option<EnderecoDeEscrita>, ErroAcompanharNaBarra>,
+    /// O cookie que a abertura leu e conferiu: a escrita não o relê.
+    pub(crate) cookie: crate::transporte::sessao::CookieLido,
 }

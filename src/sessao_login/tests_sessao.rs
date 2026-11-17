@@ -4,6 +4,7 @@ use super::cookies::PoteDeCookies;
 use super::redirecionamento::resolver_no_host;
 use super::tests_apoio::*;
 use super::{CampoDasCredenciais, Credenciais, ErroLogin, RespostaHttp, http, tela};
+use crate::tela_html::HtmlServido;
 
 #[test]
 fn credenciais_aceitam_senha_com_igual_e_espacos_e_redigem_o_debug() {
@@ -183,16 +184,20 @@ fn leitura_http_guarda_todos_os_set_cookie_e_nao_le_corpo_de_3xx() {
 
 #[test]
 fn captcha_so_em_css_e_js_nao_e_exigido_e_controle_servido_e() {
-    assert!(!tela::captcha_exigido(&tela_sbm()));
-    assert!(!tela::captcha_exigido(&tela_go()));
-    assert!(tela::captcha_exigido(
+    assert!(!tela::captcha_exigido(&HtmlServido::de_teste(&tela_sbm())));
+    assert!(!tela::captcha_exigido(&HtmlServido::de_teste(&tela_go())));
+    assert!(tela::captcha_exigido(&HtmlServido::de_teste(
         "<form id='frmLogin'><input name='txtInfraCaptcha'></form>"
-    ));
-    assert!(tela::captcha_exigido(
+    )));
+    assert!(tela::captcha_exigido(&HtmlServido::de_teste(
         "<div id='x' class='a h-captcha'></div>"
-    ));
-    assert!(!tela::segundo_fator_exigido(&tela_sbm()));
-    assert!(tela::segundo_fator_exigido("<input id='txtCodigo2FA'>"));
+    )));
+    assert!(!tela::segundo_fator_exigido(&HtmlServido::de_teste(
+        &tela_sbm()
+    )));
+    assert!(tela::segundo_fator_exigido(&HtmlServido::de_teste(
+        "<input id='txtCodigo2FA'>"
+    )));
 }
 
 #[test]
@@ -201,15 +206,21 @@ fn link_do_controle_aceita_so_as_formas_observadas() {
         "controlador.php?acao=procedimento_controlar&reset=1&infra_sistema=100000100&infra_unidade_atual=110000849&infra_hash={HASH}"
     );
     assert_eq!(
-        tela::link_do_controle(&painel(&onclick_do_controle())).unwrap(),
+        tela::link_do_controle(&HtmlServido::de_teste(&painel(&onclick_do_controle()))).unwrap(),
         Some(url.clone())
     );
     let janela = format!("window.location.href='{url}';");
-    assert_eq!(tela::link_do_controle(&painel(&janela)).unwrap(), Some(url));
-    assert_eq!(tela::link_do_controle(&controle("U")).unwrap(), None);
+    assert_eq!(
+        tela::link_do_controle(&HtmlServido::de_teste(&painel(&janela))).unwrap(),
+        Some(url)
+    );
+    assert_eq!(
+        tela::link_do_controle(&HtmlServido::de_teste(&controle("U"))).unwrap(),
+        None
+    );
     for ruim in ["abrir('x')", "location.href='a' + b", "location.href=\"x\""] {
         assert_eq!(
-            tela::link_do_controle(&painel(ruim)),
+            tela::link_do_controle(&HtmlServido::de_teste(&painel(ruim))),
             Err(ErroLogin::LinkDoControleDeProcessosNaoReconhecido),
             "{ruim}"
         );
@@ -218,13 +229,20 @@ fn link_do_controle_aceita_so_as_formas_observadas() {
 
 #[test]
 fn mensagem_de_recusa_ignora_o_aviso_de_navegador() {
-    assert_eq!(tela::mensagem_de_recusa(&tela_sbm()), None);
     assert_eq!(
-        tela::mensagem_de_recusa(&tela_recusada("Senha  inv\u{e1}lida.")),
+        tela::mensagem_de_recusa(&HtmlServido::de_teste(&tela_sbm())),
+        None
+    );
+    assert_eq!(
+        tela::mensagem_de_recusa(&HtmlServido::de_teste(&tela_recusada(
+            "Senha  inv\u{e1}lida."
+        ))),
         Some("Senha inv\u{e1}lida.".to_owned())
     );
     assert_eq!(
-        tela::mensagem_de_recusa("<div class='infraMensagemErro'>Conta bloqueada</div>"),
+        tela::mensagem_de_recusa(&HtmlServido::de_teste(
+            "<div class='infraMensagemErro'>Conta bloqueada</div>"
+        )),
         Some("Conta bloqueada".to_owned())
     );
 }

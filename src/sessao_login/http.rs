@@ -18,8 +18,6 @@ impl TransporteDeLogin for HttpsDoLogin {
         completar(cliente_https::requisitar("GET", url, cookie, None)?)
     }
 
-    // Consumida numa única tentativa, como no `FnOnce` do envio.
-    #[allow(clippy::needless_pass_by_value)]
     fn post(
         &mut self,
         submissao: SubmissaoDerivada,

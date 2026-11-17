@@ -3,9 +3,9 @@
 use crate::cassette::acervo::gravacao;
 use crate::cassette::{ZipDoAcervo, archive_filename, conferir_cassette_ate, html_da_resposta};
 use crate::formulario_web::TelaServida;
-use crate::html_atributos::{nos_com_id, valor_do_atributo};
 use crate::instalacao::Instalacao;
 use crate::pagina_do_controle::codificacao_da_tela;
+use crate::tela_html::HtmlServido;
 use iesei::banco_cassettes::iniciar;
 use iesei::documento_versoes::{DocumentoSimulado, Revisao, guardar};
 use rusqlite::Connection;
@@ -24,21 +24,19 @@ struct Forma {
 }
 
 fn forma(html: &str) -> Option<Forma> {
-    let dom = tl::parse(html, tl::ParserOptions::default()).ok()?;
-    let forms = nos_com_id(&dom, "frmDocumentoCancelar").ok()?;
+    let servido = HtmlServido::de_teste(html);
+    let dom = crate::tela_html::arvore(&servido);
+    let forms = dom.com_id("frmDocumentoCancelar").collect::<Vec<_>>();
     let [form] = forms.as_slice() else {
         return None;
     };
-    let tag = form.get(dom.parser())?.as_tag()?;
-    let post = valor_do_atributo(tag, "method")
-        .ok()?
+    let post = form
+        .atributo("method")
+        .map(str::to_owned)
         .is_some_and(|m| m.eq_ignore_ascii_case("post"));
     let contar = |elemento: &str, nome: &str| {
-        dom.query_selector(elemento)
-            .into_iter()
-            .flatten()
-            .filter_map(|no| no.get(dom.parser()).and_then(tl::Node::as_tag))
-            .filter(|tag| valor_do_atributo(tag, "name").ok().flatten().as_deref() == Some(nome))
+        dom.elementos(elemento)
+            .filter(|form| form.atributo("name") == Some(nome))
             .count()
     };
     Some(Forma {
@@ -162,7 +160,7 @@ fn replay_independente_formulario_documento_cancelar_go_ufrj() {
             let origem = Instalacao::interpretar(base).expect("base do controlador");
             let tela = TelaServida {
                 url,
-                html: &html,
+                html: &HtmlServido::de_teste(&html),
                 codificacao,
             };
             assert!(
@@ -176,7 +174,7 @@ fn replay_independente_formulario_documento_cancelar_go_ufrj() {
             );
             let sim_tela = TelaServida {
                 url: &url_simulado,
-                html: &simulado,
+                html: &HtmlServido::de_teste(&simulado),
                 codificacao: codificacao_da_tela("text/html; charset=utf-8").expect("UTF-8"),
             };
             assert!(

@@ -11,6 +11,7 @@ use crate::cassette::acervo::{INSTALACOES, gravacao, percorrer, publicar};
 use crate::cassette::html_da_resposta;
 use crate::documento_versoes::interpretar_historico;
 use crate::rodape_do_documento::versao_do_rodape;
+use crate::tela_html::HtmlServido;
 use std::collections::BTreeMap;
 use std::fmt::Write as _;
 
@@ -64,7 +65,7 @@ fn lista(html: &str, interacao: &serde_json::Value) -> String {
     let Some(id) = ids.first().filter(|p| ids.iter().all(|v| v == *p)) else {
         return "id_documento da gravação ilegível".to_owned();
     };
-    match interpretar_historico(html, id, None) {
+    match interpretar_historico(&HtmlServido::de_teste(html), id, None) {
         Ok(h) => format!(
             "{} versões, atual {}",
             h.len(),
@@ -99,7 +100,7 @@ fn replay_de_versoes_no_acervo() {
                     }
                 }
                 "documento_visualizar" => {
-                    let classe = match versao_do_rodape(&html) {
+                    let classe = match versao_do_rodape(&HtmlServido::de_teste(&html)) {
                         Some(_) => "rodapé com a versão servida",
                         None => "sem rodapé na forma observada",
                     };

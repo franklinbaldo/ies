@@ -11,6 +11,7 @@ use super::{
     tela::EnderecoDaArvore,
 };
 use crate::acao_do_sei::AcaoDoSei;
+use crate::consulta_do_controlador::ConsultaDoControlador;
 use crate::instalacao::Instalacao;
 use std::collections::{HashMap, HashSet};
 
@@ -294,15 +295,11 @@ fn conferir_url_de_abrir(
         conferir_endereco_relativo(instalacao, url, AcaoDoSei::ProcedimentoVisualizar, id)
             .map_err(ErroArvore::EnderecoDeAbrirPastasRecusado)?;
     let consulta = url.split_once('?').map_or("", |(_, c)| c);
-    let mut abrir = 0;
-    for par in consulta.split('&') {
-        match par.split_once('=') {
-            Some(("abrir_pastas", "1")) => abrir += 1,
-            Some(("abrir_pastas" | "fechar_pastas", _)) => return Err(recusa()),
-            _ => {}
-        }
-    }
-    if abrir != 1 {
+    let consulta =
+        ConsultaDoControlador::ler(consulta).map_err(ErroArvore::ConsultaDeAbrirPastasIlegivel)?;
+    if consulta.valores("fechar_pastas").next().is_some()
+        || consulta.valores("abrir_pastas").collect::<Vec<_>>() != ["1"]
+    {
         return Err(recusa());
     }
     Ok(EnderecoDaArvore::conferido(absoluta))

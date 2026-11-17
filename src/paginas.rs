@@ -3,7 +3,7 @@
 use crate::controle_contexto::contexto_da_pagina;
 use crate::dominio::{CaixaDeEntrada, Categoria, Processo, Tabela};
 use crate::erro_web::ErroCaixa;
-use crate::html_atributos::nos_com_id;
+use crate::legenda::{ErroLegenda, Legenda, ler_legenda};
 use crate::paginacao_controle::{controles_de_paginacao, paginador_da_tabela};
 use std::collections::BTreeMap;
 
@@ -20,43 +20,20 @@ struct Faixa {
 #[derive(Clone, Debug, PartialEq, Eq, thiserror::Error)]
 #[error("{self:?}")]
 pub enum ErroFaixaDaLegenda {
-    TotalIlegivel,
-    FaixaSemSeparador,
-    InicioIlegivel(#[source] std::num::ParseIntError),
-    FimIlegivel(#[source] std::num::ParseIntError),
+    Legenda(#[from] ErroLegenda),
     /// Início zero, início depois do fim, fim acima do total ou tamanho
     /// diferente das linhas servidas.
     FaixaIncoerenteComAsLinhas,
 }
 
 fn faixa_da_legenda(legenda: &str, linhas: usize) -> Result<Option<Faixa>, ErroFaixaDaLegenda> {
-    let normalizada = legenda
-        .replace("&nbsp;", " ")
-        .replace("&#160;", " ")
-        .replace('\u{a0}', " ");
-    // Singular (`1 registro:`, UFRJ `(1 registro):`), como a visão D já lê.
-    let Some((antes, depois)) = normalizada.trim().split_once(" registro") else {
-        return Ok(None);
+    // Sem contagem na legenda, a faixa é deduzida das linhas servidas.
+    let Legenda { total, faixa } = match ler_legenda(legenda) {
+        Ok(lida) => lida,
+        Err(ErroLegenda::SemContagem) => return Ok(None),
+        Err(motivo) => return Err(ErroFaixaDaLegenda::Legenda(motivo)),
     };
-    let depois = depois.strip_prefix('s').unwrap_or(depois);
-    let total = antes
-        .split_whitespace()
-        .last()
-        .and_then(|x| x.trim_start_matches('(').parse::<usize>().ok())
-        .ok_or(ErroFaixaDaLegenda::TotalIlegivel)?;
-    if let Some(resto) = depois.strip_prefix(" - ") {
-        let (inicio, fim) = resto
-            .split_once(" a ")
-            .ok_or(ErroFaixaDaLegenda::FaixaSemSeparador)?;
-        let inicio = inicio
-            .trim()
-            .parse::<usize>()
-            .map_err(ErroFaixaDaLegenda::InicioIlegivel)?;
-        let fim = fim
-            .trim()
-            .trim_end_matches(|c: char| !c.is_ascii_digit())
-            .parse::<usize>()
-            .map_err(ErroFaixaDaLegenda::FimIlegivel)?;
+    if let Some(crate::legenda::Faixa { inicio, fim }) = faixa {
         if inicio == 0 || inicio > fim || fim > total || fim - inicio + 1 != linhas {
             return Err(ErroFaixaDaLegenda::FaixaIncoerenteComAsLinhas);
         }
@@ -80,20 +57,15 @@ fn faixa_da_legenda(legenda: &str, linhas: usize) -> Result<Option<Faixa>, ErroF
 }
 
 fn faixa_da_tabela(
-    html: &str,
+    html: &crate::tela_html::HtmlServido,
     id: &str,
     categoria: Categoria,
     linhas: usize,
 ) -> Result<Option<Faixa>, ErroCaixa> {
-    let dom = tl::parse(html, tl::ParserOptions::default())
-        .map_err(ErroCaixa::HtmlDaCaixaRecusadoPeloParser)?;
-    let parser = dom.parser();
-    let tabela = match nos_com_id(&dom, id)
-        .map_err(ErroCaixa::AtributoDaCaixaIlegivel)?
-        .as_slice()
-    {
+    let dom = crate::tela_html::arvore(html);
+    let tabela = match dom.com_id(id).collect::<Vec<_>>().as_slice() {
         // Lista vazia comprovada pela estrutura: a mesma faixa de `0 registros:`.
-        [] if crate::caixa::lista_vazia_comprovada(&dom, categoria)? => {
+        [] if crate::caixa::lista_vazia_comprovada(html, &dom, categoria) => {
             return Ok(Some(Faixa {
                 total: 0,
                 inicio: 1,
@@ -105,24 +77,14 @@ fn faixa_da_tabela(
         [tabela] => *tabela,
         _ => return Err(ErroCaixa::TabelasDaCategoriaRepetidas { categoria }),
     };
-    let tabela = tabela
-        .get(parser)
-        .and_then(tl::Node::as_tag)
-        .ok_or(ErroCaixa::TabelaAusente { categoria })?;
-    let mut legendas = tabela
-        .query_selector(parser, "caption")
-        .ok_or(ErroCaixa::LegendaAusente { categoria })?;
+    let mut legendas = tabela.elementos("caption");
     let primeira = legendas
         .next()
         .ok_or(ErroCaixa::LegendaAusente { categoria })?;
     if legendas.next().is_some() {
         return Err(ErroCaixa::LegendasDaTabelaRepetidas { categoria });
     }
-    let legenda = primeira
-        .get(parser)
-        .and_then(tl::Node::as_tag)
-        .ok_or(ErroCaixa::LegendaAusente { categoria })?
-        .inner_text(parser);
+    let legenda = primeira.texto();
     faixa_da_legenda(&legenda, linhas)
         .map_err(|motivo| ErroCaixa::FaixaInvalida { categoria, motivo })
 }
@@ -294,7 +256,7 @@ fn id_da_tabela(categoria: Categoria) -> &'static str {
 /// Faixa de uma tabela numa página isolada; `None` se a tabela não tem
 /// linhas ou a legenda não a comprova.
 pub(crate) fn faixa_na_pagina(
-    html: &str,
+    html: &crate::tela_html::HtmlServido,
     categoria: Categoria,
 ) -> Result<Option<FaixaNaPagina>, ErroCaixa> {
     let caixa = crate::caixa::parse_html(html)?;
@@ -334,19 +296,23 @@ pub struct Leitura {
     pub unidade: Option<String>,
 }
 
-pub fn juntar(paginas: &[String], unidade_esperada: Option<&str>) -> Result<Leitura, ErroCaixa> {
+pub fn juntar(
+    paginas: &[crate::tela_html::HtmlServido],
+    unidade_esperada: Option<&str>,
+) -> Result<Leitura, ErroCaixa> {
     let Some(primeira) = paginas.first() else {
         return Err(ErroCaixa::SemPaginas);
     };
-    if paginas.len() > 200 || paginas.iter().map(String::len).sum::<usize>() > 48_000_000 {
+    if paginas.len() > 200 || paginas.iter().map(|pagina| pagina.len()).sum::<usize>() > 48_000_000
+    {
         return Err(ErroCaixa::LimitePaginas);
     }
     let contexto_inicial = contexto_da_pagina(primeira)?;
-    if contexto_inicial.eh_resumida() && controles_de_paginacao(primeira)? {
+    if contexto_inicial.eh_resumida() && controles_de_paginacao(primeira) {
         return Err(ErroCaixa::VisaoResumidaComPaginacao);
     }
     for html in paginas {
-        if crate::controle_contexto::filtro_de_marcador_ativo(html)? {
+        if crate::controle_contexto::filtro_de_marcador_ativo(html) {
             return Err(ErroCaixa::FiltroDeMarcadorAtivoNoControle);
         }
     }
@@ -369,7 +335,7 @@ pub fn juntar(paginas: &[String], unidade_esperada: Option<&str>) -> Result<Leit
             if !contexto.verificavel() {
                 return Err(ErroCaixa::ContextoNaoVerificavel);
             }
-            if contexto.eh_resumida() && controles_de_paginacao(html)? {
+            if contexto.eh_resumida() && controles_de_paginacao(html) {
                 return Err(ErroCaixa::VisaoResumidaComPaginacao);
             }
             if contexto != contexto_inicial {
@@ -395,7 +361,7 @@ pub fn juntar(paginas: &[String], unidade_esperada: Option<&str>) -> Result<Leit
             // Paginador próprio da tabela com legenda sem intervalo: a
             // coincidência entre total e linhas não comprova página única.
             if faixa.is_some_and(|f| !f.explicita && f.total > 0)
-                && paginador_da_tabela(html, categoria)?
+                && paginador_da_tabela(html, categoria)
             {
                 return Err(ErroCaixa::PaginadorDaTabelaSemFaixaNaLegenda { categoria });
             }

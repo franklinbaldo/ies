@@ -1,9 +1,8 @@
 //! A consulta (`?...`) de uma URL do `controlador.php` lida uma vez só (#751).
-//! Cada par precisa de `=`, a chave e o valor passam pelas mesmas regras do
-//! transporte (`conferir_chave_de_consulta`, `conferir_valor_de_consulta`) e
+//! Cada par precisa de `=`, a chave e o valor seguem a forma canônica
+//! (`conferir_chave_de_consulta`, `conferir_valor_de_consulta`) e
 //! a leitura de uma chave exige exatamente um valor.
 use crate::acao_do_sei::AcaoDoSei;
-use crate::transporte::{FalhaTransporte, conferir_chave_de_consulta, conferir_valor_de_consulta};
 
 /// Os pares `chave=valor` da consulta, na ordem publicada, emprestados da URL.
 pub(crate) struct ConsultaDoControlador<'a> {
@@ -16,25 +15,49 @@ pub(crate) struct ConsultaDoControlador<'a> {
 pub(crate) enum ErroConsultaDoControlador {
     /// Um trecho entre `&` não tem `=`.
     ParSemIgual,
-    /// A chave ou o valor fora da forma que o transporte aceita enviar.
-    RecusadaPeloTransporte(#[from] FalhaTransporte),
+    ChaveDeConsultaNaoCanonica,
+    SeparadorDeConsultaAmbiguo,
 }
 
-/// A chave pedida não tem exatamente um valor aceito.
+// PHP decodifica percent/plus e converte pontos/espaços em underscores;
+// preservar a rejeição de nomes não literais.
+pub(crate) fn conferir_chave_de_consulta(chave: &str) -> Result<(), ErroConsultaDoControlador> {
+    if chave.is_empty() || !chave.bytes().all(|b| b.is_ascii_lowercase() || b == b'_') {
+        return Err(ErroConsultaDoControlador::ChaveDeConsultaNaoCanonica);
+    }
+    Ok(())
+}
+
+// Alguns servidores PHP tratam ';' como separador adicional de parâmetros.
+pub(crate) fn conferir_valor_de_consulta(valor: &str) -> Result<(), ErroConsultaDoControlador> {
+    if valor.contains(';') {
+        return Err(ErroConsultaDoControlador::SeparadorDeConsultaAmbiguo);
+    }
+    Ok(())
+}
+
+/// O parâmetro pedido não tem exatamente um valor na URL.
 #[derive(Clone, Copy, Debug, PartialEq, Eq, thiserror::Error)]
 #[error("{self:?}")]
-pub(crate) enum ErroChaveDaConsulta {
-    Ausente {
-        chave: &'static str,
-    },
-    Repetida {
-        chave: &'static str,
-    },
-    /// `acao=` com valor fora de `AcaoDoSei`.
-    AcaoDesconhecida,
+pub(crate) enum ErroParametroDaUrl {
+    ParametroAusente(&'static str),
+    ParametroRepetido(&'static str),
+}
+
+/// A URL não traz exatamente uma ação do SEI reconhecida.
+#[derive(Clone, Debug, PartialEq, Eq, thiserror::Error)]
+#[error("{self:?}")]
+pub(crate) enum ErroAcaoDaUrl {
+    AcaoAusente,
+    AcaoRepetida,
 }
 
 impl<'a> ConsultaDoControlador<'a> {
+    /// A consulta de uma URL, que pode não ter `?`: sem ela, não há pares.
+    pub(crate) fn da_url(consulta: Option<&'a str>) -> Result<Self, ErroConsultaDoControlador> {
+        consulta.map_or_else(|| Ok(Self { pares: Vec::new() }), Self::ler)
+    }
+
     /// `consulta` é o texto depois do `?`, sem ele; vazia, não tem pares.
     pub(crate) fn ler(consulta: &'a str) -> Result<Self, ErroConsultaDoControlador> {
         if consulta.is_empty() {
@@ -55,20 +78,34 @@ impl<'a> ConsultaDoControlador<'a> {
     }
 
     /// O único valor de `chave`.
-    pub(crate) fn unico(&self, chave: &'static str) -> Result<&'a str, ErroChaveDaConsulta> {
+    pub(crate) fn unico(&self, chave: &'static str) -> Result<&'a str, ErroParametroDaUrl> {
         let mut valores = self.valores(chave);
         let valor = valores
             .next()
-            .ok_or(ErroChaveDaConsulta::Ausente { chave })?;
+            .ok_or(ErroParametroDaUrl::ParametroAusente(chave))?;
         match valores.next() {
-            Some(_) => Err(ErroChaveDaConsulta::Repetida { chave }),
+            Some(_) => Err(ErroParametroDaUrl::ParametroRepetido(chave)),
             None => Ok(valor),
         }
     }
 
-    /// A única `acao=`, lida no conjunto fechado do SEI.
-    pub(crate) fn acao(&self) -> Result<AcaoDoSei, ErroChaveDaConsulta> {
-        AcaoDoSei::ler(self.unico("acao")?).ok_or(ErroChaveDaConsulta::AcaoDesconhecida)
+    /// A única `acao=`, como servida.
+    pub(crate) fn acao(&self) -> Result<&'a str, ErroAcaoDaUrl> {
+        self.acao_em("acao")
+    }
+
+    /// A única `acao_origem=`, como servida.
+    pub(crate) fn acao_de_origem(&self) -> Result<&'a str, ErroAcaoDaUrl> {
+        self.acao_em("acao_origem")
+    }
+
+    fn acao_em(&self, chave: &str) -> Result<&'a str, ErroAcaoDaUrl> {
+        let mut valores = self.valores(chave);
+        let valor = valores.next().ok_or(ErroAcaoDaUrl::AcaoAusente)?;
+        match valores.next() {
+            Some(_) => Err(ErroAcaoDaUrl::AcaoRepetida),
+            None => Ok(valor),
+        }
     }
 
     /// Todos os valores de `chave`, na ordem publicada.
@@ -78,6 +115,69 @@ impl<'a> ConsultaDoControlador<'a> {
             .filter(move |(nome, _)| *nome == chave)
             .map(|(_, valor)| *valor)
     }
+
+    pub(crate) fn sem_chaves_repetidas(&self) -> bool {
+        let mut vistos = std::collections::HashSet::with_capacity(self.pares.len());
+        self.pares.iter().all(|(chave, _)| vistos.insert(*chave))
+    }
+}
+
+/// Por que a URL não traz um id decimal único na chave pedida.
+#[derive(Clone, Debug, PartialEq, Eq, thiserror::Error)]
+#[error("{self:?}")]
+pub(crate) enum ErroIdDaUrl {
+    /// A URL não tem `?`.
+    SemConsulta,
+    /// A URL relativa não é do `controlador.php`.
+    ForaDoControlador,
+    /// Um trecho entre `&` não tem `=`.
+    ParSemIgual,
+    ChaveDeConsultaNaoCanonica,
+    SeparadorDeConsultaAmbiguo,
+    ParametroAusente(&'static str),
+    ParametroRepetido(&'static str),
+    /// O valor não é decimal; ids do SEI são números, então o valor vai junto.
+    IdNaoDecimal {
+        chave: &'static str,
+        valor: String,
+    },
+}
+
+/// O id decimal único de `chave` numa URL relativa do `controlador.php?`.
+pub(crate) fn id_decimal_do_controlador<'a>(
+    url: &'a str,
+    chave: &'static str,
+) -> Result<&'a str, ErroIdDaUrl> {
+    if !url.starts_with("controlador.php?") {
+        return Err(ErroIdDaUrl::ForaDoControlador);
+    }
+    id_decimal(url, chave)
+}
+
+/// O id decimal único de `chave` na consulta de `url` (texto depois do `?`).
+pub(crate) fn id_decimal<'a>(url: &'a str, chave: &'static str) -> Result<&'a str, ErroIdDaUrl> {
+    let (_, texto) = url.split_once('?').ok_or(ErroIdDaUrl::SemConsulta)?;
+    let consulta = ConsultaDoControlador::ler(texto).map_err(|erro| match erro {
+        ErroConsultaDoControlador::ParSemIgual => ErroIdDaUrl::ParSemIgual,
+        ErroConsultaDoControlador::ChaveDeConsultaNaoCanonica => {
+            ErroIdDaUrl::ChaveDeConsultaNaoCanonica
+        }
+        ErroConsultaDoControlador::SeparadorDeConsultaAmbiguo => {
+            ErroIdDaUrl::SeparadorDeConsultaAmbiguo
+        }
+    })?;
+    let mut valores = consulta.valores(chave);
+    let valor = valores.next().ok_or(ErroIdDaUrl::ParametroAusente(chave))?;
+    if valores.next().is_some() {
+        return Err(ErroIdDaUrl::ParametroRepetido(chave));
+    }
+    if valor.is_empty() || !valor.bytes().all(|b| b.is_ascii_digit()) {
+        return Err(ErroIdDaUrl::IdNaoDecimal {
+            chave,
+            valor: valor.to_owned(),
+        });
+    }
+    Ok(valor)
 }
 
 /// Seleção de candidato, tolerante de propósito: a consulta de `href` (o

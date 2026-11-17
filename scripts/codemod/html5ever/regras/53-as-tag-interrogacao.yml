@@ -1,0 +1,15 @@
+id: 53-as-tag-interrogacao
+language: rust
+message: 'n.as_tag()?: o nó já é o elemento'
+severity: hint
+rule:
+  all:
+    - pattern: '$N.as_tag()?'
+    - not:
+        inside:
+          stopBy: end
+          kind: mod_item
+          follows:
+            kind: attribute_item
+            regex: 'cfg\(test\)'
+fix: '$N'

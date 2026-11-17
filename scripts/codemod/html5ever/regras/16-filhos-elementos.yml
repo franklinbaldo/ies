@@ -1,0 +1,14 @@
+id: 16-filhos-elementos
+language: rust
+message: 'Descendentes elementos (children().all).'
+severity: hint
+rule:
+  pattern: $T.children().all($P).iter().filter_map(tl::Node::as_tag)
+  not:
+    inside:
+      stopBy: end
+      kind: mod_item
+      follows:
+        kind: attribute_item
+        regex: 'cfg\(test\)'
+fix: '$T.descendentes()'

@@ -55,23 +55,7 @@ impl std::fmt::Debug for EnderecoDasPropriedades {
     }
 }
 
-/// `rdoNivelAcesso` marcado.
-#[derive(Clone, Copy, Debug, PartialEq, Eq)]
-pub(crate) enum NivelDeAcesso {
-    Publico,
-    Restrito,
-    Sigiloso,
-}
-
-impl NivelDeAcesso {
-    pub(crate) fn como_texto(self) -> &'static str {
-        match self {
-            Self::Publico => "publico",
-            Self::Restrito => "restrito",
-            Self::Sigiloso => "sigiloso",
-        }
-    }
-}
+pub(crate) use crate::dominio::NivelDeAcesso;
 
 /// Uma `option` de `selAssuntos`: `<código> - <descrição>`.
 #[derive(Clone, Debug, PartialEq, Eq)]
@@ -99,8 +83,6 @@ pub(crate) struct PropriedadesLidas {
 #[derive(Clone, Debug, PartialEq, Eq, thiserror::Error)]
 #[error("{self:?}")]
 pub(crate) enum ErroPropriedades {
-    /// O tokenizador de atributos recusou a tag.
-    Atributo(#[source] crate::html_atributos::ErroAtributoHtml),
     Barra(#[from] crate::arvore_processo::ErroBarraDoProcesso),
     LinksDasPropriedadesRepetidosNaBarra,
     EnderecoDasPropriedadesNaoReconhecido,
@@ -116,15 +98,11 @@ pub(crate) enum ErroPropriedades {
     CodigoDoAssuntoNaoInterpretado,
     DataDeGeracaoAusente,
     NivelDeAcessoNaoMarcado,
-    TextoDasPropriedadesNaoDecodificado,
     AssuntoForaDaFormaObservada,
     CampoDasPropriedadesAusente,
     CampoDasPropriedadesRepetido,
     DataDeGeracaoForaDaFormaObservada,
     FormulariosDasPropriedadesRepetidos,
-    HtmlDasPropriedadesNaoInterpretado,
-    /// O parser HTML recusou a tela das propriedades.
-    HtmlDasPropriedadesRecusadoPeloParser(#[source] tl::ParseError),
     InteressadoForaDaFormaObservada,
     NivelDeAcessoForaDaFormaObservada,
     OpcoesMarcadasRepetidas,

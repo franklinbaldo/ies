@@ -1,6 +1,8 @@
 //! Casos sintéticos da issue #245: oráculo de cenário Todos
 //! `tests/test_processo_criar_escolher_tipo_010.py`, sem portar a arquitetura.
 use super::*;
+use crate::acao_do_sei::AcaoDoSei;
+use crate::consulta_do_controlador::ErroParametroDaUrl;
 use crate::processo_concluir::tests_apoio::NUP;
 use crate::processo_concluir::tests_apoio::{
     UNIDADE, ambiente, arvore, controle, ok, r302, rodar_com, trabalhar,
@@ -47,7 +49,7 @@ pub(super) fn pedido(confirmar: bool) -> PedidoCriar<'static> {
         tipo: TIPO,
         especificacao: "Ensaio automatizado issue 245",
         interessados: &[],
-        nivel: "publico",
+        nivel: crate::dominio::NivelDeCriacao::Publico,
         unidade: None,
         hipotese_legal: None,
         confirmar,
@@ -58,7 +60,7 @@ fn arvore_verificadora() -> String {
     arvore(
         &[UNIDADE],
         &[acao_da_barra(&link_das_propriedades(
-            "procedimento_alterar",
+            AcaoDoSei::ProcedimentoAlterar,
             "10",
         ))],
     )
@@ -201,7 +203,7 @@ fn interessado_nao_resolvido_nao_cria() {
         tipo: TIPO,
         especificacao: "Ensaio automatizado issue 245",
         interessados: &interessados,
-        nivel: "publico",
+        nivel: crate::dominio::NivelDeCriacao::Publico,
         unidade: None,
         hipotese_legal: None,
         confirmar: true,
@@ -236,7 +238,7 @@ fn previa_com_interessado_unico_conferido_por_ajax() {
         tipo: TIPO,
         especificacao: "Ensaio de interessado",
         interessados: &interessados,
-        nivel: "publico",
+        nivel: crate::dominio::NivelDeCriacao::Publico,
         unidade: None,
         hipotese_legal: None,
         confirmar: false,
@@ -366,7 +368,12 @@ fn lista_40_com_identidade_duplicada_recusa_sem_abrir_cadastro() {
             rede,
         )
     });
-    assert_eq!(resultado, Err(ErroCriar::TipoSemIdentificador));
+    assert!(matches!(
+        resultado,
+        Err(ErroCriar::Lista(ErroListaDeTipos::ChaveDoCadastroIlegivel(
+            ErroParametroDaUrl::ParametroRepetido("id_tipo_procedimento")
+        )))
+    ));
     assert_eq!(requests.len(), 2);
     assert!(requests.iter().all(|req| req.metodo == "GET"));
 }
@@ -390,7 +397,12 @@ fn lista_40_com_duas_acoes_recusa_sem_abrir_cadastro() {
             rede,
         )
     });
-    assert_eq!(resultado, Err(ErroCriar::Formulario));
+    assert!(matches!(
+        resultado,
+        Err(ErroCriar::Lista(ErroListaDeTipos::AcaoDoCadastroIlegivel(
+            crate::consulta_do_controlador::ErroAcaoDaUrl::AcaoRepetida
+        )))
+    ));
     assert_eq!(requests.len(), 2);
     assert!(requests.iter().all(|req| req.metodo == "GET"));
 }
@@ -403,7 +415,7 @@ fn gerados_paginados_nao_impedem_o_post_mas_tornam_a_resposta_incerta() {
     let amb = ambiente();
     let parcial = tela_controle().replace(
         "<caption>0 registros:</caption></table>",
-        "<caption>5 registros - 1 a 1):</caption>\
+        "<caption>Processos (5 registros - 1 a 1):</caption>\
          <tr id='P17'><td><a class='processoVisualizado'>00000.000017/2026-17</a></td></tr></table>",
     );
     let respostas = vec![
@@ -434,7 +446,7 @@ fn previa_nao_exige_fotografia_completa_de_gerados() {
     let amb = ambiente();
     let parcial = tela_controle().replace(
         "<caption>0 registros:</caption></table>",
-        "<caption>5 registros - 1 a 1):</caption>\
+        "<caption>Processos (5 registros - 1 a 1):</caption>\
          <tr id='P17'><td><a class='processoVisualizado'>00000.000017/2026-17</a></td></tr></table>",
     );
     let respostas = vec![ok(parcial), ok(lista(false)), ok(cadastro())];

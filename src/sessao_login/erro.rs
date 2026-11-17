@@ -1,9 +1,32 @@
 //! Recusas tipadas de `ies login`, uma por fato verificável. Nenhum erro
 //! carrega credencial, cookie, URL assinada ou HTML.
+use crate::arquivo_privado::ErroArquivoPrivado;
 use crate::configuracao::{ArquivoPrivado, ErroConfiguracao};
 use crate::erro_web::ErroCaixa;
 use crate::formulario_web::ErroSubmissaoFormulario;
 use crate::transporte::FalhaTransporte;
+use std::sync::Arc;
+
+/// Causa de E/S guardada inteira, com `source()`. `io::Error` não é
+/// `Clone` nem `PartialEq`, então é compartilhada por `Arc` e comparada
+/// pelo `kind` e pelo código do sistema operacional.
+#[derive(Clone, Debug, thiserror::Error)]
+#[error("{0}")]
+pub(crate) struct ErroDeIo(#[source] Arc<std::io::Error>);
+
+impl ErroDeIo {
+    pub(crate) fn new(erro: std::io::Error) -> Self {
+        Self(Arc::new(erro))
+    }
+}
+
+impl PartialEq for ErroDeIo {
+    fn eq(&self, outro: &Self) -> bool {
+        self.0.kind() == outro.0.kind() && self.0.raw_os_error() == outro.0.raw_os_error()
+    }
+}
+
+impl Eq for ErroDeIo {}
 
 /// Campo do arquivo de credenciais.
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
@@ -16,21 +39,22 @@ pub(crate) enum CampoDasCredenciais {
 #[derive(Clone, Debug, PartialEq, Eq, thiserror::Error)]
 #[error("{self:?}")]
 pub(crate) enum ErroLogin {
-    /// O tokenizador de atributos recusou a tag.
-    Atributo(#[source] crate::html_atributos::ErroAtributoHtml),
     Configuracao(#[from] ErroConfiguracao),
-    /// Origem da instalação ilegível ou fora do formato `Instalacao`.
-    Origem(#[from] super::fluxo::OrigemIlegivel),
+    /// O arquivo da origem da instalação não foi lido.
+    OrigemIlegivel(#[source] ErroArquivoPrivado),
+    /// A origem lida não é uma instalação (`Instalacao`).
+    OrigemNaoAutorizada,
     CaminhoDasCredenciaisNaoInformado,
-    ArquivoDeCredenciais(#[from] super::credenciais::CredenciaisIlegiveis),
+    /// O arquivo de credenciais não foi lido.
+    ArquivoDeCredenciais(#[source] ErroArquivoPrivado),
     CampoDasCredenciaisAusente(CampoDasCredenciais),
     CampoDasCredenciaisRepetido(CampoDasCredenciais),
     CampoDasCredenciaisVazio(CampoDasCredenciais),
     LinhaDasCredenciaisSemCampoConhecido,
     LoginEmAndamentoEmOutroProcesso,
-    ArquivoDeLockDoLoginInacessivel(std::io::ErrorKind),
-    /// URL ou cookie gravados que o transporte recusa antes da rede.
-    ArquivoDaSessao(#[from] super::fluxo::SessaoGravadaInvalida),
+    ArquivoDeLockDoLoginInacessivel(ErroDeIo),
+    /// O arquivo da URL ou do cookie gravados não foi lido.
+    ArquivoDaSessao(#[source] ErroArquivoPrivado),
     /// O GET da sessão gravada não mostrou um Controle reconhecível.
     ControleDaSessaoExistenteNaoReconhecido(ErroCaixa),
     RedirecionamentoSemLocalizacao,
@@ -68,14 +92,12 @@ pub(crate) enum ErroLogin {
     Transporte(#[from] FalhaTransporte),
     BotaoDeEnvioDoLoginNaoReconhecido,
     LinkDoControleDeProcessosNaoReconhecido,
-    LinkDoControleNaoInterpretado(#[source] tl::ParseError),
     OrgaoComMaisDeUmaOpcaoNaTelaDeLogin,
     OrgaoNaoEncontradoNaTelaDeLogin,
     SelecaoDeOrgaoAusenteNaTelaDeLogin,
     SelecaoDeOrgaoRepetidaNaTelaDeLogin,
     TelaAposOLoginNaoReconhecida,
     TelaDeLoginNaoReconhecida,
-    TelaDeLoginNaoInterpretada(#[source] tl::ParseError),
 }
 
 impl ErroLogin {
@@ -88,7 +110,8 @@ impl ErroLogin {
             #[cfg(unix)]
             Self::DiretorioDaSessaoGravavelPorOutros(_) => false,
             Self::Configuracao(_)
-            | Self::Origem(_)
+            | Self::OrigemIlegivel(_)
+            | Self::OrigemNaoAutorizada
             | Self::CaminhoDasCredenciaisNaoInformado
             | Self::ArquivoDeCredenciais(_)
             | Self::CampoDasCredenciaisAusente(_)
@@ -121,15 +144,12 @@ impl ErroLogin {
             | Self::UnidadeExibidaDiferenteDaSolicitada
             | Self::BotaoDeEnvioDoLoginNaoReconhecido
             | Self::LinkDoControleDeProcessosNaoReconhecido
-            | Self::LinkDoControleNaoInterpretado(_)
             | Self::OrgaoComMaisDeUmaOpcaoNaTelaDeLogin
             | Self::OrgaoNaoEncontradoNaTelaDeLogin
             | Self::SelecaoDeOrgaoAusenteNaTelaDeLogin
             | Self::SelecaoDeOrgaoRepetidaNaTelaDeLogin
             | Self::TelaAposOLoginNaoReconhecida
-            | Self::Atributo(_)
-            | Self::TelaDeLoginNaoReconhecida
-            | Self::TelaDeLoginNaoInterpretada(_) => false,
+            | Self::TelaDeLoginNaoReconhecida => false,
         }
     }
 }

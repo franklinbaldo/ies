@@ -4,14 +4,11 @@ use super::envio::{EnvioDoControle, Sessao, TelaAtual};
 use super::passos::{contexto, trocar, unidade_da_tela};
 use super::{ErroVisaoDoControle, Visao};
 use crate::acao_do_sei::AcaoDoSei;
-use crate::formulario_web::decodificar_atributo;
-use crate::html_atributos::{nos_com_id, valor_do_atributo};
+use crate::consulta_do_controlador::ConsultaDoControlador;
 use crate::instalacao::Instalacao;
 use crate::nivel_de_detalhe::{NivelDeDetalhe, ler_nivel_de_detalhe};
+use crate::transporte::decodificar_resposta;
 use crate::transporte::sessao::CookieDaSessao;
-use crate::transporte::{
-    conferir_chave_de_consulta, conferir_valor_de_consulta, decodificar_resposta,
-};
 
 /// Unidade exibida e as 12 opções do catálogo com `disponivel` e `marcada`.
 /// Orçamento: D: 1 GET + 1 GET; R: 1 GET + POST D + GET.
@@ -75,22 +72,16 @@ pub(super) fn link_do_nivel_de_detalhe(
     tela: &TelaAtual,
 ) -> Result<String, super::ErroVisaoDoControle> {
     let invalido = super::ErroVisaoDoControle::LinkDoNivelDeDetalheNaoReconhecido;
-    let dom = tl::parse(&tela.html, tl::ParserOptions::default())
-        .map_err(super::ErroVisaoDoControle::HtmlDoNivelDeDetalheRecusadoPeloParser)?;
-    let parser = dom.parser();
-    let nos = nos_com_id(&dom, "ancNivelDetalhe").map_err(super::ErroVisaoDoControle::Atributo)?;
+    let dom = crate::tela_html::arvore(&tela.html);
+    let nos = dom.com_id("ancNivelDetalhe").collect::<Vec<_>>();
     let no = match nos.as_slice() {
         [] => return Err(ErroVisaoDoControle::LinkDoNivelDeDetalheAusente),
         [no] => *no,
         _ => return Err(ErroVisaoDoControle::LinksDoNivelDeDetalheRepetidos),
     };
-    let tag = no
-        .get(parser)
-        .and_then(tl::Node::as_tag)
-        .ok_or_else(|| invalido.clone())?;
-    let onclick = valor_do_atributo(tag, "onclick")
-        .map_err(super::ErroVisaoDoControle::Atributo)?
-        .and_then(|v| decodificar_atributo(&v))
+    let onclick = no
+        .atributo("onclick")
+        .map(str::to_owned)
         .ok_or_else(|| invalido.clone())?;
     let resto = onclick
         .strip_prefix("acaoConfigurarDetalhe('")
@@ -103,26 +94,25 @@ pub(super) fn link_do_nivel_de_detalhe(
     if !relativo.bytes().all(|b| (33..=126).contains(&b)) || relativo.contains(['#', '\\', '\'']) {
         return Err(invalido);
     }
-    let (mut acoes, mut hashes) = (0, 0);
-    for par in consulta.split('&') {
-        let (nome, valor) = par.split_once('=').ok_or_else(|| invalido.clone())?;
-        conferir_chave_de_consulta(nome)
-            .map_err(super::ErroVisaoDoControle::ConsultaDoNivelRecusadaPeloTransporte)?;
-        conferir_valor_de_consulta(valor)
-            .map_err(super::ErroVisaoDoControle::ConsultaDoNivelRecusadaPeloTransporte)?;
-        match nome {
-            "acao" if valor == AcaoDoSei::ProcedimentoConfigurarDetalhe.como_na_url() => acoes += 1,
-            "infra_hash" if valor.len() == 64 && valor.bytes().all(|b| b.is_ascii_hexdigit()) => {
-                hashes += 1;
-            }
-            "acao" | "infra_hash" | "acao_ajax" => return Err(invalido),
-            _ => {}
-        }
-    }
-    if acoes != 1 || hashes != 1 {
+    let leitura = ConsultaDoControlador::ler(consulta)
+        .map_err(super::ErroVisaoDoControle::ConsultaDoNivelIlegivel)?;
+    let acao = leitura
+        .acao()
+        .map_err(super::ErroVisaoDoControle::AcaoDoNivelIlegivel)?;
+    let hash = leitura
+        .unico("infra_hash")
+        .map_err(super::ErroVisaoDoControle::ChaveDoNivelIlegivel)?;
+    if acao != AcaoDoSei::ProcedimentoConfigurarDetalhe.como_na_url()
+        || leitura.valores("acao_ajax").next().is_some()
+        || hash.len() != 64
+        || !hash.bytes().all(|b| b.is_ascii_hexdigit())
+    {
         return Err(invalido);
     }
-    let base = tela.url.split('?').next().unwrap_or_default();
+    let base = tela
+        .url
+        .split_once('?')
+        .map_or(tela.url.as_str(), |(antes, _)| antes);
     let (pasta, _) = base.rsplit_once('/').ok_or_else(|| invalido.clone())?;
     let url = format!("{pasta}/{relativo}");
     let (host, caminho) = url

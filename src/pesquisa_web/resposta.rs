@@ -5,7 +5,6 @@
 //! antes de `table.pesquisaResultado`; `div.pesquisaSemResultado` sozinho.
 use super::{ErroResultadoPesquisa, ResultadoPesquisa, ler_resultados};
 use crate::dominio::IdProcedimento;
-use crate::html_atributos::{ErroAtributoHtml, nos_por_elemento_e_classe};
 use crate::transporte::texto_de_recusa::texto_visivel;
 
 /// Posições `inicio..=fim` (base 1) declaradas pela barra.
@@ -53,10 +52,8 @@ pub(crate) enum ErroRespostaDaPesquisa {
     Resultado(#[from] ErroResultadoPesquisa),
     /// Linha da pesquisa em documentos (`ies documento buscar`).
     Documento(#[from] super::documentos::ErroDocumentoDaPesquisa),
-    AtributoHtml(#[from] ErroAtributoHtml),
     BarraDeContagemDaPesquisaAusente,
     BarrasDeContagemDaPesquisaRepetidas,
-    HtmlDaRespostaDaPesquisaNaoInterpretado(#[source] tl::ParseError),
 }
 
 /// Número da barra: grupos de 3 dígitos separados por `.` (o primeiro com
@@ -106,14 +103,15 @@ fn ler_barra(texto: &str) -> Result<(Option<FaixaDaPesquisa>, u64), ErroResposta
 }
 
 /// A página `numero` marcada no paginador (`div.pesquisaPaginaSelecionada`).
-pub(crate) fn pagina_selecionada(
-    dom: &tl::VDom<'_>,
-) -> Result<Option<u64>, ErroRespostaDaPesquisa> {
-    let marcadas = nos_por_elemento_e_classe(dom, None, "div", "pesquisaPaginaSelecionada")?;
-    Ok(match marcadas.as_slice() {
-        [uma] => ler_contagem(texto_visivel(*uma, dom.parser()).trim()),
+pub(crate) fn pagina_selecionada(dom: &crate::tela_html::Documento) -> Option<u64> {
+    let marcadas = dom
+        .elementos("div")
+        .filter(|elemento| elemento.tem_classe("pesquisaPaginaSelecionada"))
+        .collect::<Vec<_>>();
+    match marcadas.as_slice() {
+        [uma] => ler_contagem(texto_visivel(*uma).trim()),
         _ => None,
-    })
+    }
 }
 
 /// A resposta 200 classificada, com as linhas lidas pelo leitor da operação.
@@ -136,15 +134,23 @@ pub(crate) enum Classificada<T> {
 /// `--pagina N`: na última página a PEN3 5.0.4 mostra "N resultados", que
 /// só vale essa faixa quando ela termina em N e o paginador marca a página.
 pub(crate) fn classificar_resposta<T>(
-    html: &str,
+    html: &crate::tela_html::HtmlServido,
     na_pagina: Option<(FaixaDaPesquisa, u64)>,
-    ler: impl FnOnce(&str) -> Result<Vec<T>, ErroRespostaDaPesquisa>,
+    ler: impl FnOnce(&crate::tela_html::HtmlServido) -> Result<Vec<T>, ErroRespostaDaPesquisa>,
 ) -> Result<Classificada<T>, ErroRespostaDaPesquisa> {
-    let dom = tl::parse(html, tl::ParserOptions::default())
-        .map_err(ErroRespostaDaPesquisa::HtmlDaRespostaDaPesquisaNaoInterpretado)?;
-    let tabelas = nos_por_elemento_e_classe(&dom, None, "table", "pesquisaResultado")?;
-    let avisos = nos_por_elemento_e_classe(&dom, None, "div", "pesquisaSemResultado")?;
-    let barras = nos_por_elemento_e_classe(&dom, None, "div", "pesquisaBarraD")?;
+    let dom = crate::tela_html::arvore(html);
+    let tabelas = dom
+        .elementos("table")
+        .filter(|elemento| elemento.tem_classe("pesquisaResultado"))
+        .collect::<Vec<_>>();
+    let avisos = dom
+        .elementos("div")
+        .filter(|elemento| elemento.tem_classe("pesquisaSemResultado"))
+        .collect::<Vec<_>>();
+    let barras = dom
+        .elementos("div")
+        .filter(|elemento| elemento.tem_classe("pesquisaBarraD"))
+        .collect::<Vec<_>>();
     match (tabelas.is_empty(), avisos.len(), barras.is_empty()) {
         (true, 1, true) => return Ok(Classificada::SemResultado),
         (true, 1, false) => {
@@ -163,7 +169,7 @@ pub(crate) fn classificar_resposta<T>(
         [barra] => *barra,
         _ => return Err(ErroRespostaDaPesquisa::BarrasDeContagemDaPesquisaRepetidas),
     };
-    let texto = html_escape::decode_html_entities(&texto_visivel(barra, dom.parser())).into_owned();
+    let texto = texto_visivel(barra);
     // `escrita`: a barra escreveu "Exibindo I - F de N"; "N resultados" só
     // implica a faixa e não admite linha ausente.
     let (faixa, total_declarado, escrita) = match ler_barra(&texto)? {
@@ -172,7 +178,7 @@ pub(crate) fn classificar_resposta<T>(
             Some((esperada, numero))
                 if esperada.inicio > 1
                     && esperada.fim == total
-                    && pagina_selecionada(&dom)? == Some(numero) =>
+                    && pagina_selecionada(&dom) == Some(numero) =>
             {
                 (esperada, total, false)
             }
@@ -211,16 +217,20 @@ pub(crate) fn classificar_resposta<T>(
 }
 
 /// A resposta 200 da pesquisa em processos.
-pub(crate) fn ler_resposta_html(html: &str) -> Result<RespostaDaPesquisa, ErroRespostaDaPesquisa> {
+pub(crate) fn ler_resposta_html(
+    html: &crate::tela_html::HtmlServido,
+) -> Result<RespostaDaPesquisa, ErroRespostaDaPesquisa> {
     ler_resposta_na_pagina(html, None)
 }
 
 /// [`ler_resposta_html`] da resposta de `--pagina N` (faixa esperada e N).
 pub(crate) fn ler_resposta_na_pagina(
-    html: &str,
+    html: &crate::tela_html::HtmlServido,
     na_pagina: Option<(FaixaDaPesquisa, u64)>,
 ) -> Result<RespostaDaPesquisa, ErroRespostaDaPesquisa> {
-    let ler = |html: &str| ler_resultados(html).map_err(ErroRespostaDaPesquisa::Resultado);
+    let ler = |html: &crate::tela_html::HtmlServido| {
+        ler_resultados(html).map_err(ErroRespostaDaPesquisa::Resultado)
+    };
     Ok(match classificar_resposta(html, na_pagina, ler)? {
         Classificada::SemResultado => RespostaDaPesquisa::SemResultado,
         Classificada::Lista {

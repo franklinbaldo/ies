@@ -1,0 +1,18 @@
+id: 24-and-then-split
+language: rust
+message: 'O and_then de split(P).next() nunca devolve None: é um map.'
+severity: hint
+rule:
+  any:
+    - pattern: $O.and_then(|$X| $X.split($P).next())
+  not:
+    inside:
+      stopBy: end
+      kind: mod_item
+      follows:
+        kind: attribute_item
+        regex: 'cfg\((all\()?test\b'
+constraints:
+  X:
+    kind: identifier
+fix: '$O.map(|$X| $X.split_once($P).map_or($X, |(antes, _)| antes))'

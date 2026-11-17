@@ -9,13 +9,11 @@ use crate::formulario_web::{
     consulta_do_controlador, derivar_submissao, enviar_submissao_via, localizar_formulario,
 };
 use crate::historico_processo::AndamentosLidos;
-use crate::html_atributos::valor_do_atributo;
 use crate::indice_local::IndiceLocal;
 use crate::instalacao::Instalacao;
 use crate::pagina_do_controle::codificacao_da_tela;
 use crate::processo::NumeroProcesso;
-use crate::processo_concluir::escrita::CookieIlegivel;
-use crate::processo_concluir::escrita::{Contador, FalhaDaTela, ler_cookie, obter_tela};
+use crate::processo_concluir::escrita::{Contador, FalhaDaTela, obter_tela};
 use crate::processo_obter::{
     Andamentos, EnvioDoProcesso, ErroProcessoObter, PedidoDeAndamentos, PedidoDoProcesso,
     SessaoDoProcesso, abrir_para_escrever, obter_processo,
@@ -44,9 +42,6 @@ const REGISTRAR: OperacaoDeFormulario = OperacaoDeFormulario {
 #[derive(Debug, Clone, PartialEq, Eq, thiserror::Error)]
 #[error("{self:?}")]
 pub(crate) enum ErroTela {
-    /// O tokenizador de atributos recusou a tag.
-    Atributo(#[source] crate::html_atributos::ErroAtributoHtml),
-    HtmlInvalido(#[source] tl::ParseError),
     FormularioAusenteOuDuplicado(#[source] ErroSubmissaoFormulario),
     ControleAusenteOuDuplicado,
     ProtocoloDiferente,
@@ -54,46 +49,41 @@ pub(crate) enum ErroTela {
 }
 
 /// Um formulário, dois ocultos de identidade e um botão submit.
-pub(crate) fn conferir_formulario(html: &str, id: &str) -> Result<(), ErroTela> {
-    let dom = tl::parse(html, tl::ParserOptions::default()).map_err(ErroTela::HtmlInvalido)?;
+pub(crate) fn conferir_formulario(
+    html: &crate::tela_html::HtmlServido,
+    id: &str,
+) -> Result<(), ErroTela> {
+    let dom = crate::tela_html::arvore(html);
     let form = localizar_formulario(&dom, FORM).map_err(ErroTela::FormularioAusenteOuDuplicado)?;
     let mut protocolo = Vec::new();
     let mut atividade = 0;
     let mut descricao = 0;
     let mut salvar = 0;
-    for tag in form
-        .children()
-        .all(dom.parser())
-        .iter()
-        .filter_map(tl::Node::as_tag)
-    {
-        let elemento = tag.name().as_utf8_str().to_ascii_lowercase();
+    for tag in form.descendentes() {
+        let elemento = tag.nome().to_ascii_lowercase();
         if !matches!(
             elemento.as_str(),
             "input" | "textarea" | "button" | "select"
         ) {
             continue;
         }
-        let attr = |nome| valor_do_atributo(tag, nome).map_err(ErroTela::Atributo);
-        let Some(nome) = attr("name")?.filter(|s| !s.is_empty()) else {
+        let Some(nome) = tag.atributo("name").filter(|s| !s.is_empty()) else {
             continue;
         };
-        let tipo = attr("type")?
-            .unwrap_or_else(|| {
-                if elemento == "button" {
-                    "submit"
-                } else {
-                    "text"
-                }
-                .to_owned()
+        let tipo = tag
+            .atributo("type")
+            .unwrap_or(if elemento == "button" {
+                "submit"
+            } else {
+                "text"
             })
             .to_ascii_lowercase();
-        if attr("disabled")?.is_some() {
+        if tag.atributo("disabled").is_some() {
             continue;
         }
-        match (elemento.as_str(), tipo.as_str(), nome.as_str()) {
+        match (elemento.as_str(), tipo.as_str(), nome) {
             ("input", "hidden", "hdnIdProtocolo") => {
-                protocolo.push(attr("value")?.unwrap_or_default());
+                protocolo.push(tag.atributo("value").unwrap_or_default().to_owned());
             }
             ("input", "hidden", "hdnIdAtividade") => atividade += 1,
             ("textarea", _, TEXTO) => descricao += 1,
@@ -155,7 +145,7 @@ fn localizacao_esperada(local: Option<&str>, origem: &str, id: &str) -> bool {
     let Ok(consulta) = ConsultaDoControlador::ler(consulta) else {
         return false;
     };
-    consulta.acao() == Ok(AcaoDoSei::ProcedimentoConsultarHistorico)
+    consulta.acao() == Ok(AcaoDoSei::ProcedimentoConsultarHistorico.como_na_url())
         && consulta.unico("id_procedimento") == Ok(id)
 }
 pub(crate) struct Resultado {
@@ -188,8 +178,6 @@ pub(crate) enum IncertezaDoAndamento {
 #[derive(Debug, thiserror::Error)]
 #[error("{self:?}")]
 pub(crate) enum ErroRegistrarAndamento {
-    /// O cookie privado da sessão não pôde ser lido.
-    Cookie(#[from] CookieIlegivel),
     Abertura(#[from] ErroProcessoObter),
     OrigemNaoAutorizada,
     Barra(#[from] ErroAndamentoNaBarra),
@@ -240,7 +228,7 @@ pub(crate) fn registrar<V: EnvioDoProcesso>(
     let unidade = aberto
         .unidade
         .ok_or(ErroRegistrarAndamento::UnidadeNaoPublicada)?;
-    let cookie = ler_cookie(sessao)?;
+    let cookie = acoes.cookie.clone();
     let (html, mime) = obter_tela(&mut rede, &cookie, endereco.as_str())?;
     conferir_formulario(&html, &aberto.arvore.processo.id)?;
     let codificacao =
@@ -384,13 +372,19 @@ mod tests {
     #[test]
     fn formulario_exige_identidade_unica() {
         let html = formulario("123");
-        assert_eq!(conferir_formulario(&html, "123"), Ok(()));
         assert_eq!(
-            conferir_formulario(&html, "124"),
+            conferir_formulario(&crate::tela_html::HtmlServido::de_teste(&html), "123"),
+            Ok(())
+        );
+        assert_eq!(
+            conferir_formulario(&crate::tela_html::HtmlServido::de_teste(&html), "124"),
             Err(ErroTela::ProtocoloDiferente)
         );
         assert!(matches!(
-            conferir_formulario(&format!("{html}{html}"), "123"),
+            conferir_formulario(
+                &crate::tela_html::HtmlServido::de_teste(&format!("{html}{html}")),
+                "123"
+            ),
             Err(ErroTela::FormularioAusenteOuDuplicado(_))
         ));
     }
@@ -399,7 +393,7 @@ mod tests {
         let html =
             formulario("123").replace("</form>", "<input name='acao' value='invasor'></form>");
         assert_eq!(
-            conferir_formulario(&html, "123"),
+            conferir_formulario(&crate::tela_html::HtmlServido::de_teste(&html), "123"),
             Err(ErroTela::CampoInesperado)
         );
     }

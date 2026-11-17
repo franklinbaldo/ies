@@ -5,17 +5,15 @@ use crate::acao_do_sei::AcaoDoSei;
 use crate::consulta_do_controlador::ConsultaDoControlador;
 use crate::instalacao::Instalacao;
 
-pub(super) fn id_do_link(link: &str) -> Option<&str> {
-    let consulta = ConsultaDoControlador::ler(link.split('?').nth(1)?).ok()?;
-    let primeiro = consulta.unico("id_tipo_procedimento").ok()?;
-    (!primeiro.is_empty() && primeiro.bytes().all(|b| b.is_ascii_digit())).then_some(primeiro)
+pub(super) fn id_do_link(link: &str) -> Result<&str, crate::consulta_do_controlador::ErroIdDaUrl> {
+    crate::consulta_do_controlador::id_decimal(link, "id_tipo_procedimento")
 }
 
 /// Exige exatamente uma ocorrência do parâmetro acao, com valor literal
 /// esperado. Uma segunda ação diferente também torna a URL ambígua.
 fn acao_unica(consulta: &str, esperada: AcaoDoSei) -> bool {
     ConsultaDoControlador::ler(consulta)
-        .is_ok_and(|consulta| consulta.unico("acao") == Ok(esperada.como_na_url()))
+        .is_ok_and(|consulta| consulta.acao() == Ok(esperada.como_na_url()))
 }
 
 pub(super) fn resolver_link(
@@ -85,17 +83,49 @@ pub(super) fn retorno_da_criacao(
     let consulta = crate::url_observada::UrlHttps::interpretar(&url)
         .and_then(|p| p.consulta)
         .ok_or(ErroCriar::NaoConfirmado)?;
-    let mut ids = consulta
-        .split('&')
-        .filter(|par| par.split_once('=').map_or(*par, |(nome, _)| nome) == "id_procedimento");
-    let primeiro = ids.next().ok_or(ErroCriar::NaoConfirmado)?;
-    if ids.next().is_some() {
+    let consulta =
+        ConsultaDoControlador::ler(consulta).map_err(ErroCriar::ConsultaDoRetornoIlegivel)?;
+    let primeiro = consulta
+        .unico("id_procedimento")
+        .map_err(ErroCriar::IdDoRetornoIlegivel)?;
+    if primeiro.is_empty() || !primeiro.bytes().all(|b| b.is_ascii_digit()) {
         return Err(ErroCriar::NaoConfirmado);
     }
-    let id = primeiro
-        .strip_prefix("id_procedimento=")
-        .filter(|id| !id.is_empty() && id.bytes().all(|b| b.is_ascii_digit()))
-        .ok_or(ErroCriar::NaoConfirmado)?
-        .to_owned();
+    let id = primeiro.to_owned();
     Ok((url, id))
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use crate::consulta_do_controlador::ErroParametroDaUrl;
+
+    const ENVIO: &str = "https://sei.exemplo.test/sei/controlador.php?acao=procedimento_gerar";
+
+    fn retorno(localizacao: &str) -> Result<(String, String), ErroCriar> {
+        let instalacao = Instalacao::interpretar("https://sei.exemplo.test/sei").unwrap();
+        retorno_da_criacao(&instalacao, localizacao, ENVIO)
+    }
+
+    #[test]
+    fn id_do_retorno_repetido_tem_a_causa_da_chave() {
+        assert!(matches!(
+            retorno(
+                "controlador.php?acao=procedimento_trabalhar&id_procedimento=12&id_procedimento=13"
+            ),
+            Err(ErroCriar::IdDoRetornoIlegivel(
+                ErroParametroDaUrl::ParametroRepetido("id_procedimento")
+            ))
+        ));
+    }
+
+    #[test]
+    fn id_do_retorno_ausente_tem_a_causa_da_chave() {
+        assert!(matches!(
+            retorno("controlador.php?acao=procedimento_trabalhar"),
+            Err(ErroCriar::IdDoRetornoIlegivel(
+                ErroParametroDaUrl::ParametroAusente("id_procedimento")
+            ))
+        ));
+    }
 }

@@ -81,22 +81,25 @@ pub(crate) enum TelaDosMarcadores {
 #[derive(Clone, Debug, PartialEq, Eq, thiserror::Error)]
 #[error("{self:?}")]
 pub(crate) enum ErroMarcadores {
-    /// O tokenizador de atributos recusou a tag.
-    Atributo(#[from] crate::html_atributos::ErroAtributoHtml),
+    Legenda(#[from] crate::legenda::ErroLegenda),
     Barra(#[from] crate::arvore_processo::ErroBarraDoProcesso),
     LinksDosMarcadoresRepetidosNaBarra,
     EnderecoDosMarcadoresNaoReconhecido,
     EnderecoDosMarcadoresDeOutroProcesso,
     TelaDosMarcadoresAusente,
+    /// A `action` do formulário de marcadores não se deixa ler em pares.
+    ConsultaDoFormularioIlegivel(
+        #[source] crate::consulta_do_controlador::ErroConsultaDoControlador,
+    ),
+    /// A `acao` do formulário de marcadores não é única nem conhecida.
+    AcaoDoFormularioNaoLida(#[source] crate::consulta_do_controlador::ErroAcaoDaUrl),
+    /// O `id_procedimento` do formulário não é único.
+    IdDoFormularioNaoLido(#[source] crate::consulta_do_controlador::ErroParametroDaUrl),
     NumeroDosMarcadoresDiferenteDoSolicitado,
     IdDosMarcadoresDiferenteDoAberto,
     MarcadoresAlemDoTotalDeclarado,
     CabecalhoDosMarcadoresNaoReconhecido,
-    HtmlDosMarcadoresNaoInterpretado,
-    /// O parser de HTML recusou a tela de marcadores.
-    HtmlDosMarcadoresRecusadoPeloParser(#[source] tl::ParseError),
     /// O número da legenda dos marcadores não é um inteiro decimal.
-    NumeroDaLegendaIlegivel(#[source] std::num::ParseIntError),
     LegendaDosMarcadoresForaDaFormaObservada,
     LinhaDoMarcadorForaDaFormaObservada,
     MarcadorRepetidoNaTela,

@@ -2,6 +2,7 @@
 //! Contrato: docs/arquitetura/0002-submeter-formulario-observado.md.
 //! `action` aqui é o atributo do `<form>`, não um despachante genérico.
 mod ajax;
+mod campo_de_texto;
 mod codificacao;
 mod erro;
 mod guardada;
@@ -11,12 +12,12 @@ mod redirecionamento;
 mod unidade;
 
 use crate::acao_do_sei::{AcaoDaSubmissao, AcaoDoSei};
-use crate::html_atributos::{nos_com_id, nos_por_elemento_e_classe};
 use crate::instalacao::Instalacao;
 use crate::transporte::sessao::CookieDaSessao;
 use crate::transporte::validacao_da_infra::mensagem_de_validacao_da_infra;
 use crate::transporte::{FalhaTransporte, RespostaWeb, decodificar_resposta};
 pub(crate) use ajax::{ConsultaAjax, derivar_consulta_ajax};
+pub(crate) use campo_de_texto::CampoDeTexto;
 use codificacao::codificar;
 pub(crate) use codificacao::decodificar_atributo;
 pub(crate) use erro::ErroSubmissaoFormulario;
@@ -130,7 +131,7 @@ pub(crate) enum CodificacaoDaTela {
 /// HTML e URL exata da mesma resposta, na mesma geração de sessão.
 pub(crate) struct TelaServida<'a> {
     pub(crate) url: &'a str,
-    pub(crate) html: &'a str,
+    pub(crate) html: &'a crate::tela_html::HtmlServido,
     pub(crate) codificacao: CodificacaoDaTela,
 }
 
@@ -336,13 +337,11 @@ pub(crate) fn derivar_submissao_com_action(
             FalhaTransporte::OrigemNaoAutorizada,
         ));
     }
-    // tl só recusa entradas acima de u32::MAX bytes, já barradas acima.
-    let dom = tl::parse(tela.html, tl::ParserOptions::default())
-        .map_err(ErroSubmissaoFormulario::HtmlDaTelaNaoInterpretado)?;
+    let dom = crate::tela_html::arvore(tela.html);
     match operacao.unidade {
         ConferenciaDaUnidade::NaTelaDoFormulario => conferir_unidade(&dom, unidade_solicitada)?,
         ConferenciaDaUnidade::NaTelaDeOrigemDoLink => {
-            if !nos_com_id(&dom, "lnkInfraUnidade")?.is_empty() {
+            if !dom.com_id("lnkInfraUnidade").collect::<Vec<_>>().is_empty() {
                 conferir_unidade(&dom, unidade_solicitada)?;
             }
         }
@@ -353,7 +352,7 @@ pub(crate) fn derivar_submissao_com_action(
         Some(url) => resolver_action_declarada(url, &servida, instalacao, operacao)?,
         None => resolver_action(form, &servida, instalacao, operacao)?,
     };
-    let controles = ler_controles(form, dom.parser(), operacao)?;
+    let controles = ler_controles(form, operacao)?;
     let ordenados = ordenar_campos(&controles, operacao, campos)?;
     let corpo = codificar_corpo(&ordenados, tela.codificacao)?;
     Ok(SubmissaoDerivada {
@@ -414,7 +413,7 @@ impl fmt::Debug for Redirecionamento302 {
 /// HTML com o marcador da operação, ou 302 entregue à operação como dado.
 #[derive(Debug)]
 pub(crate) enum RespostaDoEnvio {
-    Html(String),
+    Html(crate::tela_html::HtmlServido),
     Redirecionamento(Redirecionamento302),
 }
 
@@ -456,10 +455,13 @@ where
     };
     let mut marcado = resultado == ResultadoDoEnvio::ConferidoPorLeituraPosterior;
     if !marcadores.is_empty() {
-        let dom = tl::parse(&html, tl::ParserOptions::default())
-            .map_err(ErroSubmissaoFormulario::HtmlDaTelaNaoInterpretado)?;
+        let dom = crate::tela_html::arvore(&html);
         for MarcadorDeResultado { elemento, classe } in marcadores {
-            marcado |= !nos_por_elemento_e_classe(&dom, None, elemento, classe)?.is_empty();
+            marcado |= !dom
+                .elementos(elemento)
+                .filter(|elemento| elemento.tem_classe(classe))
+                .collect::<Vec<_>>()
+                .is_empty();
         }
     }
     if !marcado {

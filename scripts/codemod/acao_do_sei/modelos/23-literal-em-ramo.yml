@@ -1,0 +1,39 @@
+id: 23-literal-em-ramo-VALOR
+language: rust
+message: 'O ramo de uma função de ação devolve a variante, não o texto.'
+severity: hint
+rule:
+  kind: string_literal
+  regex: '^"VALOR"$'
+  any:
+    - inside:
+        kind: match_arm
+        field: value
+    - inside:
+        kind: arguments
+        inside:
+          kind: call_expression
+          regex: '^Some\('
+          any:
+            - inside:
+                kind: match_arm
+                field: value
+            - inside:
+                kind: block
+                inside:
+                  kind: match_arm
+                  field: value
+  inside:
+    stopBy: end
+    kind: function_item
+    has:
+      field: name
+      regex: 'acao'
+  not:
+    inside:
+      stopBy: end
+      kind: mod_item
+      follows:
+        kind: attribute_item
+        regex: 'cfg\((all\()?test\b'
+fix: 'crate::acao_do_sei::AcaoDoSei::VARIANTE'

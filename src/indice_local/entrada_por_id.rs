@@ -10,6 +10,7 @@
 use super::IndiceLocal;
 use super::falhas::FalhaDoIndice;
 use super::validacao::conferir_id_procedimento;
+use crate::acao_do_sei::AcaoDoSei;
 use crate::instalacao::Instalacao;
 use rusqlite::OptionalExtension;
 
@@ -27,11 +28,12 @@ pub(crate) const RECUSAS_PARA_REBAIXAR_ACEITA: i64 = 2;
 pub(crate) fn url_da_entrada_por_id(
     instalacao: &Instalacao,
     id_procedimento: &str,
-) -> Option<String> {
-    conferir_id_procedimento(id_procedimento).ok()?;
-    Some(format!(
-        "{}/controlador.php?acao=procedimento_trabalhar&id_procedimento={id_procedimento}",
-        instalacao.url_base()
+) -> Result<String, super::validacao::RegistroRecusado> {
+    conferir_id_procedimento(id_procedimento)?;
+    Ok(format!(
+        "{}/controlador.php?acao={acao}&id_procedimento={id_procedimento}",
+        instalacao.url_base(),
+        acao = AcaoDoSei::ProcedimentoTrabalhar.como_na_url()
     ))
 }
 
@@ -42,12 +44,12 @@ pub(crate) fn url_da_entrada_por_id_com_documento(
     instalacao: &Instalacao,
     id_procedimento: &str,
     id_documento: &str,
-) -> Option<String> {
-    conferir_id_procedimento(id_documento).ok()?;
+) -> Result<String, super::validacao::RegistroRecusado> {
+    conferir_id_procedimento(id_documento)?;
     let mut url = url_da_entrada_por_id(instalacao, id_procedimento)?;
     url.push_str("&id_documento=");
     url.push_str(id_documento);
-    Some(url)
+    Ok(url)
 }
 
 /// O que a instalação respondeu à entrada por id, enquanto vale.

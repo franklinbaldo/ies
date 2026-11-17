@@ -1,0 +1,36 @@
+id: 89-importar
+language: rust
+message: 'O arquivo que nomeia crate::acao_do_sei::AcaoDoSei fora de módulo interno passa a importá-lo.'
+severity: hint
+rule:
+  pattern: $U
+  kind: use_declaration
+  inside:
+    kind: source_file
+    all:
+      - has:
+          stopBy: end
+          any:
+            - any:
+                - kind: scoped_identifier
+                - kind: scoped_type_identifier
+              regex: '^crate::acao_do_sei::AcaoDoSei$'
+            - kind: token_tree
+              regex: 'crate::acao_do_sei::AcaoDoSei::'
+          not:
+            inside:
+              stopBy: end
+              any:
+                - kind: mod_item
+                - kind: use_declaration
+      - not:
+          has:
+            kind: use_declaration
+            regex: 'acao_do_sei::(AcaoDoSei;|\{[^}]*\bAcaoDoSei\b)'
+  not:
+    follows:
+      stopBy: end
+      kind: use_declaration
+fix: |-
+  use crate::acao_do_sei::AcaoDoSei;
+  $U

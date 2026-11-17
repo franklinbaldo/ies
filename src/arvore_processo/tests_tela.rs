@@ -3,6 +3,7 @@
 use super::tela::TelaDoProcesso;
 use super::*;
 use crate::instalacao::Instalacao;
+use crate::tela_html::HtmlServido;
 use std::fmt::Write as _;
 
 pub(crate) const HASH_ARVORE: &str =
@@ -34,7 +35,7 @@ pub(crate) fn tela_do_processo(unidade: &str, iframes: &[String]) -> String {
 }
 
 fn ler(html: &str, unidade: Option<&str>) -> Result<TelaDoProcesso, super::ErroTelaDoProcesso> {
-    ler_tela_do_processo(&instalacao(), html, "10", unidade)
+    ler_tela_do_processo(&instalacao(), &HtmlServido::de_teste(html), "10", unidade)
 }
 
 #[test]
@@ -117,4 +118,34 @@ fn arvore_vazia_com_validacao_de_acesso_e_erro_proprio() {
         ler(&sem_modal, None),
         Err(super::ErroTelaDoProcesso::EnderecoDaArvoreNaoReconhecido)
     ));
+}
+
+fn ler_documento(src: &str) -> Result<(TelaDoProcesso, String), super::ErroTelaDoProcesso> {
+    super::ler_tela_do_documento(
+        &instalacao(),
+        &HtmlServido::de_teste(&tela_do_processo("U", &[src.to_owned()])),
+        "21",
+        None,
+    )
+}
+
+#[test]
+fn tela_do_documento_com_consulta_ilegivel_ou_chave_repetida_tem_a_causa() {
+    let valido = src_da_arvore("10").replace("id_documento=&", "id_documento=21&");
+    assert!(ler_documento(&valido).is_ok());
+    assert_eq!(
+        ler_documento(&valido.replace("&infra_sistema", "&lixo&infra_sistema")).map(|_| ()),
+        Err(super::ErroTelaDoProcesso::ConsultaDaArvoreIlegivel(
+            crate::consulta_do_controlador::ErroConsultaDoControlador::ParSemIgual
+        ))
+    );
+    assert_eq!(
+        ler_documento(&valido.replace("&infra_sistema", "&id_procedimento=11&infra_sistema"))
+            .map(|_| ()),
+        Err(super::ErroTelaDoProcesso::IdDoProcessoNaArvore(
+            crate::consulta_do_controlador::ErroParametroDaUrl::ParametroRepetido(
+                "id_procedimento"
+            )
+        ))
+    );
 }

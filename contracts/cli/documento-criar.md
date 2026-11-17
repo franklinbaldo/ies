@@ -54,11 +54,11 @@ com o contexto `TentativaDeCriacao { requisicoes }`).
 | Erro (stderr) | Critério |
 | --- | --- |
 | `ErroDocumentoCriar::ProcessoNaoAbertoNaUnidade` | A situação conferida não inclui a unidade ativa |
-| `ErroCriar::TipoAusente` | Não há opção exata na lista completa |
-| `ErroCriar::TipoAmbiguo` | Mais de uma opção com o mesmo nome |
-| `ErroCriar::ListaForaDaForma` | `tblSeries` ou links não interpretáveis |
-| `ErroCriar::CadastroForaDaForma` | Cadastro ou tipo aberto inconsistente |
-| `ErroCriar::NaoAplicado` | Verificação concluiu que não surgiu documento |
+| `ErroListaDeTiposDocumento::TipoAusente` | Não há opção exata na lista completa |
+| `ErroListaDeTiposDocumento::TipoAmbiguo` | Mais de uma opção com o mesmo nome |
+| `ErroListaDeTiposDocumento::ListaForaDaForma` | `tblSeries` ou links não interpretáveis |
+| `ErroCadastroDoDocumento::CadastroForaDaForma` | Cadastro ou tipo aberto inconsistente |
+| `ErroConferenciaDeCriacao::NaoAplicado` | Verificação concluiu que não surgiu documento |
 | `ErroDocumentoCriar::Confirmacao(ErroConfirmacaoDaCriacao::NaoConfirmadoNoEnvio)`, `ErroDocumentoCriar::Confirmacao(ErroConfirmacaoDaCriacao::NaoConfirmadoNaReleitura)` | Resposta ou árvore não permite conferir unicidade e identidade |
 | `ErroLinkIncluirDocumento::Barra(ErroBarraDoProcesso::BarraDoProcessoForaDaFormaObservada)` | A barra da raiz não tem estrutura interpretável |
 | `ErroLinkIncluirDocumento::Barra(ErroBarraDoProcesso::BarrasDoProcessoRepetidasNaArvore)` | A barra da raiz aparece duas vezes |
@@ -68,13 +68,13 @@ com o contexto `TentativaDeCriacao { requisicoes }`).
 | `ErroDocumentoCriar::LinkNaoPublicado` | A unidade não publicou a opção de incluir |
 | `ErroDocumentoCriar::UnidadeNaoPublicada` | A tela não identifica a unidade de trabalho |
 | `ErroDocumentoCriar::SituacaoNaoLida` | A árvore não publicou a situação segura para gravação |
-| `ErroCriar::LinkDoTipoNaoNavegavel` | O `href`/`onclick` do tipo não é a navegação literal observada |
-| `ErroCriar::NavegacaoNaoComprovadaPorScript(ErroGuardaDeNavegacao::…)` | O `onclick` é literal, mas a função que ele chama não foi comprovada em script ativo (ausente, repetida, fora do nível superior ou com corpo diferente) |
-| `ErroCriar::EnderecoDoTipoNaoReconhecido` | URL do tipo ausente, inválida ou vinculada a outro processo |
-| `ErroCriar::TipoDoCadastroDiferente` | A tela aberta não identifica o tipo pedido |
-| `ErroCriar::DescricaoNaoOferecida` | A descrição solicitada não tem controle utilizável |
-| `ErroCriar::NivelNaoOferecido` | O nível solicitado não aparece habilitado |
-| `ErroCriar::CampoObrigatorioNaoAtendido` | O cadastro publica controle HTML obrigatório que a CLI não consegue preencher com valor observado |
+| `ErroListaDeTiposDocumento::LinkDoTipoNaoNavegavel` | O `href`/`onclick` do tipo não é a navegação literal observada |
+| `ErroListaDeTiposDocumento::NavegacaoNaoComprovadaPorScript(ErroGuardaDeNavegacao::…)` | O `onclick` é literal, mas a função que ele chama não foi comprovada em script ativo (ausente, repetida, fora do nível superior ou com corpo diferente) |
+| `ErroListaDeTiposDocumento::EnderecoDoTipoNaoReconhecido` | URL do tipo ausente, inválida ou vinculada a outro processo |
+| `ErroCadastroDoDocumento::TipoDoCadastroDiferente` | A tela aberta não identifica o tipo pedido |
+| `ErroCadastroDoDocumento::DescricaoNaoOferecida` | A descrição solicitada não tem controle utilizável |
+| `ErroCadastroDoDocumento::NivelNaoOferecido` | O nível solicitado não aparece habilitado |
+| `ErroCadastroDoDocumento::CampoObrigatorioNaoAtendido` | O cadastro publica controle HTML obrigatório que a CLI não consegue preencher com valor observado |
 | `ErroDocumentoCriar::TelaRedirecionada` | A tela de leitura devolveu 302 não seguido |
 | `ErroNivelDeConfirmacao::NivelNaoInformado` | Confirmação exige --nivel publico explícito; não presumir nível |
 | `ErroNivelDeConfirmacao::NivelRestritoSemHipotese` | Nível não público exige resolver a hipótese legal antes da escrita |
@@ -232,7 +232,7 @@ A seleção do tipo por `escolher(id)` e a troca do filtro por
 um único `script` clássico inline ativo. Texto idêntico em
 `template`, comentário HTML ou `script type=application/json` não
 autoriza o POST de navegação; não se executa JavaScript nem se inventa
-endpoint. A recusa é `ErroCriar::NavegacaoNaoComprovadaPorScript`
+endpoint. A recusa é `ErroListaDeTiposDocumento::NavegacaoNaoComprovadaPorScript`
 e acontece antes do envio daquele formulário. Testes adversariais
 sintéticos cobrem os três conteúdos inertes em ambos os caminhos e
 controles positivos com código ativo. Não extrapolar para outras

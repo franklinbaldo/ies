@@ -12,27 +12,45 @@ use crate::transporte::FalhaTransporte;
 fn erro_da_releitura_de_anotacao_preserva_causa_sem_segundo_post() {
     // O destino foi confirmado por árvore, mas o GET independente não decide
     // a anotação por três motivos distintos: rede, redirect e outro processo.
-    let casos = [
+    type Esperado = Box<dyn Fn(&super::ErroEnviar) -> bool>;
+    let casos: [(_, Esperado); 3] = [
         (
             Err(FalhaTransporte::Rede),
-            super::ErroEnviar::Anotacoes(super::anotacoes::ErroDasAnotacoes::TelaDasAnotacoes(
-                FalhaTransporte::Rede,
-            )),
+            Box::new(|e: &super::ErroEnviar| {
+                matches!(
+                    e,
+                    super::ErroEnviar::Anotacoes(
+                        super::anotacoes::ErroDasAnotacoes::TelaDasAnotacoes(FalhaTransporte::Rede,)
+                    )
+                )
+            }),
         ),
         (
             r302("controlador.php?acao=principal"),
-            super::ErroEnviar::Anotacoes(
-                super::anotacoes::ErroDasAnotacoes::TelaDasAnotacoesRedirecionada,
-            ),
+            Box::new(|e: &super::ErroEnviar| {
+                matches!(
+                    e,
+                    super::ErroEnviar::Anotacoes(
+                        super::anotacoes::ErroDasAnotacoes::TelaDasAnotacoesRedirecionada,
+                    )
+                )
+            }),
         ),
         (
             ok(anotacao("Outra", "999")),
-            super::ErroEnviar::Anotacoes(super::anotacoes::ErroDasAnotacoes::LeituraDasAnotacoes(
-                super::anotacoes::ErroLeituraDaAnotacao::AnotacaoDeOutroProcesso,
-            )),
+            Box::new(|e: &super::ErroEnviar| {
+                matches!(
+                    e,
+                    super::ErroEnviar::Anotacoes(
+                        super::anotacoes::ErroDasAnotacoes::LeituraDasAnotacoes(
+                            super::anotacoes::ErroLeituraDaAnotacao::AnotacaoDeOutroProcesso,
+                        )
+                    )
+                )
+            }),
         ),
     ];
-    for (ultima_resposta, causa_esperada) in casos {
+    for (ultima_resposta, esperado) in casos {
         let acoes = vec![pelo_envio(ID), acao_da_barra(&link_anotacao())];
         let respostas = com(
             abertura(arvore(&[UNIDADE], &acoes)),
@@ -69,7 +87,7 @@ fn erro_da_releitura_de_anotacao_preserva_causa_sem_segundo_post() {
         let super::ErroEnviar::NaoConfirmadoNaRemocaoDeAnotacoes { causa, .. } = erro else {
             panic!("a releitura deve falhar sem confirmação e preservar a causa");
         };
-        assert_eq!(*causa, causa_esperada);
+        assert!(esperado(&causa), "{causa:?}");
         assert_eq!(pedidos.len(), 9);
         assert_eq!(
             pedidos

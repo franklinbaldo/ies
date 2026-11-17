@@ -19,6 +19,7 @@ use crate::cassette::acervo::{INSTALACOES, gravacao, percorrer, publicar};
 use crate::cassette::html_da_resposta;
 use crate::formulario_web::{CodificacaoDaTela, TelaServida, derivar_submissao};
 use crate::instalacao::Instalacao;
+use crate::tela_html::HtmlServido;
 use std::collections::BTreeMap;
 use std::fmt::Write as _;
 
@@ -49,7 +50,7 @@ fn tela(
     interacao: &serde_json::Value,
     doc: &str,
 ) -> (String, Option<TelaDeAssinatura>) {
-    let lida = match conferir_tela_de_assinatura(html, doc) {
+    let lida = match conferir_tela_de_assinatura(&HtmlServido::de_teste(html), doc) {
         Ok(lida) => lida,
         Err(erro) => return (format!("`{erro:?}`"), None),
     };
@@ -57,9 +58,10 @@ fn tela(
         return ("conferida, sem cargo sugerido".into(), Some(lida));
     };
     let url = interacao["response"]["url"].as_str().unwrap_or("");
+    let html = HtmlServido::de_teste(html);
     let servida = TelaServida {
         url,
-        html,
+        html: &html,
         codificacao: CodificacaoDaTela::Iso88591,
     };
     let campos = [
@@ -141,7 +143,7 @@ fn replay_nao_confunde_antes_ausente_com_antes_sem_caneta() {
         CARGO, ID, ID_DOC, ORIGEM, arvore_do_documento, caneta_da_sessao, tela_padrao,
     };
     let instalacao = Instalacao::interpretar(ORIGEM).unwrap();
-    let tela = conferir_tela_de_assinatura(&tela_padrao(), ID_DOC).unwrap();
+    let tela = conferir_tela_de_assinatura(&HtmlServido::de_teste(&tela_padrao()), ID_DOC).unwrap();
     let depois = arvore_do_documento('S', &[caneta_da_sessao(CARGO)]);
 
     // Hipótese sintética: uma captura pode mostrar o POST e a caneta

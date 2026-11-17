@@ -1,0 +1,28 @@
+id: 40-falha-sem-sessao
+message: 'falha(s, "ArquivoPrivadoAusenteOuInacessivel") vira falha_por(s, "UrlDoControleIlegivel", "Ausente"): o arquivo que falta primeiro é o da URL do Controle, e o fato continua conferido na causa.'
+language: rust
+severity: hint
+rule:
+  pattern: 'falha($S, "ArquivoPrivadoAusenteOuInacessivel")'
+fix: 'falha_por($S, "UrlDoControleIlegivel", "Ausente")'
+---
+id: 40b-stderr-sem-sessao
+message: '"Error: ArquivoPrivadoAusenteOuInacessivel" vira "Error: UrlDoControleIlegivel(Ausente)" (o Debug inteiro do erro).'
+language: rust
+severity: hint
+rule:
+  pattern: $P
+  kind: token_tree
+  regex: '"Error: ArquivoPrivadoAusenteOuInacessivel"'
+  not:
+    has:
+      stopBy: end
+      kind: token_tree
+      regex: '"Error: ArquivoPrivadoAusenteOuInacessivel"'
+transform:
+  NOVO:
+    replace:
+      source: $P
+      replace: '"Error: ArquivoPrivadoAusenteOuInacessivel"'
+      by: '"Error: UrlDoControleIlegivel(Ausente)"'
+fix: $NOVO

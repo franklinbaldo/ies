@@ -1,0 +1,15 @@
+id: 56f-nos-filhos
+language: rust
+message: 'Filhos diretos com texto e comentário (children().top() + get)'
+severity: hint
+rule:
+  all:
+    - pattern: '$T.children().top().iter().filter_map(|$H| $H.get($P))'
+    - not:
+        inside:
+          stopBy: end
+          kind: mod_item
+          follows:
+            kind: attribute_item
+            regex: 'cfg\(test\)'
+fix: '$T.nos()'

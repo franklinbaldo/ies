@@ -20,7 +20,7 @@ pub(crate) fn obter_na_visao_resumida<V: EnvioDoControle>(
     pagina: Option<usize>,
     cookie: &CookieDaSessao,
     envio: &mut V,
-) -> Result<String, super::ErroVisaoDoControle> {
+) -> Result<crate::tela_html::HtmlServido, super::ErroVisaoDoControle> {
     let encontrado = contexto(&tela.html)?;
     let unidade = unidade_da_tela(&encontrado, unidade_solicitada)?;
     if !encontrado.eh_detalhada() {
@@ -49,7 +49,7 @@ fn postar_pagina<V: EnvioDoControle>(
     tela: &TelaAtual,
     categoria: Categoria,
     numero: usize,
-) -> Result<Option<String>, super::ErroVisaoDoControle> {
+) -> Result<Option<crate::tela_html::HtmlServido>, super::ErroVisaoDoControle> {
     let codificacao = codificacao_da_tela(&tela.mime)
         .ok_or(super::ErroVisaoDoControle::CharsetDaTelaNaoSuportado)?;
     let servida = TelaServida {

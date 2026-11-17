@@ -11,8 +11,6 @@
 use super::ErroLinkDoHistorico;
 use crate::acao_do_sei::AcaoDoSei;
 use crate::arvore_processo::endereco::{EnderecoRecusado, conferir_endereco_relativo};
-use crate::formulario_web::decodificar_atributo;
-use crate::html_atributos::{nos_com_id, valor_do_atributo};
 use crate::instalacao::Instalacao;
 
 /// URL absoluta do histórico, assinada: `Debug` redigido, sem `Display`.
@@ -41,7 +39,7 @@ const COM_ARGUMENTO: &str = "consultarAndamento('";
 /// é a árvore que não publica nenhuma das formas.
 pub(crate) fn ler_link_do_historico(
     instalacao: &Instalacao,
-    html: &str,
+    html: &crate::tela_html::HtmlServido,
     id: &str,
 ) -> Result<EnderecoDoHistorico, ErroLinkDoHistorico> {
     let mut achados = do_onclick(html)?;
@@ -67,28 +65,19 @@ pub(crate) fn ler_link_do_historico(
 }
 
 /// Forma GO: URL no `onclick` de cada `a` dentro de `div#divConsultarAndamento`.
-fn do_onclick(html: &str) -> Result<Vec<String>, ErroLinkDoHistorico> {
-    let dom = tl::parse(html, tl::ParserOptions::default())
-        .map_err(ErroLinkDoHistorico::HtmlDaArvoreNaoInterpretado)?;
-    let parser = dom.parser();
+fn do_onclick(html: &crate::tela_html::HtmlServido) -> Result<Vec<String>, ErroLinkDoHistorico> {
+    let dom = crate::tela_html::arvore(html);
     let mut achados = Vec::new();
-    for div in nos_com_id(&dom, "divConsultarAndamento").map_err(ErroLinkDoHistorico::Atributo)? {
-        let Some(div) = div.get(parser).and_then(tl::Node::as_tag) else {
-            continue;
-        };
-        for a in div.query_selector(parser, "a").into_iter().flatten() {
-            let Some(a) = a.get(parser).and_then(tl::Node::as_tag) else {
-                continue;
-            };
-            let bruto = valor_do_atributo(a, "onclick")
-                .map_err(ErroLinkDoHistorico::Atributo)?
+    for div in dom.com_id("divConsultarAndamento") {
+        for a in div.elementos("a") {
+            let bruto = a
+                .atributo("onclick")
+                .map(str::to_owned)
                 .ok_or(ErroLinkDoHistorico::LinkDoHistoricoForaDaFormaObservada)?;
-            let onclick = decodificar_atributo(&bruto)
-                .ok_or(ErroLinkDoHistorico::LinkDoHistoricoForaDaFormaObservada)?;
-            if onclick == SEM_ARGUMENTO {
+            if bruto == SEM_ARGUMENTO {
                 continue;
             }
-            let url = onclick
+            let url = bruto
                 .strip_prefix(COM_ARGUMENTO)
                 .and_then(|resto| resto.strip_suffix("');"))
                 .ok_or(ErroLinkDoHistorico::LinkDoHistoricoForaDaFormaObservada)?;

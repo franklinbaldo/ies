@@ -1,6 +1,7 @@
 //! RED/GREEN da derivação: HTML sintético modelado no formulário servido.
 use super::*;
 use crate::acao_do_sei::AcaoDoSei;
+use crate::tela_html::HtmlServido;
 
 pub(crate) const HASH_TELA: &str =
     "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa";
@@ -33,7 +34,7 @@ pub(crate) fn url_servida() -> String {
     )
 }
 
-pub(crate) fn tela_iso<'a>(url: &'a str, html: &'a str) -> TelaServida<'a> {
+pub(crate) fn tela_iso<'a>(url: &'a str, html: &'a HtmlServido) -> TelaServida<'a> {
     TelaServida {
         url,
         html,
@@ -81,7 +82,7 @@ fn derivar_html(
     derivar_submissao(
         &OPERACAO,
         &instalacao(),
-        &tela_iso(&url, html),
+        &tela_iso(&url, &HtmlServido::de_teste(html)),
         Some("UNIDADE TESTE"),
         campos,
     )
@@ -224,7 +225,7 @@ fn unidade_da_tela_precisa_ser_a_solicitada() {
     let r = derivar_submissao(
         &OPERACAO,
         &instalacao(),
-        &tela_iso(&url, &html),
+        &tela_iso(&url, &HtmlServido::de_teste(&html)),
         Some("OUTRA"),
         &[],
     );
@@ -410,7 +411,7 @@ fn valor_utf8_usa_bytes_utf8_quando_a_tela_declara_utf8() {
     let url = url_servida();
     let tela = TelaServida {
         url: &url,
-        html: &html,
+        html: &HtmlServido::de_teste(&html),
         codificacao: CodificacaoDaTela::Utf8,
     };
     let campos = [("txtProtocoloPesquisa", "ação 🚀")];
@@ -430,17 +431,18 @@ fn valor_utf8_usa_bytes_utf8_quando_a_tela_declara_utf8() {
 }
 
 #[test]
-fn entidades_html_do_oculto_sao_decodificadas_ou_recusadas() {
+fn entidades_html_do_oculto_sao_decodificadas_e_desconhecidas_ficam_literais() {
     let amp = padrao().replace("value='1'>", "value='a&amp;b&#233;'>");
     let s = derivar_html(&amp, &[]).unwrap();
     assert!(s.corpo().starts_with(b"hdnInfraTipoPagina=a%26b%E9&"));
     let desconhecida = padrao().replace("value='1'>", "value='&inventada;'>");
-    assert_eq!(
-        erro(&desconhecida, &[]),
-        ErroSubmissaoFormulario::EntidadeHtmlDesconhecidaNoAtributo {
-            campo: campo("hdnInfraTipoPagina")
-        }
+    let s = derivar_html(&desconhecida, &[]).unwrap();
+    assert!(
+        s.corpo()
+            .starts_with(b"hdnInfraTipoPagina=%26inventada%3B&")
     );
+    let escapada = padrao().replace("value='1'>", "value='&amp;inventada;'>");
+    assert_eq!(s.corpo(), derivar_html(&escapada, &[]).unwrap().corpo());
 }
 
 #[test]
@@ -453,7 +455,7 @@ fn efeito_nao_avaliado_recusa_antes_de_ler_a_tela() {
     let r = derivar_submissao(
         &op,
         &instalacao(),
-        &tela_iso(&url, ""),
+        &tela_iso(&url, &HtmlServido::de_teste("")),
         Some("UNIDADE TESTE"),
         &[],
     );
@@ -465,7 +467,7 @@ fn efeito_nao_avaliado_recusa_antes_de_ler_a_tela() {
 
 #[test]
 fn efeitos_avaliados_sao_aceitos_e_preservados() {
-    let html = padrao();
+    let html = HtmlServido::de_teste(&padrao());
     let url = url_servida();
     for efeito in [
         EfeitoAvaliado::ConsultaSemEfeitoObservado { evidencia: "teste" },
@@ -490,7 +492,7 @@ fn efeitos_avaliados_sao_aceitos_e_preservados() {
 
 #[test]
 fn tela_fora_da_instalacao_ou_url_invalida_e_recusada() {
-    let html = padrao();
+    let html = HtmlServido::de_teste(&padrao());
     let outra = format!(
         "https://outro.exemplo.gov.br/sei/controlador.php?acao=protocolo_pesquisar&infra_hash={HASH_TELA}"
     );

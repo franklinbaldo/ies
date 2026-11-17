@@ -2,23 +2,22 @@
 //! Prévia não modifica processo e confirmação só será permitida após aceite causal.
 use super::{
     Decisao, ErroMarcar, FalhaDaMarcacao, Operacao, Rotulo, decidir, recusa,
-    releitura_de_marcadores,
+    releitura_de_marcadores, texto_relido,
 };
 use crate::Cli;
 use crate::acao_do_sei::AcaoDoSei;
 use crate::arvore_processo::endereco::{EnderecoRecusado, conferir_endereco_relativo};
 use crate::consulta_do_controlador::ConsultaDoControlador;
 use crate::formulario_web::{
-    ConferenciaDaUnidade, EfeitoAvaliado, EnvioDoFormulario, EstadoDoProcesso,
+    CampoDeTexto, ConferenciaDaUnidade, EfeitoAvaliado, EnvioDoFormulario, EstadoDoProcesso,
     OperacaoDeFormulario, Redirecionamento302, RespostaDoEnvio, ResultadoDoEnvio, TelaServida,
-    consulta_do_controlador, decodificar_atributo, derivar_submissao, enviar_submissao_via,
+    consulta_do_controlador, derivar_submissao, enviar_submissao_via,
 };
-use crate::html_atributos::valor_do_atributo;
 use crate::indice_local::IndiceLocal;
 use crate::instalacao::Instalacao;
 use crate::pagina_do_controle::codificacao_da_tela;
 use crate::processo::NumeroProcesso;
-use crate::processo_concluir::escrita::{Contador, FalhaDaTela, ler_cookie, obter_tela};
+use crate::processo_concluir::escrita::{Contador, FalhaDaTela, obter_tela};
 use crate::processo_obter::{
     EnvioDoProcesso, Marcadores, PedidoDeAndamentos, PedidoDoProcesso, SessaoDoProcesso,
     abrir_para_escrever,
@@ -45,22 +44,18 @@ const ADICIONAR: OperacaoDeFormulario = OperacaoDeFormulario {
 /// Extrai o link do botão `btnAdicionar` servido, sem executar JavaScript.
 /// O link só vale depois de `conferir_endereco_relativo` (ação, processo e
 /// assinatura); a forma do botão não é conferida aqui.
-pub(super) fn link_de_adicionar(html: &str) -> Result<String, ErroMarcar> {
-    let dom = tl::parse(html, tl::ParserOptions::default())
-        .map_err(|_| ErroMarcar::DestinoDoCadastroAusente)?;
-    dom.query_selector("button")
-        .into_iter()
-        .flatten()
-        .filter_map(|h| h.get(dom.parser()).and_then(tl::Node::as_tag))
-        .filter(|tag| {
-            valor_do_atributo(tag, "id").is_ok_and(|id| id.as_deref() == Some("btnAdicionar"))
-        })
+pub(super) fn link_de_adicionar(
+    html: &crate::tela_html::HtmlServido,
+) -> Result<String, ErroMarcar> {
+    let dom = crate::tela_html::arvore(html);
+    dom.elementos("button")
+        .filter(|tag| tag.atributo("id") == Some("btnAdicionar"))
         .find_map(|tag| {
-            let onclick = valor_do_atributo(tag, "onclick").ok()??;
+            let onclick = tag.atributo("onclick")?;
             let relativo = onclick
                 .strip_prefix("location.href='")?
                 .strip_suffix('\'')?;
-            decodificar_atributo(relativo)
+            Some(relativo.to_owned())
         })
         .ok_or(ErroMarcar::DestinoDoCadastroAusente)
 }
@@ -95,41 +90,30 @@ fn destino_cadastro<V: EnvioDoProcesso>(
 /// A identidade do catálogo vem de option[value=id] no select da unidade,
 /// não do marcador aplicado ao processo nem de uma lista sem origem: o id
 /// escrito precisa estar oferecido com o nome pedido.
-pub(super) fn rotulo_oferecido(html: &str, rotulo: &Rotulo) -> Result<(), ErroMarcar> {
-    let dom = tl::parse(html, tl::ParserOptions::default())
-        .map_err(|_| ErroMarcar::OpcaoDoMarcadorNaoOferecida)?;
-    let parser = dom.parser();
+pub(super) fn rotulo_oferecido(
+    html: &crate::tela_html::HtmlServido,
+    rotulo: &Rotulo,
+) -> Result<(), ErroMarcar> {
+    let dom = crate::tela_html::arvore(html);
     let nomes: Vec<String> = dom
-        .query_selector("select")
-        .into_iter()
-        .flatten()
-        .filter_map(|h| h.get(parser).and_then(tl::Node::as_tag))
-        .filter(|tag| {
-            valor_do_atributo(tag, "id").is_ok_and(|id| id.as_deref() == Some("selMarcador"))
-        })
-        .flat_map(|select| select.children().all(parser).iter())
-        .filter_map(tl::Node::as_tag)
-        .filter(|tag| tag.name().as_utf8_str() == "option")
-        .filter(|tag| {
-            valor_do_atributo(tag, "value")
-                .is_ok_and(|id| id.as_deref() == Some(rotulo.id.as_str()))
-        })
-        .map(|tag| tag.inner_text(parser).to_string())
+        .elementos("select")
+        .filter(|tag| tag.atributo("id") == Some("selMarcador"))
+        .flat_map(crate::tela_html::Elemento::descendentes)
+        .filter(|tag| tag.nome() == "option")
+        .filter(|tag| tag.atributo("value") == Some(rotulo.id.as_str()))
+        .map(|tag| tag.texto())
         .collect();
     if nomes.is_empty() {
         return Err(ErroMarcar::OpcaoDoMarcadorNaoOferecida);
     }
-    if nomes
-        .iter()
-        .any(|nome| decodificar_atributo(nome).as_deref() != Some(rotulo.nome.as_str()))
-    {
+    if nomes.iter().any(|nome| *nome != rotulo.nome) {
         return Err(ErroMarcar::NomeDoMarcadorDiferenteDoCatalogo);
     }
     Ok(())
 }
 
 fn submissao_cadastro<V: EnvioDoProcesso>(
-    sessao: &SessaoDoProcesso<'_>,
+    (origem, cookie): (&str, &str),
     rede: &mut Contador<'_, V>,
     link: &str,
     id: &str,
@@ -137,11 +121,10 @@ fn submissao_cadastro<V: EnvioDoProcesso>(
     rotulo: &Rotulo,
     texto: Option<&str>,
 ) -> anyhow::Result<crate::formulario_web::SubmissaoDerivada> {
-    let cookie = ler_cookie(sessao)?;
-    let instalacao = Instalacao::interpretar(sessao.origem)
+    let instalacao = Instalacao::interpretar(origem)
         .ok_or_else(|| recusa(ErroMarcar::OrigemNaoInterpretada, rede.feitas()))?;
-    let url = destino_cadastro(rede, &cookie, link, &instalacao, id)?;
-    let (html, mime) = match obter_tela(rede, &cookie, &url) {
+    let url = destino_cadastro(rede, cookie, link, &instalacao, id)?;
+    let (html, mime) = match obter_tela(rede, cookie, &url) {
         Ok(tela) => tela,
         Err(FalhaDaTela::Transporte(erro)) => return Err(erro.into()),
         Err(FalhaDaTela::Redirecionada | FalhaDaTela::SessaoEncerrada(_)) => {
@@ -166,7 +149,7 @@ fn submissao_cadastro<V: EnvioDoProcesso>(
         Some(unidade),
         &[
             ("hdnIdMarcador", &rotulo.id),
-            ("txaTexto", texto.unwrap_or("")),
+            ("txaTexto", CampoDeTexto::de(texto).enviado()),
         ],
     )
     .map_err(Into::into)
@@ -208,7 +191,7 @@ fn saida_previa(
             rotulo.nome,
             nup.as_str(),
             unidade,
-            texto.unwrap_or(""),
+            CampoDeTexto::de(texto).enviado(),
             requisicoes
         );
     }
@@ -266,7 +249,7 @@ pub(crate) fn executar_atribuicao<V: EnvioDoProcesso>(
         .marcadores?
         .ok_or_else(|| recusa(ErroMarcar::LinkDeMarcadoresNaoPublicado, rede.feitas()))?;
     let submissao = submissao_cadastro(
-        sessao,
+        (sessao.origem, &acoes.cookie),
         &mut rede,
         link.as_str(),
         &aberto.arvore.processo.id,
@@ -329,10 +312,11 @@ fn finalizar_atribuicao<V: EnvioDoProcesso>(
     // Segunda leitura independente: não confiar no próprio POST nem repetir.
     let presente =
         releitura_de_marcadores(sessao, indice, pedido, rede, (id, unidade)).map(|lidos| {
-            lidos
-                .itens
-                .iter()
-                .any(|m| m.id == rotulo.id && m.nome == rotulo.nome && m.texto.as_deref() == texto)
+            lidos.itens.iter().any(|m| {
+                m.id == rotulo.id
+                    && m.nome == rotulo.nome
+                    && texto_relido(m.texto.as_deref(), CampoDeTexto::de(texto))
+            })
         });
     if !aceito || !matches!(presente, Ok(true)) {
         return Err(FalhaDaMarcacao::AtribuicaoNaoConfirmada {
@@ -355,8 +339,8 @@ pub(super) fn aceite_da_atribuicao(redir: &Redirecionamento302, id: &str) -> boo
     let Ok(consulta) = ConsultaDoControlador::ler(consulta) else {
         return false;
     };
-    consulta.acao() == Ok(AcaoDoSei::AndamentoMarcadorGerenciar)
-        && consulta.unico("acao_origem") == Ok(AcaoDoSei::AndamentoMarcadorCadastrar.como_na_url())
+    consulta.acao() == Ok(AcaoDoSei::AndamentoMarcadorGerenciar.como_na_url())
+        && consulta.acao_de_origem() == Ok(AcaoDoSei::AndamentoMarcadorCadastrar.como_na_url())
         && consulta.unico("id_procedimento") == Ok(id)
 }
 

@@ -1,0 +1,31 @@
+id: 11-variante-do-cookie-sai
+message: 'Cookie(CookieIlegivel) sai do enum do comando: nenhum caminho a produz (a abertura lê o cookie antes).'
+language: rust
+severity: hint
+rule:
+  kind: enum_variant
+  regex: '^Cookie\((#\[(from|source)\]\s*)?[A-Za-z_:]*CookieIlegivel\)$'
+fix:
+  template: '/* ies-codemod: remover linha */'
+  expandEnd:
+    regex: '^,$'
+---
+id: 11b-doc-da-variante-do-cookie-sai
+message: 'O comentário de documentação da variante sai com ela.'
+language: rust
+severity: hint
+rule:
+  kind: line_comment
+  regex: '^///'
+  precedes:
+    kind: enum_variant
+    regex: '^Cookie\((#\[(from|source)\]\s*)?[A-Za-z_:]*CookieIlegivel\)$'
+fix: '/* ies-codemod: remover linha */'
+---
+id: 11c-from-do-cookie-sai
+message: 'O From<CookieIlegivel> escrito à mão sai com a variante.'
+language: rust
+severity: hint
+rule:
+  pattern: 'impl From<CookieIlegivel> for $X { $$$B }'
+fix: '/* ies-codemod: remover linha */'

@@ -20,7 +20,7 @@ use crate::formulario_web::{
 use crate::indice_local::IndiceLocal;
 use crate::instalacao::Instalacao;
 use crate::pagina_do_controle::codificacao_da_tela;
-use crate::processo_concluir::escrita::{Contador, FalhaDaTela, ler_cookie, obter_tela};
+use crate::processo_concluir::escrita::{Contador, FalhaDaTela, obter_tela};
 use crate::processo_obter::{
     DocumentoNaArvoreAberto, EnvioDoProcesso, ErroDocumentoObter, ErroProcessoObter, PedidoDoAnexo,
     PedidoDoDocumento, SessaoDoProcesso, abrir_documento_na_arvore,
@@ -56,7 +56,7 @@ pub(crate) fn assinar_documento<V: EnvioDoProcesso>(
     }
     let tela_do_doc = tela_do_documento(&instalacao, &aberto.html, &id, &id_processo)
         .ok_or(ErroAssinar::EnderecoDaTelaDoDocumentoNaoReconhecido)?;
-    let cookie = ler_cookie(sessao)?;
+    let cookie = aberto.cookie.clone();
     let (html, _) = obter_tela(&mut rede, &cookie, tela_do_doc.as_str()).map_err(da_tela)?;
     let link = ler_link_de_assinar(&instalacao, &html, &id, &id_processo)?;
     let (html_da_tela, mime) = obter_tela(&mut rede, &cookie, link.as_str()).map_err(da_tela)?;

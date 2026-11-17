@@ -14,6 +14,7 @@ mod tests_escrita;
 mod tests_fluxo;
 
 use crate::arvore_processo::ErroRelacionarNaBarra;
+use crate::consulta_do_controlador::ErroParametroDaUrl;
 use crate::formulario_web::{
     ConsultaAjax, EfeitoAvaliado, ErroSubmissaoFormulario, TelaServida, derivar_consulta_ajax,
 };
@@ -21,8 +22,7 @@ use crate::indice_local::IndiceLocal;
 use crate::instalacao::Instalacao;
 use crate::pagina_do_controle::codificacao_da_tela;
 use crate::processo::NumeroProcesso;
-use crate::processo_concluir::escrita::CookieIlegivel;
-use crate::processo_concluir::escrita::{Contador, FalhaDaTela, leitura, ler_cookie, obter_tela};
+use crate::processo_concluir::escrita::{Contador, FalhaDaTela, leitura, obter_tela};
 use crate::processo_obter::{
     EnvioDoProcesso, ErroProcessoObter, SessaoDoProcesso, abrir_para_escrever,
 };
@@ -45,8 +45,6 @@ const CONSULTA: ConsultaAjax = ConsultaAjax {
 #[derive(Debug, thiserror::Error)]
 #[error("{self:?}")]
 pub(crate) enum FalhaRelacionar {
-    /// O cookie privado da sessão não pôde ser lido.
-    Cookie(CookieIlegivel),
     /// Caminho de escrita implementado offline, mas ainda sem validação live.
     Abertura(ErroProcessoObter),
     Barra(ErroRelacionarNaBarra),
@@ -63,6 +61,10 @@ pub(crate) enum FalhaRelacionar {
     DestinoDaConsulta(#[from] ErroDestinoDaConsulta),
     AcaoExcluirRelacionamentoNaoDeclarada,
     IdDaOrigemNaActionAusente,
+    /// A consulta da URL de origem não se lê em pares `chave=valor`.
+    ConsultaDaOrigemIlegivel(#[source] crate::consulta_do_controlador::ErroConsultaDoControlador),
+    /// A URL de origem não tem exatamente um `id_procedimento`.
+    IdDaOrigemIlegivel(#[source] ErroParametroDaUrl),
     ActionDeRemocaoDeOutroProcesso,
     ConsultaDerivacao(ErroSubmissaoFormulario),
     ConsultaTransporte(FalhaTransporte),
@@ -162,7 +164,9 @@ fn relacionamento_existente<'a>(
 
 /// A consulta do protocolo é XML (e não a tela HTML do controle).
 /// Não reutilizar o decodificador exclusivo de text/html da infraestrutura.
-fn xml_da_consulta<R: Read>(mut resposta: RespostaWeb<R>) -> Result<String, FalhaRelacionar> {
+fn xml_da_consulta<R: Read>(
+    mut resposta: RespostaWeb<R>,
+) -> Result<crate::tela_html::HtmlServido, FalhaRelacionar> {
     if resposta.status_code != 200 {
         return Err(FalhaRelacionar::ConsultaResposta(recusar_status(resposta)));
     }
@@ -180,7 +184,7 @@ fn xml_da_consulta<R: Read>(mut resposta: RespostaWeb<R>) -> Result<String, Falh
     }
     let bytes = ler_limitado(&mut resposta.corpo, crate::MAX_HTML_BYTES)
         .map_err(FalhaRelacionar::ConsultaResposta)?;
-    crate::transporte::corpo::decode_http_body(&bytes, &resposta.mime).map_err(|erro| {
+    crate::tela_html::HtmlServido::do_corpo(&bytes, &resposta.mime).map_err(|erro| {
         FalhaRelacionar::ConsultaResposta(FalhaTransporte::CorpoNaoDecodificavelNoCharsetDeclarado(
             erro,
         ))
@@ -211,7 +215,7 @@ pub(crate) fn prever<V: EnvioDoProcesso>(
         .relacionar
         .map_err(FalhaRelacionar::Barra)?
         .ok_or(FalhaRelacionar::LinkNaoPublicado)?;
-    let cookie = ler_cookie(sessao)?;
+    let cookie = acoes.cookie.clone();
     let (html, mime) = obter_tela(&mut rede, &cookie, link.as_str()).map_err(|e| match e {
         FalhaDaTela::Transporte(falha) => FalhaRelacionar::Tela(falha),
         FalhaDaTela::Redirecionada => FalhaRelacionar::TelaRedirecionada,
@@ -338,10 +342,4 @@ pub(crate) fn prever<V: EnvioDoProcesso>(
         previa.requisicoes = rede.feitas();
     }
     Ok(previa)
-}
-
-impl From<CookieIlegivel> for FalhaRelacionar {
-    fn from(erro: CookieIlegivel) -> Self {
-        Self::Cookie(erro)
-    }
 }

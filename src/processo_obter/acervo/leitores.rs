@@ -8,10 +8,10 @@ use crate::arvore_processo::{ler_tela_do_processo, nup_declarado_na_arvore};
 use crate::cassette::acervo::gravacao::{self, Resposta};
 use crate::cassette::html_da_resposta;
 use crate::historico_processo::{TipoDoHistorico, ler_andamentos};
-use crate::html_atributos::nos_com_id;
 use crate::instalacao::Instalacao;
 use crate::marcadores_processo::{TelaDosMarcadores, ler_marcadores};
 use crate::propriedades_processo::{FonteDasPropriedades, ler_propriedades};
+use crate::tela_html::HtmlServido;
 use std::collections::HashMap;
 
 /// O que vale para todas as respostas de uma cassette.
@@ -144,34 +144,26 @@ fn corpo_acima_do_limite(interacao: &serde_json::Value) -> bool {
 }
 
 fn tela(c: &Cassette<'_>, r: &Resposta<'_>, html: &str, id: &str) -> Registro {
-    let resultado = match ler_tela_do_processo(&c.instalacao, html, id, None) {
-        Ok(_) => Resultado::Lido,
-        Err(erro) => Resultado::Recusado(format!("{erro:?}")),
-    };
+    let resultado =
+        match ler_tela_do_processo(&c.instalacao, &HtmlServido::de_teste(html), id, None) {
+            Ok(_) => Resultado::Lido,
+            Err(erro) => Resultado::Recusado(format!("{erro:?}")),
+        };
     c.registro(Leitor::Tela, r.passo, resultado)
 }
 
-/// A `div#divInfraAreaPaginacaoSuperior` (por `html_atributos`): vazia,
+/// A `div#divInfraAreaPaginacaoSuperior` (pela árvore `tela_html`): vazia,
 /// com algum conteúdo, ausente ou repetida.
 fn paginador(html: &str) -> &'static str {
-    let Ok(dom) = tl::parse(html, tl::ParserOptions::default()) else {
-        return "html_nao_interpretado";
-    };
-    let parser = dom.parser();
-    let Ok(nos) = nos_com_id(&dom, "divInfraAreaPaginacaoSuperior") else {
-        return "html_nao_interpretado";
-    };
+    let servido = HtmlServido::de_teste(html);
+    let dom = crate::tela_html::arvore(&servido);
+    let nos = dom
+        .com_id("divInfraAreaPaginacaoSuperior")
+        .collect::<Vec<_>>();
     match nos.as_slice() {
         [] => "paginador_ausente",
         [no] => {
-            let vazio = no
-                .get(parser)
-                .and_then(tl::Node::as_tag)
-                .is_some_and(|div| {
-                    let filhos = div.children();
-                    filhos.all(parser).iter().all(|n| n.as_tag().is_none())
-                        && div.inner_text(parser).trim().is_empty()
-                });
+            let vazio = no.descendentes().next().is_none() && no.texto().trim().is_empty();
             if vazio {
                 "paginador_vazio"
             } else {
@@ -185,7 +177,7 @@ fn paginador(html: &str) -> &'static str {
 fn andamentos(c: &Cassette<'_>, r: &Resposta<'_>, html: &str, nup: &str) -> Registro {
     let mut registro = c.registro(Leitor::Andamentos, r.passo, Resultado::Lido);
     registro.formas.push(paginador(html).to_owned());
-    match ler_andamentos(html, nup) {
+    match ler_andamentos(&HtmlServido::de_teste(html), nup) {
         Ok(lidos) => {
             let linhas = lidos.itens.len() as u64;
             registro.contagens = vec![
@@ -216,7 +208,7 @@ fn propriedades(c: &Cassette<'_>, r: &Resposta<'_>, html: &str, nup: &str, id: &
         FonteDasPropriedades::Alterar
     };
     let mut registro = c.registro(Leitor::Propriedades, r.passo, Resultado::Lido);
-    match ler_propriedades(html, nup, id, fonte) {
+    match ler_propriedades(&HtmlServido::de_teste(html), nup, id, fonte) {
         Ok(lidas) => {
             registro.contagens = vec![
                 ("interessados", lidas.interessados.len() as u64),
@@ -234,7 +226,7 @@ fn propriedades(c: &Cassette<'_>, r: &Resposta<'_>, html: &str, nup: &str, id: &
 
 fn marcadores(c: &Cassette<'_>, r: &Resposta<'_>, html: &str, nup: &str, id: &str) -> Registro {
     let mut registro = c.registro(Leitor::Marcadores, r.passo, Resultado::Lido);
-    match ler_marcadores(html, nup, id) {
+    match ler_marcadores(&HtmlServido::de_teste(html), nup, id) {
         Ok(TelaDosMarcadores::Lidos(lidos)) => {
             registro.contagens = vec![
                 ("itens", lidos.itens.len() as u64),
