@@ -14,7 +14,9 @@ implementation: stub
 [#381](https://github.com/franklinbaldo/ies/issues/381#issuecomment-6746036266),
 consolidando a inclusão de documento em bloco de assinatura (#381) e de
 processo em bloco interno/de reunião (#343). A confirmação documental já tem fatias executáveis;
-a família processual está na etapa de prévia, não de confirmação.
+a família processual oferece prévia e confirmação idempotente quando o
+NUP já consta do detalhe. A inclusão de um processo ausente ainda está
+indisponível.
 Conservar a CLI exclusivamente Web, sem REST/SOAP, nem URL/hashes adivinhados.
 
 ## Entrada e resolução de identidade
@@ -148,3 +150,9 @@ e [PEN1 interno](../../cassettes/pen1/bloco-interno-processos-pen1--69795bb274d6
 [guia cassette-first](../../docs/anti-ies/ciclo-cassettes.md).
 A existência dos cards não demonstra que as transições nem seus corpos
 tenham sido capturados.
+
+No PEN1, a captura de bloco interno registra a seleção oferecida pela
+árvore, o POST `rel_bloco_protocolo_cadastrar` e o 302 para a árvore.
+O detalhe do mesmo bloco passa de vazio a uma linha com o NUP.
+O replay do leitor verifica esses dois estados do detalhe. O corpo
+da requisição POST não faz parte da captura.

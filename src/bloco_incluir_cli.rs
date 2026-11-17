@@ -1,10 +1,12 @@
 //! CLI de `ies bloco incluir BLOCO --documento DOC | --processo NUP [--confirmar]`
-//! (#381; contracts/cli/bloco-incluir.md). BDD-381-01/02: prévia e confirmação
-//! causal documental e BDD-381-04: prévia processual sem escrita.
+//! (#381; contracts/cli/bloco-incluir.md). Prévia e confirmação documental,
+//! prévia processual e confirmação idempotente de processo já presente.
 //! Erros sobem até o `main` (#695).
 use crate::bloco::TipoBloco;
 use crate::bloco_cli::{Leitura, ler_bloco_por_numero_via};
-use crate::bloco_incluir::{PedidoDaInclusao, PreviaDocumental, prever_documento};
+use crate::bloco_incluir::{
+    DesfechoDaInclusao, PedidoDaInclusao, PreviaDocumental, prever_documento,
+};
 use crate::documento::NumeroDocumento;
 use crate::indice_local::{self, IndiceLocal};
 use crate::processo::NumeroProcesso;
@@ -16,12 +18,9 @@ use crate::visao_do_controle::EnvioHttps;
 use crate::{Cli, configuracao};
 use serde_json::json;
 
-/// O que esta fatia ainda não faz: recusado antes de qualquer requisição.
 #[derive(Debug, thiserror::Error)]
-#[error("{self:?}")]
-enum AindaNaoImplementado {
-    InclusaoDeProcesso,
-}
+#[error("Informe um documento ou um processo para incluir no bloco")]
+struct AlvoDaInclusaoAusente;
 
 pub(crate) fn executar(
     cli: &Cli,
@@ -31,12 +30,9 @@ pub(crate) fn executar(
     confirmar: bool,
 ) -> anyhow::Result<()> {
     if let Some(nup) = processo {
-        if confirmar {
-            return Err(AindaNaoImplementado::InclusaoDeProcesso.into());
-        }
-        return prever_processo(cli, bloco, nup);
+        return incluir_processo(cli, bloco, nup, confirmar);
     }
-    let documento = documento.ok_or(AindaNaoImplementado::InclusaoDeProcesso)?;
+    let documento = documento.ok_or(AlvoDaInclusaoAusente)?;
     let arquivos = configuracao::arquivos_de_acesso()?;
     let referencias =
         ReferenciasDaSessao::ler(&arquivos.url_controle, &arquivos.origem, &arquivos.cookie)?;
@@ -109,18 +105,22 @@ fn publicar(json_mode: bool, previa: &PreviaDocumental, indice: &IndiceLocal) {
     }
 }
 
-/// Causas tipadas de prévia processual, sem novo catálogo de subcódigos.
 #[derive(Debug, thiserror::Error)]
 #[error("{self:?}")]
-enum ErroPreviaProcessual {
+enum ErroInclusaoProcessual {
     TipoInadequado,
     PertencimentoNaoComprovado,
     IdentidadeDoProcessoDivergente,
+    #[error("A inclusão de um processo ausente ainda não está disponível")]
+    InclusaoDeProcessoIndisponivel,
 }
 
-/// Primeira fatia do processo: apenas leitura do bloco e abertura do NUP.
-/// A confirmação permanece bloqueada até BDD-381-05.
-fn prever_processo(cli: &Cli, bloco: &str, nup_bruto: &str) -> anyhow::Result<()> {
+fn incluir_processo(
+    cli: &Cli,
+    bloco: &str,
+    nup_bruto: &str,
+    confirmar: bool,
+) -> anyhow::Result<()> {
     let nup = NumeroProcesso::novo(nup_bruto)?;
     let arquivos = configuracao::arquivos_de_acesso()?;
     let referencias =
@@ -137,8 +137,9 @@ fn prever_processo(cli: &Cli, bloco: &str, nup_bruto: &str) -> anyhow::Result<()
         return Err(crate::bloco_cli::FalhaLeitura::HtmlDeBlocosInvalido.into());
     };
     if !matches!(detalhe.tipo, TipoBloco::Interno | TipoBloco::Reuniao) {
-        return Err(ErroPreviaProcessual::TipoInadequado.into());
+        return Err(ErroInclusaoProcessual::TipoInadequado.into());
     }
+    let desfecho = desfecho_sem_escrita(&detalhe, &nup, confirmar)?;
     let indice = IndiceLocal::da_configuracao(&arquivos);
     let aberto = obter_processo(
         &sessao,
@@ -147,24 +148,17 @@ fn prever_processo(cli: &Cli, bloco: &str, nup_bruto: &str) -> anyhow::Result<()
         &mut rede,
     )?;
     if aberto.arvore.processo.nup != nup.as_str() {
-        return Err(ErroPreviaProcessual::IdentidadeDoProcessoDivergente.into());
-    }
-    let presente = detalhe
-        .itens
-        .iter()
-        .any(|item| item.processo == nup.as_str());
-    if !presente && detalhe.itens.len() != detalhe.total_declarado {
-        return Err(ErroPreviaProcessual::PertencimentoNaoComprovado.into());
+        return Err(ErroInclusaoProcessual::IdentidadeDoProcessoDivergente.into());
     }
     if cli.json {
         let mut valor = json!({
             "bloco": bloco,
             "tipo_bloco": detalhe.tipo.rotulo(),
             "alvo": {"processo": nup.as_str()},
-            "confirmado": false,
-            "alterado": false,
-            "presente_antes": presente,
-            "presente_depois": presente,
+            "confirmado": desfecho.confirmado(),
+            "alterado": desfecho.alterado(),
+            "presente_antes": desfecho.presente_antes(),
+            "presente_depois": desfecho.presente_depois(),
             "origem": "web",
             "requisicoes": rede.feitas(),
         });
@@ -173,7 +167,7 @@ fn prever_processo(cli: &Cli, bloco: &str, nup_bruto: &str) -> anyhow::Result<()
         return Ok(());
     }
     indice_local::avisar_no_texto(&indice);
-    if presente {
+    if desfecho.presente_antes() {
         println!(
             "Processo {} já está no bloco {} ({}); nenhuma inclusão necessária. Requisições: {}",
             nup.as_str(),
@@ -192,3 +186,30 @@ fn prever_processo(cli: &Cli, bloco: &str, nup_bruto: &str) -> anyhow::Result<()
     }
     Ok(())
 }
+
+fn desfecho_sem_escrita(
+    detalhe: &crate::bloco_detalhe::BlocoDetalhado,
+    nup: &NumeroProcesso,
+    confirmar: bool,
+) -> Result<DesfechoDaInclusao, ErroInclusaoProcessual> {
+    if detalhe
+        .itens
+        .iter()
+        .any(|item| item.processo == nup.as_str())
+    {
+        return Ok(DesfechoDaInclusao::JaEstava {
+            confirmacao_pedida: confirmar,
+        });
+    }
+    if detalhe.itens.len() != detalhe.total_declarado {
+        return Err(ErroInclusaoProcessual::PertencimentoNaoComprovado);
+    }
+    if confirmar {
+        return Err(ErroInclusaoProcessual::InclusaoDeProcessoIndisponivel);
+    }
+    Ok(DesfechoDaInclusao::Previa)
+}
+
+#[cfg(test)]
+#[path = "bloco_incluir/acervo_processo.rs"]
+mod acervo_processo;
