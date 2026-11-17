@@ -1,114 +1,195 @@
-//! Gerenciamento seguro de credenciais pelo cofre nativo do SO (Keyring).
-//! Utiliza escopo determinístico canônico por instalação: "ies:<instancia>".
+//! A senha do login no cofre do sistema operacional (Keychain no macOS,
+//! Gerenciador de Credenciais no Windows, Secret Service no Linux): uma
+//! entrada por instalação e usuário, serviço `ies:<host>` e conta igual ao
+//! usuário. A senha entra e sai byte a byte como digitada; nenhum erro,
+//! `Debug` ou saída a carrega. Contrato: `contracts/cli/credenciais.md`.
+use crate::instalacao::Instalacao;
 
-use keyring::Entry;
-
-/// Prefixo do serviço exclusivo do IES no Keyring.
-pub const SERVICO_PREFIXO: &str = "ies";
-
-/// Extrai a instância / host limpo da URL de origem do SEI.
-pub fn instancia_da_origem(origem: &str) -> String {
-    let sem_esquema = if let Some(pos) = origem.find("://") {
-        &origem[pos + 3..]
-    } else {
-        origem
-    };
-    let host = sem_esquema.split('/').next().unwrap_or(sem_esquema);
-    host.split(':')
-        .next()
-        .unwrap_or(host)
-        .trim()
-        .to_ascii_lowercase()
+/// A entrada do cofre de um usuário numa instalação.
+pub(crate) struct ChaveDoCofre {
+    servico: String,
+    usuario: String,
 }
 
-/// Serviço determinístico canônico escopado pela instalação do SEI.
-/// Exemplo: "ies:sei.sistemas.ro.gov.br" ou "ies:sei.treinamento.unb.br".
-pub fn servico_do_cofre(origem: &str) -> String {
-    let inst = instancia_da_origem(origem);
-    if inst.is_empty() {
-        SERVICO_PREFIXO.to_string()
-    } else {
-        format!("{SERVICO_PREFIXO}:{inst}")
+impl ChaveDoCofre {
+    pub(crate) fn nova(instalacao: &Instalacao, usuario: &str) -> Self {
+        Self {
+            servico: format!("ies:{}", instalacao.host()),
+            usuario: usuario.to_owned(),
+        }
+    }
+
+    /// `ies:<host>`, o nome do serviço publicado na saída.
+    pub(crate) fn servico(&self) -> &str {
+        &self.servico
     }
 }
 
-/// Salva a senha com segurança no cofre nativo sob o serviço canônico da instalação.
-pub fn salvar_senha(usuario: &str, origem: &str, senha: &str) -> Result<(), String> {
-    let senha = senha.trim();
-    if senha.is_empty() {
-        return Err("A senha não pode ser vazia".to_string());
-    }
-    let user = usuario.trim();
-    if user.is_empty() {
-        return Err("O usuário não pode ser vazio".to_string());
-    }
-    let servico = servico_do_cofre(origem);
-    let entry = Entry::new(&servico, user)
-        .map_err(|e| format!("Falha ao acessar cofre do sistema: {e}"))?;
-    entry
-        .set_password(senha)
-        .map_err(|e| format!("Falha ao gravar senha no cofre: {e}"))?;
-    Ok(())
+/// Falha do cofre, classificada pela variante do keyring. A mensagem é a
+/// do sistema (o `Display` do keyring); o erro original não é guardado
+/// porque o `Debug` de `BadEncoding` traria os bytes da senha.
+#[derive(Clone, Debug, PartialEq, Eq, thiserror::Error)]
+#[error("{self:?}")]
+pub(crate) enum ErroCofre {
+    /// Não há cofre utilizável: sem Secret Service ou sessão D-Bus
+    /// (servidor, CI, contêiner) ou plataforma sem suporte.
+    CofreIndisponivel { mensagem_do_sistema: String },
+    /// O cofre existe e negou o acesso (bloqueado, pedido recusado).
+    AcessoNegado { mensagem_do_sistema: String },
+    /// Outra falha do cofre na operação pedida.
+    FalhaDoCofre { mensagem_do_sistema: String },
 }
 
-/// Obtém a senha armazenada com segurança no cofre.
-pub fn obter_senha(usuario: &str, origem: &str) -> Option<String> {
-    let user = usuario.trim();
-    if user.is_empty() {
-        return None;
-    }
-    let servico = servico_do_cofre(origem);
-    let entry = Entry::new(&servico, user).ok()?;
-    match entry.get_password() {
-        Ok(s) if !s.trim().is_empty() => Some(s),
-        _ => None,
+impl From<keyring_core::Error> for ErroCofre {
+    fn from(erro: keyring_core::Error) -> Self {
+        use keyring_core::Error as E;
+        // O `Display` de `Ambiguous` lista as entradas pelo `Debug` delas.
+        let mensagem_do_sistema = if matches!(erro, E::Ambiguous(_)) {
+            "mais de uma credencial para a entrada".to_owned()
+        } else {
+            erro.to_string()
+        };
+        if matches!(erro, E::NoDefaultStore | E::NotSupportedByStore(_)) {
+            Self::CofreIndisponivel {
+                mensagem_do_sistema,
+            }
+        } else if matches!(erro, E::NoStorageAccess(_)) {
+            Self::AcessoNegado {
+                mensagem_do_sistema,
+            }
+        } else {
+            Self::FalhaDoCofre {
+                mensagem_do_sistema,
+            }
+        }
     }
 }
 
-/// Remove a credencial do cofre nativo.
-pub fn excluir_senha(usuario: &str, origem: &str) -> Result<(), String> {
-    let user = usuario.trim();
-    if user.is_empty() {
-        return Err("Usuário não informado para exclusão".to_string());
+/// Grava (ou substitui) a senha exatamente como recebida.
+pub(crate) fn salvar(chave: &ChaveDoCofre, senha: &str) -> Result<(), ErroCofre> {
+    Ok(entrada(chave)?.set_password(senha)?)
+}
+
+/// A senha guardada; `None` só quando o cofre diz que a entrada não existe.
+pub(crate) fn obter(chave: &ChaveDoCofre) -> Result<Option<String>, ErroCofre> {
+    match entrada(chave)?.get_password() {
+        Ok(senha) => Ok(Some(senha)),
+        Err(keyring_core::Error::NoEntry) => Ok(None),
+        Err(erro) => Err(erro.into()),
     }
-    let servico = servico_do_cofre(origem);
-    let entry = Entry::new(&servico, user)
-        .map_err(|e| format!("Falha ao acessar cofre do sistema: {e}"))?;
-    match entry.delete_credential() {
+}
+
+/// Apaga a entrada; `false` quando ela já não existia.
+pub(crate) fn excluir(chave: &ChaveDoCofre) -> Result<bool, ErroCofre> {
+    match entrada(chave)?.delete_credential() {
+        Ok(()) => Ok(true),
+        Err(keyring_core::Error::NoEntry) => Ok(false),
+        Err(erro) => Err(erro.into()),
+    }
+}
+
+fn entrada(chave: &ChaveDoCofre) -> Result<keyring_core::Entry, ErroCofre> {
+    #[cfg(not(test))]
+    cofre_do_sistema()?;
+    #[cfg(test)]
+    cofre_falso();
+    Ok(keyring_core::Entry::new(&chave.servico, &chave.usuario)?)
+}
+
+/// O cofre da plataforma, inicializado uma vez pelo `keyring` como o
+/// padrão do `keyring_core`.
+#[cfg(not(test))]
+fn cofre_do_sistema() -> Result<(), ErroCofre> {
+    match keyring::Entry::store_status() {
         Ok(()) => Ok(()),
-        Err(keyring::Error::NoEntry) => Ok(()),
-        Err(e) => Err(format!("Falha ao excluir credencial do cofre: {e}")),
+        Err(erro) => Err(ErroCofre::CofreIndisponivel {
+            mensagem_do_sistema: erro.to_string(),
+        }),
     }
+}
+
+/// Nos testes, nunca o cofre da pessoa: o cofre em memória do
+/// `keyring_core`, o mesmo para o processo inteiro.
+#[cfg(test)]
+fn cofre_falso() {
+    static FALSO: std::sync::Once = std::sync::Once::new();
+    FALSO.call_once(|| {
+        keyring_core::set_default_store(
+            keyring_core::mock::Store::new().expect("cofre em memória"),
+        );
+    });
+}
+
+/// Faz a próxima operação na entrada falhar com `erro` (cofre de teste).
+#[cfg(test)]
+pub(crate) fn falhar_na_proxima(chave: &ChaveDoCofre, erro: keyring_core::Error) {
+    let entrada = entrada(chave).unwrap();
+    let falsa: &keyring_core::mock::Cred = entrada.as_any().downcast_ref().unwrap();
+    falsa.set_error(erro);
 }
 
 #[cfg(test)]
 mod tests {
     use super::*;
 
-    #[test]
-    fn deriva_servico_corretamente() {
-        let orig = "https://sei.treinamento.unb.br/sei";
-        assert_eq!(instancia_da_origem(orig), "sei.treinamento.unb.br");
-        assert_eq!(servico_do_cofre(orig), "ies:sei.treinamento.unb.br");
-
-        let orig2 = "https://sei.sistemas.ro.gov.br";
-        assert_eq!(servico_do_cofre(orig2), "ies:sei.sistemas.ro.gov.br");
-
-        let orig3 = "http://localhost:8080/sei";
-        assert_eq!(servico_do_cofre(orig3), "ies:localhost");
+    fn chave(host: &str, usuario: &str) -> ChaveDoCofre {
+        let instalacao = Instalacao::interpretar(&format!("https://{host}/sei")).unwrap();
+        ChaveDoCofre::nova(&instalacao, usuario)
     }
 
     #[test]
-    #[ignore = "requer cofre de credenciais nativo do SO"]
-    fn salva_obtem_e_exclui_senha_no_keyring_real() {
-        let u = "teste_usuario_ci";
-        let orig = "https://sei.teste.gov.br";
-        let res = salvar_senha(u, orig, "minha_senha_secreta");
-        assert!(res.is_ok());
-        let obtida = obter_senha(u, orig);
-        assert_eq!(obtida.as_deref(), Some("minha_senha_secreta"));
-        let excl = excluir_senha(u, orig);
-        assert!(excl.is_ok());
-        assert_eq!(obter_senha(u, orig), None);
+    fn servico_e_o_host_da_instalacao() {
+        let instalacao = Instalacao::interpretar("https://SEI.Treinamento.UnB.br/sei").unwrap();
+        let chave = ChaveDoCofre::nova(&instalacao, "aluno1");
+        assert_eq!(chave.servico(), "ies:sei.treinamento.unb.br");
+    }
+
+    #[test]
+    fn salvar_obter_excluir_preserva_os_bytes_e_deixa_ausente() {
+        let chave = chave("cofre-ida-volta.test", "u");
+        assert_eq!(obter(&chave), Ok(None));
+        salvar(&chave, " senha falsa com espaços ").unwrap();
+        assert_eq!(
+            obter(&chave).unwrap().as_deref(),
+            Some(" senha falsa com espaços ")
+        );
+        assert_eq!(excluir(&chave), Ok(true));
+        assert_eq!(obter(&chave), Ok(None));
+        assert_eq!(excluir(&chave), Ok(false));
+    }
+
+    #[test]
+    fn falha_do_cofre_nao_vira_ausencia_e_nao_mostra_a_senha() {
+        let chave = chave("cofre-negado.test", "u");
+        salvar(&chave, "senha-falsa-123").unwrap();
+        falhar_na_proxima(
+            &chave,
+            keyring_core::Error::NoStorageAccess("bloqueado".into()),
+        );
+        assert!(matches!(obter(&chave), Err(ErroCofre::AcessoNegado { .. })));
+        falhar_na_proxima(
+            &chave,
+            keyring_core::Error::BadEncoding(b"senha-falsa-123".to_vec()),
+        );
+        let erro = obter(&chave).unwrap_err();
+        assert!(matches!(erro, ErroCofre::FalhaDoCofre { .. }));
+        assert!(!format!("{erro:?}{erro}").contains("senha-falsa"));
+        falhar_na_proxima(
+            &chave,
+            keyring_core::Error::PlatformFailure("fora do ar".into()),
+        );
+        assert!(matches!(
+            excluir(&chave),
+            Err(ErroCofre::FalhaDoCofre { .. })
+        ));
+        assert_eq!(obter(&chave).unwrap().as_deref(), Some("senha-falsa-123"));
+    }
+
+    #[test]
+    fn cofre_ausente_e_indisponivel() {
+        assert!(matches!(
+            ErroCofre::from(keyring_core::Error::NoDefaultStore),
+            ErroCofre::CofreIndisponivel { .. }
+        ));
     }
 }
