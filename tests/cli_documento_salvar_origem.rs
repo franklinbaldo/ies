@@ -16,7 +16,7 @@ fn arquivo_privado(caminho: &Path, conteudo: &str) {
 }
 
 #[test]
-fn documento_salvar_distingue_origem_recusada_de_origem_malformada() {
+fn documento_salvar_recusa_origens_sem_transporte_nativo() {
     let pasta = std::env::temp_dir().join(format!(
         "ies-salvar-origem-{}-{}",
         std::process::id(),
@@ -40,12 +40,22 @@ fn documento_salvar_distingue_origem_recusada_de_origem_malformada() {
     arquivo_privado(&pasta.join("0011519.v2.html"), "<p>Foto</p>");
     arquivo_privado(&pasta.join("0011519.v3.html"), "<p>Edição</p>");
 
-    // O primeiro caso passa por Instalacao::interpretar e testa a guarda
-    // efetiva. O segundo tem porta explícita, rejeitada pelo parser atual;
-    // sua recusa é distinta e não deve mascarar a primeira contraprova.
+    // Exercitar a CLI, e não apenas a função exigir: origem parseável
+    // recusada, origem ilegível, treinamento permitido sem editor nativo
+    // e hostname semelhante que não pertence à lista fechada. Não há
+    // acesso deliberado a esses hosts: o comando recusa antes do transporte;
+    // o proxy local detecta somente conexões que respeitem suas variáveis.
     for (origem, erro_esperado) in [
         ("https://127.0.0.1/sei", "OrigemForaDoTreinamento"),
         (&origem_com_porta, "InstalacaoSemEditorObservado"),
+        (
+            "https://sei.treinamento.unb.br/sei",
+            "InstalacaoSemEditorObservado",
+        ),
+        (
+            "https://sei.treinamento.unb.br.exemplo/sei",
+            "OrigemForaDoTreinamento",
+        ),
     ] {
         let url_controle = format!(
             "{origem}/controlador.php?acao=procedimento_controlar&infra_hash={}",
