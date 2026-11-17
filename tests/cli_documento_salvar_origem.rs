@@ -31,7 +31,10 @@ fn documento_salvar_recusa_origem_nao_autorizada_antes_de_get_ou_post() {
     // DNS, servidor SEI, cookie real ou instalação de produção neste teste.
     let escuta = TcpListener::bind("127.0.0.1:0").unwrap();
     escuta.set_nonblocking(true).unwrap();
-    let origem = format!("https://127.0.0.1:{}/sei", escuta.local_addr().unwrap().port());
+    let origem = format!(
+        "https://127.0.0.1:{}/sei",
+        escuta.local_addr().unwrap().port()
+    );
     let url_controle = format!(
         "{origem}/controlador.php?acao=procedimento_controlar&infra_hash={}",
         "a".repeat(64)
