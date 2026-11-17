@@ -173,14 +173,12 @@ fn linhas_do_historico(
         if celulas.is_empty() {
             continue;
         }
-        let (versao, usuario, unidade, modificacao, acoes) =
-            match (coluna_de_selecao, celulas.as_slice()) {
-                (Some(true), [_, versao, usuario, unidade, modificacao, acoes])
-                | (Some(false), [versao, usuario, unidade, modificacao, acoes]) => {
-                    (versao, usuario, unidade, modificacao, acoes)
-                }
-                _ => return Err(ErroVersao::LinhaIncompleta),
-            };
+        let ((Some(true), [_, versao, usuario, unidade, modificacao, acoes])
+        | (Some(false), [versao, usuario, unidade, modificacao, acoes])) =
+            (coluna_de_selecao, celulas.as_slice())
+        else {
+            return Err(ErroVersao::LinhaIncompleta);
+        };
         let numero = VersaoDocumento::interpretar(&texto(*versao))?;
         if !encontrados.insert(numero) {
             return Err(ErroVersao::VersaoDocumentoDuplicada);
