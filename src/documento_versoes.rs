@@ -143,17 +143,20 @@ fn linhas_do_historico(
     tabela: crate::tela_html::Elemento<'_>,
     id_interno: &str,
 ) -> Result<Vec<EntradaVersao>, ErroVersao> {
-    let mut cabecalho = false;
+    let mut coluna_de_selecao = None;
     let mut entradas = Vec::new();
     let mut encontrados = HashSet::new();
     for tr_handle in tabela.elementos("tr") {
         let cols: Vec<_> = tr_handle.elementos("th").collect();
         if !cols.is_empty() {
             let titulos: Vec<_> = cols.iter().copied().map(texto).collect();
-            if cabecalho
-                || titulos
+            let (tem_selecao, nomes) = match titulos.as_slice() {
+                [selecao, nomes @ ..] if selecao.is_empty() => (true, nomes),
+                nomes => (false, nomes),
+            };
+            if coluna_de_selecao.is_some()
+                || nomes
                     != [
-                        "",
                         "Versão",
                         "Usuário",
                         "Unidade",
@@ -163,15 +166,16 @@ fn linhas_do_historico(
             {
                 return Err(ErroVersao::ColunasHistoricoInesperadas);
             }
-            cabecalho = true;
+            coluna_de_selecao = Some(tem_selecao);
             continue;
         }
         let celulas: Vec<_> = tr_handle.elementos("td").collect();
         if celulas.is_empty() {
             continue;
         }
-        let (true, [_, versao, usuario, unidade, modificacao, acoes]) =
-            (cabecalho, celulas.as_slice())
+        let ((Some(true), [_, versao, usuario, unidade, modificacao, acoes])
+        | (Some(false), [versao, usuario, unidade, modificacao, acoes])) =
+            (coluna_de_selecao, celulas.as_slice())
         else {
             return Err(ErroVersao::LinhaIncompleta);
         };
@@ -209,7 +213,7 @@ fn linhas_do_historico(
             return Err(ErroVersao::ListaIncompleta);
         }
     }
-    if !cabecalho {
+    if coluna_de_selecao.is_none() {
         return Err(ErroVersao::ColunasHistoricoInesperadas);
     }
     Ok(entradas)
@@ -358,6 +362,30 @@ pub(crate) mod testes {
         let h = interpretar_historico(&html, "42", Some(2)).unwrap();
         assert_eq!(h.atual().unwrap().numero(), 4);
     }
+    #[test]
+    fn historico_da_unb_sem_coluna_de_selecao_le_a_versao_unica() {
+        let html = pagina(&[1], &["42"])
+            .replace("<th></th>", "")
+            .replace(r#"<td><input type="checkbox" /></td>"#, "");
+        let html = HtmlServido::de_teste(&html);
+        let historico = interpretar_historico(&html, "42", Some(1)).unwrap();
+        let entrada = historico
+            .selecionar(VersaoDocumento::nova(1).unwrap())
+            .unwrap();
+        assert_eq!(historico.atual().unwrap().numero(), 1);
+        assert_eq!(entrada.usuario, "Ana");
+        assert!(entrada.link_privado().contains("versao=1&"));
+    }
+
+    #[test]
+    fn nao_aceita_linha_com_coluna_de_selecao_que_o_cabecalho_nao_anuncia() {
+        let html = HtmlServido::de_teste(&pagina(&[1], &["42"]).replace("<th></th>", ""));
+        assert_eq!(
+            interpretar_historico(&html, "42", Some(1)),
+            Err(ErroVersao::LinhaIncompleta),
+        );
+    }
+
     #[test]
     fn atual_e_nao_contiguas() {
         let h = interpretar_historico(
