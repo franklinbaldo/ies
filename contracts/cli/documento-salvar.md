@@ -71,7 +71,8 @@ fechada de treinamento, a CLI recusa com
 treinamento da lista, recusa com
 `ErroSalvarNoSei::InstalacaoSemEditorObservado` também antes da rede,
 pois o transporte nativo ainda não foi implementado. Origem impossível
-de interpretar também resulta em `InstalacaoSemEditorObservado`.
+de interpretar também é recusada como `OrigemForaDoTreinamento`,
+pois não corresponde à lista de treinamento.
 Essas recusas ocorrem no fluxo de confirmação após a prévia local, sem
 atestarem a integridade remota do par. O antigo diagnóstico
 `escrita_remota_nao_validada` descrevia a implementação anterior,

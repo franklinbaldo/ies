@@ -41,13 +41,13 @@ fn documento_salvar_recusa_origens_sem_transporte_nativo() {
     arquivo_privado(&pasta.join("0011519.v3.html"), "<p>Edição</p>");
 
     // Exercitar a CLI, e não apenas a função exigir: origem parseável
-    // recusada, origem ilegível, treinamento permitido sem editor nativo
+    // recusada, origem com porta não permitida, treinamento sem editor nativo
     // hostname semelhante e caminhos divergentes da lista fechada. Não há
     // acesso deliberado a esses hosts: o comando recusa antes do transporte;
     // o proxy local detecta somente conexões que respeitem suas variáveis.
     for (origem, erro_esperado) in [
         ("https://127.0.0.1/sei", "OrigemForaDoTreinamento"),
-        (&origem_com_porta, "InstalacaoSemEditorObservado"),
+        (&origem_com_porta, "OrigemForaDoTreinamento"),
         (
             "https://sei.treinamento.unb.br/sei",
             "InstalacaoSemEditorObservado",

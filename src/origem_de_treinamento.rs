@@ -94,6 +94,7 @@ mod tests {
         }
         for origem in [
             "https://sei.unb.br/sei",
+            "https://sei.treinamento.unb.br:443/sei",
             "https://sei.treinamento.unb.br.exemplo/sei",
             "https://sei.treinamento.unb.br/outro",
             "https://sei.treinamento.unb.br/sei/extra",

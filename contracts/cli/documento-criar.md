@@ -110,6 +110,32 @@ em `causa_releitura` e publica `status_http` e
 `causa_envio` permanece reservado às falhas do próprio envio.
 Nenhum segredo ou URL assinada na saída.
 
+### Cópia editável após a criação
+
+Quando `ies documento criar --confirmar` preparar a cópia de
+trabalho, o próprio comando devolve o caminho do arquivo a editar.
+Se a cópia já trouxer o CSS ou os estilos do modelo, a saída humana
+inclui a orientação logo abaixo do caminho:
+
+> Edite o arquivo e, de preferência, siga os estilos que ele já contém.
+
+Com `--json`, o mesmo retorno traz o caminho e a orientação:
+
+```json
+{
+  "copia_editavel": {
+    "arquivo": "0012608.v2.html",
+    "orientacao": "Edite o arquivo e, de preferência, siga os estilos que ele já contém."
+  }
+}
+```
+
+O caminho só é publicado depois de a cópia estar pronta. A orientação
+sobre estilos só é publicada quando eles constarem do arquivo.
+
+Os estilos são uma orientação de edição. O agente pode usar CSS
+próprio, e o salvamento envia o HTML da seção como ficou no arquivo.
+
 ## Evidências e validação
 
 [Observação](../../docs/como-o-sei-funciona/inclusao-documento-interno.md)

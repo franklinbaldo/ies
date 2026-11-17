@@ -220,15 +220,18 @@ fn executar(
     numero: &NumeroDocumento,
     previa: &PreviaCopia,
 ) -> Resultado {
-    let instalacao = match Instalacao::interpretar(sessao.origem) {
-        Some(instalacao) => instalacao,
-        None => return Resultado::Recusado(ErroSalvarNoSei::InstalacaoSemEditorObservado),
-    };
-    // Primeira guarda, antes de qualquer GET ou POST. A liberação do
-    // protocolo nativo SEI4/5 é outra etapa, não um fallback sintético.
+    // Conferir a lista fechada ANTES de interpretar a instalação: uma
+    // origem inválida (inclusive com porta) é origem fora do treinamento,
+    // não uma ausência de editor. Nenhum GET ou POST ocorre nesta guarda.
     if let Err(causa) = origem_de_treinamento::exigir(Escrita::DocumentoSalvar, sessao.origem) {
         return Resultado::Recusado(ErroSalvarNoSei::OrigemForaDoTreinamento(causa));
     }
+    // A liberação do protocolo nativo SEI4/5 é outra etapa, não um
+    // fallback para o formulário sintético de sei.test.
+    let instalacao = match Instalacao::interpretar(sessao.origem) {
+        Some(instalacao) => instalacao,
+        None => return Resultado::Recusado(ErroSalvarNoSei::InstalacaoSemEditorObservado),
+    ;
     if instalacao.host() != "sei.test" {
         return Resultado::Recusado(ErroSalvarNoSei::InstalacaoSemEditorObservado);
     }
