@@ -131,3 +131,32 @@ Naquele ensaio a foto v3 alterada em um byte deu `base_versao_divergente`;
 essa conferência saiu da prévia e passou à releitura
 (`ErroCopia::FotoDivergente`); a confirmação remota permanece bloqueada.
 Aposentadoria de `base_versao_divergente`: #207, integrada pela PR #219.
+
+
+## Habilitação controlada em treinamento (#851, proposta de 17/11/2026)
+
+O proprietário autorizou preparar uma implementação de `--confirmar` **somente**
+para as origens fechadas de treinamento definidas em
+[`origem_de_treinamento.rs`](../../src/origem_de_treinamento.rs). Essa
+autorização não aprova a alteração contratual nem libera produção: a PR
+precisa de revisão, testes no SHA exato e aprovação antes da integração.
+
+A primeira guarda tipada `Escrita::DocumentoSalvar` recusa origens fora
+da lista **antes de GET ou POST**. Ela não está em
+`aprovada_em_treinamento()`, portanto uma futura aprovação dos ensaios
+não promove automaticamente a escrita à produção.
+
+**Estado ainda incompleto desta preparação:** o único protocolo de envio
+implementado continua sendo o sintético de `sei.test`. As demais origens
+de treinamento passam pela autorização da origem, mas são recusadas
+antes da rede por `InstalacaoSemEditorObservado`; ainda não existe
+salvamento nativo SEI 4/5 validado. Os GETs originais de editor permitem
+ler a oferta, porém os 14 POSTs capturados não preservaram body/headers.
+Não transportar `frmEditor`, `txaEditor_1` ou a resposta `OK N`
+para SEI real sem confrontar o protocolo e a releitura independente.
+
+A futura validação live requer documento descartável não assinado,
+instalação identificada, orçamento prévio e avaliação dos efeitos de
+GETs, prévia, **um POST no máximo sem retry** e releitura independente
+da versão e das assinaturas. Até a execução autorizada de cada ensaio,
+o resultado live continua **NOT_RUN**.

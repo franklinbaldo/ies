@@ -12,6 +12,7 @@ use crate::formulario_web::{
     enviar_submissao_via,
 };
 use crate::instalacao::Instalacao;
+use crate::origem_de_treinamento::{self, Escrita};
 use crate::processo_concluir_cli::com_sessao;
 use crate::processo_obter::{
     ErroDocumentoObter, PedidoDeVersoes, PedidoDoAnexo, PedidoDoDocumento, SessaoDoProcesso,
@@ -56,6 +57,7 @@ fn corpo_sintetico(html: &str) -> Option<&str> {
 enum ErroSalvarNoSei {
     Local(#[source] ErroCopia),
     PastaAtualIlegivel(#[source] std::io::Error),
+    OrigemForaDoTreinamento(#[source] origem_de_treinamento::CausaDaOrigem),
     /// Só a instalação sintética (`sei.test`) tem o editor observado.
     InstalacaoSemEditorObservado,
     LeituraDoDocumento(#[source] ErroDocumentoObter),
@@ -219,9 +221,17 @@ fn executar(
     previa: &PreviaCopia,
 ) -> Resultado {
     let instalacao = match Instalacao::interpretar(sessao.origem) {
-        Some(instalacao) if instalacao.host() == "sei.test" => instalacao,
-        _ => return Resultado::Recusado(ErroSalvarNoSei::InstalacaoSemEditorObservado),
+        Some(instalacao) => instalacao,
+        None => return Resultado::Recusado(ErroSalvarNoSei::InstalacaoSemEditorObservado),
     };
+    // Primeira guarda, antes de qualquer GET ou POST. A liberação do
+    // protocolo nativo SEI4/5 é outra etapa, não um fallback sintético.
+    if let Err(causa) = origem_de_treinamento::exigir(Escrita::DocumentoSalvar, sessao.origem) {
+        return Resultado::Recusado(ErroSalvarNoSei::OrigemForaDoTreinamento(causa));
+    }
+    if instalacao.host() != "sei.test" {
+        return Resultado::Recusado(ErroSalvarNoSei::InstalacaoSemEditorObservado);
+    }
     let (n, local_base, local_editada) = match carregar_par(numero, previa) {
         Ok(par) => par,
         Err(falha) => return Resultado::Recusado(falha),

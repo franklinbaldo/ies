@@ -34,6 +34,7 @@ pub(crate) enum CausaDaOrigem {
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub(crate) enum Escrita {
     BlocoIncluirDocumento,
+    DocumentoSalvar,
     DocumentoIncluirExterno,
     ProcessoPrazo,
     ProcessoRelacionar,
@@ -84,6 +85,29 @@ pub(crate) fn exigir(escrita: Escrita, origem: &str) -> Result<(), CausaDaOrigem
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    #[test]
+    fn documento_salvar_exige_origem_de_treinamento_exata() {
+        assert!(!Escrita::DocumentoSalvar.aprovada_em_treinamento());
+        for origem in ORIGENS {
+            assert!(exigir(Escrita::DocumentoSalvar, origem).is_ok(), "{origem}");
+        }
+        for origem in [
+            "https://sei.unb.br/sei",
+            "https://sei.treinamento.unb.br.exemplo/sei",
+            "https://sei.treinamento.unb.br/outro",
+            "https://sei.treinamento.unb.br/sei/extra",
+            "http://sei.treinamento.unb.br/sei",
+            "https://sei.go.gov.br/sei",
+            "https://sei.exemplo.gov.br/sei",
+        ] {
+            assert_eq!(
+                exigir(Escrita::DocumentoSalvar, origem),
+                Err(CausaDaOrigem::OrigemForaDoTreinamento),
+                "{origem}"
+            );
+        }
+    }
 
     #[test]
     fn retirada_de_acompanhamento_somente_no_treinamento() {
