@@ -47,7 +47,9 @@ com `versao=N`, o `id_documento` do nó (servido duas vezes, com o mesmo
 valor, nas sete instalações) e o `id_procedimento`. Outras âncoras da
 célula (`href="#ID-N"` do "Recuperar Versão", cujo link fica no
 `onclick`) não são seguidas. Total declarado diferente das linhas lidas
-é recusa.
+é recusa. A coluna inicial de seleção pode estar ausente, como no
+histórico de versão única observado na UnB. A largura das linhas
+precisa corresponder ao cabeçalho servido.
 
 ## Caminhos e requisições
 
