@@ -146,7 +146,6 @@ mod url_observada;
 mod uso_invalido;
 mod visao_do_controle;
 mod wizard_cli;
-mod wizard_sondagem;
 
 use clap::{Args, Parser, Subcommand};
 use std::path::PathBuf;
@@ -186,13 +185,20 @@ enum Domain {
     /// Autentica na instalação configurada e grava a sessão nos arquivos privados
     ///
     /// Credenciais só no arquivo privado 0600 de `IES_CREDENCIAIS_FILE`, com as
-    /// linhas usuario=, senha= e orgao= (a sigla mostrada no selOrgao). Sem
+    /// linhas usuario=, senha= e orgao= (a sigla mostrada no selOrgao); sem a
+    /// linha senha=, a senha vem do cofre do sistema (`ies credenciais`). Sem
     /// --forcar, confere antes a sessão gravada com um GET e não loga se ela
     /// valer.
     Login(LoginArgs),
-    /// Gerencia credenciais no cofre seguro do sistema operacional
+    /// Guarda, confere ou apaga a senha do login no cofre do sistema operacional
+    ///
+    /// Uma entrada por instalação e usuário (serviço `ies:<host>`). A senha é
+    /// digitada sem eco, nunca por argumento.
     Credenciais(credenciais_cli::CredenciaisArgs),
-    /// Assistente interativo de configuração
+    /// Assistente interativo que cria um perfil local em ~/.ies/<perfil>, sem rede
+    ///
+    /// Grava origem, sessão vazia, credenciais sem senha e a configuração do
+    /// `ies setup`; a senha vai para o cofre do sistema operacional.
     Wizard(wizard_cli::WizardArgs),
     /// Mostra o contrato de saída (ainda não implementado)
     Esquema,
@@ -433,12 +439,8 @@ fn run(cli: &Cli) -> anyhow::Result<()> {
     }
     match &cli.command {
         Domain::Bloco(bloco) => return bloco_cli::executar(cli, bloco),
-        Domain::Credenciais(args) => {
-            return credenciais_cli::executar_credenciais(args, cli.json);
-        }
-        Domain::Wizard(args) => {
-            return wizard_cli::executar_wizard(args, cli.json);
-        }
+        Domain::Credenciais(args) => return credenciais_cli::executar(args, cli.json),
+        Domain::Wizard(args) => return wizard_cli::executar(args, cli.json),
         Domain::Esquema => {
             esquema_cli::mostrar_esquema(cli.json);
             return Ok(());

@@ -1,23 +1,30 @@
-//! Assistente interativo (wizard) nativo em Rust para configuração do IES.
-//! Grava senhas exclusivamente no cofre seguro do SO (Keyring escopado: "ies:<instancia>").
-//! O arquivo privado no disco nunca armazena a senha em texto claro.
-
+//! `ies wizard [--perfil NOME]` (contracts/cli/wizard.md): cria um perfil
+//! local em `~/.ies/<perfil>`, sem rede. Grava a origem, a sessão vazia,
+//! as credenciais **sem senha** e a configuração do `ies setup`, todos
+//! `0600` e em criação exclusiva; a senha vai só para o cofre do sistema
+//! operacional ([`crate::cofre`]). Nada é sobrescrito: perfil existente é
+//! recusa antes de qualquer gravação.
+use crate::arquivo_privado::{self, FalhaDaGravacao, Politica};
+use crate::cofre::{self, ChaveDoCofre, ErroCofre};
+use crate::configuracao::{ArquivosDeAcesso, ErroGravacaoDaConfiguracao};
+use crate::credenciais_cli::{ErroCredenciais, ler_senha_sem_eco};
+use crate::instalacao::Instalacao;
 use clap::Args;
-use std::fs;
+use serde_json::json;
 use std::io::{self, BufRead, Write};
-use std::path::PathBuf;
-use std::process::ExitCode;
-
-use crate::wizard_sondagem::{normalizar_origem, sondar_instalacao};
+use std::path::{Component, Path, PathBuf};
 
 #[derive(Debug, Args)]
 pub(crate) struct WizardArgs {
-    #[arg(long, help = "Nome do perfil a configurar")]
+    /// Nome do perfil: uma pasta em ~/.ies (padrão: o da instalação)
+    #[arg(long, value_parser = nome_do_perfil)]
     perfil: Option<String>,
 }
 
-struct InstalacaoPreset {
-    slug: &'static str,
+/// Instalação pública de treinamento, com a conta que ela mesma publica
+/// (docs/interfaces/credenciais-de-treinamento.md).
+struct Predefinicao {
+    perfil: &'static str,
     nome: &'static str,
     origem: &'static str,
     usuario: &'static str,
@@ -25,34 +32,34 @@ struct InstalacaoPreset {
     orgao: &'static str,
 }
 
-const PRESETS: &[InstalacaoPreset] = &[
-    InstalacaoPreset {
-        slug: "unb",
-        nome: "UnB 4.0.9 (Treinamento)",
+const PREDEFINICOES: [Predefinicao; 4] = [
+    Predefinicao {
+        perfil: "unb",
+        nome: "UnB 4.0.9 (treinamento)",
         origem: "https://sei.treinamento.unb.br/sei",
         usuario: "aluno1",
         senha: "aluno1",
         orgao: "UnB",
     },
-    InstalacaoPreset {
-        slug: "pen1",
-        nome: "PEN1 5.0.4 / Tramita (Homologação)",
+    Predefinicao {
+        perfil: "pen1",
+        nome: "PEN1 5.0.4 / Tramita (homologação)",
         origem: "https://sei.orgao1.tramita.processoeletronico.gov.br/sei",
         usuario: "orgao1",
         senha: "orgao1",
         orgao: "ORGAO1",
     },
-    InstalacaoPreset {
-        slug: "go",
-        nome: "Goiás 5.0.3 (Treinamento)",
+    Predefinicao {
+        perfil: "go",
+        nome: "Goiás 5.0.3 (treinamento)",
         origem: "https://seitreinamento.go.gov.br/sei",
         usuario: "aluno05",
         senha: "abc123456",
         orgao: "SEAD",
     },
-    InstalacaoPreset {
-        slug: "ufrj",
-        nome: "UFRJ (Treinamento)",
+    Predefinicao {
+        perfil: "ufrj",
+        nome: "UFRJ (testes)",
         origem: "https://teste.sei.tic.ufrj.br/sei",
         usuario: "servidor1",
         senha: "servidor1",
@@ -60,309 +67,232 @@ const PRESETS: &[InstalacaoPreset] = &[
     },
 ];
 
-fn ler_linha(prompt: &str) -> String {
-    print!("{prompt}");
-    let _ = io::stdout().flush();
-    let mut buffer = String::new();
-    let _ = io::stdin().lock().read_line(&mut buffer);
-    buffer.trim().to_string()
+/// Por que o assistente parou. Nenhuma variante carrega a senha.
+#[derive(Debug, thiserror::Error)]
+#[error("{self:?}")]
+pub(crate) enum ErroWizard {
+    /// Sem pasta pessoal absoluta (`HOME`; `USERPROFILE` no Windows).
+    PastaPessoalDesconhecida,
+    /// A entrada padrão acabou antes da resposta.
+    EntradaEncerrada,
+    EntradaIlegivel(#[source] io::Error),
+    /// A opção não é um número da lista.
+    OpcaoInvalida,
+    /// A URL não é a base HTTPS de uma instalação (como no arquivo de origem).
+    OrigemNaoReconhecida,
+    UsuarioVazio,
+    OrgaoVazio,
+    /// O perfil não é um único nome de pasta (sem `/`, `\`, `.`, `..` ou
+    /// caminho absoluto).
+    PerfilInvalido,
+    /// `~/.ies/<perfil>` já existe: o assistente não sobrescreve.
+    PerfilJaExiste,
+    /// A pasta do perfil não pôde ser consultada (o motivo do sistema).
+    PerfilNaoConsultado(io::ErrorKind),
+    Senha(#[from] ErroCredenciais),
+    Cofre(#[from] ErroCofre),
+    Gravacao(#[from] FalhaDaGravacao),
+    Configuracao(#[from] ErroGravacaoDaConfiguracao),
 }
 
-fn ler_senha_segura() -> Result<String, String> {
-    print!("Senha: ");
-    let _ = io::stdout().flush();
-    match rpassword::read_password() {
-        Ok(pwd) => {
-            let trim = pwd.trim().to_string();
-            if trim.is_empty() {
-                Err("A senha não pode ser vazia.".to_string())
-            } else {
-                Ok(trim)
-            }
-        }
-        Err(e) => Err(format!("Falha ao ler senha sem eco: {e}")),
-    }
+/// O que o assistente reuniu antes de gravar.
+struct Respostas {
+    instalacao: Instalacao,
+    usuario: String,
+    orgao: String,
+    senha: String,
+    perfil: String,
 }
 
-fn escolher_orgao(orgaos: &[(String, String)]) -> String {
-    if orgaos.is_empty() {
-        return ler_linha("Sigla do Órgão (ex: PGE): ");
-    }
-    if orgaos.len() == 1 {
-        let (_, rotulo) = &orgaos[0];
-        println!("  Órgão único detectado: \x1b[1;32m{rotulo}\x1b[0m");
-        return rotulo.clone();
-    }
+/// O perfil gravado (caminhos e serviço; nenhuma credencial).
+#[derive(Debug)]
+struct PerfilGravado {
+    perfil: String,
+    servico: String,
+    config: PathBuf,
+    credenciais: PathBuf,
+}
 
-    println!(
-        "\n\x1b[1mÓrgãos disponíveis nesta instalação ({}):\x1b[0m",
-        orgaos.len()
-    );
-    let largura_num = orgaos.len().to_string().len();
-    for (i, (id_val, rotulo)) in orgaos.iter().enumerate() {
+pub(crate) fn executar(args: &WizardArgs, json_mode: bool) -> anyhow::Result<()> {
+    let pasta_pessoal = std::env::home_dir()
+        .filter(|pasta| pasta.is_absolute())
+        .ok_or(ErroWizard::PastaPessoalDesconhecida)?;
+    // Perguntas em stderr: stdout fica só com o resultado.
+    let gravado = configurar(
+        &mut io::stdin().lock(),
+        &mut io::stderr(),
+        || ler_senha_sem_eco("Senha (não aparece ao digitar): "),
+        &pasta_pessoal,
+        args.perfil.as_deref(),
+    )?;
+    let config = gravado.config.display().to_string();
+    let credenciais = gravado.credenciais.display().to_string();
+    if json_mode {
         println!(
-            "  {:>largura$}) {} (id {})",
-            i + 1,
-            rotulo,
-            id_val,
-            largura = largura_num
+            "{}",
+            json!({
+                "perfil": gravado.perfil,
+                "cofre": gravado.servico,
+                "config_file": config,
+                "credenciais_file": credenciais,
+                "conexao": "nao_verificada",
+            })
+        );
+    } else {
+        println!(
+            "IES: perfil '{}' criado; senha no cofre do sistema ({}); conexão ainda não verificada.\n\
+             Para usar o perfil, defina no terminal:\n  \
+             IES_CONFIG_FILE={config}\n  IES_CREDENCIAIS_FILE={credenciais}\n\
+             e rode `ies login`.",
+            gravado.perfil, gravado.servico
         );
     }
-    println!();
+    Ok(())
+}
 
-    loop {
-        let entrada = ler_linha(&format!(
-            "Escolha o órgão (1-{}) ou digite a sigla: ",
-            orgaos.len()
-        ));
-        let entrada = entrada.trim();
-        if entrada.is_empty() {
-            continue;
-        }
-        if let Ok(num) = entrada.parse::<usize>() {
-            if num >= 1 && num <= orgaos.len() {
-                return orgaos[num - 1].1.clone();
-            }
-        }
-        let correspondencias: Vec<&(String, String)> = orgaos
-            .iter()
-            .filter(|(_, r)| r.eq_ignore_ascii_case(entrada))
-            .collect();
-        if correspondencias.len() == 1 {
-            return correspondencias[0].1.clone();
-        }
-        let parciais: Vec<&(String, String)> = orgaos
-            .iter()
-            .filter(|(_, r)| r.to_lowercase().contains(&entrada.to_lowercase()))
-            .collect();
-        if parciais.len() == 1 {
-            return parciais[0].1.clone();
-        } else if parciais.len() > 1 {
-            let nomes: Vec<&str> = parciais.iter().take(5).map(|(_, r)| r.as_str()).collect();
-            println!("Mais de um órgão encontrado: {}...", nomes.join(", "));
+/// Pergunta, confere o perfil e só então grava: cofre primeiro (sem cofre,
+/// nada vai ao disco), depois os arquivos do perfil.
+fn configurar(
+    entrada: &mut impl BufRead,
+    saida: &mut impl Write,
+    ler_senha: impl FnOnce() -> Result<String, ErroCredenciais>,
+    pasta_pessoal: &Path,
+    perfil: Option<&str>,
+) -> Result<PerfilGravado, ErroWizard> {
+    let respostas = perguntar(entrada, saida, ler_senha, perfil)?;
+    let pasta = pasta_pessoal.join(".ies").join(&respostas.perfil);
+    match std::fs::symlink_metadata(&pasta) {
+        Ok(_) => return Err(ErroWizard::PerfilJaExiste),
+        Err(erro) if erro.kind() == io::ErrorKind::NotFound => {}
+        Err(erro) => return Err(ErroWizard::PerfilNaoConsultado(erro.kind())),
+    }
+    let chave = ChaveDoCofre::nova(&respostas.instalacao, &respostas.usuario);
+    cofre::salvar(&chave, &respostas.senha)?;
+    let arquivos = ArquivosDeAcesso {
+        url_controle: pasta.join("url-controle"),
+        cookie: pasta.join("cookie"),
+        origem: pasta.join("origem"),
+    };
+    let credenciais = pasta.join("credenciais");
+    let config = pasta.join("ies-config.json");
+    let novo = Politica::exclusiva()
+        .diretorio_do_ies()
+        .criando_diretorios();
+    let origem = format!("{}\n", respostas.instalacao.url_base());
+    arquivo_privado::gravar(&arquivos.origem, origem.as_bytes(), novo)?;
+    // Sessão vazia: o primeiro `ies login` a grava.
+    arquivo_privado::gravar(&arquivos.cookie, b"", novo)?;
+    arquivo_privado::gravar(&arquivos.url_controle, b"", novo)?;
+    let linhas = format!("usuario={}\norgao={}\n", respostas.usuario, respostas.orgao);
+    arquivo_privado::gravar(&credenciais, linhas.as_bytes(), novo)?;
+    crate::configuracao::salvar_arquivos_de_acesso(&config, &arquivos)?;
+    Ok(PerfilGravado {
+        perfil: respostas.perfil,
+        servico: chave.servico().to_owned(),
+        config,
+        credenciais,
+    })
+}
+
+fn perguntar(
+    entrada: &mut impl BufRead,
+    saida: &mut impl Write,
+    ler_senha: impl FnOnce() -> Result<String, ErroCredenciais>,
+    perfil: Option<&str>,
+) -> Result<Respostas, ErroWizard> {
+    let outra = PREDEFINICOES.len() + 1;
+    let opcoes: Vec<String> = (1..)
+        .zip(&PREDEFINICOES)
+        .map(|(numero, predefinicao)| format!("  {numero}) {}\n", predefinicao.nome))
+        .collect();
+    let opcoes = opcoes.concat();
+    let lista = format!(
+        "IES — novo perfil local (sem rede)\nInstalação:\n{opcoes}  \
+         {outra}) Outra instalação (URL, órgão, usuário e senha)\n"
+    );
+    let escolha = responder(entrada, saida, &format!("{lista}Opção [1-{outra}]: "))?;
+    let indice = escolha
+        .parse::<usize>()
+        .ok()
+        .and_then(|numero| numero.checked_sub(1))
+        .ok_or(ErroWizard::OpcaoInvalida)?;
+    if let Some(p) = PREDEFINICOES.get(indice) {
+        return Ok(Respostas {
+            instalacao: Instalacao::interpretar(p.origem)
+                .ok_or(ErroWizard::OrigemNaoReconhecida)?,
+            usuario: p.usuario.to_owned(),
+            orgao: p.orgao.to_owned(),
+            senha: p.senha.to_owned(),
+            perfil: perfil.unwrap_or(p.perfil).to_owned(),
+        });
+    }
+    if indice != PREDEFINICOES.len() {
+        return Err(ErroWizard::OpcaoInvalida);
+    }
+    let url = responder(
+        entrada,
+        saida,
+        "URL base da instalação (ex.: https://sei.exemplo.gov.br/sei): ",
+    )?;
+    let instalacao = Instalacao::interpretar(&url).ok_or(ErroWizard::OrigemNaoReconhecida)?;
+    let orgao = responder(entrada, saida, "Órgão (a sigla da tela de login): ")?;
+    if orgao.is_empty() {
+        return Err(ErroWizard::OrgaoVazio);
+    }
+    let usuario = responder(entrada, saida, "Usuário: ")?;
+    if usuario.is_empty() {
+        return Err(ErroWizard::UsuarioVazio);
+    }
+    let perfil = if let Some(perfil) = perfil {
+        perfil.to_owned()
+    } else {
+        let padrao = instalacao.host().to_owned();
+        let nome = responder(entrada, saida, &format!("Nome do perfil [{padrao}]: "))?;
+        if nome.is_empty() {
+            padrao
         } else {
-            println!("Nenhum órgão corresponde a '{entrada}'.");
+            nome_do_perfil(&nome).map_err(|_| ErroWizard::PerfilInvalido)?
         }
+    };
+    let senha = ler_senha()?;
+    Ok(Respostas {
+        instalacao,
+        usuario,
+        orgao,
+        senha,
+        perfil,
+    })
+}
+
+/// Uma linha da entrada, aparada; fim da entrada é erro.
+fn responder(
+    entrada: &mut impl BufRead,
+    saida: &mut impl Write,
+    pergunta: &str,
+) -> Result<String, ErroWizard> {
+    // A pergunta é cortesia: falha ao escrevê-la não muda a resposta.
+    let _ = write!(saida, "{pergunta}").and_then(|()| saida.flush());
+    let mut linha = String::new();
+    match entrada.read_line(&mut linha) {
+        Ok(0) => Err(ErroWizard::EntradaEncerrada),
+        Ok(_) => Ok(linha.trim().to_owned()),
+        Err(erro) => Err(ErroWizard::EntradaIlegivel(erro)),
     }
 }
 
-pub(crate) fn executar_wizard(args: &WizardArgs, _json_mode: bool) -> ExitCode {
-    println!("\x1b[1;36m==================================================\x1b[0m");
-    println!("\x1b[1;36m       IES — Assistente de Configuração           \x1b[0m");
-    println!("\x1b[1;36m       (Cofre Nativo do SO: Keyring)              \x1b[0m");
-    println!("\x1b[1;36m==================================================\x1b[0m\n");
-
-    println!("Escolha a instalação do SEI:");
-    for (i, p) in PRESETS.iter().enumerate() {
-        println!("  \x1b[1;33m{}\x1b[0m) {}", i + 1, p.nome);
-    }
-    println!("  \x1b[1;33m5\x1b[0m) Conectar ao meu SEI (personalizado / corporativo)\n");
-
-    let escolha = ler_linha("Opção [1-5] (padrão: 5): ");
-    let escolha = if escolha.is_empty() { "5" } else { &escolha };
-
-    let (slug, origem, usuario, senha, orgao) = match escolha {
-        "1" | "2" | "3" | "4" => {
-            let idx = match escolha.parse::<usize>() {
-                Ok(n) if n >= 1 && n <= PRESETS.len() => n - 1,
-                _ => return ExitCode::from(1),
-            };
-            let p = &PRESETS[idx];
-            println!("\nUsando predefinição: \x1b[1m{}\x1b[0m", p.nome);
-            (
-                p.slug.to_string(),
-                p.origem.to_string(),
-                p.usuario.to_string(),
-                p.senha.to_string(),
-                p.orgao.to_string(),
-            )
+/// Um único nome de pasta: sem separador, `.`, `..`, raiz ou prefixo.
+fn nome_do_perfil(nome: &str) -> Result<String, String> {
+    let mut partes = Path::new(nome).components();
+    match (partes.next(), partes.next()) {
+        (Some(Component::Normal(parte)), None)
+            if parte == nome && !nome.contains(['/', '\\']) && !nome.starts_with('.') =>
+        {
+            Ok(nome.to_owned())
         }
-        "5" => {
-            let raw_url =
-                ler_linha("\nCole a URL do seu SEI (ex: https://sei.sistemas.ro.gov.br): ");
-            let orig = match normalizar_origem(&raw_url) {
-                Ok(u) => u,
-                Err(e) => {
-                    eprintln!("Erro: {e}");
-                    return ExitCode::from(1);
-                }
-            };
-            println!("  Origem configurada: \x1b[1;32m{orig}\x1b[0m");
-
-            let consentimento = ler_linha(
-                "\nDeseja sondar a instalação na rede para catálogo de órgãos? (S/N) [S]: ",
-            );
-            let (sigla_sip, orgaos) =
-                if consentimento.is_empty() || consentimento.to_lowercase().starts_with('s') {
-                    print!("  Sondando login e catálogo de órgãos... ");
-                    let _ = io::stdout().flush();
-                    match sondar_instalacao(&orig) {
-                        Ok((sip, orgs)) => {
-                            println!("\x1b[1;32mconcluído!\x1b[0m");
-                            (sip, orgs)
-                        }
-                        Err(motivo) => {
-                            println!("\x1b[1;33mignorado ({motivo})\x1b[0m");
-                            (None, Vec::new())
-                        }
-                    }
-                } else {
-                    println!("  (Configuração manual/offline selecionada)");
-                    (None, Vec::new())
-                };
-
-            if let Some(sip) = &sigla_sip {
-                println!("  Ambiente SIP:       \x1b[1;36m{sip}\x1b[0m");
-            }
-
-            let o = escolher_orgao(&orgaos);
-            let u = ler_linha("Usuário (login): ");
-            if u.is_empty() {
-                eprintln!("Erro: Usuário não pode ser vazio.");
-                return ExitCode::from(1);
-            }
-
-            let s = match ler_senha_segura() {
-                Ok(pwd) => pwd,
-                Err(e) => {
-                    eprintln!("Erro: {e}");
-                    return ExitCode::from(1);
-                }
-            };
-
-            let prefixo = sigla_sip.as_deref().unwrap_or("sei").to_lowercase();
-            let perfil_sug = format!("{prefixo}-{}", o.to_lowercase());
-            let final_slug = if let Some(p) = &args.perfil {
-                p.clone()
-            } else {
-                let p_nome = ler_linha(&format!("Nome do perfil local [{perfil_sug}]: "));
-                if p_nome.is_empty() {
-                    perfil_sug
-                } else {
-                    p_nome
-                }
-            };
-            (final_slug, orig, u, s, o)
-        }
-        _ => {
-            eprintln!("Opção inválida.");
-            return ExitCode::from(1);
-        }
-    };
-
-    // Grava a senha no cofre nativo canônico (NUNCA em disco)
-    let servico_canonica = crate::cofre::servico_do_cofre(&origem);
-    if let Err(e) = crate::cofre::salvar_senha(&usuario, &origem, &senha) {
-        eprintln!("Falha crítica ao gravar credencial no cofre nativo: {e}");
-        return ExitCode::from(1);
+        _ => Err("o perfil é um único nome de pasta, sem '/', '\\', '.' ou '..'".into()),
     }
-    println!(
-        "\x1b[1;32m✓ Senha gravada com segurança no cofre nativo ('{servico_canonica}').\x1b[0m"
-    );
-
-    // Diretório base
-    let home = match std::env::var_os("USERPROFILE").or_else(|| std::env::var_os("HOME")) {
-        Some(h) => PathBuf::from(h),
-        None => PathBuf::from("."),
-    };
-    let dir = home.join(".ies").join(&slug);
-    if let Err(e) = fs::create_dir_all(&dir) {
-        eprintln!("Falha ao criar diretório {}: {e}", dir.display());
-        return ExitCode::from(1);
-    }
-
-    let arq_origem = dir.join("origem");
-    let arq_cookie = dir.join("cookie");
-    let arq_url_controle = dir.join("url-controle");
-    let arq_credenciais = dir.join("credenciais");
-    let arq_config = dir.join("ies-config.json");
-
-    if let Err(e) = fs::write(&arq_origem, &origem) {
-        eprintln!("Falha ao gravar arquivo origem: {e}");
-        return ExitCode::from(1);
-    }
-    if !arq_cookie.exists() && fs::write(&arq_cookie, "").is_err() {
-        eprintln!("Falha ao inicializar arquivo cookie.");
-        return ExitCode::from(1);
-    }
-    if !arq_url_controle.exists() && fs::write(&arq_url_controle, "").is_err() {
-        eprintln!("Falha ao inicializar arquivo url-controle.");
-        return ExitCode::from(1);
-    }
-
-    // O arquivo 'credenciais' contém APENAS usuário e órgão. A senha NUNCA vai ao disco.
-    let cred_content = format!("usuario={usuario}\norgao={orgao}\n");
-    if let Err(e) = fs::write(&arq_credenciais, &cred_content) {
-        eprintln!("Falha ao gravar arquivo de credenciais: {e}");
-        return ExitCode::from(1);
-    }
-
-    // Remove config anterior se houver
-    let _ = fs::remove_file(&arq_config);
-
-    // Executa ies setup
-    let arquivos = crate::configuracao::ArquivosDeAcesso {
-        url_controle: arq_url_controle.clone(),
-        cookie: arq_cookie.clone(),
-        origem: arq_origem.clone(),
-    };
-    if let Err(e) = crate::configuracao::salvar_arquivos_de_acesso(&arq_config, &arquivos) {
-        eprintln!("Falha no ies setup: {e}");
-        return ExitCode::from(1);
-    }
-    println!(
-        "\x1b[1;32m✓ Configuração gravada em: {}\x1b[0m",
-        arq_config.display()
-    );
-
-    // Scripts de ativação exportando referências
-    let script_ps1 = dir.join("ativar.ps1");
-    let ps1_conteudo = format!(
-        "$env:IES_CONFIG_FILE = \"{}\"\n$env:IES_CREDENCIAIS_FILE = \"{}\"\n$env:IES_USUARIO = \"{}\"\n$env:IES_ORGAO = \"{}\"\nWrite-Host \"IES ativo: {}\" -ForegroundColor Green\n",
-        arq_config.display(),
-        arq_credenciais.display(),
-        usuario,
-        orgao,
-        slug
-    );
-    if let Err(e) = fs::write(&script_ps1, ps1_conteudo) {
-        eprintln!("Falha ao gravar script de ativação PowerShell: {e}");
-        return ExitCode::from(1);
-    }
-
-    let script_sh = dir.join("ativar.sh");
-    let sh_conteudo = format!(
-        "export IES_CONFIG_FILE=\"{}\"\nexport IES_CREDENCIAIS_FILE=\"{}\"\nexport IES_USUARIO=\"{}\"\nexport IES_ORGAO=\"{}\"\necho \"IES ativo: {}\"\n",
-        arq_config.display(),
-        arq_credenciais.display(),
-        usuario,
-        orgao,
-        slug
-    );
-    let _ = fs::write(&script_sh, sh_conteudo);
-
-    let testar = ler_linha("\nDeseja testar a conexão com 'ies login' agora? (S/N) [S]: ");
-    if testar.is_empty() || testar.to_lowercase().starts_with('s') {
-        println!("\nConectando e autenticando no SEI...");
-        unsafe {
-            std::env::set_var("IES_CONFIG_FILE", &arq_config);
-            std::env::set_var("IES_CREDENCIAIS_FILE", &arq_credenciais);
-            std::env::set_var("IES_USUARIO", &usuario);
-            std::env::set_var("IES_ORGAO", &orgao);
-        }
-        let _ = crate::sessao_login_cli::executar_login(false, false, None);
-    }
-
-    println!("\n--------------------------------------------------");
-    println!(
-        "Para ativar este perfil no terminal:\n  PowerShell:\n    . {}\n    ou:\n    $env:IES_CONFIG_FILE = \"{}\"\n    $env:IES_CREDENCIAIS_FILE = \"{}\"",
-        script_ps1.display(),
-        arq_config.display(),
-        arq_credenciais.display()
-    );
-    println!(
-        "\nComandos de exemplo:\n  ies status\n  ies unidade atual\n  ies unidade recebidos\n  ies processo <NUP>"
-    );
-    println!("--------------------------------------------------\n");
-    ExitCode::SUCCESS
 }
+
+#[cfg(test)]
+#[path = "wizard_cli/tests.rs"]
+mod tests;
