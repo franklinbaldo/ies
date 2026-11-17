@@ -8,7 +8,9 @@
 //! URL sem assinatura, e só nessas duas formas. O aceite de cada forma é
 //! guardado à parte: a com documento só foi medida na `UnB`.
 use super::IndiceLocal;
+use super::falhas::FalhaDoIndice;
 use super::validacao::conferir_id_procedimento;
+use crate::acao_do_sei::AcaoDoSei;
 use crate::instalacao::Instalacao;
 use rusqlite::OptionalExtension;
 
@@ -26,11 +28,12 @@ pub(crate) const RECUSAS_PARA_REBAIXAR_ACEITA: i64 = 2;
 pub(crate) fn url_da_entrada_por_id(
     instalacao: &Instalacao,
     id_procedimento: &str,
-) -> Option<String> {
-    conferir_id_procedimento(id_procedimento).ok()?;
-    Some(format!(
-        "{}/controlador.php?acao=procedimento_trabalhar&id_procedimento={id_procedimento}",
-        instalacao.url_base()
+) -> Result<String, super::validacao::RegistroRecusado> {
+    conferir_id_procedimento(id_procedimento)?;
+    Ok(format!(
+        "{}/controlador.php?acao={acao}&id_procedimento={id_procedimento}",
+        instalacao.url_base(),
+        acao = AcaoDoSei::ProcedimentoTrabalhar.como_na_url()
     ))
 }
 
@@ -41,12 +44,21 @@ pub(crate) fn url_da_entrada_por_id_com_documento(
     instalacao: &Instalacao,
     id_procedimento: &str,
     id_documento: &str,
-) -> Option<String> {
-    conferir_id_procedimento(id_documento).ok()?;
+) -> Result<String, super::validacao::RegistroRecusado> {
+    conferir_id_procedimento(id_documento)?;
     let mut url = url_da_entrada_por_id(instalacao, id_procedimento)?;
     url.push_str("&id_documento=");
     url.push_str(id_documento);
-    Some(url)
+    Ok(url)
+}
+
+/// O que a instalação respondeu à entrada por id, enquanto vale.
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+pub(crate) enum AceiteDaEntrada {
+    /// 302 para a mesma ação assinada.
+    Aceita,
+    /// "Link sem assinatura" na tela de login, há menos de 30 dias.
+    Recusada,
 }
 
 /// As colunas do aceite de cada forma medida.
@@ -72,13 +84,17 @@ impl Forma {
 
 impl IndiceLocal {
     /// A instalação aceita a entrada por `id_procedimento` sem hash?
-    /// `None`: não se sabe (nunca testada, recusa expirada ou índice desligado).
-    pub(crate) fn entrada_por_id(&self, instalacao: &Instalacao) -> Option<bool> {
+    /// `None`: não há registro vigente (nunca testada, recusa expirada ou
+    /// índice sem banco; a falha do banco fica nos avisos).
+    pub(crate) fn entrada_por_id(&self, instalacao: &Instalacao) -> Option<AceiteDaEntrada> {
         self.aceite(instalacao, Forma::Processo)
     }
 
     /// A instalação aceita a forma com `id_documento`? Mesma regra.
-    pub(crate) fn entrada_por_id_com_documento(&self, instalacao: &Instalacao) -> Option<bool> {
+    pub(crate) fn entrada_por_id_com_documento(
+        &self,
+        instalacao: &Instalacao,
+    ) -> Option<AceiteDaEntrada> {
         self.aceite(instalacao, Forma::ComDocumento)
     }
 
@@ -92,10 +108,12 @@ impl IndiceLocal {
         self.registrar_aceite(instalacao, Forma::ComDocumento, aceita);
     }
 
-    fn aceite(&self, instalacao: &Instalacao, forma: Forma) -> Option<bool> {
+    /// O estado lido do SQLite vira o enum aqui; um inteiro fora de `{0, 1}`
+    /// fica nos avisos e conta como sem registro.
+    fn aceite(&self, instalacao: &Instalacao, forma: Forma) -> Option<AceiteDaEntrada> {
         let (estado, testado, _) = forma.colunas();
         let origem = instalacao.url_base();
-        self.executar(None, |banco, agora| {
+        let lido = self.executar(None, |banco, agora| {
             let linha = banco
                 .query_row(
                     &format!("SELECT {estado}, {testado} FROM instalacao WHERE origem = ?1"),
@@ -103,14 +121,18 @@ impl IndiceLocal {
                     |l| Ok((l.get::<_, Option<i64>>(0)?, l.get::<_, Option<f64>>(1)?)),
                 )
                 .optional()?;
-            Ok(match linha {
-                Some((Some(1), _)) => Some(true),
-                Some((Some(0), testado)) => {
-                    (agora - testado.unwrap_or(0.0) < VALIDADE_DA_RECUSA_SEGUNDOS).then_some(false)
-                }
-                _ => None,
-            })
-        })
+            Ok(linha.and_then(|(estado, testado)| Some((estado?, agora - testado.unwrap_or(0.0)))))
+        });
+        match lido? {
+            (1, _) => Some(AceiteDaEntrada::Aceita),
+            (0, idade) => {
+                (idade < VALIDADE_DA_RECUSA_SEGUNDOS).then_some(AceiteDaEntrada::Recusada)
+            }
+            (outro, _) => {
+                self.anotar(FalhaDoIndice::EstadoDoAceiteForaDoConjunto(outro));
+                None
+            }
+        }
     }
 
     /// Registre só o 302 para a mesma ação assinada (aceite) ou a recusa

@@ -1,4 +1,0 @@
-{
-  "description": "Avisos do OSV aceitos por scripts/osv_audit.py. Cada entrada exige id (como o OSV relata, RUSTSEC-... ou GHSA-...), package (nome no Cargo.lock) e justification escrita: por que o aviso não se aplica ao IES e quando revisar. Ver docs/ci.md.",
-  "accepted": []
-}

@@ -1,9 +1,9 @@
-//! RED/GREEN do defeito do `tl` 0.7.8 na derivação: um booleano sem valor
+//! Regressão do `tl` 0.7.8 (removido na #676) na derivação: um booleano sem valor
 //! antes de `disabled`, `name`, `type` ou `value` não pode abrir o formulário.
 use super::tests::{OPERACAO, instalacao, tela_iso, url_servida};
 use super::*;
-use crate::html_atributos::{ErroAtributoHtml, com_booleano_antes_dos_atributos};
-use ErroSubmissaoFormulario as E;
+use crate::tela_html::HtmlServido;
+use crate::tela_html::teste::com_booleano_antes_dos_atributos;
 
 fn pagina(interior: &str) -> String {
     format!(
@@ -18,13 +18,16 @@ fn pagina(interior: &str) -> String {
     )
 }
 
-fn derivar(html: &str, campos: &[(&str, &str)]) -> Result<SubmissaoDerivada, E> {
+fn derivar(
+    html: &str,
+    campos: &[(&str, &str)],
+) -> Result<SubmissaoDerivada, ErroSubmissaoFormulario> {
     let url = url_servida();
     derivar_submissao(
         &OPERACAO,
         &instalacao(),
-        &tela_iso(&url, html),
-        "UNIDADE TESTE",
+        &tela_iso(&url, &HtmlServido::de_teste(html)),
+        Some("UNIDADE TESTE"),
         campos,
     )
 }
@@ -51,7 +54,7 @@ fn select_multiple_desabilitado_com_booleanos_antes_do_name_nao_e_publicado() {
         <option value='P' selected>P</option></select>";
     assert_eq!(
         derivar(&pagina(select), &[("rdoPesquisarEm", "P")]).unwrap_err(),
-        E::CampoNaoPublicadoPeloFormulario {
+        ErroSubmissaoFormulario::CampoNaoPublicadoPeloFormulario {
             campo: "rdoPesquisarEm".to_owned()
         }
     );
@@ -91,10 +94,11 @@ fn select_com_multiple_antes_do_name_aceita_repeticao() {
 }
 
 #[test]
-fn name_repetido_num_controle_nao_escolhe_um_dos_valores() {
-    let html = pagina("<input type='hidden' name='hdnExtra' NAME='hdnOutro' value='1'>");
+fn name_repetido_num_controle_vale_o_primeiro() {
+    let repetido = pagina("<input type='hidden' name='hdnExtra' NAME='hdnOutro' value='1'>");
+    let unico = pagina("<input type='hidden' name='hdnExtra' value='1'>");
     assert_eq!(
-        derivar(&html, &[]).unwrap_err(),
-        E::AtributoHtml(ErroAtributoHtml::AtributoRepetidoNaTag { atributo: "name" })
+        derivar(&repetido, &[]).unwrap().corpo(),
+        derivar(&unico, &[]).unwrap().corpo()
     );
 }

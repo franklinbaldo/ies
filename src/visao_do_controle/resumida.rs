@@ -1,10 +1,9 @@
 //! `ies unidade recebidos|gerados [--pagina N]` quando a sessão está na D:
 //! troca para R e lê (e pagina, se pedido); a sessão fica na R, com a página
 //! N lembrada (sem restaurar).
-use super::ErroVisaoDoControle as E;
-use super::Visao;
 use super::envio::{EnvioDoControle, Sessao, TelaAtual};
 use super::passos::{contexto, trocar, unidade_da_tela};
+use super::{ErroVisaoDoControle, Visao};
 use crate::dominio::Categoria;
 use crate::formulario_web::TelaServida;
 use crate::instalacao::Instalacao;
@@ -21,11 +20,11 @@ pub(crate) fn obter_na_visao_resumida<V: EnvioDoControle>(
     pagina: Option<usize>,
     cookie: &CookieDaSessao,
     envio: &mut V,
-) -> Result<String, E> {
+) -> Result<crate::tela_html::HtmlServido, super::ErroVisaoDoControle> {
     let encontrado = contexto(&tela.html)?;
     let unidade = unidade_da_tela(&encontrado, unidade_solicitada)?;
     if !encontrado.eh_detalhada() {
-        return Err(E::VisaoDoControleNaoReconhecida);
+        return Err(ErroVisaoDoControle::VisaoDoControleNaoReconhecida);
     }
     let mut sessao = Sessao {
         instalacao,
@@ -37,7 +36,7 @@ pub(crate) fn obter_na_visao_resumida<V: EnvioDoControle>(
     let Some(numero) = pagina else {
         return Ok(resumida.html);
     };
-    if planejar(&resumida.html, categoria, numero).map_err(E::Pagina)? == PlanoDaPagina::JaExibida {
+    if planejar(&resumida.html, categoria, numero)? == PlanoDaPagina::JaExibida {
         return Ok(resumida.html);
     }
     Ok(postar_pagina(&mut sessao, &resumida, categoria, numero)?.unwrap_or(resumida.html))
@@ -50,8 +49,9 @@ fn postar_pagina<V: EnvioDoControle>(
     tela: &TelaAtual,
     categoria: Categoria,
     numero: usize,
-) -> Result<Option<String>, E> {
-    let codificacao = codificacao_da_tela(&tela.mime).ok_or(E::CharsetDaTelaNaoSuportado)?;
+) -> Result<Option<crate::tela_html::HtmlServido>, super::ErroVisaoDoControle> {
+    let codificacao = codificacao_da_tela(&tela.mime)
+        .ok_or(super::ErroVisaoDoControle::CharsetDaTelaNaoSuportado)?;
     let servida = TelaServida {
         url: &tela.url,
         html: &tela.html,
@@ -66,8 +66,7 @@ fn postar_pagina<V: EnvioDoControle>(
         numero,
         sessao.cookie,
         |submissao, cookie| envio.post(submissao, cookie),
-    )
-    .map_err(E::Pagina)?;
+    )?;
     if let Some(html) = &pagina {
         // O mesmo servidor e a mesma sessão: o charset da tela de origem.
         sessao.envio.colher_controle(html, Some(&tela.mime));

@@ -1,70 +1,37 @@
-//! Falhas de `ies processo buscar TERMO`: uma variante por etapa do fluxo,
-//! cada uma com o subcódigo estável da etapa que falhou.
+//! Falhas de `ies processo buscar TERMO`: um erro por etapa do fluxo,
+//! cada uma com o erro da etapa que falhou.
 use super::formulario_pesquisa::ErroPesquisaProtocolo;
 use super::link_da_pesquisa::ErroLinkDaPesquisa;
 use super::paginacao::ErroPaginacaoDaPesquisa;
-use super::resposta::ErroRespostaDaPesquisa;
 use crate::erro_web::ErroCaixa;
-use crate::transporte::{FalhaTransporte, StatusHttpRecusado};
+use crate::transporte::FalhaTransporte;
 
-#[derive(Clone, Debug, PartialEq, Eq)]
+#[derive(Clone, Debug, PartialEq, Eq, thiserror::Error)]
+#[error("{self:?}")]
 pub(crate) enum ErroBuscaDeProcesso {
     /// GET do Controle ou da tela de pesquisa (inclui sessão vencida).
-    Transporte(FalhaTransporte),
+    Transporte(#[from] FalhaTransporte),
     /// O Controle não foi reconhecido em nenhuma visão.
-    Controle(ErroCaixa),
+    Controle(#[from] ErroCaixa),
     UnidadeDoControleDiferenteDaSolicitada,
     CharsetDaTelaNaoSuportado,
-    Link(ErroLinkDaPesquisa),
-    Pesquisa(ErroPesquisaProtocolo),
-    Paginacao(ErroPaginacaoDaPesquisa),
+    Link(#[from] ErroLinkDaPesquisa),
+    Pesquisa(#[from] ErroPesquisaProtocolo),
+    Paginacao(#[from] ErroPaginacaoDaPesquisa),
 }
 
 impl ErroBuscaDeProcesso {
-    pub(crate) fn subcodigo(&self) -> &'static str {
+    /// A sessão do SEI acabou (decide o relogin único): por `match` no tipo, sem
+    /// percorrer a cadeia `source()`.
+    pub(crate) fn sessao_encerrada(&self) -> bool {
         match self {
-            Self::Transporte(erro) => erro.subcodigo(),
-            Self::Controle(erro) => erro.subcodigo(),
-            Self::UnidadeDoControleDiferenteDaSolicitada => {
-                "unidade_da_tela_diferente_da_solicitada"
-            }
-            Self::CharsetDaTelaNaoSuportado => "charset_da_tela_da_pesquisa_nao_suportado",
-            Self::Link(erro) => erro.subcodigo(),
-            Self::Pesquisa(erro) => erro.subcodigo(),
-            Self::Paginacao(erro) => erro.subcodigo(),
-        }
-    }
-
-    pub(crate) fn mensagem(&self) -> &'static str {
-        match self {
-            Self::Transporte(erro) => erro.mensagem(),
-            Self::Controle(_) => "Controle de Processos não reconhecido",
-            Self::UnidadeDoControleDiferenteDaSolicitada => {
-                "a unidade do Controle difere da solicitada"
-            }
-            Self::CharsetDaTelaNaoSuportado | Self::Link(_) => {
-                "a tela de pesquisa não foi obtida como observado"
-            }
-            Self::Pesquisa(ErroPesquisaProtocolo::Submissao(
-                crate::formulario_web::ErroSubmissaoFormulario::ValidacaoRecusadaPeloSei(_),
-            )) => "o SEI recusou a pesquisa",
-            Self::Pesquisa(ErroPesquisaProtocolo::Resposta(
-                ErroRespostaDaPesquisa::RespostaDaPesquisaNaoReconhecida,
-            )) => "a resposta da pesquisa não foi reconhecida",
-            Self::Pesquisa(_) => "a pesquisa não foi concluída como observado",
-            Self::Paginacao(ErroPaginacaoDaPesquisa::PaginaForaDoIntervalo { .. }) => {
-                "a página pedida não existe no resultado da pesquisa"
-            }
-            Self::Paginacao(_) => "a página pedida da pesquisa não foi obtida",
-        }
-    }
-
-    /// Status e mensagem do SEI, da requisição recusada.
-    pub(crate) fn status_http(&self) -> Option<&StatusHttpRecusado> {
-        match self {
-            Self::Transporte(erro) => erro.status_http(),
-            Self::Pesquisa(erro) => erro.status_http(),
-            _ => None,
+            Self::Transporte(erro) => erro.sessao_encerrada(),
+            Self::Pesquisa(erro) => erro.sessao_encerrada(),
+            Self::Controle(_)
+            | Self::UnidadeDoControleDiferenteDaSolicitada
+            | Self::CharsetDaTelaNaoSuportado
+            | Self::Link(_)
+            | Self::Paginacao(_) => false,
         }
     }
 }

@@ -1,20 +1,23 @@
 name: Auditoria comparativa de build
 
 on:
-  pull_request:
-    paths:
-      - "Cargo.toml"
-      - "Cargo.lock"
-      - "crates/ies-core/**"
-      - "src/instalacao.rs"
-      - "scripts/build_audit.py"
-      - ".github/workflows/build-audit.yml"
+  workflow_dispatch:
+    inputs:
+      base:
+        description: "Ref da base para comparar (ex.: main)"
+        required: true
+        default: main
+        type: string
+      head:
+        description: "Ref da proposta (branch ou SHA)"
+        required: true
+        type: string
 
 permissions:
   contents: read
 
 concurrency:
-  group: build-audit-${{ github.event.pull_request.number }}
+  group: build-audit-${{ github.ref }}
   cancel-in-progress: true
 
 jobs:
@@ -25,13 +28,13 @@ jobs:
       - name: Checkout da proposta
         uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
-          ref: ${{ github.event.pull_request.head.sha }}
+          ref: ${{ inputs.head }}
           path: proposta
           persist-credentials: false
       - name: Checkout da base
         uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
-          ref: ${{ github.event.pull_request.base.sha }}
+          ref: ${{ inputs.base }}
           path: base
           persist-credentials: false
       - name: Instalar Rust pinado

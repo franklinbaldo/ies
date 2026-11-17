@@ -62,7 +62,7 @@ aberto só em PR-P) ou um processo novo criado no navegador para o ensaio.
    esperado `alterado: true`, `depois: [PR-A, PR-P]`, 6 requisições
    (2 GET abertura, 1 GET tela, 1 POST consulta, 1 POST envio, 1 GET
    verificação — 4 GET + 2 POST com a abertura quente). Mede o 302 e a
-   verificação na variante gravada no acervo.
+   verificação na forma gravada no acervo.
 2. `ies processo NUP --json`: confirma `aberto_em: [PR-A, PR-P]` (1–2 req.).
 3. `ies processo enviar OUTRO_NUP --para PR-A --confirmar --json` (sem
    manter aberto, processo criado para isso): esperado `depois: [PR-A]`;

@@ -1,10 +1,9 @@
 //! Saída do documento externo em `ies documento DOC` (Refs #60, fatia 3;
 //! contracts/cli/documento-obter-externo.md): o objeto `anexo` do JSON,
-//! a linha humana do anexo e a recusa do limite inválido. Bytes do
+//! e a linha humana do anexo. Bytes do
 //! arquivo nunca vão para a saída padrão.
-use crate::anexo_documento::{AnexoLido, VARIAVEL_DO_LIMITE};
+use crate::anexo_documento::AnexoLido;
 use serde_json::{Value, json};
-use std::process::ExitCode;
 
 /// `mime`, `tamanho`, `sha256`, `nome_original` e `disposicao`.
 pub(super) fn json_do_anexo(a: &AnexoLido) -> Value {
@@ -13,17 +12,15 @@ pub(super) fn json_do_anexo(a: &AnexoLido) -> Value {
         "tamanho": a.tamanho,
         "sha256": a.sha256,
         "nome_original": a.nome_original,
-        "disposicao": a.disposicao.map(crate::anexo_documento::Disposicao::como_texto),
+        "disposicao": a.disposicao.como_texto(),
     })
 }
 
 /// A linha humana do anexo; sem texto nem arquivo, a dica de `--saida`.
 pub(super) fn linha_do_anexo(a: &AnexoLido, gravado: bool) -> String {
-    let nome = a
-        .nome_original
-        .as_deref()
-        .map_or_else(String::new, |n| format!(", nome original {n:?}"));
-    let dica = if gravado || a.texto.is_some() {
+    let nome_original = &a.nome_original;
+    let nome = format!(", nome original {nome_original:?}");
+    let dica = if gravado || a.texto().is_some() {
         ""
     } else {
         " Use --saida DIR para gravar o arquivo."
@@ -34,39 +31,21 @@ pub(super) fn linha_do_anexo(a: &AnexoLido, gravado: bool) -> String {
     )
 }
 
-/// `IES_LIMITE_ANEXO_BYTES` inválido: entrada inválida, saída 2.
-pub(super) fn limite_invalido(json_mode: bool) -> ExitCode {
-    let mensagem = format!("{VARIAVEL_DO_LIMITE} tem de ser um inteiro de 1 a 2147483648");
-    if json_mode {
-        println!(
-            "{}",
-            json!({
-                "codigo": "entrada_invalida",
-                "subcodigo": "limite_de_anexo_invalido",
-                "erro": mensagem,
-                "retentavel": false
-            })
-        );
-    } else {
-        eprintln!("IES: {mensagem} [limite_de_anexo_invalido]");
-    }
-    ExitCode::from(2)
-}
-
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::anexo_documento::Disposicao;
+    use crate::anexo_documento::{ConteudoDoAnexo, Disposicao};
 
     fn anexo(texto: Option<&str>) -> AnexoLido {
         AnexoLido {
             mime: "application/pdf".to_owned(),
             tamanho: 12,
             sha256: "ab".repeat(32),
-            nome_original: Some("Minuta.pdf".to_owned()),
-            disposicao: Some(Disposicao::Inline),
-            texto: texto.map(str::to_owned),
-            arquivo: None,
+            nome_original: "Minuta.pdf".to_owned(),
+            disposicao: Disposicao::Inline,
+            conteudo: texto.map_or(ConteudoDoAnexo::Nenhum, |t| {
+                ConteudoDoAnexo::Texto(t.to_owned())
+            }),
         }
     }
 

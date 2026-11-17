@@ -1,6 +1,9 @@
 //! Tela `procedimento_trabalhar`: a unidade publicada (`#lnkInfraUnidade`)
 //! e o `src` assinado do único `iframe#ifrArvore`, conferido e resolvido.
-use crate::html_atributos::{nos_com_id, valor_do_atributo};
+use crate::acao_do_sei::AcaoDoSei;
+use crate::consulta_do_controlador::{
+    ConsultaDoControlador, ErroConsultaDoControlador, ErroParametroDaUrl,
+};
 use crate::instalacao::Instalacao;
 
 /// URL absoluta da árvore, assinada: `Debug` redigido, sem `Display`.
@@ -30,43 +33,33 @@ pub(crate) struct TelaDoProcesso {
     pub(crate) arvore: EnderecoDaArvore,
 }
 
-#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+#[derive(Clone, Debug, PartialEq, Eq, thiserror::Error)]
+#[error("{self:?}")]
 pub(crate) enum ErroTelaDoProcesso {
-    HtmlDaTelaDoProcessoNaoInterpretado,
-    IdentificacaoDaUnidadeAusenteNaTelaDoProcesso,
+    UnidadeDoControleIlegivel(#[source] crate::erro_web::ErroCaixa),
     UnidadeDaTelaDiferenteDaSolicitada,
-    ArvoreAusenteNaTelaDoProcesso,
-    ArvoresRepetidasNaTelaDoProcesso,
-    EnderecoDaArvoreNaoReconhecido,
     EnderecoDaArvoreDeOutroProcesso,
     /// Tela aberta por número SEI: a árvore não seleciona o documento pedido.
     EnderecoDaArvoreDeOutroDocumento,
-}
-
-impl ErroTelaDoProcesso {
-    pub(crate) fn subcodigo(self) -> &'static str {
-        match self {
-            Self::HtmlDaTelaDoProcessoNaoInterpretado => {
-                "html_da_tela_do_processo_nao_interpretado"
-            }
-            Self::IdentificacaoDaUnidadeAusenteNaTelaDoProcesso => {
-                "identificacao_da_unidade_ausente_na_tela_do_processo"
-            }
-            Self::UnidadeDaTelaDiferenteDaSolicitada => "unidade_da_tela_diferente_da_solicitada",
-            Self::ArvoreAusenteNaTelaDoProcesso => "arvore_ausente_na_tela_do_processo",
-            Self::ArvoresRepetidasNaTelaDoProcesso => "arvores_repetidas_na_tela_do_processo",
-            Self::EnderecoDaArvoreNaoReconhecido => "endereco_da_arvore_nao_reconhecido",
-            Self::EnderecoDaArvoreDeOutroProcesso => "endereco_da_arvore_de_outro_processo",
-            Self::EnderecoDaArvoreDeOutroDocumento => "endereco_da_arvore_de_outro_documento",
-        }
-    }
+    /// O SEI exige validar o acesso (senha, modal `usuario_validar_acesso`)
+    /// antes de servir a árvore, que vem com `src` vazio (GO 5.0.3, live de
+    /// 10/11/2026). A validação em si não é feita pelo IES.
+    ProcessoExigeValidacaoDeAcesso,
+    ArvoreAusenteNaTelaDoProcesso,
+    ArvoresRepetidasNaTelaDoProcesso,
+    EnderecoDaArvoreNaoReconhecido,
+    /// A consulta do `src` da árvore não se deixa ler em pares.
+    ConsultaDaArvoreIlegivel(#[source] ErroConsultaDoControlador),
+    /// O `src` da tela pesquisada não traz exatamente um `id_procedimento`.
+    IdDoProcessoNaArvore(#[source] ErroParametroDaUrl),
+    IdentificacaoDaUnidadeAusenteNaTelaDoProcesso,
 }
 
 /// Lê a tela servida (a URL já foi conferida por quem a pediu). `unidade`
 /// pedida (`--unidade`) é comparada com espaços normalizados.
 pub(crate) fn ler_tela_do_processo(
     instalacao: &Instalacao,
-    html: &str,
+    html: &crate::tela_html::HtmlServido,
     id: &str,
     unidade: Option<&str>,
 ) -> Result<TelaDoProcesso, ErroTelaDoProcesso> {
@@ -84,73 +77,61 @@ pub(crate) fn ler_tela_do_processo(
 /// igual ao protocolo pesquisado. Devolve a tela e o id do processo.
 pub(crate) fn ler_tela_do_documento(
     instalacao: &Instalacao,
-    html: &str,
+    html: &crate::tela_html::HtmlServido,
     id_documento: &str,
     unidade: Option<&str>,
 ) -> Result<(TelaDoProcesso, String), ErroTelaDoProcesso> {
-    use ErroTelaDoProcesso as E;
     let (publicada, src) = unidade_e_src(html, unidade)?;
-    let valores = |chave: &str| -> Vec<String> {
-        src.split_once('?')
-            .map_or("", |(_, consulta)| consulta)
-            .split('&')
-            .filter_map(|par| par.split_once('='))
-            .filter(|(nome, _)| *nome == chave)
-            .map(|(_, valor)| valor.to_owned())
-            .collect()
-    };
-    if valores("id_documento") != [id_documento] {
-        return Err(E::EnderecoDaArvoreDeOutroDocumento);
+    let consulta = ConsultaDoControlador::da_url(src.split_once('?').map(|(_, c)| c))
+        .map_err(ErroTelaDoProcesso::ConsultaDaArvoreIlegivel)?;
+    if consulta.valores("id_documento").collect::<Vec<_>>() != [id_documento] {
+        return Err(ErroTelaDoProcesso::EnderecoDaArvoreDeOutroDocumento);
     }
-    let [id_procedimento] = valores("id_procedimento")
-        .try_into()
-        .map_err(|_| E::EnderecoDaArvoreNaoReconhecido)?;
-    let arvore = conferir_endereco(instalacao, &src, &id_procedimento)?;
+    let id_procedimento = consulta
+        .unico("id_procedimento")
+        .map_err(ErroTelaDoProcesso::IdDoProcessoNaArvore)?;
+    let arvore = conferir_endereco(instalacao, &src, id_procedimento)?;
     Ok((
         TelaDoProcesso {
             unidade: publicada,
             arvore,
         },
-        id_procedimento,
+        id_procedimento.to_owned(),
     ))
 }
 
 /// A unidade publicada (conferida com `--unidade`) e o `src` decodificado
 /// do único `iframe#ifrArvore`.
 fn unidade_e_src(
-    html: &str,
+    html: &crate::tela_html::HtmlServido,
     unidade: Option<&str>,
 ) -> Result<(String, String), ErroTelaDoProcesso> {
-    use ErroTelaDoProcesso as E;
-    let dom = tl::parse(html, tl::ParserOptions::default())
-        .map_err(|_| E::HtmlDaTelaDoProcessoNaoInterpretado)?;
+    let dom = crate::tela_html::arvore(html);
     let publicada = crate::controle_contexto::unidade_html(&dom)
-        .map_err(|_| E::HtmlDaTelaDoProcessoNaoInterpretado)?
-        .ok_or(E::IdentificacaoDaUnidadeAusenteNaTelaDoProcesso)?;
+        .map_err(ErroTelaDoProcesso::UnidadeDoControleIlegivel)?
+        .ok_or(ErroTelaDoProcesso::IdentificacaoDaUnidadeAusenteNaTelaDoProcesso)?;
     if let Some(pedida) = unidade
         && pedida.split_whitespace().collect::<Vec<_>>().join(" ") != publicada
     {
-        return Err(E::UnidadeDaTelaDiferenteDaSolicitada);
+        return Err(ErroTelaDoProcesso::UnidadeDaTelaDiferenteDaSolicitada);
     }
-    let iframes =
-        nos_com_id(&dom, "ifrArvore").map_err(|_| E::HtmlDaTelaDoProcessoNaoInterpretado)?;
+    let iframes = dom.com_id("ifrArvore").collect::<Vec<_>>();
     let iframe = match iframes.as_slice() {
-        [] => return Err(E::ArvoreAusenteNaTelaDoProcesso),
-        [um] => um
-            .get(dom.parser())
-            .and_then(tl::Node::as_tag)
-            .ok_or(E::HtmlDaTelaDoProcessoNaoInterpretado)?,
-        _ => return Err(E::ArvoresRepetidasNaTelaDoProcesso),
+        [] => return Err(ErroTelaDoProcesso::ArvoreAusenteNaTelaDoProcesso),
+        [um] => *um,
+        _ => return Err(ErroTelaDoProcesso::ArvoresRepetidasNaTelaDoProcesso),
     };
-    if iframe.name() != "iframe" {
-        return Err(E::ArvoreAusenteNaTelaDoProcesso);
+    if iframe.nome() != "iframe" {
+        return Err(ErroTelaDoProcesso::ArvoreAusenteNaTelaDoProcesso);
     }
-    let src = valor_do_atributo(iframe, "src")
-        .map_err(|_| E::HtmlDaTelaDoProcessoNaoInterpretado)?
-        .ok_or(E::EnderecoDaArvoreNaoReconhecido)?;
+    let src = iframe
+        .atributo("src")
+        .map(str::to_owned)
+        .ok_or(ErroTelaDoProcesso::EnderecoDaArvoreNaoReconhecido)?;
     // Servido com `&` cru (UnB e GO); `&amp;` também é o mesmo endereço.
-    let src = crate::formulario_web::decodificar_atributo(&src)
-        .ok_or(E::EnderecoDaArvoreNaoReconhecido)?;
+    if src.is_empty() && html.contains("controlador.php?acao=usuario_validar_acesso&") {
+        return Err(ErroTelaDoProcesso::ProcessoExigeValidacaoDeAcesso);
+    }
     Ok((publicada, src))
 }
 
@@ -162,7 +143,7 @@ fn conferir_endereco(
     id: &str,
 ) -> Result<EnderecoDaArvore, ErroTelaDoProcesso> {
     use super::endereco::{EnderecoRecusado, conferir_endereco_relativo};
-    conferir_endereco_relativo(instalacao, src, "procedimento_visualizar", id)
+    conferir_endereco_relativo(instalacao, src, AcaoDoSei::ProcedimentoVisualizar, id)
         .map(EnderecoDaArvore)
         .map_err(|recusa| match recusa {
             EnderecoRecusado::NaoReconhecido => ErroTelaDoProcesso::EnderecoDaArvoreNaoReconhecido,

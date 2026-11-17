@@ -34,6 +34,47 @@ da matriz do Todos com estes registros, sem inventar provas de escrita.
 6. Distinga o que a resposta mostrou daquilo que seria necessário
    provar sobre uma operação completa.
 
+## Caminho curto para qualquer agente — mesmo sem rede no sandbox
+
+**Cassette-first, com replay obrigatório no aceite da PR:** localize o card antes de inventar
+uma fixture; se não houver observação aplicável, siga com hipótese e teste.
+Não confunda falha de rede do sandbox com falta de cassette: use o
+[workflow de inspeção auxiliar](../.github/workflows/inspecionar-cassettes.yml).
+Ele baixa ZIPs públicos, verifica SHA-1/SHA-256, `schema_version`,
+`complete` e contagem, e mostra apenas métodos, nomes de ações e
+estrutura das requisições, nunca HTML, cookies ou URLs assinadas.
+
+**Com GitHub CLI** (depois da integração do workflow na `main`):
+
+```sh
+gh workflow run inspecionar-cassettes.yml --ref main \
+  -f cards="cassettes/unb/documento-escritas-unb--36a904749e20.md"
+gh run list --workflow inspecionar-cassettes.yml --limit 3
+# Abra o run indicado para conferir PASS/FAIL e os logs sanitizados.
+```
+
+**Só com o conector GitHub, sem `gh` nem acesso de rede local:**
+na branch da PR ativa, crie temporariamente
+`.github/cassettes-a-inspecionar.txt`, com **um caminho de card por
+linha** (em `cassettes/`). O evento `pull_request` executará a mesma
+inspeção no Actions. Consulte o run; depois **remova o arquivo da PR**
+para não persistir solicitações transitórias. Não é necessário escrever
+outro workflow. O workflow de inspeção não substitui o replay. Para integrar qualquer PR,
+execute os testes cassette-backed aplicáveis no CI oficial do GitHub
+Actions sobre o head final. Sem captura da transição, execute os replays
+existentes, rotule a hipótese sintética e não afirme paridade externa.
+
+**Com rede local:** rode
+`python3 scripts/inspecionar_cassettes.py cassettes/<instalacao>/<card>.md`
+ou forneça vários cards. O script usa apenas a biblioteca padrão Python.
+
+A inspeção **não é replay ou prova de paridade**. Na mesma fatia,
+importe as observações pertinentes ao estado do anti-IES, compare
+separadamente as respostas originais com o leitor IES e com o simulador,
+e execute o ciclo completo da CLI. Onde a captura não mostrar corpos de
+POST ou transições, use hipóteses testáveis sem bloquear o progresso.
+Ausência de cassette no runner: registre o motivo e continue.
+
 ## Exemplo verificado: bloco no PEN2
 
 ```sh
@@ -76,10 +117,15 @@ Com filtro, ele executa
 `cargo test --bin ies -- --ignored --nocapture --test-threads=1 FILTRO`.
 Os ZIPs ficam em `~/.cache/ies`, ou na pasta de `IES_ACERVO_CACHE`, com o
 nome do fim de `source_zip`; baixe-os e confira-os como no exemplo acima.
+No ciclo anti-IES, o ZIP conferido é a fonte durável; o cache do
+GitHub Actions só acelera a obtenção e o SQLite de testes é reconstruído.
+O [esquema evolutivo e ciclo fechado](anti-ies/ciclo-cassettes.md)
+permitem que a mesma PR altere parser, tipos, SQL e servidor.
 Falta de ZIP é pânico com o nome do arquivo; o script não baixa nada.
 `IES_ACERVO_SAIDA` grava o relatório num arquivo em vez de imprimi-lo
 (cada teste sobrescreve o arquivo; use com o filtro de um só teste).
-A rodada inteira (onze testes) levou cerca de dez minutos em 05/11/2026.
+A suíte executa os testes de acervo disponíveis e registra resultados;
+o tempo de execução é variável.
 
 Os relatórios de cada rodada ficam em `docs/validacao-replay/`.
 
@@ -99,3 +145,20 @@ no Archive. Não substitua a captura histórica.
 
 Leia também [como o SEI funciona](como-o-sei-funciona/README.md)
 e o [contrato da CLI](../contracts/cli.md).
+
+## E2E como teste de aceitação (11/11/2026)
+
+Os antigos cenários BDD/Gherkin/Cucumber foram aposentados. A referência
+para qualquer nova alteração Web é a **cassette original verificável**:
+primeiro os cards e hashes do acervo; depois o binário real do IES
+sobre a resposta gravada e, para transição, CLI ↔ anti-IES ↔ SQLite
+compartilhado semeado com fatos da cassette. O simulador deve ser comparado
+**independentemente** com a resposta original, nunca apenas com o parser
+que ele próprio alimentou. Captura sem POST ou releitura mantém essa
+transição como hipótese; registre a lacuna e avance com fixture mínima
+rotulada, sem confundir teste sintético com replay.
+
+O [ciclo de cassettes](anti-ies/ciclo-cassettes.md) e a
+skill de E2E `.agents/skills/cassette-e2e/SKILL.md` são normativos.
+Não apagar testes Rust úteis que ainda protejam invariantes não gravadas
+sem antes substituí-los por cobertura equivalente.

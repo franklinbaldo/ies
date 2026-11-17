@@ -9,6 +9,7 @@ mod envio;
 mod plano;
 mod regras;
 
+use crate::acao_do_sei::AcaoDoSei;
 use crate::dominio::Categoria;
 use crate::erro_web::ErroCaixa;
 use crate::formulario_web::{
@@ -30,7 +31,7 @@ pub(crate) use regras::{ErroControleDoFormulario, campos_do_usuario};
 
 /// O servidor lembra a página de cada tabela na sessão.
 pub(crate) const OBTER_PAGINA_DO_CONTROLE: OperacaoDeFormulario = OperacaoDeFormulario {
-    acao: "procedimento_controlar",
+    acao: AcaoDoSei::ProcedimentoControlar,
     formulario: "frmProcedimentoControlar",
     envio: EnvioDoFormulario::SubmitPorScript,
     campos_ocultos_exigidos: &[
@@ -52,13 +53,20 @@ pub(crate) const OBTER_PAGINA_DO_CONTROLE: OperacaoDeFormulario = OperacaoDeForm
     },
 };
 
-/// Uma variante por fato verificável; nenhum valor servido é guardado.
-#[derive(Clone, Debug, PartialEq, Eq)]
+/// um erro por fato verificável; nenhum valor servido é guardado.
+#[derive(Clone, Debug, PartialEq, Eq, thiserror::Error)]
+#[error("{self:?}")]
 pub(crate) enum ErroPaginaDoControle {
     PaginaExigeVisaoResumida,
     CharsetDaTelaNaoSuportado,
     PaginaAtualDaTabelaIlegivel {
         categoria: Categoria,
+    },
+    /// O valor da página atual não cabe no tipo do paginador.
+    PaginaAtualDaTabelaNaoCabeNoTipo {
+        categoria: Categoria,
+        #[source]
+        erro: std::num::ParseIntError,
     },
     CamposDePaginaAtualDaTabelaRepetidos {
         categoria: Categoria,
@@ -85,54 +93,34 @@ pub(crate) enum ErroPaginaDoControle {
         categoria: Categoria,
     },
     RedirecionamentoAposPaginar,
-    Formulario(ErroControleDoFormulario),
-    Submissao(ErroSubmissaoFormulario),
-    Caixa(ErroCaixa),
+    Formulario(#[from] ErroControleDoFormulario),
+    Submissao(#[from] ErroSubmissaoFormulario),
+    Caixa(#[from] ErroCaixa),
 }
 
 impl ErroPaginaDoControle {
-    pub(crate) fn subcodigo(&self) -> &'static str {
+    /// A sessão do SEI acabou (decide o relogin único): por `match` no tipo, sem
+    /// percorrer a cadeia `source()`.
+    pub(crate) fn sessao_encerrada(&self) -> bool {
         match self {
-            Self::PaginaExigeVisaoResumida => "pagina_do_controle_exige_visao_resumida",
-            Self::CharsetDaTelaNaoSuportado => "charset_da_tela_do_controle_nao_suportado",
-            Self::PaginaAtualDaTabelaIlegivel { .. } => "pagina_atual_da_tabela_ilegivel",
-            Self::CamposDePaginaAtualDaTabelaRepetidos { .. } => {
-                "campos_de_pagina_atual_da_tabela_repetidos"
-            }
-            Self::PaginaAtualDaTabelaIncompativelComAFaixa { .. } => {
-                "pagina_atual_da_tabela_incompativel_com_a_faixa"
-            }
-            Self::PaginaForaDoIntervalo { .. } => "pagina_da_caixa_fora_do_intervalo",
-            Self::PaginadorDaTabelaNaoPublicado { .. } => "paginador_da_tabela_nao_publicado",
-            Self::UnidadeAlteradaAposPaginar => "unidade_alterada_apos_paginar",
-            Self::VisualizacaoAlteradaAposPaginar => "visualizacao_alterada_apos_paginar",
-            Self::CriteriosRecebidosAlteradosAposPaginar => {
-                "criterios_recebidos_alterados_apos_paginar"
-            }
-            Self::CriteriosGeradosAlteradosAposPaginar => {
-                "criterios_gerados_alterados_apos_paginar"
-            }
-            Self::TotalDeclaradoAlteradoAposPaginar { .. } => {
-                "total_declarado_alterado_apos_paginar"
-            }
-            Self::FaixaDaRespostaDiferenteDaPaginaSolicitada { .. } => {
-                "faixa_da_resposta_diferente_da_pagina_solicitada"
-            }
-            Self::RedirecionamentoAposPaginar => "redirecionamento_apos_paginar_controle",
-            Self::Formulario(erro) => erro.subcodigo(),
-            Self::Submissao(erro) => erro.subcodigo(),
-            Self::Caixa(erro) => erro.subcodigo(),
-        }
-    }
-
-    /// Mensagem humana, a mesma com a sessão na R ou vinda da D.
-    pub(crate) const MENSAGEM: &'static str = "a página pedida do Controle não foi obtida";
-
-    /// Status e mensagem do SEI quando o POST foi recusado pelo status.
-    pub(crate) fn status_http(&self) -> Option<&crate::transporte::StatusHttpRecusado> {
-        match self {
-            Self::Submissao(erro) => erro.status_http(),
-            _ => None,
+            Self::Submissao(erro) => erro.sessao_encerrada(),
+            Self::PaginaExigeVisaoResumida
+            | Self::CharsetDaTelaNaoSuportado
+            | Self::PaginaAtualDaTabelaIlegivel { .. }
+            | Self::PaginaAtualDaTabelaNaoCabeNoTipo { .. }
+            | Self::CamposDePaginaAtualDaTabelaRepetidos { .. }
+            | Self::PaginaAtualDaTabelaIncompativelComAFaixa { .. }
+            | Self::PaginaForaDoIntervalo { .. }
+            | Self::PaginadorDaTabelaNaoPublicado { .. }
+            | Self::UnidadeAlteradaAposPaginar
+            | Self::VisualizacaoAlteradaAposPaginar
+            | Self::CriteriosRecebidosAlteradosAposPaginar
+            | Self::CriteriosGeradosAlteradosAposPaginar
+            | Self::TotalDeclaradoAlteradoAposPaginar { .. }
+            | Self::FaixaDaRespostaDiferenteDaPaginaSolicitada { .. }
+            | Self::RedirecionamentoAposPaginar
+            | Self::Formulario(_)
+            | Self::Caixa(_) => false,
         }
     }
 }

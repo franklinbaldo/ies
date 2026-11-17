@@ -1,0 +1,29 @@
+name: Inspecionar cassettes publicas
+
+on:
+  workflow_dispatch:
+    inputs:
+      cards:
+        description: 'Cards OKF em cassettes/, separados por espacos'
+        required: true
+        type: string
+  pull_request:
+    paths:
+      - '.github/cassettes-a-inspecionar.txt'
+
+permissions:
+  contents: read
+
+jobs:
+  inspecionar:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 20
+    steps:
+      - name: Checkout
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+      - name: Baixar, conferir e resumir apenas estrutura publica
+        env:
+          CASSETTE_CARDS: ${{ inputs.cards }}
+        run: python3 scripts/inspecionar_cassettes.py

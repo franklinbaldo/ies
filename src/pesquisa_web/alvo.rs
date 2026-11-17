@@ -22,7 +22,7 @@ pub(crate) trait AlvoDaPesquisa {
     ) -> Result<EnvioInterpretado<Self::Resposta>, ErroPesquisaProtocolo>;
     /// A resposta 200 do POST de página, com a faixa esperada e o número.
     fn ler_pagina(
-        html: &str,
+        html: &crate::tela_html::HtmlServido,
         na_pagina: (FaixaDaPesquisa, u64),
     ) -> Result<Self::Resposta, ErroRespostaDaPesquisa>;
     fn contagem(resposta: &Self::Resposta) -> Contagem;
@@ -41,7 +41,7 @@ impl AlvoDaPesquisa for EmProcessos {
         interpretar_envio(enviada, instalacao)
     }
     fn ler_pagina(
-        html: &str,
+        html: &crate::tela_html::HtmlServido,
         na_pagina: (FaixaDaPesquisa, u64),
     ) -> Result<RespostaDaPesquisa, ErroRespostaDaPesquisa> {
         ler_resposta_na_pagina(html, Some(na_pagina))

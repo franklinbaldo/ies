@@ -1,11 +1,10 @@
 //! Falhas técnicas de interpretação e paginação Web; não são entidades do SEI.
 use crate::dominio::Categoria;
-use std::fmt;
 
 /// Nunca inclui HTML, cookies, URLs ou conteúdo de processos nas mensagens.
-#[derive(Debug, Clone, PartialEq, Eq)]
+#[derive(Debug, Clone, PartialEq, Eq, thiserror::Error)]
+#[error("{}", self.texto())]
 pub enum ErroCaixa {
-    HtmlInvalido,
     TabelaAusente {
         categoria: Categoria,
     },
@@ -41,6 +40,8 @@ pub enum ErroCaixa {
     ClassesDeEstadoDiferentesNoLinkDoProcesso {
         categoria: Categoria,
         id: String,
+        #[source]
+        motivo: crate::classe_link_processo::ClassesDeEstadoDiferentesNoLink,
     },
     TotalExcedido {
         categoria: Categoria,
@@ -50,6 +51,8 @@ pub enum ErroCaixa {
     },
     FaixaInvalida {
         categoria: Categoria,
+        #[source]
+        motivo: crate::paginas::ErroFaixaDaLegenda,
     },
     FaixaDesconhecida {
         categoria: Categoria,
@@ -64,6 +67,12 @@ pub enum ErroCaixa {
     TotalNaoDeclaradoNaLegenda {
         categoria: Categoria,
     },
+    /// A legenda da tabela não está em nenhuma forma observada (leitor `legenda`).
+    LegendaIlegivel {
+        categoria: Categoria,
+        #[source]
+        motivo: crate::legenda::ErroLegenda,
+    },
     /// Legenda sem intervalo e total diferente do número de linhas.
     LegendaSemFaixaComTotalDiferenteDasLinhas {
         categoria: Categoria,
@@ -76,73 +85,19 @@ pub enum ErroCaixa {
     VisaoResumidaComPaginacao,
     /// `hdnIdMarcador{unidade}` preenchido: a lista é só a do marcador.
     FiltroDeMarcadorAtivoNoControle,
-    UnidadeInesperada,
     IdentificacaoDaUnidadeAusenteNoControle,
-    IdentificacoesDaUnidadeRepetidasNoControle,
-    TiposDeVisualizacaoRepetidosNoControle,
-    HashesDeCriteriosRecebidosRepetidosNoControle,
-    HashesDeCriteriosGeradosRepetidosNoControle,
     ContextoNaoVerificavel,
     ContextoDaPaginaDiferenteDoAnterior,
     SemPaginas,
+    HashesDeCriteriosGeradosRepetidosNoControle,
+    HashesDeCriteriosRecebidosRepetidosNoControle,
+    HtmlDaCaixaInvalido,
+    IdentificacoesDaUnidadeRepetidasNoControle,
+    TiposDeVisualizacaoRepetidosNoControle,
+    UnidadeInesperada,
 }
 
 impl ErroCaixa {
-    pub fn subcodigo(&self) -> &'static str {
-        match self {
-            Self::HtmlInvalido => "html_da_caixa_invalido",
-            Self::TabelaAusente { .. } => "tabela_ausente",
-            Self::TabelasDaCategoriaRepetidas { .. } => "tabelas_da_categoria_repetidas",
-            Self::TabelaInvalida { .. } => "tabela_invalida",
-            Self::LegendaAusente { .. } => "legenda_ausente",
-            Self::LegendasDaTabelaRepetidas { .. } => "legendas_da_tabela_repetidas",
-            Self::IdInvalido => "id_invalido",
-            Self::IdRepetido { .. } => "id_repetido",
-            Self::NumeroInvalido { .. } => "numero_da_caixa_invalido",
-            Self::MaisDeUmNumeroNaLinhaDoProcesso { .. } => "processo_ambiguo",
-            Self::LinkDoProcessoNaoIdentificadoNaLinha { .. } => {
-                "link_do_processo_nao_identificado_na_linha"
-            }
-            Self::ClassesDeEstadoDiferentesNoLinkDoProcesso { .. } => {
-                "classes_de_estado_diferentes_no_link_do_processo"
-            }
-            Self::TotalExcedido { .. } => "total_excedido",
-            Self::TotaisDeclaradosDiferentesEntrePaginas { .. } => "total_divergente",
-            Self::FaixaInvalida { .. } => "faixa_invalida",
-            Self::FaixaDesconhecida { .. } => "faixa_desconhecida",
-            Self::FaixaAlterada { .. } => "faixa_alterada",
-            Self::FaixaDescontinua { .. } => "faixa_descontinua",
-            Self::TotalNaoDeclaradoNaLegenda { .. } => "total_nao_declarado_na_legenda",
-            Self::LegendaSemFaixaComTotalDiferenteDasLinhas { .. } => {
-                "legenda_sem_faixa_com_total_diferente_das_linhas"
-            }
-            Self::PaginadorDaTabelaSemFaixaNaLegenda { .. } => {
-                "paginador_da_tabela_sem_faixa_na_legenda"
-            }
-            Self::LimitePaginas => "limite_paginas",
-            Self::VisaoResumidaComPaginacao => "visao_resumida_com_paginacao_nao_demonstrada",
-            Self::FiltroDeMarcadorAtivoNoControle => "filtro_de_marcador_ativo_no_controle",
-            Self::UnidadeInesperada => "unidade_inesperada",
-            Self::IdentificacaoDaUnidadeAusenteNoControle => {
-                "identificacao_da_unidade_ausente_no_controle"
-            }
-            Self::IdentificacoesDaUnidadeRepetidasNoControle => {
-                "identificacoes_da_unidade_repetidas_no_controle"
-            }
-            Self::TiposDeVisualizacaoRepetidosNoControle => {
-                "tipos_de_visualizacao_repetidos_no_controle"
-            }
-            Self::HashesDeCriteriosRecebidosRepetidosNoControle => {
-                "hashes_de_criterios_recebidos_repetidos_no_controle"
-            }
-            Self::HashesDeCriteriosGeradosRepetidosNoControle => {
-                "hashes_de_criterios_gerados_repetidos_no_controle"
-            }
-            Self::ContextoNaoVerificavel => "contexto_nao_verificavel",
-            Self::ContextoDaPaginaDiferenteDoAnterior => "contexto_divergente",
-            Self::SemPaginas => "sem_paginas",
-        }
-    }
     pub fn categoria(&self) -> Option<Categoria> {
         match self {
             Self::TabelaAusente { categoria }
@@ -157,14 +112,28 @@ impl ErroCaixa {
             | Self::ClassesDeEstadoDiferentesNoLinkDoProcesso { categoria, .. }
             | Self::TotalExcedido { categoria }
             | Self::TotaisDeclaradosDiferentesEntrePaginas { categoria }
-            | Self::FaixaInvalida { categoria }
+            | Self::FaixaInvalida { categoria, .. }
             | Self::FaixaDesconhecida { categoria }
             | Self::FaixaAlterada { categoria }
             | Self::FaixaDescontinua { categoria }
             | Self::TotalNaoDeclaradoNaLegenda { categoria }
+            | Self::LegendaIlegivel { categoria, .. }
             | Self::LegendaSemFaixaComTotalDiferenteDasLinhas { categoria }
             | Self::PaginadorDaTabelaSemFaixaNaLegenda { categoria } => Some(*categoria),
-            _ => None,
+            Self::IdInvalido
+            | Self::LimitePaginas
+            | Self::VisaoResumidaComPaginacao
+            | Self::FiltroDeMarcadorAtivoNoControle
+            | Self::IdentificacaoDaUnidadeAusenteNoControle
+            | Self::ContextoNaoVerificavel
+            | Self::ContextoDaPaginaDiferenteDoAnterior
+            | Self::SemPaginas
+            | Self::HashesDeCriteriosGeradosRepetidosNoControle
+            | Self::HashesDeCriteriosRecebidosRepetidosNoControle
+            | Self::HtmlDaCaixaInvalido
+            | Self::IdentificacoesDaUnidadeRepetidasNoControle
+            | Self::TiposDeVisualizacaoRepetidosNoControle
+            | Self::UnidadeInesperada => None,
         }
     }
     pub fn id(&self) -> Option<&str> {
@@ -174,21 +143,49 @@ impl ErroCaixa {
             | Self::MaisDeUmNumeroNaLinhaDoProcesso { id, .. }
             | Self::LinkDoProcessoNaoIdentificadoNaLinha { id, .. }
             | Self::ClassesDeEstadoDiferentesNoLinkDoProcesso { id, .. } => Some(id),
-            _ => None,
+            Self::TabelaAusente { .. }
+            | Self::TabelasDaCategoriaRepetidas { .. }
+            | Self::TabelaInvalida { .. }
+            | Self::LegendaAusente { .. }
+            | Self::LegendasDaTabelaRepetidas { .. }
+            | Self::IdInvalido
+            | Self::TotalExcedido { .. }
+            | Self::TotaisDeclaradosDiferentesEntrePaginas { .. }
+            | Self::FaixaInvalida { .. }
+            | Self::FaixaDesconhecida { .. }
+            | Self::FaixaAlterada { .. }
+            | Self::FaixaDescontinua { .. }
+            | Self::TotalNaoDeclaradoNaLegenda { .. }
+            | Self::LegendaIlegivel { .. }
+            | Self::LegendaSemFaixaComTotalDiferenteDasLinhas { .. }
+            | Self::PaginadorDaTabelaSemFaixaNaLegenda { .. }
+            | Self::LimitePaginas
+            | Self::VisaoResumidaComPaginacao
+            | Self::FiltroDeMarcadorAtivoNoControle
+            | Self::IdentificacaoDaUnidadeAusenteNoControle
+            | Self::ContextoNaoVerificavel
+            | Self::ContextoDaPaginaDiferenteDoAnterior
+            | Self::SemPaginas
+            | Self::HashesDeCriteriosGeradosRepetidosNoControle
+            | Self::HashesDeCriteriosRecebidosRepetidosNoControle
+            | Self::HtmlDaCaixaInvalido
+            | Self::IdentificacoesDaUnidadeRepetidasNoControle
+            | Self::TiposDeVisualizacaoRepetidosNoControle
+            | Self::UnidadeInesperada => None,
         }
     }
 }
 
-impl fmt::Display for ErroCaixa {
-    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-        write!(f, "leitura da caixa: {}", self.subcodigo())?;
-        if let Some(categoria) = self.categoria() {
-            write!(f, " ({})", categoria.rotulo())?;
-        }
-        if let Some(id) = self.id() {
-            write!(f, " (id {id})")?;
-        }
-        Ok(())
+impl ErroCaixa {
+    fn texto(&self) -> String {
+        let categoria = self
+            .categoria()
+            .map(|c| format!(" ({})", c.rotulo()))
+            .unwrap_or_default();
+        let id = self
+            .id()
+            .map(|id| format!(" (id {id})"))
+            .unwrap_or_default();
+        format!("leitura da caixa: {self:?}{categoria}{id}")
     }
 }
-impl std::error::Error for ErroCaixa {}

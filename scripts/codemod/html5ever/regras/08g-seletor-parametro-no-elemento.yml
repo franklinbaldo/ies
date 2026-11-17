@@ -1,0 +1,30 @@
+id: 08g-seletor-parametro-no-elemento
+language: rust
+message: 'Seletor num parâmetro `&str` de um auxiliar, a partir de uma tag (os chamadores passam nome de elemento literal)'
+severity: hint
+rule:
+  all:
+    - any:
+        - pattern: '$T.query_selector($P, $S).into_iter().flatten()'
+        - pattern: '$T.query_selector($P, $S).ok_or($E)?'
+        - pattern: '$T.query_selector($P, $S)?'
+    - inside:
+        stopBy: end
+        kind: function_item
+        has:
+          field: parameters
+          has:
+            pattern:
+              context: 'fn f($S: &str) {}'
+              selector: parameter
+    - not:
+        inside:
+          stopBy: end
+          kind: mod_item
+          follows:
+            kind: attribute_item
+            regex: 'cfg\(test\)'
+constraints:
+  S:
+    kind: identifier
+fix: '$T.elementos($S)'

@@ -24,7 +24,7 @@ aberta até seus critérios de aceite terem sido demonstrados.
 
 ## RED — testes antes do miolo
 
-Escrever os testes usando os tipos públicos e as variantes específicas dos
+Escrever os testes usando os tipos públicos e os erros específicos dos
 erros, não comparações com mensagens de apresentação. Cobrir casos normais,
 negativos, limites, identidade de instalação/unidade, acesso e efeitos.
 Executar os testes, registrar a falha esperada e guardar a referência da
@@ -35,7 +35,7 @@ exige cassette verificável, com revisão/hash exatos.
 
 Implementar a menor lógica observável que satisfaça o contrato, preferindo
 Web quando demonstrado. Eliminar requests duplicados com ablação controlada
-e jamais remover uma verificação de efeito incerto. Rodar
+e jamais remover uma verificação de escrita não confirmada. Rodar
 `cargo test --locked --workspace --all-targets`, Clippy, rustfmt e o único
 gate canônico `uvx --from prek==0.5.7 prek run --hook-stage pre-push --all-files`.
 Refatorar com tudo verde; não aprovar PR com checks obrigatórios vermelhos.
@@ -45,7 +45,7 @@ Refatorar com tudo verde; não aprovar PR com checks obrigatórios vermelhos.
 Após os testes locais/offline, elaborar roteiro para UnB, UFRJ, Goiás e
 PEN1–PEN4 que realmente estejam disponíveis e **autorizadas**. Para cada
 combinação instalação + identidade + unidade + operação, registrar resultado,
-variante de erro, versão declarada, efeito, tempo, quantidade de requisições
+erro tipado, versão declarada, efeito, tempo, quantidade de requisições
 e diferença em relação ao contrato. Execução paralela é apropriada somente
 para leituras sem efeito e estados isolados. GET de visualização pode registrar
 recebimento; POST de paginação ou pesquisa exige análise de efeito.

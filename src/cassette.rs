@@ -16,8 +16,10 @@ fn campo<'a>(source: &'a str, field: &str) -> Option<&'a str> {
     })
 }
 
-// O acervo OKF exige sufixo `.zip` exatamente em minúsculas.
-#[allow(clippy::case_sensitive_file_extension_comparisons)]
+#[expect(
+    clippy::case_sensitive_file_extension_comparisons,
+    reason = "O acervo OKF exige sufixo `.zip` exatamente em minúsculas"
+)]
 pub(crate) fn archive_filename(card: &Path) -> Result<String, String> {
     let text = std::fs::read_to_string(card).map_err(|_| "card ausente")?;
     let url = campo(&text, "source_zip").ok_or("origem ausente")?;
@@ -36,6 +38,15 @@ pub(crate) fn archive_filename(card: &Path) -> Result<String, String> {
     }
     Ok(name.to_owned())
 }
+
+#[path = "cassette/anti_ies_ciclo.rs"]
+mod anti_ies_ciclo;
+#[cfg(test)]
+mod anti_ies_documento;
+#[cfg(test)]
+mod anti_ies_documento_lista;
+#[cfg(test)]
+mod anti_ies_retornos;
 
 #[path = "cassette/tests.rs"]
 mod tests;

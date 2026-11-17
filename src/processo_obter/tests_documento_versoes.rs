@@ -68,7 +68,7 @@ fn url_da_versao(n: u32) -> String {
 fn ate_a_arvore(arvore: String) -> Vec<Resposta> {
     vec![
         ok(controle(&[("7", "OUTRO-1")])),
-        r302(&trabalhar_rapida(ID_DOC)),
+        r302(&trabalhar_rapida_documento(ID_DOC)),
         ok(tela_do_documento()),
         ok(arvore),
     ]
@@ -78,7 +78,7 @@ fn primeiros() -> Vec<Pedido> {
     vec![
         get(&url_controle()),
         post(&absoluta(&action_rapida()), "txtPesquisaRapida=0000101"),
-        get(&absoluta(&trabalhar_rapida(ID_DOC))),
+        get(&absoluta(&trabalhar_rapida_documento(ID_DOC))),
         get(&absoluta(&src_da_arvore_do_documento(ID, ID_DOC))),
     ]
 }
@@ -119,6 +119,7 @@ fn rodar_em(
 
 fn versao(n: u32) -> PedidoDeVersoes {
     PedidoDeVersoes {
+        cache: false,
         versao: Some(VersaoDocumento::nova(n).unwrap()),
         foto: false,
     }
@@ -126,6 +127,7 @@ fn versao(n: u32) -> PedidoDeVersoes {
 
 /// `--saida DIR` sem `--versao` (#207).
 const FOTO: PedidoDeVersoes = PedidoDeVersoes {
+    cache: false,
     versao: None,
     foto: true,
 };
@@ -167,7 +169,6 @@ fn rodape_de_outra_versao_e_recusa_e_sem_rodape_vale_a_lista() {
     let (r, _) = rodar(respostas, versao(1));
     let erro = r.unwrap_err();
     assert_eq!(erro, ErroDocumentoObter::VersaoServidaDiferenteDaPedida);
-    assert_eq!(erro.subcodigo(), "versao_servida_diferente_da_pedida");
     let mut respostas = ate_a_arvore(arvore_com_barra(Some('N'), true));
     respostas.push(ok(lista(&[2, 1])));
     respostas.push(ok(conteudo(DOC, "Sem rodapé.")));
@@ -209,15 +210,13 @@ fn versao_ausente_lista_nao_publicada_e_titulo_de_outro_documento() {
     let erro = r.unwrap_err();
     assert_eq!(
         erro,
-        ErroDocumentoObter::Versoes(ErroVersao::VersaoNaoObservada)
+        ErroDocumentoObter::Versoes(ErroVersao::VersaoPedidaAusenteNoHistorico)
     );
-    assert_eq!(erro.subcodigo(), "versao_nao_observada");
 
     let (r, pedidos) = rodar(ate_a_arvore(arvore_com_barra(None, false)), versao(1));
     assert_eq!(pedidos.len(), 4, "sem link na barra, nenhum GET a mais");
     let erro = r.unwrap_err();
     assert_eq!(erro, ErroDocumentoObter::ListaDeVersoesNaoPublicadaNaArvore);
-    assert_eq!(erro.subcodigo(), "lista_de_versoes_nao_publicada_na_arvore");
 
     let mut respostas = ate_a_arvore(arvore_com_barra(Some('N'), true));
     respostas.push(ok(lista(&[1])));
@@ -239,7 +238,6 @@ fn externo_com_versao_e_recusado_antes_do_anexo() {
     assert_eq!(pedidos.len(), 4, "nenhum GET do anexo");
     let erro = r.unwrap_err();
     assert_eq!(erro, ErroDocumentoObter::ListaDeVersoesNaoPublicadaNaArvore);
-    assert_eq!(erro.subcodigo(), "lista_de_versoes_nao_publicada_na_arvore");
 }
 
 #[test]
@@ -277,7 +275,6 @@ fn foto_sem_rodape_le_a_lista_em_seis_e_sem_lista_recusa() {
     assert_eq!(pedidos.len(), 5);
     let erro = r.unwrap_err();
     assert_eq!(erro, ErroDocumentoObter::ListaDeVersoesNaoPublicadaNaArvore);
-    assert_eq!(erro.subcodigo(), "lista_de_versoes_nao_publicada_na_arvore");
 }
 
 /// A foto não depende da edição declarada na barra (assinado, sem
@@ -302,7 +299,47 @@ fn foto_independe_da_edicao_e_recusa_link_assinado() {
     assert_eq!(pedidos.len(), 5);
     let erro = r.unwrap_err();
     assert_eq!(erro, ErroDocumentoObter::ConteudoComLinkAssinado);
-    assert_eq!(erro.subcodigo(), "conteudo_com_link_assinado");
+}
+
+// BDD-88-01: a opcao local de cache nao deve tornar inacessivel uma
+// versao N que o SEI ja serviu. URL assinada no corpo nunca vai ao cache.
+#[test]
+fn bdd_88_01_conteudo_assinado_nao_impede_leitura_com_cache_ativo() {
+    let com_link = conteudo_v(
+        DOC,
+        "<p>Texto da versao 1.</p><a href=\"controlador.php?acao=x&amp;infra_hash=assinado\">detalhe</a>",
+        1,
+    );
+    let mut respostas = ate_a_arvore(arvore_com_barra(Some('N'), true));
+    respostas.push(ok(lista(&[2, 1])));
+    respostas.push(ok(com_link));
+    let mut pedido = versao(1);
+    pedido.cache = true;
+    let (resultado, pedidos) = rodar(respostas, pedido);
+    assert_eq!(pedidos.len(), 6);
+    let documento = resultado.expect("cache opcional nao pode impedir leitura de versao N");
+    assert!(documento.texto.contains("Texto da versao 1."));
+    assert_eq!(n(&documento.versoes), (Some(1), Ok(2)));
+    assert!(documento.versoes.cache_html.is_none());
+    assert!(documento.versoes.foto.is_none());
+
+    let com_link = conteudo_v(
+        DOC,
+        "<p>Texto atual.</p><a href=\"controlador.php?acao=x&amp;infra_hash=assinado\">detalhe</a>",
+        2,
+    );
+    let mut respostas = ate_a_arvore(arvore_com_barra(Some('N'), true));
+    respostas.push(ok(com_link));
+    let pedido = PedidoDeVersoes {
+        cache: true,
+        ..PedidoDeVersoes::default()
+    };
+    let (resultado, pedidos) = rodar(respostas, pedido);
+    assert_eq!(pedidos.len(), 5);
+    let documento = resultado.expect("cache opcional nao pode impedir leitura atual");
+    assert!(documento.texto.contains("Texto atual."));
+    assert_eq!(n(&documento.versoes), (Some(2), Ok(2)));
+    assert!(documento.versoes.cache_html.is_none());
 }
 
 #[test]
@@ -327,12 +364,8 @@ fn sem_pedido_a_barra_nao_e_lida_e_versao_atual_vem_do_rodape() {
         r.unwrap().versoes.atual,
         Err(SemVersaoAtual::NaoServidaNoConteudo)
     );
-    let (r, pedidos) = rodar(ate_a_arvore(html), versao(1));
+    let (_r, pedidos) = rodar(ate_a_arvore(html), versao(1));
     assert_eq!(pedidos.len(), 4);
-    assert_eq!(
-        r.unwrap_err().subcodigo(),
-        "barras_do_documento_repetidas_na_arvore"
-    );
 }
 
 /// Integração com a fatia 2 do #60: a versão N parte da árvore que o

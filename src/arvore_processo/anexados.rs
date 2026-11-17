@@ -7,6 +7,8 @@
 //! recusa.
 use super::pastas::{NoDePasta, Pai};
 use super::{ARGUMENTOS, DocumentoLido, ErroArvore, Literal, ProcessoNaArvore};
+use crate::acao_do_sei::AcaoDoSei;
+use crate::consulta_do_controlador::ConsultaDoControlador;
 use std::collections::HashSet;
 
 /// Um anexado lido, com o pai (a2) ainda não conferido.
@@ -16,17 +18,17 @@ pub(super) struct AnexadoLido {
 }
 
 pub(super) fn ler_anexado(a: &[Literal; ARGUMENTOS]) -> Result<AnexadoLido, ErroArvore> {
-    let fora = ErroArvore::ProcessoAnexadoForaDaFormaObservada;
+    let fora = || ErroArvore::ProcessoAnexadoForaDaFormaObservada;
     let id = super::id(&a[1])?;
     let pai = super::id(&a[2])?;
     if !endereco_observado(super::texto(&a[3])?, &pai, &id) {
-        return Err(fora);
+        return Err(fora());
     }
     // a12 é estado visual: `"noVisitado"` quando a árvore foi aberta a
     // partir do próprio anexado (`id_procedimento_anexado` no `ifrArvore`).
     let a12_observado = a[12] == Literal::Nulo || a[12] == Literal::Texto("noVisitado".to_owned());
     if !a12_observado || a[13..15].iter().any(|l| *l != Literal::Nulo) {
-        return Err(fora);
+        return Err(fora());
     }
     let nup = super::texto(&a[5])?;
     if nup.is_empty() || super::texto(&a[15])? != nup {
@@ -48,21 +50,11 @@ fn endereco_observado(url: &str, pai: &str, id: &str) -> bool {
     let Some(consulta) = url.strip_prefix("controlador.php?") else {
         return false;
     };
-    let mut vistos = [0u8; 3];
-    for par in consulta.split('&') {
-        let (chave, valor) = par.split_once('=').unwrap_or((par, ""));
-        let (posicao, esperado) = match chave {
-            "acao" => (0, "arvore_visualizar"),
-            "id_procedimento" => (1, pai),
-            "id_procedimento_anexado" => (2, id),
-            _ => continue,
-        };
-        if valor != esperado {
-            return false;
-        }
-        vistos[posicao] += 1;
-    }
-    vistos == [1, 1, 1]
+    ConsultaDoControlador::ler(consulta).is_ok_and(|consulta| {
+        consulta.acao() == Ok(AcaoDoSei::ArvoreVisualizar.como_na_url())
+            && consulta.unico("id_procedimento") == Ok(pai)
+            && consulta.unico("id_procedimento_anexado") == Ok(id)
+    })
 }
 
 /// Confere os anexados contra o processo e os outros nós; devolve-os na
@@ -73,16 +65,15 @@ pub(super) fn conferir_anexados(
     documentos: &[DocumentoLido],
     nos_de_pasta: &[NoDePasta],
 ) -> Result<Vec<ProcessoNaArvore>, ErroArvore> {
-    use ErroArvore as E;
     let mut ids: HashSet<&str> = HashSet::new();
     let mut nups: HashSet<&str> = HashSet::new();
     for lido in &lidos {
         let a = &lido.anexado;
         if a.id == processo.id || a.nup == processo.nup {
-            return Err(E::ProcessoAnexadoIgualAoProcesso);
+            return Err(ErroArvore::ProcessoAnexadoIgualAoProcesso);
         }
         if !ids.insert(&a.id) || !nups.insert(&a.nup) {
-            return Err(E::ProcessoAnexadoRepetidoNaArvore);
+            return Err(ErroArvore::ProcessoAnexadoRepetidoNaArvore);
         }
     }
     let filho_de_anexado = lidos.iter().any(|l| ids.contains(l.pai.as_str()))
@@ -93,10 +84,10 @@ pub(super) fn conferir_anexados(
             .iter()
             .any(|n| matches!(n, NoDePasta::Pasta { pai, .. } if ids.contains(pai.as_str())));
     if filho_de_anexado {
-        return Err(E::NoComPaiNoProcessoAnexado);
+        return Err(ErroArvore::NoComPaiNoProcessoAnexado);
     }
     if lidos.iter().any(|l| l.pai != processo.id) {
-        return Err(E::ProcessoAnexadoComPaiDiferenteDoProcesso);
+        return Err(ErroArvore::ProcessoAnexadoComPaiDiferenteDoProcesso);
     }
     Ok(lidos.into_iter().map(|l| l.anexado).collect())
 }

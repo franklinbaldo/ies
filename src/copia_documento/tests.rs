@@ -75,26 +75,24 @@ fn base_qualquer_e_aceita_sem_verificacao() {
 fn so_a_foto_sem_edicao_e_edicao_igual_sao_recusadas() {
     let pasta = pasta();
     foto(&pasta, 2);
-    assert_eq!(previa(&pasta, None), Err(ErroCopia::EdicaoAusente));
-    assert_eq!(previa(&pasta, Some(2)), Err(ErroCopia::EdicaoAusente));
+    assert_eq!(previa(&pasta, None), Err(ErroCopia::VersaoEditadaAusente));
+    assert_eq!(
+        previa(&pasta, Some(2)),
+        Err(ErroCopia::VersaoEditadaAusente)
+    );
     editar(&pasta, 3, FOTO);
     assert_eq!(previa(&pasta, None), Err(ErroCopia::EdicaoIgualABase));
-    assert_eq!(
-        ErroCopia::EdicaoIgualABase.subcodigo(),
-        "versao_editada_igual_a_base"
-    );
     fs::remove_dir_all(pasta).unwrap();
 }
 
 #[test]
 fn base_ausente_e_recusada() {
     let pasta = pasta();
-    assert_eq!(previa(&pasta, None), Err(ErroCopia::BaseAusente));
+    assert_eq!(previa(&pasta, None), Err(ErroCopia::BaseVersaoAusente));
     editar(&pasta, 3, EDICAO);
     // `--versao` sem a base daquela versão.
-    assert_eq!(previa(&pasta, Some(2)), Err(ErroCopia::BaseAusente));
-    assert_eq!(previa(&pasta, Some(5)), Err(ErroCopia::BaseAusente));
-    assert_eq!(ErroCopia::BaseAusente.subcodigo(), "base_versao_ausente");
+    assert_eq!(previa(&pasta, Some(2)), Err(ErroCopia::BaseVersaoAusente));
+    assert_eq!(previa(&pasta, Some(5)), Err(ErroCopia::BaseVersaoAusente));
     fs::remove_dir_all(pasta).unwrap();
 }
 
@@ -103,7 +101,7 @@ fn duas_grafias_sao_recusadas() {
     let pasta = pasta();
     editar(&pasta, 2, FOTO);
     fs::write(pasta.join("0011519.v02.html"), "x").unwrap();
-    assert_eq!(previa(&pasta, None), Err(ErroCopia::VersaoDuplicada));
+    assert_eq!(previa(&pasta, None), Err(ErroCopia::VersaoLocalRepetida));
     fs::remove_dir_all(pasta).unwrap();
 }
 
@@ -116,4 +114,33 @@ fn edicao_por_link_simbolico_e_recusada() {
     symlink("/etc/hostname", pasta.join("0011519.v3.html")).unwrap();
     assert_eq!(previa(&pasta, Some(2)), Err(ErroCopia::LinkSimbolico));
     fs::remove_dir_all(pasta).unwrap();
+}
+
+#[test]
+fn nome_de_versao_local_invalido_guarda_o_motivo_da_leitura() {
+    use crate::documento_versoes::ErroVersao;
+    use std::error::Error;
+    for (nome, motivo) in [
+        ("0011519.v0.html", ErroVersao::VersaoDocumentoInvalida),
+        ("0011519.v1x.html", ErroVersao::VersaoDocumentoInvalida),
+        (
+            "0011519.v4294967296.html",
+            ErroVersao::NumeroDaVersaoIlegivel(std::num::IntErrorKind::PosOverflow),
+        ),
+    ] {
+        let pasta = pasta();
+        fs::write(pasta.join(nome), "x").unwrap();
+        let erro = versoes_locais(&pasta, &doc()).unwrap_err();
+        assert_eq!(
+            erro,
+            ErroCopia::NomeVersaoLocalInvalido(motivo.clone()),
+            "{nome}"
+        );
+        assert_eq!(
+            erro.source().and_then(|c| c.downcast_ref::<ErroVersao>()),
+            Some(&motivo),
+            "{nome}"
+        );
+        fs::remove_dir_all(pasta).unwrap();
+    }
 }

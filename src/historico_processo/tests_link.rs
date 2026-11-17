@@ -1,10 +1,10 @@
 //! RED/GREEN do link do histórico na árvore: as duas formas observadas,
 //! ambas, nenhuma, repetidas e URLs fora da conferência. HTML sintético.
-use super::ErroLinkDoHistorico as E;
 use super::tests_apoio::*;
 use super::*;
 use crate::arvore_processo::tests::{NUP, arvore, no_processo};
 use crate::instalacao::Instalacao;
+use crate::tela_html::HtmlServido;
 
 const ID: &str = "10";
 const ORIGEM: &str = "https://sei.exemplo.gov.br/sei";
@@ -17,8 +17,12 @@ fn base() -> String {
     arvore(&[no_processo(0, ID, NUP)])
 }
 
-fn ler(partes: &[(String, String)]) -> Result<EnderecoDoHistorico, E> {
-    ler_link_do_historico(&instalacao(), &com_link(&base(), partes), ID)
+fn ler(partes: &[(String, String)]) -> Result<EnderecoDoHistorico, super::ErroLinkDoHistorico> {
+    ler_link_do_historico(
+        &instalacao(),
+        &HtmlServido::de_teste(&com_link(&base(), partes)),
+        ID,
+    )
 }
 
 fn esperado() -> String {
@@ -53,8 +57,8 @@ fn debug_nao_mostra_a_url() {
 #[test]
 fn sem_link_e_recusa() {
     assert_eq!(
-        ler_link_do_historico(&instalacao(), &base(), ID),
-        Err(E::LinkDoHistoricoAusenteNaArvore)
+        ler_link_do_historico(&instalacao(), &HtmlServido::de_teste(&base()), ID),
+        Err(super::ErroLinkDoHistorico::LinkDoHistoricoAusenteNaArvore)
     );
 }
 
@@ -65,7 +69,7 @@ fn as_duas_formas_juntas_sao_recusa() {
     let (_, corpo) = forma_go(&url);
     assert_eq!(
         ler(&[(script, corpo)]),
-        Err(E::LinksDoHistoricoRepetidosNaArvore)
+        Err(super::ErroLinkDoHistorico::LinksDoHistoricoRepetidosNaArvore)
     );
 }
 
@@ -74,11 +78,11 @@ fn link_repetido_e_recusa() {
     let url = link_do_historico(ID);
     assert_eq!(
         ler(&[forma_go(&url), forma_go(&url)]),
-        Err(E::LinksDoHistoricoRepetidosNaArvore)
+        Err(super::ErroLinkDoHistorico::LinksDoHistoricoRepetidosNaArvore)
     );
     assert_eq!(
         ler(&[forma_unb(&url), forma_unb(&url)]),
-        Err(E::LinksDoHistoricoRepetidosNaArvore)
+        Err(super::ErroLinkDoHistorico::LinksDoHistoricoRepetidosNaArvore)
     );
 }
 
@@ -93,7 +97,7 @@ fn onclick_fora_das_formas_e_recusa() {
     ] {
         assert_eq!(
             ler(&[(String::new(), trocado)]),
-            Err(E::LinkDoHistoricoForaDaFormaObservada)
+            Err(super::ErroLinkDoHistorico::LinkDoHistoricoForaDaFormaObservada)
         );
     }
 }
@@ -105,7 +109,7 @@ fn funcao_sem_a_linha_do_src_e_recusa() {
     let trocado = script.replace("parent.document", "window.parent.document");
     assert_eq!(
         ler(&[(trocado, corpo)]),
-        Err(E::LinkDoHistoricoForaDaFormaObservada)
+        Err(super::ErroLinkDoHistorico::LinkDoHistoricoForaDaFormaObservada)
     );
 }
 
@@ -126,7 +130,7 @@ fn url_fora_da_conferencia_e_recusa() {
     ] {
         assert_eq!(
             ler(&[forma_go(&trocada)]),
-            Err(E::EnderecoDoHistoricoNaoReconhecido),
+            Err(super::ErroLinkDoHistorico::EnderecoDoHistoricoNaoReconhecido),
             "{trocada}"
         );
     }
@@ -136,25 +140,6 @@ fn url_fora_da_conferencia_e_recusa() {
 fn link_de_outro_processo_e_recusa() {
     assert_eq!(
         ler(&[forma_unb(&link_do_historico("11"))]),
-        Err(E::EnderecoDoHistoricoDeOutroProcesso)
+        Err(super::ErroLinkDoHistorico::EnderecoDoHistoricoDeOutroProcesso)
     );
-}
-
-#[test]
-fn subcodigos_estaveis() {
-    let todos = [
-        E::HtmlDaArvoreNaoInterpretado,
-        E::LinkDoHistoricoAusenteNaArvore,
-        E::LinksDoHistoricoRepetidosNaArvore,
-        E::LinkDoHistoricoForaDaFormaObservada,
-        E::EnderecoDoHistoricoNaoReconhecido,
-        E::EnderecoDoHistoricoDeOutroProcesso,
-    ];
-    for erro in todos {
-        let s = erro.subcodigo();
-        assert!(
-            s.bytes().all(|b| b.is_ascii_lowercase() || b == b'_'),
-            "{s}"
-        );
-    }
 }

@@ -21,6 +21,8 @@ ocultos: a base é a própria foto. A decisão do proprietário de
 ## Escolha do par
 
 - `--versao N`: a base é `DOC.vN.html` e a edição `DOC.v(N+1).html`.
+  Se `N` for o maior `u32`, não existe `N+1`: recusar como
+  `VersaoEditadaAusente`, sem reutilizar a própria base como edição.
 - Sem `--versao`: a maior versão **local** M. Se `DOC.v(M−1).html`
   existe, a base é M − 1 e a edição M; senão a base é M e a edição
   M + 1 ainda falta. Só os nomes contam; isso não afirma a versão
@@ -35,30 +37,47 @@ no JSON e "base não verificada" no texto. A base é conferida com o SEI
 em dois outros pontos:
 
 - **releitura:** `ies documento DOC --saida` compara a foto local com o
-  HTML servido e recusa com `foto_local_divergente`
+  HTML servido e recusa com `ErroCopia::FotoDivergente`
   ([versões e foto](documento-obter-versoes.md));
 - **salvar remoto (#89, futuro):** lerá a versão N do SEI para confirmar
   que ainda é a atual e comparará o hash com a vN local.
 
-| Subcódigo | Fato |
+| Erro (stderr) | Fato |
 | --- | --- |
-| `base_versao_ausente` | nenhuma versão local, ou `DOC.vN.html` da base falta |
-| `versao_editada_ausente` | `DOC.v(N+1).html` falta |
-| `versao_editada_igual_a_base` | `DOC.v(N+1).html` tem os mesmos bytes da foto |
-| `versao_local_repetida`, `nome_versao_local_invalido` | duas grafias da mesma versão (`v2` e `v02`) ou nome fora da forma |
-| `copia_local_link_simbolico`, `copia_local_permissoes_inseguras`, `destino_copia_inseguro`, `leitura_copia_falhou` | arquivo simbólico, aberto a grupo ou outros, não regular, acima de 8 MB, ou ilegível |
+| `ErroCopia::BaseVersaoAusente` | nenhuma versão local, ou `DOC.vN.html` da base falta |
+| `ErroCopia::VersaoEditadaAusente` | `DOC.v(N+1).html` falta |
+| `ErroCopia::EdicaoIgualABase` | `DOC.v(N+1).html` tem os mesmos bytes da foto |
+| `ErroCopia::VersaoLocalRepetida`, `ErroCopia::NomeVersaoLocalInvalido` | duas grafias da mesma versão (`v2` e `v02`) ou nome fora da forma |
+| `ErroCopia::LinkSimbolico`, `ErroCopia::PermissoesInseguras`, `ErroCopia::DestinoInseguro`, `ErroCopia::LeituraFalhou` | arquivo simbólico, aberto a grupo ou outros, não regular, acima de 8 MB, ou ilegível |
 
-A prévia não expõe o corpo, URLs assinadas ou cookies e não abre o
-editor. O JSON traz `previa` com `documento`, `versao_base`,
+A prévia não abre o editor nem executa escrita. **Na saída humana**, mostra
+um recorte local com linhas da foto prefixadas por `-` e linhas da edição
+por `+`, limitado a 1.800 caracteres por lado. É o envelope contínuo
+entre prefixo e sufixo iguais, não um diff mínimo: linhas inalteradas
+internas podem aparecer nos dois lados. Linhas não UTF-8 ou muito longas são omitidas, assim como
+referências/URLs e atributos que carreguem valores ou sessão
+(`href`, `src`, `action`, `value`, etc.). Atributos comuns de
+apresentação (`class`, `style`, `id`) e texto com `=` ou `?`
+continuam legíveis: não ocultar uma edição inteira de HTML comum.
+O JSON continua sem conteúdo HTML, URLs assinadas ou cookies e traz
+`previa` com `documento`, `versao_base`,
 `versao_editada`, `bytes_base`, `bytes_editada`, `escrita_remota: false`,
 `base_verificada: false` e `trecho_divergente`, e `confirmado: false`.
 
-`--confirmar` **não envia POST no SEI**: retorna
-`escrita_remota_nao_validada` após conferir o par. A escrita Web (#89)
-enviará o maior `vN` local que o SEI ainda não tem, depois de conferir
-ao vivo que a versão atual no SEI é a N; repetir depois de salvar não
-fará nada. Mesclagem por seção, concorrência, assinatura e promoção
-para uma nova versão dependem de validação por instalação.
+`--confirmar` **continua bloqueado para instalações reais do SEI**:
+retorna `escrita_remota_nao_validada` após conferir o par.
+Somente no host sintético `sei.test`, com sessão de ensaio, a CLI
+executa os BDD-89-02/03/04 sintéticos: relê a versão N, confere
+conteúdo idêntico à foto local, consulta o editor oferecido, deriva um
+único POST do formulário servido e comprova a versão N+1 por GET
+independente. Também relê o editor para observar a contagem de assinaturas
+após a publicação; sem ambas as conferências, não declara sucesso.
+O JSON confirmado informa `assinaturas_apos: 0` somente quando observado.
+Resposta inconclusiva após a tentativa de POST resulta em
+`ErroSalvarNoSei::EdicaoNaoComprovada` (saída 1), sem retry. O editor da simulação usa uma região
+`main#corpoEditavel`; essa hipótese **não representa uma compatibilidade
+validada com o HTML de editores reais do SEI**. Mesclagem por seção e
+validação em treinamento continuam fora do escopo.
 
 - [Evidências legadas](../evidencias/documento-salvar.md)
 - [Decisão arquitetural](../../docs/decisoes/documento-salvar.md)
@@ -110,5 +129,5 @@ Live (05/11/2026, UnB 4.0.9): prévia **PASS** sobre a foto lida
 ([ensaio](../../docs/validacao-live/2026-11-05-documento-saida-idempotente.md)).
 Naquele ensaio a foto v3 alterada em um byte deu `base_versao_divergente`;
 essa conferência saiu da prévia e passou à releitura
-(`foto_local_divergente`); a confirmação remota permanece bloqueada.
+(`ErroCopia::FotoDivergente`); a confirmação remota permanece bloqueada.
 Aposentadoria de `base_versao_divergente`: #207, integrada pela PR #219.

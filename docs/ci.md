@@ -11,7 +11,8 @@ O arquivo [prek.toml](../prek.toml) é a única fonte de verdade dos gates.
 ## Comandos
 
 - Pré-commit: `uvx --from prek==0.5.7 prek run --hook-stage pre-commit --all-files`.
-- Pré-push e CI remoto: `uvx --from prek==0.5.7 prek run --hook-stage pre-push --all-files`.
+- Pré-push e CI completo: `uvx --from prek==0.5.7 prek run --hook-stage pre-push --all-files`.
+- CI rápido: `uvx --from prek==0.5.7 prek run --hook-stage pre-commit --all-files`.
 - Instalação: `uvx --from prek==0.5.7 prek install --hook-type pre-commit --hook-type pre-push`.
 
 O Clippy ativa `clippy::pedantic` e trata avisos como erros. Não há exceções globais; a validação literal de extensões de evidências possui exceções locais documentadas e as flags independentes do Clap conservam uma exceção localizada de `struct_excessive_bools`.
@@ -21,61 +22,99 @@ testes, integridade de evidências, autotestes Python, auditoria OSV e
 decisões e cobertura documental de subcódigos. O `cargo test --workspace
 --all-targets` compila os targets; não há gate `cargo build` redundante.
 
-## Auditoria de dependências (OSV)
+## Testes pendentes de fatias WIP
 
-O hook `auditoria-osv` roda `scripts/osv_audit.py` (só biblioteca padrão).
-Ele lê o `Cargo.lock`, pega todo pacote cuja `source` é o registro
-crates.io e faz **uma** consulta em lote a `https://api.osv.dev/v1/querybatch`
-(páginas extras só para pacote com mais de 1.000 avisos). Falha listando
-pacote, versão e ids dos avisos (RUSTSEC e GHSA, como o OSV os relata).
+O hook `wip-ignores` (`scripts/wip_ignores.py`, só biblioteca padrão)
+deixa fatias incompletas entrarem na `main` sem esconder regressão.
+Proíbe `#[ignore]` sem motivo; exige `wip #<issue>: <o que falta>` em
+motivo que começa com `wip`; e recusa teste que existia sem `#[ignore]`
+na base e passou a ser ignorado. A base é o primeiro pai do commit de
+merge (por isso o checkout do gate usa `fetch-depth: 2`) ou o
+`merge-base` com `origin/main`. Sem base, falha no CI e fica `NOT_RUN`
+local. O relatório lista os pendentes por issue.
 
-Avisos aceitos ficam em `scripts/osv_allowlist.json`: cada entrada exige
-`id`, `package` e `justification` escrita (por que não se aplica ao IES e
-quando revisar); entrada sem justificativa derruba o hook. A lista começa
-vazia. Entrada que o OSV deixou de relatar gera aviso, não falha.
+## Binário para os agentes
 
-Sem rede (ou resposta irreconhecível), o comportamento depende de `CI`:
-com a variável definida e não vazia (o GitHub Actions define `CI=true`),
-o hook **falha**; sem ela, imprime `NOT_RUN` e passa. O trade-off é
-deliberado: o pré-push local não fica refém da rede, ao custo de um push
-offline não ser auditado; o CI remoto, que roda o mesmo comando, é a
-barreira que não pode ser pulada em silêncio. O resultado depende da base
-do OSV no momento: um aviso novo pode derrubar um commit que ontem passava.
+O job `binario` do `ci.yml` não é gate. Ele compila `ies` em release no
+`ubuntu-22.04` (glibc 2.35 e libssl3, para rodar em sandboxes mais
+antigos que o runner do gate) e publica o artifact
+`ies-linux-x86_64-<sha>` (o head da PR, ou o commit no push), com o binário e o `ies.sha256`, por 7 dias.
+Serve aos agentes sem Rust no sandbox: eles observam o RED no log do
+gate e testam esse binário no sandbox ou num workflow temporário.
 
-## GitHub Actions
+## Auditoria de dependências (cargo-deny)
 
-O [workflow de CI](../.github/workflows/ci.yml) roda em PRs, pushes na
-`main` e por execução manual. O checkout e a instalação de uv usam
-actions fixadas por SHA, inclusive `Swatinem/rust-cache` para o cache
-de compilação Rust. A versão de Rust vem de `rust-toolchain.toml`.
-O executor roda o mesmo comando do pré-push, sem duplicar os gates.
-O token do workflow recebe apenas `contents: read`.
-Não há secrets ou acesso autenticado ao SEI.
+O hook `auditoria-dependencias` roda `cargo deny check advisories`
+(`cargo-deny` 0.20.2, instalado no CI com `cargo install --locked`). Ele
+confere o `Cargo.lock` contra a base RustSec e falha listando o aviso.
 
-## Decisões de engenharia
+Avisos aceitos ficam em `deny.toml`, `[advisories].ignore`, cada um com
+`id` e `reason` (por que não se aplica ao IES e quando revisar).
 
-O `prek` executa `cargo run --quiet --locked -p xtask --bin check_design`.
-Para cada `CommandContract` com `implementation: partial` ou `complete`,
-o gate exige um `ImplementationDecision` em `docs/decisoes/`, com
-alternativas distintas, recorte implementado, estratégia selecionada,
-estado de evidência e links válidos para contrato, matriz e testes Rust.
+Sem `cargo-deny` instalado, o hook falha no CI (`CI` definido) e imprime
+`NOT_RUN` localmente, para o pré-push não depender da ferramenta; o CI é
+a barreira que não pode ser pulada.
 
-O gate impede documentação órfã e omissões estruturais. Ele **não
-transforma uma justificativa em demonstração de equivalência**.
-Stubs são dispensados, sem gerar documentos vazios.
+## GitHub Actions: rápido por commit, completo antes do merge
+
+- `.github/workflows/ci-rapido.yml`: em cada PR e push na `main`;
+  só os hooks canônicos de **pre-commit** (tamanho, Rustfmt, OKF).
+  **Verde nesse workflow não autoriza merge.**
+- `.github/workflows/ci.yml`: suíte completa com **7 jobs** (prek
+  pre-push, cinco replays offline e binário Linux). Dispara ao passar
+  a PR de **Draft para Ready for review**, ou por `workflow_dispatch`
+  para investigação. Não roda a cada commit ou push na `main`.
+- `.github/workflows/wheel-uvx.yml`: builds das três wheels somente
+  em `workflow_dispatch` ou chamada do workflow de release; não é
+  gate de PR.
+- `build-audit.yml` e `perf-audit.yml`: auditorias exploratórias sob
+  demanda; deixam de rodar em cada alteração relevante da PR.
+- O workflow de release continua rodando os gates canônicos na tag.
+
+**Pré-merge obrigatório para 🐘/🦡:**
+
+1. Sincronize a PR com `main` por merge (nunca rebase/force-push);
+   verifique `behind=0`.
+2. Terminada a implementação, marque **Ready for review**. Se já
+   estiver Ready, converta para Draft e marque Ready de novo. Essa
+   transição dispara o CI completo na PR.
+3. Exija **success explícito, nunca skipped**, em todos os **7 jobs**
+   do último CI completo do evento `pull_request`, no `head_sha`
+   atual, além do sucesso do CI rápido. Verifique escopo e
+   `--confirmar` fechado. A execução manual é útil para diagnosticar,
+   mas não substitui a rodada do evento `pull_request`.
+4. Havendo novo commit ou mudança da `main` que exija sincronização,
+   repita a transição e todos os checks. Integre por merge commit de
+   dois pais somente depois de todos verdes.
+
+Um job pulado pode aparecer como aprovado no GitHub: para integração,
+`skipped`, `cancelled` e resultados ausentes **não** contam como
+gates verdes. A `main` estava sem proteção de branch no momento desta
+alteração; o protocolo deve ser cumprido pelo integrador até que uma
+regra de proteção seja habilitada.
+
+Os workflows usam `contents: read`, salvo permissões específicas
+de publicação. Sem acesso ao SEI.
+
+## Links locais
+
+O hook `links-locais` roda o `okf-parser` (o mesmo do hook `okf`) e falha
+se algum link Markdown local não resolver (OKF101), fora de `.agents/`,
+que guarda skills de terceiros. Frontmatter e tipos OKF ficam com o hook
+`okf` (`--require-spec`). Os antigos `check_design` e `check_evidence`
+saíram (#679).
 
 ## Ferramentas de verificação
 
-`check_size`, `check_evidence` e `check_design` pertencem ao membro Rust
-`xtask`, sem dependências. O check de tamanho não deve compilar `ies`
+`check_size` pertence ao membro Rust `xtask`, sem dependências. O check de tamanho não deve compilar `ies`
 (`openssl`, `zip` ou `clap`) apenas para verificar os arquivos. Todos
 os caminhos OKF e de contratos são resolvidos na raiz do workspace.
 
 Para medir gargalos sem especular, execute `cargo build --timings` num
 executor adequado; não mantenha o HTML de timings versionado.
 
-A auditoria de build em PRs que alteram a arquitetura (`build-audit.yml`)
-usa `scripts/build_audit.py` para compilar base e proposta no mesmo runner,
+A auditoria de build sob demanda (`build-audit.yml`, com inputs
+`base` e `head`) usa `scripts/build_audit.py` para compilar base e proposta no mesmo runner,
 em cópias descartáveis e com diretórios `target` isolados: build limpo,
 sem mudança e com comentário sintético em `processo_obter/fluxo.rs`.
 O relatório lista dependências internas do workspace e diferenças de tempo.
@@ -114,35 +153,16 @@ automáticas para gerados.
 Arquivos que precisem superar o limite exigem reconsideração explícita da
 política — nunca truncamento ou minificação para contornar o check.
 
-## Cobertura documental dos subcódigos
 
-O hook `subcodigos` executa `python3 -I scripts/subcodigos.py`, só stdlib,
-sem rede, sobre os arquivos atuais de `src` e `crates`. Não mantém lista
-fixa de emissores. Tokeniza comentários simples/aninhados, strings normais
-e raw, escapes, caracteres, lifetimes e delimitadores equilibrados;
-lê literais dentro de funções `subcodigo` e `subcodigo_*`, além de valores
-literais de chaves JSON `subcodigo`. Comentários, funções de mensagem,
-arquivos de testes/acervo e itens inline `#[cfg(test)]` são excluídos.
-Funções delegadas contribuem por suas próprias definições, sem exigir
-repetição do literal no chamador. Declarações de trait sem corpo não
-consomem a função seguinte. Fonte malformada ou literal não classificável
-em função de subcódigo faz o hook falhar para revisão.
+## E2E cassette-first sem runner Gherkin (11/11/2026)
 
-A documentação vem da coluna `Subcódigo`/`Subcódigos` das tabelas de
-`docs/erros-tipados.md` e `contracts/cli/*.md`, inclusive os complementos
-“Falhas tipadas”. Curingas, prosa, campos de apresentação e exemplos em
-blocos de código não dão cobertura. Um literal emitido sem tabela falha;
-um documentado sem literal detectado apenas avisa. Aviso não demonstra
-aposentadoria: há chamadas que passam literais por parâmetros de helpers.
+O teste Cucumber/Gherkin e o arquivo `.feature` foram excluídos, assim
+como suas dependências de desenvolvimento. A suíte Rust existente continua
+executada por `cargo test --locked --workspace --all-targets`; E2Es de
+integração devem exercitar o binário real e usar cassettes originais, com
+confronto separado do anti-IES com a fonte. Testes unitários não são
+excluídos automaticamente. Não criar um gate especial de BDD nem
+aceitar somente resultados sintéticos como fidelidade às cassettes.
 
-`scripts/subcodigos_permitidos.json` é uma lista inicialmente vazia.
-Cada exceção exige `subcodigo` e `justificativa` não vazia, sem duplicatas;
-a justificativa deve explicar por que dispensar documentação e quando
-revisar. As exceções são mostradas no diagnóstico. Não usar para mascarar
-um contrato que falta escrever.
-
-É análise léxica conservadora, não AST nem prova de fluxo: não expande
-macros, não resolve tipos/delegações, chamadas indiretas ou strings
-construídas; não interpreta `cfg` arbitrário nem comprova alcance pela
-CLI. Os testes sintéticos entram no hook `scripts-python` já existente.
-Não há workflow ou conjunto alternativo de checks.
+Consultar skill `.agents/skills/cassette-e2e/SKILL.md` e
+[ciclo](anti-ies/ciclo-cassettes.md).

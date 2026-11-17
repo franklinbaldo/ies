@@ -5,14 +5,14 @@ operation: processo.relacionar
 source: todos-demonstration-matrix
 source_commit: 3d4a38c3b5987e4a8fc7f97ded188c4876ed77cd
 writes: true
-ies_implemented: false
+ies_implemented: true
 upstream_steps: 8
 unresolved_steps: 0
 ---
 
 # processo.relacionar
 
-Origem: matriz de demonstrações do Todos. IES Rust: NÃO IMPLEMENTADO.
+Origem: matriz de demonstrações do Todos. IES Rust: PARCIAL WEB — a CLI publica prévia; `--confirmar` de adição e remoção é recusado antes da rede enquanto a escrita não for validada em treinamento. O motor de POST único e releitura independente existe apenas para testes sintéticos. Live NOT_RUN; ainda não há confirmação de execução em instalações de treinamento.
 Os estados abaixo pertencem ao Todos, não são vereditos do IES.
 
 As referências #N são passos de roteiro; o link leva à revisão com
@@ -71,3 +71,13 @@ Exija conferência pós-operação antes de declarar sucesso.
 Consulte [cassettes](../../docs/cassettes.md),
 [SEI empiricamente](../../docs/como-o-sei-funciona/README.md)
 e [contrato provisório](../cli.md).
+
+## Evidência própria IES #258
+
+- [Contrato da prévia](../cli/processo-relacionar.md).
+- [Decisão](../../docs/decisoes/processo-relacionar.md).
+- [Testes estruturais](../../src/processo_relacionar/tests.rs) e
+  [testes da CLI](../../tests/cli_processo_relacionar.rs).
+- RED local NOT_RUN; replay NOT_RUN; live PEN1 e UnB NOT_RUN,
+  zero requisições, nenhum resíduo SEI.
+- **Separação entre CLI e motor WIP**: os flags `--confirmar` e `--remover --confirmar` são aceitos pelo parser da CLI, mas, até 09/11/2026, produziam `confirmacao_de_relacionamento_nao_validada` (saída 1) sem requisição ao SEI. Em testes sintéticos internos, a escrita usa um único POST mutador, exige aceite e releitura independente; esse caminho **não está acessível pela CLI**. Execuções reais em treinamento permanecem NOT_RUN; produção jamais acessada.

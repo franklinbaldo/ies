@@ -15,7 +15,7 @@ use std::io::Read;
 /// Tela do GET com o que o POST seguinte precisa: URL exata, tipo e instalação.
 pub(crate) struct TelaDoControle {
     pub(crate) url: String,
-    pub(crate) html: String,
+    pub(crate) html: crate::tela_html::HtmlServido,
     pub(crate) mime: String,
     pub(crate) instalacao: Instalacao,
 }
@@ -84,9 +84,10 @@ pub(crate) fn ler_tela_do_controle(
 /// `Origin` e `Referer` são os da tela servida. O `Content-Type` é o do
 /// navegador, sem parâmetro: o corpo já está no charset da tela. Status,
 /// MIME, limite e login ficam com o envio.
-// A submissão é recebida por valor, como no `FnOnce` do envio: consumida
-// numa única tentativa, sem cópia para retry.
-#[allow(clippy::needless_pass_by_value)]
+#[expect(
+    clippy::needless_pass_by_value,
+    reason = "A submissão é recebida por valor, como no `FnOnce` do envio: consumida numa única tentativa, sem cópia para retry"
+)]
 pub(crate) fn enviar_post(
     submissao: SubmissaoDerivada,
     cookie: &str,
@@ -121,22 +122,6 @@ fn resposta_do_post<R: std::io::BufRead>(resposta: Resposta<R>) -> RespostaDoPos
         resposta: cliente_https::resposta_web(resposta),
         localizacao,
     }
-}
-
-/// O mesmo POST com ambiente e camada TLS injetáveis (proxy falso nos testes).
-#[cfg(test)]
-#[allow(clippy::needless_pass_by_value)]
-pub(crate) fn enviar_post_via<S: Read + std::io::Write>(
-    submissao: SubmissaoDerivada,
-    cookie: &str,
-    ambiente: impl Fn(&str) -> Option<String>,
-    envolver: impl FnOnce(&str, std::net::TcpStream) -> Result<S, FalhaTransporte>,
-) -> Result<RespostaDoPost<impl Read>, FalhaTransporte> {
-    let envio = envio_de(&submissao);
-    let url = submissao.url();
-    let resposta =
-        cliente_https::requisitar_via("POST", url, cookie, Some(&envio), ambiente, envolver)?;
-    Ok(resposta_do_post(resposta))
 }
 
 #[cfg(test)]

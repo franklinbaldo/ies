@@ -14,47 +14,47 @@ use std::collections::BTreeSet;
 use std::fs;
 use std::path::Path;
 
-#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+#[derive(Debug, Clone, PartialEq, Eq, thiserror::Error)]
+#[error("{self:?}")]
 pub enum ErroCopia {
     /// `--saida DIR` ausente ou não diretório.
-    DiretorioDeSaida(ErroArquivoTexto),
+    DiretorioDeSaida(#[from] ErroArquivoTexto),
     DestinoInseguro,
     LinkSimbolico,
     // Só construída na conferência de permissões Unix.
-    #[cfg_attr(not(unix), allow(dead_code))]
+    #[cfg(unix)]
     PermissoesInseguras,
     /// A foto local tem outro conteúdo que o servido (ou outro documento
     /// ou versão no próprio HTML).
     FotoDivergente,
     GravacaoFalhou,
+    /// A gravação privada recusou a foto (o motivo da gravação).
+    GravacaoDaFotoRecusada(#[source] crate::arquivo_privado::FalhaDaGravacao),
     LeituraFalhou,
-    NomeDaVersaoInvalido,
-    VersaoDuplicada,
-    BaseAusente,
-    EdicaoAusente,
+    /// A foto local existe e não pôde ser consultada (o motivo do sistema).
+    ConsultaDaFotoFalhou(std::io::ErrorKind),
+    /// O destino não pôde ser consultado (o motivo do sistema).
+    ConsultaDoDestinoFalhou(std::io::ErrorKind),
+    /// A pasta de versões não pôde ser lida (o motivo do sistema).
+    LeituraDaPastaFalhou(std::io::ErrorKind),
+    /// Um arquivo da cópia não pôde ser lido (o motivo do sistema).
+    LeituraDoArquivoFalhou(std::io::ErrorKind),
     EdicaoIgualABase,
-}
-impl ErroCopia {
-    pub fn subcodigo(self) -> &'static str {
-        match self {
-            Self::DiretorioDeSaida(erro) => erro.subcodigo(),
-            Self::DestinoInseguro => "destino_copia_inseguro",
-            Self::LinkSimbolico => "copia_local_link_simbolico",
-            Self::PermissoesInseguras => "copia_local_permissoes_inseguras",
-            Self::FotoDivergente => "foto_local_divergente",
-            Self::GravacaoFalhou => "gravacao_foto_falhou",
-            Self::LeituraFalhou => "leitura_copia_falhou",
-            Self::NomeDaVersaoInvalido => "nome_versao_local_invalido",
-            Self::VersaoDuplicada => "versao_local_repetida",
-            Self::BaseAusente => "base_versao_ausente",
-            Self::EdicaoAusente => "versao_editada_ausente",
-            Self::EdicaoIgualABase => "versao_editada_igual_a_base",
-        }
-    }
+    BaseVersaoAusente,
+    /// O nome `DOC.vN.html` não traz uma versão válida (o motivo da leitura).
+    NomeVersaoLocalInvalido(#[source] crate::documento_versoes::ErroVersao),
+    VersaoEditadaAusente,
+    VersaoLocalRepetida,
 }
 
 pub(crate) fn pasta_segura(pasta: &Path) -> Result<(), ErroCopia> {
-    let dados = fs::symlink_metadata(pasta).map_err(|_| ErroCopia::DestinoInseguro)?;
+    let dados = fs::symlink_metadata(pasta).map_err(|erro| {
+        if erro.kind() == std::io::ErrorKind::NotFound {
+            ErroCopia::DestinoInseguro
+        } else {
+            ErroCopia::ConsultaDoDestinoFalhou(erro.kind())
+        }
+    })?;
     if dados.file_type().is_symlink() || !dados.is_dir() {
         return Err(ErroCopia::DestinoInseguro);
     }
@@ -70,8 +70,8 @@ pub(crate) fn versoes_locais(
     pasta_segura(pasta)?;
     let prefixo = format!("{}.v", documento.as_str());
     let mut versoes = BTreeSet::new();
-    for item in fs::read_dir(pasta).map_err(|_| ErroCopia::LeituraFalhou)? {
-        let item = item.map_err(|_| ErroCopia::LeituraFalhou)?;
+    for item in fs::read_dir(pasta).map_err(|erro| ErroCopia::LeituraDaPastaFalhou(erro.kind()))? {
+        let item = item.map_err(|erro| ErroCopia::LeituraDaPastaFalhou(erro.kind()))?;
         let nome_os = item.file_name();
         let Some(digitos) = nome_os
             .to_str()
@@ -81,9 +81,9 @@ pub(crate) fn versoes_locais(
             continue;
         };
         let versao =
-            VersaoDocumento::interpretar(digitos).map_err(|_| ErroCopia::NomeDaVersaoInvalido)?;
+            VersaoDocumento::interpretar(digitos).map_err(ErroCopia::NomeVersaoLocalInvalido)?;
         if !versoes.insert(versao) {
-            return Err(ErroCopia::VersaoDuplicada);
+            return Err(ErroCopia::VersaoLocalRepetida);
         }
     }
     Ok(versoes)
@@ -148,7 +148,82 @@ pub struct PreviaCopia {
     /// Sempre `false`: a prévia é offline e não confere a base com o SEI;
     /// só a releitura (`foto_local_divergente`) ou o salvar remoto (#89).
     pub base_verificada: bool,
+    #[serde(skip_serializing_if = "Option::is_none")]
     pub trecho_divergente: Option<TrechoDivergente>,
+    /// Mostrado só na saída humana; JSON legado não contém corpo HTML.
+    #[serde(skip_serializing)]
+    pub diff_humano: String,
+}
+
+/// Visualização local limitada: bloco contínuo que abrange as mudanças,
+/// não um diff mínimo. Linhas com atributos ou referências potencialmente
+/// sensíveis não são impressas; JSON permanece sem texto HTML.
+fn linhas_da_previa(bytes: &[u8], inicio: usize, fim: usize, sinal: char) -> String {
+    const LIMITE: usize = 1800;
+    let mut saida = String::new();
+    for linha in bytes
+        .split(|b| *b == b'\n')
+        .skip(inicio)
+        .take(fim.saturating_sub(inicio))
+    {
+        let texto = std::str::from_utf8(linha).ok().and_then(|texto| {
+            let baixo = texto.to_ascii_lowercase();
+            // Atributos comuns (class/style/id) e pontuação do texto
+            // não são credenciais. Omitir referências e campos capazes
+            // de carregar estado/segredos, inclusive URLs relativas.
+            let sensivel = texto.len() > 512
+                || [
+                    "://",
+                    "infra_hash",
+                    "cookie",
+                    "senha",
+                    "token",
+                    "authorization",
+                    "session",
+                    "href=",
+                    "src=",
+                    "action=",
+                    "value=",
+                    "data-",
+                    "nonce=",
+                    "password",
+                    "secret",
+                    "csrf",
+                    "onload=",
+                    "onclick=",
+                ]
+                .iter()
+                .any(|s| baixo.contains(*s));
+            (!sensivel).then_some(texto.trim_end_matches('\r'))
+        });
+        let linha = format!(
+            "{sinal}{}\n",
+            texto.unwrap_or("[linha omitida: binário ou referência potencialmente sensível]")
+        );
+        if saida.len() + linha.len() > LIMITE {
+            saida.push_str("… trecho abreviado (cópias locais preservadas)\n");
+            break;
+        }
+        saida.push_str(&linha);
+    }
+    saida
+}
+
+fn diff_humano(base: &[u8], trabalho: &[u8], trecho: TrechoDivergente) -> String {
+    format!(
+        "@@ base linhas {}..{}; edição linhas {}..{} (fim exclusivo; trecho contínuo) @@\n{}{}",
+        trecho.base_inicio,
+        trecho.base_fim_exclusivo,
+        trecho.trabalho_inicio,
+        trecho.trabalho_fim_exclusivo,
+        linhas_da_previa(base, trecho.base_inicio, trecho.base_fim_exclusivo, '-'),
+        linhas_da_previa(
+            trabalho,
+            trecho.trabalho_inicio,
+            trecho.trabalho_fim_exclusivo,
+            '+'
+        )
+    )
 }
 
 /// O par a comparar: com `--versao N`, (N, N + 1); sem, a maior versão
@@ -163,14 +238,13 @@ fn par(
         n
     } else {
         let versoes = versoes_locais(pasta, documento)?;
-        let maior = *versoes.last().ok_or(ErroCopia::BaseAusente)?;
+        let maior = *versoes.last().ok_or(ErroCopia::BaseVersaoAusente)?;
         match VersaoDocumento::nova(maior.numero() - 1) {
             Ok(anterior) if versoes.contains(&anterior) => anterior,
             _ => maior,
         }
     };
-    let editada = VersaoDocumento::nova(base.numero().saturating_add(1))
-        .map_err(|_| ErroCopia::EdicaoAusente)?;
+    let editada = base.seguinte().ok_or(ErroCopia::VersaoEditadaAusente)?;
     Ok((base, editada))
 }
 
@@ -184,14 +258,14 @@ pub fn previa_local(
     pasta_segura(pasta)?;
     let (n, seguinte) = par(pasta, documento, solicitada)?;
     let numero = documento.as_str();
-    let base = ler_regular(&pasta.join(nome(numero, n)), ErroCopia::BaseAusente)?;
+    let base = ler_regular(&pasta.join(nome(numero, n)), ErroCopia::BaseVersaoAusente)?;
     let editada = ler_regular(
         &pasta.join(nome(numero, seguinte)),
-        ErroCopia::EdicaoAusente,
+        ErroCopia::VersaoEditadaAusente,
     )?;
-    if editada == base {
+    let Some(trecho) = trecho_divergente(&base, &editada) else {
         return Err(ErroCopia::EdicaoIgualABase);
-    }
+    };
     Ok(PreviaCopia {
         documento: numero.to_owned(),
         versao_base: n.numero(),
@@ -200,7 +274,8 @@ pub fn previa_local(
         bytes_editada: editada.len(),
         escrita_remota: false,
         base_verificada: false,
-        trecho_divergente: trecho_divergente(&base, &editada),
+        trecho_divergente: Some(trecho),
+        diff_humano: diff_humano(&base, &editada, trecho),
     })
 }
 
@@ -268,5 +343,30 @@ mod testes {
                 trabalho_fim_exclusivo: 2,
             })
         );
+    }
+
+    #[test]
+    fn diferencas_humanas_nao_imprimem_url_assinada() {
+        let base =
+            b"<p>antigo</p>\n<a href=\"https://exemplo.invalid/?infra_hash=segredo\">link</a>";
+        let editada =
+            b"<p>novo</p>\n<a href=\"https://exemplo.invalid/?infra_hash=outro\">link</a>";
+        let trecho = trecho_divergente(base, editada).unwrap();
+        let diff = diff_humano(base, editada, trecho);
+        assert!(diff.contains("-<p>antigo</p>"));
+        assert!(diff.contains("+<p>novo</p>"));
+        assert!(diff.contains("[linha omitida:"));
+        assert!(!diff.contains("infra_hash"));
+        assert!(!diff.contains("segredo"));
+        assert!(!diff.contains("outro"));
+    }
+
+    #[test]
+    fn previa_omite_referencia_relativa_e_valores_de_formulario() {
+        let linhas = b"<a href=\"/controlador.php?acao=abrir\">link</a>\n<input value=\"segredo-sem-nome\" />";
+        let mostradas = linhas_da_previa(linhas, 0, 2, '+');
+        assert_eq!(mostradas.matches("[linha omitida:").count(), 2);
+        assert!(!mostradas.contains("controlador.php"));
+        assert!(!mostradas.contains("segredo-sem-nome"));
     }
 }

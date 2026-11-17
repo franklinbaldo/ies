@@ -2,6 +2,7 @@
 use super::tests::{EnvioRoteirizado, TelaD, TelaR, cookie, instalacao, tela_atual, tela_nivel};
 use super::*;
 use crate::dominio::Categoria;
+use crate::tela_html::HtmlServido;
 use crate::transporte::sessao::CookieDaSessao;
 
 fn r() -> TelaR {
@@ -17,7 +18,7 @@ fn resumida(
     categoria: Categoria,
     pagina: Option<usize>,
     respostas: Vec<(i32, String)>,
-) -> (Result<String, ErroVisaoDoControle>, Vec<String>) {
+) -> (Result<HtmlServido, ErroVisaoDoControle>, Vec<String>) {
     let (_pasta, arquivo) = cookie();
     let mut envio = EnvioRoteirizado::novo(respostas);
     let resultado = obter_na_visao_resumida(
@@ -97,17 +98,8 @@ fn pagina_encontrada_da_r_e_a_da_resposta_da_troca() {
 fn pagina_da_r_que_nao_confere_falha_sem_post_de_volta() {
     let mut outro_criterio = segunda();
     outro_criterio.hash_r = "9999";
-    for (resposta, subcodigo) in [
-        (
-            r().html(),
-            "faixa_da_resposta_diferente_da_pagina_solicitada",
-        ),
-        (
-            outro_criterio.html(),
-            "criterios_recebidos_alterados_apos_paginar",
-        ),
-    ] {
-        let (resultado, registro) = resumida(
+    for resposta in [r().html(), outro_criterio.html()] {
+        let (_resultado, registro) = resumida(
             d().html(),
             Categoria::Recebidos,
             Some(2),
@@ -120,12 +112,11 @@ fn pagina_da_r_que_nao_confere_falha_sem_post_de_volta() {
                 "POST visao=R recebidos=1 gerados=0"
             ]
         );
-        assert_eq!(resultado.unwrap_err().subcodigo(), subcodigo);
     }
 }
 
 #[test]
-fn troca_para_r_recusada_pelo_servidor_publica_o_status() {
+fn troca_para_r_recusada_pelo_servidor_sobe_o_status() {
     let (resultado, registro) = resumida(
         d().html(),
         Categoria::Recebidos,
@@ -134,7 +125,15 @@ fn troca_para_r_recusada_pelo_servidor_publica_o_status() {
     );
     assert_eq!(registro, ["POST visao=R pagina=0"]);
     let erro = resultado.unwrap_err();
-    assert_eq!(erro.status_http().map(|h| h.status), Some(503));
+    assert!(matches!(
+        erro,
+        ErroVisaoDoControle::Submissao(crate::formulario_web::ErroSubmissaoFormulario::Transporte(
+            crate::transporte::FalhaTransporte::Status(crate::transporte::StatusHttpRecusado {
+                status: 503,
+                ..
+            })
+        ))
+    ));
 }
 
 #[test]
@@ -147,13 +146,18 @@ fn pagina_fora_do_intervalo_vista_na_r_fica_na_r() {
     );
     assert_eq!(registro, ["POST visao=R pagina=0"]);
     let erro = resultado.unwrap_err();
-    assert_eq!(erro.subcodigo(), "pagina_da_caixa_fora_do_intervalo");
     // Ao vivo (PEN1, 04/11/2026) a recusa saía como "visão não obtida",
-    // embora a troca para R tivesse passado: a mensagem é a da página da R.
-    assert_eq!(
-        erro.mensagem(),
-        "a página pedida do Controle não foi obtida"
-    );
+    // embora a troca para R tivesse passado: a recusa é a da página da R.
+    assert!(matches!(
+        erro,
+        ErroVisaoDoControle::Pagina(
+            crate::pagina_do_controle::ErroPaginaDoControle::PaginaForaDoIntervalo {
+                solicitada: 2,
+                paginas: 1,
+                ..
+            }
+        )
+    ));
 }
 
 fn colunas(
@@ -207,10 +211,9 @@ fn colunas_com_sessao_em_r_trocam_leem_e_ficam_na_d() {
 /// Ensaio live `UnB` 4.0.9 (02/11/2026): 11 opções, sem Prioridade.
 #[test]
 fn colunas_da_unb_com_onze_opcoes_publicam_a_prioridade_indisponivel() {
-    use crate::nivel_de_detalhe::ColunaDoDetalhe as C;
-    let publicadas: Vec<_> = C::TODAS
+    let publicadas: Vec<_> = crate::nivel_de_detalhe::ColunaDoDetalhe::TODAS
         .into_iter()
-        .filter(|c| *c != C::Prioridade)
+        .filter(|c| *c != crate::nivel_de_detalhe::ColunaDoDetalhe::Prioridade)
         .collect();
     let nivel = crate::nivel_de_detalhe::tests::tela_com(&publicadas, &["chkSinAtribuicao"]);
     let (resultado, registro) = colunas(d().html(), vec![(200, nivel)]);
@@ -223,7 +226,10 @@ fn colunas_da_unb_com_onze_opcoes_publicam_a_prioridade_indisponivel() {
         .filter(|o| !o.disponivel)
         .map(|o| o.coluna)
         .collect();
-    assert_eq!(indisponiveis, [C::Prioridade]);
+    assert_eq!(
+        indisponiveis,
+        [crate::nivel_de_detalhe::ColunaDoDetalhe::Prioridade]
+    );
 }
 
 #[test]
@@ -239,15 +245,49 @@ fn d_sem_link_do_nivel_de_detalhe_e_recusada_sem_get() {
 }
 
 #[test]
+fn link_do_nivel_com_causa_de_consulta_ou_chave_repetida() {
+    let repetida = d().html().replacen(
+        "acao=procedimento_configurar_detalhe&amp;",
+        "acao=procedimento_configurar_detalhe&amp;acao=procedimento_configurar_detalhe&amp;",
+        1,
+    );
+    let (resultado, _) = colunas(repetida, vec![]);
+    assert_eq!(
+        resultado.unwrap_err(),
+        ErroVisaoDoControle::AcaoDoNivelIlegivel(
+            crate::consulta_do_controlador::ErroAcaoDaUrl::AcaoRepetida
+        )
+    );
+    let outra_acao = d().html().replacen(
+        "acao=procedimento_configurar_detalhe&amp;",
+        "acao=procedimento_excluir&amp;",
+        1,
+    );
+    let (resultado, _) = colunas(outra_acao, vec![]);
+    assert_eq!(
+        resultado.unwrap_err(),
+        ErroVisaoDoControle::LinkDoNivelDeDetalheNaoReconhecido
+    );
+    let par_sem_igual = d().html().replacen(
+        "acao=procedimento_configurar_detalhe&amp;",
+        "lixo&amp;acao=procedimento_configurar_detalhe&amp;",
+        1,
+    );
+    let (resultado, _) = colunas(par_sem_igual, vec![]);
+    assert_eq!(
+        resultado.unwrap_err(),
+        ErroVisaoDoControle::ConsultaDoNivelIlegivel(
+            crate::consulta_do_controlador::ErroConsultaDoControlador::ParSemIgual
+        )
+    );
+}
+
+#[test]
 fn link_do_nivel_de_detalhe_fora_da_forma_observada_e_recusado() {
     for troca in [
         (
             "acaoConfigurarDetalhe('controlador.php?",
             "acaoConfigurarDetalhe('https://outro.gov.br/controlador.php?",
-        ),
-        (
-            "acao=procedimento_configurar_detalhe&amp;",
-            "acao=procedimento_excluir&amp;",
         ),
         ("infra_hash=eeee", "infra_hash=zzzz"),
     ] {

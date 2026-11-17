@@ -51,7 +51,6 @@ certificação automática de sua implementação**.
 
 ## Gates
 
-`cargo run --locked --bin check_evidence` valida que os cards
-possuem proveniência e que todos os links relativos resolvem
-para conceitos OKF `Cassette` com instalação correspondente.
-O `prek` e o GitHub Actions executam o mesmo verificador.
+O hook `okf` valida o frontmatter dos cards contra as especificações
+OKF, e o hook `links-locais` exige que todo link relativo resolva.
+O `prek` e o GitHub Actions executam os mesmos verificadores.

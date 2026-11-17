@@ -12,7 +12,7 @@
 //! e "Sorry, you have been blocked" no texto visível: o mesmo fato, outro
 //! par de título e frase. A mesma página veio na PEN3 no POST da
 //! pesquisa com termo só de dígitos; a pesquisa seguinte passou.
-use super::texto_de_recusa::{decodificar_entidades, texto_visivel};
+use super::texto_de_recusa::texto_visivel;
 
 /// (título exato, frase no texto visível do corpo), por página observada.
 const PAGINAS: [(&str, &str); 2] = [
@@ -24,7 +24,7 @@ const PAGINAS: [(&str, &str); 2] = [
 ];
 
 fn normalizado(texto: &str) -> String {
-    decodificar_entidades(texto)
+    texto
         .replace('\u{a0}', " ")
         .split_whitespace()
         .collect::<Vec<_>>()
@@ -32,14 +32,11 @@ fn normalizado(texto: &str) -> String {
 }
 
 /// `true` só para a página de bloqueio; o 403 genérico não é.
-pub(crate) fn e_bloqueio_de_seguranca(html: &str) -> bool {
-    let Ok(dom) = tl::parse(html, tl::ParserOptions::default()) else {
-        return false;
-    };
-    let parser = dom.parser();
-    let primeiro = |elemento: &str| dom.query_selector(elemento).and_then(|mut nos| nos.next());
-    let titulo = primeiro("title").map(|h| normalizado(&texto_visivel(h, parser)));
-    let corpo = primeiro("body").map(|h| normalizado(&texto_visivel(h, parser)));
+pub(crate) fn e_bloqueio_de_seguranca(html: &crate::tela_html::HtmlServido) -> bool {
+    let dom = crate::tela_html::arvore(html);
+    let primeiro = |elemento: &str| dom.elementos(elemento).next();
+    let titulo = primeiro("title").map(|h| normalizado(&texto_visivel(h)));
+    let corpo = primeiro("body").map(|h| normalizado(&texto_visivel(h)));
     PAGINAS.iter().any(|(t, frase)| {
         titulo.as_deref() == Some(*t) && corpo.as_deref().is_some_and(|c| c.contains(frase))
     })

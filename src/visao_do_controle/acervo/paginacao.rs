@@ -10,9 +10,9 @@ use super::{Leitor, Lista, Registro, Replay, Resultado};
 use crate::caixa_detalhada::ValorDaColuna;
 use crate::cassette::acervo::gravacao::Resposta;
 use crate::dominio::Categoria;
-use crate::html_atributos::valor_do_atributo;
 use crate::pagina_do_controle::{ErroPaginaDoControle, PlanoDaPagina};
 use crate::paginas::faixa_na_pagina;
+use crate::tela_html::HtmlServido;
 
 fn prefixo(categoria: Categoria) -> &'static str {
     match categoria {
@@ -24,23 +24,20 @@ fn prefixo(categoria: Categoria) -> &'static str {
 /// `hdn{T}HashCriterios` servido (só para comparar páginas).
 pub(super) fn criterio(html: &str, categoria: Categoria) -> Option<String> {
     let id = format!("hdn{}HashCriterios", prefixo(categoria));
-    valores_ocultos(html, &id).ok()?.into_iter().next()
+    valores_ocultos(&HtmlServido::de_teste(html), &id)
+        .into_iter()
+        .next()
 }
 
 /// Controles de paginação publicados com o prefixo da tabela (`lnk{P}…`,
 /// `sel{P}Paginacao…`), sem o sufixo `Superior`/`Inferior`.
 pub(super) fn controles(html: &str, prefixo: &str) -> Vec<String> {
-    let Ok(dom) = tl::parse(html, tl::ParserOptions::default()) else {
-        return Vec::new();
-    };
-    let parser = dom.parser();
+    let servido = HtmlServido::de_teste(html);
+    let dom = crate::tela_html::arvore(&servido);
     let mut achados = Vec::new();
     for seletor in ["a", "select"] {
-        for no in dom.query_selector(seletor).into_iter().flatten() {
-            let Some(tag) = no.get(parser).and_then(tl::Node::as_tag) else {
-                continue;
-            };
-            let Ok(Some(id)) = valor_do_atributo(tag, "id") else {
+        for no in dom.elementos(seletor) {
+            let Some(id) = no.atributo("id") else {
                 continue;
             };
             let tipo = if seletor == "a" { "lnk" } else { "sel" };
@@ -79,10 +76,10 @@ pub(super) fn da_tabela(
 ) -> Registro {
     let mut p = cas.registro(leitor_da_pagina(categoria), resp.passo, Resultado::Lido);
     p.formas = controles(html, prefixo(categoria));
-    match crate::paginacao_controle::paginador_da_tabela(html, categoria) {
-        Ok(true) => p.formas.push("paginador_publicado".into()),
-        Ok(false) => p.formas.push("sem_paginador".into()),
-        Err(erro) => p.formas.push(format!("paginador_{}", erro.subcodigo())),
+    if crate::paginacao_controle::paginador_da_tabela(&HtmlServido::de_teste(html), categoria) {
+        p.formas.push("paginador_publicado".into());
+    } else {
+        p.formas.push("sem_paginador".into());
     }
     match planejar_r(html, categoria) {
         Ok(contagens) => p.contagens = contagens,
@@ -91,17 +88,18 @@ pub(super) fn da_tabela(
     p
 }
 
-fn planejar_r(html: &str, categoria: Categoria) -> Result<Vec<(&'static str, u64)>, &'static str> {
+fn planejar_r(html: &str, categoria: Categoria) -> Result<Vec<(&'static str, u64)>, String> {
     use crate::pagina_do_controle::planejar as plano;
-    let faixa = faixa_na_pagina(html, categoria).map_err(|e| e.subcodigo())?;
+    let faixa =
+        faixa_na_pagina(&HtmlServido::de_teste(html), categoria).map_err(|e| format!("{e:?}"))?;
     // A página exibida pela faixa (páginas cheias antes dela).
     let exibida = faixa.map_or(1, |f| (f.inicio - 1) / (f.fim - f.inicio + 1) + 1);
-    match plano(html, categoria, exibida).map_err(|e| e.subcodigo())? {
+    match plano(&HtmlServido::de_teste(html), categoria, exibida).map_err(|e| format!("{e:?}"))? {
         PlanoDaPagina::JaExibida => {}
-        PlanoDaPagina::Pedir { .. } => return Err("pagina_exibida_nao_reconhecida"),
+        PlanoDaPagina::Pedir { .. } => return Err("pagina_exibida_nao_reconhecida".to_owned()),
     }
     let mut contagens = vec![("pagina_exibida", exibida as u64)];
-    match plano(html, categoria, exibida + 1) {
+    match plano(&HtmlServido::de_teste(html), categoria, exibida + 1) {
         Ok(PlanoDaPagina::Pedir { indice, esperada }) => {
             let f = faixa.ok_or("pedido_sem_faixa")?;
             let tamanho = (f.fim - f.inicio + 1) as u64;
@@ -116,8 +114,8 @@ fn planejar_r(html: &str, categoria: Categoria) -> Result<Vec<(&'static str, u64
         Err(ErroPaginaDoControle::PaginaForaDoIntervalo { paginas, .. }) => {
             contagens.push(("paginas", paginas as u64));
         }
-        Ok(PlanoDaPagina::JaExibida) => return Err("pagina_seguinte_dada_como_exibida"),
-        Err(erro) => return Err(erro.subcodigo()),
+        Ok(PlanoDaPagina::JaExibida) => return Err("pagina_seguinte_dada_como_exibida".to_owned()),
+        Err(erro) => return Err(format!("{erro:?}")),
     }
     Ok(contagens)
 }
@@ -138,20 +136,19 @@ pub(super) fn detalhada(
         Leitor::PaginaRecebidos,
         Leitor::PaginaGerados,
     ] {
-        let motivo = Resultado::NaoAplicavel("tela_na_visao_d_o_comando_troca_para_r");
+        let motivo = Resultado::NaoAplicavel("tela_na_visao_d_o_comando_troca_para_r".to_owned());
         saida
             .registros
             .push(cas.registro(leitor, resp.passo, motivo));
     }
     let mut lista = cas.registro(Leitor::Detalhada, resp.passo, Resultado::Lido);
-    let leitura = match ler_detalhada(html, unidade) {
+    let leitura = match ler_detalhada(&HtmlServido::de_teste(html), unidade) {
         Ok(leitura) => leitura,
         Err(erro) => {
-            lista.resultado = fora.map_or(
-                Resultado::Recusado(erro.subcodigo()),
-                Resultado::NaoAplicavel,
-            );
-            lista.formas.push(format!("recusa_{}", erro.subcodigo()));
+            lista.resultado = fora.map_or(Resultado::Recusado(format!("{erro:?}")), |motivo| {
+                Resultado::NaoAplicavel(motivo.to_owned())
+            });
+            lista.formas.push(format!("recusa_{erro:?}"));
             saida.registros.push(lista);
             return;
         }
@@ -181,26 +178,30 @@ pub(super) fn detalhada(
     saida.registros.push(lista);
     let mut pagina = cas.pagina(resp.passo, Lista::Detalhada, unidade);
     pagina.total = leitura.total_declarado;
-    pagina.faixa = leitura.faixa_observada;
+    // A cassette grava zero linhas como ausência de faixa (NULL).
+    pagina.faixa = match leitura.faixa_observada {
+        crate::paginas::FaixaObservada::SemLinhas => None,
+        crate::paginas::FaixaObservada::Lidas { inicio, fim } => Some((inicio, fim)),
+    };
     pagina.ids = leitura
         .processos
         .iter()
         .map(|x| x.id.as_str().to_owned())
         .collect();
-    pagina.criterio = valores_ocultos(html, "hdnDetalhadoHashCriterios")
-        .ok()
-        .and_then(|v| v.into_iter().next());
+    pagina.criterio = valores_ocultos(&HtmlServido::de_teste(html), "hdnDetalhadoHashCriterios")
+        .into_iter()
+        .next();
     saida.paginas.push(pagina);
     saida
         .registros
         .push(posicao_da_d(cas, resp, html, &leitura));
     let mut colheita = cas.registro(Leitor::LinhasComLink, resp.passo, Resultado::Lido);
-    match crate::caixa_detalhada::linhas_com_link(html) {
+    match crate::caixa_detalhada::linhas_com_link(&HtmlServido::de_teste(html)) {
         Ok(linhas) => {
             let com = linhas.iter().filter(|l| l.href.is_some()).count() as u64;
             colheita.contagens = vec![("linhas", linhas.len() as u64), ("com_href", com)];
         }
-        Err(erro) => colheita.resultado = Resultado::Recusado(erro.subcodigo()),
+        Err(erro) => colheita.resultado = Resultado::Recusado(format!("{erro:?}")),
     }
     saida.registros.push(colheita);
 }
@@ -214,10 +215,10 @@ fn posicao_da_d(
 ) -> Registro {
     let mut reg = cas.registro(Leitor::PaginaDetalhada, resp.passo, Resultado::Lido);
     reg.formas = controles(html, "Detalhado");
-    let pos = match posicao(html, leitura) {
+    let pos = match posicao(&HtmlServido::de_teste(html), leitura) {
         Ok(pos) => pos,
         Err(erro) => {
-            reg.resultado = Resultado::Recusado(erro.subcodigo());
+            reg.resultado = Resultado::Recusado(format!("{erro:?}"));
             return reg;
         }
     };
@@ -233,15 +234,20 @@ fn posicao_da_d(
     ];
     match planejar(&pos, pos.indice + 1) {
         Ok(None) => {}
-        Ok(Some(_)) => reg.resultado = Resultado::Recusado("pagina_exibida_nao_reconhecida"),
-        Err(erro) => reg.resultado = Resultado::Recusado(erro.subcodigo()),
+        Ok(Some(_)) => {
+            reg.resultado = Resultado::Recusado("pagina_exibida_nao_reconhecida".to_owned());
+        }
+        Err(erro) => reg.resultado = Resultado::Recusado(format!("{erro:?}")),
     }
     if pos.paginas <= pos.indice + 1 || reg.resultado != Resultado::Lido {
         return reg;
     }
     match planejar(&pos, pos.indice + 2) {
         Ok(Some(pedido)) => {
-            let (inicio, fim) = pedido.esperada.unwrap_or((0, 0));
+            let (inicio, fim) = match pedido.esperada {
+                crate::paginas::FaixaObservada::Lidas { inicio, fim } => (inicio, fim),
+                crate::paginas::FaixaObservada::SemLinhas => (0, 0),
+            };
             reg.contagens.extend([
                 ("indice_pedido", pedido.indice as u64),
                 ("esperada_inicio", inicio as u64),
@@ -249,8 +255,10 @@ fn posicao_da_d(
                 ("tamanho", pos.tamanho.unwrap_or(0) as u64),
             ]);
         }
-        Ok(None) => reg.resultado = Resultado::Recusado("pagina_seguinte_dada_como_exibida"),
-        Err(erro) => reg.resultado = Resultado::Recusado(erro.subcodigo()),
+        Ok(None) => {
+            reg.resultado = Resultado::Recusado("pagina_seguinte_dada_como_exibida".to_owned());
+        }
+        Err(erro) => reg.resultado = Resultado::Recusado(format!("{erro:?}")),
     }
     reg
 }

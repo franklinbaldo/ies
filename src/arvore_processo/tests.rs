@@ -1,7 +1,6 @@
 //! RED/GREEN da leitura da árvore: HTML sintético com a forma observada na
 //! `UnB` e em GO (16 argumentos, `PROCESSO` e `DOCUMENTO`, linhas `.acoes`,
 //! `.src` e `.html` entre as declarações). Nenhum valor real.
-use super::ErroArvore as E;
 use super::*;
 use std::fmt::Write as _;
 
@@ -24,9 +23,8 @@ pub(crate) fn no_documento(i: usize, id: &str, pai: &str, numero: &str) -> Strin
 /// A natureza do `no_documento` sintético: ícone interno, não cancelado.
 pub(crate) fn interno() -> NaturezaDoDocumento {
     NaturezaDoDocumento {
-        icone: Some("documento_interno".into()),
-        cancelado: Some(false),
-        motivo_do_cancelamento: None,
+        icone: "documento_interno".into(),
+        cancelamento: Cancelamento::Ativo,
         dica: Some(DICA_SINTETICA.into()),
     }
 }
@@ -108,18 +106,18 @@ fn identidade_e_comparada_byte_a_byte() {
     // Pontuação e espaços não são normalizados.
     assert_eq!(
         ler_arvore(&padrao(), "000010000012026-01", "10"),
-        Err(E::IdentidadeDoProcessoDiferenteDaPedida)
+        Err(super::ErroArvore::IdentidadeDoProcessoDiferenteDaPedida)
     );
     assert_eq!(
         ler_arvore(&padrao(), &format!("{NUP} "), "10"),
-        Err(E::IdentidadeDoProcessoDiferenteDaPedida)
+        Err(super::ErroArvore::IdentidadeDoProcessoDiferenteDaPedida)
     );
     assert_eq!(
         ler_arvore(&padrao(), NUP, "11"),
-        Err(E::IdDoProcessoNaArvoreDiferenteDoAberto)
+        Err(super::ErroArvore::IdDoProcessoNaArvoreDiferenteDoAberto)
     );
-    assert!(E::IdentidadeDoProcessoDiferenteDaPedida.diverge_do_pedido());
-    assert!(!E::TipoDeNoDaArvoreNaoSuportado.diverge_do_pedido());
+    assert!(super::ErroArvore::IdentidadeDoProcessoDiferenteDaPedida.diverge_do_pedido());
+    assert!(!super::ErroArvore::TipoDeNoDaArvoreNaoSuportado.diverge_do_pedido());
 }
 
 #[test]
@@ -127,25 +125,35 @@ fn recusas_estruturais() {
     let p = || no_processo(0, "10", NUP);
     let pasta = no_documento(1, "30", "10", "1").replace("\"DOCUMENTO\"", "\"PASTA\"");
     let outro_tipo = no_documento(1, "30", "10", "1").replace("\"DOCUMENTO\"", "\"ANEXADO\"");
-    let casos: Vec<(Vec<String>, E)> = vec![
-        (vec![], E::NoDoProcessoAusenteNaArvore),
+    let casos: Vec<(Vec<String>, super::ErroArvore)> = vec![
+        (vec![], super::ErroArvore::NoDoProcessoAusenteNaArvore),
         (
             vec![no_documento(0, "21", "10", "1")],
-            E::NoDoProcessoAusenteNaArvore,
+            super::ErroArvore::NoDoProcessoAusenteNaArvore,
         ),
         (
             vec![p(), no_processo(1, "11", NUP)],
-            E::NosDoProcessoRepetidosNaArvore,
+            super::ErroArvore::NosDoProcessoRepetidosNaArvore,
         ),
         // `PASTA` tem 15 argumentos; outro tipo é recusa.
         (
             vec![p(), pasta],
-            E::QuantidadeDeArgumentosDoNoDiferenteDaObservada,
+            super::ErroArvore::QuantidadeDeArgumentosDoNoDiferenteDaObservada {
+                esperada: 15,
+                observada: 16,
+            },
         ),
-        (vec![p(), outro_tipo], E::TipoDeNoDaArvoreNaoSuportado),
+        (
+            vec![p(), outro_tipo],
+            super::ErroArvore::TipoDeNoDaArvoreNaoSuportado,
+        ),
+        (
+            vec![p(), "Nos[1] = new infraArvoreNo();".to_owned()],
+            super::ErroArvore::NoSemArgumentos,
+        ),
         (
             vec![p(), no_documento(1, "21", "99", "1")],
-            E::DocumentoComPaiDiferenteDoProcesso,
+            super::ErroArvore::DocumentoComPaiDiferenteDoProcesso,
         ),
         (
             vec![
@@ -153,35 +161,38 @@ fn recusas_estruturais() {
                 no_documento(1, "21", "10", "1"),
                 no_documento(2, "21", "10", "2"),
             ],
-            E::DocumentoRepetidoNaArvore,
+            super::ErroArvore::DocumentoRepetidoNaArvore,
         ),
         (
             vec![p(), no_documento(1, "2a", "10", "1")],
-            E::IdDeNoNaoDecimal,
+            super::ErroArvore::IdDeNoNaoDecimal,
         ),
         (
             vec![p().replace(",null,\"controlador", ",\"9\",\"controlador")],
-            E::NoDoProcessoComPai,
+            super::ErroArvore::NoDoProcessoComPai,
         ),
         (
             vec![p().replace(&format!(",\"{NUP}\");"), ",\"outro\");")],
-            E::NupDoNoDoProcessoInconsistente,
+            super::ErroArvore::NupDoNoDoProcessoInconsistente,
         ),
         (
             vec![p().replace("\"PROCESSO\",\"10\"", "\"PROCESSO\",10")],
-            E::ArgumentoDeNoComTipoDiferenteDoObservado,
+            super::ErroArvore::ArgumentoDeNoComTipoDiferenteDoObservado,
         ),
         (
             vec![p().replace(",\"noVisitado\",\"", ",\"")],
-            E::QuantidadeDeArgumentosDoNoDiferenteDaObservada,
+            super::ErroArvore::QuantidadeDeArgumentosDoNoDiferenteDaObservada {
+                esperada: 16,
+                observada: 15,
+            },
         ),
         (
             vec![p().replace("Nos[0]", "Nos[1]")],
-            E::IndiceDeNoForaDaSequencia,
+            super::ErroArvore::IndiceDeNoForaDaSequencia,
         ),
         (
             vec![p(), no_documento(2, "21", "10", "1")],
-            E::IndiceDeNoForaDaSequencia,
+            super::ErroArvore::IndiceDeNoForaDaSequencia,
         ),
     ];
     for (nos, esperado) in casos {
@@ -199,7 +210,7 @@ fn declaracao_fora_da_forma_em_qualquer_linha_e_recusa() {
     html.push_str("\n  var y = new infraArvoreNo(\"DOCUMENTO\");\n");
     assert_eq!(
         ler_arvore(&html, NUP, "10"),
-        Err(E::DeclaracaoDeNoForaDaFormaObservada)
+        Err(super::ErroArvore::DeclaracaoDeNoForaDaFormaObservada)
     );
     // CRLF no fim da linha é tolerado.
     let crlf = padrao().replace('\n', "\r\n");

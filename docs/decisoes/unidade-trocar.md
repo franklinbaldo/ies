@@ -74,10 +74,10 @@ Adotada **web-tela-de-troca-e-controle-novo**:
   `sessao_login::redirecionamento::sufixo_da_mesma_origem`): `http://` no
   mesmo host aceito (GO), pedido sempre em `https://`. Espaço literal do
   `msg` vira `%20`, a serialização do navegador; qualquer outro byte fora
-  de 33–126 é desvio (saída 3).
+  de 33–126 é desvio (saída 1).
 - Depois do POST não há reconciliação por outra URL: a URL guardada é da
   unidade anterior e não prova nada (e pode derrubar a sessão). Todo
-  desvio sai com 3, sem novo pedido, com a etapa e o fato.
+  desvio sai com 1, sem novo pedido, com a etapa e o fato.
 - Sessão: sob o lock do login, a URL do Controle novo é gravada (temporário
   0600 e `rename`) e o marcador de geração é atualizado com o mesmo
   cookie, para `ies login` reconhecer a sessão. O índice local apaga todos
@@ -104,6 +104,6 @@ Adotada **web-tela-de-troca-e-controle-novo**:
 ## Limitações e revisão
 
 Não observados: sigla repetida, lista paginada, 200 ao POST, `Location`
-relativo e `msg` fora do ASCII (todos recusa ou saída 3). Sem PEN. Rever
+relativo e `msg` fora do ASCII (todos recusa ou saída 1). Sem PEN. Rever
 se a tela publicar a troca por outro script, se o 302 mudar de forma ou se
 o hash dos saltos mudar de comprimento.

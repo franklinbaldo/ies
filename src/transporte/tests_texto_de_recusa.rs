@@ -1,10 +1,11 @@
 //! RED/GREEN da extração do texto da tela de recusa: exceção do SEI,
 //! depois `<title>` e texto visível; entidades básicas decodificadas.
-use super::{decodificar_entidades, texto_do_html};
+use super::texto_do_html;
+use crate::tela_html::HtmlServido;
 use crate::transporte::saneamento::sanear;
 
 fn extraido(html: &str) -> Option<String> {
-    texto_do_html(html).and_then(|t| sanear(&t))
+    texto_do_html(&HtmlServido::de_teste(html)).and_then(|t| sanear(&t))
 }
 
 /// Tela de exceção sintética no formato que o SEI testa por
@@ -55,18 +56,6 @@ fn html_sem_texto_nao_e_mensagem() {
 
 #[test]
 fn atributo_booleano_antes_do_id_nao_muda_a_extracao() {
-    let corrompido = crate::html_atributos::com_booleano_antes_dos_atributos(EXCECAO);
+    let corrompido = crate::tela_html::teste::com_booleano_antes_dos_atributos(EXCECAO);
     assert_eq!(extraido(&corrompido), extraido(EXCECAO));
-}
-
-#[test]
-fn entidades_basicas_e_numericas_sao_decodificadas() {
-    assert_eq!(
-        decodificar_entidades("a&lt;b&gt; &quot;c&quot; &apos;d&#39; a&#231;&#xE3;o&nbsp;!"),
-        "a<b> \"c\" 'd' ação\u{a0}!"
-    );
-    assert_eq!(
-        decodificar_entidades("&amp;lt; &desconhecida; & solto &#xZZ;"),
-        "&lt; &desconhecida; & solto &#xZZ;"
-    );
 }

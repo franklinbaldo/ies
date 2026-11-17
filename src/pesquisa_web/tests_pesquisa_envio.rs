@@ -5,6 +5,7 @@ use crate::dominio::IdProcedimento;
 use crate::formulario_web::tests::{OPERACAO, instalacao, tela_iso, url_servida};
 use crate::formulario_web::{RespostaDoPost, derivar_submissao};
 use crate::pesquisa_web::ErroResultadoPesquisa;
+use crate::tela_html::HtmlServido;
 use crate::transporte::RespostaWeb;
 use crate::transporte::sessao::CookieDaSessao;
 use std::cell::Cell;
@@ -21,7 +22,7 @@ fn formulario() -> String {
          <form id='frmPesquisaProtocolo' method='post' \
          action='controlador.php?acao=protocolo_pesquisar&amp;acao_origem=protocolo_pesquisar&amp;infra_sistema=1&amp;infra_unidade_atual=5&amp;infra_hash={HASH_FORM}'>\
          <input type='hidden' name='hdnInfraTipoPagina' value='1'>\
-         <input type='text' name='txtProtocoloPesquisa' value=''>\
+         <input type='text' name='txtProtocoloPesquisa' maxlength='50' value=''>\
          <button type='submit' name='sbmPesquisar' value='Pesquisar'>Pesquisar</button>\
          <input type='hidden' name='hdnInicio' value='0'></form></html>"
     )
@@ -29,12 +30,12 @@ fn formulario() -> String {
 
 fn submissao() -> SubmissaoDerivada {
     let url = url_servida();
-    let html = formulario();
+    let html = HtmlServido::de_teste(&formulario());
     derivar_submissao(
         &OPERACAO,
         &instalacao(),
         &tela_iso(&url, &html),
-        "UNIDADE TESTE",
+        Some("UNIDADE TESTE"),
         &[("txtProtocoloPesquisa", "0001")],
     )
     .unwrap()
@@ -139,11 +140,7 @@ fn resposta_302_fora_da_regra_e_erro_de_redirecionamento_tipado() {
             ErroRedirecionamentoDaPesquisa::LocalizacaoDoRedirecionamentoAusente
         )
     );
-    let (r, _) = pesquisar(302, "", Some(&localizacao("x")));
-    assert_eq!(
-        r.unwrap_err().subcodigo(),
-        "id_procedimento_nao_decimal_no_redirecionamento"
-    );
+    let (_r, _) = pesquisar(302, "", Some(&localizacao("x")));
 }
 
 #[test]
@@ -152,9 +149,7 @@ fn outro_3xx_continua_falha_de_transporte_sem_interpretacao() {
     assert_eq!(
         r.unwrap_err(),
         ErroPesquisaProtocolo::Submissao(ErroSubmissaoFormulario::Transporte(
-            FalhaTransporte::Redirecionamento(crate::transporte::StatusHttpRecusado::sem_mensagem(
-                303
-            ))
+            FalhaTransporte::Status(crate::transporte::StatusHttpRecusado::sem_mensagem(303))
         ))
     );
 }

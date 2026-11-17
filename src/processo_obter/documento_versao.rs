@@ -7,12 +7,10 @@
 //! de custo: nenhum GET só para ela).
 use super::super::EnvioDoProcesso;
 use super::super::abertura::{Lida, Rede};
-use super::{E, fora_do_html};
+use super::{ErroDocumentoObter, fora_do_html};
+use crate::acao_do_sei::AcaoDoSei;
 use crate::arvore_processo::endereco::conferir_endereco_relativo;
-use crate::arvore_processo::{
-    BarraDoDocumento, EnderecoDoConteudo, ErroBarraDoDocumento, ler_barra_do_documento,
-};
-use crate::documento::NumeroDocumento;
+use crate::arvore_processo::{BarraDoDocumento, EnderecoDoConteudo, ler_barra_do_documento};
 use crate::documento_versoes::{
     ErroVersao, HistoricoDocumento, VersaoDocumento, interpretar_historico,
 };
@@ -28,6 +26,8 @@ pub(crate) struct PedidoDeVersoes {
     /// `--saida DIR` (#207): a foto `DOC.vN.html` da versão lida, que
     /// exige saber N (rodapé ou lista).
     pub(crate) foto: bool,
+    /// Preservar HTML no cache, sem GET adicional para versão desconhecida.
+    pub(crate) cache: bool,
 }
 
 /// Por que `versao_atual` não foi publicada.
@@ -50,7 +50,7 @@ impl SemVersaoAtual {
 #[derive(Clone, PartialEq, Eq)]
 pub(crate) struct FotoDaVersao {
     pub(crate) versao: VersaoDocumento,
-    pub(crate) html: String,
+    pub(crate) html: crate::tela_html::HtmlServido,
 }
 
 impl std::fmt::Debug for FotoDaVersao {
@@ -66,6 +66,9 @@ pub(crate) struct VersoesDoDocumento {
     pub(crate) atual: Result<VersaoDocumento, SemVersaoAtual>,
     /// Só com `--saida` e num documento interno.
     pub(crate) foto: Option<FotoDaVersao>,
+    /// HTML lido para o cache, mesmo quando a versão é desconhecida.
+    pub(crate) cache_html: Option<crate::tela_html::HtmlServido>,
+    pub(crate) crc_rodape: Option<String>,
 }
 
 /// O documento já conferido na árvore lida pelo caminho que a abriu
@@ -82,14 +85,14 @@ pub(super) struct NoConferido<'a> {
 }
 
 impl NoConferido<'_> {
-    fn barra(&self) -> Result<BarraDoDocumento, E> {
+    fn barra(&self) -> Result<BarraDoDocumento, ErroDocumentoObter> {
         ler_barra_do_documento(
             self.instalacao,
             self.html,
             self.id_documento,
             self.id_procedimento,
         )
-        .map_err(E::BarraDoDocumento)
+        .map_err(ErroDocumentoObter::BarraDoDocumento)
     }
 }
 
@@ -100,17 +103,19 @@ impl NoConferido<'_> {
 pub(super) fn do_externo(
     no: &NoConferido<'_>,
     pedido: PedidoDeVersoes,
-) -> Result<VersoesDoDocumento, E> {
+) -> Result<VersoesDoDocumento, ErroDocumentoObter> {
     if pedido.versao.is_some() {
         return Err(match no.barra()?.versoes {
-            None => E::ListaDeVersoesNaoPublicadaNaArvore,
-            Some(_) => E::BarraDoDocumento(ErroBarraDoDocumento::BarraForaDaFormaObservada),
+            None => ErroDocumentoObter::ListaDeVersoesNaoPublicadaNaArvore,
+            Some(_) => ErroDocumentoObter::BarraDoDocumentoForaDaFormaObservada,
         });
     }
     Ok(VersoesDoDocumento {
         lida: None,
         atual: Err(SemVersaoAtual::NaoServidaNoConteudo),
         foto: None,
+        cache_html: None,
+        crc_rodape: None,
     })
 }
 
@@ -120,10 +125,10 @@ pub(super) fn ler_versoes<V: EnvioDoProcesso>(
     no: &NoConferido<'_>,
     conteudo: &EnderecoDoConteudo,
     pedido: PedidoDeVersoes,
-) -> Result<(String, String, VersoesDoDocumento), E> {
+) -> Result<(String, String, VersoesDoDocumento), ErroDocumentoObter> {
     match pedido.versao {
-        None => ler_atual(rede, no, conteudo, pedido.foto),
-        Some(n) => ler_versao(rede, no, n, pedido.foto),
+        None => ler_atual(rede, no, conteudo, pedido.foto, pedido.cache),
+        Some(n) => ler_versao(rede, no, n, pedido.foto, pedido.cache),
     }
 }
 
@@ -135,13 +140,20 @@ fn ler_atual<V: EnvioDoProcesso>(
     no: &NoConferido<'_>,
     conteudo: &EnderecoDoConteudo,
     foto: bool,
-) -> Result<(String, String, VersoesDoDocumento), E> {
+    cache: bool,
+) -> Result<(String, String, VersoesDoDocumento), ErroDocumentoObter> {
     let (tipo, texto, html) = ler_pagina(rede, conteudo.as_str(), no.numero)?;
     let servida = versao_do_rodape(&html);
+    // Um link assinado no corpo impede persistencia em cache, nao a
+    // leitura da versao. A foto explicita continua recusada em fotografar.
+    let cache_html = (cache && !html.contains("infra_hash")).then(|| html.clone());
+    let crc_rodape = crate::rodape_do_documento::crc_do_rodape(&html);
     let mut versoes = VersoesDoDocumento {
         lida: servida,
         atual: servida.ok_or(SemVersaoAtual::NaoServidaNoConteudo),
         foto: None,
+        cache_html,
+        crc_rodape,
     };
     if !foto {
         return Ok((tipo, texto, versoes));
@@ -152,10 +164,10 @@ fn ler_atual<V: EnvioDoProcesso>(
         let lista = no
             .barra()?
             .versoes
-            .ok_or(E::ListaDeVersoesNaoPublicadaNaArvore)?;
+            .ok_or(ErroDocumentoObter::ListaDeVersoesNaoPublicadaNaArvore)?;
         let atual = ler_lista(rede, no, lista.as_str())?
             .atual()
-            .ok_or(E::Versoes(ErroVersao::ListaIncompleta))?;
+            .ok_or(ErroDocumentoObter::Versoes(ErroVersao::ListaIncompleta))?;
         versoes.atual = Ok(atual);
         atual
     };
@@ -171,24 +183,33 @@ fn ler_versao<V: EnvioDoProcesso>(
     no: &NoConferido<'_>,
     n: VersaoDocumento,
     foto: bool,
-) -> Result<(String, String, VersoesDoDocumento), E> {
+    cache: bool,
+) -> Result<(String, String, VersoesDoDocumento), ErroDocumentoObter> {
     let barra = no.barra()?;
-    let lista = barra.versoes.ok_or(E::ListaDeVersoesNaoPublicadaNaArvore)?;
+    let lista = barra
+        .versoes
+        .ok_or(ErroDocumentoObter::ListaDeVersoesNaoPublicadaNaArvore)?;
     let historico = ler_lista(rede, no, lista.as_str())?;
     let atual = historico
         .atual()
-        .ok_or(E::Versoes(ErroVersao::ListaIncompleta))?;
-    let entrada = historico.selecionar(n).map_err(E::Versoes)?;
+        .ok_or(ErroDocumentoObter::Versoes(ErroVersao::ListaIncompleta))?;
+    let entrada = historico
+        .selecionar(n)
+        .map_err(ErroDocumentoObter::Versoes)?;
     let url = conferir_endereco_relativo(
         no.instalacao,
         entrada.link_privado(),
-        "documento_visualizar",
+        AcaoDoSei::DocumentoVisualizar,
         no.id_procedimento,
     )
-    .map_err(|_| E::Versoes(ErroVersao::LinkInseguro))?;
+    .map_err(ErroDocumentoObter::LinkDaVersaoRecusado)?;
     let (tipo, texto, html) = ler_pagina(rede, &url, no.numero)?;
+    // Um link assinado no corpo impede persistencia em cache, nao a
+    // leitura da versao. A foto explicita continua recusada em fotografar.
+    let cache_html = (cache && !html.contains("infra_hash")).then(|| html.clone());
+    let crc_rodape = crate::rodape_do_documento::crc_do_rodape(&html);
     if versao_do_rodape(&html).is_some_and(|servida| servida != n) {
-        return Err(E::VersaoServidaDiferenteDaPedida);
+        return Err(ErroDocumentoObter::VersaoServidaDiferenteDaPedida);
     }
     let foto = if foto {
         Some(fotografar(n, html)?)
@@ -196,18 +217,23 @@ fn ler_versao<V: EnvioDoProcesso>(
         None
     };
     let versoes = VersoesDoDocumento {
+        crc_rodape,
         lida: Some(n),
         atual: Ok(atual),
         foto,
+        cache_html,
     };
     Ok((tipo, texto, versoes))
 }
 
 /// A foto da versão N, se o HTML servido não traz `infra_hash`
 /// (credencial de sessão nunca vai a arquivo).
-fn fotografar(versao: VersaoDocumento, html: String) -> Result<FotoDaVersao, E> {
+fn fotografar(
+    versao: VersaoDocumento,
+    html: crate::tela_html::HtmlServido,
+) -> Result<FotoDaVersao, ErroDocumentoObter> {
     if html.contains("infra_hash") {
-        return Err(E::ConteudoComLinkAssinado);
+        return Err(ErroDocumentoObter::ConteudoComLinkAssinado);
     }
     Ok(FotoDaVersao { versao, html })
 }
@@ -217,14 +243,14 @@ fn ler_lista<V: EnvioDoProcesso>(
     rede: &mut Rede<'_, V>,
     no: &NoConferido<'_>,
     url: &str,
-) -> Result<HistoricoDocumento, E> {
-    let html = match rede.get(url).map_err(E::Processo)? {
+) -> Result<HistoricoDocumento, ErroDocumentoObter> {
+    let html = match rede.get(url).map_err(ErroDocumentoObter::Processo)? {
         Lida::Html { html, .. } => html,
-        outra => return Err(E::Processo(fora_do_html(outra))),
+        outra @ (Lida::Redirecionamento(_) | Lida::Login | Lida::Falha(_)) => {
+            return Err(ErroDocumentoObter::Processo(fora_do_html(outra)));
+        }
     };
-    let numero =
-        NumeroDocumento::novo(no.numero).map_err(|_| E::NumeroSeiDaArvoreDiferenteDoPedido)?;
-    interpretar_historico(&html, &numero, no.id_documento, None).map_err(E::Versoes)
+    interpretar_historico(&html, no.id_documento, None).map_err(ErroDocumentoObter::Versoes)
 }
 
 /// GET de um `documento_visualizar` assinado: tipo, texto e o HTML servido;
@@ -233,15 +259,17 @@ fn ler_pagina<V: EnvioDoProcesso>(
     rede: &mut Rede<'_, V>,
     url: &str,
     numero: &str,
-) -> Result<(String, String, String), E> {
-    let html = match rede.get(url).map_err(E::Processo)? {
+) -> Result<(String, String, crate::tela_html::HtmlServido), ErroDocumentoObter> {
+    let html = match rede.get(url).map_err(ErroDocumentoObter::Processo)? {
         Lida::Html { html, .. } => html,
-        outra => return Err(E::Processo(fora_do_html(outra))),
+        outra @ (Lida::Redirecionamento(_) | Lida::Login | Lida::Falha(_)) => {
+            return Err(ErroDocumentoObter::Processo(fora_do_html(outra)));
+        }
     };
-    let identidade = identidade_do_titulo(&html).map_err(E::Titulo)?;
+    let identidade = identidade_do_titulo(&html).map_err(ErroDocumentoObter::Titulo)?;
     if identidade.numero != numero {
-        return Err(E::TituloDeOutroDocumento);
+        return Err(ErroDocumentoObter::TituloDeOutroDocumento);
     }
-    let texto = texto_do_corpo(&html).map_err(E::Corpo)?;
+    let texto = texto_do_corpo(&html).map_err(ErroDocumentoObter::Corpo)?;
     Ok((identidade.tipo, texto, html))
 }

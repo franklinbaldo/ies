@@ -48,7 +48,7 @@ impl Credenciais {
     /// Arquivo privado pelas travas do transporte (`0600`, sem link, limite).
     #[allow(dead_code)]
     pub(crate) fn ler(caminho: &Path) -> Result<Self, ErroLogin> {
-        let texto = crate::transporte::arquivo_privado(caminho, LIMITE_DO_ARQUIVO)
+        let texto = crate::arquivo_privado::ler(caminho, LIMITE_DO_ARQUIVO)
             .map_err(ErroLogin::ArquivoDeCredenciais)?;
         Self::interpretar(&texto)
     }
@@ -133,22 +133,22 @@ impl Credenciais {
     /// do primeiro `=`, só sem o fim de linha.
     #[allow(dead_code)]
     pub(crate) fn interpretar(texto: &str) -> Result<Self, ErroLogin> {
-        use CampoDasCredenciais as C;
         let mut valores: [Option<String>; 3] = [None, None, None];
         for linha in texto.lines().filter(|linha| !linha.is_empty()) {
             let (chave, valor) = linha
                 .split_once('=')
                 .ok_or(ErroLogin::LinhaDasCredenciaisSemCampoConhecido)?;
-            let (campo, indice) = match chave {
-                "usuario" => (C::Usuario, 0),
-                "senha" => (C::Senha, 1),
-                "orgao" => (C::Orgao, 2),
+            let [usuario, senha, orgao] = &mut valores;
+            let (campo, guardado) = match chave {
+                "usuario" => (CampoDasCredenciais::Usuario, usuario),
+                "senha" => (CampoDasCredenciais::Senha, senha),
+                "orgao" => (CampoDasCredenciais::Orgao, orgao),
                 _ => return Err(ErroLogin::LinhaDasCredenciaisSemCampoConhecido),
             };
-            if valores[indice].is_some() {
+            if guardado.is_some() {
                 return Err(ErroLogin::CampoDasCredenciaisRepetido(campo));
             }
-            let valor = if campo == C::Senha {
+            let valor = if campo == CampoDasCredenciais::Senha {
                 valor
             } else {
                 valor.trim()
@@ -156,13 +156,19 @@ impl Credenciais {
             if valor.is_empty() {
                 return Err(ErroLogin::CampoDasCredenciaisVazio(campo));
             }
-            valores[indice] = Some(valor.to_owned());
+            *guardado = Some(valor.to_owned());
         }
         let [usuario, senha, orgao] = valores;
         Ok(Self {
-            usuario: usuario.ok_or(ErroLogin::CampoDasCredenciaisAusente(C::Usuario))?,
-            senha: senha.ok_or(ErroLogin::CampoDasCredenciaisAusente(C::Senha))?,
-            orgao: orgao.ok_or(ErroLogin::CampoDasCredenciaisAusente(C::Orgao))?,
+            usuario: usuario.ok_or(ErroLogin::CampoDasCredenciaisAusente(
+                CampoDasCredenciais::Usuario,
+            ))?,
+            senha: senha.ok_or(ErroLogin::CampoDasCredenciaisAusente(
+                CampoDasCredenciais::Senha,
+            ))?,
+            orgao: orgao.ok_or(ErroLogin::CampoDasCredenciaisAusente(
+                CampoDasCredenciais::Orgao,
+            ))?,
         })
     }
 }

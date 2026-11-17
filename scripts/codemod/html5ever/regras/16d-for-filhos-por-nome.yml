@@ -1,0 +1,18 @@
+id: 16d-for-filhos-por-nome
+language: rust
+message: 'for sobre children().all(parser) filtrando um nome: os elementos de mesmo nome'
+severity: hint
+rule:
+  all:
+    - pattern: 'for $F in $T.children().all($P) { let Some($O) = $F.as_tag().filter(|$X| $X.nome() == $S) else { continue; }; $$$B }'
+    - not:
+        inside:
+          stopBy: end
+          kind: mod_item
+          follows:
+            kind: attribute_item
+            regex: 'cfg\(test\)'
+fix: |-
+  for $O in $T.elementos($S) {
+      $$$B
+  }

@@ -3,45 +3,32 @@
 //! `--confirmar`, um POST de salvar, conferido por leitura. Erro de uso sai
 //! com 2 antes de ler a configuração (sem requisição); efeito incerto, com 3.
 //! Vinda da R, a sessão fica na D.
-use crate::nivel_de_detalhe::{AlvoDasColunas, ColunaDoDetalhe, ErroDaListaDeColunas};
+use crate::acao_do_sei::AcaoDoSei;
+use crate::configuracao;
+use crate::nivel_de_detalhe::{AlvoDasColunas, ColunaDoDetalhe};
 use crate::transporte::envio_post::ler_tela_do_controle;
 use crate::transporte::sessao::ReferenciasDaSessao;
-use crate::visao_do_controle::{
-    self, ColunasDefinidas, ErroDefinirColunas, ErroVisaoDoControle, FalhaDoSalvar, TelaAtual,
-    VerificacaoDasColunas,
-};
-use crate::{configuracao, erro_fonte, saida_erro};
-use serde_json::{Map, Value, json};
-use std::process::ExitCode;
+use crate::visao_do_controle::{self, ColunasDefinidas, TelaAtual};
+#[cfg(test)]
+use serde_json::{Value, json};
 
+#[cfg(test)]
+fn chaves(colunas: &[ColunaDoDetalhe]) -> Value {
+    json!(colunas.iter().map(|c| c.chave()).collect::<Vec<_>>())
+}
+
+/// `alvo`: `--definir` já interpretado pelo clap (uso inválido: saída 2).
 pub(crate) fn definir_colunas(
     unidade: Option<&str>,
     json_mode: bool,
-    definir: &str,
+    alvo: &AlvoDasColunas,
     confirmar: bool,
-) -> ExitCode {
-    let alvo = match AlvoDasColunas::interpretar(definir) {
-        Ok(alvo) => alvo,
-        Err(erro) => return erro_de_uso(json_mode, &erro),
-    };
-    let arquivos = match configuracao::arquivos_de_acesso() {
-        Ok(arquivos) => arquivos,
-        Err(erro) => return erro_fonte(json_mode, erro.subcodigo(), erro.mensagem()),
-    };
+) -> anyhow::Result<()> {
+    let arquivos = configuracao::arquivos_de_acesso()?;
     let indice = crate::indice_local::IndiceLocal::da_configuracao(&arquivos);
-    let lido = ReferenciasDaSessao::ler(&arquivos.url_controle, &arquivos.origem, &arquivos.cookie)
-        .and_then(|sessao| ler_tela_do_controle(&sessao).map(|tela| (sessao, tela)));
-    let (sessao, tela) = match lido {
-        Ok(lido) => lido,
-        Err(falha) => {
-            return saida_erro::erro_fonte_http(
-                json_mode,
-                falha.subcodigo(),
-                falha.mensagem(),
-                falha.status_http(),
-            );
-        }
-    };
+    let sessao =
+        ReferenciasDaSessao::ler(&arquivos.url_controle, &arquivos.origem, &arquivos.cookie)?;
+    let tela = ler_tela_do_controle(&sessao)?;
     let colheita = crate::colheita_do_controle::Colheita::das_referencias(&indice, &sessao);
     colheita.colher(&tela.html, Some(&tela.mime));
     let atual = TelaAtual {
@@ -49,206 +36,119 @@ pub(crate) fn definir_colunas(
         html: tela.html,
         mime: tela.mime,
     };
-    match visao_do_controle::definir_colunas(
+    let feito = visao_do_controle::definir_colunas(
         &tela.instalacao,
         &atual,
         unidade,
-        &alvo,
+        alvo,
         confirmar,
         sessao.cookie(),
-        &mut crate::colheita_do_controle::EnvioColhendo {
+        &mut visao_do_controle::EnvioContado::novo(crate::colheita_do_controle::EnvioColhendo {
             colheita: &colheita,
-        },
-    ) {
-        Ok(feito) => {
-            if json_mode {
-                println!(
-                    "{}",
-                    serde_json::to_string_pretty(&json_de_sucesso(&feito)).unwrap()
-                );
-            } else {
-                println!("{}", humano(&feito));
-            }
-            ExitCode::SUCCESS
-        }
-        // Nada foi salvo: a mesma falha de `ies unidade colunas`.
-        Err(ErroDefinirColunas::Leitura(erro)) => {
-            crate::unidade_lista_cli::erro_da_visao(json_mode, &erro)
-        }
-        Err(erro) => {
-            let valor = json_de_falha(&erro);
-            publicar_falha(json_mode, &valor, erro.mensagem(), erro.saida())
-        }
-    }
-}
-
-fn erro_de_uso(json_mode: bool, erro: &ErroDaListaDeColunas) -> ExitCode {
-    let mut valor = json!({
-        "codigo": "entrada_invalida",
-        "subcodigo": erro.subcodigo(),
-        "erro": erro.mensagem(),
-        "retentavel": false,
-    });
-    let coluna = match erro {
-        ErroDaListaDeColunas::ColunaDesconhecida { chave } => Some(chave.as_str()),
-        ErroDaListaDeColunas::ColunaRepetidaNaLista { coluna } => Some(coluna.chave()),
-        _ => None,
-    };
-    if let (Some(coluna), Some(objeto)) = (coluna, valor.as_object_mut()) {
-        objeto.insert("coluna".to_owned(), json!(coluna));
-    }
+        }),
+    )?;
     if json_mode {
-        println!("{valor}");
+        let mut valor = serde_json::to_value(resultado_colunas(&feito))?;
+        crate::indice_local::anexar_avisos(&mut valor, &indice);
+        println!("{}", serde_json::to_string_pretty(&valor)?);
     } else {
-        eprintln!("IES: {} [{}]", erro.mensagem(), erro.subcodigo());
+        crate::indice_local::avisar_no_texto(&indice);
+        println!("{}", humano(&feito));
     }
-    ExitCode::from(2)
+    Ok(())
 }
 
-fn chaves(colunas: &[ColunaDoDetalhe]) -> Value {
-    json!(colunas.iter().map(|c| c.chave()).collect::<Vec<_>>())
+/// Contrato do POST: apenas nomes de campos, nunca valores ou hashes.
+#[derive(serde::Serialize)]
+struct EnvioColunasPublico<'a> {
+    acao: AcaoDoSei,
+    campos: &'a [String],
+    metodo: &'static str,
 }
 
-fn opcional(colunas: Option<&[ColunaDoDetalhe]>) -> Value {
-    colunas.map_or(Value::Null, chaves)
+#[derive(serde::Serialize)]
+struct ResultadoColunas<'a> {
+    alterado: bool,
+    alvo: Vec<&'static str>,
+    antes: Vec<&'static str>,
+    confirmado: bool,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    depois: Option<Vec<&'static str>>,
+    desmarcar: Vec<&'static str>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    envio: Option<EnvioColunasPublico<'a>>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    falha_do_salvar: Option<String>,
+    indisponiveis: Vec<&'static str>,
+    marcar: Vec<&'static str>,
+    origem: &'static str,
+    reconciliado_por_leitura: bool,
+    unidade: &'a str,
 }
 
-fn json_da_falha_do_salvar(falha: &FalhaDoSalvar) -> Value {
-    let mut valor = Map::new();
-    valor.insert("subcodigo".to_owned(), json!(falha.subcodigo()));
-    if let Some(http) = falha.status_http() {
-        // 200: validação da Infra, só a mensagem.
-        if http.status != 200 {
-            valor.insert("status_http".to_owned(), json!(http.status));
-        }
-        if let Some(texto) = http.mensagem_do_servidor {
-            valor.insert("mensagem_do_servidor".to_owned(), json!(texto));
-        }
-    }
-    Value::Object(valor)
+fn chaves_tipadas(colunas: &[ColunaDoDetalhe]) -> Vec<&'static str> {
+    colunas.iter().map(|coluna| coluna.chave()).collect()
 }
 
-/// JSON do sucesso (prévia, inalterado ou salvo e conferido).
-pub(crate) fn json_de_sucesso(feito: &ColunasDefinidas) -> Value {
+fn resultado_colunas(feito: &ColunasDefinidas) -> ResultadoColunas<'_> {
     let plano = &feito.plano;
-    let envio = feito
-        .campos_do_envio
-        .as_ref()
-        .map_or(Value::Null, |campos| {
+    ResultadoColunas {
+        alterado: feito.alterado(),
+        alvo: chaves_tipadas(&plano.alvo),
+        antes: chaves_tipadas(&plano.antes),
+        confirmado: feito.confirmado(),
+        depois: feito.depois().map(chaves_tipadas),
+        desmarcar: chaves_tipadas(&plano.desmarcar()),
+        envio: feito.campos_do_envio().map(|campos| EnvioColunasPublico {
+            acao: AcaoDoSei::ProcedimentoConfigurarDetalhe,
+            campos,
+            metodo: "POST",
+        }),
+        falha_do_salvar: feito.reconciliado_por().map(|f| format!("{f:?}")),
+        indisponiveis: chaves_tipadas(&plano.indisponiveis),
+        marcar: chaves_tipadas(&plano.marcar()),
+        origem: "web",
+        reconciliado_por_leitura: feito.reconciliado_por().is_some(),
+        unidade: &feito.unidade,
+    }
+}
+
+// A montagem antiga por Value permanece somente como oráculo de contrato.
+#[cfg(test)]
+fn json_de_sucesso(feito: &ColunasDefinidas) -> Value {
+    let plano = &feito.plano;
+    // Sem valor, a chave é omitida: a saída não traz null.
+    let mut objeto = serde_json::Map::new();
+    objeto.insert("unidade".to_owned(), json!(feito.unidade));
+    objeto.insert("origem".to_owned(), json!("web"));
+    objeto.insert("confirmado".to_owned(), json!(feito.confirmado()));
+    objeto.insert("alterado".to_owned(), json!(feito.alterado()));
+    objeto.insert("antes".to_owned(), chaves(&plano.antes));
+    objeto.insert("alvo".to_owned(), chaves(&plano.alvo));
+    objeto.insert("marcar".to_owned(), chaves(&plano.marcar()));
+    objeto.insert("desmarcar".to_owned(), chaves(&plano.desmarcar()));
+    objeto.insert("indisponiveis".to_owned(), chaves(&plano.indisponiveis));
+    if let Some(campos) = feito.campos_do_envio() {
+        objeto.insert(
+            "envio".to_owned(),
             json!({
                 "metodo": "POST",
-                "acao": crate::nivel_de_detalhe::ACAO_DO_NIVEL_DE_DETALHE,
+                "acao": AcaoDoSei::ProcedimentoConfigurarDetalhe,
                 "campos": campos,
-            })
-        });
-    let mut valor = json!({
-        "unidade": feito.unidade,
-        "origem": "web",
-        "confirmado": feito.confirmado,
-        "alterado": feito.alterado,
-        "antes": chaves(&plano.antes),
-        "alvo": chaves(&plano.alvo),
-        "marcar": chaves(&plano.marcar()),
-        "desmarcar": chaves(&plano.desmarcar()),
-        "indisponiveis": chaves(&plano.indisponiveis),
-        "envio": envio,
-        "depois": opcional(feito.depois.as_deref()),
-        "reconciliado_por_leitura": feito.reconciliado_por.is_some(),
-    });
-    if let (Some(falha), Some(objeto)) = (&feito.reconciliado_por, valor.as_object_mut()) {
-        objeto.insert("falha_do_salvar".to_owned(), json_da_falha_do_salvar(falha));
+            }),
+        );
     }
-    valor
-}
-
-fn json_da_visao(erro: &ErroVisaoDoControle) -> Value {
-    saida_erro::json_de_erro_fonte(erro.subcodigo(), erro.mensagem(), erro.status_http())
-}
-
-/// JSON da falha.
-pub(crate) fn json_de_falha(erro: &ErroDefinirColunas) -> Value {
-    let mut valor = match erro {
-        ErroDefinirColunas::Leitura(leitura) => json_da_visao(leitura),
-        _ => json!({
-            "codigo": erro.codigo(),
-            "subcodigo": erro.subcodigo(),
-            "erro": erro.mensagem(),
-            "retentavel": false,
-        }),
-    };
-    let Some(objeto) = valor.as_object_mut() else {
-        return valor;
-    };
-    match erro {
-        ErroDefinirColunas::Leitura(_) => {}
-        ErroDefinirColunas::ColunaIndisponivelNestaInstalacao { coluna } => {
-            objeto.insert("coluna".to_owned(), json!(coluna.chave()));
-        }
-        ErroDefinirColunas::ConfiguracaoDeColunasNaoAplicada {
-            plano,
-            falha_do_salvar,
-        } => {
-            objeto.insert("antes".to_owned(), chaves(&plano.antes));
-            objeto.insert("alvo".to_owned(), chaves(&plano.alvo));
-            inserir_falha(objeto, falha_do_salvar.as_ref());
-        }
-        ErroDefinirColunas::MarcasDiferentesDoAlvoAposSalvar { plano, observadas } => {
-            objeto.insert("antes".to_owned(), chaves(&plano.antes));
-            objeto.insert("alvo".to_owned(), chaves(&plano.alvo));
-            objeto.insert("observadas".to_owned(), chaves(observadas));
-        }
-        ErroDefinirColunas::EfeitoIncertoNaConfiguracaoDeColunas {
-            plano,
-            falha_do_salvar,
-            verificacao,
-        } => {
-            objeto.insert("antes".to_owned(), chaves(&plano.antes));
-            objeto.insert("alvo".to_owned(), chaves(&plano.alvo));
-            inserir_falha(objeto, falha_do_salvar.as_ref());
-            let (observadas, lida) = match &**verificacao {
-                VerificacaoDasColunas::Marcadas(marcadas) => (chaves(marcadas), Value::Null),
-                VerificacaoDasColunas::LeituraFalhou(falha) => {
-                    (Value::Null, json!(falha.subcodigo()))
-                }
-            };
-            objeto.insert("observadas".to_owned(), observadas);
-            objeto.insert("verificacao".to_owned(), lida);
-        }
+    if let Some(depois) = feito.depois() {
+        objeto.insert("depois".to_owned(), chaves(depois));
     }
-    valor
-}
-
-/// A falha do salvar e, no topo, o status e a mensagem do SEI.
-fn inserir_falha(objeto: &mut Map<String, Value>, falha: Option<&FalhaDoSalvar>) {
-    let Some(falha) = falha else {
-        return;
-    };
-    if let Some(http) = falha.status_http() {
-        objeto.insert("status_http".to_owned(), json!(http.status));
-        if let Some(texto) = http.mensagem_do_servidor {
-            objeto.insert("mensagem_do_servidor".to_owned(), json!(texto));
-        }
+    objeto.insert(
+        "reconciliado_por_leitura".to_owned(),
+        json!(feito.reconciliado_por().is_some()),
+    );
+    if let Some(falha) = feito.reconciliado_por() {
+        objeto.insert("falha_do_salvar".to_owned(), json!(format!("{falha:?}")));
     }
-    objeto.insert("falha_do_salvar".to_owned(), json_da_falha_do_salvar(falha));
-}
-
-fn publicar_falha(json_mode: bool, valor: &Value, mensagem: &str, saida: u8) -> ExitCode {
-    if json_mode {
-        println!("{valor}");
-    } else {
-        let subcodigo = valor["subcodigo"].as_str().unwrap_or_default();
-        eprintln!("IES: {mensagem} [{subcodigo}]");
-        for campo in ["antes", "alvo", "observadas", "depois"] {
-            if let Some(lista) = valor[campo].as_array() {
-                let nomes: Vec<_> = lista.iter().filter_map(Value::as_str).collect();
-                eprintln!("IES: {campo}: {}", lista_humana(&nomes));
-            }
-        }
-        if let Some(falha) = valor["falha_do_salvar"]["subcodigo"].as_str() {
-            eprintln!("IES: resposta do salvar: {falha}");
-        }
-    }
-    ExitCode::from(saida)
+    Value::Object(objeto)
 }
 
 fn lista_humana(nomes: &[&str]) -> String {
@@ -266,7 +166,11 @@ fn linha(rotulo: &str, colunas: &[ColunaDoDetalhe]) -> String {
 
 fn humano(feito: &ColunasDefinidas) -> String {
     let plano = &feito.plano;
-    let cabeca = match (feito.confirmado, feito.alterado, &feito.campos_do_envio) {
+    let cabeca = match (
+        feito.confirmado(),
+        feito.alterado(),
+        feito.campos_do_envio(),
+    ) {
         (_, _, None) => "nada a salvar: o alvo é a configuração atual",
         (false, _, Some(_)) => "prévia, nada foi salvo",
         (true, true, _) => "salvo e conferido por leitura",
@@ -288,16 +192,15 @@ fn humano(feito: &ColunasDefinidas) -> String {
             &plano.indisponiveis,
         ));
     }
-    if let Some(depois) = &feito.depois {
+    if let Some(depois) = feito.depois() {
         linhas.push(linha("Lido depois de salvar", depois));
     }
-    if let Some(falha) = &feito.reconciliado_por {
+    if let Some(falha) = feito.reconciliado_por() {
         linhas.push(format!(
-            "IES: a resposta do salvar não foi a esperada ({}); a leitura mostrou o alvo.",
-            falha.subcodigo()
+            "IES: a resposta do salvar não foi a esperada ({falha:?}); a leitura mostrou o alvo."
         ));
     }
-    if let (false, Some(campos)) = (feito.confirmado, &feito.campos_do_envio) {
+    if let (false, Some(campos)) = (feito.confirmado(), feito.campos_do_envio()) {
         linhas.push(format!("POST que seria enviado: {}", campos.join(", ")));
         linhas.push("Para aplicar, repita com --confirmar.".to_owned());
     }

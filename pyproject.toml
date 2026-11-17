@@ -1,0 +1,20 @@
+# Wheel Python com o executavel Rust, sem bindings Python/PyO3.
+# O nome "ies" ja pertence a outro pacote no PyPI; o comando continua "ies".
+[build-system]
+requires = ["maturin>=1.16,<2"]
+build-backend = "maturin"
+
+[project]
+name = "ies-sei"
+version = "0.1.0"
+description = "CLI Rust para operar o SEI pela interface Web"
+requires-python = ">=3.9"
+license = "MIT"
+
+[project.urls]
+Repository = "https://github.com/franklinbaldo/ies"
+
+[tool.maturin]
+bindings = "bin"
+targets = [{ name = "ies", kind = "bin" }]
+locked = true

@@ -1,0 +1,17 @@
+id: 41-tipo-documento
+language: rust
+message: "tl::VDom vira Documento"
+severity: hint
+rule:
+  all:
+    - pattern:
+        context: "fn f(x: tl::VDom<$L>) {}"
+        selector: generic_type
+    - not:
+        inside:
+          stopBy: end
+          kind: mod_item
+          follows:
+            kind: attribute_item
+            regex: 'cfg\(test\)'
+fix: "crate::tela_html::Documento"

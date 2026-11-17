@@ -5,14 +5,14 @@ operation: unidade.listar_retornos
 source: todos-demonstration-matrix
 source_commit: 3d4a38c3b5987e4a8fc7f97ded188c4876ed77cd
 writes: false
-ies_implemented: false
+ies_implemented: true
 upstream_steps: 14
 unresolved_steps: 0
 ---
 
 # unidade.listar_retornos
 
-Origem: matriz de demonstrações do Todos. IES Rust: NÃO IMPLEMENTADO.
+Origem: matriz de demonstrações do Todos. IES Rust: PARCIAL WEB na PR Draft #260.
 Os estados abaixo pertencem ao Todos, não são vereditos do IES.
 
 As referências #N são passos de roteiro; o link leva à revisão com
@@ -70,3 +70,14 @@ Exija conferência pós-operação antes de declarar sucesso.
 Consulte [cassettes](../../docs/cassettes.md),
 [SEI empiricamente](../../docs/como-o-sei-funciona/README.md)
 e [contrato provisório](../cli.md).
+
+## Recorte Rust da PR Draft #260
+
+A CLI `ies unidade retornos [--mes AAAA-MM]` lê pelo menu e pelo link
+`Ver todo o mes`; confere contagens das duas tabelas, rejeita paginacao
+nao observada e tem testes sinteticos. **RED no CI inicial: 3 testes
+falhando** antes do parser; compilacao local e live NOT_RUN.
+Replay original de **14 páginas mensais em sete instalações: PASS (14/14,
+zero recusas)**. [Relatório verificado](../../docs/validacao-replay/2026-11-05-unidade-retornos.md).
+A validação ao vivo GO/PEN3 é independente e deve registrar seu próprio resultado.
+[Contrato](../cli/unidade-listar-retornos.md) e [decisao](../../docs/decisoes/unidade-listar-retornos.md).

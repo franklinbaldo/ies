@@ -2,7 +2,10 @@
 //! sessão de `processo concluir`, a árvore com o documento assinável, as
 //! telas do documento (4.0 e 5.0) e a tela "Assinatura de Documento" na
 //! forma das sete instalações. Hosts, hashes, ids, nomes e senha inventados.
-use super::{Confirmacao, DocumentoAssinado, ErroAssinar, PedidoDaAssinatura, assinar_documento};
+use super::{
+    AcaoDaAssinatura, Confirmacao, DocumentoAssinado, ErroAssinar, PedidoDaAssinatura,
+    assinar_documento,
+};
 pub(crate) use crate::arvore_processo::tests_assinatura::{
     arvore_assinavel, barra_assinavel, caneta, link_da_tela_do_documento, link_de_assinar,
     tela_do_documento_40, tela_do_documento_50,
@@ -130,16 +133,19 @@ pub(crate) fn rodar_assinar(
     let lidas = credenciais();
     rodar_com(&amb, respostas, |sessao, nup, indice, roteiro| {
         let numero = NumeroDocumento::novo(DOC).unwrap();
-        let confirmacao = confirmar.then(|| Confirmacao {
-            cargo: cargo.unwrap_or_default(),
-            credenciais: &lidas,
-        });
+        // Como na CLI: confirmar sem cargo continua sendo prévia.
+        let acao = match (confirmar, cargo) {
+            (true, Some(cargo)) => AcaoDaAssinatura::Confirmar(Confirmacao {
+                cargo,
+                credenciais: &lidas,
+            }),
+            (_, cargo) => AcaoDaAssinatura::Previa { cargo },
+        };
         let pedido = PedidoDaAssinatura {
             numero: &numero,
             unidade: None,
             processo: Some(nup),
-            cargo,
-            confirmacao,
+            acao,
         };
         assinar_documento(sessao, &pedido, indice, roteiro)
     })

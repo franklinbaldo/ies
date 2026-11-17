@@ -3,8 +3,8 @@
 //! sem marcador observado, conferida por leitura posterior.
 use super::tests::{OPERACAO, instalacao, tela_iso, url_servida};
 use super::*;
+use crate::tela_html::HtmlServido;
 use crate::transporte::sessao::CookieDaSessao;
-use ErroSubmissaoFormulario as E;
 use std::io::Cursor;
 
 const JANELA: &str = "<html><form id='frmPesquisaProtocolo' method='post' \
@@ -20,13 +20,16 @@ const NA_ORIGEM: OperacaoDeFormulario = OperacaoDeFormulario {
     ..OPERACAO
 };
 
-fn derivar(operacao: &OperacaoDeFormulario, html: &str) -> Result<SubmissaoDerivada, E> {
+fn derivar(
+    operacao: &OperacaoDeFormulario,
+    html: &str,
+) -> Result<SubmissaoDerivada, ErroSubmissaoFormulario> {
     let url = url_servida();
     derivar_submissao(
         operacao,
         &instalacao(),
-        &tela_iso(&url, html),
-        "UNIDADE TESTE",
+        &tela_iso(&url, &HtmlServido::de_teste(html)),
+        Some("UNIDADE TESTE"),
         &[("txtProtocoloPesquisa", "1")],
     )
 }
@@ -35,7 +38,7 @@ fn derivar(operacao: &OperacaoDeFormulario, html: &str) -> Result<SubmissaoDeriv
 fn janela_sem_unidade_exige_a_declaracao_da_operacao() {
     assert_eq!(
         derivar(&OPERACAO, JANELA).unwrap_err(),
-        E::IdentificacaoDaUnidadeAusenteNaTela
+        ErroSubmissaoFormulario::IdentificacaoDaUnidadeAusenteNaTela
     );
     let s = derivar(&NA_ORIGEM, JANELA).unwrap();
     assert_eq!(
@@ -54,7 +57,7 @@ fn janela_que_publica_outra_unidade_continua_recusada() {
     let outra = JANELA.replacen("<html>", "<html><a id='lnkInfraUnidade'>OUTRA</a>", 1);
     assert_eq!(
         derivar(&NA_ORIGEM, &outra).unwrap_err(),
-        E::UnidadeDaTelaDiferenteDaSolicitada
+        ErroSubmissaoFormulario::UnidadeDaTelaDiferenteDaSolicitada
     );
     let mesma = JANELA.replacen(
         "<html>",
@@ -64,7 +67,11 @@ fn janela_que_publica_outra_unidade_continua_recusada() {
     assert!(derivar(&NA_ORIGEM, &mesma).is_ok());
 }
 
-fn enviar(operacao: &OperacaoDeFormulario, status: i32, corpo: &str) -> Result<RespostaDoEnvio, E> {
+fn enviar(
+    operacao: &OperacaoDeFormulario,
+    status: i32,
+    corpo: &str,
+) -> Result<RespostaDoEnvio, ErroSubmissaoFormulario> {
     let pasta = std::env::temp_dir().join(format!(
         "ies-formulario-conferencia-{}-{status}-{}",
         std::process::id(),
@@ -108,11 +115,63 @@ fn resposta_sem_marcador_aceita_so_quando_a_operacao_confere_por_leitura() {
     };
     assert_eq!(
         enviar(&com_marcador, 200, fecha).unwrap_err(),
-        E::MarcadorDeResultadoAusenteNaResposta
+        ErroSubmissaoFormulario::MarcadorDeResultadoAusenteNaResposta
     );
     // Status, login e MIME continuam recusas do envio.
+}
+
+fn derivar_com(
+    operacao: &OperacaoDeFormulario,
+    html: &str,
+    solicitada: Option<&str>,
+) -> Result<SubmissaoDerivada, ErroSubmissaoFormulario> {
+    let url = url_servida();
+    derivar_submissao(
+        operacao,
+        &instalacao(),
+        &tela_iso(&url, &HtmlServido::de_teste(html)),
+        solicitada,
+        &[("txtProtocoloPesquisa", "1")],
+    )
+}
+
+#[test]
+fn unidade_nao_informada_e_recusa_so_quando_a_tela_publica_a_unidade() {
+    let publica = JANELA.replacen(
+        "<html>",
+        "<html><a id='lnkInfraUnidade'>UNIDADE TESTE</a>",
+        1,
+    );
     assert_eq!(
-        enviar(&NA_ORIGEM, 500, "erro").unwrap_err().subcodigo(),
-        "status_http_de_erro_do_servidor"
+        derivar_com(&OPERACAO, &publica, None).unwrap_err(),
+        ErroSubmissaoFormulario::UnidadeNaoInformada
+    );
+    assert_eq!(
+        derivar_com(&NA_ORIGEM, &publica, None).unwrap_err(),
+        ErroSubmissaoFormulario::UnidadeNaoInformada
+    );
+    // Sem a unidade publicada, a ausência continua sendo a causa.
+    assert_eq!(
+        derivar_com(&OPERACAO, JANELA, None).unwrap_err(),
+        ErroSubmissaoFormulario::IdentificacaoDaUnidadeAusenteNaTela
+    );
+}
+
+#[test]
+fn origem_do_link_sem_unidade_publicada_deriva_sem_conferir() {
+    assert!(derivar_com(&NA_ORIGEM, JANELA, None).is_ok());
+}
+
+#[test]
+fn unidade_informada_confere_com_a_tela() {
+    let publica = JANELA.replacen(
+        "<html>",
+        "<html><a id='lnkInfraUnidade'>UNIDADE TESTE</a>",
+        1,
+    );
+    assert!(derivar_com(&OPERACAO, &publica, Some("UNIDADE TESTE")).is_ok());
+    assert_eq!(
+        derivar_com(&OPERACAO, &publica, Some("OUTRA")).unwrap_err(),
+        ErroSubmissaoFormulario::UnidadeDaTelaDiferenteDaSolicitada
     );
 }

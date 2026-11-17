@@ -32,7 +32,7 @@ anterior não se aplica ou falhou por palpite do índice:
 1. **Link da árvore no índice** (`resolvido_por: "indice_link"`): o NUP
    tem id conhecido e há link `procedimento_visualizar` guardado para ele
    nesta geração e unidade. Um GET. A árvore não publica a unidade, então
-   `unidade` sai `null`; com `--unidade` o passo é pulado.
+   `unidade` não sai (a chave some); com `--unidade` o passo é pulado.
 1b. **Link `procedimento_trabalhar` no índice** (`"indice_trabalhar"`):
    o NUP tem id conhecido e há link `procedimento_trabalhar` guardado para
    esse id nesta geração e unidade (colhido de uma linha do Controle por
@@ -46,7 +46,7 @@ anterior não se aplica ou falhou por palpite do índice:
    assinado com o **mesmo** id e sem `acao_origem` → GET → GET da árvore.
    O aceite é registrado. A recusa característica (302 para `login.php`
    com `msg` igual a `Link sem assinatura`) é registrada e encerra o
-   comando com `entrada_por_id_recusada_rode_ies_login`: a recusa derruba
+   comando com `ErroProcessoObter::EntradaPorIdRecusada`: a recusa derruba
    a sessão; não há relogin automático nem nova tentativa.
 3. **Pesquisa rápida guardada** (`"pesquisa_rapida"`): link
    `protocolo_pesquisa_rapida` guardado (objeto vazio). POST de
@@ -65,8 +65,10 @@ O 302 da pesquisa rápida observado em GO
 `procedimento_trabalhar` com `acao_origem=protocolo_pesquisa_rapida` e o
 id em `id_protocolo`; `infra_unidade_atual` e `infra_sistema` têm de ser
 iguais aos do `action`. Qualquer outra resposta à pesquisa rápida é
-`pesquisa_rapida_sem_url_de_trabalho`, com `status_http` e a mensagem da
-validação da Infra quando houver; a página de resultado nunca é lida.
+`PesquisaRapidaSemUrlDeTrabalho` (HTML em vez do 302); um status HTTP sobe
+como `Transporte(Status(..))` e a validação da Infra como
+`Formulario(ValidacaoRecusadaPeloSei(mensagem))`; a página de resultado
+nunca é lida.
 `ies processo NUP` **nunca** usa a pesquisa avançada: em GO e na PEN1 ela
 não achou NUPs que a pesquisa rápida abriu (medição do agente pai,
 03/11/2026).
@@ -81,7 +83,7 @@ passo 2, 302 para outro id ou árvore de outro NUP apagam a linha do
 processo e o comando segue. No passo 4, árvore de outro NUP é erro e
 apaga a linha do processo (a colheita do mesmo GET a teria gravado). No passo 3, login apaga o link e segue.
 Fora de palpite, login (200 ou 302 sem a mensagem de recusa) é
-`sessao_encerrada_rode_ies_login`. Falha do banco nunca derruba o comando.
+`SessaoEncerrada`. Falha do banco nunca derruba o comando.
 
 **Aprendizado** (só do que o comando já leu): `registrar_processo(NUP, id)`
 e, de cada anexado da árvore conferida, `registrar_processo(a5, a1)`;
@@ -174,30 +176,29 @@ com o destino do link do nó e `presente_entre_os_documentos`.
 
 ```json
 {"numero": "NUP", "id_procedimento": "N", "tipo": "a6 do nó PROCESSO",
- "unidade": "SIGLA ou null", "resolvido_por": "caixa",
+ "unidade": "SIGLA", "resolvido_por": "caixa",
  "requisicoes": 4,
- "anexado": false, "anexado_a": null,
+ "anexado": false,
  "anexados": [{"numero": "a5", "id_procedimento": "a1", "tipo": "a6"}],
  "aberto_em": [{"sigla": "…", "nome": "…", "atribuido_a": {"sigla": "…", "nome": "…"}}],
- "sobrestado_em": null,
- "documentos": [{"id_documento": "D", "rotulo": "a5", "numero_sei": "a15 ou null",
-                 "pasta": "PASTA1 ou null", "icone": "documento_interno",
-                 "cancelado": false, "motivo_do_cancelamento": null}],
- "documentos_movidos": [{"id": "a1 (n-m)", "rotulo": "a5", "numero_sei": "a15 ou null",
+ "documentos": [{"id_documento": "D", "rotulo": "a5", "numero_sei": "a15",
+                 "pasta": "PASTA1", "icone": "documento_interno",
+                 "cancelado": false}],
+ "documentos_movidos": [{"id": "a1 (n-m)", "rotulo": "a5", "numero_sei": "a15",
                          "destino": {"numero": "NUP", "id_procedimento": "N"},
                          "presente_entre_os_documentos": false}],
  "pastas": [{"id": "PASTA1", "rotulo": "I", "total": 20, "verificacao": "por_identidade"}],
- "verificacao_das_pastas": "por_identidade, mista, por_contagem ou null",
+ "verificacao_das_pastas": "por_identidade, mista ou por_contagem",
  "andamentos": {"tipo": "resumido", "total_declarado": 3,
                 "faixa_observada": {"inicio": 1, "fim": 3},
-                "itens": [{"ocorrido_em": "…", "unidade": "…", "usuario": "… ou null", "descricao": "…"}]},
+                "itens": [{"ocorrido_em": "…", "unidade": "…", "usuario": "…", "descricao": "…"}]},
  "propriedades": {"tipo": "…", "especificacao": "…", "interessados": [],
-                  "assuntos": [{"codigo": "… ou null", "descricao": "…"}],
+                  "assuntos": [{"codigo": "…", "descricao": "…"}],
                   "observacoes": "", "nivel_de_acesso": "publico",
-                  "hipotese_legal": null, "data_de_geracao": "dd/mm/aaaa",
+                  "data_de_geracao": "dd/mm/aaaa",
                   "fonte": "procedimento_alterar"},
- "marcadores": [{"id": "…", "nome": "…", "cor": "…", "texto": "… ou null",
-                 "usuario": "… ou null", "data_hora": "dd/mm/aaaa hh:mm"}],
+ "marcadores": [{"id": "…", "nome": "…", "cor": "…", "texto": "…",
+                 "usuario": "…", "data_hora": "dd/mm/aaaa hh:mm"}],
  "marcadores_total_declarado": 1,
  "marcadores_faixa_observada": {"inicio": 1, "fim": 1},
  "nao_lidos": ["documentos_dos_anexados"]}
@@ -208,16 +209,18 @@ com `--sem-documentos`: vem da mesma árvore, sem custo, e é identidade do
 processo, não documento. Com algum anexado, `nao_lidos` termina em
 `documentos_dos_anexados`; o texto humano lista cada um com a dica
 `ies processo <NUP>`. `anexado` (`true` com o vínculo) e `anexado_a`
-(`{"numero", "id_procedimento"}` do pai, ou `null`) também saem sempre;
+(`{"numero", "id_procedimento"}` do pai) sai só com vínculo; `anexado` sai sempre;
 o texto humano diz `Anexado ao processo <NUP> (id N): ies processo <NUP>`.
 
-As formas de `andamentos` (objeto, `null` com motivo, ausente) estão em
-[andamentos](processo-obter-andamentos.md); as de `propriedades`, em
-[propriedades](processo-obter-propriedades.md); as de `marcadores`, em
+`andamentos`, `propriedades` e `marcadores` saem sempre como objeto lido
+ou ausentes com `--sem-*` (motivo `omitidos_por_sem_*`); a barra que não
+publica uma leitura pedida faz o comando falhar. Detalhes em
+[andamentos](processo-obter-andamentos.md),
+[propriedades](processo-obter-propriedades.md) e
 [marcadores](processo-obter-marcadores.md); as de `aberto_em` e dos
 campos de natureza, em [situação](processo-obter-situacao.md).
 `nao_lidos` é, na ordem: `aberto_em` (se não lido), `andamentos` (se
-não lidos), `marcadores` (se não lidos), `propriedades` (se não lidas)
+omitidos), `marcadores` (se omitidos), `propriedades` (se omitidas)
 e `documentos_dos_anexados`.
 
 `documentos` segue a ordem dos nós; com pastas, só sai depois de cada
@@ -233,38 +236,46 @@ não pede a tela de propriedades.
 
 ## Falhas (saída 1)
 
-Fluxo: `entrada_por_id_recusada_rode_ies_login`,
-`sessao_encerrada_rode_ies_login`,
-`resposta_da_entrada_por_id_nao_reconhecida`,
-`pesquisa_rapida_sem_url_de_trabalho`, `redirecionamento_nao_reconhecido`,
+Fluxo: `ErroProcessoObter::EntradaPorIdRecusada`,
+`SessaoEncerrada`,
+`RespostaDaEntradaPorIdNaoReconhecida`,
+`PesquisaRapidaSemUrlDeTrabalho`, `redirecionamento_nao_reconhecido`,
 `processo_repetido_no_controle`, `links_do_processo_repetidos_no_controle`,
-`link_do_processo_no_controle_nao_reconhecido`,
-`charset_do_controle_nao_suportado`. Os 302 conferidos usam os subcódigos
+`LinkDoProcessoNoControleNaoReconhecido`,
+`CharsetDoControleNaoSuportado`. Os 302 conferidos usam os subcódigos
 de [processo buscar](processo-buscar.md) e mais
-`acao_de_origem_inesperada_no_redirecionamento` e
-`id_procedimento_do_redirecionamento_diferente_do_pedido`; o formulário,
+`AcaoDeOrigemInesperadaNoRedirecionamento` e
+`IdProcedimentoDoRedirecionamentoDiferenteDoPedido`; o formulário,
 os do primitivo de formulário; Controle e transporte, os de sempre.
 
 Tela: `arvore_ausente_na_tela_do_processo`,
 `arvores_repetidas_na_tela_do_processo`,
 `endereco_da_arvore_nao_reconhecido`,
-`endereco_da_arvore_de_outro_processo`,
+`EnderecoDaArvoreDeOutroProcesso`,
 `html_da_tela_do_processo_nao_interpretado`,
 `identificacao_da_unidade_ausente_na_tela_do_processo`,
-`unidade_da_tela_diferente_da_solicitada`.
+`UnidadeDaTelaDiferenteDaSolicitada`.
 
 Árvore: `declaracao_de_no_fora_da_forma_observada`,
-`argumento_de_no_nao_literal`, `texto_de_no_sem_fechamento`,
-`escape_de_no_nao_reconhecido`,
-`quantidade_de_argumentos_do_no_diferente_da_observada`,
-`argumento_de_no_com_tipo_diferente_do_observado`,
-`indice_de_no_fora_da_sequencia`, `tipo_de_no_da_arvore_nao_suportado`,
-`no_do_processo_ausente_na_arvore`, `nos_do_processo_repetidos_na_arvore`,
-`no_do_processo_com_pai`, `nup_do_no_do_processo_inconsistente`,
-`id_de_no_nao_decimal`, `documento_com_pai_diferente_do_processo`,
+`ArgumentoDeNoNaoLiteral`, `TextoDeNoSemFechamento`,
+`escape_de_no_nao_reconhecido`, `NoSemArgumentos`,
+`QuantidadeDeArgumentosDoNoDiferenteDaObservada` (`esperada`, `observada`),
+`ArgumentoDeNoComTipoDiferenteDoObservado`,
+`indice_de_no_fora_da_sequencia`, `TipoDeNoDaArvoreNaoSuportado`,
+`NoDoProcessoAusenteNaArvore`, `nos_do_processo_repetidos_na_arvore`,
+`NoDoProcessoComPai`, `NupDoNoDoProcessoInconsistente`,
+`IdDeNoNaoDecimal`, `DocumentoComPaiDiferenteDoProcesso`,
 `documento_repetido_na_arvore`,
-`identidade_do_processo_diferente_da_pedida`,
-`id_do_processo_na_arvore_diferente_do_aberto`.
+`IdentidadeDoProcessoDiferenteDaPedida`,
+`IdDoProcessoNaArvoreDiferenteDoAberto`.
+
+Natureza do `DOCUMENTO` (a6 a a9): `IconeDoDocumentoForaDaFormaObservada`
+quando a7, a8 e a9 não são o mesmo `svg/<radical>.svg` observado;
+`IconeDeCancelamentoSemMotivoNaDica` quando o ícone é `documento_cancelado`
+sem a dica `Documento Cancelado: <motivo>`; e
+`DicaDeCancelamentoSemIconeDeCancelado` quando a dica traz o cancelamento
+com outro ícone. Ícone e cancelamento não têm estado "não observado": a
+árvore inteira é recusada.
 
 Anexados: `processo_anexado_fora_da_forma_observada`,
 `nup_do_no_do_processo_anexado_inconsistente`,

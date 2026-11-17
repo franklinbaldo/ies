@@ -91,7 +91,7 @@ fn post_recusado_conta_tres_tentativas_inclusive_o_envio() {
     let mut respostas = inicio();
     respostas.push(Ok((403, "Acesso negado".to_owned(), None)));
     let (resultado, pedidos, total) = executar("PR-B", true, respostas);
-    assert!(matches!(resultado, Err(ErroTroca::EfeitoIncerto { .. })));
+    assert!(matches!(resultado, Err(ErroTroca::NaoConfirmado { .. })));
     assert_eq!(total, 3);
     assert_eq!(
         pedidos.iter().map(|p| p.metodo).collect::<Vec<_>>(),

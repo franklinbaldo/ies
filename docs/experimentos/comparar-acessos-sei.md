@@ -67,7 +67,7 @@ sete instalações do acervo.**
    se fizer parte do contrato.
 7. **Escritas:** em transações de laboratório descartáveis, observar
    a transição do estado e releitura independente. Um timeout
-   é efeito incerto, sem fallback e sem repetição automática.
+   é escrita não confirmada, sem fallback e sem repetição automática.
 
 ## Resultado esperado
 

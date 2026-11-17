@@ -12,8 +12,9 @@ use crate::cassette::acervo::{Resultado, gravacao, percorrer, publicar, tabela};
 use crate::cassette::html_da_resposta;
 use crate::controle_reconhecido::unidade_do_controle;
 use crate::formulario_web::{CodificacaoDaTela, TelaServida, derivar_submissao};
+use crate::tela_html::HtmlServido;
 
-fn classe<T, E>(r: Result<T, E>, sub: impl Fn(&E) -> &'static str) -> Resultado {
+fn classe<T, E>(r: Result<T, E>, sub: impl Fn(&E) -> String) -> Resultado {
     match r {
         Ok(_) => Resultado::Lido,
         Err(e) => Resultado::Recusado(sub(&e)),
@@ -31,8 +32,10 @@ fn id_declarado(localizacao: &str) -> Option<String> {
     ids.next().is_none().then(|| id.to_owned())
 }
 
-// Um leitor por braço, na ordem da gravação: dividir espalharia o estado.
-#[allow(clippy::too_many_lines)]
+#[expect(
+    clippy::too_many_lines,
+    reason = "Um leitor por braço, na ordem da gravação: dividir espalharia o estado"
+)]
 #[test]
 #[ignore = "lê os ZIPs do acervo em IES_ACERVO_CACHE (padrão ~/.cache/ies); sem rede"]
 fn replay_de_unidade_trocar_no_acervo() {
@@ -46,60 +49,62 @@ fn replay_de_unidade_trocar_no_acervo() {
         let mut soma =
             |ordem, leitor, r: Resultado| leituras.push((ordem, leitor, nome.to_owned(), r));
         for (i, r) in rs.iter().enumerate() {
-            let url = r.item["response"]["url"].as_str().unwrap_or("");
+            let url = r.interacao["response"]["url"].as_str().unwrap_or("");
             match (r.operacao, r.metodo, r.status) {
                 ("procedimento_controlar", "GET", 200) => {
-                    let Ok(h) = html_da_resposta(r.item) else {
+                    let Ok(h) = html_da_resposta(r.interacao) else {
                         continue;
                     };
-                    if unidade_do_controle(&h).is_ok() {
+                    if unidade_do_controle(&HtmlServido::de_teste(&h)).is_ok() {
                         soma(
                             0,
                             "link da troca no Controle",
-                            classe(link_da_troca(&inst, url, &h), ErroTroca::subcodigo),
+                            classe(
+                                link_da_troca(&inst, url, &HtmlServido::de_teste(&h)),
+                                |e: &ErroTroca| format!("{e:?}"),
+                            ),
                         );
                     }
                 }
                 ("infra_trocar_unidade", "GET", 200) => {
-                    let Ok(h) = html_da_resposta(r.item) else {
+                    let Ok(h) = html_da_resposta(r.interacao) else {
                         continue;
                     };
-                    let lida = ler_tela_de_troca(&h);
+                    let lida = ler_tela_de_troca(&HtmlServido::de_teste(&h));
                     soma(
                         1,
                         "tela Trocar Unidade",
-                        classe(lida.as_ref(), |e| e.subcodigo()),
+                        classe(lida.as_ref(), |e| format!("{:?}", *e)),
                     );
                     if let Ok(t) = lida {
                         // POST derivado para a primeira unidade não marcada.
                         if let Some(outra) = t.unidades.iter().find(|u| **u != t.marcada) {
                             let servida = TelaServida {
                                 url,
-                                html: &h,
+                                html: &HtmlServido::de_teste(&h),
                                 codificacao: CodificacaoDaTela::Iso88591,
                             };
                             let s = derivar_submissao(
                                 &TROCAR_UNIDADE,
                                 &inst,
                                 &servida,
-                                &t.marcada.sigla,
+                                Some(t.marcada.sigla.as_str()),
                                 &campos_do_envio(&t, outra),
                             );
                             soma(
                                 2,
                                 "POST derivado",
-                                classe(
-                                    s,
-                                    crate::formulario_web::ErroSubmissaoFormulario::subcodigo,
-                                ),
+                                classe(s, |e: &crate::formulario_web::ErroSubmissaoFormulario| {
+                                    format!("{e:?}")
+                                }),
                             );
                         }
                         tela = Some((t, url.to_owned()));
                     }
                 }
                 ("infra_trocar_unidade", "POST", 302) => {
-                    let post = gravacao::url_sem_consulta(json, r.item);
-                    let loc = gravacao::localizacao(r.item).unwrap_or("");
+                    let post = gravacao::url_sem_consulta(json, r.interacao);
+                    let loc = gravacao::localizacao(r.interacao).unwrap_or("");
                     let id = id_declarado(loc).unwrap_or_default();
                     let oferecido = tela.as_ref().and_then(|(t, _)| {
                         t.unidades
@@ -113,27 +118,29 @@ fn replay_de_unidade_trocar_no_acervo() {
                         if oferecido.is_some() {
                             Resultado::Lido
                         } else {
-                            Resultado::Recusado("id_fora_da_tela")
+                            Resultado::Recusado("id_fora_da_tela".to_owned())
                         },
                     );
                     let seguinte = rs
                         .get(i + 1)
-                        .map(|s| s.item["response"]["url"].as_str().unwrap_or(""));
+                        .map(|s| s.interacao["response"]["url"].as_str().unwrap_or(""));
                     let primeiro = url_do_salto(loc, &post, &id);
                     soma(
                         4,
                         "Location do POST (URL = a pedida)",
                         match (&primeiro, seguinte) {
                             (Ok(u), Some(s)) if u == s => Resultado::Lido,
-                            (Ok(_), _) => Resultado::Recusado("url_diferente_da_gravada"),
-                            (Err(e), _) => Resultado::Recusado(e.subcodigo()),
+                            (Ok(_), _) => {
+                                Resultado::Recusado("url_diferente_da_gravada".to_owned())
+                            }
+                            (Err(e), _) => Resultado::Recusado(format!("{e:?}")),
                         },
                     );
                     let Some(s1) = rs.get(i + 1) else { continue };
                     let mut controle = s1;
                     if s1.status == 302 {
-                        let u1 = s1.item["response"]["url"].as_str().unwrap_or("");
-                        let loc2 = gravacao::localizacao(s1.item).unwrap_or("");
+                        let u1 = s1.interacao["response"]["url"].as_str().unwrap_or("");
+                        let loc2 = gravacao::localizacao(s1.interacao).unwrap_or("");
                         let s2 = rs.get(i + 2);
                         let segundo = url_do_salto(loc2, u1, &id);
                         soma(
@@ -141,38 +148,42 @@ fn replay_de_unidade_trocar_no_acervo() {
                             "Location do 1º salto (URL = a pedida)",
                             match (&segundo, s2) {
                                 (Ok(u), Some(s))
-                                    if u == s.item["response"]["url"].as_str().unwrap_or("") =>
+                                    if u == s.interacao["response"]["url"]
+                                        .as_str()
+                                        .unwrap_or("") =>
                                 {
                                     Resultado::Lido
                                 }
-                                (Ok(_), _) => Resultado::Recusado("url_diferente_da_gravada"),
-                                (Err(e), _) => Resultado::Recusado(e.subcodigo()),
+                                (Ok(_), _) => {
+                                    Resultado::Recusado("url_diferente_da_gravada".to_owned())
+                                }
+                                (Err(e), _) => Resultado::Recusado(format!("{e:?}")),
                             },
                         );
                         let Some(s2) = s2 else { continue };
                         controle = s2;
                     }
                     let sigla = oferecido.map(|u| u.sigla).unwrap_or_default();
-                    let lida = html_da_resposta(controle.item)
+                    let lida = html_da_resposta(controle.interacao)
                         .ok()
-                        .map(|h| unidade_do_controle(&h));
+                        .map(|h| unidade_do_controle(&HtmlServido::de_teste(&h)));
                     soma(
                         6,
                         "Controle da unidade nova",
                         match lida {
                             Some(Ok(u)) if controle.status == 200 && u == sigla => Resultado::Lido,
-                            Some(Ok(_)) => {
-                                Resultado::Recusado("unidade_do_controle_diferente_da_pedida")
-                            }
-                            Some(Err(e)) => Resultado::Recusado(e.subcodigo()),
-                            None => Resultado::NaoAplicavel("corpo ilegível"),
+                            Some(Ok(_)) => Resultado::Recusado(
+                                "unidade_do_controle_diferente_da_pedida".to_owned(),
+                            ),
+                            Some(Err(e)) => Resultado::Recusado(format!("{e:?}")),
+                            None => Resultado::NaoAplicavel("corpo ilegível".to_owned()),
                         },
                     );
                 }
                 ("infra_trocar_unidade", "POST", _) => soma(
                     4,
                     "Location do POST (URL = a pedida)",
-                    Resultado::Recusado("status_inesperado"),
+                    Resultado::Recusado("status_inesperado".to_owned()),
                 ),
                 _ => {}
             }

@@ -3,9 +3,10 @@
 //! `reabrirProcesso()` (sete instalações), a função de três linhas (`UnB`
 //! 4.0.9, PEN1 4.0.12) e a linha `var linkReabrirProcesso` (UFRJ 4.1.5,
 //! PEN2 4.1.5, GO 5.0.3, PEN3 e PEN4 5.0.4). Hosts, hashes e ids inventados.
+use super::concluir::FuncaoForaDaForma;
 use super::reabrir::{
-    ErroEnderecoDeReabrir as F, ErroReabrirNaBarra as B, FormaDaReabertura,
-    ler_endereco_de_reabrir, ler_reabrir_da_barra,
+    ErroEnderecoDeReabrir, ErroReabrirNaBarra, FormaDaReabertura, ler_endereco_de_reabrir,
+    ler_reabrir_da_barra,
 };
 use super::tests::{NUP, arvore, no_processo};
 use super::tests_concluir::{
@@ -88,12 +89,12 @@ fn reabrir_repetido_ou_raiz_sem_tela_do_no() {
     let dois = barra(&[ACAO_REABRIR.to_owned(), ACAO_REABRIR.to_owned()]);
     assert_eq!(
         ler_reabrir_da_barra(&instalacao(), &dois, "10"),
-        Err(B::FuncoesDeReabrirRepetidasNaBarra)
+        Err(ErroReabrirNaBarra::FuncoesDeReabrirRepetidasNaBarra)
     );
     let raiz_crua = com_barra(&arvore(&[no_processo(0, "10", NUP)]), 0, ACAO_REABRIR);
     assert_eq!(
         ler_reabrir_da_barra(&instalacao(), &raiz_crua, "10"),
-        Err(B::EnderecoDaTelaDoNoNaoReconhecido)
+        Err(ErroReabrirNaBarra::EnderecoDaTelaDoNoNaoReconhecido)
     );
 }
 
@@ -120,36 +121,63 @@ fn url_de_reabrir_ausente_fora_da_forma_repetida_ou_recusada() {
     let funcao = tela_do_no_pela_funcao("10");
     let variavel = tela_do_no_pela_variavel("10");
     let sem = variavel.replace("var linkReabrirProcesso = ", "var linkOutraCoisa = ");
-    assert_eq!(ler(&sem), Err(F::EnderecoDeReabrirAusenteNaTelaDoNo));
+    assert_eq!(
+        ler(&sem),
+        Err(ErroEnderecoDeReabrir::EnderecoDeReabrirAusenteNaTelaDoNo)
+    );
     let ativo = funcao.replace(
         "//if (confirm('Confirma reabetura",
         "if (confirm('Confirma reabetura",
     );
-    assert_eq!(ler(&ativo), Err(F::EnderecoDeReabrirForaDaFormaObservada));
+    // O `confirm` ativo foi observado na `UnB` 4.0.9 (retirada do
+    // sobrestamento, live de 10/11/2026): a mesma forma, aceita.
+    assert!(ler(&ativo).is_ok());
+    let fora = funcao.replace(
+        "//if (confirm('Confirma reabetura",
+        "//if (window.confirm('Confirma reabetura",
+    );
+    let erro = ler(&fora).unwrap_err();
+    assert_eq!(
+        erro,
+        ErroEnderecoDeReabrir::FuncaoDeReabrirForaDaFormaObservada(FuncaoForaDaForma)
+    );
+    assert_eq!(
+        std::error::Error::source(&erro).and_then(|c| c.downcast_ref::<FuncaoForaDaForma>()),
+        Some(&FuncaoForaDaForma)
+    );
     let por_aspas = variavel.replace(
         &format!("var linkReabrirProcesso = '{}';", link_de_reabrir("10")),
         &format!("var linkReabrirProcesso = \"{}\";", link_de_reabrir("10")),
     );
     assert_eq!(
         ler(&por_aspas),
-        Err(F::EnderecoDeReabrirForaDaFormaObservada)
+        Err(ErroEnderecoDeReabrir::EnderecoDeReabrirForaDaFormaObservada)
     );
     let linha = format!("var linkReabrirProcesso = '{}';\n", link_de_reabrir("10"));
     let duas = variavel.replace("</script>", &format!("{linha}</script>"));
-    assert_eq!(ler(&duas), Err(F::EnderecosDeReabrirRepetidosNaTelaDoNo));
+    assert_eq!(
+        ler(&duas),
+        Err(ErroEnderecoDeReabrir::EnderecosDeReabrirRepetidosNaTelaDoNo)
+    );
     let as_duas_formas = funcao.replace("</script>", &format!("{linha}</script>"));
     assert_eq!(
         ler(&as_duas_formas),
-        Err(F::EnderecosDeReabrirRepetidosNaTelaDoNo)
+        Err(ErroEnderecoDeReabrir::EnderecosDeReabrirRepetidosNaTelaDoNo)
     );
     let outro = variavel.replace(
         "id_procedimento=10&atualizar",
         "id_procedimento=11&atualizar",
     );
-    assert_eq!(ler(&outro), Err(F::EnderecoDaReaberturaDeOutroProcesso));
+    assert_eq!(
+        ler(&outro),
+        Err(ErroEnderecoDeReabrir::EnderecoDaReaberturaDeOutroProcesso)
+    );
     let concluir = variavel.replace(
         &link_de_reabrir("10"),
         &link_de_reabrir("10").replace("procedimento_reabrir", "procedimento_concluir"),
     );
-    assert_eq!(ler(&concluir), Err(F::EnderecoDaReaberturaNaoReconhecido));
+    assert_eq!(
+        ler(&concluir),
+        Err(ErroEnderecoDeReabrir::EnderecoDaReaberturaNaoReconhecido)
+    );
 }

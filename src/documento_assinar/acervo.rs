@@ -19,6 +19,7 @@ use crate::cassette::acervo::{INSTALACOES, gravacao, percorrer, publicar};
 use crate::cassette::html_da_resposta;
 use crate::formulario_web::{CodificacaoDaTela, TelaServida, derivar_submissao};
 use crate::instalacao::Instalacao;
+use crate::tela_html::HtmlServido;
 use std::collections::BTreeMap;
 use std::fmt::Write as _;
 
@@ -33,8 +34,8 @@ fn somar(contagem: &mut Contagem, leitor: &'static str, classe: String, instalac
 }
 
 /// O parâmetro `chave` da URL da resposta gravada.
-fn parametro(item: &serde_json::Value, chave: &str) -> Option<String> {
-    let url = item["response"]["url"].as_str()?;
+fn parametro(interacao: &serde_json::Value, chave: &str) -> Option<String> {
+    let url = interacao["response"]["url"].as_str()?;
     let (_, consulta) = url.split_once('?')?;
     consulta
         .split('&')
@@ -46,20 +47,21 @@ fn parametro(item: &serde_json::Value, chave: &str) -> Option<String> {
 fn tela(
     inst: &Instalacao,
     html: &str,
-    item: &serde_json::Value,
+    interacao: &serde_json::Value,
     doc: &str,
 ) -> (String, Option<TelaDeAssinatura>) {
-    let lida = match conferir_tela_de_assinatura(html, doc) {
+    let lida = match conferir_tela_de_assinatura(&HtmlServido::de_teste(html), doc) {
         Ok(lida) => lida,
-        Err(erro) => return (format!("`{}`", erro.subcodigo()), None),
+        Err(erro) => return (format!("`{erro:?}`"), None),
     };
     let Some(cargo) = lida.cargo_da_tela.clone() else {
         return ("conferida, sem cargo sugerido".into(), Some(lida));
     };
-    let url = item["response"]["url"].as_str().unwrap_or("");
+    let url = interacao["response"]["url"].as_str().unwrap_or("");
+    let html = HtmlServido::de_teste(html);
     let servida = TelaServida {
         url,
-        html,
+        html: &html,
         codificacao: CodificacaoDaTela::Iso88591,
     };
     let campos = [
@@ -69,12 +71,12 @@ fn tela(
         (CARGO, cargo.as_str()),
         (SENHA, "senha-sintetica"),
     ];
-    let classe = match derivar_submissao(&ASSINAR_DOCUMENTO, inst, &servida, "", &campos) {
+    let classe = match derivar_submissao(&ASSINAR_DOCUMENTO, inst, &servida, None, &campos) {
         Ok(s) => format!(
             "conferida e derivada ({} campos)",
             s.nomes_dos_campos().len()
         ),
-        Err(erro) => format!("`{}`", erro.subcodigo()),
+        Err(erro) => format!("`{erro:?}`"),
     };
     (classe, Some(lida))
 }
@@ -106,7 +108,7 @@ fn arvore(
                 format!("publicada, {} assinante(s)", a.assinantes.len())
             }
             Ok(a) => format!("não publicada, {} assinante(s)", a.assinantes.len()),
-            Err(erro) => format!("`{}`", erro.subcodigo()),
+            Err(erro) => format!("`{erro:?}`"),
         };
         somar(contagem, "árvore (ação e caneta)", classe, nome);
         if tela_do_documento(inst, h, &d, processo).is_some() {
@@ -116,21 +118,62 @@ fn arvore(
         if estado.escrita.as_deref() == Some(d.as_str()) {
             estado.escrita = None;
             let t = &estado.tela[&d];
-            let antes = estado.antes.get(&d).cloned().unwrap_or_default();
-            let classe = match lida.assinantes.as_slice() {
-                [a] if antes.is_empty()
-                    && a.nome == t.assinante
-                    && Some(&a.cargo) == t.cargo_da_tela.as_ref() =>
+            let classe = match (estado.antes.get(&d), lida.assinantes.as_slice()) {
+                (_, []) => "sem caneta depois".to_owned(),
+                (Some(antes), [a])
+                    if antes.is_empty()
+                        && a.nome == t.assinante
+                        && Some(&a.cargo) == t.cargo_da_tela.as_ref() =>
                 {
                     "verificada (caneta do assinante com o cargo)".to_owned()
                 }
-                [] => "sem caneta depois".to_owned(),
+                (None, _) => "caneta anterior não observada".to_owned(),
                 _ => "caneta diferente da esperada".to_owned(),
             };
             somar(contagem, "verificação", classe, nome);
         } else {
             estado.antes.insert(d, lida.assinantes);
         }
+    }
+}
+
+#[test]
+fn replay_nao_confunde_antes_ausente_com_antes_sem_caneta() {
+    use super::tests_apoio::{
+        CARGO, ID, ID_DOC, ORIGEM, arvore_do_documento, caneta_da_sessao, tela_padrao,
+    };
+    let instalacao = Instalacao::interpretar(ORIGEM).unwrap();
+    let tela = conferir_tela_de_assinatura(&HtmlServido::de_teste(&tela_padrao()), ID_DOC).unwrap();
+    let depois = arvore_do_documento('S', &[caneta_da_sessao(CARGO)]);
+
+    // Hipótese sintética: uma captura pode mostrar o POST e a caneta
+    // posterior sem ter observado a árvore imediatamente anterior.
+    for (antes_observado, esperado) in [
+        (false, "caneta anterior não observada"),
+        (true, "verificada (caneta do assinante com o cargo)"),
+    ] {
+        let mut estado = Estado::default();
+        estado.tela.insert(ID_DOC.to_owned(), tela.clone());
+        estado.escrita = Some(ID_DOC.to_owned());
+        if antes_observado {
+            estado.antes.insert(ID_DOC.to_owned(), Vec::new());
+        }
+        let mut contagem = Contagem::new();
+        arvore(
+            &mut contagem,
+            &mut estado,
+            &instalacao,
+            &depois,
+            ID,
+            "sintetica",
+        );
+        assert_eq!(
+            contagem
+                .get(&("verificação", esperado.to_owned()))
+                .and_then(|por_instalacao| por_instalacao.get("sintetica")),
+            Some(&1),
+            "ausência da observação anterior não prova ausência de caneta"
+        );
     }
 }
 
@@ -144,9 +187,9 @@ fn replay_de_documento_assinar_no_acervo() {
         };
         let mut estado = Estado::default();
         for r in gravacao::respostas(json) {
-            let html = || html_da_resposta(r.item).ok();
-            let doc = parametro(r.item, "id_documento").unwrap_or_default();
-            let processo = gravacao::id_procedimento(r.item).unwrap_or_default();
+            let html = || html_da_resposta(r.interacao).ok();
+            let doc = parametro(r.interacao, "id_documento").unwrap_or_default();
+            let processo = gravacao::id_procedimento(r.interacao).unwrap_or_default();
             match (r.operacao, r.metodo, r.status) {
                 ("procedimento_visualizar", "GET", 200) => {
                     let Some(h) = html() else { continue };
@@ -164,13 +207,13 @@ fn replay_de_documento_assinar_no_acervo() {
                     }
                     let classe = match ler_link_de_assinar(&inst, &h, &doc, &processo) {
                         Ok(_) => "link lido e conferido".to_owned(),
-                        Err(erro) => format!("`{}`", erro.subcodigo()),
+                        Err(erro) => format!("`{erro:?}`"),
                     };
                     somar(&mut contagem, "link na tela do documento", classe, nome);
                 }
                 ("documento_assinar", "GET", 200) => {
                     let Some(h) = html() else { continue };
-                    let (classe, lida) = tela(&inst, &h, r.item, &doc);
+                    let (classe, lida) = tela(&inst, &h, r.interacao, &doc);
                     somar(&mut contagem, "tela de assinatura", classe, nome);
                     if let Some(lida) = lida {
                         estado.tela.insert(doc.clone(), lida);

@@ -1,0 +1,37 @@
+id: 23-rsplit-comparado
+language: rust
+message: 'rsplit(P).next() nunca é None: compara o texto, não o Some.'
+severity: hint
+rule:
+  any:
+    - pattern: $X.rsplit($P).next() != Some($V)
+  not:
+    inside:
+      stopBy: end
+      kind: mod_item
+      follows:
+        kind: attribute_item
+        regex: 'cfg\((all\()?test\b'
+constraints:
+  X:
+    kind: identifier
+fix: '$X.rsplit_once($P).map_or($X, |(_, depois)| depois) != $V'
+---
+id: 23b-rsplit-igual
+language: rust
+message: 'rsplit(P).next() nunca é None: compara o texto, não o Some.'
+severity: hint
+rule:
+  any:
+    - pattern: $X.rsplit($P).next() == Some($V)
+  not:
+    inside:
+      stopBy: end
+      kind: mod_item
+      follows:
+        kind: attribute_item
+        regex: 'cfg\((all\()?test\b'
+constraints:
+  X:
+    kind: identifier
+fix: '$X.rsplit_once($P).map_or($X, |(_, depois)| depois) == $V'

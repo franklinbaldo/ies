@@ -1,10 +1,10 @@
 //! Saída JSON e humana de `processo concluir`: campos do contrato, nada de
 //! URL, e a falha com a situação e a verificação.
-use super::{humano, json_de_falha, json_de_sucesso};
-use crate::arvore_processo::MotivoAbertoEm;
+use super::{humano, json_de_sucesso};
 use crate::processo_concluir::{
-    ErroConcluir, FalhaDoEnvio, FormaDaConclusao, ProcessoConcluido, VerificacaoPorLeitura,
+    DesfechoDaConclusao, FalhaDoEnvio, FormaDaConclusao, ProcessoConcluido,
 };
+use crate::tela_html::HtmlServido;
 use serde_json::json;
 
 fn previa() -> ProcessoConcluido {
@@ -12,13 +12,24 @@ fn previa() -> ProcessoConcluido {
         nup: "00001.000001/2026-01".into(),
         id_procedimento: "10".into(),
         unidade: "TESTE".into(),
-        confirmado: false,
-        alterado: false,
-        forma: Some(FormaDaConclusao::Tela),
         aberto_em: vec!["TESTE".into(), "TESTE_1_1".into()],
-        depois: None,
-        reconciliado_por: None,
         requisicoes: 3,
+        desfecho: DesfechoDaConclusao::Previa {
+            forma: FormaDaConclusao::Tela,
+        },
+    }
+}
+
+/// O mesmo processo depois da escrita conferida pela leitura.
+fn concluido(depois: Vec<String>, reconciliado_por: Option<FalhaDoEnvio>) -> ProcessoConcluido {
+    ProcessoConcluido {
+        requisicoes: 6,
+        desfecho: DesfechoDaConclusao::Concluido {
+            forma: FormaDaConclusao::Tela,
+            depois,
+            reconciliado_por,
+        },
+        ..previa()
     }
 }
 
@@ -30,7 +41,7 @@ fn previa_publica_o_contrato_sem_url() {
         json!({"nup": "00001.000001/2026-01", "id_procedimento": "10", "unidade": "TESTE",
                "origem": "web", "confirmado": false, "alterado": false, "forma": "tela",
                "aberto_em": ["TESTE", "TESTE_1_1"], "depois_esperado": ["TESTE_1_1"],
-               "depois": null, "reconciliado_por_leitura": false, "requisicoes": 3})
+               "reconciliado_por_leitura": false, "requisicoes": 3})
     );
     let texto = humano(&previa());
     assert!(texto.ends_with("Requisições: 3"), "{texto}");
@@ -39,41 +50,65 @@ fn previa_publica_o_contrato_sem_url() {
 
 #[test]
 fn reconciliado_traz_a_falha_do_envio() {
-    let feito = ProcessoConcluido {
-        confirmado: true,
-        alterado: true,
-        depois: Some(vec!["TESTE_1_1".into()]),
-        reconciliado_por: Some(FalhaDoEnvio::RedirecionamentoNaoReconhecido),
-        requisicoes: 6,
-        ..previa()
-    };
+    let feito = concluido(
+        vec!["TESTE_1_1".into()],
+        Some(FalhaDoEnvio::RedirecionamentoNaoReconhecido),
+    );
     let valor = json_de_sucesso(&feito);
     assert_eq!(valor["reconciliado_por_leitura"], true);
-    assert_eq!(
-        valor["falha_do_envio"],
-        json!({"subcodigo": "redirecionamento_nao_reconhecido_apos_concluir", "status_http": 302})
-    );
 }
 
 #[test]
-fn efeito_incerto_sai_com_tres_e_a_verificacao() {
-    let erro = ErroConcluir::EfeitoIncertoNaConclusao {
-        aberto_em: vec!["TESTE".into()],
-        falha_do_envio: None,
-        verificacao: Box::new(VerificacaoPorLeitura::SituacaoNaoLida(
-            MotivoAbertoEm::HtmlDaRaizNaoPublicado,
+fn saida_tipificada_serializa_direto_sem_value_intermediario() {
+    let feito = concluido(
+        vec!["TESTE_1_1".into()],
+        Some(FalhaDoEnvio::RedirecionamentoNaoReconhecido),
+    );
+    let mut bytes = Vec::new();
+    serde_json::to_writer_pretty(&mut bytes, &super::resultado_conclusao(&feito)).unwrap();
+    // O objeto JSON legado ordenava as chaves: manter também os bytes pretty.
+    assert_eq!(
+        std::str::from_utf8(&bytes).unwrap(),
+        serde_json::to_string_pretty(&json_de_sucesso(&feito)).unwrap()
+    );
+    let recebido: serde_json::Value = serde_json::from_slice(&bytes).unwrap();
+    assert_eq!(recebido, json_de_sucesso(&feito));
+    assert_eq!(
+        recebido["falha_do_envio"],
+        format!("{:?}", feito.reconciliado_por().unwrap())
+    );
+    let texto = String::from_utf8(bytes).unwrap();
+    assert!(!texto.contains("infra_hash") && !texto.contains("PHPSESSID"));
+    assert!(!texto.contains('\u{1b}'));
+}
+
+/// Contraprova (#695): o `falha_do_envio` do sucesso é o `Debug` do erro, e o
+/// texto do SEI que entra nele já passou pelo saneamento. Uma validação da
+/// Infra com URL assinada, `infra_hash` e cookie não vaza nenhum deles.
+#[test]
+fn falha_do_envio_no_sucesso_nao_vaza_segredo_do_texto_do_sei() {
+    let hash = "ab".repeat(32);
+    let html = HtmlServido::de_teste(&format!(
+        "<html><textarea id='txaInfraValidacao'>Recusado em \
+         https://sei.exemplo.gov.br/sei/controlador.php?acao=x&amp;infra_hash={hash} \
+         com PHPSESSID=segredo1</textarea></html>"
+    ));
+    let mensagem = crate::transporte::validacao_da_infra::mensagem_de_validacao_da_infra(&html)
+        .expect("a validação da Infra rende texto");
+    let feito = concluido(
+        Vec::new(),
+        Some(FalhaDoEnvio::Envio(
+            crate::formulario_web::ErroSubmissaoFormulario::ValidacaoRecusadaPeloSei(mensagem),
         )),
-    };
-    assert_eq!(erro.saida(), 3);
-    let valor = json_de_falha(&erro);
-    assert_eq!(valor["codigo"], "efeito_incerto");
-    assert_eq!(valor["subcodigo"], "efeito_incerto_na_conclusao");
-    assert_eq!(valor["aberto_em"], json!(["TESTE"]));
-    assert_eq!(valor["verificacao"], "html_da_raiz_nao_publicado");
-    let nao = ErroConcluir::ConclusaoNaoAplicada {
-        aberto_em: vec!["TESTE".into()],
-        depois: vec!["TESTE".into()],
-        falha_do_envio: None,
-    };
-    assert_eq!((nao.saida(), nao.codigo()), (1, "escrita_nao_aplicada"));
+    );
+    let texto = serde_json::to_string(&super::resultado_conclusao(&feito)).unwrap();
+    assert!(texto.contains("ValidacaoRecusadaPeloSei"), "{texto}");
+    for segredo in [
+        hash.as_str(),
+        "segredo1",
+        "sei.exemplo.gov.br",
+        "controlador.php",
+    ] {
+        assert!(!texto.contains(segredo), "{segredo} vazou: {texto}");
+    }
 }

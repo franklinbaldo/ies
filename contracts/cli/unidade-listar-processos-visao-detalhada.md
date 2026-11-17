@@ -20,7 +20,7 @@ Um **array com uma lista** na [forma única](unidade-recebidos-gerados.md),
 mais `colunas_ausentes`:
 
 ```json
-[{"unidade": "TESTE", "origem": "web", "categoria": null,
+[{"unidade": "TESTE", "origem": "web",
   "total_declarado": 332, "faixa_observada": {"inicio": 1, "fim": 100},
   "colunas_ausentes": ["anotacao", "especificacao", "prioridade",
                        "observacao", "ultima_movimentacao", "marcadores"],
@@ -33,26 +33,26 @@ mais `colunas_ausentes`:
                                 "texto": "texto do marcador", "id": "31",
                                 "rotulo": "31#Pendente"},
                                {"nome": "Revisão", "cor": "azul",
-                                "texto": null, "id": "32",
+                                "id": "32",
                                 "rotulo": "32#Revisão"}]}}]}]
 ```
 
-- `categoria` da **lista** é `null`: D é modo de exibição, não categoria.
+- A **lista** não tem campo `categoria`: D é modo de exibição, não categoria.
 - `categoria` do **processo** é `"recebidos"` ou `"gerados"` quando o `id`
   apareceu nas tabelas `tblProcessosRecebidos`/`tblProcessosGerados` da
-  **mesma** tela R obtida pelo GET deste comando; senão `null`, que quer
-  dizer **"não observada"**, nunca "não tem". A D não traz marcador de
+  **mesma** tela R obtida pelo GET deste comando; senão a chave é
+  omitida: a D lida sozinha não produz a categoria (#749). A D não traz marcador de
   categoria por linha (verificado nas capturas de UnB, PEN1 e GO); a
   informação só existe porque a R foi lida antes, sem requisição a mais.
-  Sessão já na D: todos `null`. Como o comando deixa a sessão na D, as
-  leituras seguintes (PEN1, GO) saem com `null` até algo voltar à R; as
+  Sessão já na D: nenhum processo traz `categoria`. Como o comando deixa a sessão na D, as
+  leituras seguintes (PEN1, GO) saem sem `categoria` até algo voltar à R; as
   listas por categoria são `ies unidade recebidos|gerados`.
 - `colunas`: objeto com as chaves estáveis das colunas **presentes no
   cabeçalho** (`atribuicao`, `anotacao`, `tipo`,
   `especificacao`, `prioridade`, `interessados`, `observacao`,
   `controle_de_prazo`, `para_devolver`, `aguardando_retorno`,
   `ultima_movimentacao`, `marcadores`; ordem alfabética no JSON). Texto da célula com espaços
-  colapsados (inclusive `&nbsp;`); célula vazia é `null`. `interessados` é
+  colapsados (inclusive `&nbsp;`); célula de texto vazia tem a chave omitida. `interessados` é
   um **array** com o texto de cada `div.divRotuloItemCelula` (itens
   separados pelo HTML, PEN1); célula vazia é `[]`. `marcadores` é um
   **array** de objetos, um por marcador (um processo pode ter vários):
@@ -86,16 +86,16 @@ sem marcador, `&nbsp;`. Cada âncora vira
 - `texto`: o literal JS de aspas simples do `onmouseover`, na forma exata
   `return infraTooltipMostrar('<literal>');` (escapes `\'`, `\"`, `\\`,
   `\/`, `\n`, `\r`, `\t`; nenhum JavaScript executado), espaços
-  colapsados; vazio ou sem `onmouseover`: `null`.
+  colapsados; vazio ou sem `onmouseover`: chave omitida.
 - `id`: `<n>` do fragmento `#ID-<n>` (decimal; o mesmo id da linha da
-  tela de marcadores do processo); sem fragmento: `null`. É o
+  tela de marcadores do processo); sem fragmento: chave omitida. É o
   `id_marcador` do **marcador da unidade**, não da atribuição ao processo:
   na UnB 4.0.9 o mesmo `#ID-<n>` aparece em linhas de processos
   diferentes e é o `value` do checkbox e o `id_marcador` do link de
   alterar na tela de marcadores.
 - `rotulo`: `<id>#<nome>` (por exemplo `31#Pendente`), para o agente ler
   o nome e citar o marcador sem ambiguidade; o id é o trecho decimal antes
-  do primeiro `#` (o nome pode conter `#`). Sem `id`, `null`: o nome
+  do primeiro `#` (o nome pode conter `#`). Sem `id`, chave omitida: o nome
   sozinho não identifica.
 - O `href` precisa ser `controlador.php?` com uma `acao` igual a
   `andamento_marcador_gerenciar` e `id_procedimento` igual ao da linha. O
@@ -119,15 +119,15 @@ na forma observada colhe os links como antes.
 
 Recusas da tabela D, além das do contrato da operação:
 
-| Fato observado | Subcódigo |
+| Fato observado | Erro (stderr) |
 | --- | --- |
-| Cabeçalho com rótulo fora de Processo e das 12 colunas | `cabecalho_da_visao_detalhada_nao_reconhecido` |
-| Mesma coluna duas vezes no cabeçalho | `coluna_da_visao_detalhada_repetida` |
-| `data-label` da célula diferente do cabeçalho da coluna | `rotulo_da_celula_detalhada_diferente_do_cabecalho` |
-| Interessados com texto fora de `divRotuloItemCelula` | `itens_da_celula_detalhada_nao_separados` |
-| Itens `divItemCelula` em coluna de texto único | `itens_nao_previstos_na_celula_detalhada` |
-| Marcadores com texto ou tag fora de `a.ancMarcador` | `texto_fora_dos_marcadores_na_celula_detalhada` |
-| `a` da célula Marcadores fora da forma observada | `marcador_da_celula_detalhada_fora_da_forma_observada` |
+| Cabeçalho com rótulo fora de Processo e das 12 colunas | `ErroDetalhada::CabecalhoDaVisaoDetalhadaNaoReconhecido` |
+| Mesma coluna duas vezes no cabeçalho | `ErroDetalhada::ColunaDaVisaoDetalhadaRepetida` |
+| `data-label` da célula diferente do cabeçalho da coluna | `ErroDetalhada::RotuloDaCelulaDiferenteDoCabecalho` |
+| Interessados com texto fora de `divRotuloItemCelula` | `ErroDetalhada::ItensDaCelulaNaoSeparados` |
+| Itens `divItemCelula` em coluna de texto único | `ErroDetalhada::ItensNaoPrevistosNaCelulaDetalhada` |
+| Marcadores com texto ou tag fora de `a.ancMarcador` | `ErroDetalhada::TextoForaDosMarcadoresNaCelula` |
+| `a` da célula Marcadores fora da forma observada | `ErroDetalhada::MarcadorDaCelulaDetalhadaForaDaFormaObservada` |
 
 Rótulo do cabeçalho: texto de `div.infraDivRotuloOrdenacao` (ou do `th`);
 sem texto, o `aria-label` do ícone (SEI 5.0.x) ou o argumento de
@@ -187,16 +187,16 @@ da D) depois de ler, com até 1 GET + 4 POST e as recusas
 
 ## Demais recusas da troca
 
-| Fato | Subcódigo |
+| Fato | Erro (stderr) |
 | --- | --- |
-| 302 ao trocar de visão | `redirecionamento_ao_trocar_visao_do_controle` |
-| Resposta da troca em outra visão | `visao_do_controle_nao_trocada_apos_envio` |
-| Unidade diferente na resposta da troca | `unidade_alterada_ao_trocar_visao_do_controle` |
-| `hdnDetalhadoPaginaAtual` ilegível ou repetido | `pagina_atual_da_visao_detalhada_ilegivel` |
-| Índice incompatível com a faixa | `pagina_atual_da_visao_detalhada_incompativel_com_a_faixa` |
-| Mais de uma página sem `lnkDetalhado*`/`selDetalhadoPaginacao*` | `paginador_da_visao_detalhada_nao_publicado` |
-| Critério da D diferente após paginar | `criterios_da_visao_detalhada_alterados_apos_paginar` |
-| Total ou faixa diferentes após paginar | `total_declarado_alterado_apos_paginar`, `faixa_da_resposta_diferente_da_pagina_solicitada` |
+| 302 ao trocar de visão | `ErroVisaoDoControle::RedirecionamentoAoTrocarVisao` |
+| Resposta da troca em outra visão | `ErroVisaoDoControle::VisaoNaoTrocadaAposEnvio` |
+| Unidade diferente na resposta da troca | `ErroVisaoDoControle::UnidadeAlteradaAoTrocarVisao` |
+| `hdnDetalhadoPaginaAtual` ilegível ou repetido | `PaginaAtualDaVisaoDetalhadaIlegivel` |
+| Índice incompatível com a faixa | `PaginaAtualDaVisaoDetalhadaIncompativelComAFaixa` |
+| Mais de uma página sem `lnkDetalhado*`/`selDetalhadoPaginacao*` | `PaginadorDaVisaoDetalhadaNaoPublicado` |
+| Critério da D diferente após paginar | `CriteriosDaVisaoDetalhadaAlteradosAposPaginar` |
+| Total ou faixa diferentes após paginar | `TotalDeclaradoAlteradoAposPaginar`, `ErroVisaoDoControle::FaixaDaRespostaDiferenteDaPaginaSolicitada` |
 
 Derivação, envio, login, MIME, charset e status seguem a
 [submissão derivada](../../docs/arquitetura/0002-submeter-formulario-observado.md)

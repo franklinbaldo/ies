@@ -1,7 +1,7 @@
 //! Orquestração de `ies login`: lock, conferência da sessão gravada (um
 //! GET), login pela raiz da instalação e gravação da nova geração.
 use super::cookies::PoteDeCookies;
-use super::gravacao::{self, TravaDoLogin};
+use super::gravacao::{self, travar_o_login};
 use super::redirecionamento::resolver_no_host;
 use super::{
     Conexao, Credenciais, ErroLogin, MAX_REDIRECIONAMENTOS, PedidoDeLogin, RespostaHttp,
@@ -46,7 +46,7 @@ struct SessaoObtida {
 
 /// HTML e `Content-Type` do Controle já lido, para a colheita do índice.
 struct ControleObtido {
-    html: String,
+    html: crate::tela_html::HtmlServido,
     mime: String,
 }
 
@@ -73,7 +73,7 @@ fn como_web(resposta: RespostaHttp) -> RespostaWeb<Cursor<Vec<u8>>> {
 
 /// Unidade do Controle, pela mesma leitura da caixa (duas tabelas e
 /// `lnkInfraUnidade` único).
-fn unidade_do_controle(html: &str) -> Result<String, ErroCaixa> {
+fn unidade_do_controle(html: &crate::tela_html::HtmlServido) -> Result<String, ErroCaixa> {
     // A conta pode abrir na visão detalhada herdada do último uso (SEI 5.x).
     crate::controle_reconhecido::unidade_do_controle(html)
 }
@@ -89,12 +89,12 @@ fn unidade_do_controle(html: &str) -> Result<String, ErroCaixa> {
 /// O login precisa ler URL e cookie para conferir a geração antes de
 /// validar a sintaxe. Arquivos de gerações diferentes valem sessão ausente.
 fn ler_da_sessao(caminho: &std::path::Path) -> Result<Option<String>, ErroLogin> {
-    match transporte::arquivo_privado(caminho, 8_192) {
+    match crate::arquivo_privado::ler(caminho, 8_192) {
         Ok(texto) => Ok(Some(texto.trim().to_owned())),
         // Vazio: o arquivo que o `ies setup` exige antes do primeiro login.
         Err(
-            FalhaTransporte::ArquivoPrivadoAusenteOuInacessivel
-            | FalhaTransporte::ArquivoPrivadoVazio,
+            crate::arquivo_privado::ErroArquivoPrivado::Ausente
+            | crate::arquivo_privado::ErroArquivoPrivado::Vazio,
         ) => Ok(None),
         Err(falha) => Err(ErroLogin::ArquivoDaSessao(falha)),
     }
@@ -118,11 +118,9 @@ fn conferir_sessao_gravada<T: TransporteDeLogin>(
         return Ok(None);
     }
     // Mesmas travas do GET da caixa, antes de qualquer conexão.
-    transporte::validar_origem(&url, origem).map_err(ErroLogin::ArquivoDaSessao)?;
-    transporte::validar_cookie(&cookie).map_err(ErroLogin::ArquivoDaSessao)?;
-    let resposta = transporte
-        .get(&url, &cookie)
-        .map_err(ErroLogin::Transporte)?;
+    transporte::validar_origem(&url, origem)?;
+    transporte::validar_cookie(&cookie)?;
+    let resposta = transporte.get(&url, &cookie)?;
     let web = como_web(resposta);
     let mime = web.mime.clone();
     match transporte::decodificar_resposta(web) {
@@ -138,8 +136,11 @@ fn conferir_sessao_gravada<T: TransporteDeLogin>(
         }
         Err(
             FalhaTransporte::PaginaDeLoginRecebidaNoControle
-            | FalhaTransporte::Redirecionamento(_)
-            | FalhaTransporte::AcessoNegado(_),
+            // 3xx e 401/403: a sessão gravada não vale mais.
+            | FalhaTransporte::Status(crate::transporte::StatusHttpRecusado {
+                status: 300..=399 | 401 | 403,
+                ..
+            }),
         ) => Ok(None),
         Err(falha) => Err(ErroLogin::Transporte(falha)),
     }
@@ -156,9 +157,7 @@ fn navegar<T: TransporteDeLogin>(
     let mut atual = url;
     let mut saltos = 0;
     loop {
-        let resposta = transporte
-            .get(&atual, &pote.cabecalho(&atual))
-            .map_err(ErroLogin::Transporte)?;
+        let resposta = transporte.get(&atual, &pote.cabecalho(&atual))?;
         pote.absorver(&atual, &resposta)?;
         if !(300..400).contains(&resposta.status) {
             return Ok((atual, resposta));
@@ -180,7 +179,7 @@ fn proximo(atual: &str, resposta: &RespostaHttp, host: &str) -> Result<String, E
 
 /// HTML e `Content-Type` de uma resposta 200; outro status vira a recusa
 /// do transporte (com status e mensagem do SEI).
-fn html_200(resposta: RespostaHttp) -> Result<(String, String), ErroLogin> {
+fn html_200(resposta: RespostaHttp) -> Result<(crate::tela_html::HtmlServido, String), ErroLogin> {
     let web = como_web(resposta);
     let mime = web.mime.clone();
     if web.status_code != 200 {
@@ -192,40 +191,34 @@ fn html_200(resposta: RespostaHttp) -> Result<(String, String), ErroLogin> {
         ));
     }
     let html =
-        crate::transporte::corpo::decode_http_body(web.corpo.get_ref(), &mime).map_err(|_| {
-            ErroLogin::Transporte(FalhaTransporte::CorpoNaoDecodificavelNoCharsetDeclarado)
+        crate::tela_html::HtmlServido::do_corpo(web.corpo.get_ref(), &mime).map_err(|erro| {
+            ErroLogin::Transporte(FalhaTransporte::CorpoNaoDecodificavelNoCharsetDeclarado(
+                erro,
+            ))
         })?;
     Ok((html, mime))
 }
 
 /// Controle de Processos na URL assinada da instalação, com cookie.
-/// `None` se a URL não é a do Controle.
 fn como_controle(
     url: &str,
-    (html, mime): (&str, &str),
-    origem: &str,
+    (html, mime): (&crate::tela_html::HtmlServido, &str),
     pote: &PoteDeCookies,
-) -> Option<Result<SessaoObtida, ErroLogin>> {
-    transporte::validar_origem(url, origem).ok()?;
-    Some(
-        unidade_do_controle(html)
-            .map_err(ErroLogin::ControleAposOLoginNaoReconhecido)
-            .and_then(|unidade| {
-                let cookie = pote.cabecalho(url);
-                if cookie.is_empty() || transporte::validar_cookie(&cookie).is_err() {
-                    return Err(ErroLogin::CookieDaSessaoNaoRecebido);
-                }
-                Ok(SessaoObtida {
-                    url: url.to_owned(),
-                    cookie,
-                    unidade,
-                    controle: ControleObtido {
-                        html: html.to_owned(),
-                        mime: mime.to_owned(),
-                    },
-                })
-            }),
-    )
+) -> Result<SessaoObtida, ErroLogin> {
+    let unidade = unidade_do_controle(html).map_err(ErroLogin::ControleAposOLoginNaoReconhecido)?;
+    let cookie = pote.cabecalho(url);
+    if cookie.is_empty() || transporte::validar_cookie(&cookie).is_err() {
+        return Err(ErroLogin::CookieDaSessaoNaoRecebido);
+    }
+    Ok(SessaoObtida {
+        url: url.to_owned(),
+        cookie,
+        unidade,
+        controle: ControleObtido {
+            html: html.to_owned(),
+            mime: mime.to_owned(),
+        },
+    })
 }
 
 /// Tela de login servida pela raiz, antes de qualquer credencial.
@@ -233,7 +226,7 @@ fn tela_inicial<T: TransporteDeLogin>(
     transporte: &mut T,
     pote: &mut PoteDeCookies,
     host: &str,
-) -> Result<(String, String, String), ErroLogin> {
+) -> Result<(String, crate::tela_html::HtmlServido, String), ErroLogin> {
     let (url, resposta) = navegar(transporte, pote, host, format!("https://{host}/"))?;
     let (html, mime) = html_200(resposta)?;
     if tela::captcha_exigido(&html) {
@@ -268,9 +261,7 @@ fn autenticar<T: TransporteDeLogin>(
     let submissao = tela::derivar_login(instalacao, &servida, credenciais)?;
     let url_do_post = submissao.url().to_owned();
     let cookie = pote.cabecalho(&url_do_post);
-    let resposta = transporte
-        .post(submissao, &cookie)
-        .map_err(ErroLogin::Transporte)?;
+    let resposta = transporte.post(submissao, &cookie)?;
     pote.absorver(&url_do_post, &resposta)?;
     let (url, resposta) = match resposta.status {
         // Seguir repetiria o corpo com as credenciais.
@@ -282,8 +273,8 @@ fn autenticar<T: TransporteDeLogin>(
         _ => (url_do_post, resposta),
     };
     let (html, mime) = html_200(resposta)?;
-    if let Some(obtida) = como_controle(&url, (&html, &mime), origem, &pote) {
-        return obtida;
+    if transporte::validar_origem(&url, origem).is_ok() {
+        return como_controle(&url, (&html, &mime), &pote);
     }
     if tela::captcha_exigido(&html) {
         return Err(ErroLogin::CaptchaExigido);
@@ -298,17 +289,12 @@ fn autenticar<T: TransporteDeLogin>(
     }
     // Página inicial da conta (Painel de Controle): só o link do menu.
     let link = tela::link_do_controle(&html)?.ok_or(ErroLogin::TelaAposOLoginNaoReconhecida)?;
-    let destino = resolver_no_host(&url, &link, host)
-        .map_err(|_| ErroLogin::LinkDoControleDeProcessosNaoReconhecido)?;
-    transporte::validar_origem(&destino, origem)
-        .map_err(|_| ErroLogin::LinkDoControleDeProcessosNaoReconhecido)?;
+    let destino = resolver_no_host(&url, &link, host)?;
+    transporte::validar_origem(&destino, origem).map_err(ErroLogin::Transporte)?;
     let (url, resposta) = navegar(transporte, &mut pote, host, destino)?;
     let (html, mime) = html_200(resposta)?;
-    como_controle(&url, (&html, &mime), origem, &pote).unwrap_or(Err(
-        ErroLogin::ControleAposOLoginNaoReconhecido(
-            ErroCaixa::IdentificacaoDaUnidadeAusenteNoControle,
-        ),
-    ))
+    transporte::validar_origem(&url, origem).map_err(ErroLogin::Transporte)?;
+    como_controle(&url, (&html, &mime), &pote)
 }
 
 fn conferir_unidade(pedido: &PedidoDeLogin<'_>, unidade: &str) -> Result<(), ErroLogin> {
@@ -340,12 +326,11 @@ pub(crate) fn entrar_colhendo<T: TransporteDeLogin>(
 ) -> Result<ResultadoDoLogin, ErroLogin> {
     // Exceção inventariada (#183): o login de origem não dispõe ainda da
     // URL do Controle e precisa primeiro selecionar a instalação pelo arquivo.
-    let origem =
-        transporte::arquivo_privado(&pedido.arquivos.origem, 512).map_err(ErroLogin::Origem)?;
+    let origem = crate::arquivo_privado::ler(&pedido.arquivos.origem, 512)
+        .map_err(ErroLogin::OrigemIlegivel)?;
     let origem = origem.trim();
-    let instalacao = Instalacao::interpretar(origem)
-        .ok_or(ErroLogin::Origem(FalhaTransporte::OrigemNaoAutorizada))?;
-    let _trava = TravaDoLogin::obter(&pedido.arquivos.url_controle, pedido.espera_do_lock)?;
+    let instalacao = Instalacao::interpretar(origem).ok_or(ErroLogin::OrigemNaoAutorizada)?;
+    let _trava = travar_o_login(&pedido.arquivos.url_controle, pedido.espera_do_lock)?;
     let mut contador = Contador {
         transporte,
         pedidos: ContagemDeRequisicoes::default(),
@@ -426,12 +411,11 @@ pub(super) fn relogar<T: TransporteDeLogin>(
     indice: &IndiceLocal,
     transporte: &mut T,
 ) -> Result<Relogado, ErroLogin> {
-    let origem =
-        transporte::arquivo_privado(&pedido.arquivos.origem, 512).map_err(ErroLogin::Origem)?;
+    let origem = crate::arquivo_privado::ler(&pedido.arquivos.origem, 512)
+        .map_err(ErroLogin::OrigemIlegivel)?;
     let origem = origem.trim();
-    let instalacao = Instalacao::interpretar(origem)
-        .ok_or(ErroLogin::Origem(FalhaTransporte::OrigemNaoAutorizada))?;
-    let _trava = TravaDoLogin::obter(&pedido.arquivos.url_controle, pedido.espera_do_lock)?;
+    let instalacao = Instalacao::interpretar(origem).ok_or(ErroLogin::OrigemNaoAutorizada)?;
+    let _trava = travar_o_login(&pedido.arquivos.url_controle, pedido.espera_do_lock)?;
     if gravacao::geracao_gravada(pedido.arquivos).as_deref() != inicial {
         return Ok(Relogado::GeracaoJaTrocada);
     }

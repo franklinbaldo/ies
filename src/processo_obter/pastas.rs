@@ -4,12 +4,11 @@
 //! `<id>:abrir_pastas`, tentado primeiro no caminho 1. Nunca
 //! `FECHAR_PASTAS`, nunca restauração.
 use super::abertura::{ArvoreAberta, Contexto, Lida, Rede, fora_de_palpite, ler_arvore_da_pagina};
-use super::{EnvioDoProcesso, ErroProcessoObter as E};
+use super::{EnvioDoProcesso, ErroProcessoObter};
+use crate::acao_do_sei::AcaoDoSei;
 use crate::arvore_processo::{ErroArvore, ler_acao_de_abrir_pastas};
 use crate::formulario_web::{EfeitoAvaliado, EstadoDeSessao};
 use crate::instalacao::Instalacao;
-
-pub(super) const ACAO: &str = "procedimento_visualizar";
 
 /// Efeito do GET de `ABRIR_PASTAS`: a ação irmã `FECHAR_PASTAS` sugere que
 /// o servidor lembra as pastas abertas (não medido pelo IES; nas cassettes
@@ -34,8 +33,11 @@ pub(super) fn completar<V: EnvioDoProcesso>(
     contexto: &Contexto<'_>,
     rede: &mut Rede<'_, V>,
     html: &str,
-    aberta: ArvoreAberta,
-) -> Result<ArvoreAberta, E> {
+    mut aberta: ArvoreAberta,
+) -> Result<ArvoreAberta, ErroProcessoObter> {
+    if !aberta.arvore.documentos_incluidos {
+        return Ok(aberta);
+    }
     let procurado_visivel = contexto.documento_procurado.is_some_and(|numero| {
         aberta
             .arvore
@@ -47,24 +49,56 @@ pub(super) fn completar<V: EnvioDoProcesso>(
         return Ok(aberta);
     }
     let id = aberta.arvore.processo.id.clone();
-    let endereco = ler_acao_de_abrir_pastas(&contexto.instalacao, html, &id)
-        .map_err(E::Arvore)?
-        .ok_or(E::Arvore(ErroArvore::PastasNaoCarregadasSemAcaoDeAbrir))?;
+    let Some(endereco) = ler_acao_de_abrir_pastas(&contexto.instalacao, html, &id)? else {
+        if contexto.permitir_leitura_parcial {
+            aberta.arvore.documentos_incluidos = false;
+            aberta.arvore.documentos.clear();
+            aberta.arvore.documentos_movidos.clear();
+            aberta.arvore.pastas.clear();
+            aberta.arvore.aviso_leitura_parcial =
+                Some(ErroArvore::PastasNaoCarregadasSemAcaoDeAbrir);
+            return Ok(aberta);
+        }
+        return Err(ErroProcessoObter::Arvore(
+            ErroArvore::PastasNaoCarregadasSemAcaoDeAbrir,
+        ));
+    };
     let html = match rede.get(endereco.as_str())? {
         Lida::Html { html, .. } => html,
         Lida::Redirecionamento(local) => return Err(fora_de_palpite(local.as_deref())),
-        Lida::Login => return Err(E::SessaoEncerrada),
-        Lida::Falha(falha) => return Err(E::Transporte(falha)),
+        Lida::Login => {
+            return Err(ErroProcessoObter::SessaoEncerrada(
+                crate::erro_publico::SessaoEncerrada,
+            ));
+        }
+        Lida::Falha(falha) => return Err(ErroProcessoObter::Transporte(falha)),
     };
-    let completa = aberta_inteira(contexto, &html, &id).map_err(E::Arvore)?;
-    contexto.aprender_link(ACAO, &objeto(&id), endereco.as_str());
+    let completa = match aberta_inteira(contexto, &html, &id) {
+        Ok(c) => c,
+        Err(erro) => {
+            if contexto.permitir_leitura_parcial && erro.admite_leitura_parcial() {
+                aberta.arvore.documentos_incluidos = false;
+                aberta.arvore.documentos.clear();
+                aberta.arvore.documentos_movidos.clear();
+                aberta.arvore.pastas.clear();
+                aberta.arvore.aviso_leitura_parcial = Some(erro);
+                return Ok(aberta);
+            }
+            return Err(ErroProcessoObter::Arvore(erro));
+        }
+    };
+    contexto.aprender_link(
+        AcaoDoSei::ProcedimentoVisualizar,
+        &objeto(&id),
+        endereco.as_str(),
+    );
     Ok(completa)
 }
 
 /// A árvore servida por "Abrir todas as Pastas": conferida e sem `AGUARDE`.
 pub(super) fn aberta_inteira(
     contexto: &Contexto<'_>,
-    html: &str,
+    html: &crate::tela_html::HtmlServido,
     id: &str,
 ) -> Result<ArvoreAberta, ErroArvore> {
     aberta_inteira_da_pagina(&contexto.instalacao, contexto.nup, html, id)
@@ -74,7 +108,7 @@ pub(super) fn aberta_inteira(
 pub(super) fn aberta_inteira_da_pagina(
     instalacao: &Instalacao,
     nup: &str,
-    html: &str,
+    html: &crate::tela_html::HtmlServido,
     id: &str,
 ) -> Result<ArvoreAberta, ErroArvore> {
     let completa = ler_arvore_da_pagina(instalacao, nup, html, id)?;
@@ -97,11 +131,11 @@ pub(super) fn pelo_link_guardado<V: EnvioDoProcesso>(
     contexto: &Contexto<'_>,
     rede: &mut Rede<'_, V>,
     id: &str,
-) -> Result<Guardado, E> {
+) -> Result<Guardado, ErroProcessoObter> {
     let objeto = objeto(id);
     let instalacao = &contexto.instalacao;
     let Some(link) = contexto
-        .chave(ACAO, &objeto)
+        .chave(AcaoDoSei::ProcedimentoVisualizar, &objeto)
         .and_then(|chave| contexto.indice.link(instalacao, chave))
     else {
         return Ok(Guardado::Seguir);
@@ -109,21 +143,21 @@ pub(super) fn pelo_link_guardado<V: EnvioDoProcesso>(
     if let Lida::Html { html, .. } = rede.get(link.url())? {
         match aberta_inteira(contexto, &html, id) {
             Ok(aberta) => {
-                let _ = contexto
+                contexto
                     .indice
                     .registrar_processo(instalacao, contexto.nup, id);
-                contexto.aprender_link(ACAO, &objeto, link.url());
+                contexto.aprender_link(AcaoDoSei::ProcedimentoVisualizar, &objeto, link.url());
                 return Ok(Guardado::Aberta(Box::new(aberta)));
             }
             Err(erro) if erro.diverge_do_pedido() => {
                 contexto.indice.esquecer_processo(instalacao, contexto.nup);
-                contexto.esquecer_link(ACAO, &objeto);
+                contexto.esquecer_link(AcaoDoSei::ProcedimentoVisualizar, &objeto);
                 return Ok(Guardado::Divergiu);
             }
             Err(ErroArvore::NoDoProcessoAusenteNaArvore) => {}
-            Err(erro) => return Err(E::Arvore(erro)),
+            Err(erro) => return Err(ErroProcessoObter::Arvore(erro)),
         }
     }
-    contexto.esquecer_link(ACAO, &objeto);
+    contexto.esquecer_link(AcaoDoSei::ProcedimentoVisualizar, &objeto);
     Ok(Guardado::Seguir)
 }

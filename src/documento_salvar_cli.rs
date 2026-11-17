@@ -1,21 +1,22 @@
-//! Prévia segura: nunca executa confirmação Web. O par local é
+//! Prévia offline e confirmação exclusivamente contra o anti-IES de ensaio.
+//! O par local é
 //! `DOC.vN.html` (a foto) e `DOC.v(N+1).html` (a edição), #207. Offline:
 //! não lê índice, configuração nem sessão, e não verifica a base.
-use super::{Cli, Documento, DocumentoAcao, Domain, erro_fonte};
+use super::{Cli, Documento, DocumentoAcao, Domain};
 use crate::{copia_documento, copia_listagem, documento, documento_versoes};
 use serde_json::json;
-use std::process::ExitCode;
 
-fn mostrar_listagem_copias(documento: &documento::NumeroDocumento, json_mode: bool) -> ExitCode {
-    let Ok(pasta) = std::env::current_dir() else {
-        return erro_fonte(
-            json_mode,
-            "leitura_diretorio_copias_falhou",
-            "diretório de trabalho não pode ser lido",
-        );
-    };
-    match copia_listagem::listar(&pasta, documento) {
-        Ok(copias) => {
+#[path = "documento_salvar_cli/remoto.rs"]
+mod remoto;
+
+fn mostrar_listagem_copias(
+    documento: &documento::NumeroDocumento,
+    json_mode: bool,
+) -> anyhow::Result<()> {
+    let pasta = std::env::current_dir()?;
+    {
+        let copias = copia_listagem::listar(&pasta, documento)?;
+        {
             if json_mode {
                 println!(
                     "{}",
@@ -38,17 +39,12 @@ fn mostrar_listagem_copias(documento: &documento::NumeroDocumento, json_mode: bo
                     );
                 }
             }
-            ExitCode::SUCCESS
         }
-        Err(erro) => erro_fonte(
-            json_mode,
-            erro.subcodigo(),
-            "listagem local de cópias não foi verificada",
-        ),
     }
+    Ok(())
 }
 
-pub(super) fn tentar_salvar_documento(cli: &Cli) -> Option<ExitCode> {
+pub(super) fn tentar_salvar_documento(cli: &Cli) -> Option<anyhow::Result<()>> {
     let Domain::Documento(Documento {
         acao:
             Some(DocumentoAcao::Salvar {
@@ -62,31 +58,28 @@ pub(super) fn tentar_salvar_documento(cli: &Cli) -> Option<ExitCode> {
     else {
         return None;
     };
-    let documento = match documento::NumeroDocumento::novo(numero) {
-        Ok(documento) => documento,
-        Err(erro) => {
-            return Some(erro_fonte(
-                cli.json,
-                erro.subcodigo(),
-                "número SEI inválido",
-            ));
-        }
-    };
+    let documento = numero.clone();
     if *listar_copias {
         return Some(mostrar_listagem_copias(&documento, cli.json));
     }
-    let versao = match versao
-        .map(documento_versoes::VersaoDocumento::nova)
-        .transpose()
-    {
-        Ok(versao) => versao,
-        Err(erro) => return Some(erro_fonte(cli.json, erro.subcodigo(), "versão inválida")),
+    // A faixa (1..) é do clap.
+    let versao = versao.and_then(|n| documento_versoes::VersaoDocumento::nova(n).ok());
+    let pasta = match std::env::current_dir() {
+        Ok(pasta) => pasta,
+        Err(erro) => return Some(Err(erro.into())),
     };
-    let previa = copia_documento::previa_local(&std::env::current_dir().ok()?, &documento, versao);
+    let previa = copia_documento::previa_local(&pasta, &documento, versao);
     match previa {
         Ok(dados) if !confirmar => {
             if cli.json {
-                println!("{}", json!({"previa": dados, "confirmado": false}));
+                println!(
+                    "{}",
+                    json!({
+                        "previa": dados,
+                        "confirmado": false,
+                        "aviso_assinaturas": "editar pode remover assinaturas; a oferta do editor ainda não foi verificada"
+                    })
+                );
             } else {
                 println!(
                     "IES: {} v{} editada sobre a v{} local ({} → {} bytes; base não verificada; sem escrita no SEI)",
@@ -96,62 +89,19 @@ pub(super) fn tentar_salvar_documento(cli: &Cli) -> Option<ExitCode> {
                     dados.bytes_base,
                     dados.bytes_editada,
                 );
-            }
-            Some(ExitCode::SUCCESS)
-        }
-        Ok(_) => Some(erro_fonte(
-            cli.json,
-            "escrita_remota_nao_validada",
-            "confirmação recusada: faltam identidade e concorrência Web verificadas",
-        )),
-        Err(erro) => Some(erro_fonte(
-            cli.json,
-            erro.subcodigo(),
-            "cópia local não pode ser conferida",
-        )),
-    }
-}
-
-pub(super) fn validar_documentos(numeros: &[String], json_mode: bool) -> Option<ExitCode> {
-    for numero in numeros {
-        if let Err(erro) = documento::NumeroDocumento::novo(numero) {
-            if json_mode {
                 println!(
-                    "{}",
-                    json!({
-                        "codigo": "entrada_invalida",
-                        "subcodigo": erro.subcodigo(),
-                        "erro": "número SEI de documento inválido",
-                        "retentavel": false
-                    })
+                    "Diferenças locais (não comprovam alteração remota):\n{}",
+                    dados.diff_humano
                 );
-            } else {
-                eprintln!(
-                    "IES: número SEI de documento inválido [{}]",
-                    erro.subcodigo()
+                println!(
+                    "Aviso: editar pode remover assinaturas; a oferta de edição do SEI ainda não foi verificada."
                 );
             }
-            return Some(ExitCode::from(2));
+            Some(Ok(()))
         }
+        Ok(dados) => Some(remoto::confirmar(cli, &documento, &dados)),
+        Err(erro) => Some(Err(erro.into())),
     }
-    None
-}
-
-pub(super) fn tentar_validar_versao(cli: &Cli) -> Option<ExitCode> {
-    if let Domain::Documento(Documento {
-        acao: None,
-        versao: Some(versao),
-        ..
-    }) = &cli.command
-        && let Err(erro) = documento_versoes::VersaoDocumento::nova(*versao)
-    {
-        return Some(erro_fonte(
-            cli.json,
-            erro.subcodigo(),
-            "versão do documento inválida",
-        ));
-    }
-    None
 }
 
 #[cfg(test)]

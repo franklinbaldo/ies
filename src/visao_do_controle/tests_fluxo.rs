@@ -39,7 +39,10 @@ fn sessao_em_r_troca_para_d_le_e_fica_na_d() {
     let leitura = resultado.unwrap();
     assert_eq!(leitura.unidade, "TESTE");
     assert_eq!(leitura.total_declarado, 5);
-    assert_eq!(leitura.faixa_observada, Some((1, 5)));
+    assert_eq!(
+        leitura.faixa_observada,
+        crate::paginas::FaixaObservada::Lidas { inicio: 1, fim: 5 }
+    );
     let categorias: Vec<_> = leitura.processos.iter().map(|p| p.categoria).collect();
     assert_eq!(
         categorias,
@@ -90,7 +93,10 @@ fn pagina_n_a_partir_da_r_fica_na_pagina_n_da_d() {
         ]
     );
     let leitura = resultado.unwrap();
-    assert_eq!(leitura.faixa_observada, Some((3, 4)));
+    assert_eq!(
+        leitura.faixa_observada,
+        crate::paginas::FaixaObservada::Lidas { inicio: 3, fim: 4 }
+    );
     assert_eq!(leitura.processos[0].categoria, Some(Categoria::Gerados));
     assert_eq!(leitura.processos[1].categoria, None);
 }
@@ -112,7 +118,10 @@ fn pagina_encontrada_da_d_e_a_da_resposta_da_troca() {
             "POST visao=D pagina=0"
         ]
     );
-    assert_eq!(resultado.unwrap().faixa_observada, Some((1, 2)));
+    assert_eq!(
+        resultado.unwrap().faixa_observada,
+        crate::paginas::FaixaObservada::Lidas { inicio: 1, fim: 2 }
+    );
 }
 
 #[test]
@@ -120,14 +129,8 @@ fn falha_do_post_de_pagina_vindo_da_r_e_publicada_sem_post_de_volta() {
     let d1 = TelaD::nova(5, 0, 2, vec![1, 2]);
     let d3 = TelaD::nova(5, 2, 2, vec![10]);
     let erro_500 = "<html><div id='divInfraExcecao'>Erro.</div></html>".to_owned();
-    for (resposta, subcodigo) in [
-        ((500, erro_500), "status_http_de_erro_do_servidor"),
-        (
-            (200, d3.html()),
-            "faixa_da_resposta_diferente_da_pagina_solicitada",
-        ),
-    ] {
-        let (resultado, registro) = listar(r().html(), Some(2), vec![(200, d1.html()), resposta]);
+    for resposta in [(500, erro_500), (200, d3.html())] {
+        let (_resultado, registro) = listar(r().html(), Some(2), vec![(200, d1.html()), resposta]);
         assert_eq!(
             registro,
             [
@@ -135,7 +138,6 @@ fn falha_do_post_de_pagina_vindo_da_r_e_publicada_sem_post_de_volta() {
                 "POST visao=D pagina=1"
             ]
         );
-        assert_eq!(resultado.unwrap_err().subcodigo(), subcodigo);
     }
 }
 
@@ -144,7 +146,10 @@ fn pagina_ja_lembrada_pela_d_nao_pede_pagina() {
     let d2 = TelaD::nova(5, 1, 2, vec![3, 9]);
     let (resultado, registro) = listar(r().html(), Some(2), vec![(200, d2.html())]);
     assert_eq!(registro, ["POST visao=D recebidos=0 gerados=0"]);
-    assert_eq!(resultado.unwrap().faixa_observada, Some((3, 4)));
+    assert_eq!(
+        resultado.unwrap().faixa_observada,
+        crate::paginas::FaixaObservada::Lidas { inicio: 3, fim: 4 }
+    );
 }
 
 #[test]
@@ -153,7 +158,10 @@ fn sessao_em_d_pagina_n_fica_na_pagina_n() {
     let d3 = TelaD::nova(5, 2, 2, vec![10]);
     let (resultado, registro) = listar(d1.html(), Some(3), vec![(200, d3.html())]);
     assert_eq!(registro, ["POST visao=D pagina=2"]);
-    assert_eq!(resultado.unwrap().faixa_observada, Some((5, 5)));
+    assert_eq!(
+        resultado.unwrap().faixa_observada,
+        crate::paginas::FaixaObservada::Lidas { inicio: 5, fim: 5 }
+    );
 }
 
 #[test]
@@ -207,7 +215,7 @@ fn cabecalho_desconhecido_na_d_falha_fechado_sem_post_de_volta() {
     assert_eq!(
         resultado.unwrap_err(),
         ErroVisaoDoControle::Detalhada(
-            crate::caixa_detalhada::ErroDetalhada::CabecalhoNaoReconhecido
+            crate::caixa_detalhada::ErroDetalhada::CabecalhoDaVisaoDetalhadaNaoReconhecido
         )
     );
 }

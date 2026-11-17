@@ -1,17 +1,14 @@
 //! `ies unidade colunas`: GET da tela do Nível de detalhe pelo link que a D
 //! publica (`ancNivelDetalhe`). A R não o publica: troca para D e fica nela.
-use super::ErroVisaoDoControle as E;
-use super::Visao;
 use super::envio::{EnvioDoControle, Sessao, TelaAtual};
 use super::passos::{contexto, trocar, unidade_da_tela};
-use crate::formulario_web::decodificar_atributo;
-use crate::html_atributos::{nos_com_id, valor_do_atributo};
+use super::{ErroVisaoDoControle, Visao};
+use crate::acao_do_sei::AcaoDoSei;
+use crate::consulta_do_controlador::ConsultaDoControlador;
 use crate::instalacao::Instalacao;
 use crate::nivel_de_detalhe::{NivelDeDetalhe, ler_nivel_de_detalhe};
+use crate::transporte::decodificar_resposta;
 use crate::transporte::sessao::CookieDaSessao;
-use crate::transporte::{
-    conferir_chave_de_consulta, conferir_valor_de_consulta, decodificar_resposta,
-};
 
 /// Unidade exibida e as 12 opções do catálogo com `disponivel` e `marcada`.
 /// Orçamento: D: 1 GET + 1 GET; R: 1 GET + POST D + GET.
@@ -21,7 +18,7 @@ pub(crate) fn ler_colunas<V: EnvioDoControle>(
     unidade_solicitada: Option<&str>,
     cookie: &CookieDaSessao,
     envio: &mut V,
-) -> Result<(String, NivelDeDetalhe), E> {
+) -> Result<(String, NivelDeDetalhe), super::ErroVisaoDoControle> {
     let encontrado = contexto(&tela.html)?;
     let unidade = unidade_da_tela(&encontrado, unidade_solicitada)?;
     let mut sessao = Sessao {
@@ -35,7 +32,7 @@ pub(crate) fn ler_colunas<V: EnvioDoControle>(
         return Ok((unidade.clone(), nivel));
     }
     if !encontrado.eh_resumida() {
-        return Err(E::VisaoDoControleNaoReconhecida);
+        return Err(ErroVisaoDoControle::VisaoDoControleNaoReconhecida);
     }
     let detalhada = trocar(&mut sessao, tela, Visao::Detalhada)?;
     let nivel = ler_pelo_link(&mut sessao, &detalhada)?;
@@ -45,10 +42,10 @@ pub(crate) fn ler_colunas<V: EnvioDoControle>(
 fn ler_pelo_link<V: EnvioDoControle>(
     sessao: &mut Sessao<'_, V>,
     tela: &TelaAtual,
-) -> Result<NivelDeDetalhe, E> {
+) -> Result<NivelDeDetalhe, super::ErroVisaoDoControle> {
     let url = link_do_nivel_de_detalhe(sessao.instalacao, tela)?;
     let servida = obter_tela_do_nivel(sessao, &url)?;
-    ler_nivel_de_detalhe(&servida.html).map_err(E::NivelDeDetalhe)
+    ler_nivel_de_detalhe(&servida.html).map_err(super::ErroVisaoDoControle::NivelDeDetalhe)
 }
 
 /// Um GET da tela do Nível de detalhe já autorizada (link da D ou a mesma
@@ -56,11 +53,11 @@ fn ler_pelo_link<V: EnvioDoControle>(
 pub(super) fn obter_tela_do_nivel<V: EnvioDoControle>(
     sessao: &mut Sessao<'_, V>,
     url: &str,
-) -> Result<TelaAtual, E> {
-    let cookie = sessao.cookie.valor().map_err(E::Transporte)?;
-    let resposta = sessao.envio.get(url, cookie).map_err(E::Transporte)?;
+) -> Result<TelaAtual, super::ErroVisaoDoControle> {
+    let cookie = sessao.cookie.valor()?;
+    let resposta = sessao.envio.get(url, cookie)?;
     let mime = resposta.mime.clone();
-    let html = decodificar_resposta(resposta).map_err(E::Transporte)?;
+    let html = decodificar_resposta(resposta)?;
     Ok(TelaAtual {
         url: url.to_owned(),
         html,
@@ -73,26 +70,20 @@ pub(super) fn obter_tela_do_nivel<V: EnvioDoControle>(
 pub(super) fn link_do_nivel_de_detalhe(
     instalacao: &Instalacao,
     tela: &TelaAtual,
-) -> Result<String, E> {
-    let invalido = E::LinkDoNivelDeDetalheNaoReconhecido;
-    let dom = tl::parse(&tela.html, tl::ParserOptions::default()).map_err(|_| invalido.clone())?;
-    let parser = dom.parser();
-    let nos = nos_com_id(&dom, "ancNivelDetalhe").map_err(|_| invalido.clone())?;
+) -> Result<String, super::ErroVisaoDoControle> {
+    let invalido = super::ErroVisaoDoControle::LinkDoNivelDeDetalheNaoReconhecido;
+    let dom = crate::tela_html::arvore(&tela.html);
+    let nos = dom.com_id("ancNivelDetalhe").collect::<Vec<_>>();
     let no = match nos.as_slice() {
-        [] => return Err(E::LinkDoNivelDeDetalheAusente),
+        [] => return Err(ErroVisaoDoControle::LinkDoNivelDeDetalheAusente),
         [no] => *no,
-        _ => return Err(E::LinksDoNivelDeDetalheRepetidos),
+        _ => return Err(ErroVisaoDoControle::LinksDoNivelDeDetalheRepetidos),
     };
-    let tag = no
-        .get(parser)
-        .and_then(tl::Node::as_tag)
-        .ok_or_else(|| invalido.clone())?;
-    let onclick = valor_do_atributo(tag, "onclick")
-        .map_err(|_| invalido.clone())?
-        .and_then(|v| decodificar_atributo(&v))
+    let onclick = no
+        .atributo("onclick")
+        .map(str::to_owned)
         .ok_or_else(|| invalido.clone())?;
     let resto = onclick
-        .trim()
         .strip_prefix("acaoConfigurarDetalhe('")
         .ok_or_else(|| invalido.clone())?;
     let resto = resto.strip_suffix(';').unwrap_or(resto);
@@ -103,24 +94,25 @@ pub(super) fn link_do_nivel_de_detalhe(
     if !relativo.bytes().all(|b| (33..=126).contains(&b)) || relativo.contains(['#', '\\', '\'']) {
         return Err(invalido);
     }
-    let (mut acoes, mut hashes) = (0, 0);
-    for par in consulta.split('&') {
-        let (nome, valor) = par.split_once('=').ok_or_else(|| invalido.clone())?;
-        conferir_chave_de_consulta(nome).map_err(|_| invalido.clone())?;
-        conferir_valor_de_consulta(valor).map_err(|_| invalido.clone())?;
-        match nome {
-            "acao" if valor == crate::nivel_de_detalhe::ACAO_DO_NIVEL_DE_DETALHE => acoes += 1,
-            "infra_hash" if valor.len() == 64 && valor.bytes().all(|b| b.is_ascii_hexdigit()) => {
-                hashes += 1;
-            }
-            "acao" | "infra_hash" | "acao_ajax" => return Err(invalido),
-            _ => {}
-        }
-    }
-    if acoes != 1 || hashes != 1 {
+    let leitura = ConsultaDoControlador::ler(consulta)
+        .map_err(super::ErroVisaoDoControle::ConsultaDoNivelIlegivel)?;
+    let acao = leitura
+        .acao()
+        .map_err(super::ErroVisaoDoControle::AcaoDoNivelIlegivel)?;
+    let hash = leitura
+        .unico("infra_hash")
+        .map_err(super::ErroVisaoDoControle::ChaveDoNivelIlegivel)?;
+    if acao != AcaoDoSei::ProcedimentoConfigurarDetalhe.como_na_url()
+        || leitura.valores("acao_ajax").next().is_some()
+        || hash.len() != 64
+        || !hash.bytes().all(|b| b.is_ascii_hexdigit())
+    {
         return Err(invalido);
     }
-    let base = tela.url.split('?').next().unwrap_or_default();
+    let base = tela
+        .url
+        .split_once('?')
+        .map_or(tela.url.as_str(), |(antes, _)| antes);
     let (pasta, _) = base.rsplit_once('/').ok_or_else(|| invalido.clone())?;
     let url = format!("{pasta}/{relativo}");
     let (host, caminho) = url

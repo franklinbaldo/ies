@@ -8,15 +8,21 @@ use crate::arvore_processo::{AbertoEm, ErroArvore, MotivoAbertoEm, ler_acao_de_a
 use crate::cassette::acervo::gravacao::{self, Resposta};
 use crate::processo_obter::abertura::{ArvoreAberta, ler_arvore_da_pagina};
 use crate::processo_obter::pastas::aberta_inteira_da_pagina;
+use crate::tela_html::HtmlServido;
 
 pub(super) fn ler(c: &Cassette<'_>, r: &Resposta<'_>, html: &str, id: &str) -> Vec<Registro> {
     // Árvore sem nó `PROCESSO` não declara NUP: o leitor diz por quê.
-    let nup = c.nup(id).unwrap_or("");
-    let abrir = gravacao::parametro(r.item, "abrir_pastas") == ["1"];
+    let nup = match c.nup(id) {
+        Ok(nup) => nup,
+        Err(motivo) => {
+            return vec![c.registro(Leitor::Arvore, r.passo, Resultado::Recusado(motivo))];
+        }
+    };
+    let abrir = gravacao::parametro(r.interacao, "abrir_pastas") == ["1"];
     let lida = if abrir {
-        aberta_inteira_da_pagina(&c.instalacao, nup, html, id)
+        aberta_inteira_da_pagina(&c.instalacao, nup, &HtmlServido::de_teste(html), id)
     } else {
-        ler_arvore_da_pagina(&c.instalacao, nup, html, id)
+        ler_arvore_da_pagina(&c.instalacao, nup, &HtmlServido::de_teste(html), id)
     };
     let aberta = match lida {
         Ok(aberta) => aberta,
@@ -24,10 +30,10 @@ pub(super) fn ler(c: &Cassette<'_>, r: &Resposta<'_>, html: &str, id: &str) -> V
             let mut registros = vec![c.registro(
                 Leitor::Arvore,
                 r.passo,
-                Resultado::Recusado(erro.subcodigo()),
+                Resultado::Recusado(format!("{erro:?}")),
             )];
             if abrir {
-                let recusa = Resultado::Recusado(erro.subcodigo());
+                let recusa = Resultado::Recusado(format!("{erro:?}"));
                 registros.push(c.registro(Leitor::Pastas, r.passo, recusa));
             }
             return registros;
@@ -92,10 +98,12 @@ fn pastas(
         match ler_acao_de_abrir_pastas(&c.instalacao, html, &a.processo.id) {
             Ok(Some(_)) => registro.formas.push("fechada_com_acao_de_abrir".into()),
             Ok(None) => {
-                let recusa = ErroArvore::PastasNaoCarregadasSemAcaoDeAbrir.subcodigo();
+                let recusa = format!("{:?}", ErroArvore::PastasNaoCarregadasSemAcaoDeAbrir);
                 registro.resultado = Resultado::Recusado(recusa);
             }
-            Err(erro) => registro.resultado = Resultado::Recusado(erro.subcodigo()),
+            Err(erro) => {
+                registro.resultado = Resultado::Recusado(format!("{erro:?}"));
+            }
         }
     } else if a.pastas.is_empty() {
         return None;
@@ -132,10 +140,17 @@ fn situacao(c: &Cassette<'_>, r: &Resposta<'_>, aberto_em: &AbertoEm) -> Registr
             (Resultado::Lido, Some(forma.to_owned()))
         }
         AbertoEm::NaoLido(MotivoAbertoEm::HtmlDaRaizForaDaFormaObservada) => (
-            Resultado::Recusado(MotivoAbertoEm::HtmlDaRaizForaDaFormaObservada.como_texto()),
+            Resultado::Recusado(
+                MotivoAbertoEm::HtmlDaRaizForaDaFormaObservada
+                    .como_texto()
+                    .to_owned(),
+            ),
             None,
         ),
-        AbertoEm::NaoLido(motivo) => (Resultado::NaoAplicavel(motivo.como_texto()), None),
+        AbertoEm::NaoLido(motivo) => (
+            Resultado::NaoAplicavel(motivo.como_texto().to_owned()),
+            None,
+        ),
     };
     let mut registro = c.registro(Leitor::Situacao, r.passo, resultado);
     registro.formas.extend(forma);
@@ -150,39 +165,38 @@ fn natureza(c: &Cassette<'_>, r: &Resposta<'_>, aberta: &ArvoreAberta) -> Regist
     };
     registro.contagens = vec![
         ("documentos", documentos.len() as u64),
-        ("sem_icone", conta(&|n| n.icone.is_none())),
-        ("cancelado_nao_lido", conta(&|n| n.cancelado.is_none())),
-        ("cancelados", conta(&|n| n.cancelado == Some(true))),
+        ("cancelados", conta(&|n| n.cancelamento.cancelado())),
         ("com_dica", conta(&|n| n.dica.is_some())),
     ];
     for documento in documentos {
-        let icone = documento.natureza.icone.as_deref().unwrap_or("(não lido)");
+        let icone = documento.natureza.icone.as_str();
         registro.formas.push(format!("icone:{icone}"));
-    }
-    if registro.contagem("sem_icone") > 0 {
-        registro.resultado = Resultado::Recusado("icone_nao_lido");
     }
     registro
 }
 
 fn links(c: &Cassette<'_>, r: &Resposta<'_>, aberta: &ArvoreAberta) -> [Registro; 3] {
-    use crate::historico_processo::ErroLinkDoHistorico as H;
     let historico = match &aberta.historico {
         Ok(_) => Resultado::Lido,
-        Err(H::LinkDoHistoricoAusenteNaArvore) => {
-            Resultado::NaoAplicavel(H::LinkDoHistoricoAusenteNaArvore.subcodigo())
+        Err(crate::historico_processo::ErroLinkDoHistorico::LinkDoHistoricoAusenteNaArvore) => {
+            Resultado::NaoAplicavel(format!(
+                "{:?}",
+                crate::historico_processo::ErroLinkDoHistorico::LinkDoHistoricoAusenteNaArvore
+            ))
         }
-        Err(erro) => Resultado::Recusado(erro.subcodigo()),
+        Err(erro) => Resultado::Recusado(format!("{erro:?}")),
     };
     let propriedades = match &aberta.propriedades {
         Ok(Some(_)) => Resultado::Lido,
-        Ok(None) => Resultado::NaoAplicavel("tela_de_propriedades_nao_publicada_na_barra"),
-        Err(erro) => Resultado::Recusado(erro.subcodigo()),
+        Ok(None) => {
+            Resultado::NaoAplicavel("tela_de_propriedades_nao_publicada_na_barra".to_owned())
+        }
+        Err(erro) => Resultado::Recusado(format!("{erro:?}")),
     };
     let marcadores = match &aberta.marcadores {
         Ok(Some(_)) => Resultado::Lido,
-        Ok(None) => Resultado::NaoAplicavel("tela_de_marcadores_nao_publicada_na_barra"),
-        Err(erro) => Resultado::Recusado(erro.subcodigo()),
+        Ok(None) => Resultado::NaoAplicavel("tela_de_marcadores_nao_publicada_na_barra".to_owned()),
+        Err(erro) => Resultado::Recusado(format!("{erro:?}")),
     };
     [
         c.registro(Leitor::LinkDoHistorico, r.passo, historico),

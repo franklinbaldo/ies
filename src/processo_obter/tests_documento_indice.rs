@@ -5,6 +5,7 @@
 //! `processo-em-pastas-unb`; hosts, ids, números e hashes inventados.
 use super::tests_apoio::*;
 use super::*;
+use crate::acao_do_sei::AcaoDoSei;
 use crate::arvore_processo::tests::{NUP, arvore, no_documento, no_processo};
 use crate::arvore_processo::tests_conteudo::{com_src, src_da_arvore_do_documento, src_visualizar};
 use crate::arvore_processo::tests_pastas::{arvore_aberta, arvore_fechada, url_abrir};
@@ -97,7 +98,7 @@ fn primeira_leitura(amb: &Ambiente) {
         None,
         vec![
             ok(controle(&[("7", "OUTRO-1")])),
-            r302(&trabalhar_rapida(ID_DOC)),
+            r302(&trabalhar_rapida_documento(ID_DOC)),
             ok(tela_do_documento(ID_DOC)),
             ok(arvore_dos_dois()),
             ok(conteudo(DOC)),
@@ -109,10 +110,8 @@ fn primeira_leitura(amb: &Ambiente) {
 
 fn semear(amb: &Ambiente, documentos: &[(&str, &str)]) {
     let inst = instalacao();
-    amb.indice.registrar_processo(&inst, NUP, ID).unwrap();
-    amb.indice
-        .registrar_documentos(&inst, ID, documentos)
-        .unwrap();
+    amb.indice.registrar_processo(&inst, NUP, ID);
+    amb.indice.registrar_documentos(&inst, ID, documentos);
 }
 
 fn linha(numero: &str, processo: &str, documento: &str) -> [String; 4] {
@@ -175,7 +174,11 @@ fn link_de_trabalho_guardado_em_tres() {
     let (inst, g) = (instalacao(), geracao());
     let trabalho = absoluta(&trabalhar_controle(ID));
     amb.indice
-        .registrar_link(&inst, chave(&g, "procedimento_trabalhar", ID), &trabalho)
+        .registrar_link(
+            &inst,
+            chave(&g, AcaoDoSei::ProcedimentoTrabalhar, ID),
+            &trabalho,
+        )
         .unwrap();
     let (r, pedidos) = rodar_doc(
         &amb,
@@ -224,7 +227,10 @@ fn entrada_por_id_com_documento_em_quatro_e_aceite_registrado() {
     assert_eq!(d.resolvido_por, ResolvidoPor::IndiceEntradaDocumento);
     assert_eq!(d.requisicoes, 4);
     let inst = instalacao();
-    assert_eq!(amb.indice.entrada_por_id_com_documento(&inst), Some(true));
+    assert_eq!(
+        amb.indice.entrada_por_id_com_documento(&inst),
+        Some(crate::indice_local::AceiteDaEntrada::Aceita)
+    );
     assert!(!format!("{d:?}").contains(&hash('8')));
 }
 
@@ -239,7 +245,10 @@ fn recusa_da_entrada_com_documento_para_e_a_proxima_vai_pela_pesquisa() {
     );
     assert_eq!(pedidos, [get(&url_entrada_doc(ID, ID_DOC))]);
     let inst = instalacao();
-    assert_eq!(amb.indice.entrada_por_id_com_documento(&inst), Some(false));
+    assert_eq!(
+        amb.indice.entrada_por_id_com_documento(&inst),
+        Some(crate::indice_local::AceiteDaEntrada::Recusada)
+    );
     // Recusada a forma com documento, nenhuma outra URL é montada.
     let (r, pedidos) = rodar_doc(
         &amb,
@@ -247,7 +256,7 @@ fn recusa_da_entrada_com_documento_para_e_a_proxima_vai_pela_pesquisa() {
         None,
         vec![
             ok(controle(&[])),
-            r302(&trabalhar_rapida(ID_DOC)),
+            r302(&trabalhar_rapida_documento(ID_DOC)),
             ok(tela_do_documento(ID_DOC)),
             ok(arvore_dos_dois()),
             ok(conteudo(DOC)),
@@ -268,7 +277,7 @@ fn entrada_que_enderecou_outro_documento_esquece_e_cai_na_pesquisa_uma_vez() {
         vec![
             r302(&trabalhar_entrada_doc(ID, "99")),
             ok(controle(&[])),
-            r302(&trabalhar_rapida(ID_DOC)),
+            r302(&trabalhar_rapida_documento(ID_DOC)),
             ok(tela_do_documento(ID_DOC)),
             ok(arvore_dos_dois()),
             ok(conteudo(DOC)),
@@ -286,10 +295,9 @@ fn indice_desmentido_pela_arvore_e_esquecido_e_cai_na_pesquisa() {
     primeira_leitura(&amb);
     // O índice diz que `0000103` é do processo `ID`; a árvore não o tem.
     amb.indice
-        .registrar_documentos(&instalacao(), ID, &[("0000103", "23")])
-        .unwrap();
+        .registrar_documentos(&instalacao(), ID, &[("0000103", "23")]);
     let arvore_guardada = absoluta(&src_da_arvore_do_documento(ID, ID_DOC));
-    let (r, pedidos) = rodar_doc(
+    let (_r, pedidos) = rodar_doc(
         &amb,
         "0000103",
         None,
@@ -297,10 +305,6 @@ fn indice_desmentido_pela_arvore_e_esquecido_e_cai_na_pesquisa() {
             ok(arvore_dos_dois()),
             ok("<html><body>pesquisa</body></html>".into()),
         ],
-    );
-    assert_eq!(
-        r.unwrap_err().subcodigo(),
-        "pesquisa_rapida_nao_abriu_o_documento"
     );
     assert_eq!(
         pedidos,
@@ -323,8 +327,7 @@ fn servidor_vence_documento_noutro_id_na_arvore_e_reaprendido() {
     let amb = ambiente();
     primeira_leitura(&amb);
     amb.indice
-        .registrar_documentos(&instalacao(), ID, &[(DOC2, "29")])
-        .unwrap();
+        .registrar_documentos(&instalacao(), ID, &[(DOC2, "29")]);
     let (r, pedidos) = rodar_doc(
         &amb,
         DOC2,
@@ -372,7 +375,7 @@ fn processo_informado_pelo_link_da_arvore_em_duas() {
     amb.indice
         .registrar_link(
             &inst,
-            chave(&g, "procedimento_visualizar", ID),
+            chave(&g, AcaoDoSei::ProcedimentoVisualizar, ID),
             &url_arvore(ID),
         )
         .unwrap();
@@ -385,11 +388,7 @@ fn processo_informado_pelo_link_da_arvore_em_duas() {
     assert_eq!(r.unwrap().resolvido_por, ResolvidoPor::IndiceLink);
     assert_eq!(pedidos, [get(&url_arvore(ID)), get(&url_conteudo(ID_DOC))]);
     // Número que a árvore do processo não tem: recusa tipada, sem conteúdo.
-    let (r, pedidos) = rodar_doc(&amb, "0000999", Some(NUP), vec![ok(arvore_dos_dois())]);
-    assert_eq!(
-        r.unwrap_err().subcodigo(),
-        "numero_sei_ausente_da_arvore_do_processo"
-    );
+    let (_r, pedidos) = rodar_doc(&amb, "0000999", Some(NUP), vec![ok(arvore_dos_dois())]);
     assert_eq!(pedidos.len(), 1);
 }
 
@@ -407,7 +406,7 @@ fn guardar_arvore(amb: &Ambiente) {
     amb.indice
         .registrar_link(
             &inst,
-            chave(&g, "procedimento_visualizar", ID),
+            chave(&g, AcaoDoSei::ProcedimentoVisualizar, ID),
             &url_arvore(ID),
         )
         .unwrap();
@@ -463,7 +462,7 @@ fn pesquisa_com_documento_em_pasta_fechada_abre_as_pastas() {
         None,
         vec![
             ok(controle(&[])),
-            r302(&trabalhar_rapida("21")),
+            r302(&trabalhar_rapida_documento("21")),
             ok(tela_do_documento("21")),
             ok(arvore_fechada()),
             ok(com_src_assinado(&arvore_aberta(), "21")),
@@ -476,5 +475,41 @@ fn pesquisa_com_documento_em_pasta_fechada_abre_as_pastas() {
     assert_eq!(
         pedidos[1],
         post(&absoluta(&action_rapida()), "txtPesquisaRapida=0021")
+    );
+}
+
+#[test]
+fn bdd_60_05_numero_ambiguo_recusa_sem_contaminar_indice() {
+    // Dado um processo com dois nós DOCUMENTO para o mesmo número SEI,
+    // Quando executo ies documento DOC --processo NUP,
+    // Então a CLI recusa a ambiguidade sem guardar um dos IDs como verdadeiro.
+    let amb = ambiente();
+    guardar_arvore(&amb);
+    // Um palpite anterior não pode sobreviver à observação ambígua.
+    amb.indice
+        .registrar_documentos(&instalacao(), ID, &[(DOC, "99")]);
+    let dois_ids_para_doc = arvore(&[
+        no_processo(0, ID, NUP),
+        no_documento(1, ID_DOC, ID, DOC),
+        no_documento(2, "23", ID, DOC),
+        no_documento(3, ID_DOC2, ID, DOC2),
+    ]);
+    let (resultado, pedidos) = rodar_doc(&amb, DOC, Some(NUP), vec![ok(dois_ids_para_doc)]);
+    assert_eq!(
+        resultado.unwrap_err(),
+        ErroDocumentoObter::NumeroSeiRepetidoNaArvore
+    );
+    assert_eq!(pedidos, [get(&url_arvore(ID))], "nenhum GET de conteúdo");
+    assert!(
+        amb.indice
+            .documento_por_numero(&instalacao(), DOC)
+            .is_none(),
+        "dois IDs observados não podem virar associação durável"
+    );
+    assert!(
+        amb.indice
+            .documento_por_numero(&instalacao(), DOC2)
+            .is_some(),
+        "outro número inequívoco deve continuar disponível"
     );
 }

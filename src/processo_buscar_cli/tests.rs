@@ -87,7 +87,6 @@ fn sem_resultado_publica_total_zero_sem_faixa() {
             "origem": "web",
             "requisicoes": 3,
             "total_declarado": 0,
-            "faixa_observada": null,
             "processos": []
         })
     );

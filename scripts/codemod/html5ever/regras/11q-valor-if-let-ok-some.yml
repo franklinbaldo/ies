@@ -1,0 +1,25 @@
+id: 11q-valor-if-let-ok-some
+language: rust
+message: 'if let Ok(Some(x)) = valor_do_atributo(t, k): a tag sempre é legível'
+severity: hint
+rule:
+  all:
+    - kind: let_condition
+    - any:
+        - pattern:
+            context: 'if let Ok(Some($X)) = valor_do_atributo($T, $K) {}'
+            selector: let_condition
+        - pattern:
+            context: 'if let Ok(Some($X)) = crate::html_atributos::valor_do_atributo($T, $K) {}'
+            selector: let_condition
+        - pattern:
+            context: 'if let Ok(Some($X)) = valor_decodificado($T, $K) {}'
+            selector: let_condition
+    - not:
+        inside:
+          stopBy: end
+          kind: mod_item
+          follows:
+            kind: attribute_item
+            regex: 'cfg\(test\)'
+fix: 'let Some($X) = $T.atributo($K).map(str::to_owned)'

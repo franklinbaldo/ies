@@ -20,8 +20,8 @@ pub(crate) const INSTALACOES: [&str; 7] = ["unb", "ufrj", "go", "pen1", "pen2", 
 #[derive(Clone, Debug, PartialEq, Eq)]
 pub(crate) enum Resultado {
     Lido,
-    Recusado(&'static str),
-    NaoAplicavel(&'static str),
+    Recusado(String),
+    NaoAplicavel(String),
 }
 
 fn cache() -> PathBuf {
@@ -36,7 +36,11 @@ fn cards() -> Vec<PathBuf> {
     let raiz = Path::new(env!("CARGO_MANIFEST_DIR")).join("cassettes");
     let mut cards = Vec::new();
     for instalacao in std::fs::read_dir(&raiz).expect("cassettes/") {
-        let pasta = instalacao.expect("entrada").path();
+        let entrada = instalacao.expect("entrada");
+        if !entrada.file_type().expect("tipo da entrada").is_dir() {
+            continue;
+        }
+        let pasta = entrada.path();
         for card in std::fs::read_dir(&pasta).expect("pasta da instalação") {
             let card = card.expect("card").path();
             if card.extension().is_some_and(|e| e == "md") {
@@ -92,8 +96,8 @@ pub(crate) fn publicar(texto: &str) {
 struct Linha {
     total: usize,
     lido: usize,
-    recusado: BTreeMap<&'static str, usize>,
-    nao_aplicavel: BTreeMap<&'static str, usize>,
+    recusado: BTreeMap<String, usize>,
+    nao_aplicavel: BTreeMap<String, usize>,
 }
 
 impl Linha {
@@ -101,13 +105,13 @@ impl Linha {
         self.total += 1;
         match resultado {
             Resultado::Lido => self.lido += 1,
-            Resultado::Recusado(s) => *self.recusado.entry(s).or_default() += 1,
-            Resultado::NaoAplicavel(m) => *self.nao_aplicavel.entry(m).or_default() += 1,
+            Resultado::Recusado(s) => *self.recusado.entry(s.clone()).or_default() += 1,
+            Resultado::NaoAplicavel(m) => *self.nao_aplicavel.entry(m.clone()).or_default() += 1,
         }
     }
 }
 
-fn detalhe(mapa: &BTreeMap<&'static str, usize>) -> String {
+fn detalhe(mapa: &BTreeMap<String, usize>) -> String {
     let total: usize = mapa.values().sum();
     if total == 0 {
         return "0".into();

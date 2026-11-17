@@ -4,14 +4,15 @@
 //! charset da tela. Hosts e hashes inventados.
 use super::super::tests::instalacao;
 use super::super::{
-    CodificacaoDaTela, EfeitoAvaliado, ErroSubmissaoFormulario as E, EstadoDeSessao, TelaServida,
+    CodificacaoDaTela, EfeitoAvaliado, ErroSubmissaoFormulario, EstadoDeSessao, TelaServida,
 };
 use super::{ConsultaAjax, derivar_consulta_ajax};
+use crate::tela_html::HtmlServido;
 
 const HASH: &str = "cccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccc";
 
 const AUTOCOMPLETAR: ConsultaAjax = ConsultaAjax {
-    acao_ajax: "unidade_auto_completar_envio_processo",
+    acao_ajax: crate::acao_do_sei::AcaoAjaxDoSei::UnidadeAutoCompletarEnvioProcesso,
     campos: &["palavras_pesquisa", "id_orgao", "unidade_atual"],
     efeito: EfeitoAvaliado::ConsultaSemEfeitoObservado { evidencia: "teste" },
 };
@@ -32,11 +33,11 @@ fn derivar(
     consulta: &ConsultaAjax,
     url: &str,
     campos: &[(&str, &str)],
-) -> Result<super::SubmissaoDerivada, E> {
+) -> Result<super::SubmissaoDerivada, ErroSubmissaoFormulario> {
     let tela_url = tela_url();
     let tela = TelaServida {
         url: &tela_url,
-        html: "",
+        html: &HtmlServido::de_teste(""),
         codificacao: CodificacaoDaTela::Iso88591,
     };
     derivar_consulta_ajax(consulta, &instalacao(), &tela, url, campos)
@@ -73,24 +74,33 @@ fn recusa_sem_rede_o_que_a_tela_nao_declarou() {
     let sem_hash = declarada().replace(&format!("&infra_hash={HASH}"), "");
     let com_acao = format!("{}&acao=procedimento_enviar", declarada());
     for (url, erro) in [
-        (outra_acao.as_str(), E::AcaoDoFormularioDiferenteDaOperacao),
-        (sem_hash.as_str(), E::AcaoDoFormularioSemInfraHashUnico),
-        (com_acao.as_str(), E::AcaoDoFormularioDiferenteDaOperacao),
+        (
+            outra_acao.as_str(),
+            ErroSubmissaoFormulario::AcaoDoFormularioDiferenteDaOperacao,
+        ),
+        (
+            sem_hash.as_str(),
+            ErroSubmissaoFormulario::AcaoDoFormularioSemInfraHashUnico,
+        ),
+        (
+            com_acao.as_str(),
+            ErroSubmissaoFormulario::AcaoDoFormularioDiferenteDaOperacao,
+        ),
         (
             "controlador.php?acao_ajax=unidade_auto_completar_envio_processo",
-            E::AcaoDoFormularioForaDaInstalacao,
+            ErroSubmissaoFormulario::AcaoDoFormularioForaDaInstalacao,
         ),
         (
             "https://outro.gov.br/sei/controlador_ajax.php",
-            E::AcaoDoFormularioForaDaInstalacao,
+            ErroSubmissaoFormulario::AcaoDoFormularioForaDaInstalacao,
         ),
         (
             "/sei/controlador_ajax.php",
-            E::AcaoDoFormularioForaDaInstalacao,
+            ErroSubmissaoFormulario::AcaoDoFormularioForaDaInstalacao,
         ),
         (
             "../sei/controlador_ajax.php",
-            E::AcaoDoFormularioForaDaInstalacao,
+            ErroSubmissaoFormulario::AcaoDoFormularioForaDaInstalacao,
         ),
     ] {
         assert_eq!(
@@ -101,7 +111,7 @@ fn recusa_sem_rede_o_que_a_tela_nao_declarou() {
     }
     assert_eq!(
         derivar(&AUTOCOMPLETAR, &declarada(), &[("txtUnidade", "X")]).map(|_| ()),
-        Err(E::CampoForaDaListaDaOperacao {
+        Err(ErroSubmissaoFormulario::CampoForaDaListaDaOperacao {
             campo: "txtUnidade".into()
         })
     );
@@ -113,6 +123,6 @@ fn recusa_sem_rede_o_que_a_tela_nao_declarou() {
     };
     assert_eq!(
         derivar(&escrita, &declarada(), &campos).map(|_| ()),
-        Err(E::EfeitoDaOperacaoNaoAvaliado)
+        Err(ErroSubmissaoFormulario::EfeitoDaOperacaoNaoAvaliado)
     );
 }

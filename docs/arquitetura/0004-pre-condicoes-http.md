@@ -72,11 +72,11 @@ se reconstrói seu valor nem se faz retry de operação potencialmente efetiva.
 
 | Fluxo | Leitura e proveniência | Envio e resposta | Efeito e verificação |
 | --- | --- | --- | --- |
-| Concluir | `processo_concluir/fluxo.rs`: abre o processo e confere a barra; na modalidade por tela, lê HTML, MIME, charset e deriva o formulário observado. | `enviar_submissao_via` emite um POST; o 302 é dado. A modalidade por função usa GET do link conferido, sem seguir redirect. | Após confirmação, relê a situação na árvore; falha após o envio pode resultar em efeito incerto. |
+| Concluir | `processo_concluir/fluxo.rs`: abre o processo e confere a barra; na modalidade por tela, lê HTML, MIME, charset e deriva o formulário observado. | `enviar_submissao_via` emite um POST; o 302 é dado. A modalidade por função usa GET do link conferido, sem seguir redirect. | Após confirmação, relê a situação na árvore; falha após o envio pode resultar em escrita não confirmada. |
 | Reabrir | `processo_reabrir/fluxo.rs`: abre o processo, lê a tela do nó e extrai a função servida. | GET pela função validada, nunca acompanhado de retry; 3xx não é seguido. | Relê a árvore e reconcilia a situação da unidade. |
 | Enviar | `processo_enviar/fluxo.rs`: abre o processo, lê a tela de envio, consulta o autocomplete por POST derivado (consulta, não envio de processo) e resolve a unidade. | O POST efetivo deriva campos, charset e action da tela; 302 retorna como dado. | Relê a árvore e concilia o envio, mesmo se houve falha após a tentativa. |
 | Assinar | `documento_assinar/fluxo.rs`: obtém a tela e deriva o formulário com cargo/assinante. | Envia POST derivado sem repetir. A resposta esperada é HTML com confirmação; 302 é recusado pelo fluxo. | Reabre o documento na árvore e compara assinaturas. Senha e cookies não podem aparecer em logs ou fixtures. |
-| Trocar unidade | `unidade_trocar.rs`: lê o Controle e a tela de troca; extrai a unidade e a action servidas. | Um POST derivado, seguido apenas dos saltos 302 explicitamente verificados; cada GET valida o destino na operação. | Confere o Controle da unidade nova; desvios após o POST são efeito incerto. |
+| Trocar unidade | `unidade_trocar.rs`: lê o Controle e a tela de troca; extrai a unidade e a action servidas. | Um POST derivado, seguido apenas dos saltos 302 explicitamente verificados; cada GET valida o destino na operação. | Confere o Controle da unidade nova; desvios após o POST sãa escrita não confirmada. |
 
 ### Matriz sintética e resultado observável
 

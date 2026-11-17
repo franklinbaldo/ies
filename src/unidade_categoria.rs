@@ -3,12 +3,12 @@
 //! no máximo um POST (`pagina_web`). Na visão D, troca para R e fica nela.
 mod pagina_web;
 
+use crate::indice_local::{self, IndiceLocal};
 use crate::paginas::Leitura;
 use crate::relogin_cli::{self, NotaDoRelogin};
-use crate::{arquivo_caixa, configuracao, erro_fonte, paginas};
+use crate::{arquivo_caixa, configuracao, paginas};
 use serde_json::{Value, json};
 use std::path::Path;
-use std::process::ExitCode;
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub(crate) enum CategoriaLista {
@@ -29,25 +29,12 @@ impl CategoriaLista {
     }
 }
 
-#[derive(Debug, Clone, PartialEq, Eq)]
+#[derive(Debug, Clone, PartialEq, Eq, thiserror::Error)]
+#[error("{self:?}")]
 pub(crate) enum FalhaCategoria {
-    UnidadeNaoObservada,
+    IdentificacaoDaUnidadeAusenteNoControle,
     /// Total ou faixa da categoria não publicáveis (`conferir_faixa_publicavel`).
-    FaixaNaoPublicavel(crate::erro_web::ErroCaixa),
-}
-impl FalhaCategoria {
-    pub(crate) fn subcodigo(&self) -> &'static str {
-        match self {
-            Self::FaixaNaoPublicavel(erro) => erro.subcodigo(),
-            Self::UnidadeNaoObservada => "identificacao_da_unidade_ausente_no_controle",
-        }
-    }
-    pub(crate) fn mensagem(&self) -> &'static str {
-        match self {
-            Self::FaixaNaoPublicavel(_) => "a legenda da categoria não comprova total e faixa",
-            Self::UnidadeNaoObservada => "a unidade não está identificada no Controle de Processos",
-        }
-    }
+    FaixaNaoPublicavel(#[from] crate::erro_web::ErroCaixa),
 }
 
 /// A lista da categoria na forma única, com a página observada.
@@ -57,86 +44,75 @@ pub(crate) fn selecionar(
     origem: &str,
 ) -> Result<Value, FalhaCategoria> {
     if leitura.unidade.is_none() {
-        return Err(FalhaCategoria::UnidadeNaoObservada);
+        return Err(FalhaCategoria::IdentificacaoDaUnidadeAusenteNoControle);
     }
-    let (tabela, cobertura) = match categoria {
-        CategoriaLista::Recebidos => (&leitura.caixa.recebidos, &leitura.recebidos),
-        CategoriaLista::Gerados => (&leitura.caixa.gerados, &leitura.gerados),
+    let cobertura = match categoria {
+        CategoriaLista::Recebidos => &leitura.recebidos,
+        CategoriaLista::Gerados => &leitura.gerados,
     };
-    paginas::conferir_faixa_publicavel(categoria.categoria(), tabela, cobertura)
-        .map_err(FalhaCategoria::FaixaNaoPublicavel)?;
+    paginas::conferir_faixa_publicavel(categoria.categoria(), cobertura)?;
     Ok(crate::saida::lista_da_categoria(
         leitura,
         categoria.categoria(),
         origem,
-    ))
+    )?)
 }
 
 /// Publica ou exporta a lista da categoria a partir do HTML obtido,
 /// com a conferência de `--unidade` da leitura da caixa.
+#[expect(
+    clippy::indexing_slicing,
+    reason = "serde_json::Value: leitura ausente dá Null e a escrita é em objeto json! local; projeção de saída a substituir em #733"
+)]
 pub(crate) fn publicar_lista(
-    html: &str,
+    html: &crate::tela_html::HtmlServido,
     unidade: Option<&str>,
     categoria: CategoriaLista,
     json_mode: bool,
     destino: Option<&Path>,
-    nota: Option<&NotaDoRelogin>,
-) -> ExitCode {
-    let leitura = match paginas::juntar(&[html.to_owned()], unidade) {
-        Ok(leitura) => leitura,
-        Err(erro) => {
-            return erro_fonte(
-                json_mode,
-                erro.subcodigo(),
-                "Controle de Processos não reconhecido",
-            );
-        }
-    };
-    let mut modelo = match selecionar(&leitura, categoria, "web") {
-        Ok(modelo) => modelo,
-        Err(erro) => return erro_fonte(json_mode, erro.subcodigo(), erro.mensagem()),
-    };
+    (nota, indice): (Option<&NotaDoRelogin>, &IndiceLocal),
+) -> anyhow::Result<()> {
+    let leitura = paginas::juntar(std::slice::from_ref(html), unidade)?;
+    let mut modelo = selecionar(&leitura, categoria, "web")?;
     if let Some(caminho) = destino {
-        return match arquivo_caixa::gravar(caminho, &modelo) {
-            Ok(bytes) => {
-                if json_mode {
-                    // O arquivo guarda só a lista; `relogin` vai em stdout.
-                    let mut valor = json!({
-                        "arquivo":"gravado",
-                        "bytes":bytes,
-                        "escopo":"categoria_verificada",
-                        "categoria":categoria.rotulo()
-                    });
-                    relogin_cli::anotar_com_total(&mut valor, nota);
-                    println!("{valor}");
-                } else {
-                    relogin_cli::avisar(json_mode, nota);
-                    println!(
-                        "IES: categoria verificada gravada em arquivo privado ({bytes} bytes)."
-                    );
-                }
-                ExitCode::SUCCESS
-            }
-            Err(erro) => erro_fonte(json_mode, erro.subcodigo(), erro.mensagem()),
-        };
+        let bytes = arquivo_caixa::gravar(caminho, &modelo)?;
+        if json_mode {
+            // O arquivo guarda só a lista; `relogin` vai em stdout.
+            let mut valor = json!({
+                "arquivo":"gravado",
+                "bytes":bytes,
+                "escopo":"categoria_verificada",
+                "categoria":categoria.rotulo()
+            });
+            relogin_cli::anotar_com_total(&mut valor, nota);
+            indice_local::anexar_avisos(&mut valor, indice);
+            println!("{valor}");
+        } else {
+            relogin_cli::avisar(json_mode, nota);
+            indice_local::avisar_no_texto(indice);
+            println!("IES: categoria verificada gravada em arquivo privado ({bytes} bytes).");
+        }
+        return Ok(());
     }
     if json_mode {
         relogin_cli::anotar_com_total(&mut modelo, nota);
-        println!("{}", serde_json::to_string_pretty(&modelo).unwrap());
+        indice_local::anexar_avisos(&mut modelo, indice);
+        println!("{}", serde_json::to_string_pretty(&modelo)?);
     } else {
         relogin_cli::avisar(json_mode, nota);
+        indice_local::avisar_no_texto(indice);
         let quantidade = modelo["processos"].as_array().map_or(0, Vec::len);
         println!(
             "IES: {}: {quantidade} processo(s) observado(s); total declarado: {}; faixa observada: {}.",
             categoria.rotulo(),
             modelo["total_declarado"],
-            match &modelo["faixa_observada"] {
-                Value::Null => "nenhuma".to_owned(),
-                faixa => format!("{} a {}", faixa["inicio"], faixa["fim"]),
+            match modelo.get("faixa_observada") {
+                None => "nenhuma".to_owned(),
+                Some(faixa) => format!("{} a {}", faixa["inicio"], faixa["fim"]),
             }
         );
     }
-    ExitCode::SUCCESS
+    Ok(())
 }
 
 /// Um GET; com `--pagina N`, no máximo um POST do paginador da categoria;
@@ -147,21 +123,20 @@ pub(crate) fn listar_categoria(
     destino: Option<&Path>,
     categoria: CategoriaLista,
     pagina: Option<usize>,
-) -> ExitCode {
-    let arquivos = match configuracao::arquivos_de_acesso() {
-        Ok(arquivos) => arquivos,
-        Err(erro) => return erro_fonte(json_mode, erro.subcodigo(), erro.mensagem()),
-    };
+) -> anyhow::Result<()> {
+    let arquivos = configuracao::arquivos_de_acesso()?;
+    let indice = IndiceLocal::da_configuracao(&arquivos);
     // Cada tentativa relê a sessão e colhe na geração gravada agora.
-    let lido = relogin_cli::ler(&arquivos, unidade, || {
-        pagina_web::obter(&arquivos, unidade, categoria.categoria(), pagina)
-    });
-    match lido {
-        Ok((html, nota)) => {
-            publicar_lista(&html, unidade, categoria, json_mode, destino, nota.as_ref())
-        }
-        Err(falha) => relogin_cli::publicar_falha(json_mode, &falha),
-    }
+    let (html, nota) = relogin_cli::ler(
+        &arquivos,
+        &indice,
+        unidade,
+        pagina_web::ErroPaginaWeb::sessao_encerrada,
+        || pagina_web::obter(&arquivos, &indice, unidade, categoria.categoria(), pagina),
+    )
+    .map_err(relogin_cli::subir)?;
+    let rodape = (nota.as_ref(), &indice);
+    publicar_lista(&html, unidade, categoria, json_mode, destino, rodape)
 }
 
 #[cfg(test)]
@@ -170,30 +145,28 @@ mod tests {
     use crate::paginas;
 
     fn leitura(recebidos_total: usize) -> Leitura {
-        let html = format!(
+        let html = crate::tela_html::HtmlServido::de_teste(&format!(
             "<a id='lnkInfraUnidade'>PPI</a>\
              <table id='tblProcessosRecebidos'>\
-             <caption>{recebidos_total} registros - 1 a 1):</caption>\
+             <caption>Processos ({recebidos_total} registros - 1 a 1):</caption>\
              <tr id='P1'><td><a class='processoVisualizado'>R-0001</a></td></tr></table>\
-             <table id='tblProcessosGerados'><caption>1 registros - 1 a 1):</caption>\
+             <table id='tblProcessosGerados'><caption>Processos (1 registros - 1 a 1):</caption>\
              <tr id='P2'><td><a class='processoVisualizado'>G-0002</a></td></tr></table>"
-        );
+        ));
         paginas::juntar(&[html], None).unwrap()
     }
 
     #[test]
     fn categoria_nao_publica_processos_sem_unidade_exibida() {
-        let html = "<table id='tblProcessosRecebidos'><caption>0 registros:</caption></table>\
-                    <table id='tblProcessosGerados'><caption>0 registros:</caption></table>";
-        let leitura = paginas::juntar(&[html.to_owned()], None).unwrap();
+        let html = crate::tela_html::HtmlServido::de_teste(
+            "<table id='tblProcessosRecebidos'><caption>0 registros:</caption></table>\
+                    <table id='tblProcessosGerados'><caption>0 registros:</caption></table>",
+        );
+        let leitura = paginas::juntar(&[html], None).unwrap();
         assert_eq!(leitura.unidade, None);
         assert_eq!(
             selecionar(&leitura, CategoriaLista::Gerados, "web"),
-            Err(FalhaCategoria::UnidadeNaoObservada)
-        );
-        assert_eq!(
-            FalhaCategoria::UnidadeNaoObservada.subcodigo(),
-            "identificacao_da_unidade_ausente_no_controle"
+            Err(FalhaCategoria::IdentificacaoDaUnidadeAusenteNoControle)
         );
     }
 
@@ -238,24 +211,21 @@ mod tests {
     fn categoria_paginada_publica_a_pagina_com_total_e_faixa() {
         let modelo = selecionar(&leitura(200), CategoriaLista::Recebidos, "web").unwrap();
         assert_eq!(modelo["total_declarado"], 200);
-        assert_eq!(modelo["faixa_observada"]["inicio"], 1);
-        assert_eq!(modelo["faixa_observada"]["fim"], 1);
+        assert_eq!(modelo["faixa_observada"], json!({"inicio": 1, "fim": 1}));
         assert_eq!(modelo["processos"][0]["numero"], "R-0001");
         assert!(modelo.get("completa").is_none());
     }
 
     #[test]
     fn categoria_com_legenda_sem_faixa_e_total_maior_e_recusada() {
-        let html = "<a id='lnkInfraUnidade'>PPI</a>\
+        let html = crate::tela_html::HtmlServido::de_teste(
+            "<a id='lnkInfraUnidade'>PPI</a>\
              <table id='tblProcessosRecebidos'><caption>5 registros:</caption>\
              <tr id='P1'><td><a class='processoVisualizado'>R-0001</a></td></tr></table>\
-             <table id='tblProcessosGerados'><caption>0 registros:</caption></table>";
-        let leitura = paginas::juntar(&[html.to_owned()], None).unwrap();
-        let erro = selecionar(&leitura, CategoriaLista::Recebidos, "web").unwrap_err();
-        assert_eq!(
-            erro.subcodigo(),
-            "legenda_sem_faixa_com_total_diferente_das_linhas"
+             <table id='tblProcessosGerados'><caption>0 registros:</caption></table>",
         );
+        let leitura = paginas::juntar(&[html], None).unwrap();
+        let _erro = selecionar(&leitura, CategoriaLista::Recebidos, "web").unwrap_err();
         assert!(selecionar(&leitura, CategoriaLista::Gerados, "web").is_ok());
     }
 
@@ -296,17 +266,20 @@ mod tests {
                 crate::dominio::Categoria::Recebidos,
                 "web"
             )
+            .unwrap()
         );
     }
 
     fn exportar_lista(
         unidade: Option<&str>,
         categoria: CategoriaLista,
-    ) -> (ExitCode, Option<Value>) {
-        let html = "<a id='lnkInfraUnidade'>PPI</a>\
-             <table id='tblProcessosRecebidos'><caption>(3 registros - 1 a 1):</caption>\
+    ) -> (anyhow::Result<()>, Option<Value>) {
+        let html = crate::tela_html::HtmlServido::de_teste(
+            "<a id='lnkInfraUnidade'>PPI</a>\
+             <table id='tblProcessosRecebidos'><caption>Processos (3 registros - 1 a 1):</caption>\
              <tr id='P1'><td><a class='processoVisualizado'>R-0001</a></td></tr></table>\
-             <table id='tblProcessosGerados'><caption>0 registros:</caption></table>";
+             <table id='tblProcessosGerados'><caption>0 registros:</caption></table>",
+        );
         let caminho = std::env::temp_dir().join(format!(
             "ies-lista-{}-{}.json",
             std::process::id(),
@@ -315,7 +288,9 @@ mod tests {
                 .unwrap()
                 .as_nanos()
         ));
-        let codigo = publicar_lista(html, unidade, categoria, true, Some(&caminho), None);
+        let indice = IndiceLocal::desligado();
+        let rodape = (None, &indice);
+        let codigo = publicar_lista(&html, unidade, categoria, true, Some(&caminho), rodape);
         let valor = std::fs::read(&caminho)
             .ok()
             .map(|bytes| serde_json::from_slice(&bytes).unwrap());
@@ -326,10 +301,15 @@ mod tests {
     #[test]
     fn lista_confere_unidade_global_antes_de_publicar() {
         let (codigo, valor) = exportar_lista(Some("OUTRA"), CategoriaLista::Recebidos);
-        assert_eq!(codigo, ExitCode::from(1));
+        assert_eq!(
+            codigo
+                .unwrap_err()
+                .downcast_ref::<crate::erro_web::ErroCaixa>(),
+            Some(&crate::erro_web::ErroCaixa::UnidadeInesperada)
+        );
         assert!(valor.is_none());
         let (codigo, valor) = exportar_lista(Some("PPI"), CategoriaLista::Gerados);
-        assert_eq!(codigo, ExitCode::SUCCESS);
+        codigo.unwrap();
         let valor = valor.unwrap();
         assert_eq!(valor["categoria"], "gerados");
         assert_eq!(valor["total_declarado"], 0);
@@ -339,11 +319,11 @@ mod tests {
     #[test]
     fn lista_exportada_e_um_objeto_e_nao_um_array() {
         let (codigo, valor) = exportar_lista(None, CategoriaLista::Recebidos);
-        assert_eq!(codigo, ExitCode::SUCCESS);
+        codigo.unwrap();
         let valor = valor.unwrap();
         assert!(valor.is_object());
         assert_eq!(valor["categoria"], "recebidos");
-        assert_eq!(valor["faixa_observada"]["fim"], 1);
+        assert_eq!(valor["faixa_observada"], json!({"inicio": 1, "fim": 1}));
         assert_eq!(valor["processos"][0]["numero"], "R-0001");
     }
 

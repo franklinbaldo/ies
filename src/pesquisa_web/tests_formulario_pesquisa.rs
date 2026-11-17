@@ -2,7 +2,7 @@
 //! nomes e a estrutura observados (rádio `D` marcado, órgão `multiple`).
 use super::*;
 use crate::formulario_web::tests::{instalacao, tela_iso, url_servida};
-use ErroRegraDoFormularioDePesquisa as R;
+use crate::tela_html::HtmlServido;
 
 const OPCOES_DE_ORGAO: &str = "<option value='1' selected>A</option>\
     <option value='2'>B</option><option value='3' selected='selected'>C</option>";
@@ -44,7 +44,7 @@ fn interior(orgao: &str) -> String {
          <input type='hidden' id='hdnIdAssunto' name='hdnIdAssunto' value=''>\
          <input type='hidden' id='hdnIdAssinante' name='hdnIdAssinante' value=''>\
          <input type='hidden' id='hdnIdContato' name='hdnIdContato' value=''>\
-         <input type='text' id='txtProtocoloPesquisa' name='txtProtocoloPesquisa' value=''>\
+         <input type='text' id='txtProtocoloPesquisa' name='txtProtocoloPesquisa' maxlength='50' value=''>\
          <select id='selTipoProcedimentoPesquisa' name='selTipoProcedimentoPesquisa'><option value='null'>-</option></select>\
          <input type='hidden' id='hdnIdUsuarioGerador1' name='hdnIdUsuarioGerador1' value=''>\
          <input type='hidden' id='hdnIdUsuarioGerador2' name='hdnIdUsuarioGerador2' value=''>\
@@ -62,13 +62,13 @@ fn derivar(html: &str) -> Result<SubmissaoDerivada, ErroPesquisaProtocolo> {
     let url = url_servida();
     derivar_pesquisa_de_protocolo(
         &instalacao(),
-        &tela_iso(&url, html),
+        &tela_iso(&url, &HtmlServido::de_teste(html)),
         "UNIDADE TESTE",
         "0001",
     )
 }
 
-fn regra(html: &str) -> R {
+fn regra(html: &str) -> ErroRegraDoFormularioDePesquisa {
     match derivar(html).unwrap_err() {
         ErroPesquisaProtocolo::RegraDoFormulario(erro) => erro,
         outro => panic!("esperada regra do formulário, veio {outro:?}"),
@@ -101,22 +101,31 @@ fn deriva_opcao_de_processos_e_orgaos_selecionados_servidos_na_ordem_do_document
 #[test]
 fn opcao_de_processos_ausente_repetida_sem_valor_ou_com_outro_nome_e_recusada() {
     let sem = observado().replace("id='optProcessos'", "id='outro'");
-    assert_eq!(regra(&sem), R::OpcaoDeProcessosAusenteNaTela);
+    assert_eq!(
+        regra(&sem),
+        ErroRegraDoFormularioDePesquisa::OpcaoDeProcessosAusenteNaTela
+    );
     let repetida = observado().replace(
         "<input type='checkbox' id='chkSinConsiderarDocumentos'",
         "<input type='radio' id='optProcessos' name='rdoPesquisarEm' value='P'>\
          <input type='checkbox' id='chkSinConsiderarDocumentos'",
     );
-    assert_eq!(regra(&repetida), R::OpcoesDeProcessosRepetidasNaTela);
+    assert_eq!(
+        regra(&repetida),
+        ErroRegraDoFormularioDePesquisa::OpcoesDeProcessosRepetidasNaTela
+    );
     let sem_valor = observado().replace("name='rdoPesquisarEm' value='P'", "name='rdoPesquisarEm'");
-    assert_eq!(regra(&sem_valor), R::OpcaoDeProcessosSemValorNaTela);
+    assert_eq!(
+        regra(&sem_valor),
+        ErroRegraDoFormularioDePesquisa::OpcaoDeProcessosSemValorNaTela
+    );
     let outro_nome = observado().replace(
         "id='optProcessos' name='rdoPesquisarEm'",
         "id='optProcessos' name='rdoOutro'",
     );
     assert_eq!(
         regra(&outro_nome),
-        R::OpcaoDeProcessosComNomeDiferenteDeRdoPesquisarEm
+        ErroRegraDoFormularioDePesquisa::OpcaoDeProcessosComNomeDiferenteDeRdoPesquisarEm
     );
 }
 
@@ -128,7 +137,7 @@ fn assinante_oculto_preenchido_e_recusado_na_pesquisa_em_processos() {
     );
     assert_eq!(
         regra(&html),
-        R::AssinanteOcultoPreenchidoNaPesquisaEmProcessos
+        ErroRegraDoFormularioDePesquisa::AssinanteOcultoPreenchidoNaPesquisaEmProcessos
     );
 }
 
@@ -137,7 +146,7 @@ fn seletor_de_orgao_ausente_repetido_ou_sem_multiple_e_recusado() {
     // O `select` fora do `<form>` em `pagina` não conta.
     assert_eq!(
         regra(&pagina(&interior(""))),
-        R::SeletorDeOrgaoDePesquisaAusenteNaTela
+        ErroRegraDoFormularioDePesquisa::SeletorDeOrgaoDePesquisaAusenteNaTela
     );
     let dois = format!(
         "{}{}",
@@ -146,12 +155,12 @@ fn seletor_de_orgao_ausente_repetido_ou_sem_multiple_e_recusado() {
     );
     assert_eq!(
         regra(&pagina(&interior(&dois))),
-        R::SeletoresDeOrgaoDePesquisaRepetidosNaTela
+        ErroRegraDoFormularioDePesquisa::SeletoresDeOrgaoDePesquisaRepetidosNaTela
     );
     let simples = observado().replace(" multiple='multiple'", "");
     assert_eq!(
         regra(&simples),
-        R::SeletorDeOrgaoDePesquisaSemMultiplaEscolha
+        ErroRegraDoFormularioDePesquisa::SeletorDeOrgaoDePesquisaSemMultiplaEscolha
     );
 }
 
@@ -160,23 +169,37 @@ fn orgao_sem_selecao_servida_ou_opcao_sem_valor_e_recusado_sem_inventar_orgao() 
     let nenhum = select_de_orgao("<option value='1'>A</option><option value='2'>B</option>");
     assert_eq!(
         regra(&pagina(&interior(&nenhum))),
-        R::OrgaoDePesquisaSemOpcaoSelecionadaNaTela
+        ErroRegraDoFormularioDePesquisa::OrgaoDePesquisaSemOpcaoSelecionadaNaTela
     );
     let sem_valor = select_de_orgao("<option selected>A</option>");
     assert_eq!(
         regra(&pagina(&interior(&sem_valor))),
-        R::OpcaoDeOrgaoSelecionadaSemValorNaTela
+        ErroRegraDoFormularioDePesquisa::OpcaoDeOrgaoSelecionadaSemValorNaTela
     );
+}
+
+#[test]
+fn entidade_desconhecida_no_orgao_fica_literal_como_no_navegador() {
     let entidade = select_de_orgao("<option value='1&desconhecida;' selected>A</option>");
+    let escapada = select_de_orgao("<option value='1&amp;desconhecida;' selected>A</option>");
+    let submissao = derivar(&pagina(&interior(&entidade))).unwrap();
     assert_eq!(
-        regra(&pagina(&interior(&entidade))),
-        R::EntidadeHtmlDesconhecidaNaRegra
+        String::from_utf8(submissao.corpo().to_vec()).unwrap(),
+        "hdnInfraTipoPagina=1&sbmPesquisar=Pesquisar&rdoPesquisarEm=P\
+         &selOrgaoPesquisa%5B%5D=1%26desconhecida%3B\
+         &hdnIdUnidade=&hdnIdAssunto=&hdnIdAssinante=&hdnIdContato=\
+         &txtProtocoloPesquisa=0001\
+         &hdnIdUsuarioGerador1=&hdnIdUsuarioGerador2=&hdnIdUsuarioGerador3=&hdnInicio=0"
+    );
+    assert_eq!(
+        derivar(&pagina(&interior(&escapada))).unwrap().corpo(),
+        submissao.corpo()
     );
 }
 
 /// Forma bruta servida nas quatro instalações: `multiple` sem valor antes
-/// de `id`. O defeito do tl 0.7.8 (`id` lido como `d`) foi corrigido pelo
-/// tokenizador `html_atributos`; o `select` continua localizado pelo
+/// de `id`. Regressão do `tl` 0.7.8 (`id` lido como `d`), removido na #676; o
+/// `select` continua localizado pelo
 /// `name`, que é o nome efetivamente serializado no POST.
 #[test]
 fn forma_bruta_observada_do_select_com_multiple_sem_valor_e_lida() {
@@ -192,7 +215,7 @@ fn forma_bruta_observada_do_select_com_multiple_sem_valor_e_lida() {
 #[test]
 fn booleano_antes_de_cada_atributo_preserva_regras_e_corpo() {
     let esperado = derivar(&observado()).unwrap();
-    let html = crate::html_atributos::com_booleano_antes_dos_atributos(&observado());
+    let html = crate::tela_html::teste::com_booleano_antes_dos_atributos(&observado());
     let obtido = derivar(&html).unwrap();
     assert_eq!(obtido.corpo(), esperado.corpo());
     assert_eq!(obtido.url(), esperado.url());
@@ -236,7 +259,10 @@ fn seletor_de_orgao_desabilitado_nao_e_publicado_como_no_navegador() {
 #[test]
 fn inicio_da_paginacao_servido_diferente_de_zero_e_recusado() {
     let html = observado().replace("name='hdnInicio' value='0'", "name='hdnInicio' value='20'");
-    assert_eq!(regra(&html), R::InicioDaPaginacaoDiferenteDeZeroNaTela);
+    assert_eq!(
+        regra(&html),
+        ErroRegraDoFormularioDePesquisa::InicioDaPaginacaoDiferenteDeZeroNaTela
+    );
 }
 
 #[test]
@@ -253,7 +279,7 @@ fn recusas_do_primitivo_continuam_tipadas_na_operacao() {
     assert_eq!(
         derivar_pesquisa_de_protocolo(
             &instalacao(),
-            &tela_iso(&url, &html),
+            &tela_iso(&url, &HtmlServido::de_teste(&html)),
             "OUTRA UNIDADE",
             "0001",
         )
@@ -267,26 +293,6 @@ fn recusas_do_primitivo_continuam_tipadas_na_operacao() {
         derivar(&sem_form).unwrap_err(),
         ErroPesquisaProtocolo::Submissao(ErroSubmissaoFormulario::FormularioAusenteNaTela)
     );
-}
-
-#[test]
-fn subcodigos_das_regras_sao_distintos() {
-    let todos = [
-        R::OpcaoDeProcessosAusenteNaTela,
-        R::OpcoesDeProcessosRepetidasNaTela,
-        R::OpcaoDeProcessosSemValorNaTela,
-        R::OpcaoDeProcessosComNomeDiferenteDeRdoPesquisarEm,
-        R::AssinanteOcultoPreenchidoNaPesquisaEmProcessos,
-        R::SeletorDeOrgaoDePesquisaAusenteNaTela,
-        R::SeletoresDeOrgaoDePesquisaRepetidosNaTela,
-        R::SeletorDeOrgaoDePesquisaSemMultiplaEscolha,
-        R::OrgaoDePesquisaSemOpcaoSelecionadaNaTela,
-        R::OpcaoDeOrgaoSelecionadaSemValorNaTela,
-        R::InicioDaPaginacaoDiferenteDeZeroNaTela,
-        R::EntidadeHtmlDesconhecidaNaRegra,
-    ];
-    let unicos: std::collections::HashSet<_> = todos.iter().map(|e| e.subcodigo()).collect();
-    assert_eq!(unicos.len(), todos.len());
 }
 
 /// Como no navegador: opção `selected` desabilitada (própria ou por
@@ -311,7 +317,7 @@ fn opcao_de_orgao_selecionada_mas_desabilitada_nao_e_publicada() {
     let todas = select_de_orgao("<option value='2' selected disabled>B</option>");
     assert_eq!(
         regra(&pagina(&interior(&todas))),
-        R::OrgaoDePesquisaSemOpcaoSelecionadaNaTela
+        ErroRegraDoFormularioDePesquisa::OrgaoDePesquisaSemOpcaoSelecionadaNaTela
     );
 }
 
@@ -326,8 +332,7 @@ fn regras_do_orgao(html: &str) -> Vec<String> {
 
 /// Troca o campo do termo por `campo` (atributo `maxlength` variado).
 fn com_campo_do_termo(campo: &str) -> String {
-    let servido =
-        "<input type='text' id='txtProtocoloPesquisa' name='txtProtocoloPesquisa' value=''>";
+    let servido = "<input type='text' id='txtProtocoloPesquisa' name='txtProtocoloPesquisa' maxlength='50' value=''>";
     let html = observado();
     assert!(html.contains(servido), "fixture sem o campo do termo");
     html.replace(servido, campo)
@@ -335,10 +340,15 @@ fn com_campo_do_termo(campo: &str) -> String {
 
 fn derivar_termo(html: &str, termo: &str) -> Result<SubmissaoDerivada, ErroPesquisaProtocolo> {
     let url = url_servida();
-    derivar_pesquisa_de_protocolo(&instalacao(), &tela_iso(&url, html), "UNIDADE TESTE", termo)
+    derivar_pesquisa_de_protocolo(
+        &instalacao(),
+        &tela_iso(&url, &HtmlServido::de_teste(html)),
+        "UNIDADE TESTE",
+        termo,
+    )
 }
 
-fn regra_do_termo(html: &str, termo: &str) -> R {
+fn regra_do_termo(html: &str, termo: &str) -> ErroRegraDoFormularioDePesquisa {
     match derivar_termo(html, termo).unwrap_err() {
         ErroPesquisaProtocolo::RegraDoFormulario(erro) => erro,
         outro => panic!("esperada regra do formulário, veio {outro:?}"),
@@ -355,56 +365,62 @@ fn termo_no_limite_do_maxlength_servido_e_enviado() {
 }
 
 #[test]
-fn termo_acima_do_maxlength_servido_e_recusado_antes_do_post() {
-    let html = com_campo_do_termo(CAMPO_COM_50);
-    let erro = regra_do_termo(&html, &"1".repeat(51));
-    assert_eq!(erro, R::TermoAcimaDoMaxlengthDaTela { maxlength: 50 });
-    assert_eq!(erro.subcodigo(), "termo_acima_do_maxlength_da_tela");
+fn filtro_de_tipo_exato_e_periodo_usam_mesmo_post() {
+    let html = HtmlServido::de_teste(&observado()
+        .replace("<option value='null'>-</option></select>",
+                 "<option value='null'>-</option><option value='73'>Administrativo</option></select>")
+        .replace("<input type='hidden' id='hdnInicio'",
+                 "<input type='text' id='txtDataInicio' name='txtDataInicio' value=''><input type='text' id='txtDataFim' name='txtDataFim' value=''><input type='hidden' id='hdnInicio'"));
+    let url = url_servida();
+    let filtros = FiltrosDaPesquisa {
+        tipo: Some("Administrativo"),
+        de: crate::unidade_retornos::DataCivil::ler("01/01/2026"),
+        ate: crate::unidade_retornos::DataCivil::ler("31/12/2026"),
+        ..Default::default()
+    };
+    let envio = derivar_pesquisa_em_filtrada(
+        PesquisarEm::Processos,
+        &instalacao(),
+        &tela_iso(&url, &html),
+        ("UNIDADE TESTE", "0001"),
+        filtros,
+    )
+    .unwrap();
+    let corpo = String::from_utf8(envio.corpo().to_vec()).unwrap();
+    assert!(corpo.contains("selTipoProcedimentoPesquisa=73"), "{corpo}");
+    assert!(corpo.contains("txtDataInicio=01%2F01%2F2026"), "{corpo}");
+    assert!(corpo.contains("txtDataFim=31%2F12%2F2026"), "{corpo}");
+}
+#[test]
+fn filtro_ausente_na_tela_falha_antes_do_post() {
+    let url = url_servida();
+    let _erro = derivar_pesquisa_em_filtrada(
+        PesquisarEm::Processos,
+        &instalacao(),
+        &tela_iso(&url, &HtmlServido::de_teste(&observado())),
+        ("UNIDADE TESTE", "0001"),
+        FiltrosDaPesquisa {
+            de: crate::unidade_retornos::DataCivil::ler("01/01/2026"),
+            ..Default::default()
+        },
+    )
+    .unwrap_err();
+}
+#[test]
+fn assunto_nao_vira_texto_sem_id_de_autocompletar() {
+    let url = url_servida();
+    let _erro = derivar_pesquisa_em_filtrada(
+        PesquisarEm::Processos,
+        &instalacao(),
+        &tela_iso(&url, &HtmlServido::de_teste(&observado())),
+        ("UNIDADE TESTE", "0001"),
+        FiltrosDaPesquisa {
+            assunto: Some("023.1"),
+            ..Default::default()
+        },
+    )
+    .unwrap_err();
 }
 
-#[test]
-fn maxlength_e_o_publicado_e_nao_um_valor_universal() {
-    let html = com_campo_do_termo(&CAMPO_COM_50.replace("'50'", "'10'"));
-    assert!(derivar_termo(&html, &"1".repeat(10)).is_ok());
-    assert_eq!(
-        regra_do_termo(&html, &"1".repeat(11)),
-        R::TermoAcimaDoMaxlengthDaTela { maxlength: 10 }
-    );
-}
-
-#[test]
-fn sem_maxlength_publicado_o_termo_nao_tem_limite_da_tela() {
-    assert!(derivar_termo(&observado(), &"1".repeat(51)).is_ok());
-}
-
-#[test]
-fn maxlength_conta_unidades_utf16_como_o_navegador() {
-    let html = com_campo_do_termo(&CAMPO_COM_50.replace("'50'", "'2'"));
-    assert!(derivar_termo(&html, "éé").is_ok());
-    assert_eq!(
-        regra_do_termo(&html, "😀a"),
-        R::TermoAcimaDoMaxlengthDaTela { maxlength: 2 }
-    );
-}
-
-#[test]
-fn maxlength_ilegivel_ou_campo_repetido_e_recusado() {
-    for ruim in ["''", "'-1'", "'5a'", "' 5'"] {
-        let html = com_campo_do_termo(&CAMPO_COM_50.replace("'50'", ruim));
-        assert_eq!(
-            regra_do_termo(&html, "1"),
-            R::MaxlengthDoTermoIlegivelNaTela,
-            "maxlength={ruim}"
-        );
-    }
-    let html = com_campo_do_termo(&format!("{CAMPO_COM_50}{CAMPO_COM_50}"));
-    assert_eq!(regra_do_termo(&html, "1"), R::CamposDoTermoRepetidosNaTela);
-    assert_eq!(
-        R::MaxlengthDoTermoIlegivelNaTela.subcodigo(),
-        "maxlength_do_termo_ilegivel_na_tela"
-    );
-    assert_eq!(
-        R::CamposDoTermoRepetidosNaTela.subcodigo(),
-        "campos_do_termo_repetidos_na_tela"
-    );
-}
+#[path = "tests_formulario_pesquisa_maxlength.rs"]
+mod maxlength;

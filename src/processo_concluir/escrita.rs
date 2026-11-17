@@ -12,7 +12,7 @@ use crate::processo_obter::{
     EnvioDoProcesso, PedidoDeAndamentos, PedidoDoProcesso, SessaoDoProcesso, obter_processo,
 };
 use crate::transporte::validacao_da_infra::mensagem_de_validacao_da_infra;
-use crate::transporte::{FalhaTransporte, RespostaWeb, StatusHttpRecusado, decodificar_resposta};
+use crate::transporte::{FalhaTransporte, RespostaWeb, decodificar_resposta};
 use crate::visao_do_controle::EnvioDoControle;
 
 /// As siglas de `aberto_em`, ou o motivo de não ter sido lido.
@@ -39,6 +39,7 @@ pub(crate) fn leitura<'a>(
         propriedades: false,
         marcadores: false,
         unidade_exigida,
+        leitura_das_pastas: crate::processo_obter::LeituraDasPastas::Estrita,
     }
 }
 
@@ -58,16 +59,13 @@ pub(crate) fn verificar<V: EnvioDoProcesso>(
     }
 }
 
-/// O cookie do retrato da sessão (#222), lido do arquivo privado e conferido.
-pub(crate) fn ler_cookie(sessao: &SessaoDoProcesso<'_>) -> Result<String, FalhaTransporte> {
-    sessao.cookie.valor().map(str::to_owned)
-}
-
 /// Por que uma tela pedida antes da escrita não foi servida.
+#[derive(Debug, thiserror::Error)]
+#[error("{self:?}")]
 pub(crate) enum FalhaDaTela {
-    Transporte(FalhaTransporte),
+    Transporte(#[from] FalhaTransporte),
     Redirecionada,
-    SessaoEncerrada,
+    SessaoEncerrada(#[source] crate::erro_publico::SessaoEncerrada),
 }
 
 /// GET de uma tela antes da escrita (a de conclusão ou a do nó): HTML 200.
@@ -75,17 +73,17 @@ pub(crate) fn obter_tela<V: EnvioDoProcesso>(
     rede: &mut Contador<'_, V>,
     cookie: &str,
     url: &str,
-) -> Result<(String, String), FalhaDaTela> {
-    let resposta = rede
-        .get_sem_seguir(url, cookie)
-        .map_err(FalhaDaTela::Transporte)?;
+) -> Result<(crate::tela_html::HtmlServido, String), FalhaDaTela> {
+    let resposta = rede.get_sem_seguir(url, cookie)?;
     if resposta.resposta.status_code == 302 {
         return Err(FalhaDaTela::Redirecionada);
     }
     let mime = resposta.resposta.mime.clone();
     match decodificar_resposta(resposta.resposta) {
         Ok(html) => Ok((html, mime)),
-        Err(FalhaTransporte::PaginaDeLoginRecebidaNoControle) => Err(FalhaDaTela::SessaoEncerrada),
+        Err(FalhaTransporte::PaginaDeLoginRecebidaNoControle) => Err(FalhaDaTela::SessaoEncerrada(
+            crate::erro_publico::SessaoEncerrada,
+        )),
         Err(falha) => Err(FalhaDaTela::Transporte(falha)),
     }
 }
@@ -115,12 +113,7 @@ pub(crate) fn resposta_da_funcao<R: std::io::Read>(
     }
     match decodificar_resposta(resposta.resposta) {
         Ok(html) => mensagem_de_validacao_da_infra(&html).map(|mensagem| {
-            FalhaDoEnvio::Envio(ErroSubmissaoFormulario::ValidacaoRecusadaPeloSei(
-                StatusHttpRecusado {
-                    status: 200,
-                    mensagem_do_servidor: Some(mensagem),
-                },
-            ))
+            FalhaDoEnvio::Envio(ErroSubmissaoFormulario::ValidacaoRecusadaPeloSei(mensagem))
         }),
         Err(FalhaTransporte::PaginaDeLoginRecebidaNoControle) => {
             Some(FalhaDoEnvio::LoginAposEscrita)
@@ -167,7 +160,7 @@ impl<V: EnvioDoProcesso> EnvioDoControle for Contador<'_, V> {
         self.feitas.registrar();
         self.envio.get(url, cookie)
     }
-    fn colher_controle(&mut self, html: &str, mime: Option<&str>) {
+    fn colher_controle(&mut self, html: &crate::tela_html::HtmlServido, mime: Option<&str>) {
         self.envio.colher_controle(html, mime);
     }
 }

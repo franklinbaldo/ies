@@ -18,8 +18,6 @@ impl TransporteDeLogin for HttpsDoLogin {
         completar(cliente_https::requisitar("GET", url, cookie, None)?)
     }
 
-    // Consumida numa única tentativa, como no `FnOnce` do envio.
-    #[allow(clippy::needless_pass_by_value)]
     fn post(
         &mut self,
         submissao: SubmissaoDerivada,
@@ -58,8 +56,14 @@ fn completar<R: BufRead>(resposta: Resposta<R>) -> Result<RespostaHttp, FalhaTra
     })
 }
 
-/// Lê status, todos os cabeçalhos e o corpo (não lido em 3xx).
+/// Completa uma resposta sintética como o login real.
 #[cfg(test)]
-pub(crate) fn ler_resposta<R: BufRead>(leitor: &mut R) -> Result<RespostaHttp, FalhaTransporte> {
-    completar(Resposta::ler(leitor)?)
+pub(crate) fn completar_sintetica(
+    status: u16,
+    cabecalhos: &[(&str, &str)],
+    corpo: &[u8],
+) -> Result<RespostaHttp, FalhaTransporte> {
+    completar(crate::transporte::resposta_http::sintetica(
+        status, cabecalhos, corpo,
+    ))
 }

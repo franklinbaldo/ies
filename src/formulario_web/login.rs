@@ -8,8 +8,8 @@ use super::leitura::{
     resolver_action_no_host,
 };
 use super::{
-    EfeitoAvaliado, ErroSubmissaoFormulario as E, OperacaoDeFormulario, SubmissaoDerivada,
-    TelaServida, codificar_corpo, ordenar_campos,
+    EfeitoAvaliado, ErroSubmissaoFormulario, OperacaoDeFormulario, SubmissaoDerivada, TelaServida,
+    codificar_corpo, ordenar_campos,
 };
 use crate::instalacao::Instalacao;
 use crate::transporte::FalhaTransporte;
@@ -20,31 +20,35 @@ pub(crate) fn derivar_submissao_de_login(
     instalacao: &Instalacao,
     tela: &TelaServida<'_>,
     campos: &[(&str, &str)],
-) -> Result<SubmissaoDerivada, E> {
+) -> Result<SubmissaoDerivada, ErroSubmissaoFormulario> {
     if operacao.efeito == EfeitoAvaliado::Desconhecido {
-        return Err(E::EfeitoDaOperacaoNaoAvaliado);
+        return Err(ErroSubmissaoFormulario::EfeitoDaOperacaoNaoAvaliado);
     }
     if tela.html.len() > crate::MAX_HTML_BYTES {
-        return Err(E::Transporte(FalhaTransporte::RespostaExcessiva));
+        return Err(ErroSubmissaoFormulario::Transporte(
+            FalhaTransporte::RespostaExcessiva,
+        ));
     }
-    let servida =
-        UrlHttps::interpretar(tela.url).ok_or(E::Transporte(FalhaTransporte::UrlInvalida))?;
+    let servida = UrlHttps::interpretar(tela.url).ok_or(ErroSubmissaoFormulario::Transporte(
+        FalhaTransporte::UrlInvalida,
+    ))?;
     if !servida.host.eq_ignore_ascii_case(instalacao.host()) {
-        return Err(E::Transporte(FalhaTransporte::OrigemNaoAutorizada));
+        return Err(ErroSubmissaoFormulario::Transporte(
+            FalhaTransporte::OrigemNaoAutorizada,
+        ));
     }
-    let dom = tl::parse(tela.html, tl::ParserOptions::default())
-        .map_err(|_| E::Transporte(FalhaTransporte::RespostaExcessiva))?;
+    let dom = crate::tela_html::arvore(tela.html);
     let form = localizar_formulario(&dom, operacao.formulario)?;
     conferir_metodo_e_codificacao(form)?;
     let url = resolver_action_no_host(form, &servida, instalacao)?;
-    let controles = ler_controles(form, dom.parser(), operacao)?;
+    let controles = ler_controles(form, operacao)?;
     let ordenados = ordenar_campos(&controles, operacao, campos)?;
     let corpo = codificar_corpo(&ordenados, tela.codificacao)?;
     Ok(SubmissaoDerivada {
         url,
         host: servida.host.to_ascii_lowercase(),
         caminho: servida.caminho.to_owned(),
-        acao: operacao.acao,
+        acao: crate::acao_do_sei::AcaoDaSubmissao::Controlador(operacao.acao),
         referer: tela.url.to_owned(),
         nomes: ordenados.iter().map(|(n, _)| (*n).to_owned()).collect(),
         corpo: corpo.into_bytes(),

@@ -69,11 +69,9 @@ Duas formas novas, observadas e aceitas só como servidas:
 
 - **Processo visitado (PEN3 5.0.4).** O link do processo vem com
   `class="protocoloNormal processoVisitado"` e de novo
-  `class="protocoloNormal"`. `html_atributos` ganhou
-  `nos_por_elemento_e_classe_em_todas_as_ocorrencias`: `class` repetido
-  vale quando **todas** as ocorrências trazem a classe; uma sem ela é
-  erro. `processo buscar` continua exigindo repetição idêntica e recusaria
-  essa linha (`atributo_repetido_na_tag`): revisão pendente.
+  `class="protocoloNormal"`. Atributo repetido na tag vale o primeiro, como
+  no navegador (#676): o link é lido pelo primeiro `class`, em `documento
+  buscar` e em `processo buscar`.
 - **Última página com "N resultados" (PEN3 5.0.4,
   `pesquisa-paginas-pen3`, passo 9).** Na página 2 de 16 a barra diz "16
   resultados". No POST de página, essa barra vale a faixa esperada só se

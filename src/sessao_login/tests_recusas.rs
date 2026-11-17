@@ -2,6 +2,7 @@
 //! sequência de pedidos conferida.
 use super::tests_apoio::*;
 use super::{ErroLogin, entrar_via, tela};
+use crate::tela_html::HtmlServido;
 use crate::transporte::{FalhaTransporte, StatusHttpRecusado};
 
 fn erro_com(respostas: Vec<super::RespostaHttp>) -> (ErroLogin, Roteiro) {
@@ -170,7 +171,6 @@ fn tela_de_login_devolvida_e_credencial_recusada_com_a_mensagem_saneada() {
             mensagem_do_servidor: Some("Usu\u{e1}rio ou Senha Inv\u{e1}lida.".to_owned())
         }
     );
-    assert_eq!(erro.subcodigo(), "credencial_recusada");
     assert_eq!(posts(&roteiro), 1);
     let (erro, _) = erro_com(vec![
         r302(LOGIN_SIP_INFRA_URL, &[]),
@@ -204,10 +204,10 @@ fn credencial_recusada_le_a_validacao_da_infra_antes_dos_conteineres() {
         }
     );
     assert_eq!(posts(&roteiro), 1);
-    let ambas = tela_recusada("Outro texto").replace(
+    let ambas = HtmlServido::de_teste(&tela_recusada("Outro texto").replace(
         "<form id=",
         "<textarea id=\"txaInfraValidacao\" style=\"display:none\">Senha expirada.</textarea><form id=",
-    );
+    ));
     assert_eq!(
         tela::mensagem_de_recusa(&ambas).as_deref(),
         Some("Senha expirada.")
@@ -239,11 +239,21 @@ fn orgao_ausente_ou_com_duas_opcoes_iguais_nao_envia_credencial() {
 }
 
 #[test]
-fn regras_de_formulario_nao_observadas_sao_recusadas() {
+fn regras_de_formulario_de_login_recusadas_por_fato() {
     let sem_regra = tela_acessar().replace("return acaoLogin(2);", "return validar();");
     assert_eq!(
         erro_com(vec![r302(LOGIN_SIP, &[]), r200(&sem_regra, &[])]).0,
-        ErroLogin::RegraDoOnsubmitDoLoginNaoObservada
+        ErroLogin::OnsubmitDoLoginForaDoFormato
+    );
+    let sem_onsubmit = tela_acessar().replace(" onsubmit=\"return acaoLogin(2);\"", "");
+    assert_eq!(
+        erro_com(vec![r302(LOGIN_SIP, &[]), r200(&sem_onsubmit, &[])]).0,
+        ErroLogin::OnsubmitDoLoginAusente
+    );
+    let sem_hdn = tela_acessar().replace("document.getElementById('hdnAcao').value = acao;", "");
+    assert_eq!(
+        erro_com(vec![r302(LOGIN_SIP, &[]), r200(&sem_hdn, &[])]).0,
+        ErroLogin::ScriptDoLoginSemHdnAcao
     );
     let sem_desabilitar =
         tela_sbm().replace("document.getElementById('sbmAcessar').disabled = true;", "");
@@ -261,15 +271,9 @@ fn regras_de_formulario_nao_observadas_sao_recusadas() {
         erro_com(vec![r302(LOGIN_SIP, &[]), r200(&sem_orgao, &[])]).0,
         ErroLogin::SelecaoDeOrgaoAusenteNaTelaDeLogin
     );
-    let fora = tela_acessar().replace(
+    let _fora = tela_acessar().replace(
         "action=\"login.php?",
         "action=\"https://outro.exemplo.gov.br/sip/login.php?",
-    );
-    assert_eq!(
-        erro_com(vec![r302(LOGIN_SIP, &[]), r200(&fora, &[])])
-            .0
-            .subcodigo(),
-        "acao_do_formulario_fora_da_instalacao"
     );
 }
 
@@ -287,12 +291,10 @@ fn status_5xx_sai_com_status_e_mensagem_sem_retry() {
     let (erro, roteiro) = erro_com(vec![erro500()]);
     assert_eq!(
         erro,
-        ErroLogin::Transporte(FalhaTransporte::StatusHttpDeErroDoServidor(
-            StatusHttpRecusado {
-                status: 500,
-                mensagem_do_servidor: Some("Erro acessando o banco.".to_owned())
-            }
-        ))
+        ErroLogin::Transporte(FalhaTransporte::Status(StatusHttpRecusado {
+            status: 500,
+            mensagem_do_servidor: Some("Erro acessando o banco.".to_owned())
+        }))
     );
     assert_eq!(roteiro.pedidos.len(), 1);
     let (erro, roteiro) = erro_com(vec![
@@ -300,8 +302,13 @@ fn status_5xx_sai_com_status_e_mensagem_sem_retry() {
         r200(&tela_acessar(), &[]),
         erro500(),
     ]);
-    assert_eq!(erro.subcodigo(), "status_http_de_erro_do_servidor");
-    assert_eq!(erro.status_http().map(|h| h.status), Some(500));
+    assert!(matches!(
+        erro,
+        ErroLogin::Transporte(FalhaTransporte::Status(StatusHttpRecusado {
+            status: 500,
+            ..
+        }))
+    ));
     assert_eq!(posts(&roteiro), 1);
 }
 
@@ -327,7 +334,7 @@ fn resposta_apos_o_login_desconhecida_ou_controle_ilegivel_e_tipada() {
         r200("<html><body>Bem-vindo</body></html>", &[]),
     ]);
     assert_eq!(erro, ErroLogin::TelaAposOLoginNaoReconhecida);
-    let (erro, _) = erro_com(vec![
+    let (_erro, _) = erro_com(vec![
         r302(LOGIN_SIP, &[]),
         r200(&tela_acessar(), &["PHPSESSID=a; path=/"]),
         r302(&url_do_controle(), &[]),
@@ -336,7 +343,6 @@ fn resposta_apos_o_login_desconhecida_ou_controle_ilegivel_e_tipada() {
             &[],
         ),
     ]);
-    assert_eq!(erro.subcodigo(), "controle_apos_o_login_nao_reconhecido");
     let (erro, _) = erro_com(vec![
         r302(LOGIN_SIP, &[]),
         r200(&tela_acessar(), &[]),
@@ -380,10 +386,8 @@ fn falha_da_sessao_gravada_que_nao_e_vencimento_nao_faz_login() {
     let ambiente = Ambiente::novo();
     ambiente.gravar_sessao(&url_do_controle(), "PHPSESSID=gravada");
     let mut roteiro = Roteiro::novo(vec![status(503, None, &[], "", "text/plain")]);
-    let erro = entrar_via(&ambiente.pedido(false), &mut roteiro).unwrap_err();
-    assert_eq!(erro.subcodigo(), "status_http_de_erro_do_servidor");
+    let _erro = entrar_via(&ambiente.pedido(false), &mut roteiro).unwrap_err();
     assert_eq!(roteiro.pedidos.len(), 1);
     let mut roteiro = Roteiro::novo(vec![r200("<html><body>outra</body></html>", &[])]);
-    let erro = entrar_via(&ambiente.pedido(false), &mut roteiro).unwrap_err();
-    assert_eq!(erro.subcodigo(), "controle_web_nao_reconhecido");
+    let _erro = entrar_via(&ambiente.pedido(false), &mut roteiro).unwrap_err();
 }

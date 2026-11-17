@@ -1,0 +1,15 @@
+id: 32b-collect-into-iter
+language: rust
+message: 'x.collect::<Vec<_>>().into_iter() vira x'
+severity: hint
+rule:
+  all:
+    - pattern: '$X.collect::<Vec<_>>().into_iter()'
+    - not:
+        inside:
+          stopBy: end
+          kind: mod_item
+          follows:
+            kind: attribute_item
+            regex: 'cfg\(test\)'
+fix: '$X'

@@ -4,7 +4,7 @@
 //! para a entrada por id montada e por isso só se guardam dígitos ASCII. A
 //! observação nova que conflita com as antigas as substitui.
 use super::IndiceLocal;
-use super::validacao::{RegistroRecusado, conferir_id_procedimento, conferir_numero_sei};
+use super::validacao::{conferir_id_procedimento, conferir_numero_sei};
 use crate::instalacao::Instalacao;
 use rusqlite::OptionalExtension;
 
@@ -23,6 +23,7 @@ impl IndiceLocal {
         instalacao: &Instalacao,
         numero: &str,
     ) -> Option<DocumentoGuardado> {
+        // Cache local é melhor esforço: registro fora da forma é ignorado.
         conferir_numero_sei(numero).ok()?;
         let origem = instalacao.url_base();
         let linha: Option<(String, String)> = self.executar(None, |banco, _| {
@@ -46,15 +47,18 @@ impl IndiceLocal {
 
     /// Os documentos `(número SEI, id_documento)` de uma árvore conferida do
     /// processo `id_procedimento`, numa transação. Entrada inválida, e todo
-    /// número ou id que se repete na mesma árvore, é pulada; cada linha
-    /// gravada apaga antes a do mesmo número e a do mesmo documento.
+    /// número ou id que se repete na mesma árvore, invalida qualquer palpite
+    /// anterior; cada linha inequívoca substitui a associação antiga. O id
+    /// do processo inválido não grava nada e fica nos avisos.
     pub(crate) fn registrar_documentos(
         &self,
         instalacao: &Instalacao,
         id_procedimento: &str,
         documentos: &[(&str, &str)],
-    ) -> Result<(), RegistroRecusado> {
-        conferir_id_procedimento(id_procedimento)?;
+    ) {
+        if !self.anotar_recusa(conferir_id_procedimento(id_procedimento)) {
+            return;
+        }
         let unico = |numero: &str, id: &str| {
             documentos
                 .iter()
@@ -62,20 +66,27 @@ impl IndiceLocal {
                 .count()
                 == 1
         };
-        let validos: Vec<(&str, &str)> = documentos
+        // Filtra entradas válidas uma única vez e preserva a ordem das
+        // associações observadas. Duplicatas continuam invalidando palpites.
+        let (validos, ambiguos): (Vec<_>, Vec<_>) = documentos
             .iter()
             .copied()
             .filter(|(numero, id)| {
-                conferir_numero_sei(numero).is_ok()
-                    && conferir_id_procedimento(id).is_ok()
-                    && unico(numero, id)
+                conferir_numero_sei(numero).is_ok() && conferir_id_procedimento(id).is_ok()
             })
-            .collect();
-        if validos.is_empty() {
-            return Ok(());
+            .partition(|(numero, id)| unico(numero, id));
+        if validos.is_empty() && ambiguos.is_empty() {
+            return;
         }
         let origem = instalacao.url_base();
         self.executar((), |banco, agora| {
+            for (numero, id) in &ambiguos {
+                banco.execute(
+                    "DELETE FROM documento WHERE origem = ?1 \
+                     AND (numero_sei = ?2 OR id_documento = ?3)",
+                    [origem.as_str(), numero, id],
+                )?;
+            }
             for (numero, id) in &validos {
                 banco.execute(
                     "DELETE FROM documento WHERE origem = ?1 \
@@ -91,7 +102,6 @@ impl IndiceLocal {
             }
             Ok(())
         });
-        Ok(())
     }
 
     /// O servidor divergiu: esquece o número.

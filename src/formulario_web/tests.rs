@@ -1,13 +1,14 @@
 //! RED/GREEN da derivação: HTML sintético modelado no formulário servido.
 use super::*;
-use ErroSubmissaoFormulario as E;
+use crate::acao_do_sei::AcaoDoSei;
+use crate::tela_html::HtmlServido;
 
 pub(crate) const HASH_TELA: &str =
     "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa";
 const HASH_FORM: &str = "bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb";
 
 pub(crate) const OPERACAO: OperacaoDeFormulario = OperacaoDeFormulario {
-    acao: "protocolo_pesquisar",
+    acao: AcaoDoSei::ProtocoloPesquisar,
     formulario: "frmPesquisaProtocolo",
     envio: EnvioDoFormulario::BotaoDeEnvio("sbmPesquisar"),
     campos_ocultos_exigidos: &["hdnInfraTipoPagina", "hdnInicio"],
@@ -33,7 +34,7 @@ pub(crate) fn url_servida() -> String {
     )
 }
 
-pub(crate) fn tela_iso<'a>(url: &'a str, html: &'a str) -> TelaServida<'a> {
+pub(crate) fn tela_iso<'a>(url: &'a str, html: &'a HtmlServido) -> TelaServida<'a> {
     TelaServida {
         url,
         html,
@@ -73,18 +74,21 @@ fn com_action(action: &str) -> String {
     pagina(&format!("action='{action}'"), INTERIOR)
 }
 
-fn derivar_html(html: &str, campos: &[(&str, &str)]) -> Result<SubmissaoDerivada, E> {
+fn derivar_html(
+    html: &str,
+    campos: &[(&str, &str)],
+) -> Result<SubmissaoDerivada, ErroSubmissaoFormulario> {
     let url = url_servida();
     derivar_submissao(
         &OPERACAO,
         &instalacao(),
-        &tela_iso(&url, html),
-        "UNIDADE TESTE",
+        &tela_iso(&url, &HtmlServido::de_teste(html)),
+        Some("UNIDADE TESTE"),
         campos,
     )
 }
 
-fn erro(html: &str, campos: &[(&str, &str)]) -> E {
+fn erro(html: &str, campos: &[(&str, &str)]) -> ErroSubmissaoFormulario {
     derivar_html(html, campos).unwrap_err()
 }
 
@@ -154,7 +158,7 @@ fn oculto_exigido_omitido_e_recusado() {
     let html = padrao().replace("name='hdnInicio'", "name='hdnOutro'");
     assert_eq!(
         erro(&html, &[]),
-        E::CampoOcultoAusenteNoFormulario {
+        ErroSubmissaoFormulario::CampoOcultoAusenteNoFormulario {
             campo: campo("hdnInicio")
         }
     );
@@ -168,7 +172,7 @@ fn oculto_repetido_nao_escolhe_o_primeiro() {
     );
     assert_eq!(
         erro(&html, &[]),
-        E::CampoOcultoRepetidoNoFormulario {
+        ErroSubmissaoFormulario::CampoOcultoRepetidoNoFormulario {
             campo: campo("hdnInicio")
         }
     );
@@ -178,13 +182,13 @@ fn oculto_repetido_nao_escolhe_o_primeiro() {
 fn campo_inventado_fora_da_lista_e_recusado() {
     assert_eq!(
         erro(&padrao(), &[("selData", "0")]),
-        E::CampoForaDaListaDaOperacao {
+        ErroSubmissaoFormulario::CampoForaDaListaDaOperacao {
             campo: campo("selData")
         }
     );
     assert_eq!(
         erro(&padrao(), &[("hdnInicio", "50")]),
-        E::CampoForaDaListaDaOperacao {
+        ErroSubmissaoFormulario::CampoForaDaListaDaOperacao {
             campo: campo("hdnInicio")
         }
     );
@@ -195,7 +199,7 @@ fn campo_da_lista_que_a_tela_nao_publicou_e_recusado() {
     let html = padrao().replace("name='txtProtocoloPesquisa'", "name='txtOutro'");
     assert_eq!(
         erro(&html, &[("txtProtocoloPesquisa", "1")]),
-        E::CampoNaoPublicadoPeloFormulario {
+        ErroSubmissaoFormulario::CampoNaoPublicadoPeloFormulario {
             campo: campo("txtProtocoloPesquisa")
         }
     );
@@ -208,7 +212,7 @@ fn campo_informado_duas_vezes_e_recusado() {
             &padrao(),
             &[("rdoPesquisarEm", "P"), ("rdoPesquisarEm", "D")]
         ),
-        E::CampoInformadoMaisDeUmaVez {
+        ErroSubmissaoFormulario::CampoInformadoMaisDeUmaVez {
             campo: campo("rdoPesquisarEm")
         }
     );
@@ -221,18 +225,24 @@ fn unidade_da_tela_precisa_ser_a_solicitada() {
     let r = derivar_submissao(
         &OPERACAO,
         &instalacao(),
-        &tela_iso(&url, &html),
-        "OUTRA",
+        &tela_iso(&url, &HtmlServido::de_teste(&html)),
+        Some("OUTRA"),
         &[],
     );
-    assert_eq!(r.unwrap_err(), E::UnidadeDaTelaDiferenteDaSolicitada);
-    let sem = html.replace("lnkInfraUnidade", "lnkOutro");
-    assert_eq!(erro(&sem, &[]), E::IdentificacaoDaUnidadeAusenteNaTela);
-    let repetida = html.replace("<form", "<a id='lnkInfraUnidade'>OUTRA</a><form");
     assert_eq!(
-        erro(&repetida, &[]),
-        E::IdentificacoesDaUnidadeRepetidasNaTela
+        r.unwrap_err(),
+        ErroSubmissaoFormulario::UnidadeDaTelaDiferenteDaSolicitada
     );
+    let sem = html.replace("lnkInfraUnidade", "lnkOutro");
+    assert_eq!(
+        erro(&sem, &[]),
+        ErroSubmissaoFormulario::IdentificacaoDaUnidadeAusenteNaTela
+    );
+    let repetida = html.replace("<form", "<a id='lnkInfraUnidade'>OUTRA</a><form");
+    assert!(matches!(
+        erro(&repetida, &[]),
+        ErroSubmissaoFormulario::IdentificacoesDaUnidadeRepetidasNaTela(_)
+    ));
 }
 
 #[test]
@@ -243,7 +253,7 @@ fn action_relativo_resolve_contra_a_url_servida_nao_contra_a_raiz() {
     let raiz = action_padrao().replacen("controlador.php", "/controlador.php", 1);
     assert_eq!(
         erro(&com_action(&raiz), &[]),
-        E::AcaoDoFormularioForaDaInstalacao
+        ErroSubmissaoFormulario::AcaoDoFormularioForaDaInstalacao
     );
 }
 
@@ -259,46 +269,52 @@ fn action_para_outro_host_ou_caminho_e_recusado() {
     ] {
         assert_eq!(
             erro(&com_action(&action), &[]),
-            E::AcaoDoFormularioForaDaInstalacao,
+            ErroSubmissaoFormulario::AcaoDoFormularioForaDaInstalacao,
             "{action}"
         );
     }
     let http = format!("http://sei.exemplo.gov.br/sei/{query}");
     assert_eq!(
         erro(&com_action(&http), &[]),
-        E::AcaoDoFormularioNaoEhUrlHttps
+        ErroSubmissaoFormulario::AcaoDoFormularioNaoEhUrlHttps
     );
     let js = "javascript:enviar()";
-    assert_eq!(erro(&com_action(js), &[]), E::AcaoDoFormularioNaoEhUrlHttps);
+    assert_eq!(
+        erro(&com_action(js), &[]),
+        ErroSubmissaoFormulario::AcaoDoFormularioNaoEhUrlHttps
+    );
 }
 
 #[test]
 fn action_ausente_sem_hash_ou_de_outra_operacao_e_recusado() {
-    assert_eq!(erro(&pagina("", INTERIOR), &[]), E::AcaoDoFormularioAusente);
+    assert_eq!(
+        erro(&pagina("", INTERIOR), &[]),
+        ErroSubmissaoFormulario::AcaoDoFormularioAusente
+    );
     assert_eq!(
         erro(&com_action("#ancora"), &[]),
-        E::AcaoDoFormularioAusente
+        ErroSubmissaoFormulario::AcaoDoFormularioAusente
     );
     let sem_hash = "controlador.php?acao=protocolo_pesquisar";
     assert_eq!(
         erro(&com_action(sem_hash), &[]),
-        E::AcaoDoFormularioSemInfraHashUnico
+        ErroSubmissaoFormulario::AcaoDoFormularioSemInfraHashUnico
     );
     let curto = "controlador.php?acao=protocolo_pesquisar&amp;infra_hash=abc";
     assert_eq!(
         erro(&com_action(curto), &[]),
-        E::AcaoDoFormularioSemInfraHashUnico
+        ErroSubmissaoFormulario::AcaoDoFormularioSemInfraHashUnico
     );
     let outra =
         action_padrao().replacen("acao=protocolo_pesquisar", "acao=procedimento_excluir", 1);
     assert_eq!(
         erro(&com_action(&outra), &[]),
-        E::AcaoDoFormularioDiferenteDaOperacao
+        ErroSubmissaoFormulario::AcaoDoFormularioDiferenteDaOperacao
     );
     let dupla = action_padrao().replace("acao_origem=", "acao=");
     assert_eq!(
         erro(&com_action(&dupla), &[]),
-        E::AcaoDoFormularioDiferenteDaOperacao
+        ErroSubmissaoFormulario::AcaoDoFormularioDiferenteDaOperacao
     );
 }
 
@@ -308,39 +324,57 @@ fn botao_de_envio_ausente_ou_repetido_e_recusado() {
         "type='submit' id='sbmPesquisar'",
         "type='button' id='sbmPesquisar'",
     );
-    assert_eq!(erro(&sem, &[]), E::BotaoDeEnvioAusenteNoFormulario);
+    assert_eq!(
+        erro(&sem, &[]),
+        ErroSubmissaoFormulario::BotaoDeEnvioAusenteNoFormulario
+    );
     let dois = padrao().replace(
         "</form>",
         "<input type='submit' name='sbmPesquisar' value='Pesquisar'></form>",
     );
-    assert_eq!(erro(&dois, &[]), E::BotoesDeEnvioRepetidosNoFormulario);
+    assert_eq!(
+        erro(&dois, &[]),
+        ErroSubmissaoFormulario::BotoesDeEnvioRepetidosNoFormulario
+    );
 }
 
 #[test]
 fn formulario_ausente_ou_com_identificador_repetido_e_recusado() {
     let ausente = padrao().replace("frmPesquisaProtocolo", "frmOutro");
-    assert_eq!(erro(&ausente, &[]), E::FormularioAusenteNaTela);
+    assert_eq!(
+        erro(&ausente, &[]),
+        ErroSubmissaoFormulario::FormularioAusenteNaTela
+    );
     let duplicado = padrao().replace(
         "</html>",
         "<form name='frmPesquisaProtocolo' method='post'></form></html>",
     );
     assert_eq!(
         erro(&duplicado, &[]),
-        E::FormulariosComMesmoIdentificadorNaTela
+        ErroSubmissaoFormulario::FormulariosComMesmoIdentificadorNaTela
     );
 }
 
 #[test]
 fn metodo_e_codificacao_nao_observados_sao_recusados() {
     let get = padrao().replace("method='post'", "method='get'");
-    assert_eq!(erro(&get, &[]), E::MetodoDoFormularioDiferenteDePost);
+    assert_eq!(
+        erro(&get, &[]),
+        ErroSubmissaoFormulario::MetodoDoFormularioDiferenteDePost
+    );
     let multipart = padrao().replace(
         "method='post'",
         "method='POST' enctype='multipart/form-data'",
     );
-    assert_eq!(erro(&multipart, &[]), E::EnctypeDoFormularioNaoUrlencoded);
+    assert_eq!(
+        erro(&multipart, &[]),
+        ErroSubmissaoFormulario::EnctypeDoFormularioNaoUrlencoded
+    );
     let charset = padrao().replace("method='post'", "method='post' accept-charset='utf-8'");
-    assert_eq!(erro(&charset, &[]), E::AcceptCharsetPublicadoNoFormulario);
+    assert_eq!(
+        erro(&charset, &[]),
+        ErroSubmissaoFormulario::AcceptCharsetPublicadoNoFormulario
+    );
 }
 
 #[test]
@@ -349,7 +383,10 @@ fn hdn_acao_publicado_sem_regra_da_operacao_e_recusado() {
         "</form>",
         "<input type='hidden' name='hdnAcao' value=''></form>",
     );
-    assert_eq!(erro(&html, &[]), E::HdnAcaoPublicadoSemRegraDaOperacao);
+    assert_eq!(
+        erro(&html, &[]),
+        ErroSubmissaoFormulario::HdnAcaoPublicadoSemRegraDaOperacao
+    );
 }
 
 #[test]
@@ -362,7 +399,7 @@ fn valor_iso_8859_1_e_codificado_pelos_bytes_do_charset() {
     );
     assert_eq!(
         erro(&padrao(), &[("txtProtocoloPesquisa", "€")]),
-        E::ValorNaoRepresentavelNaCodificacao {
+        ErroSubmissaoFormulario::ValorNaoRepresentavelNaCodificacao {
             campo: campo("txtProtocoloPesquisa")
         }
     );
@@ -374,30 +411,38 @@ fn valor_utf8_usa_bytes_utf8_quando_a_tela_declara_utf8() {
     let url = url_servida();
     let tela = TelaServida {
         url: &url,
-        html: &html,
+        html: &HtmlServido::de_teste(&html),
         codificacao: CodificacaoDaTela::Utf8,
     };
-    let campos = [("txtProtocoloPesquisa", "ação")];
-    let s = derivar_submissao(&OPERACAO, &instalacao(), &tela, "UNIDADE TESTE", &campos).unwrap();
+    let campos = [("txtProtocoloPesquisa", "ação 🚀")];
+    let s = derivar_submissao(
+        &OPERACAO,
+        &instalacao(),
+        &tela,
+        Some("UNIDADE TESTE"),
+        &campos,
+    )
+    .unwrap();
     let corpo = String::from_utf8(s.corpo().to_vec()).unwrap();
     assert!(
-        corpo.contains("txtProtocoloPesquisa=a%C3%A7%C3%A3o&"),
+        corpo.contains("txtProtocoloPesquisa=a%C3%A7%C3%A3o+%F0%9F%9A%80&"),
         "{corpo}"
     );
 }
 
 #[test]
-fn entidades_html_do_oculto_sao_decodificadas_ou_recusadas() {
+fn entidades_html_do_oculto_sao_decodificadas_e_desconhecidas_ficam_literais() {
     let amp = padrao().replace("value='1'>", "value='a&amp;b&#233;'>");
     let s = derivar_html(&amp, &[]).unwrap();
     assert!(s.corpo().starts_with(b"hdnInfraTipoPagina=a%26b%E9&"));
     let desconhecida = padrao().replace("value='1'>", "value='&inventada;'>");
-    assert_eq!(
-        erro(&desconhecida, &[]),
-        E::EntidadeHtmlDesconhecidaNoAtributo {
-            campo: campo("hdnInfraTipoPagina")
-        }
+    let s = derivar_html(&desconhecida, &[]).unwrap();
+    assert!(
+        s.corpo()
+            .starts_with(b"hdnInfraTipoPagina=%26inventada%3B&")
     );
+    let escapada = padrao().replace("value='1'>", "value='&amp;inventada;'>");
+    assert_eq!(s.corpo(), derivar_html(&escapada, &[]).unwrap().corpo());
 }
 
 #[test]
@@ -410,16 +455,19 @@ fn efeito_nao_avaliado_recusa_antes_de_ler_a_tela() {
     let r = derivar_submissao(
         &op,
         &instalacao(),
-        &tela_iso(&url, ""),
-        "UNIDADE TESTE",
+        &tela_iso(&url, &HtmlServido::de_teste("")),
+        Some("UNIDADE TESTE"),
         &[],
     );
-    assert_eq!(r.unwrap_err(), E::EfeitoDaOperacaoNaoAvaliado);
+    assert_eq!(
+        r.unwrap_err(),
+        ErroSubmissaoFormulario::EfeitoDaOperacaoNaoAvaliado
+    );
 }
 
 #[test]
 fn efeitos_avaliados_sao_aceitos_e_preservados() {
-    let html = padrao();
+    let html = HtmlServido::de_teste(&padrao());
     let url = url_servida();
     for efeito in [
         EfeitoAvaliado::ConsultaSemEfeitoObservado { evidencia: "teste" },
@@ -435,7 +483,7 @@ fn efeitos_avaliados_sao_aceitos_e_preservados() {
             &op,
             &instalacao(),
             &tela_iso(&url, &html),
-            "UNIDADE TESTE",
+            Some("UNIDADE TESTE"),
             &[],
         );
         assert_eq!(s.unwrap().efeito(), efeito);
@@ -444,7 +492,7 @@ fn efeitos_avaliados_sao_aceitos_e_preservados() {
 
 #[test]
 fn tela_fora_da_instalacao_ou_url_invalida_e_recusada() {
-    let html = padrao();
+    let html = HtmlServido::de_teste(&padrao());
     let outra = format!(
         "https://outro.exemplo.gov.br/sei/controlador.php?acao=protocolo_pesquisar&infra_hash={HASH_TELA}"
     );
@@ -452,22 +500,25 @@ fn tela_fora_da_instalacao_ou_url_invalida_e_recusada() {
         &OPERACAO,
         &instalacao(),
         &tela_iso(&outra, &html),
-        "UNIDADE TESTE",
+        Some("UNIDADE TESTE"),
         &[],
     );
     assert_eq!(
         r.unwrap_err(),
-        E::Transporte(FalhaTransporte::OrigemNaoAutorizada)
+        ErroSubmissaoFormulario::Transporte(FalhaTransporte::OrigemNaoAutorizada)
     );
     let invalida = "http://sei.exemplo.gov.br/sei/controlador.php";
     let r = derivar_submissao(
         &OPERACAO,
         &instalacao(),
         &tela_iso(invalida, &html),
-        "UNIDADE TESTE",
+        Some("UNIDADE TESTE"),
         &[],
     );
-    assert_eq!(r.unwrap_err(), E::Transporte(FalhaTransporte::UrlInvalida));
+    assert_eq!(
+        r.unwrap_err(),
+        ErroSubmissaoFormulario::Transporte(FalhaTransporte::UrlInvalida)
+    );
 }
 
 #[test]
@@ -475,7 +526,7 @@ fn tela_acima_do_limite_e_recusada() {
     let html = format!("{}{}", padrao(), " ".repeat(crate::MAX_HTML_BYTES));
     assert_eq!(
         erro(&html, &[]),
-        E::Transporte(FalhaTransporte::RespostaExcessiva)
+        ErroSubmissaoFormulario::Transporte(FalhaTransporte::RespostaExcessiva)
     );
 }
 
@@ -494,46 +545,4 @@ fn debug_da_submissao_nao_expoe_hash_referer_nem_valores() {
     }
     assert!(texto.contains("txtProtocoloPesquisa"));
     assert!(texto.contains("sei.exemplo.gov.br"));
-}
-
-#[test]
-fn subcodigos_sao_estaveis_unicos_e_snake_case() {
-    let c = String::new;
-    let todos = [
-        E::EfeitoDaOperacaoNaoAvaliado,
-        E::IdentificacaoDaUnidadeAusenteNaTela,
-        E::IdentificacoesDaUnidadeRepetidasNaTela,
-        E::UnidadeDaTelaDiferenteDaSolicitada,
-        E::FormularioAusenteNaTela,
-        E::FormulariosComMesmoIdentificadorNaTela,
-        E::MetodoDoFormularioDiferenteDePost,
-        E::EnctypeDoFormularioNaoUrlencoded,
-        E::AcceptCharsetPublicadoNoFormulario,
-        E::AcaoDoFormularioAusente,
-        E::AcaoDoFormularioNaoEhUrlHttps,
-        E::AcaoDoFormularioForaDaInstalacao,
-        E::AcaoDoFormularioDiferenteDaOperacao,
-        E::AcaoDoFormularioSemInfraHashUnico,
-        E::EntidadeHtmlDesconhecidaNoAtributo { campo: c() },
-        E::CampoOcultoAusenteNoFormulario { campo: c() },
-        E::CampoOcultoRepetidoNoFormulario { campo: c() },
-        E::HdnAcaoPublicadoSemRegraDaOperacao,
-        E::CampoForaDaListaDaOperacao { campo: c() },
-        E::CampoNaoPublicadoPeloFormulario { campo: c() },
-        E::CampoInformadoMaisDeUmaVez { campo: c() },
-        E::ValorNaoRepresentavelNaCodificacao { campo: c() },
-        E::BotaoDeEnvioAusenteNoFormulario,
-        E::BotoesDeEnvioRepetidosNoFormulario,
-        E::TelaDeLoginRecebidaAposEnvio,
-        E::MarcadorDeResultadoAusenteNaResposta,
-    ];
-    let mut vistos = std::collections::HashSet::new();
-    for e in &todos {
-        let s = e.subcodigo();
-        assert!(
-            s.bytes().all(|b| b.is_ascii_lowercase() || b == b'_'),
-            "{s}"
-        );
-        assert!(vistos.insert(s), "{s} repetido");
-    }
 }

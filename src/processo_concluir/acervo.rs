@@ -18,6 +18,7 @@ use crate::cassette::acervo::{INSTALACOES, gravacao, percorrer, publicar};
 use crate::cassette::html_da_resposta;
 use crate::formulario_web::{CodificacaoDaTela, TelaServida, derivar_submissao};
 use crate::instalacao::Instalacao;
+use crate::tela_html::HtmlServido;
 use std::collections::BTreeMap;
 use std::fmt::Write as _;
 
@@ -64,25 +65,31 @@ fn barra(inst: &Instalacao, html: &str, id: &str) -> String {
         Ok(Some(ConcluirNaBarra::PelaTela(_))) => "`tela`".into(),
         Ok(Some(ConcluirNaBarra::PelaFuncao { .. })) => "`funcao`".into(),
         Ok(None) => "não oferece".into(),
-        Err(erro) => format!("`{}`", erro.subcodigo()),
+        Err(erro) => format!("`{erro:?}`"),
     }
 }
 
-fn tela_de_conclusao(inst: &Instalacao, html: &str, item: &serde_json::Value, id: &str) -> String {
-    if let Err(erro) = conferir_tela_de_conclusao(html, id) {
-        return format!("`{}`", erro.subcodigo());
+fn tela_de_conclusao(
+    inst: &Instalacao,
+    html: &str,
+    interacao: &serde_json::Value,
+    id: &str,
+) -> String {
+    if let Err(erro) = conferir_tela_de_conclusao(&HtmlServido::de_teste(html), id) {
+        return format!("`{erro:?}`");
     }
-    let url = item["response"]["url"].as_str().unwrap_or("");
+    let url = interacao["response"]["url"].as_str().unwrap_or("");
+    let html = HtmlServido::de_teste(html);
     let tela = TelaServida {
         url,
-        html,
+        html: &html,
         codificacao: CodificacaoDaTela::Iso88591,
     };
     // A unidade não é conferida: a janela não publica `lnkInfraUnidade`.
-    match derivar_submissao(&CONCLUIR_PROCESSO, inst, &tela, "", &CAMPOS_DO_ENVIO) {
+    match derivar_submissao(&CONCLUIR_PROCESSO, inst, &tela, None, &CAMPOS_DO_ENVIO) {
         Ok(s) if s.nomes_dos_campos().len() == 7 => "conferida e derivada (7 campos)".into(),
         Ok(s) => format!("derivada com {} campos", s.nomes_dos_campos().len()),
-        Err(erro) => format!("`{}`", erro.subcodigo()),
+        Err(erro) => format!("`{erro:?}`"),
     }
 }
 
@@ -115,15 +122,15 @@ fn replay_de_processo_concluir_no_acervo() {
         let mut estado = Estado::default();
         for r in gravacao::respostas(json) {
             // A tela aberta pela pesquisa rápida traz o id em `id_protocolo`.
-            let id = gravacao::id_procedimento(r.item)
-                .or_else(|| gravacao::id_da_pesquisa_rapida(r.item))
+            let id = gravacao::id_procedimento(r.interacao)
+                .or_else(|| gravacao::id_da_pesquisa_rapida(r.interacao))
                 .unwrap_or_default();
-            let html = || html_da_resposta(r.item).ok();
+            let html = || html_da_resposta(r.interacao).ok();
             match (r.operacao, r.metodo, r.status) {
                 ("procedimento_trabalhar", "GET", 200) => {
-                    if let Some(tela) =
-                        html().and_then(|h| ler_tela_do_processo(&inst, &h, &id, None).ok())
-                    {
+                    if let Some(tela) = html().and_then(|h| {
+                        ler_tela_do_processo(&inst, &HtmlServido::de_teste(&h), &id, None).ok()
+                    }) {
                         estado.unidade = Some(tela.unidade);
                     }
                 }
@@ -145,7 +152,7 @@ fn replay_de_processo_concluir_no_acervo() {
                     let Some(h) = html() else { continue };
                     let classe = match ler_funcao_de_concluir(&inst, &h, &id) {
                         Ok(_) => "URL lida e conferida".to_owned(),
-                        Err(erro) => format!("`{}`", erro.subcodigo()),
+                        Err(erro) => format!("`{erro:?}`"),
                     };
                     somar(&mut contagem, "função na tela do nó", classe, nome);
                 }
@@ -155,7 +162,7 @@ fn replay_de_processo_concluir_no_acervo() {
                         somar(
                             &mut contagem,
                             "tela de conclusão",
-                            tela_de_conclusao(&inst, &h, r.item, &id),
+                            tela_de_conclusao(&inst, &h, r.interacao, &id),
                             nome,
                         );
                     } else {
@@ -171,8 +178,8 @@ fn replay_de_processo_concluir_no_acervo() {
                 ("procedimento_concluir", "POST", status) => {
                     let classe = match status {
                         302 if redirecionamento_esperado(
-                            gravacao::localizacao(r.item),
-                            &gravacao::url_sem_consulta(json, r.item),
+                            gravacao::localizacao(r.interacao),
+                            &gravacao::url_sem_consulta(json, r.interacao),
                             &id,
                         ) =>
                         {

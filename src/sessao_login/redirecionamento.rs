@@ -5,7 +5,7 @@
 use super::ErroLogin;
 use crate::instalacao::host_valido;
 pub(crate) use crate::url_observada::caminho_absoluto as caminho_da_url;
-use crate::url_observada::{esquema_e_resto, pasta, resto_http_ou_https, tem_prefixo_de_esquema};
+use crate::url_observada::{esquema_e_resto, resto_http_ou_https, tem_prefixo_de_esquema};
 
 /// Próxima URL HTTPS de um salto: `localizacao` resolvida contra `atual`
 /// (URL HTTPS absoluta já aceita) e conferida contra `host`.
@@ -23,7 +23,9 @@ pub(crate) fn resolver_no_host(
         return Err(Ilegivel);
     }
     // O navegador não envia o fragmento.
-    let referencia = referencia.split('#').next().unwrap_or_default();
+    let referencia = referencia
+        .split_once('#')
+        .map_or(referencia, |(antes, _)| antes);
     let caminho_atual = caminho_da_url(atual).ok_or(Ilegivel)?;
     let resto_absoluto = resto_http_ou_https(referencia).or_else(|| referencia.strip_prefix("//"));
     let caminho_e_consulta = if let Some(resto) = resto_absoluto {
@@ -45,10 +47,14 @@ pub(crate) fn resolver_no_host(
     } else if referencia.starts_with('?') {
         format!("{caminho_atual}{referencia}")
     } else {
-        let diretorio = pasta(caminho_atual).unwrap_or("");
-        format!("{diretorio}/{referencia}")
+        // `caminho_da_url` começa por `/`: a pasta, com a barra final, é
+        // tudo até a última `/` e nunca falta.
+        let diretorio = caminho_atual.trim_end_matches(|c| c != '/');
+        format!("{diretorio}{referencia}")
     };
-    let caminho = caminho_e_consulta.split('?').next().unwrap_or_default();
+    let caminho = caminho_e_consulta
+        .split_once('?')
+        .map_or(caminho_e_consulta.as_str(), |(antes, _)| antes);
     if caminho
         .split('/')
         .skip(1)
@@ -74,8 +80,7 @@ pub(crate) fn sufixo_da_mesma_origem<'a>(
     host: &str,
     http: bool,
 ) -> Result<&'a str, ErroDeOrigem> {
-    let fim = resto.find(['/', '?']).unwrap_or(resto.len());
-    let autoridade = &resto[..fim];
+    let (autoridade, sufixo) = resto.split_at(resto.find(['/', '?']).unwrap_or(resto.len()));
     let autoridade = if http {
         autoridade.strip_suffix(":80").unwrap_or(autoridade)
     } else {
@@ -87,7 +92,7 @@ pub(crate) fn sufixo_da_mesma_origem<'a>(
     if !autoridade.eq_ignore_ascii_case(host) {
         return Err(ErroDeOrigem::OutroHost);
     }
-    Ok(&resto[fim..])
+    Ok(sufixo)
 }
 
 pub(crate) fn esquema_http(referencia: &str) -> bool {

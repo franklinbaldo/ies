@@ -1,0 +1,33 @@
+id: 31-argumento-como-na-url
+language: rust
+message: 'A função da regra 30 recebe a variante, não o texto.'
+severity: hint
+rule:
+  pattern: $V.como_na_url()
+  inside:
+    kind: arguments
+    inside:
+      kind: call_expression
+      has:
+        field: function
+        regex: '(^|::)(FUNCOES)$'
+fix: '$V'
+---
+id: 31b-argumento-como-na-url-em-macro
+language: rust
+message: 'A função da regra 30 recebe a variante, não o texto (chamada dentro de macro).'
+severity: hint
+rule:
+  pattern: $T
+  kind: token_tree
+  regex: '\.como_na_url\(\)'
+  follows:
+    kind: identifier
+    regex: '^(FUNCOES)$'
+transform:
+  SEM_TEXTO:
+    replace:
+      source: $T
+      replace: '\.como_na_url\(\)'
+      by: ''
+fix: '$SEM_TEXTO'

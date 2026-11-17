@@ -2,6 +2,7 @@
 //! sintéticos na estrutura de GO/PEN1 (5.0.x, `aria-label`, `data-label`)
 //! e da `UnB` (4.0.9, tooltip, sem `data-label`).
 use super::*;
+use crate::tela_html::HtmlServido;
 
 pub(super) fn rotulo(texto: &str) -> String {
     format!(
@@ -45,7 +46,7 @@ pub(super) fn tabela(cabecalhos: &[String], celulas: &[&str]) -> String {
 }
 
 pub(super) fn ler(html: &str) -> Result<LeituraDetalhada, ErroDetalhada> {
-    ler_paginas(&[html.to_owned()], Some("PPI"))
+    ler_paginas(&[HtmlServido::de_teste(html)], Some("PPI"))
 }
 
 #[test]
@@ -73,16 +74,10 @@ fn colunas_de_go_saem_com_chaves_estaveis_e_texto_colapsado() {
     let processo = &leitura.processos[0];
     assert_eq!(processo.numero, "000007/2026");
     let json = serde_json::to_value(processo).unwrap();
-    assert_eq!(json["categoria"], serde_json::Value::Null);
+    assert!(json.get("categoria").is_none());
     let colunas = json["colunas"].as_object().unwrap();
     let chaves: Vec<_> = colunas.keys().map(String::as_str).collect();
-    let mut esperadas = vec![
-        "atribuicao",
-        "tipo",
-        "interessados",
-        "controle_de_prazo",
-        "ultima_movimentacao",
-    ];
+    let mut esperadas = vec!["atribuicao", "tipo", "interessados", "ultima_movimentacao"];
     esperadas.sort_unstable();
     let mut obtidas = chaves.clone();
     obtidas.sort_unstable();
@@ -93,7 +88,7 @@ fn colunas_de_go_saem_com_chaves_estaveis_e_texto_colapsado() {
         colunas["interessados"],
         serde_json::json!(["Pessoa A", "Pessoa B"])
     );
-    assert!(colunas["controle_de_prazo"].is_null());
+    assert!(colunas.get("controle_de_prazo").is_none());
     assert_eq!(colunas["ultima_movimentacao"], "3");
     assert_eq!(
         leitura.colunas_ausentes(),
@@ -129,7 +124,7 @@ fn icone_da_unb_e_rotulado_pelo_tooltip_e_celulas_sem_data_label() {
     let json = serde_json::to_value(&leitura.processos[0]).unwrap();
     assert_eq!(json["colunas"]["anotacao"], "nota");
     assert_eq!(json["colunas"]["para_devolver"], "-9");
-    assert!(json["colunas"]["aguardando_retorno"].is_null());
+    assert!(json["colunas"].get("aguardando_retorno").is_none());
 }
 
 #[test]
@@ -159,25 +154,25 @@ fn as_nove_colunas_de_texto_presentes_nao_deixam_ausentes() {
 fn cabecalho_desconhecido_ou_repetido_falha_fechado() {
     assert_eq!(
         ler(&tabela(&[rotulo("Situação")], &["<td>x</td>"])),
-        Err(ErroDetalhada::CabecalhoNaoReconhecido)
+        Err(ErroDetalhada::CabecalhoDaVisaoDetalhadaNaoReconhecido)
     );
     assert_eq!(
         ler(&tabela(&[icone_aria("Ícone novo")], &["<td></td>"])),
-        Err(ErroDetalhada::CabecalhoNaoReconhecido)
+        Err(ErroDetalhada::CabecalhoDaVisaoDetalhadaNaoReconhecido)
     );
     assert_eq!(
         ler(&tabela(
             &["<th><div class='infraDivRotuloOrdenacao'></div></th>".to_owned()],
             &["<td></td>"]
         )),
-        Err(ErroDetalhada::CabecalhoNaoReconhecido)
+        Err(ErroDetalhada::CabecalhoDaVisaoDetalhadaNaoReconhecido)
     );
     assert_eq!(
         ler(&tabela(
             &[rotulo("Tipo"), rotulo("Tipo")],
             &["<td>a</td>", "<td>b</td>"]
         )),
-        Err(ErroDetalhada::ColunaRepetida)
+        Err(ErroDetalhada::ColunaDaVisaoDetalhadaRepetida)
     );
 }
 
@@ -209,6 +204,6 @@ fn celula_fora_do_lugar_ou_com_itens_inesperados_e_recusada() {
             &[rotulo("Observação")],
             &["<td><div class='divItemCelula'><div class='divRotuloItemCelula'>M</div></div></td>"]
         )),
-        Err(ErroDetalhada::ItensNaoPrevistosNaCelula)
+        Err(ErroDetalhada::ItensNaoPrevistosNaCelulaDetalhada)
     );
 }

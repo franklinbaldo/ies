@@ -1,0 +1,252 @@
+id: 31-Ausente
+message: 'FalhaTransporte::ArquivoPrivadoAusenteOuInacessivel(_) vira ErroArquivoPrivado::Ausente (só NotFound; o resto é MetadadosIlegiveis).'
+language: rust
+severity: hint
+rule:
+  pattern: $P
+  kind: tuple_struct_pattern
+  regex: '(^|::)FalhaTransporte::ArquivoPrivadoAusenteOuInacessivel\(_\)$'
+fix: 'crate::arquivo_privado::ErroArquivoPrivado::Ausente'
+---
+id: 31b-Ausente-em-macro
+message: 'O mesmo, dentro de macro: o token_tree mais interno com o padrão.'
+language: rust
+severity: hint
+rule:
+  pattern: $P
+  kind: token_tree
+  regex: '\bFalhaTransporte::ArquivoPrivadoAusenteOuInacessivel\(_\)'
+  not:
+    has:
+      stopBy: end
+      kind: token_tree
+      regex: '\bFalhaTransporte::ArquivoPrivadoAusenteOuInacessivel\(_\)'
+transform:
+  NOVO:
+    replace:
+      source: $P
+      replace: '\b(?:[A-Za-z_]+::)*FalhaTransporte::ArquivoPrivadoAusenteOuInacessivel\(_\)'
+      by: 'crate::arquivo_privado::ErroArquivoPrivado::Ausente'
+fix: $NOVO
+---
+id: 31-PermissoesAbertas
+message: 'FalhaTransporte::ArquivoPrivadoComPermissoesInseguras vira ErroArquivoPrivado::PermissoesAbertas.'
+language: rust
+severity: hint
+rule:
+  pattern: $P
+  kind: scoped_identifier
+  regex: '(^|::)FalhaTransporte::ArquivoPrivadoComPermissoesInseguras$'
+transform:
+  NOVO:
+    replace:
+      source: $P
+      replace: '^(?:[A-Za-z_]+::)*FalhaTransporte::ArquivoPrivadoComPermissoesInseguras$'
+      by: 'crate::arquivo_privado::ErroArquivoPrivado::PermissoesAbertas'
+fix: $NOVO
+---
+id: 31b-PermissoesAbertas-em-macro
+message: 'O mesmo, dentro de macro: o token_tree mais interno com o caminho.'
+language: rust
+severity: hint
+rule:
+  pattern: $P
+  kind: token_tree
+  regex: '\bFalhaTransporte::ArquivoPrivadoComPermissoesInseguras\b'
+  not:
+    has:
+      stopBy: end
+      kind: token_tree
+      regex: '\bFalhaTransporte::ArquivoPrivadoComPermissoesInseguras\b'
+transform:
+  NOVO:
+    replace:
+      source: $P
+      replace: '\b(?:[A-Za-z_]+::)*FalhaTransporte::ArquivoPrivadoComPermissoesInseguras\b'
+      by: 'crate::arquivo_privado::ErroArquivoPrivado::PermissoesAbertas'
+fix: $NOVO
+---
+id: 31-NaoRegular
+message: 'FalhaTransporte::CaminhoDeArquivoNaoEhArquivo vira ErroArquivoPrivado::NaoRegular.'
+language: rust
+severity: hint
+rule:
+  pattern: $P
+  kind: scoped_identifier
+  regex: '(^|::)FalhaTransporte::CaminhoDeArquivoNaoEhArquivo$'
+transform:
+  NOVO:
+    replace:
+      source: $P
+      replace: '^(?:[A-Za-z_]+::)*FalhaTransporte::CaminhoDeArquivoNaoEhArquivo$'
+      by: 'crate::arquivo_privado::ErroArquivoPrivado::NaoRegular'
+fix: $NOVO
+---
+id: 31b-NaoRegular-em-macro
+message: 'O mesmo, dentro de macro: o token_tree mais interno com o caminho.'
+language: rust
+severity: hint
+rule:
+  pattern: $P
+  kind: token_tree
+  regex: '\bFalhaTransporte::CaminhoDeArquivoNaoEhArquivo\b'
+  not:
+    has:
+      stopBy: end
+      kind: token_tree
+      regex: '\bFalhaTransporte::CaminhoDeArquivoNaoEhArquivo\b'
+transform:
+  NOVO:
+    replace:
+      source: $P
+      replace: '\b(?:[A-Za-z_]+::)*FalhaTransporte::CaminhoDeArquivoNaoEhArquivo\b'
+      by: 'crate::arquivo_privado::ErroArquivoPrivado::NaoRegular'
+fix: $NOVO
+---
+id: 31-LinkSimbolico
+message: 'FalhaTransporte::ArquivoPrivadoLinkSimbolico vira ErroArquivoPrivado::LinkSimbolico.'
+language: rust
+severity: hint
+rule:
+  pattern: $P
+  kind: scoped_identifier
+  regex: '(^|::)FalhaTransporte::ArquivoPrivadoLinkSimbolico$'
+transform:
+  NOVO:
+    replace:
+      source: $P
+      replace: '^(?:[A-Za-z_]+::)*FalhaTransporte::ArquivoPrivadoLinkSimbolico$'
+      by: 'crate::arquivo_privado::ErroArquivoPrivado::LinkSimbolico'
+fix: $NOVO
+---
+id: 31b-LinkSimbolico-em-macro
+message: 'O mesmo, dentro de macro: o token_tree mais interno com o caminho.'
+language: rust
+severity: hint
+rule:
+  pattern: $P
+  kind: token_tree
+  regex: '\bFalhaTransporte::ArquivoPrivadoLinkSimbolico\b'
+  not:
+    has:
+      stopBy: end
+      kind: token_tree
+      regex: '\bFalhaTransporte::ArquivoPrivadoLinkSimbolico\b'
+transform:
+  NOVO:
+    replace:
+      source: $P
+      replace: '\b(?:[A-Za-z_]+::)*FalhaTransporte::ArquivoPrivadoLinkSimbolico\b'
+      by: 'crate::arquivo_privado::ErroArquivoPrivado::LinkSimbolico'
+fix: $NOVO
+---
+id: 31-Vazio
+message: 'FalhaTransporte::ArquivoPrivadoVazio vira ErroArquivoPrivado::Vazio.'
+language: rust
+severity: hint
+rule:
+  pattern: $P
+  kind: scoped_identifier
+  regex: '(^|::)FalhaTransporte::ArquivoPrivadoVazio$'
+transform:
+  NOVO:
+    replace:
+      source: $P
+      replace: '^(?:[A-Za-z_]+::)*FalhaTransporte::ArquivoPrivadoVazio$'
+      by: 'crate::arquivo_privado::ErroArquivoPrivado::Vazio'
+fix: $NOVO
+---
+id: 31b-Vazio-em-macro
+message: 'O mesmo, dentro de macro: o token_tree mais interno com o caminho.'
+language: rust
+severity: hint
+rule:
+  pattern: $P
+  kind: token_tree
+  regex: '\bFalhaTransporte::ArquivoPrivadoVazio\b'
+  not:
+    has:
+      stopBy: end
+      kind: token_tree
+      regex: '\bFalhaTransporte::ArquivoPrivadoVazio\b'
+transform:
+  NOVO:
+    replace:
+      source: $P
+      replace: '\b(?:[A-Za-z_]+::)*FalhaTransporte::ArquivoPrivadoVazio\b'
+      by: 'crate::arquivo_privado::ErroArquivoPrivado::Vazio'
+fix: $NOVO
+---
+id: 31-AcimaDoLimite
+message: 'FalhaTransporte::ArquivoPrivadoAcimaDoLimite vira ErroArquivoPrivado::AcimaDoLimite.'
+language: rust
+severity: hint
+rule:
+  pattern: $P
+  kind: scoped_identifier
+  regex: '(^|::)FalhaTransporte::ArquivoPrivadoAcimaDoLimite$'
+transform:
+  NOVO:
+    replace:
+      source: $P
+      replace: '^(?:[A-Za-z_]+::)*FalhaTransporte::ArquivoPrivadoAcimaDoLimite$'
+      by: 'crate::arquivo_privado::ErroArquivoPrivado::AcimaDoLimite'
+fix: $NOVO
+---
+id: 31b-AcimaDoLimite-em-macro
+message: 'O mesmo, dentro de macro: o token_tree mais interno com o caminho.'
+language: rust
+severity: hint
+rule:
+  pattern: $P
+  kind: token_tree
+  regex: '\bFalhaTransporte::ArquivoPrivadoAcimaDoLimite\b'
+  not:
+    has:
+      stopBy: end
+      kind: token_tree
+      regex: '\bFalhaTransporte::ArquivoPrivadoAcimaDoLimite\b'
+transform:
+  NOVO:
+    replace:
+      source: $P
+      replace: '\b(?:[A-Za-z_]+::)*FalhaTransporte::ArquivoPrivadoAcimaDoLimite\b'
+      by: 'crate::arquivo_privado::ErroArquivoPrivado::AcimaDoLimite'
+fix: $NOVO
+---
+id: 31-NaoUtf8
+message: 'FalhaTransporte::ArquivoPrivadoNaoUtf8 vira ErroArquivoPrivado::NaoUtf8.'
+language: rust
+severity: hint
+rule:
+  pattern: $P
+  kind: scoped_identifier
+  regex: '(^|::)FalhaTransporte::ArquivoPrivadoNaoUtf8$'
+transform:
+  NOVO:
+    replace:
+      source: $P
+      replace: '^(?:[A-Za-z_]+::)*FalhaTransporte::ArquivoPrivadoNaoUtf8$'
+      by: 'crate::arquivo_privado::ErroArquivoPrivado::NaoUtf8'
+fix: $NOVO
+---
+id: 31b-NaoUtf8-em-macro
+message: 'O mesmo, dentro de macro: o token_tree mais interno com o caminho.'
+language: rust
+severity: hint
+rule:
+  pattern: $P
+  kind: token_tree
+  regex: '\bFalhaTransporte::ArquivoPrivadoNaoUtf8\b'
+  not:
+    has:
+      stopBy: end
+      kind: token_tree
+      regex: '\bFalhaTransporte::ArquivoPrivadoNaoUtf8\b'
+transform:
+  NOVO:
+    replace:
+      source: $P
+      replace: '\b(?:[A-Za-z_]+::)*FalhaTransporte::ArquivoPrivadoNaoUtf8\b'
+      by: 'crate::arquivo_privado::ErroArquivoPrivado::NaoUtf8'
+fix: $NOVO

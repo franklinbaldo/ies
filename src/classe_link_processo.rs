@@ -9,7 +9,8 @@ pub(crate) struct EstadoDoLink {
 }
 
 /// O mesmo link publica duas classes de estado reconhecidas diferentes.
-#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, thiserror::Error)]
+#[error("{self:?}")]
 pub(crate) struct ClassesDeEstadoDiferentesNoLink;
 
 const fn estado(visualizado: bool, sigiloso: bool) -> EstadoDoLink {

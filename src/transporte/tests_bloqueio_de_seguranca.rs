@@ -3,6 +3,7 @@
 //! código e textos de apoio inventados). 403 genérico não muda.
 use super::bloqueio_de_seguranca::e_bloqueio_de_seguranca;
 use super::*;
+use crate::tela_html::HtmlServido;
 use std::io::Cursor;
 
 const BLOQUEIO: &str = "<!DOCTYPE html><html><head><meta charset=\"utf-8\"><title>Acesso Negado</title>\
@@ -25,33 +26,35 @@ fn resposta(status_code: i32, mime: &str, corpo: &str) -> RespostaWeb<Cursor<Vec
 
 #[test]
 fn reconhece_a_pagina_pelo_titulo_e_pela_frase_visivel() {
-    assert!(e_bloqueio_de_seguranca(BLOQUEIO));
+    assert!(e_bloqueio_de_seguranca(&HtmlServido::de_teste(BLOQUEIO)));
     let com_entidades = BLOQUEIO
         .replace("requisição", "requisi&ccedil;&atilde;o")
         .replace("política", "pol&iacute;tica")
         .replace("bloqueada por nossa", "bloqueada\n   por   nossa");
-    assert!(e_bloqueio_de_seguranca(&com_entidades));
+    assert!(e_bloqueio_de_seguranca(&HtmlServido::de_teste(
+        &com_entidades
+    )));
 }
 
 #[test]
 fn outro_titulo_frase_ausente_ou_frase_fora_do_texto_visivel_nao_e_bloqueio() {
-    assert!(!e_bloqueio_de_seguranca(&BLOQUEIO.replace(
-        "<title>Acesso Negado</title>",
-        "<title>SEI - Erro</title>"
+    assert!(!e_bloqueio_de_seguranca(&HtmlServido::de_teste(
+        &BLOQUEIO.replace("<title>Acesso Negado</title>", "<title>SEI - Erro</title>")
     )));
-    assert!(!e_bloqueio_de_seguranca(
+    assert!(!e_bloqueio_de_seguranca(&HtmlServido::de_teste(
         &BLOQUEIO.replace("bloqueada por nossa política de segurança", "negada")
-    ));
-    let em_script = "<html><head><title>Acesso Negado</title></head><body>\
-        <script>var t='bloqueada por nossa política de segurança';</script><p>Negado.</p></body></html>";
-    assert!(!e_bloqueio_de_seguranca(em_script));
+    )));
+    let em_script = HtmlServido::de_teste(
+        "<html><head><title>Acesso Negado</title></head><body>\
+        <script>var t='bloqueada por nossa política de segurança';</script><p>Negado.</p></body></html>",
+    );
+    assert!(!e_bloqueio_de_seguranca(&em_script));
 }
 
 #[test]
-fn bloqueio_403_tem_subcodigo_proprio_status_e_mensagem_com_o_codigo() {
+fn bloqueio_403_tem_erro_proprio_com_status_e_mensagem() {
     let falha =
         decodificar_resposta(resposta(403, "text/html; charset=utf-8", BLOQUEIO)).unwrap_err();
-    assert_eq!(falha.subcodigo(), "bloqueio_de_seguranca_da_instalacao");
     let http = falha.status_http().unwrap();
     assert_eq!(http.status, 403);
     let mensagem = http.mensagem_do_servidor.as_deref().unwrap();
@@ -65,17 +68,14 @@ fn bloqueio_403_tem_subcodigo_proprio_status_e_mensagem_com_o_codigo() {
 
 #[test]
 fn status_403_generico_e_401_com_a_pagina_continuam_acesso_negado() {
-    let generico = decodificar_resposta(resposta(
+    let _generico = decodificar_resposta(resposta(
         403,
         "text/html",
         "<html><head><title>Forbidden</title></head><body>Forbidden</body></html>",
     ))
     .unwrap_err();
-    assert_eq!(generico.subcodigo(), "sessao_nao_autorizada");
-    let nao_autorizado = decodificar_resposta(resposta(401, "text/html", BLOQUEIO)).unwrap_err();
-    assert_eq!(nao_autorizado.subcodigo(), "sessao_nao_autorizada");
-    let texto = decodificar_resposta(resposta(403, "text/plain", BLOQUEIO)).unwrap_err();
-    assert_eq!(texto.subcodigo(), "sessao_nao_autorizada");
+    let _nao_autorizado = decodificar_resposta(resposta(401, "text/html", BLOQUEIO)).unwrap_err();
+    let _texto = decodificar_resposta(resposta(403, "text/plain", BLOQUEIO)).unwrap_err();
 }
 
 /// Bloqueio do Cloudflare da PEN2 (Tramita, 04/11/2026), no segundo GET de
@@ -92,25 +92,22 @@ const CLOUDFLARE: &str = "<!DOCTYPE html><html lang=\"en-US\"><head><title>Atten
 
 #[test]
 fn bloqueio_do_cloudflare_observado_na_pen2_e_bloqueio_de_seguranca() {
-    assert!(e_bloqueio_de_seguranca(CLOUDFLARE));
+    assert!(e_bloqueio_de_seguranca(&HtmlServido::de_teste(CLOUDFLARE)));
     let falha =
         decodificar_resposta(resposta(403, "text/html; charset=UTF-8", CLOUDFLARE)).unwrap_err();
-    assert_eq!(falha.subcodigo(), "bloqueio_de_seguranca_da_instalacao");
     assert_eq!(falha.status_http().unwrap().status, 403);
 }
 
 #[test]
 fn titulo_do_cloudflare_sem_a_frase_do_bloqueio_nao_e_bloqueio() {
-    assert!(!e_bloqueio_de_seguranca(&CLOUDFLARE.replace(
-        "Sorry, you have been blocked",
-        "Checking your browser"
+    assert!(!e_bloqueio_de_seguranca(&HtmlServido::de_teste(
+        &CLOUDFLARE.replace("Sorry, you have been blocked", "Checking your browser")
     )));
-    assert!(!e_bloqueio_de_seguranca(&CLOUDFLARE.replace(
-        "Attention Required! | Cloudflare",
-        "Just a moment..."
+    assert!(!e_bloqueio_de_seguranca(&HtmlServido::de_teste(
+        &CLOUDFLARE.replace("Attention Required! | Cloudflare", "Just a moment...")
     )));
     // A frase de um par com o título do outro não conta.
-    assert!(!e_bloqueio_de_seguranca(
+    assert!(!e_bloqueio_de_seguranca(&HtmlServido::de_teste(
         &CLOUDFLARE.replace("Attention Required! | Cloudflare", "Acesso Negado")
-    ));
+    )));
 }

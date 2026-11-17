@@ -11,13 +11,12 @@
 //!   parte).
 //!
 //! Sem regex e sem JavaScript executado: só essas formas exatas.
-use super::barra_do_processo::{FalhaDaBarra, ancoras_da_barra};
+use super::barra_do_processo::ancoras_da_barra;
 use super::concluir::{EnderecoDeEscrita, FuncaoForaDaForma, tela_do_no_da_raiz, urls_das_funcoes};
 use super::endereco::{EnderecoRecusado, conferir_endereco_relativo};
+use crate::acao_do_sei::AcaoDoSei;
 use crate::instalacao::Instalacao;
 
-/// A `acao` da reabertura.
-pub(crate) const ACAO_DE_REABRIR: &str = "procedimento_reabrir";
 const ONCLICK: &str = "reabrirProcesso();";
 const VARIAVEL: &str = "var linkReabrirProcesso";
 const VARIAVEL_ATE_A_URL: &str = "var linkReabrirProcesso = '";
@@ -28,27 +27,13 @@ pub(crate) struct ReabrirNaBarra {
     pub(crate) tela_do_no: EnderecoDeEscrita,
 }
 
-/// Recusas da leitura da barra (só pesam quando se pede para reabrir).
-#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+/// Recusas da leitura da ação de reabrir na barra do processo.
+#[derive(Clone, Debug, PartialEq, Eq, thiserror::Error)]
+#[error("{self:?}")]
 pub(crate) enum ErroReabrirNaBarra {
-    BarraDoProcessoForaDaFormaObservada,
-    BarrasDoProcessoRepetidasNaArvore,
-    FuncoesDeReabrirRepetidasNaBarra,
-    /// Sem o `href` assinado da tela do nó na raiz.
+    Barra(#[from] crate::arvore_processo::ErroBarraDoProcesso),
     EnderecoDaTelaDoNoNaoReconhecido,
-}
-
-impl ErroReabrirNaBarra {
-    pub(crate) fn subcodigo(self) -> &'static str {
-        match self {
-            Self::BarraDoProcessoForaDaFormaObservada => {
-                "barra_do_processo_fora_da_forma_observada"
-            }
-            Self::BarrasDoProcessoRepetidasNaArvore => "barras_do_processo_repetidas_na_arvore",
-            Self::FuncoesDeReabrirRepetidasNaBarra => "funcoes_de_reabrir_repetidas_na_barra",
-            Self::EnderecoDaTelaDoNoNaoReconhecido => "endereco_da_tela_do_no_nao_reconhecido",
-        }
-    }
+    FuncoesDeReabrirRepetidasNaBarra,
 }
 
 /// A ação de reabrir da barra do processo `id`; `Ok(None)` se a barra não
@@ -58,11 +43,7 @@ pub(crate) fn ler_reabrir_da_barra(
     html: &str,
     id: &str,
 ) -> Result<Option<ReabrirNaBarra>, ErroReabrirNaBarra> {
-    use ErroReabrirNaBarra as E;
-    let ancoras = ancoras_da_barra(html).map_err(|falha| match falha {
-        FalhaDaBarra::Fora => E::BarraDoProcessoForaDaFormaObservada,
-        FalhaDaBarra::Repetidas => E::BarrasDoProcessoRepetidasNaArvore,
-    })?;
+    let ancoras = ancoras_da_barra(html)?;
     match ancoras
         .iter()
         .filter(|a| a.onclick.as_deref() == Some(ONCLICK))
@@ -71,8 +52,8 @@ pub(crate) fn ler_reabrir_da_barra(
         0 => Ok(None),
         1 => tela_do_no_da_raiz(instalacao, html, id)
             .map(|tela_do_no| Some(ReabrirNaBarra { tela_do_no }))
-            .ok_or(E::EnderecoDaTelaDoNoNaoReconhecido),
-        _ => Err(E::FuncoesDeReabrirRepetidasNaBarra),
+            .ok_or(ErroReabrirNaBarra::EnderecoDaTelaDoNoNaoReconhecido),
+        _ => Err(ErroReabrirNaBarra::FuncoesDeReabrirRepetidasNaBarra),
     }
 }
 
@@ -95,30 +76,16 @@ impl FormaDaReabertura {
 }
 
 /// Recusas da leitura da URL de reabrir na tela do nó.
-#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+#[derive(Clone, Copy, Debug, PartialEq, Eq, thiserror::Error)]
+#[error("{self:?}")]
 pub(crate) enum ErroEnderecoDeReabrir {
+    EnderecoDaReaberturaDeOutroProcesso,
+    EnderecoDaReaberturaNaoReconhecido,
     EnderecoDeReabrirAusenteNaTelaDoNo,
     EnderecoDeReabrirForaDaFormaObservada,
-    /// Duas funções, duas variáveis, ou função e variável juntas.
+    /// A definição de `reabrirProcesso()` fora da forma de três linhas.
+    FuncaoDeReabrirForaDaFormaObservada(#[source] FuncaoForaDaForma),
     EnderecosDeReabrirRepetidosNaTelaDoNo,
-    EnderecoDaReaberturaNaoReconhecido,
-    EnderecoDaReaberturaDeOutroProcesso,
-}
-
-impl ErroEnderecoDeReabrir {
-    pub(crate) fn subcodigo(self) -> &'static str {
-        match self {
-            Self::EnderecoDeReabrirAusenteNaTelaDoNo => "endereco_de_reabrir_ausente_na_tela_do_no",
-            Self::EnderecoDeReabrirForaDaFormaObservada => {
-                "endereco_de_reabrir_fora_da_forma_observada"
-            }
-            Self::EnderecosDeReabrirRepetidosNaTelaDoNo => {
-                "enderecos_de_reabrir_repetidos_na_tela_do_no"
-            }
-            Self::EnderecoDaReaberturaNaoReconhecido => "endereco_da_reabertura_nao_reconhecido",
-            Self::EnderecoDaReaberturaDeOutroProcesso => "endereco_da_reabertura_de_outro_processo",
-        }
-    }
 }
 
 /// A URL de reabrir na tela do nó do processo `id`, conferida, e a forma
@@ -128,9 +95,8 @@ pub(crate) fn ler_endereco_de_reabrir(
     html: &str,
     id: &str,
 ) -> Result<(EnderecoDeEscrita, FormaDaReabertura), ErroEnderecoDeReabrir> {
-    use ErroEnderecoDeReabrir as E;
     let funcoes = urls_das_funcoes(html, "reabrirProcesso")
-        .map_err(|FuncaoForaDaForma| E::EnderecoDeReabrirForaDaFormaObservada)?;
+        .map_err(ErroEnderecoDeReabrir::FuncaoDeReabrirForaDaFormaObservada)?;
     let mut variaveis = Vec::new();
     for linha in html.lines().map(str::trim) {
         if !linha.starts_with(VARIAVEL) {
@@ -139,19 +105,25 @@ pub(crate) fn ler_endereco_de_reabrir(
         let url = linha
             .strip_prefix(VARIAVEL_ATE_A_URL)
             .and_then(|resto| resto.strip_suffix("';"))
-            .ok_or(E::EnderecoDeReabrirForaDaFormaObservada)?;
+            .ok_or(ErroEnderecoDeReabrir::EnderecoDeReabrirForaDaFormaObservada)?;
         variaveis.push(url);
     }
     let (url, forma) = match (funcoes.as_slice(), variaveis.as_slice()) {
-        ([], []) => return Err(E::EnderecoDeReabrirAusenteNaTelaDoNo),
+        ([], []) => {
+            return Err(ErroEnderecoDeReabrir::EnderecoDeReabrirAusenteNaTelaDoNo);
+        }
         ([url], []) => (*url, FormaDaReabertura::Funcao),
         ([], [url]) => (*url, FormaDaReabertura::Variavel),
-        _ => return Err(E::EnderecosDeReabrirRepetidosNaTelaDoNo),
+        _ => return Err(ErroEnderecoDeReabrir::EnderecosDeReabrirRepetidosNaTelaDoNo),
     };
-    conferir_endereco_relativo(instalacao, url, ACAO_DE_REABRIR, id)
+    conferir_endereco_relativo(instalacao, url, AcaoDoSei::ProcedimentoReabrir, id)
         .map(|url| (EnderecoDeEscrita::novo(url), forma))
         .map_err(|recusa| match recusa {
-            EnderecoRecusado::NaoReconhecido => E::EnderecoDaReaberturaNaoReconhecido,
-            EnderecoRecusado::DeOutroProcesso => E::EnderecoDaReaberturaDeOutroProcesso,
+            EnderecoRecusado::NaoReconhecido => {
+                ErroEnderecoDeReabrir::EnderecoDaReaberturaNaoReconhecido
+            }
+            EnderecoRecusado::DeOutroProcesso => {
+                ErroEnderecoDeReabrir::EnderecoDaReaberturaDeOutroProcesso
+            }
         })
 }

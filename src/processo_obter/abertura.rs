@@ -2,13 +2,17 @@
 //! requisições), a leitura de cada resposta sem seguir 302, a pesquisa
 //! rápida e a abertura `procedimento_trabalhar` → árvore.
 use super::login::{DestinoDoRedirecionamento, destino};
-use super::{EnvioDoProcesso, ErroProcessoObter as E};
+use super::{EnvioDoProcesso, ErroProcessoObter};
+use crate::acao_do_sei::AcaoDoSei;
 use crate::arvore_processo::{
-    AbertoEm, ArvoreLida, ConcluirNaBarra, EnderecoDeEscrita, ErroArvore, ErroConcluirNaBarra,
-    ErroEnviarNaBarra, ErroReabrirNaBarra, MotivoAbertoEm, ReabrirNaBarra, TelaDoProcesso,
-    ler_arvore, ler_concluir_da_barra, ler_destinos_dos_movidos, ler_enviar_da_barra,
-    ler_link_das_propriedades, ler_link_dos_marcadores, ler_reabrir_da_barra, ler_tela_do_processo,
-    ler_vinculo_de_anexacao,
+    AbertoEm, ArvoreLida, ConcluirNaBarra, EnderecoDeEscrita, EnderecoDoIncluirDocumento,
+    ErroAcaoSobrestar, ErroAcompanharNaBarra, ErroAndamentoNaBarra, ErroAnexarNaBarra, ErroArvore,
+    ErroAtribuirNaBarra, ErroConcluirNaBarra, ErroEnviarNaBarra, ErroLinkIncluirDocumento,
+    ErroRelacionarNaBarra, MotivoAbertoEm, ReabrirNaBarra, TelaDoProcesso, ler_acompanhar_da_barra,
+    ler_andamento_da_barra, ler_anexar_da_barra, ler_atribuir_da_barra, ler_concluir_da_barra,
+    ler_destinos_dos_movidos, ler_enviar_da_barra, ler_link_das_propriedades,
+    ler_link_dos_comentarios, ler_link_dos_marcadores, ler_reabrir_da_barra,
+    ler_relacionar_da_barra, ler_retomar_da_barra, ler_sobrestar_da_barra, ler_vinculo_de_anexacao,
 };
 use crate::formulario_web::{
     ConferenciaDaUnidade, EfeitoAvaliado, EnvioDoFormulario, ErroSubmissaoFormulario,
@@ -23,16 +27,17 @@ use crate::pagina_do_controle::codificacao_da_tela;
 use crate::pesquisa_web::redirecionamento::{
     OrigemDoTrabalho, ProcessoRedirecionado, conferir_trabalho,
 };
+use crate::processo_comentarios::{EnderecoDosComentarios, ErroLinkDosComentarios};
 use crate::propriedades_processo::{EnderecoDasPropriedades, ErroPropriedades};
 use crate::transporte::contagem::ContagemDeRequisicoes;
-use crate::transporte::sessao::CookieDaSessao;
-use crate::transporte::{FalhaTransporte, StatusHttpRecusado, decodificar_resposta};
+use crate::transporte::sessao::{CookieDaSessao, CookieLido};
+use crate::transporte::{FalhaTransporte, decodificar_resposta};
 
 /// `form#frmProtocoloPesquisaRapida` (`UnB`, GO, PEN1): POST para o `action`
 /// assinado, um controle `txtPesquisaRapida`, enviado pelo `onclick` da
 /// imagem (`submit()`), sem botão nem oculto. A resposta esperada é o 302.
 pub(crate) const PESQUISA_RAPIDA: OperacaoDeFormulario = OperacaoDeFormulario {
-    acao: "protocolo_pesquisa_rapida",
+    acao: AcaoDoSei::ProtocoloPesquisaRapida,
     formulario: "frmProtocoloPesquisaRapida",
     envio: EnvioDoFormulario::SubmitPorScript,
     campos_ocultos_exigidos: &[],
@@ -61,6 +66,7 @@ pub(super) struct Contexto<'a> {
     /// `documento DOC`: o número SEI procurado. Visível na árvore, as pastas
     /// fechadas não são abertas (a requisição a mais não é necessária).
     pub(super) documento_procurado: Option<&'a str>,
+    pub(super) permitir_leitura_parcial: bool,
 }
 
 impl Contexto<'_> {
@@ -76,26 +82,28 @@ impl Contexto<'_> {
             indice: self.indice,
             cookie: self.cookie,
             documento_procurado: self.documento_procurado,
+            permitir_leitura_parcial: self.permitir_leitura_parcial,
         }
     }
 
-    pub(super) fn chave<'c>(&'c self, acao: &'c str, objeto: &'c str) -> Option<ChaveDoLink<'c>> {
+    pub(super) fn chave<'c>(&'c self, acao: AcaoDoSei, objeto: &'c str) -> Option<ChaveDoLink<'c>> {
         Some(ChaveDoLink {
             geracao_sessao: &self.geracao,
             unidade: self.unidade_id.as_deref()?,
             acao,
-            objeto,
+            alvo: objeto,
         })
     }
 
-    /// Guarda o link sem editar; recusa do índice é ignorada (ADR 0003).
-    pub(super) fn aprender_link(&self, acao: &str, objeto: &str, url: &str) {
+    /// Guarda o link sem editar; a recusa do índice não para o comando e
+    /// fica nos avisos (ADR 0003).
+    pub(super) fn aprender_link(&self, acao: AcaoDoSei, objeto: &str, url: &str) {
         if let Some(chave) = self.chave(acao, objeto) {
-            let _ = self.indice.registrar_link(&self.instalacao, chave, url);
+            self.indice.guardar_link(&self.instalacao, chave, url);
         }
     }
 
-    pub(super) fn esquecer_link(&self, acao: &str, objeto: &str) {
+    pub(super) fn esquecer_link(&self, acao: AcaoDoSei, objeto: &str) {
         if let Some(chave) = self.chave(acao, objeto) {
             self.indice.esquecer_link(&self.instalacao, chave);
         }
@@ -104,21 +112,23 @@ impl Contexto<'_> {
     /// Cada `DOCUMENTO` da árvore conferida com número SEI: o índice aprende
     /// número ↔ (processo, documento), sem requisição (Refs #60, fatia 2).
     pub(super) fn aprender_documentos(&self, arvore: &ArvoreLida) {
+        if !arvore.documentos_incluidos {
+            return;
+        }
         let documentos: Vec<(&str, &str)> = arvore
             .documentos
             .iter()
             .filter_map(|d| Some((d.numero_sei.as_deref()?, d.id.as_str())))
             .collect();
-        let _ =
-            self.indice
-                .registrar_documentos(&self.instalacao, &arvore.processo.id, &documentos);
+        self.indice
+            .registrar_documentos(&self.instalacao, &arvore.processo.id, &documentos);
     }
 
     /// O `action` da pesquisa rápida publicado nesta tela, se houver.
     pub(super) fn aprender_pesquisa_rapida(
         &self,
         url: &str,
-        html: &str,
+        html: &crate::tela_html::HtmlServido,
         mime: &str,
         unidade: &str,
     ) {
@@ -134,7 +144,7 @@ impl Contexto<'_> {
             &PESQUISA_RAPIDA,
             &self.instalacao,
             &tela,
-            unidade,
+            Some(unidade),
             &[(CAMPO, "")],
         ) {
             self.aprender_link(PESQUISA_RAPIDA.acao, "", submissao.url());
@@ -148,26 +158,54 @@ pub(super) struct ArvoreAberta {
     pub(super) arvore: ArvoreLida,
     /// A página lida (a de "Abrir todas as Pastas", se aberta): o `.src` de
     /// cada documento sai dela.
-    pub(super) html: String,
+    pub(super) html: crate::tela_html::HtmlServido,
     pub(super) historico: Result<EnderecoDoHistorico, ErroLinkDoHistorico>,
+    /// Link de inclusão na barra, observado somente para documento criar.
+    pub(super) incluir: Result<Option<EnderecoDoIncluirDocumento>, ErroLinkIncluirDocumento>,
     /// O link das propriedades na barra (a falha só pesa se forem pedidas).
     pub(super) propriedades: Result<Option<EnderecoDasPropriedades>, ErroPropriedades>,
     /// O link dos marcadores na barra (a falha só pesa se forem pedidos).
     pub(super) marcadores: Result<Option<EnderecoDosMarcadores>, ErroMarcadores>,
+    /// O link de prazo na barra; falha só pesa em `processo prazo`.
+    pub(super) prazo: Result<Option<String>, crate::arvore_processo::ErroLinkPrazo>,
     /// A ação de concluir na barra (só pesa em `processo concluir`).
     pub(super) concluir: Result<Option<ConcluirNaBarra>, ErroConcluirNaBarra>,
     /// A ação de reabrir na barra (só pesa em `processo reabrir`).
-    pub(super) reabrir: Result<Option<ReabrirNaBarra>, ErroReabrirNaBarra>,
+    pub(super) reabrir: Result<Option<ReabrirNaBarra>, crate::arvore_processo::ErroReabrirNaBarra>,
+    pub(super) sobrestar: Result<Option<EnderecoDeEscrita>, ErroAcaoSobrestar>,
+    pub(super) retomar: Result<Option<EnderecoDeEscrita>, ErroAcaoSobrestar>,
     /// O link da tela de envio na barra (só pesa em `processo enviar`).
     pub(super) enviar: Result<Option<EnderecoDeEscrita>, ErroEnviarNaBarra>,
+    pub(super) anotacoes: Result<Option<String>, crate::arvore_processo::ErroLinkDasAnotacoes>,
+    /// Link da lista de comentários publicado na barra, nunca montado.
+    pub(super) comentarios: Result<Option<EnderecoDosComentarios>, ErroLinkDosComentarios>,
+    /// Ciência: botão de ação e URL da lista, cada um só pesa quando solicitado.
+    pub(super) ciencia:
+        Result<Option<EnderecoDeEscrita>, crate::arvore_processo::ErroCienciaNaArvore>,
+    pub(super) lista_ciencias:
+        Result<Option<EnderecoDeEscrita>, crate::arvore_processo::ErroCienciaNaArvore>,
+    pub(super) anexar: Result<Option<EnderecoDeEscrita>, ErroAnexarNaBarra>,
+    /// O link de atribuição, só examinado pelo comando atribuir.
+    pub(super) atribuir: Result<Option<EnderecoDeEscrita>, ErroAtribuirNaBarra>,
+    /// Link do formulário de Atualizar Andamento, quando publicado.
+    pub(super) andamento: Result<Option<EnderecoDeEscrita>, ErroAndamentoNaBarra>,
+    pub(super) relacionar: Result<Option<EnderecoDeEscrita>, ErroRelacionarNaBarra>,
+    /// O link do acompanhamento, usado apenas por processo acompanhar.
+    pub(super) acompanhar: Result<Option<EnderecoDeEscrita>, ErroAcompanharNaBarra>,
 }
 
 pub(super) fn ler_arvore_aberta(
     contexto: &Contexto<'_>,
-    html: &str,
+    html: &crate::tela_html::HtmlServido,
     id: &str,
 ) -> Result<ArvoreAberta, ErroArvore> {
-    ler_arvore_da_pagina(&contexto.instalacao, contexto.nup, html, id)
+    ler_arvore_da_pagina_com_modo(
+        &contexto.instalacao,
+        contexto.nup,
+        html,
+        id,
+        contexto.permitir_leitura_parcial,
+    )
 }
 
 /// A leitura da página da árvore, sem rede nem índice (também a do replay
@@ -175,10 +213,20 @@ pub(super) fn ler_arvore_aberta(
 pub(super) fn ler_arvore_da_pagina(
     instalacao: &Instalacao,
     nup: &str,
-    html: &str,
+    html: &crate::tela_html::HtmlServido,
     id: &str,
 ) -> Result<ArvoreAberta, ErroArvore> {
-    let mut arvore = ler_arvore(html, nup, id)?;
+    ler_arvore_da_pagina_com_modo(instalacao, nup, html, id, false)
+}
+
+pub(super) fn ler_arvore_da_pagina_com_modo(
+    instalacao: &Instalacao,
+    nup: &str,
+    html: &crate::tela_html::HtmlServido,
+    id: &str,
+    permitir_parcial: bool,
+) -> Result<ArvoreAberta, ErroArvore> {
+    let mut arvore = crate::arvore_processo::ler_arvore_com_modo(html, nup, id, permitir_parcial)?;
     arvore.anexado_a = ler_vinculo_de_anexacao(instalacao, html, id)?;
     if arvore.anexado_a.is_some() {
         // O `.html` da raiz é o aviso do vínculo, não a situação.
@@ -186,45 +234,71 @@ pub(super) fn ler_arvore_da_pagina(
     }
     ler_destinos_dos_movidos(instalacao, html, &mut arvore)?;
     let historico = ler_link_do_historico(instalacao, html, id);
+    let incluir = crate::arvore_processo::ler_link_de_incluir_documento(instalacao, html, id);
     let propriedades = ler_link_das_propriedades(instalacao, html, id);
     let marcadores = ler_link_dos_marcadores(instalacao, html, id);
+    let prazo = crate::arvore_processo::ler_link_do_prazo(instalacao, html, id);
     let concluir = ler_concluir_da_barra(instalacao, html, id);
     let reabrir = ler_reabrir_da_barra(instalacao, html, id);
+    let sobrestar = ler_sobrestar_da_barra(instalacao, html, id);
+    let retomar = ler_retomar_da_barra(instalacao, html, id);
     let enviar = ler_enviar_da_barra(instalacao, html, id);
+    let anotacoes = crate::arvore_processo::ler_link_das_anotacoes(instalacao, html, id);
+    let comentarios = ler_link_dos_comentarios(instalacao, html, id);
+    let ciencia = crate::arvore_processo::ciencia_da_barra(instalacao, html, id);
+    let lista_ciencias = crate::arvore_processo::lista_do_processo(instalacao, html, id);
+    let anexar = ler_anexar_da_barra(instalacao, html, id);
+    let atribuir = ler_atribuir_da_barra(instalacao, html, id);
+    let andamento = ler_andamento_da_barra(instalacao, html, id);
+    let relacionar = ler_relacionar_da_barra(instalacao, html, id);
+    let acompanhar = ler_acompanhar_da_barra(instalacao, html, id);
     Ok(ArvoreAberta {
         arvore,
         html: html.to_owned(),
         historico,
+        incluir,
         propriedades,
         marcadores,
+        prazo,
         concluir,
         reabrir,
+        sobrestar,
+        retomar,
         enviar,
+        anotacoes,
+        comentarios,
+        ciencia,
+        lista_ciencias,
+        acompanhar,
+        relacionar,
+        andamento,
+        atribuir,
+        anexar,
     })
 }
 
 /// Cookie lido uma vez e as requisições feitas (inclusive as que falharam).
 pub(super) struct Rede<'v, V> {
     pub(super) envio: &'v mut V,
-    pub(super) cookie: String,
+    pub(super) cookie: CookieLido,
     pub(super) requisicoes: ContagemDeRequisicoes,
 }
 
 /// Uma resposta lida sem seguir 302.
 pub(super) enum Lida {
-    Html { html: String, mime: String },
+    Html {
+        html: crate::tela_html::HtmlServido,
+        mime: String,
+    },
     Redirecionamento(Option<String>),
     Login,
     Falha(FalhaTransporte),
 }
 
 impl<V: EnvioDoProcesso> Rede<'_, V> {
-    pub(super) fn get(&mut self, url: &str) -> Result<Lida, E> {
+    pub(super) fn get(&mut self, url: &str) -> Result<Lida, ErroProcessoObter> {
         self.requisicoes.registrar();
-        let resposta = self
-            .envio
-            .get_sem_seguir(url, &self.cookie)
-            .map_err(E::Transporte)?;
+        let resposta = self.envio.get_sem_seguir(url, &self.cookie)?;
         if resposta.resposta.status_code == 302 {
             return Ok(Lida::Redirecionamento(resposta.localizacao));
         }
@@ -232,6 +306,12 @@ impl<V: EnvioDoProcesso> Rede<'_, V> {
         Ok(match decodificar_resposta(resposta.resposta) {
             Ok(html) => Lida::Html { html, mime },
             Err(FalhaTransporte::PaginaDeLoginRecebidaNoControle) => Lida::Login,
+            // Um 5xx é uma recusa do servidor, não evidência de link
+            // envelhecido. Não abrir outro caminho/pedido em seguida:
+            // após uma escrita, a releitura de prova deve ser única.
+            Err(falha) if falha.status_http().is_some_and(|http| http.status >= 500) => {
+                return Err(ErroProcessoObter::Transporte(falha));
+            }
             Err(falha) => Lida::Falha(falha),
         })
     }
@@ -241,7 +321,8 @@ impl<V: EnvioDoProcesso> Rede<'_, V> {
         &mut self,
         contexto: &Contexto<'_>,
         submissao: SubmissaoDerivada,
-    ) -> Result<Option<ProcessoRedirecionado>, E> {
+        valor_pesquisado: &str,
+    ) -> Result<Option<ProcessoRedirecionado>, ErroProcessoObter> {
         // Só conta a tentativa se a validação do cookie permitir o POST.
         let envio = &mut *self.envio;
         let requisicoes = &mut self.requisicoes;
@@ -249,31 +330,32 @@ impl<V: EnvioDoProcesso> Rede<'_, V> {
             requisicoes.registrar();
             envio.post(s, c)
         });
-        let sem_trabalho = |status| E::PesquisaRapidaSemUrlDeTrabalho(status);
         match resposta {
             Ok(RespostaDoEnvio::Redirecionamento(r)) => match destino(r.localizacao()) {
-                DestinoDoRedirecionamento::Outro => conferir_trabalho(
-                    r.localizacao(),
-                    r.url_do_envio(),
-                    &contexto.instalacao,
-                    OrigemDoTrabalho::PesquisaRapida,
-                )
-                .map(Some)
-                .map_err(E::Redirecionamento),
-                _ => Ok(None),
+                DestinoDoRedirecionamento::Outro => {
+                    let origem = if contexto.documento_procurado == Some(valor_pesquisado) {
+                        OrigemDoTrabalho::PesquisaRapidaDocumento
+                    } else {
+                        OrigemDoTrabalho::PesquisaRapida
+                    };
+                    conferir_trabalho(
+                        r.localizacao(),
+                        r.url_do_envio(),
+                        &contexto.instalacao,
+                        origem,
+                    )
+                    .map(Some)
+                    .map_err(ErroProcessoObter::Redirecionamento)
+                }
+                DestinoDoRedirecionamento::RecusaSemAssinatura
+                | DestinoDoRedirecionamento::Login => Ok(None),
             },
-            Ok(RespostaDoEnvio::Html(_)) => {
-                Err(sem_trabalho(StatusHttpRecusado::sem_mensagem(200)))
-            }
+            Ok(RespostaDoEnvio::Html(_)) => Err(ErroProcessoObter::PesquisaRapidaSemUrlDeTrabalho),
             Err(ErroSubmissaoFormulario::TelaDeLoginRecebidaAposEnvio) => Ok(None),
-            Err(ErroSubmissaoFormulario::ValidacaoRecusadaPeloSei(status)) => {
-                Err(sem_trabalho(status))
+            Err(ErroSubmissaoFormulario::Transporte(falha)) => {
+                Err(ErroProcessoObter::Transporte(falha))
             }
-            Err(ErroSubmissaoFormulario::Transporte(falha)) => match falha.status_http() {
-                Some(status) => Err(sem_trabalho(status.clone())),
-                None => Err(E::Transporte(falha)),
-            },
-            Err(outro) => Err(E::Formulario(outro)),
+            Err(outro) => Err(ErroProcessoObter::Formulario(outro)),
         }
     }
 
@@ -284,16 +366,18 @@ impl<V: EnvioDoProcesso> Rede<'_, V> {
         contexto: &Contexto<'_>,
         trabalho: &str,
         id: &str,
-    ) -> Result<(ArvoreAberta, String), E> {
+    ) -> Result<(ArvoreAberta, String), ErroProcessoObter> {
         let (html, mime) = match self.get(trabalho)? {
             Lida::Html { html, mime } => (html, mime),
             Lida::Redirecionamento(local) => return Err(fora_de_palpite(local.as_deref())),
-            Lida::Login => return Err(E::SessaoEncerrada),
-            Lida::Falha(falha) => return Err(E::Transporte(falha)),
+            Lida::Login => {
+                return Err(ErroProcessoObter::SessaoEncerrada(
+                    crate::erro_publico::SessaoEncerrada,
+                ));
+            }
+            Lida::Falha(falha) => return Err(ErroProcessoObter::Transporte(falha)),
         };
-        let tela = ler_tela_do_processo(&contexto.instalacao, &html, id, contexto.unidade_pedida)
-            .map_err(E::Tela)?;
-        self.abrir_da_tela(contexto, trabalho, (&html, &mime), tela, id)
+        super::validacao_acesso::abrir_trabalho(self, contexto, trabalho, id, (&html, &mime))
     }
 
     /// A partir da tela do processo já lida e conferida: GET da árvore (e o
@@ -302,18 +386,22 @@ impl<V: EnvioDoProcesso> Rede<'_, V> {
         &mut self,
         contexto: &Contexto<'_>,
         trabalho: &str,
-        (html, mime): (&str, &str),
+        (html, mime): (&crate::tela_html::HtmlServido, &str),
         tela: TelaDoProcesso,
         id: &str,
-    ) -> Result<(ArvoreAberta, String), E> {
+    ) -> Result<(ArvoreAberta, String), ErroProcessoObter> {
         contexto.aprender_pesquisa_rapida(trabalho, html, mime, &tela.unidade);
         let html = match self.get(tela.arvore.as_str())? {
             Lida::Html { html, .. } => html,
             Lida::Redirecionamento(local) => return Err(fora_de_palpite(local.as_deref())),
-            Lida::Login => return Err(E::SessaoEncerrada),
-            Lida::Falha(falha) => return Err(E::Transporte(falha)),
+            Lida::Login => {
+                return Err(ErroProcessoObter::SessaoEncerrada(
+                    crate::erro_publico::SessaoEncerrada,
+                ));
+            }
+            Lida::Falha(falha) => return Err(ErroProcessoObter::Transporte(falha)),
         };
-        let arvore = ler_arvore_aberta(contexto, &html, id).map_err(E::Arvore)?;
+        let arvore = ler_arvore_aberta(contexto, &html, id)?;
         concluir(
             contexto,
             &arvore.arvore,
@@ -326,12 +414,12 @@ impl<V: EnvioDoProcesso> Rede<'_, V> {
 }
 
 /// 302 fora de palpite: login é sessão encerrada; o resto, não observado.
-pub(super) fn fora_de_palpite(localizacao: Option<&str>) -> E {
+pub(super) fn fora_de_palpite(localizacao: Option<&str>) -> ErroProcessoObter {
     match destino(localizacao) {
-        DestinoDoRedirecionamento::Outro => {
-            E::RedirecionamentoNaoReconhecido(StatusHttpRecusado::sem_mensagem(302))
+        DestinoDoRedirecionamento::Outro => ErroProcessoObter::RedirecionamentoNaoReconhecido,
+        DestinoDoRedirecionamento::RecusaSemAssinatura | DestinoDoRedirecionamento::Login => {
+            ErroProcessoObter::SessaoEncerrada(crate::erro_publico::SessaoEncerrada)
         }
-        _ => E::SessaoEncerrada,
     }
 }
 
@@ -343,11 +431,11 @@ pub(super) fn concluir(
     url_da_arvore: &str,
 ) {
     let id = &arvore.processo.id;
-    let _ = contexto
+    contexto
         .indice
         .registrar_processo(&contexto.instalacao, contexto.nup, id);
     if let Some(trabalho) = trabalho {
-        contexto.aprender_link("procedimento_trabalhar", id, trabalho);
+        contexto.aprender_link(AcaoDoSei::ProcedimentoTrabalhar, id, trabalho);
     }
-    contexto.aprender_link("procedimento_visualizar", id, url_da_arvore);
+    contexto.aprender_link(AcaoDoSei::ProcedimentoVisualizar, id, url_da_arvore);
 }

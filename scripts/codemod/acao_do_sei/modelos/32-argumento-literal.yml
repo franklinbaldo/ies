@@ -1,0 +1,29 @@
+id: 32-argumento-literal-VALOR
+language: rust
+message: 'A função da regra 30 recebe a variante, não o texto.'
+severity: hint
+rule:
+  kind: string_literal
+  regex: '^"VALOR"$'
+  inside:
+    kind: arguments
+    inside:
+      kind: call_expression
+      has:
+        field: function
+        regex: '(^|::)(FUNCOES)$'
+fix: 'crate::acao_do_sei::AcaoDoSei::VARIANTE'
+---
+id: 32b-argumento-literal-em-macro-VALOR
+language: rust
+message: 'A função da regra 30 recebe a variante, não o texto (chamada dentro de macro).'
+severity: hint
+rule:
+  kind: string_literal
+  regex: '^"VALOR"$'
+  inside:
+    kind: token_tree
+    follows:
+      kind: identifier
+      regex: '^(FUNCOES)$'
+fix: 'crate::acao_do_sei::AcaoDoSei::VARIANTE'

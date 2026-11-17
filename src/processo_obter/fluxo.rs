@@ -1,25 +1,20 @@
 //! Os passos da resolução (1, 1b, 2, 3 e 4) (contracts/cli/processo-obter-arvore.md).
 //! Um passo é tentado só se o anterior não se aplica ou falhou por palpite
 //! do índice; o palpite errado é esquecido e o comando segue.
-use super::abertura::{
-    ArvoreAberta, CAMPO, Contexto, Lida, PESQUISA_RAPIDA, Rede, concluir, ler_arvore_aberta,
-};
+use super::abertura::{ArvoreAberta, CAMPO, Contexto, Lida, PESQUISA_RAPIDA, Rede};
+pub(crate) use super::acoes::AcoesDeEstado;
 use super::controle::link_do_processo_no_controle;
 use super::login::{DestinoDoRedirecionamento, destino};
-use super::pastas::{self, Guardado};
 use super::{
-    EnvioDoProcesso, ErroProcessoObter as E, PedidoDoProcesso, ProcessoAberto, ResolvidoPor,
+    EnvioDoProcesso, ErroProcessoObter, PedidoDoProcesso, ProcessoAberto, ResolvidoPor,
     SessaoDoProcesso,
 };
-use crate::arvore_processo::{
-    ConcluirNaBarra, EnderecoDeEscrita, ErroArvore, ErroConcluirNaBarra, ErroEnviarNaBarra,
-    ErroReabrirNaBarra, ErroTelaDoProcesso, ReabrirNaBarra, ler_tela_do_processo,
-};
+use crate::acao_do_sei::AcaoDoSei;
 use crate::colheita_do_controle::Colheita;
 use crate::formulario_web::{
     ErroSubmissaoFormulario, TelaServida, derivar_submissao, derivar_submissao_guardada,
 };
-use crate::indice_local::{IndiceLocal, unidade_dos_links, url_da_entrada_por_id};
+use crate::indice_local::{AceiteDaEntrada, IndiceLocal, unidade_dos_links, url_da_entrada_por_id};
 use crate::instalacao::Instalacao;
 use crate::pagina_do_controle::codificacao_da_tela;
 use crate::pesquisa_web::erro_busca::ErroBuscaDeProcesso;
@@ -27,30 +22,22 @@ use crate::pesquisa_web::fluxo::{ControleLido, SessaoDaBusca, ler_controle};
 use crate::pesquisa_web::redirecionamento::{
     ErroRedirecionamentoDaPesquisa, OrigemDoTrabalho, ProcessoRedirecionado, conferir_trabalho,
 };
+use crate::transporte::FalhaTransporte;
 use crate::transporte::contagem::ContagemDeRequisicoes;
-use crate::transporte::{FalhaTransporte, StatusHttpRecusado};
+
+mod links_guardados;
+pub(super) use links_guardados::{link_da_arvore, link_de_trabalho};
 
 /// Resultado de um passo: aberto, ou "não se aplica / palpite esquecido".
-type Passo = Result<Option<(ArvoreAberta, Option<String>, ResolvidoPor)>, E>;
+type Passo = Result<Option<(ArvoreAberta, Option<String>, ResolvidoPor)>, ErroProcessoObter>;
 
 pub(crate) fn obter_processo<V: EnvioDoProcesso>(
     sessao: &SessaoDoProcesso<'_>,
     pedido: &PedidoDoProcesso<'_>,
     indice: &IndiceLocal,
     envio: &mut V,
-) -> Result<ProcessoAberto, E> {
+) -> Result<ProcessoAberto, ErroProcessoObter> {
     abrir_para_escrever(sessao, pedido, indice, envio).map(|(aberto, _)| aberto)
-}
-
-/// As ações de estado lidas na barra da árvore aberta; a falha de cada uma
-/// só pesa no comando que a usa.
-pub(crate) struct AcoesDeEstado {
-    /// contracts/cli/processo-concluir.md
-    pub(crate) concluir: Result<Option<ConcluirNaBarra>, ErroConcluirNaBarra>,
-    /// contracts/cli/processo-reabrir.md
-    pub(crate) reabrir: Result<Option<ReabrirNaBarra>, ErroReabrirNaBarra>,
-    /// contracts/cli/processo-enviar.md
-    pub(crate) enviar: Result<Option<EnderecoDeEscrita>, ErroEnviarNaBarra>,
 }
 
 /// Como [`obter_processo`], devolvendo também as ações de concluir e de
@@ -60,19 +47,24 @@ pub(crate) fn abrir_para_escrever<V: EnvioDoProcesso>(
     pedido: &PedidoDoProcesso<'_>,
     indice: &IndiceLocal,
     envio: &mut V,
-) -> Result<(ProcessoAberto, AcoesDeEstado), E> {
-    let instalacao = Instalacao::interpretar(sessao.origem)
-        .ok_or(E::Transporte(FalhaTransporte::OrigemNaoAutorizada))?;
-    let cookie = sessao.cookie.valor().map_err(E::Transporte)?.to_owned();
+) -> Result<(ProcessoAberto, AcoesDeEstado), ErroProcessoObter> {
+    let instalacao = Instalacao::interpretar(sessao.origem).ok_or(
+        ErroProcessoObter::Transporte(FalhaTransporte::OrigemNaoAutorizada),
+    )?;
+    let cookie = sessao.cookie.lido()?;
     let contexto = Contexto {
         instalacao,
         nup: pedido.nup.as_str(),
         unidade_pedida: pedido.unidade,
         geracao: crate::sessao_login::geracao_da_sessao(&cookie),
-        unidade_id: unidade_dos_links(sessao.url_do_controle),
+        unidade_id: unidade_dos_links(sessao.url_do_controle).ok(),
         indice,
         cookie: sessao.cookie,
         documento_procurado: None,
+        permitir_leitura_parcial: matches!(
+            pedido.leitura_das_pastas,
+            super::LeituraDasPastas::Informativa
+        ),
     };
     let mut rede = Rede {
         envio,
@@ -115,9 +107,24 @@ pub(crate) fn abrir_para_escrever<V: EnvioDoProcesso>(
         requisicoes: rede.requisicoes.total_u8(),
     };
     let acoes = AcoesDeEstado {
+        incluir: arvore_lida.incluir,
+        marcadores: arvore_lida.marcadores,
+        prazo: arvore_lida.prazo,
         concluir: arvore_lida.concluir,
         reabrir: arvore_lida.reabrir,
+        sobrestar: arvore_lida.sobrestar,
+        retomar: arvore_lida.retomar,
         enviar: arvore_lida.enviar,
+        anotacoes: arvore_lida.anotacoes,
+        comentarios: arvore_lida.comentarios,
+        ciencia: arvore_lida.ciencia,
+        lista_ciencias: arvore_lida.lista_ciencias,
+        anexar: arvore_lida.anexar,
+        atribuir: arvore_lida.atribuir,
+        andamento: arvore_lida.andamento,
+        relacionar: arvore_lida.relacionar,
+        acompanhar: arvore_lida.acompanhar,
+        cookie: rede.cookie.clone(),
     };
     Ok((aberto, acoes))
 }
@@ -132,7 +139,7 @@ pub(super) fn abrir_processo<V: EnvioDoProcesso>(
     sessao: &SessaoDoProcesso<'_>,
     rede: &mut Rede<'_, V>,
     unidade_exigida: bool,
-) -> Result<(ArvoreAberta, Option<String>, ResolvidoPor), E> {
+) -> Result<(ArvoreAberta, Option<String>, ResolvidoPor), ErroProcessoObter> {
     let primeiro = if unidade_exigida {
         None
     } else {
@@ -154,19 +161,17 @@ pub(super) fn abrir_processo<V: EnvioDoProcesso>(
     let (arvore_lida, unidade, resolvido_por) = aberto;
     // Cada anexado da árvore conferida: par NUP ↔ id aprendido sem requisição.
     for anexado in &arvore_lida.arvore.anexados {
-        let _ = contexto
+        contexto
             .indice
             .registrar_processo(&contexto.instalacao, &anexado.nup, &anexado.id);
     }
     // Aberto um anexado: o pai e o link dele, para o passo 1b.
     if let Some(pai) = &arvore_lida.arvore.anexado_a {
-        let _ = contexto.indice.registrar_processo(
-            &contexto.instalacao,
-            &pai.numero,
-            &pai.id_procedimento,
-        );
+        contexto
+            .indice
+            .registrar_processo(&contexto.instalacao, &pai.numero, &pai.id_procedimento);
         contexto.aprender_link(
-            "procedimento_trabalhar",
+            AcaoDoSei::ProcedimentoTrabalhar,
             &pai.id_procedimento,
             pai.trabalhar.as_str(),
         );
@@ -174,110 +179,19 @@ pub(super) fn abrir_processo<V: EnvioDoProcesso>(
     // Cada movido com destino conferido: o par e o link assinado do destino.
     let destinos = arvore_lida.arvore.documentos_movidos.iter();
     for destino in destinos.filter_map(|m| m.destino.as_ref()) {
-        let _ = contexto.indice.registrar_processo(
+        contexto.indice.registrar_processo(
             &contexto.instalacao,
             &destino.numero,
             &destino.id_procedimento,
         );
         contexto.aprender_link(
-            "procedimento_trabalhar",
+            AcaoDoSei::ProcedimentoTrabalhar,
             &destino.id_procedimento,
             destino.trabalhar.as_str(),
         );
     }
     contexto.aprender_documentos(&arvore_lida.arvore);
     Ok((arvore_lida, unidade, resolvido_por))
-}
-
-/// Passo 1, link guardado nesta geração e unidade: o de "Abrir todas as
-/// Pastas", se houver, e senão o da árvore; um GET. A árvore não publica a
-/// unidade; com `--unidade` o passo é pulado.
-pub(super) fn link_da_arvore<V: EnvioDoProcesso>(
-    contexto: &Contexto<'_>,
-    rede: &mut Rede<'_, V>,
-) -> Passo {
-    const ACAO: &str = "procedimento_visualizar";
-    if contexto.unidade_pedida.is_some() {
-        return Ok(None);
-    }
-    let instalacao = &contexto.instalacao;
-    let Some(id) = contexto.indice.id_por_nup(instalacao, contexto.nup) else {
-        return Ok(None);
-    };
-    match pastas::pelo_link_guardado(contexto, rede, &id)? {
-        Guardado::Aberta(aberta) => return Ok(Some((*aberta, None, ResolvidoPor::IndiceLink))),
-        Guardado::Divergiu => return Ok(None),
-        Guardado::Seguir => {}
-    }
-    let Some(link) = contexto
-        .chave(ACAO, &id)
-        .and_then(|chave| contexto.indice.link(instalacao, chave))
-    else {
-        return Ok(None);
-    };
-    if let Lida::Html { html, .. } = rede.get(link.url())? {
-        match ler_arvore_aberta(contexto, &html, &id) {
-            Ok(aberta) => {
-                concluir(contexto, &aberta.arvore, None, link.url());
-                let aberta = pastas::completar(contexto, rede, &html, aberta)?;
-                return Ok(Some((aberta, None, ResolvidoPor::IndiceLink)));
-            }
-            Err(erro) if erro.diverge_do_pedido() => {
-                contexto.indice.esquecer_processo(instalacao, contexto.nup);
-            }
-            // Não é uma árvore: o link envelheceu.
-            Err(ErroArvore::NoDoProcessoAusenteNaArvore) => {}
-            Err(erro) => return Err(E::Arvore(erro)),
-        }
-    }
-    contexto.esquecer_link(ACAO, &id);
-    Ok(None)
-}
-
-/// Passo 1b, link `procedimento_trabalhar` guardado nesta geração e
-/// unidade (colhido de uma linha do Controle ou de uma abertura anterior):
-/// GET da tela do processo e GET da árvore.
-pub(super) fn link_de_trabalho<V: EnvioDoProcesso>(
-    contexto: &Contexto<'_>,
-    rede: &mut Rede<'_, V>,
-) -> Passo {
-    const ACAO: &str = "procedimento_trabalhar";
-    let instalacao = &contexto.instalacao;
-    let Some(id) = contexto.indice.id_por_nup(instalacao, contexto.nup) else {
-        return Ok(None);
-    };
-    let Some(link) = contexto
-        .chave(ACAO, &id)
-        .and_then(|chave| contexto.indice.link(instalacao, chave))
-    else {
-        return Ok(None);
-    };
-    // Login, redirect ou outro status: o link envelheceu.
-    let Lida::Html { html, mime } = rede.get(link.url())? else {
-        contexto.esquecer_link(ACAO, &id);
-        return Ok(None);
-    };
-    let tela = match ler_tela_do_processo(instalacao, &html, &id, contexto.unidade_pedida) {
-        Ok(tela) => tela,
-        // A sessão está noutra unidade: os outros passos diriam o mesmo.
-        Err(erro @ ErroTelaDoProcesso::UnidadeDaTelaDiferenteDaSolicitada) => {
-            return Err(E::Tela(erro));
-        }
-        // Não é a tela deste processo: o link envelheceu.
-        Err(_) => {
-            contexto.esquecer_link(ACAO, &id);
-            return Ok(None);
-        }
-    };
-    match rede.abrir_da_tela(contexto, link.url(), (&html, &mime), tela, &id) {
-        Ok((arvore, unidade)) => Ok(Some((arvore, Some(unidade), ResolvidoPor::IndiceTrabalhar))),
-        Err(E::Arvore(erro)) if erro.diverge_do_pedido() => {
-            contexto.indice.esquecer_processo(instalacao, contexto.nup);
-            contexto.esquecer_link(ACAO, &id);
-            Ok(None)
-        }
-        Err(erro) => Err(erro),
-    }
 }
 
 /// Passo 2, entrada sem assinatura por id (a única URL que o IES monta): 302 para
@@ -287,35 +201,34 @@ fn entrada_por_id<V: EnvioDoProcesso>(contexto: &Contexto<'_>, rede: &mut Rede<'
     let Some(id) = contexto.indice.id_por_nup(instalacao, contexto.nup) else {
         return Ok(None);
     };
-    if contexto.indice.entrada_por_id(instalacao) == Some(false) {
+    if contexto.indice.entrada_por_id(instalacao) == Some(AceiteDaEntrada::Recusada) {
         return Ok(None);
     }
-    let Some(url) = url_da_entrada_por_id(instalacao, &id) else {
+    // Atalho por id é melhor esforço: id guardado fora da forma cai no caminho comum.
+    let Ok(url) = url_da_entrada_por_id(instalacao, &id) else {
         return Ok(None);
     };
     let localizacao = match rede.get(&url)? {
         Lida::Redirecionamento(localizacao) => localizacao,
-        Lida::Login => return Err(E::SessaoEncerrada),
-        Lida::Html { .. } => {
-            return Err(E::RespostaDaEntradaPorIdNaoReconhecida(
-                StatusHttpRecusado::sem_mensagem(200),
+        Lida::Login => {
+            return Err(ErroProcessoObter::SessaoEncerrada(
+                crate::erro_publico::SessaoEncerrada,
             ));
         }
-        Lida::Falha(falha) => {
-            let status = falha
-                .status_http()
-                .cloned()
-                .ok_or(E::Transporte(falha.clone()))?;
-            return Err(E::RespostaDaEntradaPorIdNaoReconhecida(status));
-        }
+        Lida::Html { .. } => return Err(ErroProcessoObter::RespostaDaEntradaPorIdNaoReconhecida),
+        Lida::Falha(falha) => return Err(ErroProcessoObter::Transporte(falha)),
     };
     match destino(localizacao.as_deref()) {
         DestinoDoRedirecionamento::RecusaSemAssinatura => {
             // A recusa derrubou a sessão: registrar e parar, sem relogin.
             contexto.indice.registrar_entrada_por_id(instalacao, false);
-            return Err(E::EntradaPorIdRecusada);
+            return Err(ErroProcessoObter::EntradaPorIdRecusada);
         }
-        DestinoDoRedirecionamento::Login => return Err(E::SessaoEncerrada),
+        DestinoDoRedirecionamento::Login => {
+            return Err(ErroProcessoObter::SessaoEncerrada(
+                crate::erro_publico::SessaoEncerrada,
+            ));
+        }
         DestinoDoRedirecionamento::Outro => {}
     }
     let origem = OrigemDoTrabalho::EntradaPorId { id: &id };
@@ -326,12 +239,12 @@ fn entrada_por_id<V: EnvioDoProcesso>(contexto: &Contexto<'_>, rede: &mut Rede<'
             contexto.indice.esquecer_processo(instalacao, contexto.nup);
             return Ok(None);
         }
-        Err(erro) => return Err(E::Redirecionamento(erro)),
+        Err(erro) => return Err(ErroProcessoObter::Redirecionamento(erro)),
     };
     contexto.indice.registrar_entrada_por_id(instalacao, true);
     match rede.abrir(contexto, trabalho.as_str(), &id) {
         Ok((arvore, unidade)) => Ok(Some((arvore, Some(unidade), ResolvidoPor::IndiceEntrada))),
-        Err(E::Arvore(erro)) if erro.diverge_do_pedido() => {
+        Err(ErroProcessoObter::Arvore(erro)) if erro.diverge_do_pedido() => {
             contexto.indice.esquecer_processo(instalacao, contexto.nup);
             Ok(None)
         }
@@ -363,7 +276,7 @@ pub(super) fn pesquisar_pela_guardada<V: EnvioDoProcesso>(
     sessao: &SessaoDoProcesso<'_>,
     rede: &mut Rede<'_, V>,
     valor: &str,
-) -> Result<Option<ProcessoRedirecionado>, E> {
+) -> Result<Option<ProcessoRedirecionado>, ErroProcessoObter> {
     let acao = PESQUISA_RAPIDA.acao;
     let Some(link) = contexto
         .chave(acao, "")
@@ -386,7 +299,7 @@ pub(super) fn pesquisar_pela_guardada<V: EnvioDoProcesso>(
             return Ok(None);
         }
     };
-    let Some(redirecionado) = rede.pesquisar(contexto, submissao)? else {
+    let Some(redirecionado) = rede.pesquisar(contexto, submissao, valor)? else {
         contexto.esquecer_link(acao, "");
         return Ok(None);
     };
@@ -399,18 +312,18 @@ fn pelo_controle<V: EnvioDoProcesso>(
     contexto: &Contexto<'_>,
     sessao: &SessaoDoProcesso<'_>,
     rede: &mut Rede<'_, V>,
-) -> Result<(ArvoreAberta, Option<String>, ResolvidoPor), E> {
+) -> Result<(ArvoreAberta, Option<String>, ResolvidoPor), ErroProcessoObter> {
     let controle = ler_controle_colhido(contexto, sessao, rede)?;
     let tela = &controle.tela;
     if let Some((id, href)) = link_do_processo_no_controle(&tela.html, contexto.nup)? {
         let origem = OrigemDoTrabalho::Controle { id: &id };
         let redirecionado = conferir_trabalho(Some(&href), &tela.url, &contexto.instalacao, origem)
-            .map_err(E::LinkDoProcessoNoControleNaoReconhecido)?;
+            .map_err(ErroProcessoObter::LinkDoProcessoNoControleNaoReconhecido)?;
         let (arvore, unidade) = rede
             .abrir(contexto, redirecionado.trabalho.as_str(), &id)
             .inspect_err(|erro| {
                 // A colheita deste GET gravou o par que a árvore desmentiu.
-                if matches!(erro, E::Arvore(arvore) if arvore.diverge_do_pedido()) {
+                if matches!(erro, ErroProcessoObter::Arvore(arvore) if arvore.diverge_do_pedido()) {
                     contexto
                         .indice
                         .esquecer_processo(&contexto.instalacao, contexto.nup);
@@ -433,7 +346,7 @@ pub(super) fn ler_controle_colhido<V: EnvioDoProcesso>(
     contexto: &Contexto<'_>,
     sessao: &SessaoDoProcesso<'_>,
     rede: &mut Rede<'_, V>,
-) -> Result<ControleLido, E> {
+) -> Result<ControleLido, ErroProcessoObter> {
     let busca = SessaoDaBusca {
         url_do_controle: sessao.url_do_controle,
         origem: sessao.origem,
@@ -443,9 +356,15 @@ pub(super) fn ler_controle_colhido<V: EnvioDoProcesso>(
     let controle = ler_controle(&busca, contexto.unidade_pedida, &mut *rede.envio).map_err(
         |erro| match erro {
             ErroBuscaDeProcesso::Transporte(FalhaTransporte::PaginaDeLoginRecebidaNoControle) => {
-                E::SessaoEncerrada
+                ErroProcessoObter::SessaoEncerrada(crate::erro_publico::SessaoEncerrada)
             }
-            outro => E::Controle(outro),
+            outro @ (ErroBuscaDeProcesso::Transporte(_)
+            | ErroBuscaDeProcesso::Controle(_)
+            | ErroBuscaDeProcesso::UnidadeDoControleDiferenteDaSolicitada
+            | ErroBuscaDeProcesso::CharsetDaTelaNaoSuportado
+            | ErroBuscaDeProcesso::Link(_)
+            | ErroBuscaDeProcesso::Pesquisa(_)
+            | ErroBuscaDeProcesso::Paginacao(_)) => ErroProcessoObter::Controle(outro),
         },
     )?;
     Colheita::com_geracao(
@@ -464,9 +383,10 @@ pub(super) fn pesquisar_no_controle<V: EnvioDoProcesso>(
     controle: &ControleLido,
     rede: &mut Rede<'_, V>,
     valor: &str,
-) -> Result<ProcessoRedirecionado, E> {
+) -> Result<ProcessoRedirecionado, ErroProcessoObter> {
     let tela = &controle.tela;
-    let codificacao = codificacao_da_tela(&tela.mime).ok_or(E::CharsetDoControleNaoSuportado)?;
+    let codificacao =
+        codificacao_da_tela(&tela.mime).ok_or(ErroProcessoObter::CharsetDoControleNaoSuportado)?;
     let servida = TelaServida {
         url: &tela.url,
         html: &tela.html,
@@ -476,10 +396,11 @@ pub(super) fn pesquisar_no_controle<V: EnvioDoProcesso>(
         &PESQUISA_RAPIDA,
         &contexto.instalacao,
         &servida,
-        &controle.unidade,
+        Some(controle.unidade.as_str()),
         &[(CAMPO, valor)],
-    )
-    .map_err(E::Formulario)?;
-    rede.pesquisar(contexto, submissao)?
-        .ok_or(E::SessaoEncerrada)
+    )?;
+    rede.pesquisar(contexto, submissao, valor)?
+        .ok_or(ErroProcessoObter::SessaoEncerrada(
+            crate::erro_publico::SessaoEncerrada,
+        ))
 }

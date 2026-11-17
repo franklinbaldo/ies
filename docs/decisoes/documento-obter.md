@@ -4,7 +4,7 @@ title: Ler documento pelo número SEI via pesquisa rápida, árvore e link assin
 operation: documento.obter
 implementation: partial
 status: adopted-for-scope
-scope: Refs #60 fatias 1 e 2; texto e metadados de documentos internos pelo número SEI, pelo caminho mais barato (--processo NUP pela abertura de processo NUP; índice número SEI → processo e documento pelo link da árvore, pelo link de trabalho ou pela entrada por id com documento da lista branca; pesquisa rápida), a árvore conferida (pastas abertas só se o documento não está à vista) e o Nos[i].src assinado documento_visualizar; lote em sequência; --saida com a foto DOC.vN.html 0600, idempotente (#207); recusa tipada para sem acesso, cancelado, externo, duplicidade e número diferente; --versao N, versao_atual e cópia de trabalho no apêndice de versões (Refs #88), sobre qualquer caminho; --com-propriedades e --ocultar-inacessiveis continuam stub
+scope: Refs #60 fatias 1 e 2; texto e metadados de documentos internos pelo número SEI, pelo caminho mais barato (--processo NUP pela abertura de processo NUP; índice número SEI → processo e documento pelo link da árvore, pelo link de trabalho ou pela entrada por id com documento da lista branca; pesquisa rápida), a árvore conferida (pastas abertas só se o documento não está à vista) e o Nos[i].src assinado documento_visualizar; lote em sequência; --saida com a foto DOC.vN.html 0600, idempotente (#207); recusa tipada para sem acesso, cancelado, externo, duplicidade e número diferente; --versao N, versao_atual e cópia de trabalho no apêndice de versões (Refs #88), sobre qualquer caminho; --com-propriedades lê cadastro documento_alterar servido, com ambos os IDs conferidos (Refs #60); --ocultar-inacessiveis omite somente nó cujo conteúdo não foi publicado
 selected_strategy: web-indice-arvore-src-com-pesquisa-rapida
 alternatives: web-indice-arvore-src-com-pesquisa-rapida,web-pesquisa-rapida-arvore-src,web-imprimir-web-da-barra,web-processo-indice-arvore-src,web-url-montada-por-id,web-pesquisa-avancada,rest-wssei
 evidence_level: acervo-publico-sete-instalacoes-testes-sinteticos-e-live-unb
@@ -113,10 +113,23 @@ fatia, com recusa tipada.
   CI) e [relatório](../validacao-replay/2026-11-04-documento-obter-acervo.md).
 - [Ensaio live na UnB](../validacao-live/2026-11-04-documento-obter.md).
 
+## Omissão explícita na leitura do lote (Refs #60)
+
+`--ocultar-inacessiveis` distingue ausência de conteúdo publicado
+da recusa do próprio documento ou da sessão: apenas
+`ConteudoNaoPublicadoNaArvore` é omitido. A contagem real de
+requisições acompanha o erro tipado, e o lote prossegue sem retry.
+Não publicar a identidade do omitido; demais falhas continuam visíveis.
+BDD na CLI e testes sintéticos no agregador; ensaio específico live:
+NOT_RUN nesta fatia (sem sessão autenticada de treinamento).
+
 ## Limitações e revisão
 
 - Externos (`documento_download_anexo`): [apêndice](documento-obter/documento-externo.md);
-  `--com-propriedades` e `--ocultar-inacessiveis`: não lidos.
+  `--com-propriedades` aceita os quatro links de cadastro observados
+(alterar/consultar para nativo ou externo), inclusive consulta de
+processo fechado na UFRJ 4.1, sempre pelo endereço publicado;
+`--ocultar-inacessiveis` só omite sem .src.
   `--versao N` e `versao_atual`:
   [apêndice de versões](documento-obter/versoes.md) (Refs #88); a foto
   `DOC.vN.html` de `--saida`, que substituiu `DOC.txt` e a cópia de

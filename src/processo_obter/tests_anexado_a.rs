@@ -4,6 +4,7 @@
 //! dele; `ies processo <NUP do pai>` sai então pelo passo 1b.
 use super::tests_apoio::*;
 use super::*;
+use crate::acao_do_sei::AcaoDoSei;
 use crate::arvore_processo::tests::NUP;
 use crate::arvore_processo::tests_anexado_a::{
     ID_PAI, NUP_PAI, arvore_do_anexado, href_do_pai, html_do_anexado,
@@ -47,7 +48,7 @@ fn abrir_o_anexado_publica_o_pai_e_aprende_sem_requisicao() {
     );
     assert_eq!(
         amb.indice
-            .link(&inst, chave(&g, "procedimento_trabalhar", ID_PAI))
+            .link(&inst, chave(&g, AcaoDoSei::ProcedimentoTrabalhar, ID_PAI))
             .map(|u| u.url().to_owned()),
         Some(absoluta(&href_do_pai(ID_PAI, ID)))
     );

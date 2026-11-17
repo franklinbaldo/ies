@@ -1,0 +1,8 @@
+id: 30-parametro-acao
+language: rust
+message: 'O parâmetro de ação é a variante, não o texto.'
+severity: hint
+rule:
+  kind: parameter
+  regex: '^acao: &str$'
+fix: 'acao: crate::acao_do_sei::AcaoDoSei'

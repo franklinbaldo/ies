@@ -9,13 +9,15 @@ use super::{
     EfeitoAvaliado, ErroSubmissaoFormulario, ResultadoDoEnvio, SubmissaoDerivada, TelaServida,
     codificar_corpo,
 };
+use crate::acao_do_sei::{AcaoAjaxDoSei, AcaoDaSubmissao};
+use crate::consulta_do_controlador::ConsultaDoControlador;
 use crate::instalacao::Instalacao;
-use crate::transporte::{FalhaTransporte, conferir_chave_de_consulta, conferir_valor_de_consulta};
+use crate::transporte::FalhaTransporte;
 
 /// A consulta declarada pela operação (sem catálogo central).
 #[derive(Debug)]
 pub(crate) struct ConsultaAjax {
-    pub(crate) acao_ajax: &'static str,
+    pub(crate) acao_ajax: AcaoAjaxDoSei,
     pub(crate) campos: &'static [&'static str],
     pub(crate) efeito: EfeitoAvaliado,
 }
@@ -29,41 +31,44 @@ pub(crate) fn derivar_consulta_ajax(
     url_declarada: &str,
     campos: &[(&str, &str)],
 ) -> Result<SubmissaoDerivada, ErroSubmissaoFormulario> {
-    use ErroSubmissaoFormulario as E;
     if !matches!(
         consulta.efeito,
         EfeitoAvaliado::ConsultaSemEfeitoObservado { .. }
     ) {
-        return Err(E::EfeitoDaOperacaoNaoAvaliado);
+        return Err(ErroSubmissaoFormulario::EfeitoDaOperacaoNaoAvaliado);
     }
-    let servida =
-        UrlHttps::interpretar(tela.url).ok_or(E::Transporte(FalhaTransporte::UrlInvalida))?;
+    let servida = UrlHttps::interpretar(tela.url).ok_or(ErroSubmissaoFormulario::Transporte(
+        FalhaTransporte::UrlInvalida,
+    ))?;
     if !instalacao.autoriza_controlador(servida.host, servida.caminho) {
-        return Err(E::Transporte(FalhaTransporte::OrigemNaoAutorizada));
+        return Err(ErroSubmissaoFormulario::Transporte(
+            FalhaTransporte::OrigemNaoAutorizada,
+        ));
     }
     // Só a forma servida: relativa à pasta da tela, sem esquema nem `..`.
     if url_declarada.contains(':')
         || url_declarada.starts_with('/')
         || url_declarada.split(['/', '?']).any(|s| s == "..")
     {
-        return Err(E::AcaoDoFormularioForaDaInstalacao);
+        return Err(ErroSubmissaoFormulario::AcaoDoFormularioForaDaInstalacao);
     }
     let absoluta = match servida.caminho.rsplit_once('/') {
         Some((pasta, _)) => format!("https://{}/{pasta}/{url_declarada}", servida.host),
         None => format!("https://{}/{url_declarada}", servida.host),
     };
-    let alvo = UrlHttps::interpretar(&absoluta).ok_or(E::AcaoDoFormularioNaoEhUrlHttps)?;
+    let alvo = UrlHttps::interpretar(&absoluta)
+        .ok_or(ErroSubmissaoFormulario::AcaoDoFormularioNaoEhUrlHttps)?;
     if !instalacao.autoriza_controlador_ajax(alvo.host, alvo.caminho) {
-        return Err(E::AcaoDoFormularioForaDaInstalacao);
+        return Err(ErroSubmissaoFormulario::AcaoDoFormularioForaDaInstalacao);
     }
     conferir_consulta_ajax(alvo.consulta.unwrap_or_default(), consulta.acao_ajax)?;
     for (i, (nome, _)) in campos.iter().enumerate() {
         let campo = (*nome).to_owned();
         if !consulta.campos.contains(nome) {
-            return Err(E::CampoForaDaListaDaOperacao { campo });
+            return Err(ErroSubmissaoFormulario::CampoForaDaListaDaOperacao { campo });
         }
-        if campos[..i].iter().any(|(anterior, _)| anterior == nome) {
-            return Err(E::CampoInformadoMaisDeUmaVez { campo });
+        if campos.iter().take(i).any(|(anterior, _)| anterior == nome) {
+            return Err(ErroSubmissaoFormulario::CampoInformadoMaisDeUmaVez { campo });
         }
     }
     let corpo = codificar_corpo(campos, tela.codificacao)?;
@@ -71,7 +76,7 @@ pub(crate) fn derivar_consulta_ajax(
         url: absoluta.clone(),
         host: alvo.host.to_owned(),
         caminho: alvo.caminho.to_owned(),
-        acao: consulta.acao_ajax,
+        acao: AcaoDaSubmissao::Ajax(consulta.acao_ajax),
         referer: tela.url.to_owned(),
         nomes: campos.iter().map(|(n, _)| (*n).to_owned()).collect(),
         corpo: corpo.into_bytes(),
@@ -82,32 +87,26 @@ pub(crate) fn derivar_consulta_ajax(
 
 /// Uma `acao_ajax` igual à da consulta, um `infra_hash` de 64 hex, nenhuma
 /// `acao`; chaves e valores canônicos.
-fn conferir_consulta_ajax(consulta: &str, acao_ajax: &str) -> Result<(), ErroSubmissaoFormulario> {
-    use ErroSubmissaoFormulario as E;
-    let (mut acoes, mut hashes) = (0, 0);
-    for item in consulta.split('&').filter(|item| !item.is_empty()) {
-        let (nome, valor) = item
-            .split_once('=')
-            .ok_or(E::Transporte(FalhaTransporte::UrlInvalida))?;
-        conferir_chave_de_consulta(nome).map_err(E::Transporte)?;
-        conferir_valor_de_consulta(valor).map_err(E::Transporte)?;
-        match nome {
-            "acao_ajax" if valor == acao_ajax => acoes += 1,
-            "acao_ajax" | "acao" => return Err(E::AcaoDoFormularioDiferenteDaOperacao),
-            "infra_hash" => {
-                if valor.len() != 64 || !valor.bytes().all(|b| b.is_ascii_hexdigit()) {
-                    return Err(E::AcaoDoFormularioSemInfraHashUnico);
-                }
-                hashes += 1;
-            }
-            _ => {}
-        }
+fn conferir_consulta_ajax(
+    consulta: &str,
+    acao_ajax: AcaoAjaxDoSei,
+) -> Result<(), ErroSubmissaoFormulario> {
+    let consulta = ConsultaDoControlador::ler(consulta)
+        .map_err(|_| ErroSubmissaoFormulario::Transporte(FalhaTransporte::UrlInvalida))?;
+    if consulta
+        .unico("acao_ajax")
+        .ok()
+        .and_then(AcaoAjaxDoSei::ler)
+        != Some(acao_ajax)
+        || consulta.valores("acao").next().is_some()
+    {
+        return Err(ErroSubmissaoFormulario::AcaoDoFormularioDiferenteDaOperacao);
     }
-    if acoes != 1 {
-        return Err(E::AcaoDoFormularioDiferenteDaOperacao);
-    }
-    if hashes != 1 {
-        return Err(E::AcaoDoFormularioSemInfraHashUnico);
+    if !consulta
+        .unico("infra_hash")
+        .is_ok_and(|hash| hash.len() == 64 && hash.bytes().all(|b| b.is_ascii_hexdigit()))
+    {
+        return Err(ErroSubmissaoFormulario::AcaoDoFormularioSemInfraHashUnico);
     }
     Ok(())
 }

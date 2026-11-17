@@ -11,16 +11,17 @@
 //!   árvore pelo número (a15), com as pastas abertas só se ele não estiver
 //!   à vista.
 use super::abertura::{ArvoreAberta, Contexto, Lida, Rede, fora_de_palpite};
-use super::documento::{ErroDocumentoObter as E, FimDaLeitura, NoLido, localizar};
+use super::documento::{ErroDocumentoObter, FimDaLeitura, NoLido, localizar};
 use super::fluxo::{abrir_processo, link_da_arvore, link_de_trabalho};
 use super::login::{DestinoDoRedirecionamento, destino};
 use super::{EnvioDoProcesso, ErroProcessoObter, ResolvidoPor, SessaoDoProcesso};
 use crate::arvore_processo::{ErroTelaDoProcesso, ler_tela_do_documento};
-use crate::indice_local::{DocumentoGuardado, url_da_entrada_por_id_com_documento};
+use crate::indice_local::{
+    AceiteDaEntrada, DocumentoGuardado, url_da_entrada_por_id_com_documento,
+};
 use crate::pesquisa_web::redirecionamento::{
     ErroRedirecionamentoDaPesquisa as Redir, OrigemDoTrabalho, conferir_trabalho,
 };
-use crate::transporte::StatusHttpRecusado;
 
 type Aberto = (ArvoreAberta, Option<String>, ResolvidoPor);
 
@@ -30,7 +31,7 @@ pub(super) fn pelo_indice<V: EnvioDoProcesso, F: FimDaLeitura>(
     rede: &mut Rede<'_, V>,
     numero: &str,
     leitura: F,
-) -> Result<Option<F::Saida>, E> {
+) -> Result<Option<F::Lido>, ErroDocumentoObter> {
     let (indice, instalacao) = (contexto.indice, &contexto.instalacao);
     let Some(guardado) = indice.documento_por_numero(instalacao, numero) else {
         return Ok(None);
@@ -39,21 +40,20 @@ pub(super) fn pelo_indice<V: EnvioDoProcesso, F: FimDaLeitura>(
         return Ok(None);
     };
     let processo = contexto.com_nup(&nup);
-    let aberto = match link_da_arvore(&processo, rede).map_err(E::Processo)? {
+    let aberto = match link_da_arvore(&processo, rede)? {
         Some(aberto) => Some(aberto),
-        None => match link_de_trabalho(&processo, rede).map_err(E::Processo)? {
+        None => match link_de_trabalho(&processo, rede)? {
             Some(aberto) => Some(aberto),
-            None => {
-                entrada_com_documento(&processo, rede, &guardado, numero).map_err(E::Processo)?
-            }
+            None => entrada_com_documento(&processo, rede, &guardado, numero)?,
         },
     };
     let Some((arvore_aberta, unidade, resolvido_por)) = aberto else {
         return Ok(None);
     };
-    let no = localizar(&arvore_aberta.arvore.documentos, numero)?;
-    // O servidor vence: o que a árvore mostra substitui o palpite.
+    // A árvore contraditória invalida o palpite mesmo quando localizar
+    // recusa o número repetido. Nenhuma URL de conteúdo será consultada.
     processo.aprender_documentos(&arvore_aberta.arvore);
+    let no = localizar(&arvore_aberta.arvore.documentos, numero)?;
     let Some(no) = no else {
         indice.esquecer_documento(instalacao, numero);
         return Ok(None);
@@ -76,10 +76,10 @@ pub(super) fn pelo_processo<V: EnvioDoProcesso, F: FimDaLeitura>(
     rede: &mut Rede<'_, V>,
     numero: &str,
     leitura: F,
-) -> Result<F::Saida, E> {
-    let (aberta, unidade, resolvido_por) =
-        abrir_processo(contexto, sessao, rede, false).map_err(E::Processo)?;
-    let no = localizar(&aberta.arvore.documentos, numero)?.ok_or(E::NumeroSeiAusenteDoProcesso)?;
+) -> Result<F::Lido, ErroDocumentoObter> {
+    let (aberta, unidade, resolvido_por) = abrir_processo(contexto, sessao, rede, false)?;
+    let no = localizar(&aberta.arvore.documentos, numero)?
+        .ok_or(ErroDocumentoObter::NumeroSeiAusenteDaArvoreDoProcesso)?;
     let lido = NoLido {
         html: &aberta.html,
         no,
@@ -100,40 +100,39 @@ fn entrada_com_documento<V: EnvioDoProcesso>(
     guardado: &DocumentoGuardado,
     numero: &str,
 ) -> Result<Option<Aberto>, ErroProcessoObter> {
-    use ErroProcessoObter as P;
     let (indice, instalacao) = (contexto.indice, &contexto.instalacao);
     let (id, documento) = (&guardado.id_procedimento, &guardado.id_documento);
-    let recusada = indice.entrada_por_id(instalacao) == Some(false)
-        || indice.entrada_por_id_com_documento(instalacao) == Some(false);
+    let recusada = indice.entrada_por_id(instalacao) == Some(AceiteDaEntrada::Recusada)
+        || indice.entrada_por_id_com_documento(instalacao) == Some(AceiteDaEntrada::Recusada);
     // Um passo anterior desmentiu o par NUP ↔ P: o palpite não vale mais.
     if recusada || indice.id_por_nup(instalacao, contexto.nup).as_ref() != Some(id) {
         return Ok(None);
     }
-    let Some(url) = url_da_entrada_por_id_com_documento(instalacao, id, documento) else {
+    // Atalho por id é melhor esforço: id guardado fora da forma cai no caminho comum.
+    let Ok(url) = url_da_entrada_por_id_com_documento(instalacao, id, documento) else {
         return Ok(None);
     };
     let localizacao = match rede.get(&url)? {
         Lida::Redirecionamento(localizacao) => localizacao,
-        Lida::Login => return Err(P::SessaoEncerrada),
-        Lida::Html { .. } => {
-            let status = StatusHttpRecusado::sem_mensagem(200);
-            return Err(P::RespostaDaEntradaPorIdNaoReconhecida(status));
+        Lida::Login => {
+            return Err(ErroProcessoObter::SessaoEncerrada(
+                crate::erro_publico::SessaoEncerrada,
+            ));
         }
-        Lida::Falha(falha) => {
-            let status = falha
-                .status_http()
-                .cloned()
-                .ok_or(P::Transporte(falha.clone()))?;
-            return Err(P::RespostaDaEntradaPorIdNaoReconhecida(status));
-        }
+        Lida::Html { .. } => return Err(ErroProcessoObter::RespostaDaEntradaPorIdNaoReconhecida),
+        Lida::Falha(falha) => return Err(ErroProcessoObter::Transporte(falha)),
     };
     match destino(localizacao.as_deref()) {
         DestinoDoRedirecionamento::RecusaSemAssinatura => {
             // A recusa derrubou a sessão: registrar e parar, sem relogin.
             indice.registrar_entrada_por_id_com_documento(instalacao, false);
-            return Err(P::EntradaPorIdRecusada);
+            return Err(ErroProcessoObter::EntradaPorIdRecusada);
         }
-        DestinoDoRedirecionamento::Login => return Err(P::SessaoEncerrada),
+        DestinoDoRedirecionamento::Login => {
+            return Err(ErroProcessoObter::SessaoEncerrada(
+                crate::erro_publico::SessaoEncerrada,
+            ));
+        }
         DestinoDoRedirecionamento::Outro => {}
     }
     let origem = OrigemDoTrabalho::EntradaPorIdComDocumento { id, documento };
@@ -148,14 +147,18 @@ fn entrada_com_documento<V: EnvioDoProcesso>(
             esquecer();
             return Ok(None);
         }
-        Err(erro) => return Err(P::Redirecionamento(erro)),
+        Err(erro) => return Err(ErroProcessoObter::Redirecionamento(erro)),
     };
     indice.registrar_entrada_por_id_com_documento(instalacao, true);
     let (html, mime) = match rede.get(trabalho.as_str())? {
         Lida::Html { html, mime } => (html, mime),
         Lida::Redirecionamento(local) => return Err(fora_de_palpite(local.as_deref())),
-        Lida::Login => return Err(P::SessaoEncerrada),
-        Lida::Falha(falha) => return Err(P::Transporte(falha)),
+        Lida::Login => {
+            return Err(ErroProcessoObter::SessaoEncerrada(
+                crate::erro_publico::SessaoEncerrada,
+            ));
+        }
+        Lida::Falha(falha) => return Err(ErroProcessoObter::Transporte(falha)),
     };
     let tela = match ler_tela_do_documento(instalacao, &html, documento, contexto.unidade_pedida) {
         Ok((tela, processo)) if processo == *id => tela,
@@ -163,7 +166,7 @@ fn entrada_com_documento<V: EnvioDoProcesso>(
             esquecer();
             return Ok(None);
         }
-        Err(erro) => return Err(P::Tela(erro)),
+        Err(erro) => return Err(ErroProcessoObter::Tela(erro)),
     };
     match rede.abrir_da_tela(contexto, trabalho.as_str(), (&html, &mime), tela, id) {
         Ok((aberta, unidade)) => Ok(Some((
@@ -171,11 +174,68 @@ fn entrada_com_documento<V: EnvioDoProcesso>(
             Some(unidade),
             ResolvidoPor::IndiceEntradaDocumento,
         ))),
-        Err(P::Arvore(erro)) if erro.diverge_do_pedido() => {
+        Err(ErroProcessoObter::Arvore(erro)) if erro.diverge_do_pedido() => {
             indice.esquecer_processo(instalacao, contexto.nup);
             esquecer();
             Ok(None)
         }
         Err(erro) => Err(erro),
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use crate::acao_do_sei::AcaoDoSei;
+    use crate::arvore_processo::tests::{NUP, arvore, no_documento, no_processo};
+    use crate::documento::NumeroDocumento;
+
+    use crate::processo_obter::tests_apoio::*;
+    use crate::processo_obter::{
+        ErroDocumentoObter, PedidoDoAnexo, PedidoDoDocumento, SessaoDoProcesso, obter_documento,
+    };
+    use crate::transporte::sessao::CookieDaSessao;
+
+    #[test]
+    fn bdd_60_05_indice_ambiguo_nao_preserva_palpite_antigo() {
+        // Teste tecnico do BDD-60-05: leitura pelo indice com numeros duplicados.
+        let amb = ambiente();
+        let inst = instalacao();
+        amb.indice.registrar_processo(&inst, NUP, ID);
+        amb.indice
+            .registrar_documentos(&inst, ID, &[("0000101", "99")]);
+        let geracao = geracao();
+        amb.indice
+            .registrar_link(
+                &inst,
+                chave(&geracao, AcaoDoSei::ProcedimentoVisualizar, ID),
+                &url_arvore(ID),
+            )
+            .unwrap();
+        let duplicado = arvore(&[
+            no_processo(0, ID, NUP),
+            no_documento(1, "21", ID, "0000101"),
+            no_documento(2, "23", ID, "0000101"),
+        ]);
+        let numero = NumeroDocumento::novo("0000101").unwrap();
+        let url = url_controle();
+        let sessao = SessaoDoProcesso {
+            url_do_controle: &url,
+            origem: ORIGEM,
+            cookie: &CookieDaSessao::ler(&amb.cookie),
+        };
+        let pedido = PedidoDoDocumento {
+            numero: &numero,
+            unidade: None,
+            processo: None,
+            anexo: PedidoDoAnexo::default(),
+        };
+        let mut rede = Roteiro::novo(vec![ok(duplicado)]);
+        let resultado = obter_documento(&sessao, &pedido, &amb.indice, &mut rede);
+        assert_eq!(
+            resultado.unwrap_err(),
+            ErroDocumentoObter::NumeroSeiRepetidoNaArvore
+        );
+        assert_eq!(rede.pedidos, [get(&url_arvore(ID))]);
+        assert!(amb.indice.documento_por_numero(&inst, "0000101").is_none());
     }
 }

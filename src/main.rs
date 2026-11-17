@@ -1,17 +1,32 @@
+mod acao_do_sei;
 mod anexo_documento;
 mod arquivo_caixa;
 mod arquivo_copia;
 mod arquivo_privado;
 mod arquivo_texto_documento;
 mod arvore_processo;
+mod bloco;
+mod bloco_cli;
+mod bloco_detalhe;
+mod bloco_estado;
+mod bloco_incluir;
+mod bloco_incluir_cli;
+mod cache_documento;
 mod caixa;
 mod caixa_detalhada;
 #[cfg(test)]
 mod cassette;
+mod ciencia;
+mod ciencia_cli;
+mod ciencia_documento_cli;
 mod classe_link_processo;
-pub(crate) mod cofre;
+mod cli_documento;
+mod cli_processo;
+mod cli_unidade_aux;
+mod cofre;
 mod colheita_do_controle;
 mod configuracao;
+mod consulta_do_controlador;
 mod controle_contexto;
 mod controle_reconhecido;
 mod copia_documento;
@@ -21,6 +36,12 @@ mod documento;
 mod documento_assinar;
 mod documento_assinar_cli;
 mod documento_buscar_cli;
+mod documento_cancelar;
+mod documento_cancelar_cli;
+mod documento_criar;
+mod documento_criar_cli;
+mod documento_externo_incluir;
+mod documento_externo_incluir_cli;
 mod documento_html_privado_cli;
 mod documento_obter_cli;
 mod documento_salvar_cli;
@@ -28,62 +49,110 @@ mod documento_versao_cli;
 mod documento_versoes;
 mod documento_web;
 mod dominio;
-mod entidades_html;
+mod erro_publico;
 mod erro_web;
 mod esquema_cli;
 mod formulario_web;
 mod foto_documento;
-mod hex;
 mod historico;
 mod historico_processo;
-mod html_atributos;
+mod indice_caminho_cli;
 mod indice_local;
 mod instalacao;
+mod legenda;
 mod marcadores_processo;
 mod mime_web;
 mod nivel_de_detalhe;
+mod origem_de_treinamento;
 mod pagina_do_controle;
 mod paginacao_controle;
 mod paginas;
 mod pesquisa_web;
 mod processo;
+mod processo_acompanhar;
+mod processo_acompanhar_cli;
+mod processo_andamento_registrar;
+mod processo_andamento_registrar_cli;
+mod processo_anexar;
+mod processo_anexar_cli;
+mod processo_anotar;
+mod processo_anotar_cli;
+mod processo_atribuir;
+mod processo_atribuir_cli;
 mod processo_buscar_cli;
+pub mod processo_comentar;
+mod processo_comentar_cli;
+mod processo_comentar_web;
+pub mod processo_comentarios;
+mod processo_comentarios_cli;
+mod processo_comentarios_web;
 mod processo_concluir;
 mod processo_concluir_cli;
+#[path = "processo_criar/cadastro.rs"]
+mod processo_criar_cadastro;
+mod processo_criar_cli;
+#[path = "processo_criar/fluxo.rs"]
+mod processo_criar_fluxo;
+#[path = "processo_criar/hipotese.rs"]
+mod processo_criar_hipotese;
+#[path = "processo_criar/interessados.rs"]
+mod processo_criar_interessados;
+#[path = "processo_criar/lista.rs"]
+mod processo_criar_lista;
+#[path = "processo_criar/menu.rs"]
+mod processo_criar_menu;
 mod processo_enviar;
 mod processo_enviar_cli;
+mod processo_marcar;
+mod processo_marcar_cli;
 mod processo_obter;
 mod processo_obter_cli;
+mod processo_prazo;
+mod processo_prazo_cli;
 mod processo_reabrir;
 mod processo_reabrir_cli;
+mod processo_relacionar;
+mod processo_relacionar_cli;
+mod processo_sobrestar;
+mod processo_sobrestar_cli;
+mod propriedades_documento;
 mod propriedades_processo;
 mod relogin_cli;
+mod resposta_ajax;
 mod rodape_do_documento;
 mod saida;
-mod saida_erro;
 mod sessao_login;
 mod sessao_login_cli;
 mod setup_cli;
 mod status_cli;
 mod status_web;
+mod tela_html;
 mod tela_login;
 mod transporte;
 mod unidade_atual_cli;
 mod unidade_categoria;
 mod unidade_colunas_cli;
 mod unidade_colunas_definir_cli;
+mod unidade_indice_cli;
 mod unidade_lista_cli;
+mod unidade_lupa;
+mod unidade_pesquisar_cli;
+mod unidade_retornos;
+mod unidade_retornos_cli;
+mod unidade_retornos_web;
 mod unidade_trocar;
 mod unidade_trocar_cli;
 mod url_observada;
+mod uso_invalido;
 mod visao_do_controle;
 mod wizard_cli;
 mod wizard_sondagem;
 
 use clap::{Args, Parser, Subcommand};
-use serde_json::json;
 use std::path::PathBuf;
-use std::process::ExitCode;
+
+pub(crate) use cli_documento::DocumentoAcao;
+pub(crate) use cli_processo::{Processo, ProcessoAcao};
 
 pub(crate) const MAX_HTML_BYTES: usize = 8_000_000;
 
@@ -106,6 +175,10 @@ enum Domain {
     Documento(Documento),
     /// Consulta coleções da unidade
     Unidade(Unidade),
+    /// Inspeciona a localização do índice SQLite local, sem rede
+    Indice(Indice),
+    /// Leitura de blocos de assinatura, internos e de reunião
+    Bloco(Bloco),
     /// Diagnóstico da conexão (ainda não implementado)
     Status(StatusArgs),
     /// Configura a conexão (ainda não implementado)
@@ -125,79 +198,16 @@ enum Domain {
     Esquema,
 }
 
-// Flags de exclusão independentes correspondem diretamente às opções da CLI.
-#[allow(clippy::struct_excessive_bools)]
-#[derive(Debug, Args)]
-struct Processo {
-    numero: Option<String>,
-    /// Omite documentos da leitura
-    #[arg(long)]
-    sem_documentos: bool,
-    /// Omite marcadores da leitura
-    #[arg(long)]
-    sem_marcadores: bool,
-    /// Omite andamentos da leitura
-    #[arg(long)]
-    sem_andamentos: bool,
-    /// Omite propriedades adicionais da leitura
-    #[arg(long)]
-    sem_propriedades: bool,
-    /// Solicita histórico completo do processo
-    #[arg(long)]
-    andamentos_completos: bool,
-    #[command(subcommand)]
-    acao: Option<ProcessoAcao>,
-}
-
-#[derive(Debug, Subcommand)]
-enum ProcessoAcao {
-    /// Pesquisa processo na Web (GET, GET e POST); com --pagina N, mais um POST
-    Buscar {
-        /// NUP inteiro ou parte do número, como digitado no campo Protocolo
-        termo: String,
-        /// Pede a página N do resultado (um POST que altera a página lembrada)
-        #[arg(
-            long,
-            value_name = "N",
-            value_parser = clap::value_parser!(u32).range(1..)
-        )]
-        pagina: Option<u32>,
-    },
-    /// Envia o processo a uma unidade (prévia; com --confirmar, um POST e a
-    /// verificação por leitura)
-    Enviar {
-        numero: String,
-        /// Sigla da unidade de destino, como o SEI a oferece
-        #[arg(long, required = true)]
-        para: Vec<String>,
-        /// Marca "Manter processo aberto na unidade atual"
-        #[arg(long)]
-        manter_aberto: bool,
-        #[arg(long)]
-        confirmar: bool,
-    },
-    Concluir {
-        numero: String,
-        #[arg(long)]
-        confirmar: bool,
-    },
-    Reabrir {
-        numero: String,
-        #[arg(long)]
-        confirmar: bool,
-    },
-}
-
 #[derive(Debug, Args)]
 struct Documento {
     /// Números dos documentos SEI
-    #[arg(num_args = 0..)]
-    numeros: Vec<String>,
+    #[arg(num_args = 0.., value_parser = crate::documento::NumeroDocumento::novo)]
+    numeros: Vec<crate::documento::NumeroDocumento>,
     /// Contexto de processo, quando conhecido
-    #[arg(long)]
-    processo: Option<String>,
+    #[arg(long, value_parser = crate::processo::NumeroProcesso::novo)]
+    processo: Option<crate::processo::NumeroProcesso>,
     /// Solicita exatamente esta versão histórica (requer transporte autorizado)
-    #[arg(long)]
+    #[arg(long, value_parser = clap::value_parser!(u32).range(1..))]
     versao: Option<u32>,
     /// Interpreta HTML privado já capturado, sem rede ou confirmação de sessão
     #[arg(long = "html-privado", value_name = "ARQUIVO")]
@@ -205,6 +215,9 @@ struct Documento {
     /// Diretório onde os conteúdos serão salvos
     #[arg(long)]
     saida: Option<String>,
+    /// Desativa a gravação automática do cache local de documentos
+    #[arg(long)]
+    sem_cache: bool,
     /// Oculta documentos não acessíveis
     #[arg(long)]
     ocultar_inacessiveis: bool,
@@ -215,41 +228,51 @@ struct Documento {
     acao: Option<DocumentoAcao>,
 }
 
+#[derive(Debug, Args)]
+struct Bloco {
+    /// Número de bloco de assinatura a detalhar; sem número, usar listar
+    numero: Option<u64>,
+    #[command(subcommand)]
+    acao: Option<BlocoAcao>,
+}
 #[derive(Debug, Subcommand)]
-enum DocumentoAcao {
-    /// Prévia de cópia local; confirmação remota ainda bloqueada
-    Salvar {
-        numero: String,
-        #[arg(long)]
-        versao: Option<u32>,
-        #[arg(long)]
-        confirmar: bool,
-        /// Lista as cópias locais versionadas sem consultar o SEI
-        #[arg(long, conflicts_with_all = ["versao", "confirmar"])]
-        listar_copias: bool,
-    },
-    /// Pesquisa documento na Web (GET, GET e POST); com --pagina N, mais um POST
-    Buscar {
-        /// Número SEI exato ou parcial, como digitado no campo Protocolo
-        termo: String,
-        /// Pede a página N do resultado (um POST que altera a página lembrada)
-        #[arg(
-            long,
-            value_name = "N",
-            value_parser = clap::value_parser!(u32).range(1..)
-        )]
+enum BlocoAcao {
+    /// Lista blocos da unidade na página atualmente observada
+    Listar {
+        /// Tipo de bloco oferecido pelo menu Web
+        #[arg(long, value_enum, default_value = "assinatura")]
+        tipo: bloco::TipoBloco,
+        /// Página 1: validação da página atual; páginas adicionais em desenvolvimento
+        #[arg(long, value_parser = clap::value_parser!(u32).range(1..))]
         pagina: Option<u32>,
     },
-    /// Assina com a senha do login (`IES_CREDENCIAIS_FILE`); prévia sem POST
-    Assinar {
-        numero: String,
-        /// Cargo/função exatamente como uma opção da tela de assinatura
-        #[arg(long, value_name = "TEXTO")]
-        cargo: Option<String>,
-        /// Assina (não se desfaz); exige --cargo
-        #[arg(long, requires = "cargo")]
+    /// Inclui documento (bloco de assinatura) ou processo (interno/reunião) em bloco; sem --confirmar, só prévia
+    #[command(group(clap::ArgGroup::new("alvo").required(true).args(["documento", "processo"])))]
+    Incluir {
+        /// Número do bloco publicado pela lista da unidade
+        bloco: u64,
+        /// Número SEI do documento (bloco de assinatura)
+        #[arg(long, value_parser = crate::documento::NumeroDocumento::novo)]
+        documento: Option<crate::documento::NumeroDocumento>,
+        /// NUP do processo (bloco interno ou de reunião)
+        #[arg(long)]
+        processo: Option<String>,
+        /// Executa a inclusão (sem isso, só prévia)
+        #[arg(long)]
         confirmar: bool,
     },
+}
+
+#[derive(Debug, Args)]
+struct Indice {
+    #[command(subcommand)]
+    acao: Option<IndiceAcao>,
+}
+
+#[derive(Debug, Subcommand)]
+enum IndiceAcao {
+    /// Mostra o caminho configurado do SQLite; não abre o banco
+    Caminho,
 }
 
 #[derive(Debug, Args)]
@@ -260,6 +283,17 @@ struct Unidade {
 
 #[derive(Debug, Subcommand)]
 enum UnidadeAcao {
+    /// Lista as unidades já guardadas no índice local, sem rede
+    Listar {
+        /// Recolhe uma lista nova pela lupa (ainda não disponível nesta fatia)
+        #[arg(long)]
+        atualizar: bool,
+    },
+    /// Pesquisa no índice local por sigla ou descrição, sem rede
+    Pesquisar {
+        #[arg(value_parser = clap::builder::NonEmptyStringValueParser::new())]
+        termo: String,
+    },
     /// Mostra a unidade ativa pelo rótulo publicado na página do Controle
     Atual,
     /// Lista os processos da unidade na visão detalhada, com colunas; a sessão fica na D
@@ -278,8 +312,12 @@ enum UnidadeAcao {
     /// Mostra as 12 opções do Nível de detalhe; com --definir, prévia da escrita
     Colunas {
         /// Colunas a deixar marcadas: `todas` (as publicadas) ou chaves separadas por vírgula; sem --confirmar, só prévia
-        #[arg(long, value_name = "todas|LISTA")]
-        definir: Option<String>,
+        #[arg(
+            long,
+            value_name = "todas|LISTA",
+            value_parser = nivel_de_detalhe::AlvoDasColunas::interpretar
+        )]
+        definir: Option<nivel_de_detalhe::AlvoDasColunas>,
         /// Salva a configuração pedida (um POST) e confere por leitura
         #[arg(long, requires = "definir")]
         confirmar: bool,
@@ -287,6 +325,7 @@ enum UnidadeAcao {
     /// Troca a unidade ativa da sessão; vale para toda a sessão da conta (todos os agentes que a usam). Sem --confirmar, só prévia
     Trocar {
         /// Sigla como a tela Trocar Unidade a mostra (byte a byte)
+        #[arg(value_parser = unidade_trocar_cli::sigla_da_troca)]
         sigla: String,
         /// Envia a troca (um POST) e confere pelo Controle da unidade nova
         #[arg(long)]
@@ -296,6 +335,12 @@ enum UnidadeAcao {
     Recebidos(ListaDaUnidade),
     /// Lista Gerados da unidade: a página observada, com total e faixa
     Gerados(ListaDaUnidade),
+    /// Lista os retornos programados da unidade na tela Web do SEI
+    Retornos {
+        /// Mes AAAA-MM (ausente: mes marcado como hoje pelo SEI)
+        #[arg(long, value_name = "AAAA-MM", value_parser = unidade_retornos_web::mes_da_cli)]
+        mes: Option<unidade_retornos::MesAno>,
+    },
 }
 
 /// Opções de uma lista independente da caixa (Recebidos ou Gerados).
@@ -346,66 +391,58 @@ struct SetupArgs {
     origem: PathBuf,
 }
 
-fn erro_fonte(json_mode: bool, subcodigo: &str, mensagem: &str) -> ExitCode {
-    saida_erro::erro_fonte_http(json_mode, subcodigo, mensagem, None)
-}
-
 /// Despacha os recortes de leitura e prévia já implementados, sem duplicar
 /// verificações nem acessar serviços fora do comando explicitamente solicitado.
-fn tentar_operacao_documento_ou_processo(cli: &Cli) -> Option<ExitCode> {
-    processo_buscar_cli::tentar_buscar(cli)
+fn tentar_operacao_documento_ou_processo(cli: &Cli) -> Option<anyhow::Result<()>> {
+    processo_criar_cli::tentar_criar(cli)
+        .or_else(|| processo_comentarios_cli::tentar_ler(cli))
+        .or_else(|| processo_comentar_cli::tentar_comentar(cli))
+        .or_else(|| processo_anotar_cli::tentar_anotar(cli))
+        .or_else(|| processo_andamento_registrar_cli::tentar_registrar(cli))
+        .or_else(|| processo_buscar_cli::tentar_buscar(cli))
         .or_else(|| documento_buscar_cli::tentar_buscar(cli))
         .or_else(|| documento_html_privado_cli::tentar_ler(cli))
         .or_else(|| documento_salvar_cli::tentar_salvar_documento(cli))
-        .or_else(|| documento_salvar_cli::tentar_validar_versao(cli))
         .or_else(|| documento_obter_cli::tentar_obter(cli))
         .or_else(|| processo_obter_cli::tentar_obter(cli))
+        .or_else(|| processo_atribuir_cli::tentar_atribuir(cli))
+        .or_else(|| processo_marcar_cli::tentar_marcar(cli))
         .or_else(|| processo_concluir_cli::tentar_concluir(cli))
+        .or_else(|| processo_acompanhar_cli::tentar_acompanhar(cli))
         .or_else(|| processo_reabrir_cli::tentar_reabrir(cli))
+        .or_else(|| processo_prazo_cli::tentar_prazo(cli))
+        .or_else(|| ciencia_cli::tentar_ciente(cli))
+        .or_else(|| ciencia_documento_cli::tentar_ciente_documento(cli))
+        .or_else(|| processo_anexar_cli::tentar_anexar(cli))
+        .or_else(|| processo_sobrestar_cli::tentar_operar(cli))
         .or_else(|| documento_assinar_cli::tentar_assinar(cli))
+        .or_else(|| documento_cancelar_cli::tentar_cancelar(cli))
+        .or_else(|| documento_criar_cli::tentar_criar(cli))
+        .or_else(|| documento_externo_incluir_cli::tentar_incluir(cli))
         .or_else(|| processo_enviar_cli::tentar_enviar(cli))
-}
-
-/// `ies unidade recebidos|gerados`: uma lista independente da caixa.
-fn listar(
-    cli: &Cli,
-    lista: &ListaDaUnidade,
-    categoria: unidade_categoria::CategoriaLista,
-) -> ExitCode {
-    unidade_categoria::listar_categoria(
-        cli.unidade.as_deref(),
-        cli.json,
-        lista.saida.as_deref(),
-        categoria,
-        lista.pagina.map(|n| n as usize),
-    )
+        .or_else(|| processo_relacionar_cli::tentar_relacionar(cli))
 }
 
 /// `ies unidade colunas`: leitura; com `--definir`, prévia ou escrita.
-fn colunas(cli: &Cli, definir: Option<&str>, confirmar: bool) -> ExitCode {
-    match definir {
-        None => unidade_colunas_cli::mostrar_colunas(cli.unidade.as_deref(), cli.json),
-        Some(definir) => unidade_colunas_definir_cli::definir_colunas(
-            cli.unidade.as_deref(),
-            cli.json,
-            definir,
-            confirmar,
-        ),
+fn run(cli: &Cli) -> anyhow::Result<()> {
+    if let Some(saida) = unidade_indice_cli::tentar_consulta_local(cli) {
+        return saida;
     }
-}
-
-fn run(cli: &Cli) -> ExitCode {
-    if let Some(status) = tentar_operacao_documento_ou_processo(cli) {
-        return status;
+    if let Some(saida) = tentar_operacao_documento_ou_processo(cli) {
+        return saida;
     }
     match &cli.command {
+        Domain::Bloco(bloco) => return bloco_cli::executar(cli, bloco),
         Domain::Credenciais(args) => {
             return credenciais_cli::executar_credenciais(args, cli.json);
         }
         Domain::Wizard(args) => {
             return wizard_cli::executar_wizard(args, cli.json);
         }
-        Domain::Esquema => return esquema_cli::mostrar_esquema(cli.json),
+        Domain::Esquema => {
+            esquema_cli::mostrar_esquema(cli.json);
+            return Ok(());
+        }
         Domain::Setup(setup) => return setup_cli::executar_setup(setup, cli.json),
         Domain::Login(LoginArgs { forcar }) => {
             return sessao_login_cli::executar_login(cli.json, *forcar, cli.unidade.as_deref());
@@ -413,46 +450,10 @@ fn run(cli: &Cli) -> ExitCode {
         Domain::Status(args) => {
             return status_cli::mostrar_status(cli.json, args, cli.unidade.as_deref());
         }
-        Domain::Unidade(Unidade {
-            acao: Some(UnidadeAcao::Atual),
-        }) => return unidade_atual_cli::mostrar_unidade_atual(cli.unidade.as_deref(), cli.json),
-        Domain::Unidade(Unidade {
-            acao: Some(UnidadeAcao::Recebidos(lista)),
-        }) => return listar(cli, lista, unidade_categoria::CategoriaLista::Recebidos),
-        Domain::Unidade(Unidade {
-            acao: Some(UnidadeAcao::Gerados(lista)),
-        }) => return listar(cli, lista, unidade_categoria::CategoriaLista::Gerados),
-        Domain::Unidade(Unidade {
-            acao: Some(UnidadeAcao::ListarProcessos { saida, pagina }),
-        }) => {
-            return unidade_lista_cli::listar_processos_da_unidade(
-                cli.unidade.as_deref(),
-                cli.json,
-                saida.as_deref(),
-                pagina.map(|n| n as usize),
-            );
+        Domain::Unidade(Unidade { acao: Some(acao) }) => {
+            return cli_unidade_aux::executar(cli, acao);
         }
-        Domain::Unidade(Unidade {
-            acao: Some(UnidadeAcao::Colunas { definir, confirmar }),
-        }) => return colunas(cli, definir.as_deref(), *confirmar),
-        Domain::Unidade(Unidade {
-            acao: Some(UnidadeAcao::Trocar { sigla, confirmar }),
-        }) => {
-            return unidade_trocar_cli::trocar(sigla, *confirmar, cli.unidade.as_deref(), cli.json);
-        }
-        _ => {}
-    }
-    if let Domain::Documento(Documento {
-        numeros,
-        acao: None,
-        ..
-    }) = &cli.command
-        && let Some(status) = documento_salvar_cli::validar_documentos(numeros, cli.json)
-    {
-        return status;
-    }
-    if let Some(status) = processo_obter_cli::validar_numero(cli) {
-        return status;
+        Domain::Processo(_) | Domain::Documento(_) | Domain::Unidade(_) | Domain::Indice(_) => {}
     }
     match &cli.command {
         Domain::Processo(Processo {
@@ -461,7 +462,7 @@ fn run(cli: &Cli) -> ExitCode {
             ..
         }) => {
             esquema_cli::show_noun_help("processo");
-            return ExitCode::SUCCESS;
+            return Ok(());
         }
         Domain::Documento(Documento {
             numeros,
@@ -469,46 +470,38 @@ fn run(cli: &Cli) -> ExitCode {
             ..
         }) if numeros.is_empty() => {
             esquema_cli::show_noun_help("documento");
-            return ExitCode::SUCCESS;
+            return Ok(());
+        }
+        Domain::Indice(Indice { acao: None }) => {
+            println!("ies indice caminho");
+            return Ok(());
         }
         Domain::Unidade(Unidade { acao: None }) => {
             esquema_cli::show_noun_help("unidade");
-            return ExitCode::SUCCESS;
+            return Ok(());
         }
-        _ => {}
+        Domain::Processo(_)
+        | Domain::Documento(_)
+        | Domain::Unidade(_)
+        | Domain::Indice(_)
+        | Domain::Bloco(_)
+        | Domain::Status(_)
+        | Domain::Setup(_)
+        | Domain::Login(_)
+        | Domain::Credenciais(_)
+        | Domain::Wizard(_)
+        | Domain::Esquema => {}
     }
-    let detail = format!("{:?}", cli.command);
-    if cli.json {
-        println!(
-            "{}",
-            json!({
-                "erro": "Comando definido preliminarmente, mas sem implementação SEI",
-                "codigo": "nao_implementado",
-                "retentavel": false,
-                "dados": { "comando": detail },
-                "proximo_passo": "Implementar após aprovação do contrato CLI"
-            })
-        );
-    } else {
-        eprintln!("IES: comando ainda não implementado no SEI ({detail})");
-    }
-    ExitCode::from(1)
+    Err(ComandoSemImplementacaoNoSei(format!("{:?}", cli.command)).into())
 }
 
-fn main() -> ExitCode {
-    match Cli::try_parse() {
-        Ok(cli) => run(&cli),
-        Err(err) => {
-            let status = if matches!(
-                err.kind(),
-                clap::error::ErrorKind::DisplayHelp | clap::error::ErrorKind::DisplayVersion
-            ) {
-                0
-            } else {
-                2
-            };
-            let _ = err.print();
-            ExitCode::from(status)
-        }
-    }
+/// O comando existe na superfície Clap, mas ainda não tem fluxo SEI.
+#[derive(Debug, thiserror::Error)]
+#[error("{self:?}")]
+struct ComandoSemImplementacaoNoSei(String);
+
+/// O erro que sobe é impresso pelo próprio Rust (`Error: …`, com o `Debug`
+/// e a cadeia de causas) e sai com 1; uso inválido é do clap (saída 2).
+fn main() -> anyhow::Result<()> {
+    run(&Cli::parse())
 }

@@ -1,0 +1,30 @@
+id: 18-atributos-let-else-usos-campo
+language: rust
+message: 'let-else de atributos(): o nome some e os usos passam ao elemento (usos) (campo abreviado de struct)'
+severity: hint
+rule:
+  all:
+    - kind: identifier
+    - pattern: $X
+    - inside:
+        stopBy: end
+        follows:
+          stopBy: end
+          any:
+            - pattern: 'let Ok($X) = atributos($H) else { $$$B };'
+            - pattern: 'let Ok($X) = crate::html_atributos::atributos($H) else { $$$B };'
+    - not:
+        pattern: $H
+    - inside:
+        kind: shorthand_field_initializer
+    - not:
+        inside:
+          stopBy: end
+          kind: mod_item
+          follows:
+            kind: attribute_item
+            regex: 'cfg\(test\)'
+constraints:
+  H:
+    kind: identifier
+fix: '$X: $H'

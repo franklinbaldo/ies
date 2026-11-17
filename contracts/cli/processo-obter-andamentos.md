@@ -32,30 +32,33 @@ juntas ou repetidas são `links_do_historico_repetidos_na_arvore`; um
 `link_do_historico_fora_da_forma_observada`.
 
 **Link não publicado.** Em GO, duas árvores não publicaram o link em
-nenhuma forma. Isso não derruba o comando: a árvore já provou a
-identidade. Sai `"andamentos": null`, `"andamentos"` continua em
-`nao_lidos` e `"andamentos_nao_lidos_motivo":
-"link_do_historico_nao_publicado_na_arvore"`. Link presente mas inválido
-ou repetido continua recusa tipada.
+nenhuma forma. Sem o link, o histórico não é lido: o comando falha com
+`LinkDoHistorico(LinkDoHistoricoAusenteNaArvore)` (saída 1, nada é
+publicado). Só `--sem-andamentos` dispensa a leitura, e
+então o JSON sai sem a chave `andamentos`, com
+`"andamentos_nao_lidos_motivo": "omitidos_por_sem_andamentos"`. Link
+presente mas inválido ou repetido também é recusa tipada.
 
 ## Visões e requisições
 
 - **Padrão**: 1 GET do link. Publica a visão que a página serviu, lida de
   `hdnTipoHistorico` no `form#frmProcedimentoHistorico` (`R` →
-  `"resumido"`, `P` → `"completo"`; outro valor, ausente ou repetido é
-  `tipo_do_historico_nao_publicado`). Normalmente `R`.
+  `"resumido"`, `P` → `"completo"`; outro valor ou campo ausente/repetido é
+  `TipoDoHistoricoNaoPublicado`; campo sem atributo `value` é
+  `TipoDoHistoricoSemValor`). Normalmente `R`.
 - **`--andamentos-completos`**: o GET e, se ele serviu `R`, o POST de
   `verHistorico('P')`: as três linhas servidas da função
   (`function verHistorico(valor){`,
   `document.getElementById('hdnTipoHistorico').value = valor;`,
-  `document.getElementById('frmProcedimentoHistorico').submit();`) e o
-  único `a#ancTipoHistorico` com `onclick="verHistorico('P');"` são
-  conferidos literalmente antes de derivar
-  (`regra_de_ver_historico_nao_observada`). O POST vai para o `action`
+  `document.getElementById('frmProcedimentoHistorico').submit();`) são
+  conferidas literalmente antes de derivar (`RegraDeVerHistoricoAusenteNaPagina`):
+  são o que o POST emula sem executar JS. A âncora `a#ancTipoHistorico` não é
+  conferida; a visão servida depois do POST é (`VisaoDoHistoricoDiferenteDaPedida`).
+  O POST vai para o `action`
   assinado com os ocultos como servidos, só `hdnTipoHistorico=P`
   reescrito, sem botão (`btnAtualizarAndamento`, escrita, é `type=button`
   e nunca participa). Só a visão `P` é publicada; resposta `R` é
-  `visao_do_historico_diferente_da_pedida`. Se o GET já serviu `P`, não
+  `VisaoDoHistoricoDiferenteDaPedida`. Se o GET já serviu `P`, não
   há POST.
 - **`--sem-andamentos`**: nenhum pedido ao histórico; a chave
   `andamentos` some, `"andamentos"` fica em `nao_lidos` e o motivo é
@@ -92,9 +95,10 @@ A legenda da tabela é `Lista de Andamentos (N registro):` ou
 `(N registros):`; outra forma (inclusive uma com faixa de paginação) é
 `legenda_dos_andamentos_fora_da_forma_observada`, ausente é
 `legenda_dos_andamentos_ausente`. Linhas além de N são
-`andamentos_alem_do_total_declarado`. Linhas aquém de N saem com
-`total_declarado: N` e `faixa_observada: {"inicio": 1, "fim": linhas}`:
-o IES nunca alega completude além do lido. Nenhum paginador foi visto
+`AndamentosAlemDoTotalDeclarado`. Linhas aquém de N saem com
+`total_declarado: N` e `faixa_observada: {"inicio": 1, "fim": linhas}`;
+com zero linhas a chave `faixa_observada` é omitida. O IES nunca alega
+completude além do lido. Nenhum paginador foi visto
 até 75 linhas ao vivo (GO). No [replay do acervo](../../docs/validacao-replay/2026-11-04-processo-obter-acervo.md)
 (120 páginas, sete instalações, a maior com 57 linhas na UFRJ) a
 `divInfraAreaPaginacaoSuperior` vem sempre vazia e as linhas igualam N.
@@ -106,13 +110,14 @@ Históricos acima de 75 linhas: **NOT_RUN**.
 "andamentos": {"tipo": "resumido", "total_declarado": 3,
   "faixa_observada": {"inicio": 1, "fim": 3},
   "itens": [{"ocorrido_em": "dd/mm/aaaa hh:mm", "unidade": "SIGLA",
-             "usuario": "sigla ou null", "descricao": "texto"}]}
+             "usuario": "sigla", "descricao": "texto"}]}
 ```
 
 `tipo` é o nome da visão do SEI ("Ver histórico completo"), não uma
 alegação de completude. Itens na ordem servida, sem id inventado. O motivo
-fica numa chave irmã, e não dentro do objeto, para que `andamentos` seja
-sempre o objeto inteiro ou `null` ("não observado").
+fica numa chave irmã, e não dentro do objeto. Com `--sem-andamentos` a
+chave `andamentos` some; sem essa flag o objeto é sempre o lido, ou o
+comando falha.
 
 ## Efeitos
 
@@ -125,19 +130,20 @@ servidor lembra a visão na sessão. O IES não restaura a visão.
 Link: `link_do_historico_fora_da_forma_observada`,
 `links_do_historico_repetidos_na_arvore`,
 `endereco_do_historico_nao_reconhecido`,
-`endereco_do_historico_de_outro_processo`,
-`html_da_arvore_nao_interpretado`.
+`EnderecoDoHistoricoDeOutroProcesso`,
+`html_da_arvore_nao_interpretado`, e `LinkDoHistoricoAusenteNaArvore`
+(a árvore não publica o link do histórico; só com andamentos pedidos).
 
 Página: os do leitor do histórico, `src/historico.rs` (`titulo_ausente`,
-`numero_do_historico_diferente_do_solicitado`, `historico_ausente`,
+`NumeroDoHistoricoDiferenteDoSolicitado`, `historico_ausente`,
 `tabelas_do_historico_repetidas`, `linha_invalida`, `historico_vazio`…),
 `legenda_dos_andamentos_ausente`,
 `legenda_dos_andamentos_fora_da_forma_observada`,
-`andamentos_alem_do_total_declarado`, `tipo_do_historico_nao_publicado`,
-`charset_do_historico_nao_suportado`.
+`AndamentosAlemDoTotalDeclarado`, `TipoDoHistoricoNaoPublicado`,
+`CharsetDoHistoricoNaoSuportado`.
 
-Visão completa: `regra_de_ver_historico_nao_observada`,
-`visao_do_historico_diferente_da_pedida` e os do primitivo de formulário.
-Login (200 ou 302) fora de palpite é `sessao_encerrada_rode_ies_login`;
+Visão completa: `RegraDeVerHistoricoAusenteNaPagina`,
+`VisaoDoHistoricoDiferenteDaPedida` e os do primitivo de formulário.
+Login (200 ou 302) fora de palpite é `SessaoEncerrada`;
 status HTTP de falha (503 do gateway visto em GO) sai com o erro de
 transporte e `status_http`, sem retry.

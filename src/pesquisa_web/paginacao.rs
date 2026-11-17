@@ -7,15 +7,15 @@ use super::formulario_pesquisa::CAMPOS_OCULTOS_DA_PESQUISA;
 #[cfg(test)]
 use super::resposta::ListaDaPesquisa;
 use super::resposta::{FaixaDaPesquisa, RespostaDaPesquisa};
+use crate::acao_do_sei::AcaoDoSei;
 use crate::formulario_web::{
     ConferenciaDaUnidade, EfeitoAvaliado, EnvioDoFormulario, EstadoDeSessao, OperacaoDeFormulario,
-    decodificar_atributo, localizar_formulario,
+    localizar_formulario,
 };
-use crate::html_atributos::valor_do_atributo;
 
 /// `navegar(inicio)`: `submit()` por script, só `hdnInicio` reescrito.
 pub(crate) const PAGINAR_PESQUISA_DE_PROTOCOLO: OperacaoDeFormulario = OperacaoDeFormulario {
-    acao: "protocolo_pesquisar",
+    acao: AcaoDoSei::ProtocoloPesquisar,
     formulario: "frmPesquisaProtocolo",
     envio: EnvioDoFormulario::SubmitPorScript,
     campos_ocultos_exigidos: CAMPOS_OCULTOS_DA_PESQUISA,
@@ -28,48 +28,29 @@ pub(crate) const PAGINAR_PESQUISA_DE_PROTOCOLO: OperacaoDeFormulario = OperacaoD
     },
 };
 
-/// Uma variante por fato verificável da paginação da pesquisa.
-#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+/// um erro por fato verificável da paginação da pesquisa.
+#[derive(Clone, Debug, PartialEq, Eq, thiserror::Error)]
+#[error("{self:?}")]
 pub(crate) enum ErroPaginacaoDaPesquisa {
-    PaginaForaDoIntervalo { solicitada: u32, paginas: u64 },
-    RegraDeNavegacaoDaPesquisaNaoObservada,
+    PaginaForaDoIntervalo {
+        solicitada: u32,
+        paginas: u64,
+    },
+    /// A resposta da página 1 não foi entregue para derivar a página N.
+    HtmlDaRespostaParaPaginarAusente,
+    /// O HTML recebido não contém as linhas literais de navegação (`navegar`).
+    RegraDeNavegacaoAusenteNoHtml,
     PaginadorDaPesquisaNaoPublicado,
-    LinkDePaginacaoDaPesquisaForaDaRegra,
     ProtocoloDaTelaDeResultadoDiferenteDoPesquisado,
     RedirecionamentoAoPaginarAPesquisa,
     PaginaDaPesquisaSemResultadoAposPaginar,
     TotalDaPesquisaAlteradoAposPaginar,
     FaixaDaPesquisaDiferenteDaPaginaSolicitada,
-    HtmlDaTelaDeResultadoNaoInterpretado,
-}
-
-impl ErroPaginacaoDaPesquisa {
-    pub(crate) fn subcodigo(self) -> &'static str {
-        match self {
-            Self::PaginaForaDoIntervalo { .. } => "pagina_da_pesquisa_fora_do_intervalo",
-            Self::RegraDeNavegacaoDaPesquisaNaoObservada => {
-                "regra_de_navegacao_da_pesquisa_nao_observada"
-            }
-            Self::PaginadorDaPesquisaNaoPublicado => "paginador_da_pesquisa_nao_publicado",
-            Self::LinkDePaginacaoDaPesquisaForaDaRegra => {
-                "link_de_paginacao_da_pesquisa_fora_da_regra"
-            }
-            Self::ProtocoloDaTelaDeResultadoDiferenteDoPesquisado => {
-                "protocolo_da_tela_de_resultado_diferente_do_pesquisado"
-            }
-            Self::RedirecionamentoAoPaginarAPesquisa => "redirecionamento_ao_paginar_a_pesquisa",
-            Self::PaginaDaPesquisaSemResultadoAposPaginar => {
-                "pagina_da_pesquisa_sem_resultado_apos_paginar"
-            }
-            Self::TotalDaPesquisaAlteradoAposPaginar => "total_da_pesquisa_alterado_apos_paginar",
-            Self::FaixaDaPesquisaDiferenteDaPaginaSolicitada => {
-                "faixa_da_pesquisa_diferente_da_pagina_solicitada"
-            }
-            Self::HtmlDaTelaDeResultadoNaoInterpretado => {
-                "html_da_tela_de_resultado_da_pesquisa_nao_interpretado"
-            }
-        }
-    }
+    /// O formulário de paginação não foi localizado na tela de resultado.
+    FormularioDaPesquisaNaoLocalizadoNaTela(
+        #[source] crate::formulario_web::ErroSubmissaoFormulario,
+    ),
+    LinkDePaginacaoDaPesquisaForaDaRegra,
 }
 
 /// O que a paginação precisa da resposta da página 1, em processos ou em
@@ -114,7 +95,7 @@ pub(crate) struct PedidoDePaginaDaPesquisa {
 #[cfg(test)]
 pub(crate) fn planejar_pagina(
     resposta: &RespostaDaPesquisa,
-    html_da_resposta: Option<&str>,
+    html_da_resposta: Option<&crate::tela_html::HtmlServido>,
     solicitada: u32,
 ) -> Result<Option<PedidoDePaginaDaPesquisa>, ErroPaginacaoDaPesquisa> {
     planejar_pagina_por(resposta.contagem(), html_da_resposta, solicitada)
@@ -123,14 +104,13 @@ pub(crate) fn planejar_pagina(
 /// [`planejar_pagina`] pela contagem da página 1 (processos ou documentos).
 pub(crate) fn planejar_pagina_por(
     contagem: Contagem,
-    html_da_resposta: Option<&str>,
+    html_da_resposta: Option<&crate::tela_html::HtmlServido>,
     solicitada: u32,
 ) -> Result<Option<PedidoDePaginaDaPesquisa>, ErroPaginacaoDaPesquisa> {
-    use ErroPaginacaoDaPesquisa as E;
     if solicitada <= 1 {
         return Ok(None);
     }
-    let fora = |paginas| E::PaginaForaDoIntervalo {
+    let fora = |paginas| ErroPaginacaoDaPesquisa::PaginaForaDoIntervalo {
         solicitada,
         paginas,
     };
@@ -141,7 +121,7 @@ pub(crate) fn planejar_pagina_por(
     };
     // O POST da pesquisa envia `hdnInicio=0`: a página 1 começa em 1.
     if faixa.inicio != 1 {
-        return Err(E::FaixaDaPesquisaDiferenteDaPaginaSolicitada);
+        return Err(ErroPaginacaoDaPesquisa::FaixaDaPesquisaDiferenteDaPaginaSolicitada);
     }
     if faixa.fim >= total {
         return Err(fora(1));
@@ -152,9 +132,9 @@ pub(crate) fn planejar_pagina_por(
     if u64::from(solicitada) > paginas {
         return Err(fora(paginas));
     }
-    let html = html_da_resposta.ok_or(E::RegraDeNavegacaoDaPesquisaNaoObservada)?;
+    let html = html_da_resposta.ok_or(ErroPaginacaoDaPesquisa::HtmlDaRespostaParaPaginarAusente)?;
     if !REGRA_DE_NAVEGAR.iter().all(|linha| html.contains(linha)) {
-        return Err(E::RegraDeNavegacaoDaPesquisaNaoObservada);
+        return Err(ErroPaginacaoDaPesquisa::RegraDeNavegacaoAusenteNoHtml);
     }
     conferir_links_de_navegar(html, tamanho, total)?;
     let inicio = (u64::from(solicitada) - 1) * tamanho;
@@ -179,23 +159,16 @@ const REGRA_DE_NAVEGAR: [&str; 3] = [
 /// Todo `javascript:navegar(…)` publicado tem a forma `navegar('K')`, K
 /// decimal, múltiplo do tamanho e menor que o total; pelo menos um existe.
 fn conferir_links_de_navegar(
-    html: &str,
+    html: &crate::tela_html::HtmlServido,
     tamanho: u64,
     total: u64,
 ) -> Result<(), ErroPaginacaoDaPesquisa> {
-    use ErroPaginacaoDaPesquisa as E;
-    let ilegivel = E::HtmlDaTelaDeResultadoNaoInterpretado;
-    let dom = tl::parse(html, tl::ParserOptions::default()).map_err(|_| ilegivel)?;
-    let parser = dom.parser();
+    let dom = crate::tela_html::arvore(html);
     let mut publicados = 0;
-    for no in dom.query_selector("a").into_iter().flatten() {
-        let Some(tag) = no.get(parser).and_then(tl::Node::as_tag) else {
+    for no in dom.elementos("a") {
+        let Some(href) = no.atributo("href") else {
             continue;
         };
-        let Some(bruto) = valor_do_atributo(tag, "href").map_err(|_| ilegivel)? else {
-            continue;
-        };
-        let href = decodificar_atributo(&bruto).ok_or(ilegivel)?;
         let Some(resto) = href.strip_prefix("javascript:navegar(") else {
             continue;
         };
@@ -206,12 +179,12 @@ fn conferir_links_de_navegar(
             .and_then(|k| k.parse::<u64>().ok())
             .is_some_and(|k| k % tamanho == 0 && k < total);
         if !na_regra {
-            return Err(E::LinkDePaginacaoDaPesquisaForaDaRegra);
+            return Err(ErroPaginacaoDaPesquisa::LinkDePaginacaoDaPesquisaForaDaRegra);
         }
         publicados += 1;
     }
     if publicados == 0 {
-        return Err(E::PaginadorDaPesquisaNaoPublicado);
+        return Err(ErroPaginacaoDaPesquisa::PaginadorDaPesquisaNaoPublicado);
     }
     Ok(())
 }
@@ -219,34 +192,23 @@ fn conferir_links_de_navegar(
 /// O termo servido em `txtProtocoloPesquisa` da tela de resultado é o
 /// pesquisado: o POST de página repete o formulário servido.
 pub(crate) fn conferir_protocolo_servido(
-    html: &str,
+    html: &crate::tela_html::HtmlServido,
     protocolo: &str,
 ) -> Result<(), ErroPaginacaoDaPesquisa> {
-    use ErroPaginacaoDaPesquisa as E;
-    let ilegivel = E::HtmlDaTelaDeResultadoNaoInterpretado;
-    let dom = tl::parse(html, tl::ParserOptions::default()).map_err(|_| ilegivel)?;
-    let parser = dom.parser();
+    let dom = crate::tela_html::arvore(html);
     let form = localizar_formulario(&dom, PAGINAR_PESQUISA_DE_PROTOCOLO.formulario)
-        .map_err(|_| ilegivel)?;
+        .map_err(ErroPaginacaoDaPesquisa::FormularioDaPesquisaNaoLocalizadoNaTela)?;
     let mut servidos = Vec::new();
     for tag in form
-        .children()
-        .all(parser)
-        .iter()
-        .filter_map(tl::Node::as_tag)
-        .filter(|t| t.name().as_utf8_str().eq_ignore_ascii_case("input"))
+        .descendentes()
+        .filter(|t| t.nome().eq_ignore_ascii_case("input"))
     {
-        if valor_do_atributo(tag, "name")
-            .map_err(|_| ilegivel)?
-            .as_deref()
-            == Some("txtProtocoloPesquisa")
-        {
-            let bruto = valor_do_atributo(tag, "value").map_err(|_| ilegivel)?;
-            servidos.push(decodificar_atributo(&bruto.unwrap_or_default()).ok_or(ilegivel)?);
+        if tag.atributo("name") == Some("txtProtocoloPesquisa") {
+            servidos.push(tag.atributo("value").unwrap_or_default().to_owned());
         }
     }
     if servidos != [protocolo] {
-        return Err(E::ProtocoloDaTelaDeResultadoDiferenteDoPesquisado);
+        return Err(ErroPaginacaoDaPesquisa::ProtocoloDaTelaDeResultadoDiferenteDoPesquisado);
     }
     Ok(())
 }
@@ -269,15 +231,16 @@ pub(crate) fn conferir_contagem(
     pedido: &PedidoDePaginaDaPesquisa,
     contagem: Contagem,
 ) -> Result<(), ErroPaginacaoDaPesquisa> {
-    use ErroPaginacaoDaPesquisa as E;
     match contagem {
-        Contagem::Unico => Err(E::RedirecionamentoAoPaginarAPesquisa),
-        Contagem::SemResultado => Err(E::PaginaDaPesquisaSemResultadoAposPaginar),
+        Contagem::Unico => Err(ErroPaginacaoDaPesquisa::RedirecionamentoAoPaginarAPesquisa),
+        Contagem::SemResultado => {
+            Err(ErroPaginacaoDaPesquisa::PaginaDaPesquisaSemResultadoAposPaginar)
+        }
         Contagem::Lista { total, .. } if total != pedido.total => {
-            Err(E::TotalDaPesquisaAlteradoAposPaginar)
+            Err(ErroPaginacaoDaPesquisa::TotalDaPesquisaAlteradoAposPaginar)
         }
         Contagem::Lista { faixa, .. } if faixa != pedido.esperada => {
-            Err(E::FaixaDaPesquisaDiferenteDaPaginaSolicitada)
+            Err(ErroPaginacaoDaPesquisa::FaixaDaPesquisaDiferenteDaPaginaSolicitada)
         }
         Contagem::Lista { .. } => Ok(()),
     }

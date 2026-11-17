@@ -1,0 +1,23 @@
+id: 17c-valor
+language: rust
+message: 'Só em função que chama atributos(): valor(k) vira atributo(k)'
+severity: hint
+rule:
+  all:
+    - pattern: '$A.valor($K)'
+    - inside:
+        stopBy: end
+        kind: function_item
+        has:
+          stopBy: end
+          any:
+            - pattern: 'atributos($T)'
+            - pattern: 'crate::html_atributos::atributos($T)'
+    - not:
+        inside:
+          stopBy: end
+          kind: mod_item
+          follows:
+            kind: attribute_item
+            regex: 'cfg\(test\)'
+fix: '$A.atributo($K)'

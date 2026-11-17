@@ -2,27 +2,29 @@
 //! tentado primeiro (repetição quente = árvore 1 + histórico 1); guardado
 //! que responde login, redirect ou outro NUP é esquecido e o link da
 //! árvore recém-lida o substitui.
-use super::ErroProcessoObter as E;
 use super::tests_apoio::*;
 use super::*;
+use crate::acao_do_sei::AcaoDoSei;
 use crate::arvore_processo::tests::NUP;
 use crate::historico_processo::TipoDoHistorico;
 
-const ACAO: &str = "procedimento_consultar_historico";
-
 fn quente(amb: &Ambiente, historico_guardado: bool) {
     let (inst, g) = (instalacao(), geracao());
-    amb.indice.registrar_processo(&inst, NUP, ID).unwrap();
+    amb.indice.registrar_processo(&inst, NUP, ID);
     amb.indice
         .registrar_link(
             &inst,
-            chave(&g, "procedimento_visualizar", ID),
+            chave(&g, AcaoDoSei::ProcedimentoVisualizar, ID),
             &url_arvore(ID),
         )
         .unwrap();
     if historico_guardado {
         amb.indice
-            .registrar_link(&inst, chave(&g, ACAO, ID), &url_historico_guardada(ID))
+            .registrar_link(
+                &inst,
+                chave(&g, AcaoDoSei::ProcedimentoConsultarHistorico, ID),
+                &url_historico_guardada(ID),
+            )
             .unwrap();
     }
 }
@@ -30,7 +32,10 @@ fn quente(amb: &Ambiente, historico_guardado: bool) {
 fn guardado(amb: &Ambiente) -> Option<String> {
     let (inst, g) = (instalacao(), geracao());
     amb.indice
-        .link(&inst, chave(&g, ACAO, ID))
+        .link(
+            &inst,
+            chave(&g, AcaoDoSei::ProcedimentoConsultarHistorico, ID),
+        )
         .map(|u| u.url().to_owned())
 }
 
@@ -154,7 +159,7 @@ fn guardado_que_serve_outro_nup_e_esquecido_e_o_da_arvore_segue() {
 }
 
 #[test]
-fn guardado_que_falha_sem_link_na_arvore_publica_o_motivo() {
+fn guardado_que_falha_sem_link_na_arvore_recusa_com_erro_tipado() {
     let amb = ambiente();
     quente(&amb, true);
     let (r, pedidos) = rodar_com(
@@ -163,9 +168,12 @@ fn guardado_que_falha_sem_link_na_arvore_publica_o_motivo() {
         PedidoDeAndamentos::VisaoServida,
         vec![ok(arvore_de(ID, NUP)), r302(LOGIN)],
     );
-    let r = r.unwrap();
-    assert_eq!(r.andamentos, Andamentos::LinkNaoPublicadoNaArvore);
-    assert_eq!(r.requisicoes, 2);
+    assert_eq!(
+        r.unwrap_err(),
+        ErroProcessoObter::LinkDoHistorico(
+            crate::historico_processo::ErroLinkDoHistorico::LinkDoHistoricoAusenteNaArvore
+        )
+    );
     assert_eq!(pedidos.len(), 2);
     assert_eq!(guardado(&amb), None);
 }
@@ -196,7 +204,10 @@ fn guardado_que_responde_503_falha_sem_tentar_o_da_arvore() {
             (503, String::new(), None),
         ],
     );
-    assert!(matches!(r.unwrap_err(), E::Transporte(_)));
+    assert!(matches!(
+        r.unwrap_err(),
+        super::ErroProcessoObter::Transporte(_)
+    ));
     assert_eq!(pedidos.len(), 2);
 }
 

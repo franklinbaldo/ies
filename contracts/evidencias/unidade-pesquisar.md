@@ -2,71 +2,25 @@
 type: OperationEvidence
 title: unidade.pesquisar
 operation: unidade.pesquisar
-source: todos-demonstration-matrix
-source_commit: 3d4a38c3b5987e4a8fc7f97ded188c4876ed77cd
+source: ies-local-config
+source_commit: f6b3d57996c16c9a979fb339b15232ef69a2593b
+source_file: src/unidade_pesquisar_cli.rs
 writes: false
-ies_implemented: false
-upstream_steps: 14
+ies_implemented: true
+upstream_steps: 0
 unresolved_steps: 0
 ---
 
-# unidade.pesquisar
+# unidade.pesquisar — fatia local
 
-Origem: matriz de demonstrações do Todos. IES Rust: NÃO IMPLEMENTADO.
-Os estados abaixo pertencem ao Todos, não são vereditos do IES.
+- [Implementação](../../src/unidade_pesquisar_cli.rs)
+- [Testes offline](../../tests/cli_unidade_indice.rs)
+- [Contrato](../cli/unidade-pesquisar.md)
 
-As referências #N são passos de roteiro; o link leva à revisão com
-o mesmo cenário, mas ainda não certifica igualdade de revisão.
-Confronte os hashes com o manifesto atual antes de alegar paridade.
-
-## unb
-
-Estado registrado no Todos: **demonstrada**.
-
-- `unidade-pesquisar-unb#1,2` → [unidade-pesquisar-unb--7a650b170bed.md](../../cassettes/unb/unidade-pesquisar-unb--7a650b170bed.md)
-
-## pen1
-
-Estado registrado no Todos: **demonstrada**.
-
-- `unidade-pesquisar-pen1#1,2` → [unidade-pesquisar-pen1--dfec4d9aa150.md](../../cassettes/pen1/unidade-pesquisar-pen1--dfec4d9aa150.md)
-
-## pen2
-
-Estado registrado no Todos: **demonstrada**.
-
-- `unidade-pesquisar-pen2#1,2` → [unidade-pesquisar-pen2--aa77ec66ec74.md](../../cassettes/pen2/unidade-pesquisar-pen2--aa77ec66ec74.md)
-
-## ufrj
-
-Estado registrado no Todos: **demonstrada**.
-
-- `unidade-pesquisar-ufrj#1,2` → [unidade-pesquisar-ufrj--74bb6636a184.md](../../cassettes/ufrj/unidade-pesquisar-ufrj--74bb6636a184.md)
-
-## pen3
-
-Estado registrado no Todos: **demonstrada**.
-
-- `unidade-pesquisar-pen3#1,2` → [unidade-pesquisar-pen3--8d3f0725bd17.md](../../cassettes/pen3/unidade-pesquisar-pen3--8d3f0725bd17.md)
-
-## pen4
-
-Estado registrado no Todos: **demonstrada**.
-
-- `unidade-pesquisar-pen4#1,2` → [unidade-pesquisar-pen4--a7488882625b.md](../../cassettes/pen4/unidade-pesquisar-pen4--a7488882625b.md)
-
-## go
-
-Estado registrado no Todos: **demonstrada**.
-
-- `unidade-pesquisar-go#1,2` → [unidade-pesquisar-go--f767efcabf85.md](../../cassettes/go/unidade-pesquisar-go--f767efcabf85.md)
-
-## Limite da evidência
-
-As respostas HTTP de ambientes públicos não comprovam, sozinhas,
-corpos integrais de POST, paridade da CLI ou efeito de uma escrita.
-Exija conferência pós-operação antes de declarar sucesso.
-
-Consulte [cassettes](../../docs/cassettes.md),
-[SEI empiricamente](../../docs/como-o-sei-funciona/README.md)
-e [contrato provisório](../cli.md).
+A operação **local sobre snapshot já guardado** não executa passos
+Web; as chamadas ao SEI são zero. O `source_commit` identifica a
+primeira integração desta fatia Rust e não é uma captura de SEI.
+A coleta inicial/atualização pela lupa ainda é outra parte
+pendente da issue #244, documentada em
+[observação](../../docs/como-o-sei-funciona/lupa-de-unidades.md).
+Não confundir compilação CI com ensaio live ou replay.

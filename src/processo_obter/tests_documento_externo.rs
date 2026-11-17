@@ -5,6 +5,7 @@
 //! `documento-numero-e-busca-*`; anexo com os cabeçalhos observados.
 use super::tests_apoio::*;
 use super::*;
+use crate::acao_do_sei::AcaoDoSei;
 use crate::anexo_documento::{Disposicao, ErroAnexo, LimiteDoAnexo};
 use crate::arvore_processo::tests::{NUP, arvore, no_documento, no_processo};
 use crate::arvore_processo::tests_conteudo::{
@@ -106,7 +107,7 @@ fn ate_a_arvore() -> Vec<Resposta> {
     .replace("svg/documento_interno.svg", "svg/documento_pdf.svg");
     vec![
         ok(controle(&[("7", "OUTRO-1")])),
-        r302(&trabalhar_rapida(ID_DOC)),
+        r302(&trabalhar_rapida_documento(ID_DOC)),
         ok(tela),
         ok(arvore),
     ]
@@ -159,7 +160,7 @@ fn pdf_externo_e_o_quinto_pedido_pelo_link_da_arvore() {
         [
             get(&url_controle()),
             post(&absoluta(&action_rapida()), "txtPesquisaRapida=0000101"),
-            get(&absoluta(&trabalhar_rapida(ID_DOC))),
+            get(&absoluta(&trabalhar_rapida_documento(ID_DOC))),
             get(&absoluta(&src_da_arvore_do_documento(ID, ID_DOC))),
             get(&absoluta(&src_anexo())),
         ]
@@ -169,18 +170,124 @@ fn pdf_externo_e_o_quinto_pedido_pelo_link_da_arvore() {
     assert_eq!(d.numero, DOC);
     assert_eq!(d.tipo, "");
     assert_eq!(d.texto, "");
-    assert_eq!(d.natureza.icone.as_deref(), Some("documento_pdf"));
+    assert_eq!(d.natureza.icone, "documento_pdf");
     let anexo = d.anexo.as_ref().expect("anexo");
     assert_eq!(anexo.mime, "application/pdf");
     assert_eq!(anexo.tamanho, 12);
-    assert_eq!(anexo.nome_original.as_deref(), Some("Minuta.pdf"));
-    assert_eq!(anexo.disposicao, Some(Disposicao::Inline));
-    assert_eq!(anexo.texto, None);
+    assert_eq!(anexo.nome_original, "Minuta.pdf");
+    assert_eq!(anexo.disposicao, Disposicao::Inline);
+    assert_eq!(anexo.texto(), None);
     assert!(!format!("{d:?}").contains(HASH_CONTEUDO));
     // #88: o arquivo não serve rodapé; sem `--versao`, a barra não é lida.
     assert_eq!(d.versoes.lida, None);
     assert_eq!(d.versoes.atual, Err(SemVersaoAtual::NaoServidaNoConteudo));
     assert_eq!(d.versoes.foto, None);
+}
+
+#[test]
+fn dado_externo_sem_src_com_anexo_no_cadastro_quando_obtenho_entao_baixo_original() {
+    // Dado externo da forma Todos tests/paginas_reais/documento_alterar_recebido.html
+    // (@main 07/11/2026): a arvore nao publica .src, mas a barra publica
+    // documento_alterar_recebido e o cadastro publica download do anexo.
+    // Quando executo ies documento DOC --json, entao sigo os dois links
+    // publicados, obtenho o PDF e conto seis requisicoes, sem POST extra.
+    use crate::arvore_processo::tests_barra_documento::{barra, com_barra};
+    let amb = ambiente();
+    let arvore_sem_src = arvore(&[no_processo(0, ID, NUP), no_documento(1, ID_DOC, ID, DOC)])
+        .replace("svg/documento_interno.svg", "svg/documento_pdf.svg");
+    let barra = barra(ID, ID_DOC, None)
+        .replace("acao=documento_alterar", "acao=documento_alterar_recebido");
+    let arvore = com_barra(&arvore_sem_src, 1, &barra);
+    let mut respostas = ate_a_arvore();
+    respostas[3] = ok(arvore);
+    let cadastro = format!(
+        r#"<script>
+          objTabelaAnexos.adicionarAcoes('901','<a href="{}" target="_blank">Baixar</a>');
+          </script><form id="frmDocumentoCadastro">
+          <input id="hdnIdDocumento" value="21">
+          <input id="hdnIdProcedimento" value="10">
+          <label id="lblSerieTitulo"></label>
+          <select id="selSerie"><option value="293" selected>Anexo</option></select>
+          <input id="txtDescricao" value="PDF de teste">
+          <input id="txtNomeArvore" value="Anexo externo">
+          <textarea id="txaObservacoes"></textarea>
+          <input name="rdoNivelAcesso" value="0" checked>
+          <input id="hdnAnexos" value="901±Minuta.pdf±data±12">
+          </form>"#,
+        src_anexo()
+    );
+    respostas.push(ok(cadastro));
+    let (r, envio) = rodar_com(&amb, respostas, pdf(), PedidoDoAnexo::default());
+    let d = r.unwrap();
+    assert_eq!(d.requisicoes, 6);
+    assert_eq!(envio.roteiro.pedidos.len(), 6);
+    assert_eq!(envio.roteiro.pedidos[5], get(&absoluta(&src_anexo())));
+    assert_eq!(d.anexo.unwrap().mime, "application/pdf");
+}
+
+#[test]
+fn externo_sem_src_com_saida_preserva_original_e_recusa_copia_divergente() {
+    // Apoio técnico ao BDD-60-03: --saida DIR grava bytes do anexo cadastrado.
+    use crate::arvore_processo::tests_barra_documento::{barra, com_barra};
+    let dir =
+        std::env::temp_dir().join(format!("ies-externo-cadastro-saida-{}", std::process::id()));
+    std::fs::create_dir_all(&dir).unwrap();
+    let respostas = || {
+        let arvore_sem_src = arvore(&[no_processo(0, ID, NUP), no_documento(1, ID_DOC, ID, DOC)])
+            .replace("svg/documento_interno.svg", "svg/documento_pdf.svg");
+        let barra = barra(ID, ID_DOC, None)
+            .replace("acao=documento_alterar", "acao=documento_alterar_recebido");
+        let mut respostas = ate_a_arvore();
+        respostas[3] = ok(com_barra(&arvore_sem_src, 1, &barra));
+        respostas.push(ok(format!(
+            r#"<script>objTabelaAnexos.adicionarAcoes('901','<a href="{}">Baixar</a>');</script>
+            <form id="frmDocumentoCadastro">
+            <input id="hdnIdDocumento" value="21">
+            <input id="hdnIdProcedimento" value="10">
+            <label id="lblSerieTitulo"></label>
+            <select id="selSerie"><option selected>Anexo</option></select>
+            <input id="txtDescricao" value="">
+            <input id="txtNomeArvore" value="Externo">
+            <textarea id="txaObservacoes"></textarea>
+            <input name="rdoNivelAcesso" value="0" checked>
+            <input id="hdnAnexos" value="901±Minuta.pdf±data±12">
+            </form>"#,
+            src_anexo()
+        )));
+        respostas
+    };
+    let pedido = PedidoDoAnexo {
+        cache_host: None,
+        limite: LimiteDoAnexo::default(),
+        saida: Some(&dir),
+    };
+    let amb = ambiente();
+    let (lido, envio) = rodar_com(&amb, respostas(), pdf(), pedido);
+    let doc = lido.unwrap();
+    assert_eq!(doc.requisicoes, 6);
+    assert_eq!(envio.roteiro.pedidos.len(), 6);
+    let mut anexo = doc.anexo.unwrap();
+    let arquivo = anexo.tirar_arquivo().unwrap();
+    assert_eq!(arquivo.nome(), "0000101.pdf");
+    arquivo.concluir().unwrap();
+    assert_eq!(
+        std::fs::read(dir.join("0000101.pdf")).unwrap(),
+        b"%PDF-1.7 abc"
+    );
+
+    // Cópia divergente não pode ser silenciosamente substituída.
+    std::fs::write(dir.join("0000101.pdf"), b"edicao local").unwrap();
+    let amb = ambiente();
+    let (recusa, _) = rodar_com(&amb, respostas(), pdf(), pedido);
+    assert_eq!(
+        recusa.unwrap_err(),
+        ErroDocumentoObter::Anexo(ErroAnexo::ArquivoJaExiste)
+    );
+    assert_eq!(
+        std::fs::read(dir.join("0000101.pdf")).unwrap(),
+        b"edicao local"
+    );
+    std::fs::remove_dir_all(&dir).unwrap();
 }
 
 #[test]
@@ -192,7 +299,10 @@ fn html_recebido_publica_o_texto_visivel() {
         &amb,
         binaria(
             200,
-            &[("content-type", "text/html;;charset=iso-8859-1")],
+            &[
+                ("content-type", "text/html;;charset=iso-8859-1"),
+                ("content-disposition", "inline; filename=\"despacho.html\""),
+            ],
             html,
         ),
         PedidoDoAnexo::default(),
@@ -208,11 +318,13 @@ fn com_saida_o_parcial_fica_no_diretorio_ate_concluir() {
     let dir = std::env::temp_dir().join(format!("ies-externo-saida-{}", std::process::id()));
     std::fs::create_dir_all(&dir).unwrap();
     let pedido = PedidoDoAnexo {
+        cache_host: None,
         limite: LimiteDoAnexo::default(),
         saida: Some(&dir),
     };
     let (r, _) = rodar(&amb, pdf(), pedido);
-    let arquivo = r.unwrap().anexo.unwrap().arquivo.expect("parcial");
+    let mut anexo = r.unwrap().anexo.unwrap();
+    let arquivo = anexo.tirar_arquivo().expect("parcial");
     assert_eq!(arquivo.nome(), "0000101.pdf");
     arquivo.concluir().unwrap();
     assert_eq!(
@@ -226,6 +338,7 @@ fn com_saida_o_parcial_fica_no_diretorio_ate_concluir() {
 fn limite_do_pedido_chega_ao_transporte_e_recusa() {
     let amb = ambiente();
     let pedido = PedidoDoAnexo {
+        cache_host: None,
         limite: LimiteDoAnexo::novo(10).unwrap(),
         saida: None,
     };
@@ -234,10 +347,6 @@ fn limite_do_pedido_chega_ao_transporte_e_recusa() {
     assert_eq!(
         r.unwrap_err(),
         ErroDocumentoObter::Anexo(ErroAnexo::AcimaDoLimite)
-    );
-    assert_eq!(
-        ErroDocumentoObter::Anexo(ErroAnexo::AcimaDoLimite).subcodigo(),
-        "anexo_acima_do_limite"
     );
 }
 
@@ -251,7 +360,9 @@ fn redirect_para_o_login_e_sessao_encerrada_e_tipo_fora_da_lista_e_recusado() {
     );
     assert_eq!(
         r.unwrap_err(),
-        ErroDocumentoObter::Processo(ErroProcessoObter::SessaoEncerrada)
+        ErroDocumentoObter::Processo(ErroProcessoObter::SessaoEncerrada(
+            crate::erro_publico::SessaoEncerrada
+        ))
     );
     let amb = ambiente();
     let (r, _) = rodar(
@@ -273,7 +384,9 @@ fn redirect_para_o_login_e_sessao_encerrada_e_tipo_fora_da_lista_e_recusado() {
     );
     assert_eq!(
         r.unwrap_err(),
-        ErroDocumentoObter::Processo(ErroProcessoObter::SessaoEncerrada)
+        ErroDocumentoObter::Processo(ErroProcessoObter::SessaoEncerrada(
+            crate::erro_publico::SessaoEncerrada
+        ))
     );
 }
 
@@ -284,14 +397,12 @@ fn redirect_para_o_login_e_sessao_encerrada_e_tipo_fora_da_lista_e_recusado() {
 fn externo_pelo_link_da_arvore_guardado_em_duas() {
     let amb = ambiente();
     let (inst, g) = (instalacao(), geracao());
-    amb.indice.registrar_processo(&inst, NUP, ID).unwrap();
-    amb.indice
-        .registrar_documentos(&inst, ID, &[(DOC, ID_DOC)])
-        .unwrap();
+    amb.indice.registrar_processo(&inst, NUP, ID);
+    amb.indice.registrar_documentos(&inst, ID, &[(DOC, ID_DOC)]);
     amb.indice
         .registrar_link(
             &inst,
-            chave(&g, "procedimento_visualizar", ID),
+            chave(&g, AcaoDoSei::ProcedimentoVisualizar, ID),
             &url_arvore(ID),
         )
         .unwrap();

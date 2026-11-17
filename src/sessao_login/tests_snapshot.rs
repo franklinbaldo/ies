@@ -7,9 +7,13 @@
 use super::gravacao;
 use super::tests_apoio::*;
 use super::tests_colheita::controle_com_linha;
+use crate::acao_do_sei::AcaoDoSei;
+#[cfg(unix)]
+use crate::arquivo_privado::ErroArquivoPrivado;
 use crate::colheita_do_controle::Colheita;
 use crate::indice_local::{ChaveDoLink, IndiceLocal};
 use crate::instalacao::Instalacao;
+use crate::tela_html::HtmlServido;
 use crate::transporte::FalhaTransporte;
 use crate::transporte::sessao::ReferenciasDaSessao;
 
@@ -89,7 +93,7 @@ fn troca_de_unidade_entre_url_e_cookie_rele_e_entrega_a_url_nova() {
 }
 
 #[test]
-fn geracao_trocada_nas_duas_leituras_falha_fechado_com_subcodigo_proprio() {
+fn geracao_trocada_nas_duas_leituras_falha_fechado_com_erro_proprio() {
     let ambiente = Ambiente::novo();
     logar(&ambiente, &url_do_controle(), COOKIE_A);
     let mut vezes = 0;
@@ -105,10 +109,7 @@ fn geracao_trocada_nas_duas_leituras_falha_fechado_com_subcodigo_proprio() {
     .unwrap_err();
     assert_eq!(vezes, 2, "uma releitura só, depois falha");
     assert_eq!(falha, FalhaTransporte::SessaoTrocadaDuranteALeitura);
-    assert_eq!(falha.subcodigo(), "sessao_trocada_durante_a_leitura");
-    assert!(!crate::sessao_login::relogin::sessao_encerrada(
-        falha.subcodigo()
-    ));
+    assert!(!falha.sessao_encerrada());
 }
 
 #[test]
@@ -166,13 +167,16 @@ fn colheita_da_leitura_registra_sob_a_geracao_do_cookie_lido() {
     let lidas = ler(&ambiente, || {}).unwrap();
     logar(&ambiente, &url_do_controle(), COOKIE_B);
     let indice = IndiceLocal::em(ambiente.dir.join("indice").join("ies.sqlite3"));
-    Colheita::das_referencias(&indice, &lidas).colher(&controle_com_linha(), Some("text/html"));
+    Colheita::das_referencias(&indice, &lidas).colher(
+        &HtmlServido::de_teste(&controle_com_linha()),
+        Some("text/html"),
+    );
     let instalacao = Instalacao::interpretar(ORIGEM).unwrap();
     let chave = |geracao| ChaveDoLink {
         geracao_sessao: geracao,
         unidade: "110000849",
-        acao: "procedimento_trabalhar",
-        objeto: "77",
+        acao: AcaoDoSei::ProcedimentoTrabalhar,
+        alvo: "77",
     };
     let a = super::geracao_da_sessao(COOKIE_A);
     let b = super::geracao_da_sessao(COOKIE_B);
@@ -190,14 +194,19 @@ fn retrato_recusa_link_no_nome_final_de_cada_arquivo_da_sessao() {
     logar(&ambiente, &url_do_controle(), COOKIE_A);
     let geracao = ambiente.geracao();
     let arquivos = &ambiente.arquivos;
-    for nome in [&geracao, &arquivos.url_controle, &arquivos.origem] {
+    let link = ErroArquivoPrivado::LinkSimbolico;
+    for (nome, esperada) in [
+        (&geracao, FalhaTransporte::MarcadorDaSessaoIlegivel(link)),
+        (
+            &arquivos.url_controle,
+            FalhaTransporte::UrlDoControleIlegivel(link),
+        ),
+        (&arquivos.origem, FalhaTransporte::OrigemIlegivel(link)),
+    ] {
         let copia = ambiente.dir.join("copia");
         std::fs::rename(nome, &copia).unwrap();
         std::os::unix::fs::symlink(&copia, nome).unwrap();
-        assert_eq!(
-            ler(&ambiente, || {}).err(),
-            Some(FalhaTransporte::ArquivoPrivadoLinkSimbolico)
-        );
+        assert_eq!(ler(&ambiente, || {}).err(), Some(esperada));
         std::fs::remove_file(nome).unwrap();
         std::fs::rename(&copia, nome).unwrap();
     }
@@ -206,7 +215,9 @@ fn retrato_recusa_link_no_nome_final_de_cada_arquivo_da_sessao() {
     std::os::unix::fs::symlink(&copia, &arquivos.cookie).unwrap();
     assert_eq!(
         ler(&ambiente, || {}).unwrap().cookie().valor(),
-        Err(FalhaTransporte::ArquivoPrivadoLinkSimbolico)
+        Err(FalhaTransporte::CookieDaSessaoIlegivel(
+            ErroArquivoPrivado::LinkSimbolico
+        ))
     );
     std::fs::remove_file(&arquivos.cookie).unwrap();
     std::fs::rename(&copia, &arquivos.cookie).unwrap();

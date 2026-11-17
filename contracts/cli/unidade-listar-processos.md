@@ -56,7 +56,7 @@ os três arquivos privados: regularidade/permissões, URL assinada de
 `procedimento_controlar`, origem HTTPS autorizada incluindo caminho-base
 e sintaxe do cabeçalho Cookie. A validação de origem antecede a leitura
 do cookie, usando as mesmas regras da leitura de caixa para evitar divergência
-entre prévia e transporte. Falhas são variantes de `FalhaTransporte` e
+entre prévia e transporte. Falhas são erros de `FalhaTransporte` e
 subcódigos estáveis; nenhuma entrada secreta é exibida.
 
 Sucesso declara somente `sessao_local: formato_e_origem_verificados`,
@@ -68,14 +68,15 @@ paginação. O modo existente `--verificar-arquivos` continua consultando
 ## Resultado e alcance
 
 `ies unidade listar-processos` devolve um **array com uma lista** D
-`categoria: null`, `colunas_ausentes` e, por processo, `categoria`
+sem o campo `categoria` na lista, `colunas_ausentes` e, por processo, `categoria`
 observada e `colunas` ([visão detalhada](unidade-listar-processos-visao-detalhada.md)).
 A caixa resumida (Recebidos e Gerados da visão R, sem comando próprio) segue
 o [golden v2](../../tests/fixtures/caixa-v2.json), conferido por teste unitário:
 um **array** de duas listas na ordem recebidos, gerados, cada uma na
 [forma única](unidade-recebidos-gerados.md) `{unidade, origem, categoria,
 total_declarado, faixa_observada, processos}` (`faixa_observada` é
-`{inicio, fim}` ou `null`), sem campo `completa`. Cada processo
+`{"inicio": I, "fim": F}`; com zero registros a chave é omitida), sem campo
+`completa`. Cada processo
 publica `id`, `numero` (opaco, sem máscara), `visualizado` e `sigiloso`.
 A apresentação não transforma critérios de paginação em propriedades
 do domínio.
@@ -93,7 +94,7 @@ tela mostra, com total e faixa por tabela (regra em
 [páginas da caixa](unidade-listar-processos-paginas.md)). A resposta que
 contenha mais de uma ocorrência do mesmo ID estrutural
 `tblProcessosRecebidos` ou `tblProcessosGerados` falha com
-`tabelas_da_categoria_repetidas` e categoria tipada: escolher só a
+`TabelasDaCategoriaRepetidas` e categoria tipada: escolher só a
 primeira permitiria ocultar processos sem erro.
 
 Não há `ies replay`: as respostas gravadas do Controle passam pelos mesmos
@@ -116,7 +117,7 @@ Uma requisição GET autenticada à caixa pode receber HTTP 200 e HTML
 contendo o formulário de login SIP ou de módulo próprio; sucesso HTTP
 **não** equivale a sessão válida. O transporte identifica o formulário
 pela estrutura real (form de login e campo de usuário no mesmo form),
-retornando `pagina_de_login_recebida_no_controle` como falha tipada.
+retornando `PaginaDeLoginRecebidaNoControle` como falha tipada.
 Não classificar tela de assinatura como login; não iniciar nova tentativa,
 seguir links, reenviar cookie ou acrescentar requests. Evidência baseada
 no fluxo de login documentado pelo Todos, sem validação live nova.
@@ -126,7 +127,7 @@ no fluxo de login documentado pelo Todos, sem validação live nova.
 Uma tabela de processos recebidos ou gerados com duas ou mais tags
 `caption`, inclusive iguais, não oferece interpretação inequívoca do
 total/faixa de paginação. O adaptador Web deve falhar com
-`legendas_da_tabela_repetidas` (incluindo categoria) antes de atestar
+`LegendasDaTabelaRepetidas` (incluindo categoria) antes de atestar
 cobertura das posições ou devolver a caixa. Não escolher simplesmente
 a primeira legenda. Um `caption` válido único preserva o comportamento.
 Não há mudança de requests ou promessa de snapshot transacional.
@@ -162,7 +163,7 @@ parâmetros separados por `;`, seja exatamente `text/html`
 A presença de `text/html` dentro de um parâmetro de outro tipo,
 como `application/json; profile=text/html`, não certifica HTML.
 Tipo ausente, `text/plain`, `application/xhtml+xml` ou outros
-subtipos são recusados com a variante de transporte
+subtipos são recusados com o erro de transporte
 `FalhaTransporte::TipoDeConteudoNaoHtml`. Não há retry nem GET adicional:
 o limite, o status e a verificação de login permanecem iguais. A
 regra é ensaiada offline; nenhum teste de produção é autorizado.
@@ -174,7 +175,7 @@ a identidade da unidade em `lnkInfraUnidade`, além de demonstrar
 cobertura da categoria. Sem esse rótulo, não se deve retornar sucesso
 com `unidade: null` nem exportar uma lista de processos que não foi
 atribuída a contexto observável. Retornar falha Rust tipada
-`FalhaCategoria::UnidadeNaoObservada`, subcódigo
+`FalhaCategoria::IdentificacaoDaUnidadeAusenteNoControle`, subcódigo
 `identificacao_da_unidade_ausente_no_controle`. A ausência na página
 não demonstra falta de permissão ou inexistência da unidade.
 
@@ -212,7 +213,7 @@ pode sobrescrever `acao` ou `infra_hash` ao ser decodificada pelo
 servidor. Recusar separador literal `;` em qualquer valor: servidores
 podem tratá-lo como delimitador de query além de `&`.
 
-As variantes Rust tipadas são `ChaveDeConsultaNaoCanonica`
+Os erros tipados são `ChaveDeConsultaNaoCanonica`
 (`chave_de_consulta_do_controle_nao_canonica`) e
 `SeparadorDeConsultaAmbiguo`
 (`separador_de_consulta_do_controle_ambiguo`).
@@ -268,7 +269,7 @@ visão resumida), uma linha de `tblProcessosGerados` publicou o link
 `procedimento_trabalhar` com a classe `processoVisualizadoSigiloso`;
 as demais usavam `processoVisualizado`. O parser só conhecia duas
 classes e recusava a caixa inteira com
-`link_do_processo_nao_identificado_na_linha`. O acervo arquivado de
+`LinkDoProcessoNaoIdentificadoNaLinha`. O acervo arquivado de
 Goiás (`unidade-listagens-go.json`, `acompanhamento_listar`) já
 continha a mesma classe em `tblAcompanhamentos`.
 
@@ -286,10 +287,10 @@ live**. Outros tokens, como `processoVisitado`, não alteram o estado.
 `sigiloso` é fato observado na classe do link, não nível de acesso,
 permissão ou propriedade imutável do processo. Um link com duas
 classes reconhecidas de estados diferentes falha com
-`classes_de_estado_diferentes_no_link_do_processo` (visão resumida)
+`ClassesDeEstadoDiferentesNoLinkDoProcesso` (visão resumida)
 ou `classes_de_estado_diferentes_no_link_detalhado` (detalhada).
-Na visão detalhada, `visualizado` e `sigiloso` são `null` quando o
-link não traz classe reconhecida.
+Na visão detalhada, um link sem classe de estado reconhecida falha com
+`EstadoDoLinkDoProcessoAusente` (sem `null`, sem estado inventado).
 
 A importação local aceita exportação anterior sem `sigiloso` como
 `false`: aquelas versões recusavam qualquer linha sem as duas classes

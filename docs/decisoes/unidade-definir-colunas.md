@@ -29,7 +29,7 @@ live_validation: pass-pen1-unb-0211-saida-3-pen1-0411
 ## Comparação
 
 A opção A transforma toda leitura em duas escritas de preferência (salvar e
-restaurar), com dois pontos de efeito incerto por listagem: um timeout na
+restaurar), com dois pontos de escrita não confirmada por listagem: um timeout na
 restauração deixaria a preferência do usuário alterada sem pedido, e a
 leitura, que hoje não escreve, passaria a exigir confirmação. Custa 2 POSTs e
 2 GETs a mais por `listar-processos`. A opção B concentra o risco num comando
@@ -67,7 +67,7 @@ sessão, sem troca de backend:
   esperada reconcilia pela mesma leitura (tabela no
   [contrato](../../contracts/cli/unidade-definir-colunas.md)): alvo →
   sucesso com `reconciliado_por_leitura`; antes → não aplicada (1); outro,
-  ou leitura impossível → efeito incerto (3).
+  ou leitura impossível → escrita não confirmada (3).
 - Sem volta à R (decisão do proprietário, 02/11/2026, registrada na
   [decisão da leitura](unidade-listar-processos.md)): restaurar a visão
   gastava um POST por execução e criava um terceiro desfecho (escrita feita,
@@ -75,7 +75,7 @@ sessão, sem troca de backend:
   Vinda da R: 2 GET + 1 POST na prévia, 3 GET + 2 POST ao salvar. A PEN1
   manteve a D na sessão e num login novo da mesma conta (efeito cosmético);
   a UnB 4.0.9 volta à R no GET seguinte. A semântica da escrita (prévia,
-  `--confirmar`, verificação, efeito incerto) não muda.
+  `--confirmar`, verificação, escrita não confirmada) não muda.
 
 Descartado: aceitar o formulário com campos desconhecidos (enviaria um POST
 diferente do observado) e classificar a resposta por um marcador inventado.
@@ -102,7 +102,7 @@ nesta PR; fica como integração futura possível.
 
 Testes só com telas sintéticas modeladas na estrutura observada (12 e 11
 opções). Live: PASS na PEN1 5.0.4 e na UnB 4.0.9 (02/11/2026) e na UnB
-(04/11/2026); saída 3 sem efeito na PEN1 (04/11/2026). Um servidor que
+(04/11/2026); saída 1 sem efeito na PEN1 (04/11/2026). Um servidor que
 processe o POST depois do GET de verificação não é detectável. Revisar se o ensaio live mostrar: `lnkInfraUnidade` na janela,
 mais de um `sbmSalvar`, controle além dos observados, resposta diferente de
 200, mudança que só aparece depois de outra navegação, limite de opções
@@ -110,7 +110,7 @@ marcadas (`validarNumeroCriterios` no `onchange` das caixas não foi
 capturado), ou outro catálogo de opções. O sinal de gravação só foi visto na
 resposta da PEN1 5.0.4: conferir a resposta na 4.x e na 5.0.3.
 
-## Revisão de 04/11/2026: saída 3 na PEN1
+## Revisão de 04/11/2026: saída 1 na PEN1
 
 `--definir todas --confirmar` saiu com 3 na PEN1 e a leitura seguinte
 mostrou as marcas de antes. Pela tabela de reconciliação, essa combinação

@@ -1,0 +1,5 @@
+# cargo-deny: só avisos de segurança (RustSec) das dependências do Cargo.lock.
+# Aviso aceito entra em `ignore` com `id` e `reason` (por que não se aplica ao
+# IES e quando revisar). Ver docs/ci.md.
+[advisories]
+ignore = []

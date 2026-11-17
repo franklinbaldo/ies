@@ -36,6 +36,6 @@ interação `procedimento_configurar_detalhe` nos 29 ZIPs, conferido em
 5.0.4 (02/11/2026): a mesma tela com o sinal de gravação no
 `inicializar()`, que o IES lê para classificar a resposta; o efeito
 continua conferido por GET. Ensaios do comando: PASS na PEN1 e na UnB
-(02/11/2026) e na UnB (04/11/2026); saída 3 sem efeito na PEN1 em
+(02/11/2026) e na UnB (04/11/2026); saída 1 sem efeito na PEN1 em
 04/11/2026, com causa não registrada
 ([análise](../../docs/validacao-live/2026-11-04-definir-colunas-pen1.md)).

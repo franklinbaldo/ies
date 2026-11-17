@@ -18,7 +18,7 @@ pub(crate) mod tests_apoio;
 mod tests_tela;
 
 pub(crate) use erro::{ErroTroca, EtapaDaTroca, FalhaDepoisDoEnvio};
-pub(crate) use tela::{ACAO_DE_TROCAR, UnidadeOferecida};
+pub(crate) use tela::UnidadeOferecida;
 
 use crate::controle_reconhecido::unidade_do_controle;
 use crate::formulario_web::{
@@ -30,7 +30,6 @@ use crate::pagina_do_controle::codificacao_da_tela;
 use crate::transporte::FalhaTransporte;
 use crate::transporte::decodificar_resposta;
 use crate::transporte::sessao::CookieDaSessao;
-use erro::FalhaDepoisDoEnvio as F;
 use retorno::url_do_salto;
 use std::io::Read;
 use tela::{TROCAR_UNIDADE, campos_do_envio, escolher, ler_tela_de_troca, link_da_troca};
@@ -90,7 +89,7 @@ pub(crate) struct PedidoDeTroca<'a> {
 /// Uma tela do Controle recebida, para a sessão e a colheita do índice.
 pub(crate) struct ControleLido {
     pub(crate) url: String,
-    pub(crate) html: String,
+    pub(crate) html: crate::tela_html::HtmlServido,
     pub(crate) mime: String,
 }
 
@@ -119,6 +118,8 @@ pub(crate) struct Troca {
     pub(crate) controle_inicial: ControleLido,
     /// O Controle da unidade nova, verificado.
     pub(crate) controle_novo: Option<ControleLido>,
+    /// O cookie que a troca leu e conferiu: a regravação não o relê.
+    pub(crate) cookie: crate::transporte::sessao::CookieLido,
 }
 
 /// Sem rede antes de `envio`; nenhum pedido é repetido.
@@ -127,12 +128,11 @@ pub(crate) fn trocar_unidade<V: EnvioDaTroca>(
     pedido: &PedidoDeTroca<'_>,
     envio: &mut V,
 ) -> Result<Troca, ErroTroca> {
-    use ErroTroca as E;
-    let cookie = sessao.cookie.valor().map_err(E::Transporte)?;
-    let inicial = ler_html(envio, sessao.url_do_controle, cookie).map_err(E::Transporte)?;
-    let antes = unidade_do_controle(&inicial.html).map_err(E::ControleNaoReconhecido)?;
+    let cookie = &sessao.cookie.lido()?;
+    let inicial = ler_html(envio, sessao.url_do_controle, cookie)?;
+    let antes = unidade_do_controle(&inicial.html)?;
     if pedido.unidade_esperada.is_some_and(|u| u != antes) {
-        return Err(E::UnidadeExibidaDiferenteDaSolicitada);
+        return Err(ErroTroca::UnidadeExibidaDiferenteDaSolicitada);
     }
     let mut troca = Troca {
         antes: antes.clone(),
@@ -143,6 +143,7 @@ pub(crate) fn trocar_unidade<V: EnvioDaTroca>(
         confirmado: pedido.confirmar,
         controle_inicial: inicial,
         controle_novo: None,
+        cookie: cookie.clone(),
     };
     if pedido.sigla == antes {
         return Ok(troca);
@@ -152,15 +153,17 @@ pub(crate) fn trocar_unidade<V: EnvioDaTroca>(
         sessao.url_do_controle,
         &troca.controle_inicial.html,
     )?;
-    let servida = ler_html(envio, &url_da_tela, cookie).map_err(E::Transporte)?;
+    let servida = ler_html(envio, &url_da_tela, cookie)?;
     let tela = ler_tela_de_troca(&servida.html)?;
     if tela.marcada.sigla != antes {
-        return Err(E::UnidadeMarcadaDiferenteDaAtiva);
+        return Err(ErroTroca::UnidadeMarcadaDiferenteDaAtiva);
     }
     troca.oferecidas.clone_from(&tela.unidades);
     let escolhida = escolher(&tela, pedido.sigla)?.clone();
-    let codificacao = codificacao_da_tela(&servida.mime).ok_or(E::Transporte(
-        FalhaTransporte::CorpoNaoDecodificavelNoCharsetDeclarado,
+    let codificacao = codificacao_da_tela(&servida.mime).ok_or(ErroTroca::Transporte(
+        FalhaTransporte::CorpoNaoDecodificavelNoCharsetDeclarado(
+            crate::transporte::corpo::ErroCorpoHttp::CodificacaoNaoSuportada,
+        ),
     ))?;
     let tela_servida = TelaServida {
         url: &servida.url,
@@ -171,10 +174,9 @@ pub(crate) fn trocar_unidade<V: EnvioDaTroca>(
         &TROCAR_UNIDADE,
         sessao.instalacao,
         &tela_servida,
-        &antes,
+        Some(antes.as_str()),
         &campos_do_envio(&tela, &escolhida),
-    )
-    .map_err(E::Submissao)?;
+    )?;
     troca.campos_do_envio = Some(submissao.nomes_dos_campos().to_vec());
     troca.escolhida = Some(escolhida.clone());
     if !pedido.confirmar {
@@ -211,7 +213,7 @@ fn enviar_e_verificar<V: EnvioDaTroca>(
     cookie: &str,
     escolhida: &UnidadeOferecida,
 ) -> Result<ControleLido, ErroTroca> {
-    let incerto = |etapa, falha| ErroTroca::EfeitoIncerto { etapa, falha };
+    let incerto = |etapa, falha| ErroTroca::NaoConfirmado { etapa, falha };
     let mut enviado = false;
     let resposta = enviar_submissao_via(submissao, sessao.cookie, |s, c| {
         enviado = true;
@@ -220,14 +222,22 @@ fn enviar_e_verificar<V: EnvioDaTroca>(
     let redirecionado = match resposta {
         Ok(RespostaDoEnvio::Redirecionamento(r)) => r,
         Ok(RespostaDoEnvio::Html(_)) => {
-            return Err(incerto(EtapaDaTroca::Envio, F::RespostaSemRedirecionamento));
+            return Err(incerto(
+                EtapaDaTroca::Envio,
+                FalhaDepoisDoEnvio::RespostaSemRedirecionamento,
+            ));
         }
-        Err(erro) if enviado => return Err(incerto(EtapaDaTroca::Envio, F::Envio(erro))),
+        Err(erro) if enviado => {
+            return Err(incerto(
+                EtapaDaTroca::Envio,
+                FalhaDepoisDoEnvio::Envio(erro),
+            ));
+        }
         Err(erro) => return Err(ErroTroca::Submissao(erro)),
     };
     let localizacao = redirecionado.localizacao().ok_or(incerto(
         EtapaDaTroca::Envio,
-        F::RedirecionamentoSemLocalizacao,
+        FalhaDepoisDoEnvio::RedirecionamentoSemLocalizacao,
     ))?;
     let id = escolhida.id_unidade.as_str();
     let mut url = url_do_salto(localizacao, redirecionado.url_do_envio(), id)
@@ -242,24 +252,31 @@ fn enviar_e_verificar<V: EnvioDaTroca>(
             localizacao,
         } = envio
             .get(&url, cookie)
-            .map_err(|f| incerto(etapa, F::Transporte(f)))?;
+            .map_err(|f| incerto(etapa, FalhaDepoisDoEnvio::Transporte(f)))?;
         match resposta.status_code {
             302 if i == 0 => {
-                let localizacao =
-                    localizacao.ok_or(incerto(etapa, F::RedirecionamentoSemLocalizacao))?;
+                let localizacao = localizacao.ok_or(incerto(
+                    etapa,
+                    FalhaDepoisDoEnvio::RedirecionamentoSemLocalizacao,
+                ))?;
                 url = url_do_salto(&localizacao, &url, id).map_err(|f| incerto(etapa, f))?;
             }
             200 => {
                 let mime = resposta.mime.clone();
-                let html = decodificar_resposta(resposta)
-                    .map_err(|f| incerto(EtapaDaTroca::ControleDaUnidadeNova, F::Transporte(f)))?;
+                let html = decodificar_resposta(resposta).map_err(|f| {
+                    incerto(
+                        EtapaDaTroca::ControleDaUnidadeNova,
+                        FalhaDepoisDoEnvio::Transporte(f),
+                    )
+                })?;
                 return verificar(ControleLido { url, html, mime }, escolhida);
             }
-            status @ 300..=399 => return Err(incerto(etapa, F::Status(status))),
+            status @ 300..=399 => return Err(incerto(etapa, FalhaDepoisDoEnvio::Status(status))),
             _ => {
-                let falha = decodificar_resposta(resposta)
-                    .err()
-                    .map_or(F::Status(0), F::Transporte);
+                let falha = decodificar_resposta(resposta).err().map_or(
+                    FalhaDepoisDoEnvio::Status(0),
+                    FalhaDepoisDoEnvio::Transporte,
+                );
                 return Err(incerto(etapa, falha));
             }
         }
@@ -270,14 +287,14 @@ fn enviar_e_verificar<V: EnvioDaTroca>(
 /// O Controle da unidade nova mostra a sigla pedida.
 fn verificar(novo: ControleLido, escolhida: &UnidadeOferecida) -> Result<ControleLido, ErroTroca> {
     let etapa = EtapaDaTroca::ControleDaUnidadeNova;
-    let sigla = unidade_do_controle(&novo.html).map_err(|e| ErroTroca::EfeitoIncerto {
+    let sigla = unidade_do_controle(&novo.html).map_err(|e| ErroTroca::NaoConfirmado {
         etapa,
-        falha: F::ControleNaoReconhecido(e),
+        falha: FalhaDepoisDoEnvio::ControleNaoReconhecido(e),
     })?;
     if sigla != escolhida.sigla {
-        return Err(ErroTroca::EfeitoIncerto {
+        return Err(ErroTroca::NaoConfirmado {
             etapa,
-            falha: F::UnidadeDoControleDiferenteDaPedida,
+            falha: FalhaDepoisDoEnvio::UnidadeDoControleDiferenteDaPedida,
         });
     }
     Ok(novo)

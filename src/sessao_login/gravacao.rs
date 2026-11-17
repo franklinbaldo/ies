@@ -4,21 +4,19 @@
 //! `<url-controle>.lock` e `<url-controle>.geracao` ficam ao lado do
 //! arquivo da URL do Controle.
 use super::ErroLogin;
-use crate::arquivo_privado::{FalhaDaGravacao, Parcial, Politica};
+use super::erro::ErroDeIo;
+use crate::arquivo_privado::{
+    ErroArquivoPrivado, ErroDaTrava, FalhaDaGravacao, Parcial, Politica, TravaDeArquivo,
+    travar_com_espera,
+};
 use crate::configuracao::{ArquivoPrivado, ArquivosDeAcesso};
 use sha2::{Digest, Sha256};
-use std::fs::{File, OpenOptions};
+use std::fs::OpenOptions;
 use std::path::{Path, PathBuf};
-use std::time::{Duration, Instant};
+use std::time::Duration;
 
 /// Intervalo entre tentativas de obter o lock.
 const PASSO_DA_ESPERA: Duration = Duration::from_millis(50);
-
-/// Lock exclusivo do login; liberado quando sai de escopo.
-#[derive(Debug)]
-pub(crate) struct TravaDoLogin {
-    _arquivo: File,
-}
 
 fn abrir_privado(opcoes: &mut OpenOptions) -> &mut OpenOptions {
     #[cfg(unix)]
@@ -35,30 +33,23 @@ fn abrir_privado(opcoes: &mut OpenOptions) -> &mut OpenOptions {
     opcoes
 }
 
-impl TravaDoLogin {
-    /// Espera até `espera` pelo lock de `<url-controle>.lock` (`flock`
-    /// exclusivo da `std`). Nada é pedido ao SEI sem ele.
-    pub(crate) fn obter(url_controle: &Path, espera: Duration) -> Result<Self, ErroLogin> {
-        let caminho = caminho_ao_lado(url_controle, ".lock");
-        let arquivo = abrir_privado(OpenOptions::new().write(true).create(true))
-            .open(&caminho)
-            .map_err(|_| ErroLogin::ArquivoDeLockDoLoginInacessivel)?;
-        let limite = Instant::now() + espera;
-        loop {
-            match arquivo.try_lock() {
-                Ok(()) => return Ok(Self { _arquivo: arquivo }),
-                Err(std::fs::TryLockError::WouldBlock) if Instant::now() < limite => {
-                    std::thread::sleep(PASSO_DA_ESPERA);
-                }
-                Err(std::fs::TryLockError::WouldBlock) => {
-                    return Err(ErroLogin::LoginEmAndamentoEmOutroProcesso);
-                }
-                Err(std::fs::TryLockError::Error(_)) => {
-                    return Err(ErroLogin::ArquivoDeLockDoLoginInacessivel);
-                }
-            }
+/// Espera até `espera` pelo lock de `<url-controle>.lock` (`flock`
+/// exclusivo da `std`). Nada é pedido ao SEI sem ele. Ocupado no prazo
+/// vira `LoginEmAndamentoEmOutroProcesso`; falha de E/S, a causa inteira.
+pub(crate) fn travar_o_login(
+    url_controle: &Path,
+    espera: Duration,
+) -> Result<TravaDeArquivo, ErroLogin> {
+    let caminho = caminho_ao_lado(url_controle, ".lock");
+    let arquivo = abrir_privado(OpenOptions::new().write(true).create(true))
+        .open(&caminho)
+        .map_err(|erro| ErroLogin::ArquivoDeLockDoLoginInacessivel(ErroDeIo::new(erro)))?;
+    travar_com_espera(arquivo, espera, PASSO_DA_ESPERA).map_err(|erro| match erro {
+        ErroDaTrava::Ocupada => ErroLogin::LoginEmAndamentoEmOutroProcesso,
+        ErroDaTrava::Ilegivel(erro) => {
+            ErroLogin::ArquivoDeLockDoLoginInacessivel(ErroDeIo::new(erro))
         }
-    }
+    })
 }
 
 /// `<arquivo><sufixo>` no mesmo diretório.
@@ -85,7 +76,7 @@ pub(crate) fn geracao_da_sessao(cookie: &str) -> String {
 /// também para a sessão preparada fora do `ies login` (sem marcador).
 pub(crate) fn geracao_gravada(arquivos: &ArquivosDeAcesso) -> Option<String> {
     let ler = |caminho: &Path| {
-        crate::transporte::arquivo_privado(caminho, 8_192)
+        crate::arquivo_privado::ler(caminho, 8_192)
             .ok()
             .map(|texto| texto.trim().to_owned())
             .filter(|texto| !texto.is_empty())
@@ -96,7 +87,7 @@ pub(crate) fn geracao_gravada(arquivos: &ArquivosDeAcesso) -> Option<String> {
 }
 
 fn sha256(texto: &str) -> String {
-    crate::hex::hex_minusculo(&Sha256::digest(texto.trim().as_bytes()))
+    hex::encode(Sha256::digest(texto.trim().as_bytes()))
 }
 
 #[derive(serde::Serialize, serde::Deserialize)]
@@ -110,13 +101,27 @@ struct Marcador {
 // Exceção inventariada (#183): leitura local do marcador de consistência
 // próprio da escrita atômica. O formato é só deste módulo; a leitura
 // coerente (`ReferenciasDaSessao`, #222) o confere por `marcador_confere`.
-fn ler_marcador(arquivos: &ArquivosDeAcesso) -> Result<Option<Marcador>, ()> {
+fn ler_marcador(arquivos: &ArquivosDeAcesso) -> Result<Option<Marcador>, ErroMarcadorDaSessao> {
     let caminho = caminho_ao_lado(&arquivos.url_controle, ".geracao");
-    match crate::transporte::arquivo_privado(&caminho, 4096) {
-        Ok(texto) => serde_json::from_str(&texto).map(Some).map_err(|_| ()),
-        Err(crate::transporte::FalhaTransporte::ArquivoPrivadoAusenteOuInacessivel) => Ok(None),
-        Err(_) => Err(()),
+    match crate::arquivo_privado::ler(&caminho, 4096) {
+        Ok(texto) => serde_json::from_str(&texto).map(Some).map_err(|erro| {
+            ErroMarcadorDaSessao::ForaDoFormato {
+                linha: erro.line(),
+                coluna: erro.column(),
+            }
+        }),
+        Err(ErroArquivoPrivado::Ausente) => Ok(None),
+        Err(falha) => Err(ErroMarcadorDaSessao::Ilegivel(falha)),
     }
+}
+
+/// O marcador `.geracao` existe e não foi lido. O conteúdo (hashes) não
+/// entra no erro; do JSON fica só a posição.
+#[derive(Clone, Debug, PartialEq, Eq, thiserror::Error)]
+#[error("{self:?}")]
+pub(crate) enum ErroMarcadorDaSessao {
+    Ilegivel(#[source] ErroArquivoPrivado),
+    ForaDoFormato { linha: usize, coluna: usize },
 }
 
 /// O texto de um marcador confere com a URL e o cookie (os SHA-256 dele).
@@ -132,21 +137,35 @@ pub(crate) fn mesma_geracao(arquivos: &ArquivosDeAcesso, url: &str, cookie: &str
     match ler_marcador(arquivos) {
         Ok(None) => true,
         Ok(Some(m)) => m.cookie_sha256 == sha256(cookie) && m.url_controle_sha256 == sha256(url),
-        Err(()) => false,
+        Err(_ilegivel) => false,
     }
 }
 
-/// A falha da gravação privada única nos subcódigos da sessão: link no
+/// A falha da gravação privada única nos erros da sessão: link no
 /// nome final é destino não regular; ancestral link é aceito.
 fn traduzir(falha: FalhaDaGravacao, papel: ArquivoPrivado) -> ErroLogin {
     match falha {
         FalhaDaGravacao::DestinoNaoEhArquivoRegular => {
             ErroLogin::DestinoDaSessaoNaoEhArquivoRegular(papel)
         }
+        #[cfg(unix)]
         FalhaDaGravacao::DiretorioGravavelPorOutros => {
             ErroLogin::DiretorioDaSessaoGravavelPorOutros(papel)
         }
-        _ => ErroLogin::GravacaoDaSessaoFalhou(papel),
+        FalhaDaGravacao::SemNomeDeArquivo
+        | FalhaDaGravacao::DiretorioAusente
+        | FalhaDaGravacao::DiretorioNaoConsultado(_)
+        | FalhaDaGravacao::DestinoJaExiste
+        | FalhaDaGravacao::AcimaDoLimite
+        | FalhaDaGravacao::CriacaoFalhou(_)
+        | FalhaDaGravacao::EscritaFalhou
+        | FalhaDaGravacao::ErroDeIoNaEscrita(_)
+        | FalhaDaGravacao::NivelDoCaminhoNaoEhDiretorio
+        | FalhaDaGravacao::NivelDoCaminhoIlegivel(_)
+        | FalhaDaGravacao::CriacaoDoDiretorioFalhou(_)
+        | FalhaDaGravacao::CriacaoDoTemporarioFalhou(_)
+        | FalhaDaGravacao::NomesDeTemporarioEsgotados
+        | FalhaDaGravacao::ConfirmacaoFalhou(_) => ErroLogin::GravacaoDaSessaoFalhou(papel),
     }
 }
 
@@ -187,7 +206,7 @@ pub(crate) fn regravar_url_do_controle(
     let geracao_caminho = caminho_ao_lado(&arquivos.url_controle, ".geracao");
     let papel = ArquivoPrivado::UrlControle;
     let marcador = ler_marcador(arquivos)
-        .map_err(|()| ErroLogin::GravacaoDaSessaoFalhou(papel))?
+        .map_err(ErroLogin::MarcadorDaSessaoIlegivel)?
         .map(|m| Marcador {
             cookie_sha256: sha256(cookie),
             url_controle_sha256: sha256(url),
@@ -198,8 +217,8 @@ pub(crate) fn regravar_url_do_controle(
         papel,
     )];
     if let Some(m) = marcador {
-        let json =
-            serde_json::to_string(&m).map_err(|_| ErroLogin::GravacaoDaSessaoFalhou(papel))?;
+        let json = serde_json::to_string(&m)
+            .map_err(|erro| ErroLogin::SerializacaoDaSessaoFalhou(papel, erro.classify()))?;
         parciais.push((
             preparar(&geracao_caminho, &format!("{json}\n"), papel)?,
             papel,
@@ -218,8 +237,7 @@ pub(crate) fn gravar(
 ) -> Result<u64, ErroLogin> {
     let geracao_caminho = caminho_ao_lado(&arquivos.url_controle, ".geracao");
     let anterior = ler_marcador(arquivos)
-        .ok()
-        .flatten()
+        .map_err(ErroLogin::MarcadorDaSessaoIlegivel)?
         .map_or(0, |m| m.geracao);
     let marcador = Marcador {
         geracao: anterior + 1,
@@ -227,8 +245,9 @@ pub(crate) fn gravar(
         cookie_sha256: sha256(cookie),
         url_controle_sha256: sha256(url),
     };
-    let json = serde_json::to_string(&marcador)
-        .map_err(|_| ErroLogin::GravacaoDaSessaoFalhou(ArquivoPrivado::UrlControle))?;
+    let json = serde_json::to_string(&marcador).map_err(|erro| {
+        ErroLogin::SerializacaoDaSessaoFalhou(ArquivoPrivado::UrlControle, erro.classify())
+    })?;
     let destinos = [
         (
             &arquivos.cookie,

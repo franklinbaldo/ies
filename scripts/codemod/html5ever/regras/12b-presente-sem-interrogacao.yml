@@ -1,0 +1,17 @@
+id: 12b-presente-sem-interrogacao
+language: rust
+message: 'atributo_presente(t, k).map_err(e) sem ?: o Result vira Ok'
+severity: hint
+rule:
+  all:
+    - any:
+        - pattern: 'atributo_presente($T, $K).map_err($E)'
+        - pattern: 'crate::html_atributos::atributo_presente($T, $K).map_err($E)'
+    - not:
+        inside:
+          stopBy: end
+          kind: mod_item
+          follows:
+            kind: attribute_item
+            regex: 'cfg\(test\)'
+fix: 'Ok($T.presente($K))'

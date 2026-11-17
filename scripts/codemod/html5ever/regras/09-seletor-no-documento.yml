@@ -1,0 +1,20 @@
+id: 09-seletor-no-documento
+language: rust
+message: 'Seletor por nome de elemento no documento.'
+severity: hint
+rule:
+  any:
+    - pattern: $D.query_selector($S).into_iter().flatten()
+    - pattern: $D.query_selector($S).ok_or($E)?
+    - pattern: $D.query_selector($S)?
+  not:
+    inside:
+      stopBy: end
+      kind: mod_item
+      follows:
+        kind: attribute_item
+        regex: 'cfg\(test\)'
+constraints:
+  S:
+    regex: '^"[a-z][a-z0-9]*"$'
+fix: '$D.elementos($S)'

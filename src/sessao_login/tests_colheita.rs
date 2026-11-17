@@ -4,6 +4,7 @@
 //! cookie e da URL gravados.
 use super::tests_apoio::*;
 use super::{Conexao, entrar_colhendo, geracao_da_sessao};
+use crate::acao_do_sei::AcaoDoSei;
 use crate::indice_local::IndiceLocal;
 use crate::instalacao::Instalacao;
 
@@ -42,8 +43,8 @@ fn conferir_colheita(ambiente: &Ambiente, indice: &IndiceLocal) {
     let chave = crate::indice_local::ChaveDoLink {
         geracao_sessao: &geracao,
         unidade: "110000849",
-        acao: "procedimento_trabalhar",
-        objeto: "77",
+        acao: AcaoDoSei::ProcedimentoTrabalhar,
+        alvo: "77",
     };
     assert_eq!(
         indice.link(&instalacao, chave).map(|u| u.url().to_owned()),

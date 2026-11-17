@@ -1,0 +1,15 @@
+id: 56i-nos-iter
+language: rust
+message: 'children().top().iter() que sobrou (após 56h) vira nos()'
+severity: hint
+rule:
+  all:
+    - pattern: '$T.children().top().iter()'
+    - not:
+        inside:
+          stopBy: end
+          kind: mod_item
+          follows:
+            kind: attribute_item
+            regex: 'cfg\(test\)'
+fix: '$T.nos()'

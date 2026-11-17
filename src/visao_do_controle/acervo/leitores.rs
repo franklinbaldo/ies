@@ -7,6 +7,8 @@ use super::{Leitor, Lista, PaginaLida, Registro, Replay, Resultado, paginacao};
 use crate::cassette::acervo::gravacao::{self, Resposta};
 use crate::controle_contexto::ContextoPagina;
 use crate::dominio::Categoria;
+use crate::paginas::FaixaObservada;
+use crate::tela_html::HtmlServido;
 use crate::transporte::{FalhaTransporte, RespostaWeb, decodificar_resposta};
 use crate::unidade_categoria::{CategoriaLista, selecionar};
 use base64::Engine as _;
@@ -50,8 +52,10 @@ pub(super) fn replay(card: &str, instalacao: &str, json: &serde_json::Value) -> 
     let mut saida = Replay::default();
     let mut anterior: Option<String> = None;
     for resp in gravacao::respostas(json) {
-        let pathname = resp.item["request"]["pathname"].as_str().unwrap_or("");
-        if resp.metodo == "GET" && resp.status == 200 && pathname.ends_with("/sip/login.php") {
+        let login = resp.interacao["request"]["pathname"]
+            .as_str()
+            .is_some_and(|pathname| pathname.ends_with("/sip/login.php"));
+        if resp.metodo == "GET" && resp.status == 200 && login {
             saida.registros.push(tela_de_login(&cas, &resp));
         }
         if resp.operacao == "procedimento_controlar" {
@@ -61,15 +65,15 @@ pub(super) fn replay(card: &str, instalacao: &str, json: &serde_json::Value) -> 
     saida
 }
 
-fn bytes(item: &serde_json::Value) -> Vec<u8> {
-    item["response"]["body_base64"]
+fn bytes(interacao: &serde_json::Value) -> Vec<u8> {
+    interacao["response"]["body_base64"]
         .as_str()
         .and_then(|b| base64::engine::general_purpose::STANDARD.decode(b).ok())
         .unwrap_or_default()
 }
 
-fn mime(item: &serde_json::Value) -> String {
-    item["response"]["headers"]
+fn mime(interacao: &serde_json::Value) -> String {
+    interacao["response"]["headers"]
         .as_object()
         .and_then(|h| {
             h.iter()
@@ -81,11 +85,11 @@ fn mime(item: &serde_json::Value) -> String {
 }
 
 /// A mesma decodificação do GET do Controle e do POST do formulário.
-pub(super) fn transporte(resp: &Resposta<'_>) -> Result<String, FalhaTransporte> {
-    let corpo = bytes(resp.item);
+pub(super) fn transporte(resp: &Resposta<'_>) -> Result<HtmlServido, FalhaTransporte> {
+    let corpo = bytes(resp.interacao);
     decodificar_resposta(RespostaWeb {
         status_code: i32::try_from(resp.status).unwrap_or(0),
-        mime: mime(resp.item),
+        mime: mime(resp.interacao),
         content_length: None,
         localizacao: None,
         corpo: corpo.as_slice(),
@@ -95,18 +99,20 @@ pub(super) fn transporte(resp: &Resposta<'_>) -> Result<String, FalhaTransporte>
 fn tela_de_login(cas: &Cassette<'_>, resp: &Resposta<'_>) -> Registro {
     let resultado = match transporte(resp) {
         Ok(_) => Resultado::Lido,
-        Err(falha) => Resultado::Recusado(falha.subcodigo()),
+        Err(falha) => Resultado::Recusado(format!("{falha:?}")),
     };
     cas.registro(Leitor::TelaDeLogin, resp.passo, resultado)
 }
 
-fn subcodigo_do_transporte(resp: &Resposta<'_>, falha: &FalhaTransporte) -> &'static str {
+fn rotulo_do_transporte(resp: &Resposta<'_>, falha: &FalhaTransporte) -> String {
     // No POST, a tela de login vira a recusa do envio do formulário.
     if resp.metodo == "POST" && *falha == FalhaTransporte::PaginaDeLoginRecebidaNoControle {
-        return crate::formulario_web::ErroSubmissaoFormulario::TelaDeLoginRecebidaAposEnvio
-            .subcodigo();
+        return format!(
+            "{:?}",
+            crate::formulario_web::ErroSubmissaoFormulario::TelaDeLoginRecebidaAposEnvio
+        );
     }
-    falha.subcodigo()
+    format!("{falha:?}")
 }
 
 fn ler(cas: &Cassette<'_>, resp: &Resposta<'_>, anterior: &mut Option<String>, saida: &mut Replay) {
@@ -119,8 +125,8 @@ fn ler(cas: &Cassette<'_>, resp: &Resposta<'_>, anterior: &mut Option<String>, s
     let html = match transporte(resp) {
         Ok(html) => html,
         Err(falha) => {
-            t.resultado = Resultado::Recusado(subcodigo_do_transporte(resp, &falha));
-            if let Some(local) = gravacao::localizacao(resp.item) {
+            t.resultado = Resultado::Recusado(rotulo_do_transporte(resp, &falha));
+            if let Some(local) = gravacao::localizacao(resp.interacao) {
                 let acao = parametro_de(local, "acao").unwrap_or("outra");
                 t.formas.push(format!("location_acao_{acao}"));
             }
@@ -130,10 +136,10 @@ fn ler(cas: &Cassette<'_>, resp: &Resposta<'_>, anterior: &mut Option<String>, s
     };
     saida.registros.push(t);
     let mut v = cas.registro(Leitor::Visao, resp.passo, Resultado::Lido);
-    let ctx = match contexto(&html) {
+    let ctx = match contexto(&HtmlServido::de_teste(&html)) {
         Ok(ctx) => ctx,
         Err(erro) => {
-            v.resultado = Resultado::Recusado(erro.subcodigo());
+            v.resultado = Resultado::Recusado(format!("{erro:?}"));
             saida.registros.push(v);
             return;
         }
@@ -143,14 +149,14 @@ fn ler(cas: &Cassette<'_>, resp: &Resposta<'_>, anterior: &mut Option<String>, s
     } else if ctx.eh_resumida() {
         "R"
     } else {
-        v.resultado = Resultado::Recusado(
+        v.resultado = Resultado::Recusado(format!(
+            "{:?}",
             crate::visao_do_controle::ErroVisaoDoControle::VisaoDoControleNaoReconhecida
-                .subcodigo(),
-        );
+        ));
         "ausente"
     };
     v.formas.push(format!("visao_{visao}"));
-    let filtro = gravacao::parametro(resp.item, "tipo_filtro");
+    let filtro = gravacao::parametro(resp.interacao, "tipo_filtro");
     if let Some(f) = filtro.first() {
         v.formas.push(format!("tipo_filtro_{f}"));
     }
@@ -159,7 +165,7 @@ fn ler(cas: &Cassette<'_>, resp: &Resposta<'_>, anterior: &mut Option<String>, s
     let unidade = match unidade_da_tela(&ctx, None) {
         Ok(unidade) => unidade,
         Err(erro) => {
-            u.resultado = Resultado::Recusado(erro.subcodigo());
+            u.resultado = Resultado::Recusado(format!("{erro:?}"));
             saida.registros.push(u);
             return;
         }
@@ -196,7 +202,7 @@ fn parametro_de<'a>(url: &'a str, nome: &str) -> Option<&'a str> {
 fn solicitada(
     cas: &Cassette<'_>,
     resp: &Resposta<'_>,
-    html: &str,
+    html: &HtmlServido,
     ctx: &ContextoPagina,
     prev: &str,
     unidade: &str,
@@ -211,7 +217,7 @@ fn solicitada(
         .into(),
     );
     if let Err(erro) = unidade_da_tela(ctx, Some(prev)) {
-        s.resultado = Resultado::Recusado(erro.subcodigo());
+        s.resultado = Resultado::Recusado(format!("{erro:?}"));
     }
     // A lista R aplica a mesma conferência (`unidade_inesperada`), quando lida.
     let pagina = [html.to_owned()];
@@ -233,23 +239,22 @@ fn resumida(
     saida: &mut Replay,
 ) {
     for leitor in [Leitor::Detalhada, Leitor::PaginaDetalhada] {
-        let motivo = Resultado::NaoAplicavel("tela_na_visao_r_o_comando_troca_para_d");
+        let motivo = Resultado::NaoAplicavel("tela_na_visao_r_o_comando_troca_para_d".to_owned());
         saida
             .registros
             .push(cas.registro(leitor, resp.passo, motivo));
     }
     let mut j = cas.registro(Leitor::Resumida, resp.passo, Resultado::Lido);
-    let leitura = match crate::paginas::juntar(&[html.to_owned()], None) {
+    let leitura = match crate::paginas::juntar(&[HtmlServido::de_teste(html)], None) {
         Ok(leitura) => leitura,
         Err(erro) => {
-            j.resultado = fora.map_or(
-                Resultado::Recusado(erro.subcodigo()),
-                Resultado::NaoAplicavel,
-            );
-            j.formas.push(format!("recusa_{}", erro.subcodigo()));
+            j.resultado = fora.map_or(Resultado::Recusado(format!("{erro:?}")), |motivo| {
+                Resultado::NaoAplicavel(motivo.to_owned())
+            });
+            j.formas.push(format!("recusa_{erro:?}"));
             saida.registros.push(j);
             for leitor in [Leitor::Recebidos, Leitor::Gerados, Leitor::LinhasComLink] {
-                let motivo = Resultado::NaoAplicavel("lista_r_nao_lida");
+                let motivo = Resultado::NaoAplicavel("lista_r_nao_lida".to_owned());
                 saida
                     .registros
                     .push(cas.registro(leitor, resp.passo, motivo));
@@ -271,17 +276,29 @@ fn resumida(
         (Leitor::Gerados, CategoriaLista::Gerados, Lista::Gerados),
     ] {
         let mut l = cas.registro(leitor, resp.passo, Resultado::Lido);
-        match selecionar(&leitura, lista, "acervo") {
-            Ok(modelo) => {
+        let cobertura = match lista.categoria() {
+            Categoria::Recebidos => &leitura.recebidos,
+            Categoria::Gerados => &leitura.gerados,
+        };
+        let lido = selecionar(&leitura, lista, "acervo").and_then(|modelo| {
+            let faixa = cobertura.faixa_observada()?;
+            Ok((modelo, faixa))
+        });
+        match lido {
+            Ok((modelo, faixa)) => {
                 let processos = modelo["processos"].as_array().map_or(0, Vec::len) as u64;
                 let total = modelo["total_declarado"].as_u64().unwrap_or(0);
                 l.contagens = vec![("linhas", processos), ("total_declarado", total)];
                 l.formas.push(forma_da_lista(processos, total).into());
-                let faixa = &modelo["faixa_observada"];
-                let faixa = faixa["inicio"].as_u64().zip(faixa["fim"].as_u64());
+                let faixa = match faixa {
+                    FaixaObservada::SemLinhas => None,
+                    FaixaObservada::Lidas { inicio, fim } => Some((inicio, fim)),
+                };
                 if let Some((i, f)) = faixa {
-                    l.contagens.push(("faixa_inicio", i));
-                    l.contagens.push(("faixa_fim", f));
+                    l.contagens
+                        .push(("faixa_inicio", u64::try_from(i).unwrap_or(u64::MAX)));
+                    l.contagens
+                        .push(("faixa_fim", u64::try_from(f).unwrap_or(u64::MAX)));
                 }
                 let tabela = match lista.categoria() {
                     Categoria::Recebidos => &leitura.caixa.recebidos,
@@ -289,12 +306,7 @@ fn resumida(
                 };
                 let mut p = cas.pagina(resp.passo, categoria, unidade);
                 p.total = usize::try_from(total).unwrap_or(usize::MAX);
-                p.faixa = faixa.map(|(i, f)| {
-                    (
-                        usize::try_from(i).unwrap_or(0),
-                        usize::try_from(f).unwrap_or(0),
-                    )
-                });
+                p.faixa = faixa;
                 p.ids = tabela
                     .processos
                     .iter()
@@ -303,7 +315,9 @@ fn resumida(
                 p.criterio = paginacao::criterio(html, lista.categoria());
                 saida.paginas.push(p);
             }
-            Err(erro) => l.resultado = Resultado::Recusado(erro.subcodigo()),
+            Err(erro) => {
+                l.resultado = Resultado::Recusado(format!("{erro:?}"));
+            }
         }
         saida.registros.push(l);
         saida
@@ -311,12 +325,12 @@ fn resumida(
             .push(paginacao::da_tabela(cas, resp, html, lista.categoria()));
     }
     let mut k = cas.registro(Leitor::LinhasComLink, resp.passo, Resultado::Lido);
-    match crate::caixa::linhas_com_link(html) {
+    match crate::caixa::linhas_com_link(&HtmlServido::de_teste(html)) {
         Ok(linhas) => {
             let com = linhas.iter().filter(|l| l.href.is_some()).count() as u64;
             k.contagens = vec![("linhas", linhas.len() as u64), ("com_href", com)];
         }
-        Err(erro) => k.resultado = Resultado::Recusado(erro.subcodigo()),
+        Err(erro) => k.resultado = Resultado::Recusado(format!("{erro:?}")),
     }
     saida.registros.push(k);
 }

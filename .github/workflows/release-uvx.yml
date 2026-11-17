@@ -1,0 +1,83 @@
+name: Publicar wheels Rust em GitHub Release
+
+on:
+  push:
+    tags:
+      - 'v[0-9]*'
+
+permissions:
+  contents: read
+
+concurrency:
+  group: release-${{ github.ref }}
+  cancel-in-progress: false
+
+jobs:
+  validar:
+    name: Verificar versao, origem e gates
+    runs-on: ubuntu-24.04
+    timeout-minutes: 30
+    steps:
+      - name: Checkout integral da tag
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          fetch-depth: 0
+          persist-credentials: false
+
+      - name: Conferir tag e ancestralidade na main
+        shell: bash
+        run: |
+          set -euo pipefail
+          python3 -I scripts/verificar_release_uvx.py "$GITHUB_REF_NAME"
+          git fetch --no-tags origin main
+          git merge-base --is-ancestor "$(git rev-parse HEAD)" refs/remotes/origin/main
+
+      - name: Instalar uv
+        uses: astral-sh/setup-uv@07a047e608db84b3d8c06cd9a7c7dcc9c355c18e # v10.3.2
+        with:
+          version: "0.13.5"
+          enable-cache: false
+
+      - name: Instalar Rust fixado
+        shell: bash
+        run: rustup toolchain install 1.99.1 --profile minimal --component rustfmt --component clippy
+
+      - name: Gates canonicos do repositorio na tag
+        run: uvx --from prek==0.5.7 prek run --hook-stage pre-push --all-files
+
+  wheels:
+    name: Reutilizar builds maturin com smoke uvx
+    needs: validar
+    permissions:
+      contents: read
+    uses: ./.github/workflows/wheel-uvx.yml
+
+  publicar:
+    name: Criar Release somente com 3 wheels aprovados
+    needs: [validar, wheels]
+    runs-on: ubuntu-24.04
+    permissions:
+      contents: write
+      actions: read
+    timeout-minutes: 10
+    steps:
+      - name: Obter exatamente os wheels deste workflow e publicar
+        shell: bash
+        env:
+          GH_TOKEN: ${{ github.token }}
+          GH_REPO: ${{ github.repository }}
+        run: |
+          set -euo pipefail
+          mkdir -p dist
+          gh run download "$GITHUB_RUN_ID" --pattern 'ies-sei-wheel-*' --dir dist
+          mapfile -d '' wheels < <(find dist -type f -name '*.whl' -print0)
+          if [ "${#wheels[@]}" -ne 3 ]; then
+            printf 'Esperados 3 wheels; encontrados %s\n' "${#wheels[@]}" >&2
+            exit 1
+          fi
+          : > SHA256SUMS
+          for wheel in "${wheels[@]}"; do
+            printf '%s  %s\n' "$(sha256sum "$wheel" | cut -d ' ' -f 1)" "$(basename "$wheel")" >> SHA256SUMS
+          done
+          gh release create "$GITHUB_REF_NAME" "${wheels[@]}" SHA256SUMS \
+            --verify-tag --generate-notes --title "IES ${GITHUB_REF_NAME}"

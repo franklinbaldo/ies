@@ -1,4 +1,6 @@
 use super::*;
+#[cfg(unix)]
+use std::fs;
 use std::io::Cursor;
 
 fn url(host: &str) -> String {
@@ -107,11 +109,11 @@ fn links_simbolicos_para_arquivos_privados_nao_podem_ser_lidos() {
     let atalho = raiz.join("cookie-atalho");
     symlink(&original, &atalho).unwrap();
     assert_eq!(
-        arquivo_privado(&atalho, 8_192),
-        Err(FalhaTransporte::ArquivoPrivadoLinkSimbolico)
+        crate::arquivo_privado::ler(&atalho, 8_192),
+        Err(crate::arquivo_privado::ErroArquivoPrivado::LinkSimbolico)
     );
     assert_eq!(
-        arquivo_privado(&original, 8_192),
+        crate::arquivo_privado::ler(&original, 8_192),
         Ok("PHPSESSID=DEMONSTRACAO".to_owned())
     );
     fs::remove_dir_all(raiz).unwrap();
@@ -141,7 +143,9 @@ fn url_assinada_via_link_simbolico_falha_antes_de_consultar_rede() {
             &raiz.join("cookie-nao-existe"),
             &raiz.join("origem-nao-existe"),
         ),
-        Err(FalhaTransporte::ArquivoPrivadoLinkSimbolico)
+        Err(FalhaTransporte::UrlDoControleIlegivel(
+            crate::arquivo_privado::ErroArquivoPrivado::LinkSimbolico
+        ))
     );
     fs::remove_dir_all(raiz).unwrap();
 }
@@ -163,15 +167,18 @@ fn descritor_revalida_permissoes_e_limite_de_conteudo() {
     fs::write(&arquivo, "CONTEUDO").unwrap();
     fs::set_permissions(&arquivo, fs::Permissions::from_mode(0o644)).unwrap();
     assert_eq!(
-        arquivo_privado(&arquivo, 128),
-        Err(FalhaTransporte::ArquivoPrivadoComPermissoesInseguras)
+        crate::arquivo_privado::ler(&arquivo, 128),
+        Err(crate::arquivo_privado::ErroArquivoPrivado::PermissoesAbertas)
     );
     fs::set_permissions(&arquivo, fs::Permissions::from_mode(0o600)).unwrap();
     assert_eq!(
-        arquivo_privado(&arquivo, 4),
-        Err(FalhaTransporte::ArquivoPrivadoAcimaDoLimite)
+        crate::arquivo_privado::ler(&arquivo, 4),
+        Err(crate::arquivo_privado::ErroArquivoPrivado::AcimaDoLimite)
     );
-    assert_eq!(arquivo_privado(&arquivo, 128), Ok("CONTEUDO".to_owned()));
+    assert_eq!(
+        crate::arquivo_privado::ler(&arquivo, 128),
+        Ok("CONTEUDO".to_owned())
+    );
     fs::remove_dir_all(&pasta).unwrap();
 }
 
@@ -208,7 +215,7 @@ fn nomes_que_php_normaliza_nao_podem_sobrescrever_acao_ou_hash() {
     ] {
         assert_eq!(
             validar_url(&format!("{legitima}&{alias}")),
-            Err(FalhaTransporte::ChaveDeConsultaNaoCanonica),
+            Err(FalhaTransporte::UrlInvalida),
             "{alias}"
         );
     }
@@ -221,7 +228,7 @@ fn ponto_e_virgula_na_query_nao_muda_acao_apos_parse_php() {
         validar_url(&format!(
             "{legitima}&origem=publica;acao=procedimento_excluir"
         )),
-        Err(FalhaTransporte::SeparadorDeConsultaAmbiguo)
+        Err(FalhaTransporte::UrlInvalida)
     );
 }
 
@@ -250,5 +257,38 @@ fn controle_da_troca_de_unidade_com_hash_de_192_e_aceito() {
             Err(FalhaTransporte::UrlInvalida),
             "{n}"
         );
+    }
+}
+
+#[test]
+fn recusas_da_fronteira_preservam_tipo_sem_html_intermediario() {
+    let url = validar_url("https://sei.exemplo/controlador.php");
+    assert_eq!(url, Err(FalhaTransporte::UrlInvalida));
+
+    let cookie = validar_cookie("sessao:invalida");
+    assert_eq!(cookie, Err(FalhaTransporte::CookieInvalido));
+
+    let resposta = RespostaWeb {
+        status_code: 200,
+        mime: "application/json".to_owned(),
+        content_length: None,
+        localizacao: None,
+        corpo: Cursor::new(Vec::<u8>::new()),
+    };
+    let mime = decodificar_resposta(resposta);
+    assert_eq!(mime, Err(FalhaTransporte::TipoDeConteudoNaoHtml));
+}
+
+#[test]
+fn falhas_de_fronteira_sao_tipos_proprios_sem_causa_html() {
+    for (erro, _esperado) in [
+        (FalhaTransporte::UrlInvalida, "url_invalida"),
+        (FalhaTransporte::CookieInvalido, "cookie_invalido"),
+        (
+            FalhaTransporte::TipoDeConteudoNaoHtml,
+            "tipo_de_conteudo_nao_html",
+        ),
+    ] {
+        assert_eq!(erro.status_http(), None);
     }
 }

@@ -24,7 +24,7 @@ impl ZipDoAcervo {
             return Err("ZIP maior que 160 MB".into());
         }
         let raw = std::fs::read(archive).map_err(|_| "falha ao ler ZIP")?;
-        let sha1 = crate::hex::hex_minusculo(&Sha1::digest(&raw));
+        let sha1 = hex::encode(Sha1::digest(&raw));
         Ok(Self { raw, sha1 })
     }
 }
@@ -37,7 +37,10 @@ pub(crate) struct CassetteConferida {
 
 /// Conferência integral com teto para o membro JSON (o replay do acervo lê
 /// também as cassettes grandes de pastas, de até ~40 MB).
-#[allow(clippy::case_sensitive_file_extension_comparisons)]
+#[expect(
+    clippy::case_sensitive_file_extension_comparisons,
+    reason = "O acervo OKF exige os sufixos `.json` e `.zip` exatamente em minúsculas"
+)]
 pub(crate) fn conferir_cassette_ate(
     card: &Path,
     zip: &ZipDoAcervo,
@@ -95,7 +98,7 @@ pub(crate) fn conferir_cassette_ate(
     if json_bytes.len() as u64 > limite {
         return Err(format!("cassette maior que {} MB", limite / 1_000_000));
     }
-    if crate::hex::hex_minusculo(&Sha256::digest(com_lf(&json_bytes))) != expected_json {
+    if hex::encode(Sha256::digest(com_lf(&json_bytes))) != expected_json {
         return Err("SHA-256 da cassette não confere".into());
     }
     let json: serde_json::Value =
@@ -103,7 +106,9 @@ pub(crate) fn conferir_cassette_ate(
     if json["complete"] != true || json["schema_version"] != 1 {
         return Err("cassette incompleta ou schema desconhecido".into());
     }
-    let root = json["sei_root"].as_str().unwrap_or("");
+    let root = json["sei_root"]
+        .as_str()
+        .ok_or("sei_root ausente na cassette")?;
     let allowed = match installation.as_str() {
         "unb" => "sei.treinamento.unb.br",
         "ufrj" => "teste.sei.tic.ufrj.br",
@@ -124,11 +129,9 @@ pub(crate) fn conferir_cassette_ate(
 
 /// Bytes e codificação de uma resposta HTML gravada (sem conferir status nem
 /// operação, que são do chamador).
-pub(super) fn corpo_html(it: &serde_json::Value) -> Result<(Vec<u8>, String), String> {
-    let mime = it["response"]["headers"]["content-type"]
-        .as_str()
-        .unwrap_or("");
-    if !mime.to_ascii_lowercase().contains("text/html") {
+pub(super) fn corpo_html(it: &serde_json::Value) -> Result<(Vec<u8>, Option<String>), String> {
+    let mime = it["response"]["headers"]["content-type"].as_str();
+    if !mime.is_some_and(|m| m.to_ascii_lowercase().contains("text/html")) {
         return Err("resposta não é HTML".into());
     }
     let b64 = it["response"]["body_base64"]
@@ -138,19 +141,25 @@ pub(super) fn corpo_html(it: &serde_json::Value) -> Result<(Vec<u8>, String), St
     if bytes.len() > crate::MAX_HTML_BYTES {
         return Err("HTML acima do limite".into());
     }
-    let encoding = it["response"]["encoding"].as_str().unwrap_or("");
-    let encoding = if encoding.is_empty() && mime.to_ascii_lowercase().contains("8859-1") {
-        "iso-8859-1"
-    } else {
-        encoding
+    // Encoding ausente ou vazio: o do Content-Type se for ISO-8859-1; senão
+    // nenhum, e `legivel` decodifica byte a byte.
+    let encoding = match it["response"]["encoding"]
+        .as_str()
+        .filter(|e| !e.is_empty())
+    {
+        Some(declarada) => Some(declarada.to_owned()),
+        None if mime.is_some_and(|m| m.to_ascii_lowercase().contains("8859-1")) => {
+            Some("iso-8859-1".to_owned())
+        }
+        None => None,
     };
-    Ok((bytes, encoding.to_owned()))
+    Ok((bytes, encoding))
 }
 
 /// O HTML decodificado de uma resposta gravada.
 pub(crate) fn html_da_resposta(it: &serde_json::Value) -> Result<String, String> {
     let (bytes, encoding) = corpo_html(it)?;
-    legivel(&bytes, &encoding)
+    legivel(&bytes, encoding.as_deref()).map_err(|erro| format!("{erro:?}"))
 }
 
 fn com_lf(bytes: &[u8]) -> Vec<u8> {

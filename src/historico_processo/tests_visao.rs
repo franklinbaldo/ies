@@ -1,11 +1,11 @@
 //! RED/GREEN da troca para a visão completa: regra servida conferida
 //! literalmente e POST derivado pelo primitivo de formulário.
-use super::ErroAndamentos as E;
 use super::tests_apoio::*;
 use super::*;
 use crate::arvore_processo::tests::NUP;
 use crate::formulario_web::{CodificacaoDaTela, EfeitoAvaliado, TelaServida, derivar_submissao};
 use crate::instalacao::Instalacao;
+use crate::tela_html::HtmlServido;
 
 const ORIGEM: &str = "https://sei.exemplo.gov.br/sei";
 
@@ -16,26 +16,30 @@ fn regra_servida_na_visao_resumida_e_aceita() {
 }
 
 #[test]
-fn regra_alterada_ou_link_para_outra_visao_e_recusa() {
+fn regra_alterada_e_recusa() {
     let html = pagina_do_historico(NUP, "10", 'R', 2, 2);
-    for trocado in [
-        html.replace("function verHistorico(valor){", "function verHistorico(v){"),
-        html.replace(
-            "document.getElementById('hdnTipoHistorico').value = valor;",
-            "document.getElementById('hdnTipoHistorico').value = 'P';",
+    let casos = [
+        (
+            html.replace("function verHistorico(valor){", "function verHistorico(v){"),
+            super::ErroAndamentos::RegraDeVerHistoricoAusenteNaPagina,
         ),
-        html.replace(
-            "document.getElementById('frmProcedimentoHistorico').submit();",
-            "infraSubmit();",
+        (
+            html.replace(
+                "document.getElementById('hdnTipoHistorico').value = valor;",
+                "document.getElementById('hdnTipoHistorico').value = 'P';",
+            ),
+            super::ErroAndamentos::RegraDeVerHistoricoAusenteNaPagina,
         ),
-        html.replace("verHistorico('P');", "verHistorico('X');"),
-        html.replace("id=\"ancTipoHistorico\" ", ""),
-        pagina_do_historico(NUP, "10", 'P', 2, 2),
-    ] {
-        assert_eq!(
-            conferir_regra_de_ver_historico(&trocado),
-            Err(E::RegraDeVerHistoricoNaoObservada)
-        );
+        (
+            html.replace(
+                "document.getElementById('frmProcedimentoHistorico').submit();",
+                "infraSubmit();",
+            ),
+            super::ErroAndamentos::RegraDeVerHistoricoAusenteNaPagina,
+        ),
+    ];
+    for (trocado, esperado) in casos {
+        assert_eq!(conferir_regra_de_ver_historico(&trocado), Err(esperado));
     }
 }
 
@@ -45,7 +49,7 @@ fn post_reenvia_os_ocultos_servidos_com_o_tipo_p_e_sem_o_botao_de_escrita() {
     let url = format!("{ORIGEM}/{}", link_do_historico("10"));
     let tela = TelaServida {
         url: &url,
-        html: &html,
+        html: &HtmlServido::de_teste(&html),
         codificacao: CodificacaoDaTela::Iso88591,
     };
     let instalacao = Instalacao::interpretar(ORIGEM).unwrap();
@@ -53,7 +57,7 @@ fn post_reenvia_os_ocultos_servidos_com_o_tipo_p_e_sem_o_botao_de_escrita() {
         &VER_HISTORICO_COMPLETO,
         &instalacao,
         &tela,
-        "",
+        None,
         &[(CAMPO_TIPO, "P")],
     )
     .unwrap();

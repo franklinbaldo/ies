@@ -20,13 +20,11 @@ Nenhum JavaScript foi executado.
   `editor_salvar_conteudo` (GO, PEN3, PEN4) por cenário;
   o cenário inteiro tem entre 65 e 70 requisições, não esse número
   de salvamentos.
-- [Catálogo do acervo](../cassettes.md): os cards referenciam membros
-  JSON de ZIPs imutáveis no Internet Archive, mas não contêm o
-  corpo dos POSTs. **Nesta rodada foram lidos os sete cards,
-  não os membros JSON/HAR dentro dos ZIPs.** Os detalhes HTTP abaixo
-  são, portanto, **afirmações do Todos**, não leitura direta das
-  respostas da cassette. Falta conferir os hashes antes de alegar
-  equivalência.
+- [Catálogo do acervo](../cassettes.md): sete cards referenciam
+  ZIPs imutáveis no Internet Archive sem todos os corpos de POST. Em
+  **15–16/11/2026 foram conferidos os membros originais de UnB, UFRJ e GO**
+  (UFRJ e UnB compartilham o lote `c7a4af8d`); PEN1–PEN4 continuam
+  apenas catalogados.
 - [Todos @323eb01](https://github.com/franklinbaldo/todos/tree/323eb01):
   `src/todos/documentos.py`, `src/todos/sei/editor5.py`,
   `tests/test_editor5_010.py`,
@@ -35,6 +33,66 @@ Nenhum JavaScript foi executado.
   `tests/test_documento_versionado_1238.py` e
   `tests/paginas_reais/editor_montar.html`.
   Os testes usam fixtures e SEI falso; não validam escrita Rust ao vivo.
+
+## Confronto estrutural direto: UnB, UFRJ e GO (15–16/11/2026)
+
+Offline, sem GET a instalações ou qualquer escrita. A fonte é o membro
+`documento-escritas-*.json` do ZIP original apontado por cada card.
+Verifiquei SHA-1 do ZIP, SHA-256 normalizado da cassette, `schema_version: 1`,
+`complete: true` e a origem:
+
+| Origem | ZIP SHA-1 | JSON SHA-256 (LF) | GETs `editor_montar` |
+| --- | --- | --- | --- |
+| [UnB](../../cassettes/unb/documento-escritas-unb--36a904749e20.md) | `c7a4af8d9d70ddc3599cdd9bccbb98e6d726db78` | `36a904749e2042c769cb37034f2e21f05b1c6c02432ac458f6f8bad902d04c02` | 12, 20, 27 |
+| [UFRJ](../../cassettes/ufrj/documento-escritas-ufrj--2241d2a8f71b.md) | `c7a4af8d9d70ddc3599cdd9bccbb98e6d726db78` | `2241d2a8f71b3b4916ac292f15323b43e8bd56dbde44c0f960a6cf487eed7c75` | 15, 22, 29 |
+| [GO](../../cassettes/go/documento-escritas-go--16f83179ecaa.md) | `42a08cd3714bb863d136ed98e517221510a31982` | `16f83179ecaabecb1de24598a8aeda51088954c116f998514cfa8cc3a8045100` | 15, 22, 29 |
+
+- **UnB (SEI 4):** três GETs HTTP 200, ISO-8859-1, com
+  `form#frmEditor` `method=post`, `hdnVersao` (1, 2, 2),
+  `hdnIgnorarNovaVersao=N`, `hdnSiglaUnidade`,
+  `hdnInfraPrefixoCookie`, `iframe#ifrEditorSalvar` e três seções
+  `txaEditor_368`, `txaEditor_370`, `txaEditor_372`.
+  Não aparece `txaEditor_1` nem `output#assinaturasAtuais` do ensaio.
+- **UFRJ (SEI 4.1.5):** três GETs HTTP 200 no membro original
+  `documento-escritas-ufrj.json`, hash normalizado conferido em 16/11,
+  com `form#frmEditor`, `iframe#ifrEditorSalvar`, cinco seções
+  `txaEditor_*`, `hdnVersao` (1, 2, 2),
+  `hdnIgnorarNovaVersao=N` e indicação ISO-8859-1. Diferentemente
+  da UnB, são cinco seções, não três: a quantidade não é invariante.
+- **GO (SEI 5):** três GETs HTTP 200, ISO-8859-1, com
+  `window.INFRA_EDITOR_CONFIG`, `initialData`, `rootsAttributes`,
+  `somenteLeitura` e `editor_salvar_conteudo`. Não há `form#frmEditor`,
+  `iframe` ou `textarea` da família SEI 4.
+- As capturas contêm duas respostas de POST `editor_salvar` em UnB e duas
+  `editor_salvar_conteudo` em GO, mas não demonstram o payload integral,
+  efeito, assinaturas removidas nem promoção de versão. `documento_alterar`
+  é formulário de metadados, distinto do editor de conteúdo.
+
+O código `documento.salvar --confirmar` opera somente em `sei.test`.
+A guarda preexistente `InstalacaoSemEditorObservado` recusa origens reais
+antes de qualquer requisição. Não acrescentamos classificador SEI4/5 nem
+variante de erro para repetir essa recusa. O teste opt-in
+`replay_editor_nativo_no_acervo` lê nove respostas originais e comprova
+que não passam por `editor_observado`, fronteira exclusiva do ensaio
+sintético. **Não** executa a CLI completa ou o anti-IES.
+Os confrontos de transição/escrita e o live continuam **NOT_RUN**.
+
+**Risco para ensaio posterior:** GET de processo/editor pode registrar
+recebimento ou remover assinaturas. Nenhuma abertura live foi autorizada;
+orçamento de rede para esta fatia: **0 GET / 0 POST**.
+
+**Plano de observação futura, sujeito a autorização específica:** escolher
+uma instalação de treinamento e documento descartável comprovadamente
+não assinado; declarar sua identidade e avaliar efeito de cada abertura.
+Propor, como teto inicial, **três GETs, zero POST e zero retry**:
+árvore para conferir `editarConteudo`, verificação independente de
+assinatura e `editor_montar` somente se as duas leituras anteriores
+não apontarem risco. Interromper diante de recebimento/assinatura
+ambíguos ou ausência de oferta. Capturar apenas nomes de campos,
+charset, versão, seções e flags de edição, sem cookie/URL assinada.
+Isso não revela o **corpo real do POST**; comprovar essa transição
+exigiria ensaio de escrita separado, expressamente autorizado,
+com prévia, POST único e releitura, fora desta fatia.
 
 ## O que a barra da árvore publica
 
@@ -142,7 +200,7 @@ que cancelar o editor restaure uma assinatura removida.
 | Instalação | Operação de salvar no card | Observação adicional nesta rodada |
 | --- | --- | --- |
 | UnB 4.0.9 | `editor_salvar` | Fixture do Todos mostra CKEditor 4 |
-| UFRJ 4.1.5 | `editor_salvar` | Estrutura detalhada do HAR não conferida |
+| UFRJ 4.1.5 | `editor_salvar` | Três GETs originais conferidos: `frmEditor`, cinco seções, versões 1/2/2; os dois POSTs não preservam corpo de pedido |
 | PEN1 e PEN2 | `editor_salvar` | PEN1 é controle de CKEditor 4 no teste do Todos |
 | GO 5.0.3 | `editor_salvar_conteudo` | Testes do Todos modelam CKEditor 5 |
 | PEN3 e PEN4 5.0.4 | `editor_salvar_conteudo` | Estrutura detalhada do HAR não conferida |
@@ -160,7 +218,7 @@ semântica de assinatura ou status HTTP entre instalações.
 3. A lista de versões, o rodapé e o HTML relido concordam sobre N+1?
    Há atraso, cache ou diferença na versão publicada?
 4. Como distinguir conflito concorrente, recusa definitiva e
-   efeito incerto após timeout, 5xx ou resposta desconhecida?
+   escrita não confirmada após timeout, 5xx ou resposta desconhecida?
 5. A assinatura é removida na abertura ou no salvar? E com
    múltiplos assinantes? **Não executar em assinado sem roteiro
    específico autorizado.**
@@ -169,7 +227,7 @@ semântica de assinatura ou status HTTP entre instalações.
 7. Uma leitura independente consegue comprovar edição idempotente
    quando o conteúdo antes/depois é igual?
 
-**Próxima prova:** obter os sete membros JSON dos ZIPs por seus
+**Próxima prova offline:** obter os quatro membros JSON PEN1–PEN4 dos ZIPs por seus
 endereços registrados nos cards, verificar SHA-1 e SHA-256 normalizado,
 inspecionar campos/scripts/respostas sem expor dados de sessão e
 só então formalizar contrato e testes RED. O desenho das cópias

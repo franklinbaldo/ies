@@ -1,5 +1,5 @@
-//! Falhas de `ies processo NUP`: uma variante por fato
-//! verificável, com subcódigo estável (contracts/cli/processo-obter-arvore.md).
+//! Falhas de `ies processo NUP`: um erro por fato
+//! verificável (contracts/cli/processo-obter-arvore.md).
 use crate::arvore_processo::{ErroArvore, ErroTelaDoProcesso};
 use crate::formulario_web::ErroSubmissaoFormulario;
 use crate::historico_processo::{ErroAndamentos, ErroLinkDoHistorico};
@@ -7,152 +7,85 @@ use crate::marcadores_processo::ErroMarcadores;
 use crate::pesquisa_web::erro_busca::ErroBuscaDeProcesso;
 use crate::pesquisa_web::redirecionamento::ErroRedirecionamentoDaPesquisa;
 use crate::propriedades_processo::ErroPropriedades;
-use crate::transporte::{FalhaTransporte, StatusHttpRecusado};
+use crate::transporte::FalhaTransporte;
 
-#[derive(Clone, Debug, PartialEq, Eq)]
+#[derive(Clone, Debug, PartialEq, Eq, thiserror::Error)]
+#[error("{self:?}")]
 pub(crate) enum ErroProcessoObter {
     /// Cookie, URL privada, rede ou status de uma requisição.
-    Transporte(FalhaTransporte),
+    Transporte(#[from] FalhaTransporte),
     /// GET do Controle (sessão, reconhecimento, unidade): os de `processo buscar`.
-    Controle(ErroBuscaDeProcesso),
+    Controle(#[from] ErroBuscaDeProcesso),
     /// A entrada por id respondeu a recusa característica ("Link sem
     /// assinatura" no `login.php`); a sessão morreu.
     EntradaPorIdRecusada,
     /// Tela de login (200 ou 302 sem a mensagem de recusa) fora de palpite.
-    SessaoEncerrada,
-    /// A entrada por id respondeu outra coisa que o 302 observado.
-    RespostaDaEntradaPorIdNaoReconhecida(StatusHttpRecusado),
-    /// A pesquisa rápida não respondeu o 302 para `procedimento_trabalhar`.
-    PesquisaRapidaSemUrlDeTrabalho(StatusHttpRecusado),
-    /// 302 fora das formas observadas (nem trabalho, nem login).
-    RedirecionamentoNaoReconhecido(StatusHttpRecusado),
+    SessaoEncerrada(#[source] crate::erro_publico::SessaoEncerrada),
+    /// A entrada por id respondeu HTML em vez do 302 observado.
+    RespostaDaEntradaPorIdNaoReconhecida,
+    /// A pesquisa rápida respondeu HTML em vez do 302 para `procedimento_trabalhar`.
+    PesquisaRapidaSemUrlDeTrabalho,
+    /// 302 fora das formas observadas (nem trabalho, nem login), ou HTML
+    /// onde se esperava redirecionamento.
+    RedirecionamentoNaoReconhecido,
     /// O 302 para `procedimento_trabalhar` não passou na conferência.
-    Redirecionamento(ErroRedirecionamentoDaPesquisa),
-    ProcessoRepetidoNoControle,
-    LinksDoProcessoRepetidosNoControle,
+    Redirecionamento(#[from] ErroRedirecionamentoDaPesquisa),
     LinkDoProcessoNoControleNaoReconhecido(ErroRedirecionamentoDaPesquisa),
     CharsetDoControleNaoSuportado,
     /// Derivação ou envio do formulário da pesquisa rápida.
-    Formulario(ErroSubmissaoFormulario),
-    Tela(ErroTelaDoProcesso),
-    Arvore(ErroArvore),
+    Formulario(#[from] ErroSubmissaoFormulario),
+    ValidacaoDeAcesso(#[from] super::validacao_acesso::ErroValidacaoAcesso),
+    Tela(#[from] ErroTelaDoProcesso),
+    Arvore(#[from] ErroArvore),
     /// O link do histórico na árvore (só quando os andamentos são lidos).
-    LinkDoHistorico(ErroLinkDoHistorico),
+    LinkDoHistorico(#[from] ErroLinkDoHistorico),
     /// A página do histórico ou a troca de visão.
-    Andamentos(ErroAndamentos),
+    Andamentos(#[from] ErroAndamentos),
     /// Derivação ou envio do formulário `verHistorico('P')`.
-    FormularioDoHistorico(ErroSubmissaoFormulario),
+    FormularioDoHistorico(#[from] super::andamentos::HistoricoNaoPedido),
     /// O link das propriedades na barra ou a tela delas.
-    Propriedades(ErroPropriedades),
+    Propriedades(#[from] ErroPropriedades),
     /// O link dos marcadores na barra ou a tela deles.
-    Marcadores(ErroMarcadores),
+    Marcadores(#[from] ErroMarcadores),
+    /// A barra não oferece `procedimento_alterar` nem `procedimento_consultar`.
+    PropriedadesNaoPublicadasNaBarra,
+    /// A barra não oferece `andamento_marcador_gerenciar`.
+    MarcadoresNaoPublicadosNaBarra,
+    /// A tela de marcadores é a deste processo, mas sem `table#tblMarcadores`.
+    TabelaDeMarcadoresNaoPublicadaNaTela,
+    LinksDoProcessoRepetidosNoControle,
+    ProcessoRepetidoNoControle,
 }
 
 impl ErroProcessoObter {
-    pub(crate) fn subcodigo(&self) -> &'static str {
+    /// A sessão do SEI acabou (decide o relogin único): por `match` no tipo, sem
+    /// percorrer a cadeia `source()`.
+    pub(crate) fn sessao_encerrada(&self) -> bool {
         match self {
-            Self::Transporte(erro) => erro.subcodigo(),
-            Self::Controle(erro) => erro.subcodigo(),
-            Self::EntradaPorIdRecusada => "entrada_por_id_recusada_rode_ies_login",
-            Self::SessaoEncerrada => "sessao_encerrada_rode_ies_login",
-            Self::RespostaDaEntradaPorIdNaoReconhecida(_) => {
-                "resposta_da_entrada_por_id_nao_reconhecida"
-            }
-            Self::PesquisaRapidaSemUrlDeTrabalho(_) => "pesquisa_rapida_sem_url_de_trabalho",
-            Self::RedirecionamentoNaoReconhecido(_) => "redirecionamento_nao_reconhecido",
-            Self::Redirecionamento(erro) => erro.subcodigo(),
-            Self::ProcessoRepetidoNoControle => "processo_repetido_no_controle",
-            Self::LinksDoProcessoRepetidosNoControle => "links_do_processo_repetidos_no_controle",
-            Self::LinkDoProcessoNoControleNaoReconhecido(_) => {
-                "link_do_processo_no_controle_nao_reconhecido"
-            }
-            Self::CharsetDoControleNaoSuportado => "charset_do_controle_nao_suportado",
-            Self::Formulario(erro) | Self::FormularioDoHistorico(erro) => erro.subcodigo(),
-            Self::Tela(erro) => erro.subcodigo(),
-            Self::Arvore(erro) => erro.subcodigo(),
-            Self::LinkDoHistorico(erro) => erro.subcodigo(),
-            Self::Andamentos(erro) => erro.subcodigo(),
-            Self::Propriedades(erro) => erro.subcodigo(),
-            Self::Marcadores(erro) => erro.subcodigo(),
-        }
-    }
-
-    pub(crate) fn mensagem(&self) -> &'static str {
-        match self {
-            Self::Transporte(erro) => erro.mensagem(),
-            Self::Controle(erro) => erro.mensagem(),
-            Self::EntradaPorIdRecusada => {
-                "a instalação recusou a entrada sem assinatura e encerrou a sessão; rode ies login"
-            }
-            Self::SessaoEncerrada => "o SEI devolveu a tela de login; rode ies login",
-            Self::RespostaDaEntradaPorIdNaoReconhecida(_) => {
-                "a entrada por id não respondeu como observado"
-            }
-            Self::PesquisaRapidaSemUrlDeTrabalho(_) => {
-                "a pesquisa rápida não abriu o processo (resultado não é lido)"
-            }
-            Self::RedirecionamentoNaoReconhecido(_) => "o SEI redirecionou para fora do observado",
-            Self::Redirecionamento(_) => "o endereço do processo não foi reconhecido",
-            Self::ProcessoRepetidoNoControle | Self::LinksDoProcessoRepetidosNoControle => {
-                "o número aparece mais de uma vez no Controle"
-            }
-            Self::LinkDoProcessoNoControleNaoReconhecido(_) => {
-                "o link do processo no Controle não foi reconhecido"
-            }
-            Self::CharsetDoControleNaoSuportado => "o charset do Controle não é suportado",
-            Self::Formulario(_) => "a pesquisa rápida não foi enviada como observado",
-            Self::Tela(ErroTelaDoProcesso::UnidadeDaTelaDiferenteDaSolicitada) => {
-                "a unidade da tela do processo difere da solicitada"
-            }
-            Self::Tela(_) => "a tela do processo não foi reconhecida",
-            Self::Arvore(ErroArvore::IdentidadeDoProcessoDiferenteDaPedida) => {
-                "o processo aberto não tem o número pedido"
-            }
-            Self::Arvore(_) => "a árvore do processo não foi reconhecida",
-            Self::LinkDoHistorico(_) => "o link do histórico na árvore não foi reconhecido",
-            Self::Andamentos(ErroAndamentos::Historico(_)) => {
-                "a página do histórico não foi reconhecida"
-            }
-            Self::Andamentos(ErroAndamentos::AndamentosAlemDoTotalDeclarado) => {
-                "o histórico mostrou mais andamentos que o total declarado"
-            }
-            Self::Andamentos(ErroAndamentos::VisaoDoHistoricoDiferenteDaPedida) => {
-                "o SEI não serviu a visão completa do histórico"
-            }
-            Self::Andamentos(_) => "o histórico não foi servido na forma observada",
-            Self::FormularioDoHistorico(_) => "o histórico completo não foi pedido como observado",
-            Self::Propriedades(erro) if erro.do_link() => {
-                "o link das propriedades na barra do processo não foi reconhecido"
-            }
-            Self::Propriedades(
-                ErroPropriedades::NumeroDasPropriedadesDiferenteDoSolicitado
-                | ErroPropriedades::IdDasPropriedadesDiferenteDoAberto,
-            ) => "a tela de propriedades é de outro processo",
-            Self::Propriedades(_) => "a tela de propriedades não foi servida na forma observada",
-            Self::Marcadores(erro) if erro.do_link() => {
-                "o link dos marcadores na barra do processo não foi reconhecido"
-            }
-            Self::Marcadores(
-                ErroMarcadores::NumeroDosMarcadoresDiferenteDoSolicitado
-                | ErroMarcadores::IdDosMarcadoresDiferenteDoAberto,
-            ) => "a tela de marcadores é de outro processo",
-            Self::Marcadores(ErroMarcadores::MarcadoresAlemDoTotalDeclarado) => {
-                "a tela de marcadores mostrou mais linhas que o total declarado"
-            }
-            Self::Marcadores(_) => "a tela de marcadores não foi servida na forma observada",
-        }
-    }
-
-    /// Status e mensagem do SEI, da requisição recusada.
-    pub(crate) fn status_http(&self) -> Option<&StatusHttpRecusado> {
-        match self {
-            Self::Transporte(erro) => erro.status_http(),
-            Self::Controle(erro) => erro.status_http(),
-            Self::RespostaDaEntradaPorIdNaoReconhecida(status)
-            | Self::PesquisaRapidaSemUrlDeTrabalho(status)
-            | Self::RedirecionamentoNaoReconhecido(status) => Some(status),
-            Self::Formulario(erro) | Self::FormularioDoHistorico(erro) => erro.status_http(),
-            _ => None,
+            Self::Transporte(erro) => erro.sessao_encerrada(),
+            Self::Controle(erro) => erro.sessao_encerrada(),
+            Self::SessaoEncerrada(_) => true,
+            Self::Formulario(erro) => erro.sessao_encerrada(),
+            Self::ValidacaoDeAcesso(erro) => erro.sessao_encerrada(),
+            Self::FormularioDoHistorico(erro) => erro.sessao_encerrada(),
+            Self::EntradaPorIdRecusada
+            | Self::RespostaDaEntradaPorIdNaoReconhecida
+            | Self::PesquisaRapidaSemUrlDeTrabalho
+            | Self::RedirecionamentoNaoReconhecido
+            | Self::Redirecionamento(_)
+            | Self::LinkDoProcessoNoControleNaoReconhecido(_)
+            | Self::CharsetDoControleNaoSuportado
+            | Self::Tela(_)
+            | Self::Arvore(_)
+            | Self::LinkDoHistorico(_)
+            | Self::Andamentos(_)
+            | Self::Propriedades(_)
+            | Self::Marcadores(_)
+            | Self::PropriedadesNaoPublicadasNaBarra
+            | Self::MarcadoresNaoPublicadosNaBarra
+            | Self::TabelaDeMarcadoresNaoPublicadaNaTela
+            | Self::LinksDoProcessoRepetidosNoControle
+            | Self::ProcessoRepetidoNoControle => false,
         }
     }
 }

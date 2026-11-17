@@ -1,0 +1,15 @@
+id: 15c-nome-diferente
+language: rust
+message: 'Nome do elemento comparado com !='
+severity: hint
+rule:
+  all:
+    - pattern: '$T.name() != $S'
+    - not:
+        inside:
+          stopBy: end
+          kind: mod_item
+          follows:
+            kind: attribute_item
+            regex: 'cfg\(test\)'
+fix: '$T.nome() != $S'

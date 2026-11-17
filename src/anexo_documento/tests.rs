@@ -3,7 +3,9 @@
 //! HTML recebido gravado em PEN1/PEN2/PEN4, `application/pdf` com
 //! `inline; filename="…"` (`UnB`, pelo oráculo Todos) e `text/plain` do
 //! ícone `documento_txt`. Nenhum valor real.
+use super::cabecalhos::ErroDisposicao;
 use super::*;
+use crate::tela_html::HtmlServido;
 use std::io::{self, Cursor};
 use std::path::PathBuf;
 
@@ -20,13 +22,19 @@ fn resposta(cabecalhos: &[(&str, &str)], corpo: &[u8]) -> RespostaBinaria<Cursor
 
 fn pdf(cabecalhos: &[(&str, &str)]) -> RespostaBinaria<Cursor<Vec<u8>>> {
     let mut todos = vec![("content-type", "application/pdf")];
+    if !cabecalhos
+        .iter()
+        .any(|(nome, _)| *nome == "content-disposition")
+    {
+        todos.push(("content-disposition", "inline; filename=\"0000101.pdf\""));
+    }
     todos.extend_from_slice(cabecalhos);
     resposta(&todos, b"%PDF-1.7 sintetico")
 }
 
 fn sha(bytes: &[u8]) -> String {
     use sha2::{Digest, Sha256};
-    crate::hex::hex_minusculo(&Sha256::digest(bytes))
+    hex::encode(Sha256::digest(bytes))
 }
 
 fn ler(r: RespostaBinaria<Cursor<Vec<u8>>>) -> Result<AnexoLido, ErroAnexo> {
@@ -71,119 +79,35 @@ fn pdf_sem_saida_publica_metadados_e_hash_sem_texto() {
     assert_eq!(a.mime, "application/pdf");
     assert_eq!(a.tamanho, 18);
     assert_eq!(a.sha256, sha(b"%PDF-1.7 sintetico"));
-    assert_eq!(a.nome_original.as_deref(), Some("Minuta de Contrato.pdf"));
-    assert_eq!(a.disposicao, Some(Disposicao::Inline));
-    assert_eq!(a.texto, None);
-    assert_eq!(a.arquivo, None);
-}
-
-#[test]
-fn pdf_com_saida_vai_para_parcial_0600_e_so_conclui_sem_sobrescrever() {
-    let dir = pasta();
-    let a = ler_anexo(
-        pdf(&[]),
-        "0000101",
-        LimiteDoAnexo::default(),
-        DestinoDoAnexo::Diretorio(&dir),
-    )
-    .unwrap();
-    let arquivo = a.arquivo.expect("parcial");
-    assert_eq!(arquivo.nome(), "0000101.pdf");
-    let parciais: Vec<_> = std::fs::read_dir(&dir).unwrap().flatten().collect();
-    assert_eq!(parciais.len(), 1);
-    let nome = parciais[0].file_name().into_string().unwrap();
-    assert!(nome.starts_with(".0000101.pdf.parcial-"), "{nome}");
-    #[cfg(unix)]
-    {
-        use std::os::unix::fs::PermissionsExt;
-        let modo = parciais[0].metadata().unwrap().permissions().mode();
-        assert_eq!(modo & 0o777, 0o600);
-    }
-    arquivo.concluir().unwrap();
-    assert_eq!(
-        std::fs::read(dir.join("0000101.pdf")).unwrap(),
-        b"%PDF-1.7 sintetico"
-    );
-    assert_eq!(
-        std::fs::read_dir(&dir).unwrap().count(),
-        1,
-        "parcial removido"
-    );
-    // De novo: o destino existe e é recusado antes do corpo.
-    let r = RespostaBinaria {
-        status: 200,
-        cabecalhos: vec![("content-type".into(), "application/pdf".into())],
-        corpo: NaoLer,
-    };
-    assert_eq!(
-        ler_anexo(
-            r,
-            "0000101",
-            LimiteDoAnexo::default(),
-            DestinoDoAnexo::Diretorio(&dir)
-        ),
-        Err(ErroAnexo::ArquivoJaExiste)
-    );
-    std::fs::remove_dir_all(dir).unwrap();
-}
-
-#[cfg(unix)]
-#[test]
-fn saida_por_link_e_gravavel_por_outros_e_aceita() {
-    // `--saida DIR` é da pessoa: o modo do diretório é dela.
-    use std::os::unix::fs::PermissionsExt;
-    let raiz = pasta();
-    let real = raiz.join("real");
-    std::fs::create_dir(&real).unwrap();
-    let atalho = raiz.join("atalho");
-    std::os::unix::fs::symlink(&real, &atalho).unwrap();
-    for (bits, numero) in [(0o755, "0000103"), (0o775, "0000104"), (0o777, "0000105")] {
-        std::fs::set_permissions(&real, std::fs::Permissions::from_mode(bits)).unwrap();
-        let a = ler_anexo(
-            pdf(&[]),
-            numero,
-            LimiteDoAnexo::default(),
-            DestinoDoAnexo::Diretorio(&atalho),
-        )
-        .unwrap();
-        a.arquivo.expect("parcial").concluir().unwrap();
-        assert!(real.join(format!("{numero}.pdf")).is_file(), "{bits:o}");
-    }
-    assert_eq!(std::fs::read_dir(&real).unwrap().count(), 3);
-    std::fs::remove_dir_all(raiz).unwrap();
-}
-
-#[test]
-fn parcial_abandonado_e_removido() {
-    let dir = pasta();
-    let a = ler_anexo(
-        pdf(&[]),
-        "0000102",
-        LimiteDoAnexo::default(),
-        DestinoDoAnexo::Diretorio(&dir),
-    )
-    .unwrap();
-    drop(a);
-    assert_eq!(std::fs::read_dir(&dir).unwrap().count(), 0);
-    std::fs::remove_dir_all(dir).unwrap();
+    assert_eq!(a.nome_original, "Minuta de Contrato.pdf");
+    assert_eq!(a.disposicao, Disposicao::Inline);
+    assert_eq!(a.texto(), None);
+    assert_eq!(a.conteudo, ConteudoDoAnexo::Nenhum);
 }
 
 #[test]
 fn texto_plano_no_charset_declarado_sem_controles() {
     let a = ler(resposta(
-        &[("content-type", "text/plain; charset=iso-8859-1")],
+        &[
+            ("content-type", "text/plain; charset=iso-8859-1"),
+            ("content-disposition", "inline; filename=\"oficio.txt\""),
+        ],
         b"Of\xedcio\r\nlinha\x1b[31m\tfim",
     ))
     .unwrap();
     assert_eq!(a.mime, "text/plain");
-    assert_eq!(a.texto.as_deref(), Some("Ofício\nlinha\u{fffd}[31m\tfim"));
-    let utf8_invalido = ler(resposta(&[("content-type", "text/plain")], b"Of\xedcio"));
-    assert_eq!(
+    assert_eq!(a.texto(), Some("Ofício\nlinha\u{fffd}[31m\tfim"));
+    let utf8_invalido = ler(resposta(
+        &[
+            ("content-type", "text/plain"),
+            ("content-disposition", "inline; filename=\"oficio.txt\""),
+        ],
+        b"Of\xedcio",
+    ));
+    assert!(matches!(
         utf8_invalido,
-        Err(ErroAnexo::Transporte(
-            FalhaTransporte::CorpoNaoDecodificavelNoCharsetDeclarado
-        ))
-    );
+        Err(ErroAnexo::CorpoNaoUtf8NoCharsetDeclarado(_))
+    ));
 }
 
 #[test]
@@ -191,48 +115,43 @@ fn html_recebido_com_parametro_vazio_rende_o_texto_visivel() {
     let html = b"<html><head><title>SEI/ORIGEM - 0403231 - Despacho</title></head>\
         <body><p>Texto do despacho recebido.</p><p>Bras\xedlia</p></body></html>";
     let a = ler(resposta(
-        &[("content-type", "text/html;;charset=iso-8859-1")],
+        &[
+            ("content-type", "text/html;;charset=iso-8859-1"),
+            ("content-disposition", "inline; filename=\"despacho.html\""),
+        ],
         html,
     ))
     .unwrap();
     assert_eq!(a.mime, "text/html");
-    assert_eq!(a.nome_original, None);
-    assert_eq!(a.disposicao, None);
-    assert_eq!(
-        a.texto.as_deref(),
-        Some("Texto do despacho recebido. Brasília")
-    );
+    assert_eq!(a.nome_original, "despacho.html");
+    assert_eq!(a.disposicao, Disposicao::Inline);
+    assert_eq!(a.texto(), Some("Texto do despacho recebido. Brasília"));
 }
 
 #[test]
 fn html_de_login_ou_de_excecao_do_sei_nao_e_o_arquivo() {
     let login = b"<html><body><form id=\"frmLogin\"><input id=\"txtUsuario\" name=\"txtUsuario\">\
         <input type=\"password\" id=\"pwdSenha\" name=\"pwdSenha\"></form></body></html>";
-    assert!(crate::tela_login::e_tela_login(&String::from_utf8_lossy(
-        login
+    assert!(crate::tela_login::e_tela_login(&HtmlServido::de_teste(
+        &String::from_utf8_lossy(login)
     )));
     assert_eq!(
         ler(resposta(&[("content-type", "text/html")], login)),
-        Err(ErroAnexo::TelaDeLogin)
+        Err(ErroAnexo::TelaDeLogin(crate::erro_publico::SessaoEncerrada))
     );
     let excecao =
         b"<html><body><div id=\"divInfraExcecao\">Anexo n\xe3o encontrado.</div></body></html>";
-    let Err(ErroAnexo::RecusadoPeloSei(status)) = ler(resposta(
+    let Err(ErroAnexo::RecusadoPeloSei(mensagem)) = ler(resposta(
         &[("content-type", "text/html; charset=iso-8859-1")],
         excecao,
     )) else {
         panic!("esperada a recusa do SEI");
     };
-    assert_eq!(status.status, 200);
-    assert_eq!(
-        status.mensagem_do_servidor.as_deref(),
-        Some("Anexo não encontrado.")
-    );
+    assert_eq!(mensagem.as_deref(), Some("Anexo não encontrado."));
 }
 
 #[test]
 fn tipo_ausente_fora_da_lista_ou_repetido_e_recusado_sem_ler_o_corpo() {
-    use ErroAnexo as E;
     let sem_ler = |cabecalhos: &[(&str, &str)]| {
         let r = RespostaBinaria {
             status: 200,
@@ -250,8 +169,11 @@ fn tipo_ausente_fora_da_lista_ou_repetido_e_recusado_sem_ler_o_corpo() {
         )
         .unwrap_err()
     };
-    assert_eq!(sem_ler(&[]), E::SemTipoDeConteudo);
-    assert_eq!(sem_ler(&[("content-type", " ")]), E::SemTipoDeConteudo);
+    assert_eq!(sem_ler(&[]), ErroAnexo::SemTipoDeConteudo);
+    assert_eq!(
+        sem_ler(&[("content-type", " ")]),
+        ErroAnexo::SemTipoDeConteudo
+    );
     for fora in [
         "application/zip",
         "image/png",
@@ -260,7 +182,7 @@ fn tipo_ausente_fora_da_lista_ou_repetido_e_recusado_sem_ler_o_corpo() {
     ] {
         assert_eq!(
             sem_ler(&[("content-type", fora)]),
-            E::TipoNaoPermitido,
+            ErroAnexo::TipoNaoPermitido,
             "{fora}"
         );
     }
@@ -269,7 +191,7 @@ fn tipo_ausente_fora_da_lista_ou_repetido_e_recusado_sem_ler_o_corpo() {
             ("content-type", "application/pdf"),
             ("content-type", "application/pdf")
         ]),
-        E::CabecalhoRepetido
+        ErroAnexo::CabecalhoRepetido
     );
     assert_eq!(
         sem_ler(&[
@@ -277,22 +199,37 @@ fn tipo_ausente_fora_da_lista_ou_repetido_e_recusado_sem_ler_o_corpo() {
             ("content-length", "1"),
             ("content-length", "1"),
         ]),
-        E::CabecalhoRepetido
+        ErroAnexo::CabecalhoRepetido
     );
-    for ruim in [
-        "form-data; filename=\"a.pdf\"",
-        "inline; filename=\"a.pdf\"; filename=\"b.pdf\"",
-        "inline; filename=\"sem fim",
-        "inline; filename*=KOI8-R''%E1",
-        "inline; filename*=UTF-8''%ZZ",
-        "",
+    for (ruim, esperado) in [
+        (
+            "form-data; filename=\"a.pdf\"",
+            ErroDisposicao::TipoDeDisposicaoNaoReconhecido,
+        ),
+        (
+            "inline; filename=\"a.pdf\"; filename=\"b.pdf\"",
+            ErroDisposicao::NomeDeArquivoRepetido,
+        ),
+        (
+            "inline; filename=\"sem fim",
+            ErroDisposicao::AspasSemFechamento,
+        ),
+        (
+            "inline; filename*=KOI8-R''%E1",
+            ErroDisposicao::CharsetDoNomeEstendidoNaoAceito,
+        ),
+        (
+            "inline; filename*=UTF-8''%ZZ",
+            ErroDisposicao::PercentualInvalidoNoNomeEstendido,
+        ),
+        ("", ErroDisposicao::TipoDeDisposicaoNaoReconhecido),
     ] {
         assert_eq!(
             sem_ler(&[
                 ("content-type", "application/pdf"),
                 ("content-disposition", ruim)
             ]),
-            E::DisposicaoForaDaFormaObservada,
+            ErroAnexo::DisposicaoForaDaFormaObservada(esperado),
             "{ruim:?}"
         );
     }
@@ -313,12 +250,24 @@ fn limite_declarado_recusa_antes_e_lido_recusa_durante() {
         ler_anexo(r, "1", pequeno, DestinoDoAnexo::SoMetadados),
         Err(ErroAnexo::AcimaDoLimite)
     );
-    let sem_tamanho = resposta(&[("content-type", "application/pdf")], &[b'x'; 11]);
+    let sem_tamanho = resposta(
+        &[
+            ("content-type", "application/pdf"),
+            ("content-disposition", "inline; filename=\"a.pdf\""),
+        ],
+        &[b'x'; 11],
+    );
     assert_eq!(
         ler_anexo(sem_tamanho, "1", pequeno, DestinoDoAnexo::SoMetadados),
         Err(ErroAnexo::AcimaDoLimite)
     );
-    let exato = resposta(&[("content-type", "application/pdf")], &[b'x'; 10]);
+    let exato = resposta(
+        &[
+            ("content-type", "application/pdf"),
+            ("content-disposition", "inline; filename=\"a.pdf\""),
+        ],
+        &[b'x'; 10],
+    );
     assert_eq!(
         ler_anexo(exato, "1", pequeno, DestinoDoAnexo::SoMetadados)
             .unwrap()
@@ -352,7 +301,7 @@ fn vazio_e_status_diferente_de_200() {
     );
     let mut r = resposta(&[("content-type", "text/html")], b"<p>Erro interno</p>");
     r.status = 500;
-    let Err(ErroAnexo::Transporte(FalhaTransporte::StatusHttpDeErroDoServidor(s))) = ler(r) else {
+    let Err(ErroAnexo::Transporte(FalhaTransporte::Status(s))) = ler(r) else {
         panic!("esperado o 5xx do transporte");
     };
     assert_eq!(s.status, 500);
@@ -367,39 +316,49 @@ fn nome_original_saneado_e_filename_estrela_preferido() {
     };
     assert_eq!(
         nome("attachment; filename=\"a.pdf\"; filename*=UTF-8''Of%C3%ADcio%20n%C2%BA%201.pdf"),
-        Some("Ofício nº 1.pdf".to_owned())
+        "Ofício nº 1.pdf".to_owned()
     );
     assert_eq!(
         nome("inline; filename*=iso-8859-1'pt'Of%EDcio.pdf"),
-        Some("Ofício.pdf".to_owned())
+        "Ofício.pdf".to_owned()
     );
     assert_eq!(
         nome("inline; filename=\"../../etc/passwd\""),
-        Some("passwd".to_owned())
+        "passwd".to_owned()
     );
     assert_eq!(
         nome("inline; filename=\"C:\\\\tmp\\\\x.pdf\""),
-        Some("x.pdf".to_owned())
+        "x.pdf".to_owned()
     );
     assert_eq!(
         nome("inline; filename=\"a\\\"b\u{7}.pdf\""),
-        Some("a\"b.pdf".to_owned())
+        "a\"b.pdf".to_owned()
+    );
+    assert_eq!(nome("INLINE; FileName=plano.pdf"), "plano.pdf".to_owned());
+    assert_eq!(
+        ler(pdf(&[("content-disposition", "inline")])).unwrap_err(),
+        ErroAnexo::DisposicaoForaDaFormaObservada(ErroDisposicao::NomeDeArquivoAusente)
     );
     assert_eq!(
-        nome("INLINE; FileName=plano.pdf"),
-        Some("plano.pdf".to_owned())
+        ler(pdf(&[("content-disposition", "inline; filename=\"..\"")])).unwrap_err(),
+        ErroAnexo::DisposicaoForaDaFormaObservada(ErroDisposicao::NomeDeArquivoVazioAposSaneamento)
     );
-    assert_eq!(nome("inline"), None);
-    assert_eq!(nome("inline; filename=\"..\""), None);
+    assert_eq!(
+        ler(resposta(
+            &[("content-type", "application/pdf")],
+            b"%PDF-1.7 sintetico"
+        ))
+        .unwrap_err(),
+        ErroAnexo::CabecalhoDeDisposicaoAusente
+    );
     let a = ler(pdf(&[(
         "content-disposition",
         "attachment;;filename=\"x.pdf\"",
     )]))
     .unwrap();
-    assert_eq!(a.disposicao, Some(Disposicao::Attachment));
+    assert_eq!(a.disposicao, Disposicao::Attachment);
     assert_eq!(
         nome(&format!("inline; filename=\"{}.pdf\"", "a".repeat(400)))
-            .unwrap()
             .chars()
             .count(),
         255
@@ -423,3 +382,55 @@ fn limite_do_ambiente() {
     assert!(LimiteDoAnexo::novo(LIMITE_MAXIMO).is_some());
     assert!(LimiteDoAnexo::novo(0).is_none());
 }
+
+#[test]
+fn erro_utf8_nao_expoe_corpo_ou_nome_original_em_debug_ou_display() {
+    use std::error::Error;
+    use std::fmt::Write as _;
+
+    // Mesmos bytes sintéticos no corpo e no filename* decodificado.
+    let sigilo = b"SIGILO_ANEXO_719_\xff";
+    let vetor_privado = format!("{sigilo:?}");
+    let erros = [
+        ler(resposta(
+            &[
+                ("content-type", "text/plain"),
+                ("content-disposition", "inline; filename=\"sigilo.txt\""),
+            ],
+            sigilo,
+        ))
+        .unwrap_err(),
+        ler(pdf(&[(
+            "content-disposition",
+            "attachment; filename*=UTF-8''SIGILO_ANEXO_719_%FF",
+        )]))
+        .unwrap_err(),
+    ];
+    assert!(matches!(
+        erros[0],
+        ErroAnexo::CorpoNaoUtf8NoCharsetDeclarado(_)
+    ));
+    assert!(matches!(
+        erros[1],
+        ErroAnexo::DisposicaoForaDaFormaObservada(ErroDisposicao::NomeEstendidoUtf8Invalido(_))
+    ));
+
+    for erro in &erros {
+        let mut mensagem = format!("{erro:?}\n{erro}");
+        let mut causa = erro.source();
+        let mut achou_utf8 = false;
+        while let Some(proxima) = causa {
+            write!(&mut mensagem, "\n{proxima:?}\n{proxima}").unwrap();
+            achou_utf8 |= proxima.is::<std::str::Utf8Error>();
+            causa = proxima.source();
+        }
+        assert!(achou_utf8, "causa UTF-8 deve permanecer tipada");
+        assert!(
+            !mensagem.contains(&vetor_privado) && !mensagem.contains("SIGILO_ANEXO_719_"),
+            "formatar erro e causas não pode publicar os bytes originais"
+        );
+    }
+}
+
+#[path = "tests/arquivo.rs"]
+mod arquivo;

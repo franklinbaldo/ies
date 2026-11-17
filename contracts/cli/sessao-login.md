@@ -37,14 +37,14 @@ reescrita.
   O arquivo só é lido quando um login é necessário.
 - `--forcar`: faz um novo login mesmo com sessão válida.
 - `--unidade SIGLA` (global): pré-condição conferida no Controle obtido.
-  Diferença literal falha com `unidade_exibida_diferente_da_solicitada`
+  Diferença literal falha com `UnidadeExibidaDiferenteDaSolicitada`
   e **não grava** a sessão.
 
 ## Fluxo e orçamento
 
 1. Lê a origem e obtém o **lock** entre processos (`<url-controle>.lock`,
    `flock` exclusivo da `std`; espera até 120 s, depois
-   `login_em_andamento_em_outro_processo`).
+   `LoginEmAndamentoEmOutroProcesso`).
 2. Sem `--forcar`, confere a sessão gravada com **um GET** da URL do
    Controle (mesmas travas do GET da caixa). Controle reconhecido →
    `sessao_existente_valida`, sem login (orçamento: 1). Tela de login,
@@ -116,42 +116,13 @@ do host e `Referer` = URL da tela.
 
 ## Proxy do ambiente
 
-O cliente HTTPS único do IES (`native-tls`, todos os cabeçalhos
-guardados, inclusive cada `Set-Cookie`) atravessa um proxy declarado no
-ambiente. O login e **todos os outros comandos** usam o mesmo cliente e
-as mesmas regras ([transporte HTTPS](../cli.md#transporte-https-um-cliente-proxy-do-ambiente-em-todos-os-comandos)).
-
-- Variável: a primeira **não vazia** de `https_proxy`, `HTTPS_PROXY`,
-  `all_proxy`, `ALL_PROXY` (o destino é sempre HTTPS; `http_proxy` não
-  vale). O IES segue a convenção do curl, documentada aqui.
-- Exceções: `no_proxy`, senão `NO_PROXY`, separadas por vírgula, sem
-  caixa: `*` dispensa todos; `.sufixo` dispensa o domínio e os
-  subdomínios; outra entrada é host exato. Entrada com porta ou
-  curinga parcial (`*.x`) não casa. A exceção é conferida antes do
-  endereço: host dispensado conecta direto mesmo com proxy inválido.
-- Endereço `[http://][usuario[:senha]@]host:porta[/]` (IPv6 entre
-  colchetes); porta obrigatória (sem padrão adivinhado); `%XX` da
-  credencial decodificado. Credencial vai só em
-  `Proxy-Authorization: Basic`, nunca em `Debug`, log ou saída.
-  `https://`, `socks5://` e outros esquemas: `proxy_com_esquema_nao_suportado`.
-- Por pedido: conexão TCP ao proxy (cada endereço resolvido), um
-  `CONNECT host:443 HTTP/1.1` com `Host`, resposta lida byte a byte até a
-  linha vazia (16 KiB no máximo); 2xx abre o túnel e o TLS segue com o
-  host do SEI (SNI e certificado do SEI pela CA do sistema, como sem
-  proxy). Mesmos 30 s de tempo limite e limites de resposta. Sem retry,
-  nem do `CONNECT` nem do pedido.
-
-| Fato | Subcódigo |
-| --- | --- |
-| Valor fora do formato acima | `endereco_de_proxy_invalido` |
-| Esquema diferente de `http://` | `proxy_com_esquema_nao_suportado` |
-| DNS ou TCP do proxy falhou (nada foi ao SEI) | `proxy_inacessivel` |
-| Resposta ao `CONNECT` fora de HTTP/1.x ou truncada | `resposta_do_proxy_nao_interpretavel` |
-| `CONNECT` respondido fora de 2xx (`407`, `403`, `502`...); campo `status_do_proxy` | `proxy_recusou_o_tunel` |
-
-`status_do_proxy` não é `status_http` (o SEI não respondeu). Testado
-offline com proxy falso local (`TcpListener`); o TLS através do túnel
-não tem teste automatizado.
+O login usa o cliente HTTPS único do IES (`ureq` com `native-tls`, todos
+os cabeçalhos guardados, inclusive cada `Set-Cookie`), com as regras de
+proxy do [transporte HTTPS](transporte-https.md#transporte-https-um-cliente-proxy-do-ambiente-em-todos-os-comandos):
+o proxy do ambiente é lido pelo `ureq`, a credencial do proxy vai só no
+`CONNECT` e nunca em `Debug`, log ou saída. Proxy inválido ou túnel
+recusado é falha de transporte do proxy, sem `status_http` (o SEI não
+respondeu) e sem retry.
 
 ## Saída
 
@@ -170,7 +141,9 @@ diretório, `fsync` e `rename`. O marcador `<url-controle>.geracao`
 (`0600`, JSON com `geracao`, `instalacao` e o SHA-256 do cookie e da URL)
 é renomeado **por último**: arquivos que não batem com o marcador são de
 gerações misturadas e não são conferidos (vão direto ao login). Sem
-marcador (sessão preparada à mão), vale a conferência por GET. O lock
+marcador (sessão preparada à mão), vale a conferência por GET. Marcador
+existente e ilegível falha a gravação (`MarcadorDaSessaoIlegivel`): a
+geração nunca recomeça em 1 por ilegibilidade. O lock
 cobre conferência, login e gravação; o segundo processo espera e confere
 a sessão que o primeiro gravou.
 
@@ -178,30 +151,34 @@ Os outros comandos leem a sessão sem o lock, num retrato coerente (#222):
 o marcador antes e depois de URL, origem e cookie. Marcador que mudou, ou
 que não confere com URL e cookie lidos, faz reler os arquivos locais uma
 vez (nenhuma requisição); de novo incoerente, a leitura falha com
-`sessao_trocada_durante_a_leitura` (`fonte_invalida`, saída 1, sem relogin;
+`SessaoTrocadaDuranteALeitura` (`FalhaTransporte`, saída 1, sem relogin;
 rodar de novo resolve). Todas as requisições do comando e a colheita do
 índice usam o cookie desse retrato. Sem marcador, a leitura é a de antes
 ([decisão](../../docs/decisoes/sessao-login/leitura-coerente-da-sessao.md)).
 
 ## Falhas tipadas
 
-`caminho_credenciais_nao_informado`, `campo_das_credenciais_ausente`,
-`campo_das_credenciais_repetido`, `campo_das_credenciais_vazio`,
-`linha_das_credenciais_sem_campo_conhecido`, os de arquivo privado
-(`arquivo_privado_*`), `login_em_andamento_em_outro_processo`,
-`arquivo_de_lock_do_login_inacessivel`, `controle_web_nao_reconhecido`
+`caminho_credenciais_nao_informado`, `CampoDasCredenciaisAusente`,
+`CampoDasCredenciaisRepetido`, `CampoDasCredenciaisVazio`,
+`LinhaDasCredenciaisSemCampoConhecido`, os de arquivo privado
+(`ArquivoDeCredenciais`, `OrigemIlegivel`, `ArquivoDaSessao`, cada um com
+o `ErroArquivoPrivado` do arquivo), `OrigemNaoAutorizada`,
+`LoginEmAndamentoEmOutroProcesso`,
+`ArquivoDeLockDoLoginInacessivel`, `controle_web_nao_reconhecido`
 (sessão existente), `redirecionamento_do_login_sem_localizacao`,
-`localizacao_de_redirecionamento_nao_interpretavel`,
-`redirecionamento_para_fora_da_instalacao`,
-`redirecionamentos_acima_do_limite`,
-`redirecionamento_que_repetiria_o_envio_do_login`,
-`cookie_recebido_fora_do_formato_aceito`, `tela_de_login_nao_reconhecida`,
-`charset_da_tela_de_login_nao_suportado`, `captcha_exigido`,
-`segundo_fator_exigido`, `selecao_de_orgao_ausente_na_tela_de_login`,
+`LocalizacaoDeRedirecionamentoNaoInterpretavel`,
+`RedirecionamentoParaForaDaInstalacao`,
+`RedirecionamentosAcimaDoLimite`,
+`RedirecionamentoQueRepetiriaOEnvioDoLogin`,
+`CookieRecebidoForaDoFormatoAceito`, `tela_de_login_nao_reconhecida`,
+`CharsetDaTelaDeLoginNaoSuportado`, `captcha_exigido`,
+`SegundoFatorExigido`, `selecao_de_orgao_ausente_na_tela_de_login`,
 `selecao_de_orgao_repetida_na_tela_de_login`,
 `orgao_nao_encontrado_na_tela_de_login`,
 `orgao_com_mais_de_uma_opcao_na_tela_de_login`,
-`regra_do_onsubmit_do_login_nao_observada`,
+`OnsubmitDoLoginAusente` (o `<form>` sem `onsubmit`),
+`OnsubmitDoLoginForaDoFormato` (`onsubmit` diferente de `return acaoLogin(N);`),
+`ScriptDoLoginSemHdnAcao` (a página não grava `hdnAcao`),
 `botao_de_envio_do_login_nao_reconhecido`, os do primitivo de formulário,
 `credencial_recusada` (com `mensagem_do_servidor` saneada quando a tela
 a declara: primeiro o `#txaInfraValidacao` da
@@ -209,22 +186,22 @@ a declara: primeiro o `#txaInfraValidacao` da
 observado na UnB 4.0.9; senão `divInfraExcecao`, `alert-danger`,
 `infraMensagemErro` ou `infraExcecao`), `tela_apos_o_login_nao_reconhecida`,
 `link_do_controle_de_processos_nao_reconhecido`,
-`controle_apos_o_login_nao_reconhecido`, `cookie_da_sessao_nao_recebido`,
-`destino_da_sessao_nao_eh_arquivo_regular` (o nome final é link ou não
-é arquivo regular), `diretorio_da_sessao_gravavel_por_outros` (o
+`ControleAposOLoginNaoReconhecido`, `CookieDaSessaoNaoRecebido`,
+`DestinoDaSessaoNaoEhArquivoRegular` (o nome final é link ou não
+é arquivo regular), `DiretorioDaSessaoGravavelPorOutros` (o
 diretório real da sessão é gravável por grupo ou outros sem sticky bit;
 link no caminho, como `/home` → `/var/home`, é aceito),
-`gravacao_da_sessao_falhou`,
-`unidade_exibida_diferente_da_solicitada` e os de transporte
-(`status_http_*` com `status_http` e `mensagem_do_servidor`,
-`falha_de_rede`, `tipo_de_conteudo_nao_html`, `resposta_excessiva`) e
+`GravacaoDaSessaoFalhou`,
+`UnidadeExibidaDiferenteDaSolicitada` e os de transporte
+(`Status(StatusHttpRecusado { status, mensagem_do_servidor })`,
+`Rede`, `TipoDeConteudoNaoHtml`, `RespostaExcessiva`) e
 os do proxy (acima).
 Nenhuma recusa repete o POST: captcha, 2FA ou credencial recusada
-terminam o comando. O JSON é o `fonte_invalida` dos outros comandos, com
-`status_http` e `mensagem_do_servidor` nas recusas HTTP, só
-`mensagem_do_servidor` em `credencial_recusada`, `status_do_proxy` em
-`proxy_recusou_o_tunel` e `campo` (a chave, nunca o valor) nas falhas do
-arquivo de credenciais. Saída 1.
+terminam o comando. A falha sai com 1 e `Error: <ErroLogin::…>`
+em stderr: `Transporte(Status(StatusHttpRecusado { status, mensagem_do_servidor }))`
+nas recusas HTTP, `CredencialRecusada { mensagem_do_servidor }` e, nas
+falhas do arquivo de credenciais, o campo (a chave, nunca o valor), como
+em `CampoDasCredenciaisAusente(Senha)`.
 
 ## Relogin único nas leituras
 
@@ -238,19 +215,19 @@ prévia e a escrita), saem com o erro tipado e o agente decide.
 
 1. No início do comando, a geração gravada: os SHA-256 do cookie e da URL
    do Controle (os do marcador), lidos dos arquivos, sem rede.
-2. A leitura roda. Só `pagina_de_login_recebida_no_controle` e
-   `sessao_encerrada_rode_ies_login` disparam o relogin. O segundo vale
-   também para o **302 do GET do Controle** cujo `Location`, resolvido
+2. A leitura roda. Só `PaginaDeLoginRecebidaNoControle`,
+   `ControleRedirecionadoParaOLogin` e o marcador `SessaoEncerrada`
+   disparam o relogin (decisão por `match` em cada tipo de erro:
+   `sessao_encerrada()`). `ControleRedirecionadoParaOLogin` é o **302 do GET do Controle** cujo `Location`, resolvido
    contra a instalação (mesmo host; `http://` no mesmo host conta), é uma
    entrada do login dela: `/sip/login.php`, o módulo de Goiás
    (`<base>/modulos/goias/login-sei/MdGoiasLoginSEI.php` ou `login.php`)
    ou a raiz `<base>/`, sem fragmento e sem `msg=Link sem assinatura`;
-   sai com `status_http` 302 e nunca é seguido. Nenhuma outra
-   falha dispara: `sessao_nao_autorizada` (401/403),
-   `bloqueio_de_seguranca_da_instalacao` (WAF), `redirecionamento_recusado`
-   (qualquer outro 3xx, outro host ou caminho, 302 sem `Location`),
-   `status_http_*`, `entrada_por_id_recusada_rode_ies_login`,
-   `tela_de_login_recebida_apos_envio`, rede, proxy e tela inesperada.
+   carrega o status 302 e nunca é seguido. Nenhuma outra
+   falha dispara: `Status` 401/403, `BloqueioDeSegurancaDaInstalacao`
+   (WAF), `Status` 3xx (qualquer outro 3xx, outro host ou caminho, 302
+   sem `Location`), os demais `Status`, `ErroProcessoObter::EntradaPorIdRecusada`,
+   `TelaDeLoginRecebidaAposEnvio`, rede, proxy e tela inesperada.
 3. Sem `IES_CREDENCIAIS_FILE`, ou com o arquivo ausente: comportamento
    anterior, sem lock e sem pedido a mais. Arquivo presente e inválido
    (permissão, link, formato) sai com a falha tipada dele.
@@ -277,10 +254,10 @@ N₁ + N₂. Sem retry de outra natureza.
   com esse total. O arquivo de `--saida` não muda.
 - `relogin: true` quando **este** processo logou; ausente quando a
   geração já tinha trocado.
-- Falha depois do relogin: o `fonte_invalida` da leitura com
-  `relogin: true`. Falha do relogin (`credencial_recusada`,
-  `login_em_andamento_em_outro_processo`,
-  `unidade_exibida_diferente_da_solicitada`...): o JSON de falha do
+- Falha depois do relogin: o erro da leitura com o contexto
+  `LeituraRefeitaAposRelogin(NotaDoRelogin)`. Falha do relogin
+  (`CredencialRecusada`, `LoginEmAndamentoEmOutroProcesso`,
+  `UnidadeExibidaDiferenteDaSolicitada`...): o `ErroLogin` do
   `ies login`, sem reler. Saída 1.
 - Sem `--json`, uma linha em `stderr` diz que a leitura recomeçou, com o
   total de requisições.

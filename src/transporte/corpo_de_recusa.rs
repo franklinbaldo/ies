@@ -1,6 +1,6 @@
 //! Corpo de uma recusa HTTP (status diferente de 200, fora 3xx): lido uma
 //! única vez, até `LIMITE`, só para expor o que o SEI disse. Nunca decide
-//! tratamento; o subcódigo da `FalhaTransporte` é a classificação.
+//! tratamento; o erro da `FalhaTransporte` é a classificação.
 //! Contrato: contracts/cli.md, "Status e mensagem do SEI nas recusas HTTP".
 use std::io::Read;
 
@@ -23,13 +23,18 @@ pub(crate) fn ler<R: Read>(corpo: R, mime: &str) -> CorpoLido {
         };
     };
     let texto = decodificar(&bytes, mime);
-    let html = crate::mime_web::e_html(mime);
-    let bloqueio_de_seguranca =
-        html && super::bloqueio_de_seguranca::e_bloqueio_de_seguranca(&texto);
-    let bruto = if html {
-        super::texto_de_recusa::texto_do_html(&texto)
+    let (bruto, bloqueio_de_seguranca) = if crate::mime_web::e_html(mime) {
+        // Até `LIMITE` bytes: o texto cabe no `HtmlServido`; se não
+        // coubesse, seria um corpo sem mensagem legível.
+        match crate::tela_html::HtmlServido::novo(texto) {
+            Ok(html) => (
+                super::texto_de_recusa::texto_do_html(&html),
+                super::bloqueio_de_seguranca::e_bloqueio_de_seguranca(&html),
+            ),
+            Err(crate::tela_html::HtmlAcimaDoLimite) => (None, false),
+        }
     } else {
-        Some(texto)
+        (Some(texto), false)
     };
     CorpoLido {
         mensagem: bruto.and_then(|b| super::saneamento::sanear(&b)),
@@ -47,7 +52,10 @@ pub(crate) fn mensagem<R: Read>(corpo: R, mime: &str) -> Option<String> {
 pub(crate) fn ler_ate_o_limite<R: Read>(corpo: R) -> Option<Vec<u8>> {
     let mut bytes = Vec::new();
     // `take` limita o que se pede ao leitor: nenhum byte além de `LIMITE`.
-    corpo.take(LIMITE as u64).read_to_end(&mut bytes).ok()?;
+    corpo
+        .take(u64::try_from(LIMITE).unwrap_or(u64::MAX))
+        .read_to_end(&mut bytes)
+        .ok()?;
     Some(bytes)
 }
 
@@ -66,7 +74,7 @@ pub(crate) fn decodificar(bytes: &[u8], mime: &str) -> String {
         Ok(texto) => texto.to_owned(),
         // Sequência incompleta só no fim: o corte do limite; o resto vale.
         Err(erro) if erro.error_len().is_none() => {
-            String::from_utf8_lossy(&bytes[..erro.valid_up_to()]).into_owned()
+            String::from_utf8_lossy(bytes.split_at(erro.valid_up_to()).0).into_owned()
         }
         Err(_) => iso_8859_1(bytes),
     }

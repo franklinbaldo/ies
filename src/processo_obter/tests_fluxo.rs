@@ -2,6 +2,7 @@
 //! 4a e 4b) e do aprendizado no índice local.
 use super::tests_apoio::*;
 use super::*;
+use crate::acao_do_sei::AcaoDoSei;
 use crate::arvore_processo::tests::NUP;
 
 fn conferir_aberto(r: &ProcessoAberto, por: ResolvidoPor, requisicoes: u8, unidade: Option<&str>) {
@@ -45,13 +46,16 @@ fn caminho_4a_linha_do_controle_e_aprende_tudo() {
             .link(&inst, chave(&g, acao, objeto))
             .map(|u| u.url().to_owned())
     };
-    assert_eq!(link("procedimento_visualizar", ID), Some(url_arvore(ID)));
     assert_eq!(
-        link("procedimento_trabalhar", ID),
+        link(AcaoDoSei::ProcedimentoVisualizar, ID),
+        Some(url_arvore(ID))
+    );
+    assert_eq!(
+        link(AcaoDoSei::ProcedimentoTrabalhar, ID),
         Some(absoluta(&trabalhar_controle(ID)))
     );
     assert_eq!(
-        link("protocolo_pesquisa_rapida", ""),
+        link(AcaoDoSei::ProtocoloPesquisaRapida, ""),
         Some(absoluta(&action_rapida()))
     );
 }
@@ -92,7 +96,7 @@ fn caminho_3_pesquisa_rapida_guardada() {
     amb.indice
         .registrar_link(
             &inst,
-            chave(&g, "protocolo_pesquisa_rapida", ""),
+            chave(&g, AcaoDoSei::ProtocoloPesquisaRapida, ""),
             &absoluta(&action_rapida()),
         )
         .unwrap();
@@ -120,7 +124,7 @@ fn caminho_3_pesquisa_rapida_guardada() {
 fn caminho_2_entrada_por_id_registra_o_aceite() {
     let amb = ambiente();
     let inst = instalacao();
-    amb.indice.registrar_processo(&inst, NUP, ID).unwrap();
+    amb.indice.registrar_processo(&inst, NUP, ID);
     let (r, pedidos) = rodar(
         &amb,
         None,
@@ -139,18 +143,21 @@ fn caminho_2_entrada_por_id_registra_o_aceite() {
             get(&url_arvore(ID))
         ]
     );
-    assert_eq!(amb.indice.entrada_por_id(&inst), Some(true));
+    assert_eq!(
+        amb.indice.entrada_por_id(&inst),
+        Some(crate::indice_local::AceiteDaEntrada::Aceita)
+    );
 }
 
 #[test]
 fn caminho_1_link_da_arvore_numa_requisicao_sem_unidade() {
     let amb = ambiente();
     let (inst, g) = (instalacao(), geracao());
-    amb.indice.registrar_processo(&inst, NUP, ID).unwrap();
+    amb.indice.registrar_processo(&inst, NUP, ID);
     amb.indice
         .registrar_link(
             &inst,
-            chave(&g, "procedimento_visualizar", ID),
+            chave(&g, AcaoDoSei::ProcedimentoVisualizar, ID),
             &url_arvore(ID),
         )
         .unwrap();
@@ -181,11 +188,11 @@ fn segunda_execucao_na_mesma_sessao_custa_uma_requisicao() {
 fn com_unidade_o_link_da_arvore_e_pulado() {
     let amb = ambiente();
     let (inst, g) = (instalacao(), geracao());
-    amb.indice.registrar_processo(&inst, NUP, ID).unwrap();
+    amb.indice.registrar_processo(&inst, NUP, ID);
     amb.indice
         .registrar_link(
             &inst,
-            chave(&g, "procedimento_visualizar", ID),
+            chave(&g, AcaoDoSei::ProcedimentoVisualizar, ID),
             &url_arvore(ID),
         )
         .unwrap();

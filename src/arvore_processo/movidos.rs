@@ -15,12 +15,12 @@ use super::{
     ARGUMENTOS, ArvoreLida, DestinoDoMovido, DocumentoLido, DocumentoMovido, EnderecoDaArvore,
     ErroArvore, ProcessoNaArvore,
 };
-use crate::html_atributos::atributos;
+use crate::acao_do_sei::AcaoDoSei;
+use crate::consulta_do_controlador::ConsultaDoControlador;
 use crate::instalacao::Instalacao;
 use std::collections::{HashMap, HashSet};
 
 const TIPO: &str = "DOCUMENTO_MOVIDO";
-const ACAO_DO_DESTINO: &str = "procedimento_trabalhar";
 
 /// Um movido lido, com o pai (a2) ainda não conferido.
 pub(super) struct MovidoLido {
@@ -29,10 +29,10 @@ pub(super) struct MovidoLido {
 }
 
 pub(super) fn ler_movido(a: &[Literal; ARGUMENTOS]) -> Result<MovidoLido, ErroArvore> {
-    let fora = ErroArvore::DocumentoMovidoForaDaFormaObservada;
+    let fora = || ErroArvore::DocumentoMovidoForaDaFormaObservada;
     let id = super::texto(&a[1])?;
     if documento_do_composto(id).is_none() {
-        return Err(fora);
+        return Err(fora());
     }
     let pai = super::texto(&a[2])?;
     // a3 acompanha o pai: um a3 de outro processo é pai divergente.
@@ -40,11 +40,11 @@ pub(super) fn ler_movido(a: &[Literal; ARGUMENTOS]) -> Result<MovidoLido, ErroAr
         return Err(ErroArvore::DocumentoMovidoComPaiDiferenteDoProcesso);
     }
     if !endereco_observado(super::texto(&a[3])?, pai) {
-        return Err(fora);
+        return Err(fora());
     }
     let rotulo = super::texto(&a[5])?;
     if rotulo.is_empty() {
-        return Err(fora);
+        return Err(fora());
     }
     Ok(MovidoLido {
         pai: pai.to_owned(),
@@ -70,16 +70,11 @@ fn endereco_observado(url: &str, pai: &str) -> bool {
     let Some(consulta) = url.strip_prefix("controlador.php?") else {
         return false;
     };
-    let (mut acoes, mut ids) = (0, 0);
-    for par in consulta.split('&') {
-        match par.split_once('=').unwrap_or((par, "")) {
-            ("acao", "arvore_visualizar") => acoes += 1,
-            ("id_procedimento", valor) if valor == pai => ids += 1,
-            ("acao" | "id_procedimento" | "id_documento", _) => return false,
-            _ => {}
-        }
-    }
-    acoes == 1 && ids == 1
+    ConsultaDoControlador::ler(consulta).is_ok_and(|consulta| {
+        consulta.acao() == Ok(AcaoDoSei::ArvoreVisualizar.como_na_url())
+            && consulta.unico("id_procedimento") == Ok(pai)
+            && consulta.valores("id_documento").next().is_none()
+    })
 }
 
 /// Confere os movidos contra o processo e marca os cuja primeira parte é
@@ -89,15 +84,14 @@ pub(super) fn conferir_movidos(
     lidos: Vec<MovidoLido>,
     documentos: &[DocumentoLido],
 ) -> Result<Vec<DocumentoMovido>, ErroArvore> {
-    use ErroArvore as E;
     if lidos.iter().any(|l| l.pai != processo.id) {
-        return Err(E::DocumentoMovidoComPaiDiferenteDoProcesso);
+        return Err(ErroArvore::DocumentoMovidoComPaiDiferenteDoProcesso);
     }
     let mut vistos: HashSet<&str> = HashSet::new();
     for lido in &lidos {
         let documento = documento_do_composto(&lido.movido.id).unwrap_or_default();
         if !vistos.insert(documento) {
-            return Err(E::DocumentoMovidoRepetidoNaArvore);
+            return Err(ErroArvore::DocumentoMovidoRepetidoNaArvore);
         }
     }
     Ok(lidos
@@ -134,8 +128,8 @@ pub(crate) fn ler_destinos_dos_movidos(
         let Some(id) = indice_do_html(linha).and_then(|i| nos.get(&i)) else {
             continue;
         };
-        let Some((_, texto)) = ler_html(linha)
-            .map_err(|_| ErroArvore::DestinoDoDocumentoMovidoForaDaFormaObservada)?
+        let Some((_, texto)) =
+            ler_html(linha).map_err(|e| ErroArvore::LinhaDoDestinoMovidoIlegivel(Box::new(e)))?
         else {
             continue;
         };
@@ -152,32 +146,20 @@ pub(crate) fn ler_destinos_dos_movidos(
 
 fn destino_do_html(
     instalacao: &Instalacao,
-    texto: &str,
+    texto: &crate::tela_html::HtmlServido,
     id: &str,
     processo: &ProcessoNaArvore,
 ) -> Result<Option<DestinoDoMovido>, ErroArvore> {
-    let fora = ErroArvore::DestinoDoDocumentoMovidoForaDaFormaObservada;
-    let dom = tl::parse(texto, tl::ParserOptions::default()).map_err(|_| fora)?;
-    let parser = dom.parser();
+    let dom = crate::tela_html::arvore(texto);
     let mut achado = None;
-    for no in dom.query_selector("a").into_iter().flatten() {
-        let Some(tag) = no.get(parser).and_then(tl::Node::as_tag) else {
-            continue;
-        };
-        let lidos = atributos(tag).map_err(|_| fora)?;
-        let Some(href) = lidos.valor("href").map_err(|_| fora)? else {
+    for no in dom.elementos("a") {
+        let Some(href) = no.atributo("href") else {
             continue;
         };
         if achado.is_some() {
             return Err(ErroArvore::DestinosDoDocumentoMovidoRepetidos);
         }
-        achado = Some(conferir(
-            instalacao,
-            href,
-            &texto_unico(tag, parser),
-            id,
-            processo,
-        )?);
+        achado = Some(conferir(instalacao, href, &texto_unico(no), id, processo)?);
     }
     Ok(achado)
 }
@@ -189,33 +171,34 @@ fn conferir(
     id: &str,
     processo: &ProcessoNaArvore,
 ) -> Result<DestinoDoMovido, ErroArvore> {
-    let fora = ErroArvore::DestinoDoDocumentoMovidoForaDaFormaObservada;
+    let fora = || ErroArvore::DestinoDoDocumentoMovidoForaDaFormaObservada;
     let valores = |nome: &str| -> Vec<&str> {
         pares(href)
             .filter(|(chave, _)| *chave == nome)
             .map(|(_, valor)| valor)
             .collect()
     };
-    let documento = documento_do_composto(id).ok_or(fora)?;
+    let documento = documento_do_composto(id).ok_or_else(fora)?;
     let (destinos, documentos) = (valores("id_procedimento"), valores("id_documento"));
     let ([destino], [doc]) = (destinos.as_slice(), documentos.as_slice()) else {
-        return Err(fora);
+        return Err(fora());
     };
     if *doc != documento
         || *destino == processo.id
         || !super::decimal(destino)
         || !valores("id_procedimento_anexado").is_empty()
     {
-        return Err(fora);
+        return Err(fora());
     }
     let absoluta =
-        conferir_endereco_relativo(instalacao, href, ACAO_DO_DESTINO, destino).map_err(|_| fora)?;
+        conferir_endereco_relativo(instalacao, href, AcaoDoSei::ProcedimentoTrabalhar, destino)
+            .map_err(ErroArvore::EnderecoDoDestinoMovidoRecusado)?;
     if texto.is_empty()
         || texto.trim() != texto
         || texto.contains(['<', '>', '&'])
         || texto == processo.nup
     {
-        return Err(fora);
+        return Err(fora());
     }
     Ok(DestinoDoMovido {
         numero: texto.to_owned(),

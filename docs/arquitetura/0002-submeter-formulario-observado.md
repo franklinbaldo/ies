@@ -99,7 +99,7 @@ Para `protocolo_pesquisar` a classificação é
 que o servidor pode lembrar página e filtro da sessão, e a
 [nota de efeitos](../como-o-sei-funciona/efeitos-e-verificacao.md) só
 observou como consulta a `protocolo_pesquisa_rapida`, que é outra ação.
-Não há evidência de ausência de efeito, então a variante conservadora vale.
+Não há evidência de ausência de efeito, então a leitura conservadora vale.
 Além disso, a resposta 302 observada (abaixo) aponta para
 `procedimento_trabalhar`, cuja abertura pode registrar recebimento.
 
@@ -110,7 +110,7 @@ Além disso, a resposta 302 observada (abaixo) aponta para
   numa estrutura de `Debug` redigido e sem ler o corpo; os outros 3xx
   continuam `Transporte(Redirecionamento)`. A interpretação é da operação
   (seção abaixo). O GET do Controle não muda: 3xx segue como erro.
-  401/403 é `Transporte(AcessoNegado)`.
+  401/403 é `Transporte(Status(StatusHttpRecusado { status: 401 | 403, .. }))`.
 - Limite de 8 MB durante o recebimento (reuso de `decodificar_resposta`);
   tela de entrada acima do limite também é recusada.
 - Envio por `FnOnce`: a submissão é consumida, sem retry após erro ou
@@ -135,7 +135,7 @@ do POST: que o 302 corresponda a protocolo exato com um único processo
 traziam tabela de resultados com vários links de processo.
 
 `ResultadoPesquisaProtocolo` (código da operação, em
-`src/pesquisa_web/formulario_pesquisa.rs`) tem duas variantes:
+`src/pesquisa_web/formulario_pesquisa.rs`) tem duas formas:
 `Tabela(Vec<ResultadoPesquisa>)` e
 `RedirecionadoParaProcessoUnico { id: IdProcedimento }`. O `Location`
 (regras em `src/pesquisa_web/redirecionamento.rs`) precisa, nesta ordem:
@@ -149,7 +149,7 @@ decimal; um único `infra_hash` de 64 hexadecimais; um único
 `infra_sistema` decimal igual, sem normalizar zeros, ao da URL do POST.
 A URL do POST é o `action` assinado do formulário; sem `infra_sistema`
 nela, a interpretação falha fechada (`InfraSistemaAusenteNaUrlDoEnvio`).
-Cada falha tem variante própria em `ErroRedirecionamentoDaPesquisa`.
+Cada falha tem erro próprio em `ErroRedirecionamentoDaPesquisa`.
 
 Ensaio offline: os oito `Location` reais (UnB, PEN1, UFRJ, Goiás;
 interações 6 e 10), com a URL do POST da mesma resposta, passaram pela
@@ -240,7 +240,7 @@ UnB, `processo-busca-unb.json` do ZIP público (SHA-1
   com essa chave os índices de `id`/classe e o `inner_html`.
   **Corrigido** em `src/html_atributos.rs`: tokenizador próprio da tag
   de abertura (`HTMLTag::raw()`), com nomes em minúsculas, valores
-  brutos, atributo repetido recusado (`AtributoRepetidoNaTag`) e tag
+  brutos, atributo repetido valendo o primeiro, como no navegador (#676), e tag
   ilegível como `AtributoHtml(_)`. O `tl` segue dono da árvore. Testes:
   `formulario_web/tests_atributos.rs`, regressões por leitor (booleano
   `itemscope` antes de cada atributo) e a guarda

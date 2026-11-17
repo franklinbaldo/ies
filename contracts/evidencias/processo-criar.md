@@ -12,7 +12,7 @@ unresolved_steps: 0
 
 # processo.criar
 
-Origem: matriz de demonstrações do Todos. IES Rust: NÃO IMPLEMENTADO.
+Origem: matriz de demonstrações do Todos. IES Rust: fluxo Web parcial com testes de transporte sintético, sem paridade live/replay comprovada.
 Os estados abaixo pertencem ao Todos, não são vereditos do IES.
 
 As referências #N são passos de roteiro; o link leva à revisão com
@@ -32,3 +32,30 @@ Confronte os hashes com o manifesto atual antes de alegar paridade.
 ## Limite probatório
 
 Consulte os links por instalação, a cassette original e a releitura pós-efeito.
+
+
+## Avanço sintético da PR #283
+
+O IES agora reconhece a hipótese legal publicada pelo AJAX do cadastro
+restrito, sem executar scripts; recusa seleções não únicas antes da
+escrita. Cenários: `src/processo_criar/tests_hipotese.rs` e
+`src/processo_criar/cadastro.rs`. Prévia sintética 4.0 com AJAX:
+**4 pedidos**; confirmação sintética: **7 pedidos**, um único
+POST criador e duas leituras posteriores. Os exemplos vêm da
+captura `todos@323eb01`, não de replay da cassette original.
+
+`ies_implemented: false` permanece até demonstração de todos os
+critérios da issue #245, incluindo replay e validação ao vivo.
+
+## Replay original e escolha explícita (#245)
+
+O replay offline original validou **15 cassettes, 83 respostas** por
+SHA, schema e instalação, sem pedido ao SEI. Foram 59 lidas,
+3 recusadas e 21 não aplicáveis. As duas respostas AJAX não únicas
+da UnB permanecem recusadas sem escolha do usuário. O novo argumento
+`--hipotese-legal ID#NOME` permite selecionar uma opção cuja
+identidade e nome tenham sido observados na resposta XML da mesma
+sessão; não seleciona automaticamente nem altera as contagens.
+Exercícios com transporte sintético não substituem confirmação live.
+Sem prova autenticada de prévia → um único POST → duas leituras em
+instalação de treinamento, `ies_implemented: false` permanece.

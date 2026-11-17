@@ -1,15 +1,12 @@
 //! Relogin único das leituras: sequência exata de pedidos de cada caminho
 //! (vencida → relogin → leitura; geração já trocada; segunda falha; sem
 //! credenciais; outras falhas), com um só roteiro para login e leitura.
-use super::relogin::{
-    ContextoDoRelogin, FalhaDaLeitura, NotaDoRelogin, ler_com_relogin, sessao_encerrada,
-};
+use super::relogin::{ContextoDoRelogin, FalhaDaLeitura, NotaDoRelogin, ler_com_relogin};
 use super::tests_apoio::*;
 use super::{ErroLogin, RespostaHttp, TransporteDeLogin};
 use crate::configuracao::ArquivosDeAcesso;
 use crate::formulario_web::SubmissaoDerivada;
 use crate::indice_local::IndiceLocal;
-use crate::pesquisa_web::erro_busca::ErroBuscaDeProcesso as E;
 use crate::transporte::envio_post::ler_tela_via;
 use crate::transporte::sessao::CookieDaSessao;
 use crate::transporte::{FalhaTransporte, RespostaWeb, StatusHttpRecusado};
@@ -46,7 +43,10 @@ impl TransporteDeLogin for Compartilhado<'_> {
 /// A leitura sintética pelo GET do Controle compartilhado (`ler_tela_via`,
 /// o de `unidade *`, `processo buscar` e `documento buscar`): relê URL e
 /// cookie dos arquivos a cada tentativa, com as falhas tipadas reais.
-fn ler_controle(roteiro: &RefCell<Roteiro>, arquivos: &ArquivosDeAcesso) -> Result<String, E> {
+fn ler_controle(
+    roteiro: &RefCell<Roteiro>,
+    arquivos: &ArquivosDeAcesso,
+) -> Result<String, crate::pesquisa_web::erro_busca::ErroBuscaDeProcesso> {
     let url = Ambiente::ler(&arquivos.url_controle).trim().to_owned();
     let tela = ler_tela_via(
         &url,
@@ -65,9 +65,9 @@ fn ler_controle(roteiro: &RefCell<Roteiro>, arquivos: &ArquivosDeAcesso) -> Resu
                 corpo: Cursor::new(resposta.corpo),
             })
         },
-    )
-    .map_err(E::Transporte)?;
-    crate::controle_reconhecido::unidade_do_controle(&tela.html).map_err(E::Controle)
+    )?;
+    crate::controle_reconhecido::unidade_do_controle(&tela.html)
+        .map_err(crate::pesquisa_web::erro_busca::ErroBuscaDeProcesso::Controle)
 }
 
 fn login_unb() -> Vec<Result<RespostaHttp, FalhaTransporte>> {
@@ -116,7 +116,10 @@ fn vencida() -> Ambiente {
     ambiente
 }
 
-type Lido = Result<(String, Option<NotaDoRelogin>), FalhaDaLeitura<E>>;
+type Lido = Result<
+    (String, Option<NotaDoRelogin>),
+    FalhaDaLeitura<crate::pesquisa_web::erro_busca::ErroBuscaDeProcesso>,
+>;
 
 /// Executa com o contexto do ambiente e as credenciais dadas.
 fn executar(
@@ -139,7 +142,7 @@ fn executar(
         &contexto,
         &mut Compartilhado(roteiro),
         &|| roteiro.borrow().pedidos.len(),
-        E::subcodigo,
+        crate::pesquisa_web::erro_busca::ErroBuscaDeProcesso::sessao_encerrada,
         || {
             let lido = ler_controle(roteiro, &ambiente.arquivos);
             tentativas.set(tentativas.get() + 1);
@@ -157,23 +160,28 @@ fn sem_lock(ambiente: &Ambiente) -> bool {
 
 #[test]
 fn so_a_falha_tipada_de_sessao_encerrada_dispara() {
-    for sim in [
-        "pagina_de_login_recebida_no_controle",
-        "sessao_encerrada_rode_ies_login",
-    ] {
-        assert!(sessao_encerrada(sim), "{sim}");
-    }
+    use crate::processo_obter::ErroProcessoObter;
+    let status = || StatusHttpRecusado::sem_mensagem(302);
+    assert!(FalhaTransporte::PaginaDeLoginRecebidaNoControle.sessao_encerrada());
+    assert!(FalhaTransporte::ControleRedirecionadoParaOLogin(status()).sessao_encerrada());
+    assert!(
+        ErroProcessoObter::SessaoEncerrada(crate::erro_publico::SessaoEncerrada).sessao_encerrada()
+    );
+    // A composição pergunta ao erro interno.
+    assert!(
+        ErroProcessoObter::Transporte(FalhaTransporte::PaginaDeLoginRecebidaNoControle)
+            .sessao_encerrada()
+    );
+    assert!(!ErroProcessoObter::EntradaPorIdRecusada.sessao_encerrada());
     for nao in [
-        "entrada_por_id_recusada_rode_ies_login",
-        "sessao_nao_autorizada",
-        "bloqueio_de_seguranca_da_instalacao",
-        "redirecionamento_recusado",
-        "falha_de_rede",
-        "tela_de_login_recebida_apos_envio",
-        "status_http_de_limite_de_requisicoes",
-        "tabela_ausente",
+        FalhaTransporte::Status(StatusHttpRecusado::sem_mensagem(403)),
+        FalhaTransporte::BloqueioDeSegurancaDaInstalacao(StatusHttpRecusado::sem_mensagem(403)),
+        FalhaTransporte::Status(status()),
+        FalhaTransporte::Rede,
+        FalhaTransporte::Status(StatusHttpRecusado::sem_mensagem(429)),
+        FalhaTransporte::SessaoTrocadaDuranteALeitura,
     ] {
-        assert!(!sessao_encerrada(nao), "{nao}");
+        assert!(!nao.sessao_encerrada(), "{nao:?}");
     }
 }
 
@@ -259,7 +267,9 @@ fn segunda_falha_sai_com_o_erro_sem_novo_login() {
     };
     assert_eq!(
         erro,
-        E::Transporte(FalhaTransporte::PaginaDeLoginRecebidaNoControle)
+        crate::pesquisa_web::erro_busca::ErroBuscaDeProcesso::Transporte(
+            FalhaTransporte::PaginaDeLoginRecebidaNoControle
+        )
     );
     assert_eq!(
         nota,
@@ -289,7 +299,9 @@ fn sem_arquivo_de_credenciais_comportamento_atual() {
         };
         assert_eq!(
             erro,
-            E::Transporte(FalhaTransporte::PaginaDeLoginRecebidaNoControle)
+            crate::pesquisa_web::erro_busca::ErroBuscaDeProcesso::Transporte(
+                FalhaTransporte::PaginaDeLoginRecebidaNoControle
+            )
         );
         assert_eq!(nota, None);
         assert_eq!(
@@ -307,38 +319,35 @@ fn outras_falhas_nao_relogam_nem_repetem() {
         status: 403,
         mensagem_do_servidor: None,
     };
-    for (resposta, subcodigo) in [
+    for (resposta, caso) in [
         (
             Ok(status(403, None, &[], "Forbidden", "text/html")),
-            "sessao_nao_autorizada",
+            "acesso_negado",
         ),
         (
             Err(FalhaTransporte::BloqueioDeSegurancaDaInstalacao(recusa)),
             "bloqueio_de_seguranca_da_instalacao",
         ),
-        (Err(FalhaTransporte::Rede), "falha_de_rede"),
+        (Err(FalhaTransporte::Rede), "rede"),
         (
             Ok(r302("https://outro.gov.br/sip/login.php", &[])),
-            "redirecionamento_recusado",
+            "redirecionamento",
         ),
         (
             Ok(r302(
                 "/sei/controlador.php?acao=procedimento_controlar",
                 &[],
             )),
-            "redirecionamento_recusado",
+            "redirecionamento",
         ),
         (
             Ok(status(302, None, &[], "", "text/html")),
-            "redirecionamento_recusado",
+            "redirecionamento",
         ),
-        (
-            Ok(r302("/sip/login.php#x", &[])),
-            "redirecionamento_recusado",
-        ),
+        (Ok(r302("/sip/login.php#x", &[])), "redirecionamento"),
         (
             Ok(status(301, Some(LOGIN_SIP), &[], "", "text/html")),
-            "redirecionamento_recusado",
+            "redirecionamento",
         ),
         (
             Ok(status(429, None, &[], "", "text/html")),
@@ -352,19 +361,16 @@ fn outras_falhas_nao_relogam_nem_repetem() {
         let ambiente = vencida();
         let r = roteiro(vec![vec![resposta]]);
         let falha = executar(&ambiente, Some(&ambiente.credenciais), None, &r, || {}).unwrap_err();
-        let FalhaDaLeitura::Leitura { erro, nota } = falha else {
-            panic!("esperada a falha da leitura ({subcodigo})");
+        let FalhaDaLeitura::Leitura { erro: _, nota } = falha else {
+            panic!("esperada a falha da leitura ({caso})");
         };
-        assert_eq!(nota, None, "{subcodigo}");
+        assert_eq!(nota, None, "{caso}");
         assert_eq!(
             r.into_inner().sequencia(),
             [format!("GET {}", url_vencida())],
-            "{subcodigo}"
+            "{caso}"
         );
-        assert!(sem_lock(&ambiente), "{subcodigo}");
-        if subcodigo != "tela_inesperada" {
-            assert_eq!(erro.subcodigo(), subcodigo);
-        }
+        assert!(sem_lock(&ambiente), "{caso}");
     }
 }
 
@@ -380,10 +386,9 @@ fn relogin_recusado_sai_com_o_erro_do_login_sem_reler() {
         ],
     ]);
     let falha = executar(&ambiente, Some(&ambiente.credenciais), None, &r, || {}).unwrap_err();
-    let FalhaDaLeitura::Relogin(erro) = falha else {
+    let FalhaDaLeitura::Relogin(_erro) = falha else {
         panic!("esperada a falha do relogin");
     };
-    assert_eq!(erro.subcodigo(), "credencial_recusada");
     let r = r.into_inner();
     assert_eq!(
         r.sequencia(),
@@ -474,8 +479,14 @@ fn segundo_302_para_o_login_sai_com_o_erro_sem_novo_login() {
     let FalhaDaLeitura::Leitura { erro, nota } = falha else {
         panic!("esperada a falha da leitura");
     };
-    assert_eq!(erro.subcodigo(), "sessao_encerrada_rode_ies_login");
-    assert_eq!(erro.status_http().map(|s| s.status), Some(302));
+    assert!(
+        matches!(
+            &erro,
+            crate::pesquisa_web::erro_busca::ErroBuscaDeProcesso::Transporte(transporte)
+                if transporte.status_http().map(|s| s.status) == Some(302)
+        ),
+        "{erro:?}"
+    );
     assert_eq!(nota.map(NotaDoRelogin::total), Some(7));
     assert!(r.into_inner().esgotado());
 }

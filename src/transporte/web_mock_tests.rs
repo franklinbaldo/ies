@@ -54,7 +54,7 @@ fn html_caixa(n: usize) -> String {
         .unwrap();
     }
     format!(
-        "<html><a id='lnkInfraUnidade'>TESTE</a>         <input id='hdnTipoVisualizacao' value='R'>         <input id='hdnRecebidosHashCriterios' value='recebidos'>         <input id='hdnGeradosHashCriterios' value='gerados'>         <table id='tblProcessosRecebidos'><caption>{n} registros - 1 a {n}):</caption>{linhas}</table>         <table id='tblProcessosGerados'><caption>0 registros:</caption></table></html>"
+        "<html><a id='lnkInfraUnidade'>TESTE</a>         <input id='hdnTipoVisualizacao' value='R'>         <input id='hdnRecebidosHashCriterios' value='recebidos'>         <input id='hdnGeradosHashCriterios' value='gerados'>         <table id='tblProcessosRecebidos'><caption>Processos ({n} registros - 1 a {n}):</caption>{linhas}</table>         <table id='tblProcessosGerados'><caption>0 registros:</caption></table></html>"
     )
 }
 
@@ -81,7 +81,7 @@ fn web_mock_um_get_resposta_validada_e_cobertura_inteira() {
     assert!(leitura.recebidos.completa(&leitura.caixa.recebidos));
     assert!(leitura.gerados.completa(&leitura.caixa.gerados));
     assert_eq!(leitura.caixa.recebidos.processos.len(), 20);
-    let saida = crate::saida::json(&leitura, "web-mock");
+    let saida = crate::saida::json(&leitura, "web-mock").unwrap();
     assert_eq!(saida[0]["processos"].as_array().unwrap().len(), 20);
     let json = serde_json::to_string(&saida).unwrap();
     assert!(!json.contains("infra_hash"));
@@ -116,7 +116,7 @@ fn web_mock_redirecionamento_mime_e_limite_rejeitados_sem_retry() {
             302,
             "text/html",
             Some(5),
-            FalhaTransporte::Redirecionamento(super::StatusHttpRecusado::sem_mensagem(302)),
+            FalhaTransporte::Status(super::StatusHttpRecusado::sem_mensagem(302)),
         ),
         (
             200,
@@ -176,7 +176,7 @@ fn web_mock_benchmark_p50_p95_inclui_transporte_parser_e_json() {
             assert!(leitura.recebidos.completa(&leitura.caixa.recebidos));
             assert!(leitura.gerados.completa(&leitura.caixa.gerados));
             let serializado =
-                serde_json::to_vec(&crate::saida::json(&leitura, "web-mock")).unwrap();
+                serde_json::to_vec(&crate::saida::json(&leitura, "web-mock").unwrap()).unwrap();
             assert_ne!(serializado.len(), 0);
             assert_eq!(leitura.caixa.recebidos.processos.len(), n);
             assert_eq!(chamadas.get(), 1);
@@ -278,7 +278,7 @@ fn matriz_get_3xx_nao_302_recusados_sem_follow() {
                 ))
             },
         );
-        let Err(FalhaTransporte::Redirecionamento(status)) = resultado else {
+        let Err(FalhaTransporte::Status(status)) = resultado else {
             panic!("esperada recusa tipada de {codigo}");
         };
         assert_eq!(i32::from(status.status), codigo);

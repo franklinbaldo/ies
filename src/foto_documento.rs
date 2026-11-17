@@ -21,7 +21,7 @@ pub(crate) fn nome(numero: &str, versao: VersaoDocumento) -> String {
 
 /// SHA-256 em hexadecimal minúsculo.
 pub(crate) fn sha256(bytes: &[u8]) -> String {
-    crate::hex::hex_minusculo(&Sha256::digest(bytes))
+    hex::encode(Sha256::digest(bytes))
 }
 
 /// O resultado da gravação de uma foto.
@@ -38,8 +38,15 @@ pub(crate) struct FotoGravada {
 /// `DIR` existe e é diretório (links no caminho, inclusive o próprio
 /// `DIR`, são aceitos); o modo é da pessoa e não é conferido.
 pub(crate) fn conferir_pasta(pasta: &Path) -> Result<(), ErroCopia> {
-    conferir_diretorios(&pasta.join("x")).map_err(ErroCopia::DiretorioDeSaida)?;
-    pasta_segura(&fs::canonicalize(pasta).map_err(|_| ErroCopia::DestinoInseguro)?)
+    conferir_diretorios(&pasta.join("x"))?;
+    let real = fs::canonicalize(pasta).map_err(|erro| {
+        if erro.kind() == ErrorKind::NotFound {
+            ErroCopia::DestinoInseguro
+        } else {
+            ErroCopia::ConsultaDoDestinoFalhou(erro.kind())
+        }
+    })?;
+    pasta_segura(&real)
 }
 
 /// Os bytes da foto já presente, lidos sem seguir link e só se privada;
@@ -48,7 +55,7 @@ pub(crate) fn existente(pasta: &Path, nome: &str) -> Result<Option<Vec<u8>>, Err
     let alvo = pasta.join(nome);
     match fs::symlink_metadata(&alvo) {
         Err(erro) if erro.kind() == ErrorKind::NotFound => Ok(None),
-        Err(_) => Err(ErroCopia::LeituraFalhou),
+        Err(erro) => Err(ErroCopia::ConsultaDaFotoFalhou(erro.kind())),
         Ok(_) => ler_regular(&alvo, ErroCopia::LeituraFalhou).map(Some),
     }
 }
@@ -56,13 +63,17 @@ pub(crate) fn existente(pasta: &Path, nome: &str) -> Result<Option<Vec<u8>>, Err
 /// A foto local declara o mesmo documento e, se servir rodapé, a mesma
 /// versão do nome.
 fn coerente(bytes: &[u8], numero: &str, versao: VersaoDocumento) -> bool {
-    let Ok(html) = std::str::from_utf8(bytes) else {
+    let Ok(texto) = std::str::from_utf8(bytes) else {
+        return false;
+    };
+    // Uma foto do IES nunca passa do limite do HTML servido.
+    let Ok(html) = crate::tela_html::HtmlServido::novo(texto.to_owned()) else {
         return false;
     };
     let mesmo_documento =
-        crate::documento_web::identidade_do_titulo(html).is_ok_and(|id| id.numero == numero);
+        crate::documento_web::identidade_do_titulo(&html).is_ok_and(|id| id.numero == numero);
     let mesma_versao =
-        crate::rodape_do_documento::versao_do_rodape(html).is_none_or(|servida| servida == versao);
+        crate::rodape_do_documento::versao_do_rodape(&html).is_none_or(|servida| servida == versao);
     mesmo_documento && mesma_versao
 }
 
@@ -141,7 +152,7 @@ pub(crate) fn gravar(
             }
             Ok(de_novo)
         }
-        Err(_) => Err(ErroCopia::GravacaoFalhou),
+        Err(falha) => Err(ErroCopia::GravacaoDaFotoRecusada(falha)),
     }
 }
 

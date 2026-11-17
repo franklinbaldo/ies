@@ -1,27 +1,28 @@
 //! `ies processo enviar NUP --para SIGLA [--manter-aberto] [--confirmar]`
 //! (contracts/cli/processo-enviar.md): uso inválido sai com 2 antes de
 //! qualquer arquivo; prévia sem POST de escrita; com `--confirmar`, um POST
-//! conferido por leitura; efeito incerto, 3. A saída nunca traz URL,
+//! conferido por leitura; falha não confirmada, saída 1. A saída nunca traz URL,
 //! `infra_hash` ou cookie.
 use crate::processo::NumeroProcesso;
-use crate::processo_concluir_cli::{
-    com_sessao, erro_de_uso, json_base_da_falha, json_da_falha, lista_humana,
-    publicar_valor_da_falha,
-};
+use crate::processo_concluir_cli::{com_sessao, lista_humana};
 use crate::processo_enviar::{ErroEnviar, PedidoDoEnvio, ProcessoEnviado, enviar_processo};
 use crate::visao_do_controle::EnvioHttps;
-use crate::{Cli, Domain, Processo, ProcessoAcao, saida_erro};
-use serde_json::{Value, json};
-use std::process::ExitCode;
+use crate::{Cli, Domain, Processo, ProcessoAcao};
+#[cfg(test)]
+use serde_json::Value;
+
+mod humano;
+pub(crate) use humano::humano;
 
 /// `Some` só para `ies processo enviar`.
-pub(crate) fn tentar_enviar(cli: &Cli) -> Option<ExitCode> {
+pub(crate) fn tentar_enviar(cli: &Cli) -> Option<anyhow::Result<()>> {
     let Domain::Processo(Processo {
         acao:
             Some(ProcessoAcao::Enviar {
                 numero,
                 para,
                 manter_aberto,
+                remover_anotacoes,
                 confirmar,
             }),
         ..
@@ -29,45 +30,30 @@ pub(crate) fn tentar_enviar(cli: &Cli) -> Option<ExitCode> {
     else {
         return None;
     };
-    let nup = match NumeroProcesso::novo(numero) {
-        Ok(nup) => nup,
-        Err(erro) => return Some(erro_de_uso(cli.json, erro.subcodigo())),
-    };
-    let sigla = match sigla_de_destino(para) {
-        Ok(sigla) => sigla,
-        Err(subcodigo) => return Some(destino_invalido(cli.json, subcodigo)),
-    };
-    Some(enviar(cli, &nup, sigla, *manter_aberto, *confirmar))
+    let nup = numero.clone();
+    Some(enviar(
+        cli,
+        &nup,
+        para,
+        *manter_aberto,
+        *remover_anotacoes,
+        *confirmar,
+    ))
 }
 
-/// A única sigla de `--para`, aparada; vazia, com controle ou longa é uso
-/// inválido.
-pub(crate) fn sigla_de_destino(para: &[String]) -> Result<&str, &'static str> {
-    let [sigla] = para else {
-        return Err("mais_de_um_destino_nao_suportado");
-    };
-    let sigla = sigla.trim();
+/// Sigla de `--para` vazia, com controle ou com mais de 100 caracteres.
+#[derive(Debug, thiserror::Error)]
+#[error("{self:?}")]
+pub(crate) struct SiglaDeDestinoInvalida;
+
+/// A sigla de `--para`, aparada; o clap recusa a inválida (saída 2) e
+/// também `--para` repetido.
+pub(crate) fn sigla_de_destino(para: &str) -> Result<String, SiglaDeDestinoInvalida> {
+    let sigla = para.trim();
     if sigla.is_empty() || sigla.chars().count() > 100 || sigla.chars().any(char::is_control) {
-        return Err("sigla_de_destino_invalida");
+        return Err(SiglaDeDestinoInvalida);
     }
-    Ok(sigla)
-}
-
-fn destino_invalido(json_mode: bool, subcodigo: &str) -> ExitCode {
-    if json_mode {
-        println!(
-            "{}",
-            json!({
-                "codigo": "entrada_invalida",
-                "subcodigo": subcodigo,
-                "erro": "destino inválido: informe uma sigla de unidade em --para",
-                "retentavel": false
-            })
-        );
-    } else {
-        eprintln!("IES: destino inválido: informe uma sigla de unidade em --para [{subcodigo}]");
-    }
-    ExitCode::from(2)
+    Ok(sigla.to_owned())
 }
 
 fn enviar(
@@ -75,161 +61,148 @@ fn enviar(
     nup: &NumeroProcesso,
     para: &str,
     manter_aberto: bool,
+    remover_anotacoes: bool,
     confirmar: bool,
-) -> ExitCode {
+) -> anyhow::Result<()> {
     com_sessao(cli, |sessao, indice| {
+        // Aprovada nas sete instalações (10/11/2026): grava também em produção.
+        if remover_anotacoes
+            && confirmar
+            && let Err(causa) = crate::origem_de_treinamento::exigir(
+                crate::origem_de_treinamento::Escrita::ProcessoEnviarRemovendoAnotacoes,
+                sessao.origem,
+            )
+        {
+            return Err(causa.into());
+        }
         let pedido = PedidoDoEnvio {
             nup,
             unidade: cli.unidade.as_deref(),
             para,
             manter_aberto,
+            remover_anotacoes,
             confirmar,
         };
-        match enviar_processo(sessao, &pedido, indice, &mut EnvioHttps) {
-            Ok(feito) => {
-                if cli.json {
-                    println!(
-                        "{}",
-                        serde_json::to_string_pretty(&json_de_sucesso(&feito)).unwrap_or_default()
-                    );
-                } else {
-                    println!("{}", humano(&feito));
-                }
-                ExitCode::SUCCESS
+        let feito = enviar_processo(sessao, &pedido, indice, &mut EnvioHttps).map_err(|erro| {
+            let sugestoes = sugestoes_guardadas(&erro, sessao, indice, para);
+            let erro = anyhow::Error::from(erro);
+            if sugestoes.is_empty() {
+                erro
+            } else {
+                erro.context(SugestoesGuardadas(sugestoes))
             }
-            Err(ErroEnviar::Abertura(erro)) => saida_erro::erro_fonte_http(
-                cli.json,
-                erro.subcodigo(),
-                erro.mensagem(),
-                erro.status_http(),
-            ),
-            Err(erro) => publicar_valor_da_falha(cli.json, &json_de_falha(&erro), erro.saida()),
+        })?;
+        if cli.json {
+            let mut valor = serde_json::to_value(resultado_envio(&feito))?;
+            crate::indice_local::anexar_avisos(&mut valor, indice);
+            println!("{}", serde_json::to_string_pretty(&valor)?);
+        } else {
+            println!("{}", humano(&feito));
         }
+        Ok(())
     })
 }
 
+/// Siglas do índice local parecidas com o destino recusado. Não são oferta
+/// do SEI nem autorizam escrita.
+#[derive(Debug, PartialEq, Eq, thiserror::Error)]
+#[error("{self:?}")]
+pub(crate) struct SugestoesGuardadas(pub(crate) Vec<String>);
+
+/// Sem rede; só para destino não oferecido pelo SEI.
+fn sugestoes_guardadas(
+    erro: &ErroEnviar,
+    sessao: &crate::processo_obter::SessaoDoProcesso<'_>,
+    indice: &crate::indice_local::IndiceLocal,
+    para: &str,
+) -> Vec<String> {
+    if !matches!(erro, ErroEnviar::DestinoNaoOferecidoPeloSei { .. }) {
+        return Vec::new();
+    }
+    let instalacao = crate::instalacao::Instalacao::interpretar(sessao.origem);
+    // Sugestões são melhor esforço: sem unidade legível, não sugere.
+    let ativa = crate::indice_local::unidade_dos_links(sessao.url_do_controle).ok();
+    match (instalacao, ativa) {
+        (Some(instalacao), Some(ativa)) => {
+            indice.sugestoes_de_unidades_guardadas(&instalacao.url_base(), &ativa, para)
+        }
+        _ => Vec::new(),
+    }
+}
+
 /// JSON do sucesso (prévia, ou enviado e conferido).
-pub(crate) fn json_de_sucesso(feito: &ProcessoEnviado) -> Value {
-    let mut valor = json!({
-        "nup": feito.nup,
-        "id_procedimento": feito.id_procedimento,
-        "unidade": feito.unidade,
-        "origem": "web",
-        "confirmado": feito.confirmado,
-        "alterado": feito.alterado,
-        "manter_aberto": feito.manter_aberto,
-        "destino": {
-            "sigla": feito.destino.sigla,
-            "descricao": feito.destino.descricao,
-            "id_unidade": feito.destino.id_unidade,
+/// O contrato externo de destino continua isolado do tipo de domínio.
+#[derive(serde::Serialize)]
+struct DestinoPublico<'a> {
+    descricao: &'a str,
+    id_unidade: &'a str,
+    sigla: &'a str,
+}
+
+#[expect(
+    clippy::struct_excessive_bools,
+    reason = "quatro campos independentes exigidos pelo contrato JSON"
+)]
+#[derive(serde::Serialize)]
+struct ResultadoEnvio<'a> {
+    aberto_em: &'a [String],
+    alterado: bool,
+    confirmado: bool,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    depois: Option<&'a [String]>,
+    depois_esperado: Vec<String>,
+    destino: DestinoPublico<'a>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    falha_do_envio: Option<String>,
+    id_procedimento: &'a str,
+    manter_aberto: bool,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    remover_anotacoes: Option<bool>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    anotacao_antes: Option<bool>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    anotacao_depois: Option<bool>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    metodo_remocao: Option<crate::processo_enviar::MetodoRemocao>,
+    nup: &'a str,
+    origem: &'static str,
+    reconciliado_por_leitura: bool,
+    requisicoes: u8,
+    unidade: &'a str,
+}
+
+fn resultado_envio(feito: &ProcessoEnviado) -> ResultadoEnvio<'_> {
+    ResultadoEnvio {
+        nup: &feito.nup,
+        id_procedimento: &feito.id_procedimento,
+        unidade: &feito.unidade,
+        origem: "web",
+        confirmado: feito.confirmado(),
+        alterado: feito.alterado(),
+        manter_aberto: feito.manter_aberto,
+        remover_anotacoes: feito.remover_anotacoes().then_some(true),
+        anotacao_antes: feito.anotacao_antes(),
+        anotacao_depois: feito.anotacao_depois(),
+        metodo_remocao: feito.metodo_remocao(),
+        destino: DestinoPublico {
+            sigla: &feito.destino.sigla,
+            descricao: &feito.destino.descricao,
+            id_unidade: &feito.destino.id_unidade,
         },
-        "aberto_em": feito.aberto_em,
-        "depois_esperado": feito.depois_esperado(),
-        "depois": feito.depois,
-        "reconciliado_por_leitura": feito.reconciliado_por.is_some(),
-        "requisicoes": feito.requisicoes,
-    });
-    if let (Some(falha), Some(objeto)) = (&feito.reconciliado_por, valor.as_object_mut()) {
-        objeto.insert("falha_do_envio".to_owned(), json_da_falha(falha));
+        aberto_em: &feito.aberto_em,
+        depois_esperado: feito.depois_esperado(),
+        depois: feito.depois(),
+        reconciliado_por_leitura: feito.reconciliado_por().is_some(),
+        requisicoes: feito.requisicoes,
+        falha_do_envio: feito.reconciliado_por().map(|f| format!("{f:?}")),
     }
-    valor
 }
 
-/// JSON da falha depois da abertura.
-pub(crate) fn json_de_falha(erro: &ErroEnviar) -> Value {
-    let mut valor = json_base_da_falha(
-        erro.codigo(),
-        erro.subcodigo(),
-        erro.mensagem(),
-        erro.status_http(),
-    );
-    let Some(objeto) = valor.as_object_mut() else {
-        return valor;
-    };
-    let mut inserir = |campo: &str, dado: Value| {
-        objeto.insert(campo.to_owned(), dado);
-    };
-    match erro {
-        ErroEnviar::SituacaoDoProcessoNaoLidaAntesDeEnviar { motivo } => {
-            inserir("motivo", json!(motivo.como_texto()));
-        }
-        ErroEnviar::ProcessoNaoAbertoNaUnidadeDaSessao { aberto_em }
-        | ErroEnviar::UnidadeDaSessaoAusenteDaSituacao { aberto_em }
-        | ErroEnviar::EnvioNaoPublicadoNaBarra { aberto_em }
-        | ErroEnviar::ProcessoJaAbertoNoDestino { aberto_em } => {
-            inserir("aberto_em", json!(aberto_em));
-        }
-        ErroEnviar::DestinoNaoOferecidoPeloSei { oferecidos } => {
-            inserir("oferecidos", json!(oferecidos));
-        }
-        ErroEnviar::VariosDestinosComASigla { candidatos } => {
-            inserir("candidatos", json!(candidatos));
-        }
-        ErroEnviar::EnvioNaoAplicado {
-            aberto_em,
-            depois,
-            falha_do_envio,
-        }
-        | ErroEnviar::SituacaoDaOrigemDiferenteDaPedidaAposEnvio {
-            aberto_em,
-            depois,
-            falha_do_envio,
-        } => {
-            inserir("aberto_em", json!(aberto_em));
-            inserir("depois", json!(depois));
-            if let Some(falha) = falha_do_envio {
-                inserir("falha_do_envio", json_da_falha(falha));
-            }
-        }
-        ErroEnviar::EfeitoIncertoNoEnvio {
-            aberto_em,
-            falha_do_envio,
-            verificacao,
-        } => {
-            inserir("aberto_em", json!(aberto_em));
-            inserir("verificacao", json!(verificacao.motivo()));
-            if let Some(falha) = falha_do_envio {
-                inserir("falha_do_envio", json_da_falha(falha));
-            }
-        }
-        _ => {}
-    }
-    valor
-}
-
-/// Saída humana do sucesso.
-pub(crate) fn humano(feito: &ProcessoEnviado) -> String {
-    let refs = |v: &[String]| lista_humana(&v.iter().map(String::as_str).collect::<Vec<_>>());
-    let mut linhas = vec![
-        format!("Processo {} na unidade {}", feito.nup, feito.unidade),
-        format!("Aberto em: {}", refs(&feito.aberto_em)),
-        format!("Destino: {}", feito.destino.descricao),
-        format!(
-            "Manter aberto na unidade atual: {}",
-            if feito.manter_aberto { "sim" } else { "não" }
-        ),
-    ];
-    match (feito.confirmado, &feito.depois) {
-        (false, _) => {
-            linhas.push(format!(
-                "Depois de enviar: {}",
-                refs(&feito.depois_esperado())
-            ));
-            linhas.push("Para enviar, repita com --confirmar".to_owned());
-        }
-        (true, depois) => {
-            let depois = depois.as_deref().unwrap_or_default();
-            linhas.push(format!("Enviado. Aberto em, relido: {}", refs(depois)));
-            if let Some(falha) = &feito.reconciliado_por {
-                linhas.push(format!(
-                    "A resposta não foi a esperada ({}); a leitura confirmou.",
-                    falha.subcodigo()
-                ));
-            }
-        }
-    }
-    linhas.push(format!("Requisições: {}", feito.requisicoes));
-    linhas.join("\n")
+/// Compatibilidade com testes do contrato, sem Value no fluxo de produção.
+#[cfg(test)]
+pub(crate) fn json_de_sucesso(feito: &ProcessoEnviado) -> Value {
+    serde_json::to_value(resultado_envio(feito))
+        .expect("a projeção tipada do envio só possui valores JSON")
 }
 
 #[cfg(test)]

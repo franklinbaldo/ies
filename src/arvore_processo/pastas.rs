@@ -10,6 +10,8 @@ use super::{
     Barra, DocumentoLido, ErroArvore, Literal, PastaNaArvore, VerificacaoDaPasta,
     tela::EnderecoDaArvore,
 };
+use crate::acao_do_sei::AcaoDoSei;
+use crate::consulta_do_controlador::ConsultaDoControlador;
 use crate::instalacao::Instalacao;
 use std::collections::{HashMap, HashSet};
 
@@ -56,18 +58,18 @@ pub(super) fn pai_do_documento(pai: &str) -> Result<Pai, ErroArvore> {
 pub(super) fn ler_no_de_pasta(a: &[Literal; 15]) -> Result<NoDePasta, ErroArvore> {
     let texto = super::texto;
     if texto(&a[0])? == "AGUARDE" {
-        let fora = ErroArvore::AguardeForaDaFormaObservada;
-        let k = numero_depois(texto(&a[1])?, "AGUARDE").ok_or(fora)?;
+        let fora = || ErroArvore::AguardeForaDaFormaObservada;
+        let k = numero_depois(texto(&a[1])?, "AGUARDE").ok_or_else(fora)?;
         if numero_depois(texto(&a[2])?, "PASTA") != Some(k) || a[3] != Literal::Nulo {
-            return Err(fora);
+            return Err(fora());
         }
         return Ok(NoDePasta::Aguarde { k });
     }
-    let fora = ErroArvore::PastaForaDaFormaObservada;
-    let k = numero_depois(texto(&a[1])?, "PASTA").ok_or(fora)?;
+    let fora = || ErroArvore::PastaForaDaFormaObservada;
+    let k = numero_depois(texto(&a[1])?, "PASTA").ok_or_else(fora)?;
     if texto(&a[3])? != format!("javascript:abrirFecharPasta('PASTA{k}');") || a[4] != Literal::Nulo
     {
-        return Err(fora);
+        return Err(fora());
     }
     Ok(NoDePasta::Pasta {
         k,
@@ -83,15 +85,18 @@ const PARAMETRO: &str = "id_rel_protocolo_protocolo=";
 pub(super) fn identidade_da_barra(barra: &str) -> Result<Option<String>, ErroArvore> {
     let mut achado: Option<&str> = None;
     for (posicao, _) in barra.match_indices(PARAMETRO) {
+        let (antes, depois) = barra.split_at(posicao);
         // Só o parâmetro inteiro: depois de `?` ou `&` (cru ou `&amp;`).
-        if !matches!(barra[..posicao].bytes().last(), Some(b'?' | b'&' | b';')) {
+        if !matches!(antes.bytes().last(), Some(b'?' | b'&' | b';')) {
             continue;
         }
-        let resto = &barra[posicao + PARAMETRO.len()..];
+        let Some(resto) = depois.strip_prefix(PARAMETRO) else {
+            continue;
+        };
         let fim = resto
             .find(|c: char| !c.is_ascii_alphanumeric())
             .unwrap_or(resto.len());
-        let valor = &resto[..fim];
+        let (valor, _) = resto.split_at(fim);
         if !super::decimal(valor) {
             return Err(ErroArvore::BarraDeNoForaDaFormaObservada);
         }
@@ -107,11 +112,11 @@ pub(super) fn identidade_da_barra(barra: &str) -> Result<Option<String>, ErroArv
 
 /// `'<p1>,<p2>,…'`: decimais, não vazia, sem repetição.
 fn protocolos_declarados(texto: &str) -> Result<Vec<&str>, ErroArvore> {
-    let fora = ErroArvore::ProtocolosDaPastaForaDaFormaObservada;
+    let fora = || ErroArvore::ProtocolosDaPastaForaDaFormaObservada;
     let lista: Vec<&str> = texto.split(',').collect();
     let unicos: HashSet<&str> = lista.iter().copied().collect();
     if !lista.iter().all(|p| super::decimal(p)) || unicos.len() != lista.len() {
-        return Err(fora);
+        return Err(fora());
     }
     Ok(lista)
 }
@@ -124,15 +129,14 @@ pub(super) fn conferir_pastas(
     protocolos: &[(usize, String)],
     documentos: &[DocumentoLido],
 ) -> Result<(Vec<PastaNaArvore>, bool), ErroArvore> {
-    use ErroArvore as E;
     let mut pastas: Vec<(usize, &str)> = Vec::new();
     for no in nos {
         if let NoDePasta::Pasta { k, pai, rotulo } = no {
             if pastas.iter().any(|(j, _)| j == k) {
-                return Err(E::PastaRepetidaNaArvore);
+                return Err(ErroArvore::PastaRepetidaNaArvore);
             }
             if pai != processo {
-                return Err(E::PastaComPaiDiferenteDoProcesso);
+                return Err(ErroArvore::PastaComPaiDiferenteDoProcesso);
             }
             pastas.push((*k, rotulo));
         }
@@ -142,10 +146,10 @@ pub(super) fn conferir_pastas(
     for no in nos {
         if let NoDePasta::Aguarde { k } = no {
             if !existe(*k) {
-                return Err(E::AguardeComPaiDiferenteDePasta);
+                return Err(ErroArvore::AguardeComPaiDiferenteDePasta);
             }
             if !fechadas.insert(*k) {
-                return Err(E::AguardeForaDaFormaObservada);
+                return Err(ErroArvore::AguardeForaDaFormaObservada);
             }
         }
     }
@@ -153,14 +157,14 @@ pub(super) fn conferir_pastas(
     for (k, texto) in protocolos {
         let lista = protocolos_declarados(texto)?;
         if declarados.insert(*k, lista).is_some() {
-            return Err(E::ProtocolosDaPastaDeclaradosMaisDeUmaVez);
+            return Err(ErroArvore::ProtocolosDaPastaDeclaradosMaisDeUmaVez);
         }
     }
     if declarados.keys().any(|k| !existe(*k)) {
-        return Err(E::ProtocolosDeclaradosParaPastaAusente);
+        return Err(ErroArvore::ProtocolosDeclaradosParaPastaAusente);
     }
     if pastas.iter().any(|(k, _)| !declarados.contains_key(k)) {
-        return Err(E::PastaSemProtocolosDeclarados);
+        return Err(ErroArvore::PastaSemProtocolosDeclarados);
     }
     for d in documentos {
         let valido = match &d.pai {
@@ -168,28 +172,31 @@ pub(super) fn conferir_pastas(
             Pai::Pasta(k) => existe(*k),
         };
         if !valido {
-            return Err(E::DocumentoComPaiDiferenteDoProcesso);
+            return Err(ErroArvore::DocumentoComPaiDiferenteDoProcesso);
         }
     }
     let mut lidas = Vec::with_capacity(pastas.len());
     for (k, rotulo) in &pastas {
+        let declarados_da_pasta = declarados
+            .get(k)
+            .ok_or(ErroArvore::PastaSemProtocolosDeclarados)?;
         let da_pasta: Vec<&DocumentoLido> = documentos
             .iter()
             .filter(|d| d.pai == Pai::Pasta(*k))
             .collect();
         let (verificacao, por_identidade, por_contagem) = if fechadas.contains(k) {
             if !da_pasta.is_empty() {
-                return Err(E::PastaCarregadaPelaMetade);
+                return Err(ErroArvore::PastaCarregadaPelaMetade);
             }
             (None, 0, 0)
         } else {
-            let (v, i, c) = conferir_pasta(&da_pasta, &declarados[k])?;
+            let (v, i, c) = conferir_pasta(&da_pasta, declarados_da_pasta)?;
             (Some(v), i, c)
         };
         lidas.push(PastaNaArvore {
             id: format!("PASTA{k}"),
             rotulo: (*rotulo).to_owned(),
-            total_declarado: declarados[k].len(),
+            total_declarado: declarados_da_pasta.len(),
             verificacao,
             conferidos_por_identidade: por_identidade,
             conferidos_por_contagem: por_contagem,
@@ -206,29 +213,28 @@ fn conferir_pasta(
     documentos: &[&DocumentoLido],
     declarados: &[&str],
 ) -> Result<(VerificacaoDaPasta, usize, usize), ErroArvore> {
-    use ErroArvore as E;
     let mut vistos: HashSet<&str> = HashSet::new();
     let mut sem_identidade = 0usize;
     for d in documentos {
         match &d.barra {
-            Barra::NaoLida => return Err(E::DocumentoDaPastaSemIdentidadeNaBarra),
+            Barra::NaoLida => return Err(ErroArvore::DocumentoDaPastaSemIdentidadeNaBarra),
             Barra::SemIdentidade => sem_identidade += 1,
             Barra::Identidade(identidade) => {
                 let identidade = identidade.as_str();
                 if !declarados.contains(&identidade) {
-                    return Err(E::DocumentoDaPastaNaoDeclarado);
+                    return Err(ErroArvore::DocumentoDaPastaNaoDeclarado);
                 }
                 if !vistos.insert(identidade) {
-                    return Err(E::ProtocoloRepetidoNaPasta);
+                    return Err(ErroArvore::ProtocoloRepetidoNaPasta);
                 }
             }
         }
     }
     if declarados.len() - vistos.len() != sem_identidade {
         return Err(if sem_identidade == 0 {
-            E::ProtocoloDeclaradoAusenteDaPasta
+            ErroArvore::ProtocoloDeclaradoAusenteDaPasta
         } else {
-            E::ContagemDaPastaDiferenteDaDeclarada
+            ErroArvore::ContagemDaPastaDiferenteDaDeclarada
         });
     }
     let verificacao = match (vistos.len(), sem_identidade) {
@@ -249,11 +255,10 @@ pub(crate) fn ler_acao_de_abrir_pastas(
     html: &str,
     id: &str,
 ) -> Result<Option<EnderecoDaArvore>, ErroArvore> {
-    use ErroArvore as E;
     let mut achado = None;
     for linha in html.split('\n').filter(|l| l.contains(ACAO_DE_ABRIR)) {
-        let fora = E::AcaoDeAbrirPastasForaDaFormaObservada;
-        let argumentos = ler_chamada(linha, "NosAcoes[", "infraArvoreAcao").ok_or(fora)?;
+        let fora = || ErroArvore::AcaoDeAbrirPastasForaDaFormaObservada;
+        let argumentos = ler_chamada(linha, "NosAcoes[", "infraArvoreAcao").ok_or_else(fora)?;
         let [
             _,
             Literal::Texto(rotulo),
@@ -265,13 +270,13 @@ pub(crate) fn ler_acao_de_abrir_pastas(
             Literal::Booleano(_),
         ] = argumentos.as_slice()
         else {
-            return Err(fora);
+            return Err(fora());
         };
         if *rotulo != format!("AP{id}") || alvo != id {
-            return Err(fora);
+            return Err(fora());
         }
         if achado.is_some() {
-            return Err(E::AcoesDeAbrirPastasRepetidas);
+            return Err(ErroArvore::AcoesDeAbrirPastasRepetidas);
         }
         achado = Some(conferir_url_de_abrir(instalacao, url, id)?);
     }
@@ -285,20 +290,17 @@ fn conferir_url_de_abrir(
     url: &str,
     id: &str,
 ) -> Result<EnderecoDaArvore, ErroArvore> {
-    let recusa = ErroArvore::EnderecoDeAbrirPastasNaoReconhecido;
-    let absoluta = conferir_endereco_relativo(instalacao, url, "procedimento_visualizar", id)
-        .map_err(|_| recusa)?;
+    let recusa = || ErroArvore::EnderecoDeAbrirPastasNaoReconhecido;
+    let absoluta =
+        conferir_endereco_relativo(instalacao, url, AcaoDoSei::ProcedimentoVisualizar, id)
+            .map_err(ErroArvore::EnderecoDeAbrirPastasRecusado)?;
     let consulta = url.split_once('?').map_or("", |(_, c)| c);
-    let mut abrir = 0;
-    for par in consulta.split('&') {
-        match par.split_once('=') {
-            Some(("abrir_pastas", "1")) => abrir += 1,
-            Some(("abrir_pastas" | "fechar_pastas", _)) => return Err(recusa),
-            _ => {}
-        }
-    }
-    if abrir != 1 {
-        return Err(recusa);
+    let consulta =
+        ConsultaDoControlador::ler(consulta).map_err(ErroArvore::ConsultaDeAbrirPastasIlegivel)?;
+    if consulta.valores("fechar_pastas").next().is_some()
+        || consulta.valores("abrir_pastas").collect::<Vec<_>>() != ["1"]
+    {
+        return Err(recusa());
     }
     Ok(EnderecoDaArvore::conferido(absoluta))
 }

@@ -1,0 +1,61 @@
+id: 30-leitura-sai-do-transporte
+message: 'A leitura privada sai de transporte.rs: o corpo vai para src/arquivo_privado/leitura.rs (modelos/leitura.rs), com ErroArquivoPrivado.'
+language: rust
+severity: hint
+rule:
+  kind: function_item
+  has:
+    field: name
+    regex: '^arquivo_privado$'
+  inside:
+    kind: source_file
+fix: '/* ies-codemod: remover linha */'
+---
+id: 30b-chamada-da-leitura
+message: 'transporte::arquivo_privado(c, n) vira crate::arquivo_privado::ler(c, n).'
+language: rust
+severity: hint
+rule:
+  pattern: '$F($$$A)'
+constraints:
+  F:
+    regex: '^((crate::)?transporte::)?arquivo_privado$'
+fix: 'crate::arquivo_privado::ler($$$A)'
+---
+id: 30c-import-da-leitura
+message: 'arquivo_privado sai da lista do use de super (a função saiu de transporte).'
+language: rust
+severity: hint
+rule:
+  kind: identifier
+  regex: '^arquivo_privado$'
+  inside:
+    kind: use_list
+    inside:
+      kind: scoped_use_list
+      regex: '^super::'
+fix:
+  template: ''
+  expandEnd:
+    regex: ',\s*'
+---
+id: 30d-chamada-da-leitura-em-macro
+message: 'O mesmo, dentro de macro (assert_eq!): o token_tree mais interno com a chamada.'
+language: rust
+severity: hint
+rule:
+  pattern: $P
+  kind: token_tree
+  regex: '(^|[^A-Za-z0-9_:])arquivo_privado\('
+  not:
+    has:
+      stopBy: end
+      kind: token_tree
+      regex: '(^|[^A-Za-z0-9_:])arquivo_privado\('
+transform:
+  NOVO:
+    replace:
+      source: $P
+      replace: '(?<a>^|[^A-Za-z0-9_:])(?:(?:crate::)?transporte::)?arquivo_privado\('
+      by: '${a}crate::arquivo_privado::ler('
+fix: $NOVO

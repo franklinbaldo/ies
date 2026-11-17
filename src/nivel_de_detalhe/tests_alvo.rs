@@ -3,7 +3,7 @@
 //! `procedimento_configurar_detalhe` (PEN1 5.0.4 e GO 5.0.3: 12 opções;
 //! `UnB` 4.0.9: 11, sem Prioridade). Ids, hashes e unidade fictícios.
 use super::*;
-use ColunaDoDetalhe as C;
+use crate::tela_html::HtmlServido;
 
 pub(crate) const HASH_DO_SALVAR: &str =
     "9999999999999999999999999999999999999999999999999999999999999999";
@@ -11,7 +11,11 @@ pub(crate) const HASH_DO_SALVAR: &str =
 /// Tela servida com o formulário que o POST de salvar repete: `action`
 /// relativa assinada, `hdnInfraTipoPagina`, `sbmSalvar`, as caixas
 /// publicadas (sem `value`) e `hdnInfraPrefixoCookie` fora do formulário.
-pub(crate) fn tela_salvavel(publicadas: &[C], marcadas: &[C], extra: &str) -> String {
+pub(crate) fn tela_salvavel(
+    publicadas: &[ColunaDoDetalhe],
+    marcadas: &[ColunaDoDetalhe],
+    extra: &str,
+) -> String {
     use std::fmt::Write as _;
     let mut opcoes = String::new();
     for &coluna in publicadas {
@@ -43,15 +47,18 @@ pub(crate) fn tela_salvavel(publicadas: &[C], marcadas: &[C], extra: &str) -> St
     )
 }
 
-pub(crate) fn onze() -> Vec<C> {
-    C::TODAS
+pub(crate) fn onze() -> Vec<ColunaDoDetalhe> {
+    ColunaDoDetalhe::TODAS
         .into_iter()
-        .filter(|c| *c != C::Prioridade)
+        .filter(|c| *c != ColunaDoDetalhe::Prioridade)
         .collect()
 }
 
-fn nivel(publicadas: &[C], marcadas: &[C]) -> NivelDeDetalhe {
-    ler_nivel_de_detalhe(&tela_salvavel(publicadas, marcadas, "")).unwrap()
+fn nivel(publicadas: &[ColunaDoDetalhe], marcadas: &[ColunaDoDetalhe]) -> NivelDeDetalhe {
+    ler_nivel_de_detalhe(&HtmlServido::de_teste(&tela_salvavel(
+        publicadas, marcadas, "",
+    )))
+    .unwrap()
 }
 
 #[test]
@@ -63,35 +70,34 @@ fn definir_todas_ou_lista_de_chaves_estaveis() {
     assert_eq!(
         AlvoDasColunas::interpretar("tipo, atribuicao ,interessados"),
         Ok(AlvoDasColunas::Lista(vec![
-            C::Atribuicao,
-            C::TipoProcesso,
-            C::Interessados
+            ColunaDoDetalhe::Atribuicao,
+            ColunaDoDetalhe::TipoProcesso,
+            ColunaDoDetalhe::Interessados
         ]))
     );
-    let todas = C::TODAS.map(C::chave).join(",");
+    let todas = ColunaDoDetalhe::TODAS.map(ColunaDoDetalhe::chave).join(",");
     assert_eq!(
         AlvoDasColunas::interpretar(&todas),
-        Ok(AlvoDasColunas::Lista(C::TODAS.to_vec()))
+        Ok(AlvoDasColunas::Lista(ColunaDoDetalhe::TODAS.to_vec()))
     );
 }
 
 #[test]
 fn definir_recusa_lista_vazia_item_vazio_chave_desconhecida_e_repetida() {
-    use ErroDaListaDeColunas as E;
     for vazio in ["", "  ", ","] {
         assert_eq!(
             AlvoDasColunas::interpretar(vazio),
             Err(if vazio == "," {
-                E::ItemVazioNaListaDeColunas
+                ErroDaListaDeColunas::ItemVazioNaListaDeColunas
             } else {
-                E::ListaDeColunasVazia
+                ErroDaListaDeColunas::ListaDeColunasVazia
             }),
             "{vazio:?}"
         );
     }
     assert_eq!(
         AlvoDasColunas::interpretar("tipo,,anotacao"),
-        Err(E::ItemVazioNaListaDeColunas)
+        Err(ErroDaListaDeColunas::ItemVazioNaListaDeColunas)
     );
     for (texto, chave) in [
         ("Tipo", "Tipo"),
@@ -101,7 +107,7 @@ fn definir_recusa_lista_vazia_item_vazio_chave_desconhecida_e_repetida() {
     ] {
         assert_eq!(
             AlvoDasColunas::interpretar(texto),
-            Err(E::ColunaDesconhecida {
+            Err(ErroDaListaDeColunas::ColunaDesconhecida {
                 chave: chave.to_owned()
             }),
             "{texto}"
@@ -109,25 +115,26 @@ fn definir_recusa_lista_vazia_item_vazio_chave_desconhecida_e_repetida() {
     }
     assert_eq!(
         AlvoDasColunas::interpretar("tipo,anotacao,tipo"),
-        Err(E::ColunaRepetidaNaLista {
-            coluna: C::TipoProcesso
+        Err(ErroDaListaDeColunas::ColunaRepetidaNaLista {
+            coluna: ColunaDoDetalhe::TipoProcesso
         })
-    );
-    assert_eq!(
-        E::ColunaDesconhecida {
-            chave: String::new()
-        }
-        .subcodigo(),
-        "coluna_desconhecida"
     );
 }
 
 #[test]
 fn todas_sao_as_publicadas_nesta_instalacao() {
-    let atual = [C::Atribuicao, C::TipoProcesso, C::Interessados];
-    let doze = planejar(&nivel(&C::TODAS, &atual), &AlvoDasColunas::Todas).unwrap();
+    let atual = [
+        ColunaDoDetalhe::Atribuicao,
+        ColunaDoDetalhe::TipoProcesso,
+        ColunaDoDetalhe::Interessados,
+    ];
+    let doze = planejar(
+        &nivel(&ColunaDoDetalhe::TODAS, &atual),
+        &AlvoDasColunas::Todas,
+    )
+    .unwrap();
     assert_eq!(doze.antes, atual);
-    assert_eq!(doze.alvo, C::TODAS);
+    assert_eq!(doze.alvo, ColunaDoDetalhe::TODAS);
     assert_eq!(doze.indisponiveis, []);
     assert_eq!(doze.marcar().len(), 9);
     assert_eq!(doze.desmarcar(), []);
@@ -135,22 +142,35 @@ fn todas_sao_as_publicadas_nesta_instalacao() {
 
     let unb = planejar(&nivel(&onze(), &atual), &AlvoDasColunas::Todas).unwrap();
     assert_eq!(unb.alvo, onze());
-    assert_eq!(unb.indisponiveis, [C::Prioridade]);
-    assert!(!unb.marcar().contains(&C::Prioridade));
+    assert_eq!(unb.indisponiveis, [ColunaDoDetalhe::Prioridade]);
+    assert!(!unb.marcar().contains(&ColunaDoDetalhe::Prioridade));
 }
 
 #[test]
 fn lista_marca_e_desmarca_e_alvo_igual_e_inalterado() {
-    let atual = [C::Atribuicao, C::TipoProcesso, C::Interessados];
-    let lido = nivel(&C::TODAS, &atual);
+    let atual = [
+        ColunaDoDetalhe::Atribuicao,
+        ColunaDoDetalhe::TipoProcesso,
+        ColunaDoDetalhe::Interessados,
+    ];
+    let lido = nivel(&ColunaDoDetalhe::TODAS, &atual);
     let plano = planejar(
         &lido,
-        &AlvoDasColunas::Lista(vec![C::Marcadores, C::Atribuicao]),
+        &AlvoDasColunas::Lista(vec![
+            ColunaDoDetalhe::Marcadores,
+            ColunaDoDetalhe::Atribuicao,
+        ]),
     )
     .unwrap();
-    assert_eq!(plano.alvo, [C::Atribuicao, C::Marcadores]);
-    assert_eq!(plano.marcar(), [C::Marcadores]);
-    assert_eq!(plano.desmarcar(), [C::TipoProcesso, C::Interessados]);
+    assert_eq!(
+        plano.alvo,
+        [ColunaDoDetalhe::Atribuicao, ColunaDoDetalhe::Marcadores]
+    );
+    assert_eq!(plano.marcar(), [ColunaDoDetalhe::Marcadores]);
+    assert_eq!(
+        plano.desmarcar(),
+        [ColunaDoDetalhe::TipoProcesso, ColunaDoDetalhe::Interessados]
+    );
     let igual = planejar(&lido, &AlvoDasColunas::Lista(atual.to_vec())).unwrap();
     assert!(igual.inalterado());
     assert!(igual.marcar().is_empty() && igual.desmarcar().is_empty());
@@ -162,10 +182,13 @@ fn coluna_nao_publicada_e_recusada_no_plano() {
     assert_eq!(
         planejar(
             &lido,
-            &AlvoDasColunas::Lista(vec![C::Atribuicao, C::Prioridade])
+            &AlvoDasColunas::Lista(vec![
+                ColunaDoDetalhe::Atribuicao,
+                ColunaDoDetalhe::Prioridade
+            ])
         ),
         Err(ColunaIndisponivelNestaInstalacao {
-            coluna: C::Prioridade
+            coluna: ColunaDoDetalhe::Prioridade
         })
     );
 }
@@ -177,7 +200,10 @@ fn salvar_declara_os_campos_do_catalogo_e_o_efeito_persistente() {
         ResultadoDoEnvio,
     };
     let op = &SALVAR_NIVEL_DE_DETALHE;
-    assert_eq!(op.campos_usuario, C::TODAS.map(C::campo));
+    assert_eq!(
+        op.campos_usuario,
+        ColunaDoDetalhe::TODAS.map(ColunaDoDetalhe::campo)
+    );
     assert_eq!(op.envio, EnvioDoFormulario::BotaoDeEnvio("sbmSalvar"));
     assert_eq!(op.campos_ocultos_exigidos, ["hdnInfraTipoPagina"]);
     assert_eq!(op.campos_ocultos_reescritos.len(), 0);
@@ -189,7 +215,7 @@ fn salvar_declara_os_campos_do_catalogo_e_o_efeito_persistente() {
             o_que: PreferenciaDoUsuario::ColunasDaVisaoDetalhada
         }
     );
-    let plano = planejar(&nivel(&C::TODAS, &[]), &AlvoDasColunas::Todas).unwrap();
+    let plano = planejar(&nivel(&ColunaDoDetalhe::TODAS, &[]), &AlvoDasColunas::Todas).unwrap();
     let campos = campos_do_envio(&plano);
     assert_eq!(campos.len(), 12);
     assert!(campos.iter().all(|(_, valor)| *valor == "on"));
@@ -199,7 +225,11 @@ fn salvar_declara_os_campos_do_catalogo_e_o_efeito_persistente() {
 #[test]
 fn formulario_observado_passa_na_conferencia_de_controles() {
     assert_eq!(
-        conferir_controles_do_formulario(&tela_salvavel(&C::TODAS, &[], "")),
+        conferir_controles_do_formulario(&HtmlServido::de_teste(&tela_salvavel(
+            &ColunaDoDetalhe::TODAS,
+            &[],
+            ""
+        ))),
         Ok(())
     );
     // Não enviados pelo navegador: botão `button`, `reset` e `disabled`.
@@ -207,7 +237,11 @@ fn formulario_observado_passa_na_conferencia_de_controles() {
                    <input type=\"reset\" name=\"btnLimpar\" value=\"Limpar\">\
                    <input type=\"text\" name=\"txtDesligado\" disabled>";
     assert_eq!(
-        conferir_controles_do_formulario(&tela_salvavel(&onze(), &[], inertes)),
+        conferir_controles_do_formulario(&HtmlServido::de_teste(&tela_salvavel(
+            &onze(),
+            &[],
+            inertes
+        ))),
         Ok(())
     );
 }
@@ -225,24 +259,30 @@ fn controle_enviavel_fora_do_observado_e_recusado() {
         "<input type=\"checkbox\" name=\"chkOutra\">",
     ] {
         assert_eq!(
-            conferir_controles_do_formulario(&tela_salvavel(&C::TODAS, &[], extra)),
+            conferir_controles_do_formulario(&HtmlServido::de_teste(&tela_salvavel(
+                &ColunaDoDetalhe::TODAS,
+                &[],
+                extra
+            ))),
             Err(ErroNivelDeDetalhe::CampoNaoPrevistoNoFormularioDoNivelDeDetalhe),
             "{extra}"
         );
     }
-    assert_eq!(
-        ErroNivelDeDetalhe::CampoNaoPrevistoNoFormularioDoNivelDeDetalhe.subcodigo(),
-        "campo_nao_previsto_no_formulario_do_nivel_de_detalhe"
-    );
 }
 
 #[test]
 fn marcadas_sai_na_ordem_do_catalogo() {
-    let lido = nivel(&C::TODAS, &[C::Marcadores, C::Anotacao]);
-    assert_eq!(lido.marcadas(), [C::Anotacao, C::Marcadores]);
-    assert_eq!(
-        C::pela_chave("ultima_movimentacao"),
-        Some(C::UltimaMovimentacao)
+    let lido = nivel(
+        &ColunaDoDetalhe::TODAS,
+        &[ColunaDoDetalhe::Marcadores, ColunaDoDetalhe::Anotacao],
     );
-    assert_eq!(C::pela_chave("Tipo"), None);
+    assert_eq!(
+        lido.marcadas(),
+        [ColunaDoDetalhe::Anotacao, ColunaDoDetalhe::Marcadores]
+    );
+    assert_eq!(
+        ColunaDoDetalhe::pela_chave("ultima_movimentacao"),
+        Some(ColunaDoDetalhe::UltimaMovimentacao)
+    );
+    assert_eq!(ColunaDoDetalhe::pela_chave("Tipo"), None);
 }

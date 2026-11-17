@@ -1,11 +1,10 @@
 //! Plano de `--pagina N`, sem rede: tamanho da página pela faixa e pelo
 //! índice publicados, número de páginas pelo total declarado.
-use super::{ErroPaginaDoControle as E, PlanoDaPagina};
+use super::{ErroPaginaDoControle, PlanoDaPagina};
 use crate::controle_contexto::contexto_da_pagina;
 use crate::dominio::Categoria;
 use crate::erro_web::ErroCaixa;
 use crate::formulario_web::CodificacaoDaTela;
-use crate::html_atributos::{nos_com_id, valor_do_atributo};
 use crate::paginacao_controle::paginador_da_tabela;
 use crate::paginas::{FaixaNaPagina, faixa_na_pagina};
 
@@ -34,59 +33,54 @@ pub(super) fn campo_da_pagina(categoria: Categoria) -> &'static str {
     }
 }
 
-fn html_invalido(_: impl Sized) -> E {
-    E::Caixa(ErroCaixa::HtmlInvalido)
-}
-
 /// Índice (a partir de 0) que a tela publica em `hdn{T}PaginaAtual`.
-fn pagina_atual(html: &str, categoria: Categoria) -> Result<usize, E> {
-    let dom = tl::parse(html, tl::ParserOptions::default()).map_err(html_invalido)?;
-    let ilegivel = || E::PaginaAtualDaTabelaIlegivel { categoria };
-    let nos = nos_com_id(&dom, campo_da_pagina(categoria)).map_err(html_invalido)?;
+fn pagina_atual(
+    html: &crate::tela_html::HtmlServido,
+    categoria: Categoria,
+) -> Result<usize, ErroPaginaDoControle> {
+    let dom = crate::tela_html::arvore(html);
+    let ilegivel = || ErroPaginaDoControle::PaginaAtualDaTabelaIlegivel { categoria };
+    let nos = dom.com_id(campo_da_pagina(categoria)).collect::<Vec<_>>();
     let [no] = nos.as_slice() else {
         return Err(if nos.is_empty() {
             ilegivel()
         } else {
-            E::CamposDePaginaAtualDaTabelaRepetidos { categoria }
+            ErroPaginaDoControle::CamposDePaginaAtualDaTabelaRepetidos { categoria }
         });
     };
-    let tag = no
-        .get(dom.parser())
-        .and_then(tl::Node::as_tag)
-        .ok_or_else(ilegivel)?;
-    let valor = valor_do_atributo(tag, "value")
-        .map_err(html_invalido)?
-        .unwrap_or_default();
-    if valor.is_empty() || valor.len() > 9 || !valor.bytes().all(|b| b.is_ascii_digit()) {
+    let valor = no.atributo("value").unwrap_or_default();
+    if valor.is_empty() || !valor.bytes().all(|b| b.is_ascii_digit()) {
         return Err(ilegivel());
     }
-    valor.parse().map_err(|_| ilegivel())
+    valor
+        .parse()
+        .map_err(|erro| ErroPaginaDoControle::PaginaAtualDaTabelaNaoCabeNoTipo { categoria, erro })
 }
 
 /// Tabela sem linhas: só a página 1 (vazia) existe.
 fn plano_sem_linhas(
-    html: &str,
+    html: &crate::tela_html::HtmlServido,
     categoria: Categoria,
     atual: usize,
     pagina: usize,
-) -> Result<PlanoDaPagina, E> {
-    let caixa = crate::caixa::parse_html(html).map_err(E::Caixa)?;
+) -> Result<PlanoDaPagina, ErroPaginaDoControle> {
+    let caixa = crate::caixa::parse_html(html)?;
     let linhas = match categoria {
         Categoria::Recebidos => caixa.recebidos.processos.len(),
         Categoria::Gerados => caixa.gerados.processos.len(),
     };
     if linhas > 0 {
-        return Err(E::Caixa(
+        return Err(ErroPaginaDoControle::Caixa(
             ErroCaixa::LegendaSemFaixaComTotalDiferenteDasLinhas { categoria },
         ));
     }
     if atual != 0 {
-        return Err(E::PaginaAtualDaTabelaIncompativelComAFaixa { categoria });
+        return Err(ErroPaginaDoControle::PaginaAtualDaTabelaIncompativelComAFaixa { categoria });
     }
     if pagina == 1 {
         Ok(PlanoDaPagina::JaExibida)
     } else {
-        Err(E::PaginaForaDoIntervalo {
+        Err(ErroPaginaDoControle::PaginaForaDoIntervalo {
             categoria,
             solicitada: pagina,
             paginas: 1,
@@ -113,23 +107,23 @@ pub(crate) fn tamanho_da_pagina(atual: usize, faixa: FaixaNaPagina) -> Option<us
 
 /// Calcula, sem rede, se e como pedir a página `pagina` (≥ 1).
 pub(crate) fn planejar(
-    html: &str,
+    html: &crate::tela_html::HtmlServido,
     categoria: Categoria,
     pagina: usize,
-) -> Result<PlanoDaPagina, E> {
-    let contexto = contexto_da_pagina(html).map_err(E::Caixa)?;
+) -> Result<PlanoDaPagina, ErroPaginaDoControle> {
+    let contexto = contexto_da_pagina(html)?;
     if !contexto.eh_resumida() {
-        return Err(E::PaginaExigeVisaoResumida);
+        return Err(ErroPaginaDoControle::PaginaExigeVisaoResumida);
     }
     let atual = pagina_atual(html, categoria)?;
-    let Some(faixa) = faixa_na_pagina(html, categoria).map_err(E::Caixa)? else {
+    let Some(faixa) = faixa_na_pagina(html, categoria)? else {
         return plano_sem_linhas(html, categoria, atual, pagina);
     };
     let tamanho = tamanho_da_pagina(atual, faixa)
-        .ok_or(E::PaginaAtualDaTabelaIncompativelComAFaixa { categoria })?;
+        .ok_or(ErroPaginaDoControle::PaginaAtualDaTabelaIncompativelComAFaixa { categoria })?;
     let paginas = faixa.total.div_ceil(tamanho);
     if pagina == 0 || pagina > paginas {
-        return Err(E::PaginaForaDoIntervalo {
+        return Err(ErroPaginaDoControle::PaginaForaDoIntervalo {
             categoria,
             solicitada: pagina,
             paginas,
@@ -138,8 +132,8 @@ pub(crate) fn planejar(
     if pagina == atual + 1 {
         return Ok(PlanoDaPagina::JaExibida);
     }
-    if !paginador_da_tabela(html, categoria).map_err(E::Caixa)? {
-        return Err(E::PaginadorDaTabelaNaoPublicado { categoria });
+    if !paginador_da_tabela(html, categoria) {
+        return Err(ErroPaginaDoControle::PaginadorDaTabelaNaoPublicado { categoria });
     }
     let indice = pagina - 1;
     Ok(PlanoDaPagina::Pedir {

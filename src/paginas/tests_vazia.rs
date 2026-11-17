@@ -7,6 +7,7 @@
 //! `tabela_ausente`.
 use super::*;
 use crate::pagina_do_controle::{ErroPaginaDoControle, planejar};
+use crate::tela_html::HtmlServido;
 
 /// Os campos da categoria como a tela de GO os publica (ordem e ids).
 struct Vazia<'a> {
@@ -59,7 +60,11 @@ fn gravada() -> String {
 
 #[test]
 fn tela_gravada_da_unidade_vazia_publica_total_zero_sem_faixa() {
-    let leitura = juntar(&[gravada()], Some("ABC/GECONT-18141")).unwrap();
+    let leitura = juntar(
+        &[HtmlServido::de_teste(&gravada())],
+        Some("ABC/GECONT-18141"),
+    )
+    .unwrap();
     for (cat, tabela, cobertura) in [
         (
             Categoria::Recebidos,
@@ -68,12 +73,19 @@ fn tela_gravada_da_unidade_vazia_publica_total_zero_sem_faixa() {
         ),
         (Categoria::Gerados, &leitura.caixa.gerados, &leitura.gerados),
     ] {
-        assert_eq!(tabela.total_declarado, Some(0), "{cat:?}");
+        assert_eq!(tabela.total_declarado, 0, "{cat:?}");
         assert!(tabela.processos.is_empty(), "{cat:?}");
-        assert_eq!(cobertura.faixa_observada(), None, "{cat:?}");
+        assert_eq!(
+            cobertura.faixa_observada(),
+            Ok(FaixaObservada::SemLinhas),
+            "{cat:?}"
+        );
         assert!(cobertura.completa(tabela), "{cat:?}");
-        assert!(conferir_faixa_publicavel(cat, tabela, cobertura).is_ok());
-        assert_eq!(faixa_na_pagina(&gravada(), cat), Ok(None));
+        assert!(conferir_faixa_publicavel(cat, cobertura).is_ok());
+        assert_eq!(
+            faixa_na_pagina(&HtmlServido::de_teste(&gravada()), cat),
+            Ok(None)
+        );
     }
     assert_eq!(leitura.unidade.as_deref(), Some("ABC/GECONT-18141"));
 }
@@ -81,7 +93,7 @@ fn tela_gravada_da_unidade_vazia_publica_total_zero_sem_faixa() {
 #[test]
 fn pagina_2_da_unidade_vazia_fica_fora_do_intervalo() {
     assert_eq!(
-        planejar(&gravada(), Categoria::Gerados, 2),
+        planejar(&HtmlServido::de_teste(&gravada()), Categoria::Gerados, 2),
         Err(ErroPaginaDoControle::PaginaForaDoIntervalo {
             categoria: Categoria::Gerados,
             solicitada: 2,
@@ -92,7 +104,7 @@ fn pagina_2_da_unidade_vazia_fica_fora_do_intervalo() {
 
 fn ausente(html: &str, categoria: Categoria) {
     assert_eq!(
-        juntar(&[html.to_owned()], None).err(),
+        juntar(&[HtmlServido::de_teste(html)], None).err(),
         Some(ErroCaixa::TabelaAusente { categoria }),
         "{html}"
     );

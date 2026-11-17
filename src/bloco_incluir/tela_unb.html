@@ -1,0 +1,44 @@
+<form id="frmBlocoEscolher" method="post" onsubmit="return OnSubmitForm();" action="controlador.php?acao=bloco_escolher&acao_origem=bloco_escolher&arvore=1&id_procedimento=50690&id_documento=50691&infra_sistema=100000100&infra_unidade_atual=110000849&infra_hash=aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa" >
+<input type="hidden" id="hdnInfraTipoPagina" name="hdnInfraTipoPagina" value="2" />
+<div id="divInfraBarraComandosSuperior" class="infraBarraComandos">
+<a id="ancVoltarArvoreSuperior" href="javascript:seiVoltarArvoreProcesso()" class="btn" style="padding: 0px; float: left;display: none;" title="Voltar para a Árvore do Processo" tabindex="451">
+          <img src="/infra_css/svg/voltar.svg" width="32" height="32">
+        </a>
+<button tabindex="451" type="submit" name="sbmIncluir" id="sbmIncluir" accesskey="I" value="Incluir" class="infraButton"><span class="infraTeclaAtalho">I</span>ncluir</button>
+<button tabindex="452" type="submit" name="sbmIncluirDisponibilizar" id="sbmIncluirDisponibilizar" accesskey="D" value="Incluir e Disponibilizar" class="infraButton">Incluir e <span class="infraTeclaAtalho">D</span>isponibilizar</button>
+<button tabindex="453" type="button" accesskey="N" id="btnNovoAssinatura" value="Novo" onclick="location.href='controlador.php?acao=bloco_assinatura_cadastrar&acao_origem=bloco_escolher&acao_retorno=bloco_escolher&arvore=1&id_procedimento=50690&id_documento=50691&infra_sistema=100000100&infra_unidade_atual=110000849&infra_hash=aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa'" class="infraButton"><span class="infraTeclaAtalho">N</span>ovo Bloco</button>
+</div>
+<div id="divInfraAreaDados" class="infraAreaDados" style="height:8em;">
+  <label id="lblBloco" for="selBloco" accesskey="B" class="infraLabelObrigatorio"><span class="infraTeclaAtalho">B</span>loco:</label>
+  <select id="selBloco" name="selBloco" class="infraSelect" onchange="this.form.submit();" tabindex="501">
+  <option value="null" selected="selected">&nbsp;</option>
+<option value="2195">2195 - Teste Todos captura bloco</option>
+<option value="2135">2135 - Ofício solicitando as ações ao Secretário.</option>
+<option value="2093">2093 - fe4rf</option>
+<option value="2092">2092 - kjsdwed</option>
+<option value="1485">1485 - Arquivo Central/COGED/COP</option>
+  </select>
+
+    <a id="ancIrBlocosAssinatura" href="javascript:void(0);" onclick="irBlocosAssinatura();" class="ancoraPadraoPreta" tabindex="502">Ir para Blocos de Assinatura</a>
+  </div>
+<div id="divInfraAreaTabela" class="infraAreaTabela" >
+<table id="tblDocumentos" width="99%" class="infraTable" summary="Lista de documentos disponíveis para inclusão">
+		 						  									<caption class="infraCaption" >Lista de documentos disponíveis para inclusão (2 registros):</caption> 
+								 										<tr>
+								 										  <th class="infraTh" width="1%"><label id="lblInfraCheck" for="lnkInfraCheck" accesskey=";"></label>
+<a href="javascript:void(0);" id="lnkInfraCheck" onclick="infraSelecaoMultipla('Documentos');" tabindex="1001"><img src="/infra_css/svg/check.svg" id="imgDocumentosCheck" title="Selecionar Tudo" alt="Selecionar Tudo" class="infraImg" /></a></th>
+								 										  <th class="infraTh" width="15%">Nº SEI</th>
+								  										<th class="infraTh">Documento</th>
+								  										<th class="infraTh" width="15%">Data</th>
+								  										<th class="infraTh" width="15%">Blocos</th>
+								  									</tr><tr class="infraTrClara"><td align="center" valign="top" class="infraTd"><a id="lnkDocumentosID-50691" name="ID-50691"></a><input checked="checked" class="infraCheckbox" id="chkDocumentosItem0" name="chkDocumentosItem0" tabindex="1002" title="0011392" type="checkbox" value="50691" onclick="infraSelecionarItens(this,'Documentos');"/></td><td  class="infraTd" align="center" valign="top"><a href="controlador.php?acao=documento_visualizar&id_documento=50691&infra_sistema=100000100&infra_unidade_atual=110000849&infra_hash=aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa" target="_blank" tabindex="1003" class="protocoloNormal" style="font-size:1em !important;">0011392</a></td><td  class="infraTd" valign="top">Despacho </td><td  class="infraTd" align="center" valign="top">01/10/2026</td><td align="center" valign="top" class="infraTd">&nbsp;</td></tr><tr class="infraTrClara"><td align="center" valign="top" class="infraTd"><a id="lnkDocumentosID-50692" name="ID-50692"></a><input  class="infraCheckbox" id="chkDocumentosItem1" name="chkDocumentosItem1" tabindex="1004" title="0011393" type="checkbox" value="50692" onclick="infraSelecionarItens(this,'Documentos');"/></td><td  class="infraTd" align="center" valign="top"><a href="controlador.php?acao=documento_visualizar&id_documento=50692&infra_sistema=100000100&infra_unidade_atual=110000849&infra_hash=aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa" target="_blank" tabindex="1005" class="protocoloNormal" style="font-size:1em !important;">0011393</a></td><td  class="infraTd" valign="top">Despacho </td><td  class="infraTd" align="center" valign="top">01/10/2026</td><td align="center" valign="top" class="infraTd">&nbsp;</td></tr></table>
+</div>
+
+<input type="hidden" id="hdnDocumentosNroItens" name="hdnDocumentosNroItens" value="2" />
+<input type="hidden" id="hdnDocumentosItemId" name="hdnDocumentosItemId" value="" />
+<input type="hidden" id="hdnDocumentosItens" name="hdnDocumentosItens" value="50691,50692" />
+<input type="hidden" id="hdnDocumentosItensHash" name="hdnDocumentosItensHash" value="bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb" />
+<input type="hidden" id="hdnDocumentosItensSelecionados" name="hdnDocumentosItensSelecionados" value="50691" />
+
+<input type="hidden" id="hdnInfraSelecoes" name="hdnInfraSelecoes" value="Documentos,Infra" />
+<br /><br /></form>

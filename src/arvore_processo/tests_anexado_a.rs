@@ -4,7 +4,6 @@
 //! `procedimento_trabalhar` assinado do pai, com `id_procedimento` do pai e
 //! `id_procedimento_anexado` igual à raiz, e cujo texto é o NUP do pai.
 //! Ids, números e hashes inventados.
-use super::ErroArvore as E;
 use super::tests::{NUP, arvore, no_documento, no_processo};
 use super::*;
 use crate::instalacao::Instalacao;
@@ -41,7 +40,7 @@ pub(crate) fn arvore_do_anexado(id: &str, nup: &str, html: &str) -> String {
     .replace("Nos[0].html = '';", &format!("Nos[0].html = '{html}';"))
 }
 
-fn ler(html: &str) -> Result<Option<VinculoDeAnexacao>, E> {
+fn ler(html: &str) -> Result<Option<VinculoDeAnexacao>, super::ErroArvore> {
     ler_vinculo_de_anexacao(&instalacao(), html, "10")
 }
 
@@ -97,70 +96,93 @@ fn link_do_pai_fora_da_forma_e_recusa() {
     let href = href_do_pai(ID_PAI, "10");
     let com_href = |h: &str| arvore_do_anexado("10", NUP, &html_do_anexado(h, NUP_PAI));
     let com_texto = |t: &str| arvore_do_anexado("10", NUP, &html_do_anexado(&href, t));
+    let forma = super::ErroArvore::VinculoDeAnexacaoForaDaFormaObservada;
+    let recusa = super::ErroArvore::EnderecoDoVinculoDeAnexacaoRecusado(
+        crate::arvore_processo::endereco::EnderecoRecusado::NaoReconhecido,
+    );
     let casos = [
-        com_href(&href_do_pai(ID_PAI, "11")),
-        com_href(&href_do_pai("10", "10")),
-        com_href(&href.replace(
-            "acao=procedimento_trabalhar",
-            "acao=procedimento_visualizar",
-        )),
-        com_href(&href.replace(&"4".repeat(64), &"4".repeat(63))),
-        com_href(&format!("{ORIGEM}/{href}")),
-        com_href(&href.replace("&infra_sistema", "&id_procedimento=91&infra_sistema")),
-        com_href(&href.replace(
-            "&infra_sistema",
-            "&id_procedimento_anexado=10&infra_sistema",
-        )),
-        com_href(&href.replace("id_procedimento=90", "id_procedimento=9a")),
-        com_texto(""),
-        com_texto(&format!(" {NUP_PAI}")),
-        com_texto(&format!("{NUP_PAI}&amp;")),
-        com_texto(&format!("<b>{NUP_PAI}</b>")),
+        (com_href(&href_do_pai(ID_PAI, "11")), Err(forma.clone())),
+        (com_href(&href_do_pai("10", "10")), Err(forma.clone())),
+        (
+            com_href(&href.replace(
+                "acao=procedimento_trabalhar",
+                "acao=procedimento_visualizar",
+            )),
+            Err(recusa.clone()),
+        ),
+        (
+            com_href(&href.replace(&"4".repeat(64), &"4".repeat(63))),
+            Err(recusa.clone()),
+        ),
+        (com_href(&format!("{ORIGEM}/{href}")), Err(recusa.clone())),
+        (
+            com_href(&href.replace("&infra_sistema", "&id_procedimento=91&infra_sistema")),
+            Err(forma.clone()),
+        ),
+        (
+            com_href(&href.replace(
+                "&infra_sistema",
+                "&id_procedimento_anexado=10&infra_sistema",
+            )),
+            Err(forma.clone()),
+        ),
+        (
+            com_href(&href.replace("id_procedimento=90", "id_procedimento=9a")),
+            Err(forma.clone()),
+        ),
+        (com_texto(""), Err(forma.clone())),
+        (com_texto(&format!(" {NUP_PAI}")), Err(forma.clone())),
+        (com_texto(&format!("{NUP_PAI}&amp;")), Err(forma.clone())),
+        (com_texto(&format!("<b>{NUP_PAI}</b>")), Err(forma.clone())),
     ];
-    for html in casos {
-        assert_eq!(
-            ler(&html),
-            Err(E::VinculoDeAnexacaoForaDaFormaObservada),
-            "{html}"
-        );
+    for (html, esperado) in casos {
+        assert_eq!(ler(&html), esperado, "{html}");
     }
+}
+
+#[test]
+fn par_sem_igual_no_link_do_pai_e_recusa_com_a_causa() {
+    let href = href_do_pai(ID_PAI, "10").replace("&infra_sistema", "&lixo&infra_sistema");
+    let html = arvore_do_anexado("10", NUP, &html_do_anexado(&href, NUP_PAI));
+    assert_eq!(
+        ler(&html),
+        Err(super::ErroArvore::ConsultaDoVinculoIlegivel(
+            crate::consulta_do_controlador::ErroConsultaDoControlador::ParSemIgual
+        ))
+    );
 }
 
 #[test]
 fn links_ou_html_repetidos_e_html_nao_literal_sao_recusa() {
     let link = html_do_anexado(&href_do_pai(ID_PAI, "10"), NUP_PAI);
     let dois = arvore_do_anexado("10", NUP, &format!("{link}{link}"));
-    assert_eq!(ler(&dois), Err(E::VinculosDeAnexacaoRepetidos));
+    assert_eq!(
+        ler(&dois),
+        Err(super::ErroArvore::VinculosDeAnexacaoRepetidos)
+    );
     let duas_linhas = padrao().replace(
         "Nos[0].src = '';",
         &format!("Nos[0].src = '';\nNos[0].html = '{link}';"),
     );
-    assert_eq!(ler(&duas_linhas), Err(E::VinculosDeAnexacaoRepetidos));
+    assert_eq!(
+        ler(&duas_linhas),
+        Err(super::ErroArvore::VinculosDeAnexacaoRepetidos)
+    );
     let nao_literal = arvore(&[no_processo(0, "10", NUP)])
         .replace("Nos[0].html = '';", "Nos[0].html = montar();");
-    assert_eq!(
+    assert!(matches!(
         ler(&nao_literal),
-        Err(E::HtmlDoNoDoProcessoForaDaFormaObservada)
-    );
+        Err(super::ErroArvore::HtmlDoNoDoProcessoIlegivel(_))
+    ));
 }
 
 #[test]
-fn subcodigos_estaveis_do_vinculo() {
-    for (erro, subcodigo) in [
-        (
-            E::VinculoDeAnexacaoForaDaFormaObservada,
-            "vinculo_de_anexacao_fora_da_forma_observada",
-        ),
-        (
-            E::VinculosDeAnexacaoRepetidos,
-            "vinculos_de_anexacao_repetidos",
-        ),
-        (
-            E::HtmlDoNoDoProcessoForaDaFormaObservada,
-            "html_do_no_do_processo_fora_da_forma_observada",
-        ),
+fn vinculo_fora_da_forma_nao_e_divergencia_do_pedido() {
+    for erro in [
+        super::ErroArvore::VinculoDeAnexacaoForaDaFormaObservada,
+        super::ErroArvore::VinculosDeAnexacaoRepetidos,
+        super::ErroArvore::HtmlDoNoDoProcessoForaDaFormaObservada,
     ] {
-        assert_eq!(erro.subcodigo(), subcodigo);
         assert!(!erro.diverge_do_pedido());
     }
 }

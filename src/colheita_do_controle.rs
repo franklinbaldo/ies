@@ -8,11 +8,12 @@
 //! As linhas vêm dos leitores da caixa (R: `caixa::linhas_com_link`; D:
 //! `caixa_detalhada::linhas_com_link`); não há segundo leitor de linhas.
 //! Nada aqui falha o comando: linha, página ou banco ruins só não gravam.
+use crate::acao_do_sei::AcaoDoSei;
 use crate::caixa::LinhaDoControle;
 use crate::controle_contexto::contexto_da_pagina;
 use crate::controle_reconhecido::publica_visao_detalhada;
 use crate::formulario_web::{TelaServida, decodificar_atributo, derivar_submissao};
-use crate::indice_local::{ChaveDoLink, IndiceLocal, RegistroRecusado, unidade_dos_links};
+use crate::indice_local::{ChaveDoLink, IndiceLocal, unidade_dos_links};
 use crate::instalacao::Instalacao;
 use crate::pagina_do_controle::codificacao_da_tela;
 use crate::pesquisa_web::link_da_pesquisa::link_da_pesquisa;
@@ -24,11 +25,9 @@ use std::collections::HashMap;
 #[cfg(test)]
 #[path = "colheita_do_controle/tests.rs"]
 mod tests;
-
-/// Ação do link de cada linha (objeto = `id_procedimento`).
-pub(crate) const ACAO_DO_TRABALHO: &str = "procedimento_trabalhar";
-/// Ação do link do menu da pesquisa (objeto vazio).
-pub(crate) const ACAO_DA_PESQUISA: &str = "protocolo_pesquisar";
+#[cfg(test)]
+#[path = "colheita_do_controle/tests_avisos.rs"]
+mod tests_avisos;
 
 /// Para onde e com que chave colher: índice, instalação, geração da sessão
 /// (SHA-256 do cookie) e a URL privada do Controle, de onde vêm a unidade
@@ -104,49 +103,63 @@ impl<'i> Colheita<'i> {
     /// Colhe uma página do Controle já lida. `mime` é o `Content-Type` da
     /// resposta (o charset do `action` da pesquisa rápida); sem ele, a
     /// pesquisa rápida não é colhida.
-    pub(crate) fn colher(&self, html: &str, mime: Option<&str>) {
+    pub(crate) fn colher(&self, html: &crate::tela_html::HtmlServido, mime: Option<&str>) {
         let Some(alvo) = &self.alvo else {
             return;
         };
-        let Some(unidade) = unidade_dos_links(&alvo.url_do_controle) else {
+        // Colheita é melhor esforço: sem unidade legível, não colhe.
+        let Ok(unidade) = unidade_dos_links(&alvo.url_do_controle) else {
             return;
         };
         let (indice, instalacao) = (alvo.indice, &alvo.instalacao);
+        // Só publica o fato após o leitor REAL validar o Controle R/D.
+        // O índice armazena a geração derivada do cookie, nunca o cookie.
+        if let Ok(nome) = crate::controle_reconhecido::unidade_do_controle(html)
+            && let Some(observada) = iesei::observacao::UnidadeExibida::nova(&nome)
+        {
+            let visao = if publica_visao_detalhada(html) {
+                iesei::observacao::VisaoDoControle::Detalhada
+            } else {
+                iesei::observacao::VisaoDoControle::Resumida
+            };
+            indice.registrar_unidade_observada(instalacao, &alvo.geracao, &observada, visao);
+        }
         for (linha, url) in linhas_conferidas(alvo, html) {
-            let gravado = registrar(alvo, &unidade, ACAO_DO_TRABALHO, &linha.id, &url);
-            if gravado.is_ok() {
-                let _ = indice.registrar_processo(instalacao, &linha.numero, &linha.id);
+            let gravado = registrar(
+                alvo,
+                &unidade,
+                AcaoDoSei::ProcedimentoTrabalhar,
+                &linha.id,
+                &url,
+            );
+            if gravado {
+                indice.registrar_processo(instalacao, &linha.numero, &linha.id);
             }
         }
         if let Ok(url) = link_da_pesquisa(instalacao, &alvo.url_do_controle, html) {
-            let _ = registrar(alvo, &unidade, ACAO_DA_PESQUISA, "", &url);
+            registrar(alvo, &unidade, AcaoDoSei::ProtocoloPesquisar, "", &url);
         }
         if let Some(url) = mime.and_then(|mime| action_da_pesquisa_rapida(alvo, html, mime)) {
-            let _ = registrar(alvo, &unidade, PESQUISA_RAPIDA.acao, "", &url);
+            registrar(alvo, &unidade, PESQUISA_RAPIDA.acao, "", &url);
         }
     }
 }
 
-/// Guarda o link sem editar; a recusa da conferência é a resposta.
-fn registrar(
-    alvo: &Alvo<'_>,
-    unidade: &str,
-    acao: &str,
-    objeto: &str,
-    url: &str,
-) -> Result<(), RegistroRecusado> {
+/// Guarda o link sem editar; a recusa da conferência fica nos avisos do
+/// índice. `true` se a entrada passou.
+fn registrar(alvo: &Alvo<'_>, unidade: &str, acao: AcaoDoSei, id_alvo: &str, url: &str) -> bool {
     let chave = ChaveDoLink {
         geracao_sessao: &alvo.geracao,
         unidade,
         acao,
-        objeto,
+        alvo: id_alvo,
     };
-    alvo.indice.registrar_link(&alvo.instalacao, chave, url)
+    alvo.indice.guardar_link(&alvo.instalacao, chave, url)
 }
 
 /// As linhas da página pelo leitor da visão que ela publica (D se houver
 /// `tblProcessosDetalhado`, senão R); página recusada: nenhuma.
-fn linhas_da_pagina(html: &str) -> Vec<LinhaDoControle> {
+fn linhas_da_pagina(html: &crate::tela_html::HtmlServido) -> Vec<LinhaDoControle> {
     if publica_visao_detalhada(html) {
         crate::caixa_detalhada::linhas_com_link(html).unwrap_or_default()
     } else {
@@ -157,7 +170,10 @@ fn linhas_da_pagina(html: &str) -> Vec<LinhaDoControle> {
 /// Cada linha de NUP e id únicos na página cujo `href` relativo é o
 /// `procedimento_trabalhar` do Controle para o id da linha, com a URL
 /// absoluta conferida. As outras são puladas.
-fn linhas_conferidas(alvo: &Alvo<'_>, html: &str) -> Vec<(LinhaDoControle, String)> {
+fn linhas_conferidas(
+    alvo: &Alvo<'_>,
+    html: &crate::tela_html::HtmlServido,
+) -> Vec<(LinhaDoControle, String)> {
     let linhas = linhas_da_pagina(html);
     let mut nups: HashMap<&str, usize> = HashMap::new();
     let mut ids: HashMap<&str, usize> = HashMap::new();
@@ -167,7 +183,7 @@ fn linhas_conferidas(alvo: &Alvo<'_>, html: &str) -> Vec<(LinhaDoControle, Strin
     }
     let unicas: Vec<bool> = linhas
         .iter()
-        .map(|l| nups[l.numero.as_str()] == 1 && ids[l.id.as_str()] == 1)
+        .map(|l| nups.get(l.numero.as_str()) == Some(&1) && ids.get(l.id.as_str()) == Some(&1))
         .collect();
     linhas
         .into_iter()
@@ -181,7 +197,7 @@ fn linhas_conferidas(alvo: &Alvo<'_>, html: &str) -> Vec<(LinhaDoControle, Strin
 }
 
 fn trabalho_da_linha(alvo: &Alvo<'_>, linha: &LinhaDoControle) -> Option<String> {
-    let href = decodificar_atributo(linha.href.as_deref()?)?;
+    let href = decodificar_atributo(linha.href.as_deref()?);
     if !href.starts_with("controlador.php?") {
         return None;
     }
@@ -193,8 +209,13 @@ fn trabalho_da_linha(alvo: &Alvo<'_>, linha: &LinhaDoControle) -> Option<String>
 
 /// O `action` assinado de `frmProtocoloPesquisaRapida`, pela mesma
 /// derivação do envio de `ies processo NUP`.
-fn action_da_pesquisa_rapida(alvo: &Alvo<'_>, html: &str, mime: &str) -> Option<String> {
+fn action_da_pesquisa_rapida(
+    alvo: &Alvo<'_>,
+    html: &crate::tela_html::HtmlServido,
+    mime: &str,
+) -> Option<String> {
     let codificacao = codificacao_da_tela(mime)?;
+    // Cache local é melhor esforço: registro fora da forma é ignorado.
     let unidade = contexto_da_pagina(html).ok()?.unidade?;
     let tela = TelaServida {
         url: &alvo.url_do_controle,
@@ -205,7 +226,7 @@ fn action_da_pesquisa_rapida(alvo: &Alvo<'_>, html: &str, mime: &str) -> Option<
         &PESQUISA_RAPIDA,
         &alvo.instalacao,
         &tela,
-        &unidade,
+        Some(unidade.as_str()),
         &[(CAMPO_DA_PESQUISA_RAPIDA, "")],
     )
     .ok()
@@ -238,7 +259,7 @@ impl EnvioDoControle for EnvioColhendo<'_, '_> {
     {
         EnvioHttps.get(url, cookie)
     }
-    fn colher_controle(&mut self, html: &str, mime: Option<&str>) {
+    fn colher_controle(&mut self, html: &crate::tela_html::HtmlServido, mime: Option<&str>) {
         self.colheita.colher(html, mime);
     }
 }

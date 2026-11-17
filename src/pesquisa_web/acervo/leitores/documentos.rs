@@ -19,9 +19,9 @@ use crate::pesquisa_web::formulario_pesquisa::{
 use crate::pesquisa_web::paginacao::{
     Contagem, ErroPaginacaoDaPesquisa, conferir_contagem, planejar_pagina_por,
 };
-use crate::pesquisa_web::redirecionamento::ErroRedirecionamentoDaPesquisa as R;
 use crate::pesquisa_web::regras_formulario::PesquisarEm;
 use crate::pesquisa_web::resposta::pagina_selecionada;
+use crate::tela_html::HtmlServido;
 use crate::transporte::decodificar_resposta;
 
 /// O termo derivado: só precisa caber no `maxlength` (a resposta é a gravada).
@@ -31,7 +31,7 @@ const TERMO: &str = "0";
 pub(super) struct EstadoEmDocumentos {
     pendente: Option<SubmissaoDerivada>,
     /// Página 1 lida (contagem e HTML) da última pesquisa em documentos.
-    pagina_1: Option<(Contagem, String)>,
+    pagina_1: Option<(Contagem, HtmlServido)>,
     na_tela_de_resultado: bool,
 }
 
@@ -44,7 +44,8 @@ pub(super) fn tela(
 ) -> Registro {
     *d = EstadoEmDocumentos::default();
     let Some(unidade) = unidade else {
-        let motivo = Resultado::NaoAplicavel("unidade_do_controle_nao_gravada_antes_da_tela");
+        let motivo =
+            Resultado::NaoAplicavel("unidade_do_controle_nao_gravada_antes_da_tela".to_owned());
         return c.registro(Leitor::TelaEmDocumentos, r.passo, motivo);
     };
     let derivada = derivar(r, &url(r), |tela| {
@@ -54,7 +55,7 @@ pub(super) fn tela(
             tela,
             (unidade, TERMO),
         )
-        .map_err(|e| e.subcodigo())
+        .map_err(|e| format!("{e:?}"))
     });
     match derivada {
         Ok(submissao) => {
@@ -89,13 +90,13 @@ fn primeiro_envio(
     let url_do_envio = submissao.url().to_owned();
     let gravada = RespostaDoPost {
         resposta: web(r),
-        localizacao: gravacao::localizacao(r.item).map(str::to_owned),
+        localizacao: gravacao::localizacao(r.interacao).map(str::to_owned),
     };
     let leitor = Leitor::EnvioEmDocumentos;
     let enviada = match enviar_submissao_via(submissao, c.cookie, |_, _| Ok(gravada)) {
         Ok(enviada) => enviada,
         Err(erro) => {
-            let sub = falha_do_envio(erro).subcodigo();
+            let sub = format!("{:?}", falha_do_envio(erro));
             return vec![c.registro(leitor, r.passo, Resultado::Recusado(sub))];
         }
     };
@@ -103,18 +104,18 @@ fn primeiro_envio(
         d.na_tela_de_resultado = true;
         if opcao_marcada(html) != Opcao::Documentos {
             d.na_tela_de_resultado = false;
-            let motivo = Resultado::NaoAplicavel("pesquisa_gravada_em_processos");
+            let motivo = Resultado::NaoAplicavel("pesquisa_gravada_em_processos".to_owned());
             return vec![c.registro(leitor, r.passo, motivo)];
         }
     }
     let interpretado = match EmDocumentos::interpretar(enviada, &c.instalacao) {
         Ok(i) => i,
-        Err(ErroPesquisaProtocolo::Redirecionamento(R::IdDocumentoAusenteNoRedirecionamento)) => {
-            let motivo = Resultado::NaoAplicavel("redirecionamento_para_processo_sem_id_documento");
+        Err(ErroPesquisaProtocolo::Redirecionamento(crate::pesquisa_web::redirecionamento::ErroRedirecionamentoDaPesquisa::IdDocumentoAusenteNoRedirecionamento)) => {
+            let motivo = Resultado::NaoAplicavel("redirecionamento_para_processo_sem_id_documento".to_owned());
             return vec![c.registro(leitor, r.passo, motivo)];
         }
         Err(erro) => {
-            let sub = erro.subcodigo();
+            let sub = format!("{erro:?}");
             return vec![c.registro(leitor, r.passo, Resultado::Recusado(sub))];
         }
     };
@@ -132,7 +133,9 @@ fn primeiro_envio(
             let mut lido = c.lido(leitor, r.passo, forma);
             lido.total_declarado = Some(lista.total_declarado);
             let contagem = EmDocumentos::contagem(&interpretado.resposta);
-            let html = interpretado.html.unwrap_or_default();
+            let html = interpretado
+                .html
+                .unwrap_or_else(|| HtmlServido::de_teste(""));
             let plano = plano(c, r, contagem, &html, &url_do_envio, unidade);
             d.pagina_1 = Some((contagem, html));
             vec![lido, plano]
@@ -145,7 +148,7 @@ fn plano(
     c: &Cassette<'_>,
     r: &Resposta<'_>,
     contagem: Contagem,
-    html: &str,
+    html: &HtmlServido,
     url_do_envio: &str,
     unidade: &str,
 ) -> Registro {
@@ -156,7 +159,9 @@ fn plano(
         Err(ErroPaginacaoDaPesquisa::PaginaForaDoIntervalo { paginas: 1, .. }) => {
             return c.lido(leitor, r.passo, "uma_pagina_so");
         }
-        Err(erro) => return c.registro(leitor, r.passo, Resultado::Recusado(erro.subcodigo())),
+        Err(erro) => {
+            return c.registro(leitor, r.passo, Resultado::Recusado(format!("{erro:?}")));
+        }
     };
     let derivada = derivar(r, url_do_envio, |tela| {
         let pedido_da_tela = (unidade, TERMO);
@@ -167,7 +172,7 @@ fn plano(
             pedido_da_tela,
             pedido.inicio,
         )
-        .map_err(|e| e.subcodigo())
+        .map_err(|e| format!("{e:?}"))
     });
     match derivada {
         Ok(_) => c.lido(leitor, r.passo, "pagina_2_planejada"),
@@ -188,26 +193,26 @@ fn pagina_seguinte(
     if opcao_marcada(&html) != Opcao::Documentos {
         return None;
     }
-    let recusa = |sub| Some(c.registro(leitor, r.passo, Resultado::Recusado(sub)));
+    let recusa = |sub: &str| Some(c.registro(leitor, r.passo, Resultado::Recusado(sub.to_owned())));
     let Some((primeira, html_1)) = &d.pagina_1 else {
         return match ler_resposta_de_documentos(&html, None) {
             Ok(_) => Some(c.lido(leitor, r.passo, "pagina_lida_sem_pagina_1")),
-            Err(erro) => recusa(erro.subcodigo()),
+            Err(erro) => recusa(&format!("{erro:?}")),
         };
     };
-    let dom = tl::parse(&html, tl::ParserOptions::default()).ok()?;
+    let dom = crate::tela_html::arvore(&html);
     let numero = match pagina_selecionada(&dom) {
-        Ok(Some(n)) => u32::try_from(n).unwrap_or(u32::MAX),
-        _ => return recusa("pagina_selecionada_nao_observada_no_paginador"),
+        Some(n) => u32::try_from(n).unwrap_or(u32::MAX),
+        None => return recusa("pagina_selecionada_ausente_no_paginador"),
     };
     let pedido = match planejar_pagina_por(*primeira, Some(html_1), numero) {
         Ok(Some(pedido)) => pedido,
         Ok(None) => return Some(c.lido(leitor, r.passo, "pagina_1_reenviada")),
-        Err(erro) => return recusa(erro.subcodigo()),
+        Err(erro) => return recusa(&format!("{erro:?}")),
     };
     let resposta = match ler_resposta_de_documentos(&html, Some((pedido.esperada, pedido.numero))) {
         Ok(resposta) => resposta,
-        Err(erro) => return recusa(erro.subcodigo()),
+        Err(erro) => return recusa(&format!("{erro:?}")),
     };
     let forma = match &resposta {
         RespostaDeDocumentos::Lista(l) if l.linhas_ausentes_da_faixa > 0 => {
@@ -218,7 +223,7 @@ fn pagina_seguinte(
     Some(
         match conferir_contagem(&pedido, EmDocumentos::contagem(&resposta)) {
             Ok(()) => c.lido(leitor, r.passo, forma),
-            Err(erro) => c.registro(leitor, r.passo, Resultado::Recusado(erro.subcodigo())),
+            Err(erro) => c.registro(leitor, r.passo, Resultado::Recusado(format!("{erro:?}"))),
         },
     )
 }

@@ -1,56 +1,29 @@
 //! Leitura opt-in de HTML privado previamente obtido da interface Web.
 //! Nunca estabelece sessão nem executa GET, POST ou escrita no SEI.
-use crate::{
-    Cli, Documento, Domain, arquivo_texto_documento, documento, documento_web, transporte,
-};
+use crate::uso_invalido::{UsoInvalido, recusar};
+use crate::{Cli, Documento, Domain, arquivo_texto_documento, documento, documento_web};
 use serde_json::json;
 use std::path::Path;
-use std::process::ExitCode;
 
-#[derive(Debug, Clone, PartialEq, Eq)]
+#[derive(Debug, Clone, PartialEq, Eq, thiserror::Error)]
+#[error("{self:?}")]
 enum ErroHtmlPrivado {
-    QuantidadeDeDocumentos,
-    OpcoesDeDocumentoSemEvidencia,
-    Numero(documento::NumeroDocumentoInvalido),
-    Fonte(transporte::FalhaTransporte),
-    Titulo(documento_web::ErroTituloDocumento),
-    Corpo(documento_web::ErroCorpoDocumento),
+    Fonte(#[from] crate::arquivo_privado::ErroArquivoPrivado),
+    /// O arquivo não cabe no limite do HTML interpretado.
+    HtmlAcimaDoLimite(#[from] crate::tela_html::HtmlAcimaDoLimite),
+    Titulo(#[from] documento_web::ErroTituloDocumento),
+    Corpo(#[from] documento_web::ErroCorpoDocumento),
     NumeroDiferenteDoSolicitado,
-    Exportacao(arquivo_texto_documento::ErroArquivoTexto),
-}
-
-impl ErroHtmlPrivado {
-    fn subcodigo(&self) -> &'static str {
-        match self {
-            Self::QuantidadeDeDocumentos => "html_privado_exige_um_documento",
-            Self::OpcoesDeDocumentoSemEvidencia => {
-                "opcoes_de_documento_incompativeis_com_html_privado"
-            }
-            Self::Numero(erro) => erro.subcodigo(),
-            Self::Fonte(erro) => erro.subcodigo(),
-            Self::Titulo(erro) => erro.subcodigo(),
-            Self::Corpo(erro) => erro.subcodigo(),
-            Self::NumeroDiferenteDoSolicitado => "numero_do_html_diferente_do_solicitado",
-            Self::Exportacao(erro) => erro.subcodigo(),
-        }
-    }
-    fn status(&self) -> u8 {
-        match self {
-            Self::QuantidadeDeDocumentos
-            | Self::OpcoesDeDocumentoSemEvidencia
-            | Self::Numero(_) => 2,
-            _ => 1,
-        }
-    }
+    Exportacao(#[from] arquivo_texto_documento::ErroArquivoTexto),
 }
 
 fn conferir_comando(
     documento: &Documento,
     unidade: Option<&str>,
-) -> Result<documento::NumeroDocumento, ErroHtmlPrivado> {
-    if documento.numeros.len() != 1 {
-        return Err(ErroHtmlPrivado::QuantidadeDeDocumentos);
-    }
+) -> Result<documento::NumeroDocumento, UsoInvalido> {
+    let [numero] = documento.numeros.as_slice() else {
+        return Err(UsoInvalido::QuantidadeDeDocumentos);
+    };
     if documento.processo.is_some()
         || documento.versao.is_some()
         || documento.ocultar_inacessiveis
@@ -58,21 +31,21 @@ fn conferir_comando(
         || documento.acao.is_some()
         || unidade.is_some()
     {
-        return Err(ErroHtmlPrivado::OpcoesDeDocumentoSemEvidencia);
+        return Err(UsoInvalido::OpcoesDeDocumentoSemEvidencia);
     }
-    documento::NumeroDocumento::novo(&documento.numeros[0]).map_err(ErroHtmlPrivado::Numero)
+    Ok(numero.clone())
 }
 
 /// Seleção positiva deve verificar identidade exata, sem converter zeros.
 fn selecionar(
-    html: &str,
+    html: &crate::tela_html::HtmlServido,
     numero: &documento::NumeroDocumento,
 ) -> Result<(documento_web::IdentidadeDoDocumento, String), ErroHtmlPrivado> {
-    let identidade = documento_web::identidade_do_titulo(html).map_err(ErroHtmlPrivado::Titulo)?;
+    let identidade = documento_web::identidade_do_titulo(html)?;
     if identidade.numero != numero.as_str() {
         return Err(ErroHtmlPrivado::NumeroDiferenteDoSolicitado);
     }
-    let texto = documento_web::texto_do_corpo(html).map_err(ErroHtmlPrivado::Corpo)?;
+    let texto = documento_web::texto_do_corpo(html)?;
     Ok((identidade, texto))
 }
 
@@ -87,15 +60,17 @@ fn exportar(
     arquivo_texto_documento::salvar(&destino, texto).map_err(ErroHtmlPrivado::Exportacao)
 }
 
-pub(super) fn tentar_ler(cli: &Cli) -> Option<ExitCode> {
+pub(super) fn tentar_ler(cli: &Cli) -> Option<anyhow::Result<()>> {
     let Domain::Documento(documento) = &cli.command else {
         return None;
     };
     let arquivo = documento.html_privado.as_deref()?;
     let resultado: Result<_, ErroHtmlPrivado> = (|| {
-        let numero = conferir_comando(documento, cli.unidade.as_deref())?;
-        let html =
-            transporte::arquivo_privado(arquivo, 8_000_000).map_err(ErroHtmlPrivado::Fonte)?;
+        let numero =
+            conferir_comando(documento, cli.unidade.as_deref()).unwrap_or_else(|uso| recusar(uso));
+        let html = crate::tela_html::HtmlServido::novo(
+            crate::arquivo_privado::ler(arquivo, 8_000_000).map_err(ErroHtmlPrivado::Fonte)?,
+        )?;
         let (identidade, texto) = selecionar(&html, &numero)?;
         let exportado = documento
             .saida
@@ -104,8 +79,12 @@ pub(super) fn tentar_ler(cli: &Cli) -> Option<ExitCode> {
             .transpose()?;
         Ok((identidade, texto, exportado))
     })();
-    Some(match resultado {
-        Ok((identidade, texto, exportado)) => {
+    let (identidade, texto, exportado) = match resultado {
+        Ok(lido) => lido,
+        Err(erro) => return Some(Err(erro.into())),
+    };
+    {
+        {
             if let Some(bytes) = exportado {
                 if cli.json {
                     println!(
@@ -113,8 +92,7 @@ pub(super) fn tentar_ler(cli: &Cli) -> Option<ExitCode> {
                         json!({
                             "documento": identidade, "bytes": bytes,
                             "escopo": "html_privado_texto_exportado_offline",
-                            "autenticacao_remota": false,
-                            "versao_atual": null
+                            "autenticacao_remota": false
                         })
                     );
                 } else {
@@ -129,8 +107,7 @@ pub(super) fn tentar_ler(cli: &Cli) -> Option<ExitCode> {
                     json!({
                         "documento": identidade, "texto": texto,
                         "escopo": "html_privado_offline",
-                        "autenticacao_remota": false,
-                        "versao_atual": null
+                        "autenticacao_remota": false
                     })
                 );
             } else {
@@ -140,34 +117,9 @@ pub(super) fn tentar_ler(cli: &Cli) -> Option<ExitCode> {
                 );
                 println!("{texto}");
             }
-            ExitCode::SUCCESS
         }
-        Err(erro) => {
-            if cli.json {
-                println!(
-                    "{}",
-                    json!({
-                        "codigo": if erro.status() == 2 {
-                            "entrada_invalida"
-                        } else if matches!(erro, ErroHtmlPrivado::Exportacao(_)) {
-                            "arquivo_privado_invalido"
-                        } else {
-                            "fonte_invalida"
-                        },
-                        "subcodigo": erro.subcodigo(),
-                        "erro": "leitura de documento no HTML privado não comprovada",
-                        "retentavel": false
-                    })
-                );
-            } else {
-                eprintln!(
-                    "IES: HTML privado de documento recusado [{}]",
-                    erro.subcodigo()
-                );
-            }
-            ExitCode::from(erro.status())
-        }
-    })
+    }
+    Some(Ok(()))
 }
 
 #[cfg(test)]
@@ -199,7 +151,11 @@ mod tests {
         };
         assert!(conferir_comando(&comando, None).is_ok());
         let numero = documento::NumeroDocumento::novo("0007").unwrap();
-        let (identidade, texto) = selecionar(&html("0007"), &numero).unwrap();
+        let (identidade, texto) = selecionar(
+            &crate::tela_html::HtmlServido::de_teste(&html("0007")),
+            &numero,
+        )
+        .unwrap();
         let inexistente = std::env::temp_dir()
             .join(format!("ies-html-diretorio-ausente-{}", std::process::id()))
             .join("nao-existe");
@@ -223,7 +179,11 @@ mod tests {
         ));
         std::fs::create_dir(&raiz).unwrap();
         let numero = documento::NumeroDocumento::novo("0007").unwrap();
-        let (identidade, texto) = selecionar(&html("0007"), &numero).unwrap();
+        let (identidade, texto) = selecionar(
+            &crate::tela_html::HtmlServido::de_teste(&html("0007")),
+            &numero,
+        )
+        .unwrap();
         assert_eq!(exportar(&raiz, &identidade, &texto), Ok(texto.len()));
         let destino = raiz.join("0007.txt");
         assert_eq!(std::fs::read_to_string(&destino).unwrap(), texto);
@@ -247,7 +207,11 @@ mod tests {
     #[test]
     fn html_com_numero_exato_devolve_texto_sem_versao_inventada() {
         let numero = documento::NumeroDocumento::novo("0007").unwrap();
-        let (identidade, texto) = selecionar(&html("0007"), &numero).unwrap();
+        let (identidade, texto) = selecionar(
+            &crate::tela_html::HtmlServido::de_teste(&html("0007")),
+            &numero,
+        )
+        .unwrap();
         assert_eq!(identidade.numero, "0007");
         assert_eq!(identidade.tipo, "Ofício");
         assert_eq!(texto, "Texto preservado da captura.");
@@ -257,7 +221,10 @@ mod tests {
     fn numero_nao_casado_nao_aceita_zero_a_esquerda_perdido() {
         let numero = documento::NumeroDocumento::novo("7").unwrap();
         assert_eq!(
-            selecionar(&html("0007"), &numero),
+            selecionar(
+                &crate::tela_html::HtmlServido::de_teste(&html("0007")),
+                &numero
+            ),
             Err(ErroHtmlPrivado::NumeroDiferenteDoSolicitado)
         );
     }
@@ -265,10 +232,10 @@ mod tests {
     #[test]
     fn recusa_corpo_com_script_sem_expor_segredos() {
         let numero = documento::NumeroDocumento::novo("0007").unwrap();
-        let suspeito = html("0007").replace(
+        let suspeito = crate::tela_html::HtmlServido::de_teste(&html("0007").replace(
             "<p>Texto preservado da captura.</p>",
             "<script>valor_interno</script><p>Texto</p>",
-        );
+        ));
         assert_eq!(
             selecionar(&suspeito, &numero),
             Err(ErroHtmlPrivado::Corpo(
@@ -306,7 +273,7 @@ mod tests {
         };
         assert_eq!(
             conferir_comando(&documento, None),
-            Err(ErroHtmlPrivado::QuantidadeDeDocumentos)
+            Err(UsoInvalido::QuantidadeDeDocumentos)
         );
         let cli = Cli::try_parse_from([
             "ies",
@@ -323,7 +290,7 @@ mod tests {
         };
         assert_eq!(
             conferir_comando(&documento, None),
-            Err(ErroHtmlPrivado::OpcoesDeDocumentoSemEvidencia)
+            Err(UsoInvalido::OpcoesDeDocumentoSemEvidencia)
         );
     }
 }

@@ -129,7 +129,7 @@ Inválida."`; login correto **pelo proxy HTTPS do ambiente** (túnel
 CONNECT) → `login_realizado`, 6 requisições; o mesmo com `NO_PROXY='*'`
 → conexão direta, `login_realizado`, 6. Naquele binário os demais
 comandos ainda conectavam direto; agora usam o mesmo cliente e o mesmo
-proxy ([transporte HTTPS](../../contracts/cli.md#transporte-https-um-cliente-proxy-do-ambiente-em-todos-os-comandos)).
+proxy ([transporte HTTPS](../../contracts/cli/transporte-https.md#transporte-https-um-cliente-proxy-do-ambiente-em-todos-os-comandos)).
 Revalidar `unidade atual` pelo proxy do ambiente e com `NO_PROXY='*'`:
 `NOT_RUN`.
 

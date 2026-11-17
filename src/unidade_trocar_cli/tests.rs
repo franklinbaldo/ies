@@ -3,8 +3,10 @@
 //! link da unidade anterior volta do índice; o Controle novo é colhido com
 //! a chave da unidade nova. Arquivos e hashes sintéticos.
 use super::*;
+use crate::acao_do_sei::AcaoDoSei;
 use crate::indice_local::{ChaveDoLink, NOME_DO_ARQUIVO, unidade_dos_links};
 use crate::sessao_login::geracao_da_sessao;
+use crate::tela_html::HtmlServido;
 use crate::unidade_trocar::tests_apoio::{
     COOKIE, ID_A, ID_B, ORIGEM, controle, url_controle, url_limpa,
 };
@@ -36,6 +38,34 @@ fn pasta() -> std::path::PathBuf {
     pasta
 }
 
+#[test]
+fn falhas_da_aplicacao_preservam_a_causa_tipificada() {
+    let dir = pasta();
+    let arquivos = ArquivosDeAcesso {
+        url_controle: dir.join("url"),
+        cookie: dir.join("cookie"),
+        origem: dir.join("origem"),
+    };
+    let indice = IndiceLocal::em(dir.join(NOME_DO_ARQUIVO));
+    let instalacao = Instalacao::interpretar(ORIGEM).unwrap();
+    let novo = ControleLido {
+        url: url_limpa(ID_B),
+        html: HtmlServido::de_teste(&controle("PR-B", ID_B)),
+        mime: "text/html; charset=iso-8859-1".into(),
+    };
+
+    std::fs::create_dir(&arquivos.url_controle).unwrap();
+    assert!(matches!(
+        aplicar_troca(&arquivos, &indice, &instalacao, COOKIE, &novo),
+        Err(
+            crate::sessao_login::ErroLogin::DestinoDaSessaoNaoEhArquivoRegular(
+                crate::configuracao::ArquivoPrivado::UrlControle
+            )
+        )
+    ));
+    std::fs::remove_dir_all(dir).unwrap();
+}
+
 fn link_de_trabalho(id_unidade: &str) -> String {
     format!(
         "{ORIGEM}/controlador.php?acao=procedimento_trabalhar&id_procedimento=7&infra_sistema=100000100&infra_unidade_atual={id_unidade}&infra_hash={}",
@@ -64,8 +94,8 @@ fn troca_regrava_sessao_e_nada_da_unidade_anterior_e_reaproveitado() {
     let chave = |unidade| ChaveDoLink {
         geracao_sessao: &geracao,
         unidade,
-        acao: "procedimento_trabalhar",
-        objeto: "7",
+        acao: AcaoDoSei::ProcedimentoTrabalhar,
+        alvo: "7",
     };
     indice
         .registrar_link(&instalacao, chave(ID_A), &link_de_trabalho(ID_A))
@@ -77,22 +107,16 @@ fn troca_regrava_sessao_e_nada_da_unidade_anterior_e_reaproveitado() {
     assert!(indice.link(&instalacao, chave(ID_A)).is_some());
     let novo = ControleLido {
         url: url_limpa(ID_B),
-        html: controle("PR-B", ID_B),
+        html: HtmlServido::de_teste(&controle("PR-B", ID_B)),
         mime: "text/html; charset=iso-8859-1".into(),
     };
     assert_eq!(
-        aplicar_troca(
-            &arquivos,
-            &indice,
-            &instalacao,
-            &CookieDaSessao::sintetico(COOKIE),
-            &novo,
-        ),
+        aplicar_troca(&arquivos, &indice, &instalacao, COOKIE, &novo,),
         Ok(Some(2))
     );
     let gravada = std::fs::read_to_string(&arquivos.url_controle).unwrap();
     assert_eq!(gravada.trim(), url_limpa(ID_B));
-    assert_eq!(unidade_dos_links(gravada.trim()).as_deref(), Some(ID_B));
+    assert_eq!(unidade_dos_links(gravada.trim()).as_deref(), Ok(ID_B));
     assert!(crate::sessao_login::mesma_geracao(
         &arquivos,
         &url_limpa(ID_B),
@@ -123,10 +147,10 @@ fn sucesso_publica_escopo_da_sessao_e_so_nomes_dos_campos() {
     };
     let lido = |url: String| ControleLido {
         url,
-        html: String::new(),
+        html: HtmlServido::de_teste(""),
         mime: String::new(),
     };
-    let troca = Troca {
+    let mut troca = Troca {
         antes: "PR-A".into(),
         pedida: "PR-B".into(),
         escolhida: Some(unidade("PR-B", ID_B)),
@@ -135,6 +159,7 @@ fn sucesso_publica_escopo_da_sessao_e_so_nomes_dos_campos() {
         confirmado: true,
         controle_inicial: lido(url_controle(ID_A)),
         controle_novo: Some(lido(url_limpa(ID_B))),
+        cookie: crate::transporte::sessao::CookieLido::sintetico(COOKIE),
     };
     let valor = json_de_sucesso(&troca, Some(4), 5);
     assert_eq!(valor["depois"], "PR-B");
@@ -143,7 +168,24 @@ fn sucesso_publica_escopo_da_sessao_e_so_nomes_dos_campos() {
     assert_eq!(valor["links_descartados"], 4);
     assert_eq!(valor["requisicoes"], 5);
     assert_eq!(valor["envio"]["campos"][1], "selInfraUnidades");
+    let mut bytes = Vec::new();
+    serde_json::to_writer_pretty(&mut bytes, &resultado_troca(&troca, Some(4), 5)).unwrap();
+    assert_eq!(
+        std::str::from_utf8(&bytes).unwrap(),
+        serde_json::to_string_pretty(&valor).unwrap()
+    );
     let texto = valor.to_string();
     assert!(!texto.contains("infra_hash") && !texto.contains("https://"));
     assert!(humano(&troca, 5).contains("toda a sessão da conta"));
+
+    // Já na unidade: oferecidas e envio saem da saída (não viram [] nem null).
+    troca.escolhida = None;
+    troca.campos_do_envio = None;
+    troca.controle_novo = None;
+    let legado = json_de_sucesso(&troca, None, 2);
+    let direto = serde_json::to_value(resultado_troca(&troca, None, 2)).unwrap();
+    assert_eq!(direto, legado);
+    assert!(direto.get("oferecidas").is_none());
+    assert!(direto.get("envio").is_none());
+    assert_eq!(direto["depois"], "PR-B");
 }

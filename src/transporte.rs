@@ -1,32 +1,16 @@
 //! GET HTTPS da caixa; cookies só seguem para a origem explicitamente autorizada.
 //! Sem login, redirects ou tentativa de outro backend; os POSTs são os de
 //! `envio_post`. Todo pedido passa pelo `cliente_https` único (com proxy).
+use crate::acao_do_sei::AcaoDoSei;
 use crate::instalacao::Instalacao;
-use std::fs;
 use std::io::Read;
 use std::path::Path;
 
+pub(crate) use falha::FatoDaResposta;
 pub use falha::{FalhaTransporte, StatusHttpRecusado};
 
 #[path = "transporte/falha.rs"]
 mod falha;
-
-// PHP decodifica percent/plus e converte pontos/espaços em underscores;
-// preservar a rejeição de nomes não literais já exigida pelo transporte.
-pub(crate) fn conferir_chave_de_consulta(chave: &str) -> Result<(), FalhaTransporte> {
-    if chave.is_empty() || !chave.bytes().all(|b| b.is_ascii_lowercase() || b == b'_') {
-        return Err(FalhaTransporte::ChaveDeConsultaNaoCanonica);
-    }
-    Ok(())
-}
-
-// Alguns servidores PHP tratam ';' como separador adicional de parâmetros.
-pub(crate) fn conferir_valor_de_consulta(valor: &str) -> Result<(), FalhaTransporte> {
-    if valor.contains(';') {
-        return Err(FalhaTransporte::SeparadorDeConsultaAmbiguo);
-    }
-    Ok(())
-}
 
 fn validar_url(url: &str) -> Result<(&str, &str), FalhaTransporte> {
     let partes =
@@ -34,17 +18,23 @@ fn validar_url(url: &str) -> Result<(&str, &str), FalhaTransporte> {
     let authority = partes.host;
     let route = partes.caminho;
     let query = partes.consulta.ok_or(FalhaTransporte::UrlInvalida)?;
-    if route.rsplit('/').next() != Some("controlador.php") || route.contains("..") {
+    if route.rsplit_once('/').map_or(route, |(_, depois)| depois) != "controlador.php"
+        || route.contains("..")
+    {
         return Err(FalhaTransporte::UrlInvalida);
     }
     let mut actions = 0;
     let mut hashes = 0;
     for item in query.split('&') {
         let (nome, valor) = item.split_once('=').ok_or(FalhaTransporte::UrlInvalida)?;
-        conferir_chave_de_consulta(nome)?;
-        conferir_valor_de_consulta(valor)?;
+        crate::consulta_do_controlador::conferir_chave_de_consulta(nome)
+            .map_err(|_| FalhaTransporte::UrlInvalida)?;
+        crate::consulta_do_controlador::conferir_valor_de_consulta(valor)
+            .map_err(|_| FalhaTransporte::UrlInvalida)?;
         match nome {
-            "acao" if valor == "procedimento_controlar" => actions += 1,
+            "acao" if AcaoDoSei::ler(valor) == Some(AcaoDoSei::ProcedimentoControlar) => {
+                actions += 1;
+            }
             // 192: o Controle a que a troca de unidade redireciona (#205).
             "infra_hash"
                 if matches!(valor.len(), 64 | 192)
@@ -73,73 +63,16 @@ pub(crate) fn validar_origem(url: &str, origem: &str) -> Result<(), FalhaTranspo
     Ok(())
 }
 
-pub(crate) fn arquivo_privado(path: &Path, limite: u64) -> Result<String, FalhaTransporte> {
-    // A checagem do caminho fornece erros específicos; a decisão de
-    // segurança usa o descritor aberto, não metadados sujeitos a TOCTOU.
-    let observado = fs::symlink_metadata(path)
-        .map_err(|_| FalhaTransporte::ArquivoPrivadoAusenteOuInacessivel)?;
-    if observado.file_type().is_symlink() {
-        return Err(FalhaTransporte::ArquivoPrivadoLinkSimbolico);
-    }
-    if !observado.is_file() {
-        return Err(FalhaTransporte::CaminhoDeArquivoNaoEhArquivo);
-    }
-
-    let mut options = fs::OpenOptions::new();
-    options.read(true);
-    #[cfg(target_os = "linux")]
-    {
-        use std::os::unix::fs::OpenOptionsExt;
-        // O_NOFOLLOW impede a troca do último componente por symlink.
-        // O_NONBLOCK impede que a troca por FIFO bloqueie a leitura.
-        options.custom_flags(0o400_000 | 0o4_000);
-    }
-    let arquivo = options.open(path).map_err(|erro| {
-        if cfg!(target_os = "linux") && erro.raw_os_error() == Some(40) {
-            FalhaTransporte::ArquivoPrivadoLinkSimbolico
-        } else {
-            FalhaTransporte::ArquivoPrivadoNaoPodeSerLido
-        }
-    })?;
-    let metadata = arquivo
-        .metadata()
-        .map_err(|_| FalhaTransporte::ArquivoPrivadoNaoPodeSerLido)?;
-    if !metadata.is_file() {
-        return Err(FalhaTransporte::CaminhoDeArquivoNaoEhArquivo);
-    }
-    if metadata.len() == 0 {
-        return Err(FalhaTransporte::ArquivoPrivadoVazio);
-    }
-    if metadata.len() > limite {
-        return Err(FalhaTransporte::ArquivoPrivadoAcimaDoLimite);
-    }
-    #[cfg(unix)]
-    {
-        use std::os::unix::fs::PermissionsExt;
-        if metadata.permissions().mode() & 0o077 != 0 {
-            return Err(FalhaTransporte::ArquivoPrivadoComPermissoesInseguras);
-        }
-    }
-    let mut bytes = Vec::new();
-    arquivo
-        .take(limite + 1)
-        .read_to_end(&mut bytes)
-        .map_err(|_| FalhaTransporte::ArquivoPrivadoNaoPodeSerLido)?;
-    if u64::try_from(bytes.len()).is_ok_and(|tamanho| tamanho > limite) {
-        return Err(FalhaTransporte::ArquivoPrivadoAcimaDoLimite);
-    }
-    if bytes.is_empty() {
-        return Err(FalhaTransporte::ArquivoPrivadoVazio);
-    }
-    String::from_utf8(bytes).map_err(|_| FalhaTransporte::ArquivoPrivadoNaoPodeSerLido)
-}
-
 pub(crate) fn validar_cookie(cookie: &str) -> Result<(), FalhaTransporte> {
-    if cookie.is_empty() || cookie.contains(':') || !cookie.bytes().all(|b| (32..=126).contains(&b))
-    {
+    if !cookie_no_formato(cookie) {
         return Err(FalhaTransporte::CookieInvalido);
     }
     Ok(())
+}
+
+/// Não vazio, sem `:` e só ASCII visível ou espaço: o valor do cabeçalho.
+pub(crate) fn cookie_no_formato(cookie: &str) -> bool {
+    !cookie.is_empty() && !cookie.contains(':') && cookie.bytes().all(|b| (32..=126).contains(&b))
 }
 
 /// Pré-validação offline: usa exatamente as regras do transporte Web,
@@ -158,7 +91,7 @@ pub fn verificar_sessao_local_de_arquivos(
 pub(crate) fn ler_limitado<R: Read>(leitor: R, limite: usize) -> Result<Vec<u8>, FalhaTransporte> {
     let mut bytes = Vec::new();
     leitor
-        .take(limite as u64 + 1)
+        .take(u64::try_from(limite).map_or(u64::MAX, |limite| limite.saturating_add(1)))
         .read_to_end(&mut bytes)
         .map_err(|erro| resposta_http::falha_de_leitura(&erro))?;
     if bytes.len() > limite {
@@ -180,13 +113,38 @@ pub(crate) struct RespostaWeb<R: Read> {
 }
 
 pub(crate) fn decodificar_resposta<R: Read>(
+    resposta: RespostaWeb<R>,
+) -> Result<crate::tela_html::HtmlServido, FalhaTransporte> {
+    if resposta.status_code == 200 && !crate::mime_web::e_html(&resposta.mime) {
+        return Err(FalhaTransporte::TipoDeConteudoNaoHtml);
+    }
+    let html = decodificar_corpo(resposta)?;
+    if crate::tela_login::e_tela_login(&html) {
+        return Err(FalhaTransporte::PaginaDeLoginRecebidaNoControle);
+    }
+    Ok(html)
+}
+
+/// Resposta XML das consultas AJAX (`controlador_ajax.php`): o mesmo
+/// status, limite e charset da tela HTML, com o MIME XML.
+pub(crate) fn decodificar_resposta_xml<R: Read>(
+    resposta: RespostaWeb<R>,
+) -> Result<crate::tela_html::HtmlServido, FalhaTransporte> {
+    let principal = crate::mime_web::principal(&resposta.mime);
+    if resposta.status_code == 200
+        && !principal.eq_ignore_ascii_case("application/xml")
+        && !principal.eq_ignore_ascii_case("text/xml")
+    {
+        return Err(FalhaTransporte::TipoDeConteudoNaoXml);
+    }
+    decodificar_corpo(resposta)
+}
+
+fn decodificar_corpo<R: Read>(
     mut resposta: RespostaWeb<R>,
-) -> Result<String, FalhaTransporte> {
+) -> Result<crate::tela_html::HtmlServido, FalhaTransporte> {
     if resposta.status_code != 200 {
         return Err(recusar_status(resposta));
-    }
-    if !crate::mime_web::e_html(&resposta.mime) {
-        return Err(FalhaTransporte::TipoDeConteudoNaoHtml);
     }
     if resposta
         .content_length
@@ -196,35 +154,28 @@ pub(crate) fn decodificar_resposta<R: Read>(
     }
     // A resposta é limitada DURANTE a leitura, mesmo sem Content-Length.
     let bytes = ler_limitado(&mut resposta.corpo, crate::MAX_HTML_BYTES)?;
-    let html = corpo::decode_http_body(&bytes, &resposta.mime)
-        .map_err(|_| FalhaTransporte::CorpoNaoDecodificavelNoCharsetDeclarado)?;
-    if crate::tela_login::e_tela_login(&html) {
-        return Err(FalhaTransporte::PaginaDeLoginRecebidaNoControle);
-    }
-    Ok(html)
+    crate::tela_html::HtmlServido::do_corpo(&bytes, &resposta.mime)
+        .map_err(FalhaTransporte::CorpoNaoDecodificavelNoCharsetDeclarado)
 }
 
-/// Status diferente de 200: a variante sai do status; o corpo (fora 3xx)
+/// Status diferente de 200: o número sobe como veio; o corpo (fora 3xx)
 /// é lido uma vez, até `corpo_de_recusa::LIMITE`, só para a mensagem.
 pub(crate) fn recusar_status<R: Read>(resposta: RespostaWeb<R>) -> FalhaTransporte {
     let codigo = resposta.status_code;
     let status = u16::try_from(codigo).unwrap_or(0);
     if (300..400).contains(&codigo) {
-        return FalhaTransporte::Redirecionamento(StatusHttpRecusado::sem_mensagem(status));
+        // 3xx: o corpo não é lido.
+        return FalhaTransporte::Status(StatusHttpRecusado::sem_mensagem(status));
     }
     let lido = corpo_de_recusa::ler(resposta.corpo, &resposta.mime);
     let recusa = StatusHttpRecusado {
         status,
         mensagem_do_servidor: lido.mensagem,
     };
-    match codigo {
-        403 if lido.bloqueio_de_seguranca => {
-            FalhaTransporte::BloqueioDeSegurancaDaInstalacao(recusa)
-        }
-        401 | 403 => FalhaTransporte::AcessoNegado(recusa),
-        429 => FalhaTransporte::StatusHttpDeLimiteDeRequisicoes(recusa),
-        500..=599 => FalhaTransporte::StatusHttpDeErroDoServidor(recusa),
-        _ => FalhaTransporte::StatusHttpDiferenteDe200(recusa),
+    if codigo == 403 && lido.bloqueio_de_seguranca {
+        FalhaTransporte::BloqueioDeSegurancaDaInstalacao(recusa)
+    } else {
+        FalhaTransporte::Status(recusa)
     }
 }
 
@@ -239,7 +190,7 @@ fn read_box_via<R: Read, F>(
     cookie_file: &Path,
     origem_autorizada: &str,
     requisitar: F,
-) -> Result<String, FalhaTransporte>
+) -> Result<crate::tela_html::HtmlServido, FalhaTransporte>
 where
     F: FnOnce(&str, &str) -> Result<RespostaWeb<R>, FalhaTransporte>,
 {
@@ -254,7 +205,7 @@ pub fn read_box(
     url: &str,
     cookie_file: &Path,
     origem_autorizada: &str,
-) -> Result<String, FalhaTransporte> {
+) -> Result<crate::tela_html::HtmlServido, FalhaTransporte> {
     read_box_via(url, cookie_file, origem_autorizada, get_https)
 }
 
@@ -267,24 +218,12 @@ pub(crate) fn get_https(
     cliente_https::requisitar("GET", destino, cookie, None).map(cliente_https::resposta_web)
 }
 
-/// O mesmo GET com ambiente e camada TLS injetáveis (proxy falso nos testes).
-#[cfg(test)]
-pub(crate) fn get_https_via<S: Read + std::io::Write>(
-    destino: &str,
-    cookie: &str,
-    ambiente: impl Fn(&str) -> Option<String>,
-    envolver: impl FnOnce(&str, std::net::TcpStream) -> Result<S, FalhaTransporte>,
-) -> Result<RespostaWeb<impl Read>, FalhaTransporte> {
-    cliente_https::requisitar_via("GET", destino, cookie, None, ambiente, envolver)
-        .map(cliente_https::resposta_web)
-}
-
 #[cfg(all(test, unix))] // só o teste de link simbólico
 pub fn read_box_from_file(
     url_file: &Path,
     cookie_file: &Path,
     origem_file: &Path,
-) -> Result<String, FalhaTransporte> {
+) -> Result<crate::tela_html::HtmlServido, FalhaTransporte> {
     let referencias = sessao::ReferenciasDaSessao::ler(url_file, origem_file, cookie_file)?;
     read_box(
         referencias.url_do_controle(),
@@ -314,9 +253,6 @@ pub(crate) mod saneamento;
 
 #[path = "transporte/validacao_da_infra.rs"]
 pub(crate) mod validacao_da_infra;
-
-#[path = "transporte/proxy.rs"]
-pub(crate) mod proxy;
 
 #[path = "transporte/resposta_http.rs"]
 pub(crate) mod resposta_http;
@@ -355,10 +291,6 @@ mod tests_resposta;
 #[cfg(test)]
 #[path = "transporte/tests_recusa_http.rs"]
 mod tests_recusa_http;
-
-#[cfg(test)]
-#[path = "transporte/tests_cliente_https.rs"]
-mod tests_cliente_https;
 
 #[cfg(all(test, target_os = "linux"))]
 #[path = "transporte/paired_worker.rs"]
