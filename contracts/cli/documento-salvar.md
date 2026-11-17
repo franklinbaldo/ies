@@ -64,10 +64,21 @@ O JSON continua sem conteúdo HTML, URLs assinadas ou cookies e traz
 `versao_editada`, `bytes_base`, `bytes_editada`, `escrita_remota: false`,
 `base_verificada: false` e `trecho_divergente`, e `confirmado: false`.
 
-`--confirmar` **continua bloqueado para instalações reais do SEI**:
-retorna `escrita_remota_nao_validada` após conferir o par.
+`--confirmar` **não salva em instalações reais do SEI nesta versão**.
+A origem da sessão é conferida antes de qualquer GET/POST: fora da lista
+fechada de treinamento, a CLI recusa com
+`ErroSalvarNoSei::OrigemForaDoTreinamento`; numa instalação real de
+treinamento da lista, recusa com
+`ErroSalvarNoSei::InstalacaoSemEditorObservado` também antes da rede,
+pois o transporte nativo ainda não foi implementado. Origem impossível
+de interpretar também resulta em `InstalacaoSemEditorObservado`.
+Essas recusas ocorrem no fluxo de confirmação após a prévia local, sem
+atestarem a integridade remota do par. O antigo diagnóstico
+`escrita_remota_nao_validada` descrevia a implementação anterior,
+não o tipo emitido nesta PR draft.
+
 Somente no host sintético `sei.test`, com sessão de ensaio, a CLI
-executa os BDD-89-02/03/04 sintéticos: relê a versão N, confere
+executa o fluxo sintético legado: relê a versão N, confere
 conteúdo idêntico à foto local, consulta o editor oferecido, deriva um
 único POST do formulário servido e comprova a versão N+1 por GET
 independente. Também relê o editor para observar a contagem de assinaturas
