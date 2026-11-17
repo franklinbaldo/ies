@@ -60,9 +60,13 @@ novo (o passo 2 substitui a senha no cofre).
  "conexao":"nao_verificada"}
 ```
 
-Sem `--json`, as mesmas informações e as duas variáveis a definir
-(`IES_CONFIG_FILE`, `IES_CREDENCIAIS_FILE`) antes de `ies login`. Nunca
-a senha.
+Sem `--json`, as mesmas informações e as linhas a copiar antes de
+`ies login`: `export IES_CONFIG_FILE=…` e `export IES_CREDENCIAIS_FILE=…`
+(sh, bash, zsh) e `$env:IES_CONFIG_FILE = …` e
+`$env:IES_CREDENCIAIS_FILE = …` (PowerShell), cada caminho entre aspas
+simples com o escape do próprio shell: espaço, `$`, crase e aspas no
+caminho continuam dado, nunca comando. Nenhum script é gravado. Nunca a
+senha.
 
 ## Falhas tipadas
 

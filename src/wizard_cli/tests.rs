@@ -219,3 +219,42 @@ fn respostas_invalidas_param_sem_gravar() {
     assert!(!pasta.join(".ies").exists());
     let _ = std::fs::remove_dir_all(&pasta);
 }
+
+/// As linhas POSIX da saída, coladas num `sh` descartável, exportam os
+/// caminhos exatos e não executam nada do nome (espaço, `$(...)`, aspas,
+/// crase). Sem cofre, sem rede: só o texto que a pessoa copia.
+#[cfg(unix)]
+#[test]
+fn instrucoes_posix_exportam_o_caminho_exato_sem_executar_o_nome() {
+    let pasta = pasta_pessoal();
+    let marcador = pasta.join("executado");
+    let perfil = format!("p q$(touch {})'`x`\"", marcador.display());
+    let config = format!("{}/.ies/{perfil}/ies-config.json", pasta.display());
+    let credenciais = format!("{}/.ies/{perfil}/credenciais", pasta.display());
+    let texto = instrucoes_de_ativacao(&config, &credenciais);
+    let exports: Vec<&str> = texto
+        .lines()
+        .map(str::trim)
+        .filter(|linha| linha.starts_with("export "))
+        .collect();
+    assert_eq!(exports.len(), 2, "{texto}");
+    let script = format!(
+        "{}\nprintf '%s\\n%s\\n' \"$IES_CONFIG_FILE\" \"$IES_CREDENCIAIS_FILE\"\n\
+         sh -c 'test -n \"$IES_CONFIG_FILE\"' || echo NAO_EXPORTADO",
+        exports.join("\n")
+    );
+    let saida = std::process::Command::new("sh")
+        .arg("-c")
+        .arg(&script)
+        .env_clear()
+        .output()
+        .unwrap();
+    assert!(saida.status.success());
+    assert_eq!(
+        String::from_utf8(saida.stdout).unwrap(),
+        format!("{config}\n{credenciais}\n")
+    );
+    assert!(!marcador.exists());
+    assert!(texto.contains("$env:IES_CONFIG_FILE = '"));
+    let _ = std::fs::remove_dir_all(&pasta);
+}

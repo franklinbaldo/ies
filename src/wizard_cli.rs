@@ -140,14 +140,32 @@ pub(crate) fn executar(args: &WizardArgs, json_mode: bool) -> anyhow::Result<()>
         );
     } else {
         println!(
-            "IES: perfil '{}' criado; senha no cofre do sistema ({}); conexão ainda não verificada.\n\
-             Para usar o perfil, defina no terminal:\n  \
-             IES_CONFIG_FILE={config}\n  IES_CREDENCIAIS_FILE={credenciais}\n\
-             e rode `ies login`.",
-            gravado.perfil, gravado.servico
+            "IES: perfil '{}' criado; senha no cofre do sistema ({}); conexão ainda não verificada.\n{}",
+            gravado.perfil,
+            gravado.servico,
+            instrucoes_de_ativacao(&config, &credenciais)
         );
     }
     Ok(())
+}
+
+/// O que copiar no terminal antes de `ies login`: `export` POSIX e
+/// `$env:` do PowerShell, cada caminho entre aspas simples do shell (a
+/// pasta pessoal e o perfil podem ter espaço, `$`, aspas ou crase).
+fn instrucoes_de_ativacao(config: &str, credenciais: &str) -> String {
+    let posix = |valor: &str| format!("'{}'", valor.replace('\'', "'\\''"));
+    let powershell = |valor: &str| format!("'{}'", valor.replace('\'', "''"));
+    format!(
+        "Para usar o perfil, no sh/bash/zsh:\n  \
+         export IES_CONFIG_FILE={}\n  export IES_CREDENCIAIS_FILE={}\n\
+         no PowerShell:\n  \
+         $env:IES_CONFIG_FILE = {}\n  $env:IES_CREDENCIAIS_FILE = {}\n\
+         e rode `ies login`.",
+        posix(config),
+        posix(credenciais),
+        powershell(config),
+        powershell(credenciais)
+    )
 }
 
 /// Pergunta, confere o perfil e só então grava: cofre primeiro (sem cofre,
