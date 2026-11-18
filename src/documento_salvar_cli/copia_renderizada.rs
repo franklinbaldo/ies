@@ -58,6 +58,31 @@ fn assinaturas(html: &str) -> Option<Vec<(String, Option<String>)>> {
     Some(corpo.filhos().map(assinatura).collect())
 }
 
+// Uma assinatura de tag/classe não identifica a seção: <p>A</p> e
+// <p>B</p> têm a mesma forma. Quando há um trecho literal único na foto,
+// ele precisa pertencer à região correspondente. Placeholders de
+// visualização podem não aparecer literalmente, por isso não são âncoras.
+fn ancora_literal(
+    html: &str,
+    corpo: (usize, usize),
+    secao: &str,
+    regiao: (usize, usize),
+) -> Option<bool> {
+    if secao.is_empty() {
+        return Some(false);
+    }
+    let trecho = html.get(corpo.0..corpo.1)?;
+    let mut ocorrencias = trecho.match_indices(secao);
+    let Some((posicao, _)) = ocorrencias.next() else {
+        return Some(false);
+    };
+    if ocorrencias.next().is_some() {
+        return Some(false);
+    }
+    let posicao = corpo.0 + posicao;
+    (regiao.0 <= posicao && posicao + secao.len() <= regiao.1).then_some(true)
+}
+
 fn moldura(html: &str, secoes: &[Secao], principal: &str) -> Option<(usize, usize)> {
     // A visualização junta as seções em ordem, depois acrescenta o rodapé
     // de versão. Os valores de variáveis podem mudar o texto da visualização.
@@ -74,27 +99,48 @@ fn moldura(html: &str, secoes: &[Secao], principal: &str) -> Option<(usize, usiz
     let elementos: Vec<_> = corpo.filhos().collect();
     let mut atual = 0;
     let mut intervalo = None;
+    let mut provas = Vec::new();
     for secao in secoes {
         let filhos = assinaturas(&secao.html)?;
         let seguinte = atual + filhos.len();
         let renderizados = elementos.get(atual..seguinte)?;
-        if !renderizados.iter().copied().map(assinatura).eq(filhos) {
+        if !renderizados.iter().copied().map(assinatura).eq(filhos.iter().cloned()) {
             return None;
         }
+        let abertura_secao = renderizados
+            .first()?
+            .atributo(ATRIBUTO)?
+            .parse::<usize>()
+            .ok()?
+            + inicio;
+        let fechamento_secao = match elementos.get(seguinte) {
+            Some(e) => e.atributo(ATRIBUTO)?.parse::<usize>().ok()? + inicio,
+            None => rodape,
+        };
+        let ancorada = ancora_literal(
+            html,
+            (inicio, rodape),
+            &secao.html,
+            (abertura_secao, fechamento_secao),
+        )?;
+        provas.push((filhos, ancorada));
         if secao.nome == principal {
-            let abertura = renderizados
-                .first()?
-                .atributo(ATRIBUTO)?
-                .parse::<usize>()
-                .ok()?
-                + inicio;
-            let fechamento = match elementos.get(seguinte) {
-                Some(e) => e.atributo(ATRIBUTO)?.parse::<usize>().ok()? + inicio,
-                None => rodape,
-            };
-            intervalo = Some((abertura, fechamento));
+            intervalo = Some((abertura_secao, fechamento_secao));
         }
         atual = seguinte;
+    }
+    // Grupos de seções indistinguíveis por tag/classe precisam de
+    // âncoras literais únicas para todas, exceto no máximo uma. Sem
+    // essas âncoras a posição da principal seria apenas uma suposição.
+    for (forma, _) in &provas {
+        let total = provas.iter().filter(|(outra, _)| outra == forma).count();
+        let ancoradas = provas
+            .iter()
+            .filter(|(outra, ancorada)| outra == forma && *ancorada)
+            .count();
+        if total > 1 && ancoradas + 1 < total {
+            return None;
+        }
     }
     let (abertura, fechamento) = intervalo?;
     if atual != elementos.len() || abertura >= fechamento {
@@ -191,6 +237,46 @@ mod testes {
         assert!(matches!(
             corpo_editado(&base, &edicao.replace("Unidade", "Outra"), &secoes, "28"),
             Err(ErroSalvarNoSei::RegiaoNaoEditavelAlterada)
+        ));
+    }
+
+    #[test]
+    fn recusa_secoes_de_mesma_forma_com_conteudo_trocado() {
+        let secoes = [
+            Secao {
+                nome: "vizinha".into(),
+                html: "<p>Vizinha</p>".into(),
+            },
+            Secao {
+                nome: "principal".into(),
+                html: "<p>Principal</p>".into(),
+            },
+        ];
+        let base = "<body><p>Principal</p><p>Vizinha</p><div unselectable=\"on\"></div></body>";
+        let edicao = "<body><p>Principal</p><p>Alterada</p><div unselectable=\"on\"></div></body>";
+        assert!(matches!(
+            corpo_editado(base, edicao, &secoes, "principal"),
+            Err(ErroSalvarNoSei::FotoLocalForaDaForma)
+        ));
+    }
+
+    #[test]
+    fn recusa_duas_secoes_sem_ancora_literal_na_mesma_forma() {
+        let secoes = [
+            Secao {
+                nome: "vizinha".into(),
+                html: "<p>@unidade@</p>".into(),
+            },
+            Secao {
+                nome: "principal".into(),
+                html: "<p>@destinatario@</p>".into(),
+            },
+        ];
+        let base = "<body><p>Unidade</p><p>Destinatário</p><div unselectable=\"on\"></div></body>";
+        let edicao = "<body><p>Unidade</p><p>Outro</p><div unselectable=\"on\"></div></body>";
+        assert!(matches!(
+            corpo_editado(base, edicao, &secoes, "principal"),
+            Err(ErroSalvarNoSei::FotoLocalForaDaForma)
         ));
     }
 
