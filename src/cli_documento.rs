@@ -48,8 +48,11 @@ pub(crate) enum DocumentoAcao {
         #[arg(long)]
         confirmar: bool,
         /// Lista as cópias locais versionadas sem consultar o SEI
-        #[arg(long, conflicts_with_all = ["versao", "confirmar"])]
+        #[arg(long, conflicts_with_all = ["versao", "confirmar", "sem_normalizar"])]
         listar_copias: bool,
+        /// Envia o HTML da seção como está no arquivo, sem normalização.
+        #[arg(long)]
+        sem_normalizar: bool,
     },
     /// Pesquisa documento na Web (GET, GET e POST); com --pagina N, mais um POST
     Buscar {

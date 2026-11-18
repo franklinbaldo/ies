@@ -1,5 +1,5 @@
 //! Salvamento no editor publicado para uma minuta sem assinatura.
-use super::{ErroSalvarNoSei, Resultado, carregar_par};
+use super::{ErroSalvarNoSei, Resultado, carregar_par, html_para_envio};
 use crate::acao_do_sei::AcaoDoSei;
 use crate::arvore_processo::{endereco::conferir_endereco_relativo_por, tela_do_documento};
 use crate::consulta_do_controlador::ConsultaDoControlador;
@@ -328,6 +328,7 @@ pub(super) fn executar(
     numero: &NumeroDocumento,
     previa: &PreviaCopia,
     instalacao: &Instalacao,
+    normalizar: bool,
 ) -> Result<Resultado, ErroSalvarNoSei> {
     let (versao, base, edicao) = carregar_par(numero, previa)?;
 
@@ -356,7 +357,10 @@ pub(super) fn executar(
     let principal = protocolo
         .principal()
         .ok_or(ErroEditorNativo::EditorForaDaForma)?;
-    let editado = copia_renderizada::corpo_editado(&base, &edicao, protocolo.secoes(), principal)?;
+    let editado = html_para_envio(
+        copia_renderizada::corpo_editado(&base, &edicao, protocolo.secoes(), principal)?,
+        normalizar,
+    )?;
     let alvo_edicao = AlvoDaEdicao {
         instalacao,
         sessao,
@@ -370,10 +374,10 @@ pub(super) fn executar(
             &editor,
             secoes,
             principal,
-            editado,
+            &editado,
         ),
         Protocolo::Ckeditor(config) => {
-            config.salvar(instalacao, &alvo, &editor.url, principal, editado)
+            config.salvar(instalacao, &alvo, &editor.url, principal, &editado)
         }
     };
     let persistido = abrir_editor(&mut envio, instalacao, &alvo);
@@ -392,7 +396,7 @@ pub(super) fn executar(
     if !persistido
         .secoes()
         .iter()
-        .any(|s| s.nome == principal && s.html == editado)
+        .any(|s| s.nome == principal && s.html == editado.as_ref())
     {
         return Err(ErroEditorNativo::ConteudoPersistidoDiferente { versao: nova }.into());
     }

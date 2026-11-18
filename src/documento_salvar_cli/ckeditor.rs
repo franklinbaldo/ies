@@ -155,6 +155,13 @@ impl Configuracao {
             nome: &'a str,
             html: &'a str,
         }
+        #[derive(Serialize)]
+        #[serde(rename_all = "camelCase")]
+        struct Pedido<'a> {
+            secoes_conteudo: Vec<SecaoEnviada<'a>>,
+            ignorar_nova_versao: &'static str,
+            versao: &'a Versao,
+        }
         let secoes: Vec<_> = self
             .secoes()
             .iter()
@@ -167,13 +174,6 @@ impl Configuracao {
                 },
             })
             .collect();
-        #[derive(Serialize)]
-        #[serde(rename_all = "camelCase")]
-        struct Pedido<'a> {
-            secoes_conteudo: Vec<SecaoEnviada<'a>>,
-            ignorar_nova_versao: &'static str,
-            versao: &'a Versao,
-        }
         serde_json::to_vec(&Pedido {
             secoes_conteudo: secoes,
             ignorar_nova_versao: "N",
@@ -190,6 +190,10 @@ impl Configuracao {
         principal: &str,
         editado: &str,
     ) -> Result<Option<VersaoDocumento>, ErroEditorNativo> {
+        #[derive(Deserialize)]
+        struct Aceite {
+            versao: Versao,
+        }
         let url = self
             .url(instalacao, &alvo.id_documento)
             .ok_or(ErroEditorNativo::FormularioDeOutroDocumento)?;
@@ -208,10 +212,6 @@ impl Configuracao {
         )?);
         if resposta.status_code != 200 {
             return Err(ErroEditorNativo::Tela(recusar_status(resposta)));
-        }
-        #[derive(Deserialize)]
-        struct Aceite {
-            versao: Versao,
         }
         let recebido = ler_limitado(resposta.corpo, crate::MAX_HTML_BYTES)?;
         let json: Aceite =

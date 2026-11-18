@@ -196,7 +196,7 @@ mod testes {
 
     #[test]
     fn localiza_html_malformado_anterior_pelo_trecho_literal() {
-        let antigo = "<p style=\"color:red\">Antigo<strong> sem fechamento";
+        let antigo = "<div style=\"color:red\">Antigo<strong> sem fechamento";
         let antes = "<body><div>Unidade</div>\n";
         let depois = "<hr><p>Rodapé</p><div unselectable=\"on\"></div></body>";
         let base = format!("{antes}{antigo}{depois}");

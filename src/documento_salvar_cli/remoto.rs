@@ -1,5 +1,6 @@
 //! BDD-89-02/03/04: editor SEI 4 projetado a partir de observações, releitura.
 //! A escrita externa permanece bloqueada até validação da instalação.
+use super::html_para_envio;
 use crate::Cli;
 use crate::acao_do_sei::AcaoDoSei;
 use crate::arquivo_copia::ler_regular;
@@ -58,6 +59,7 @@ fn corpo_sintetico(html: &str) -> Option<&str> {
 #[error("{self:?}")]
 enum ErroSalvarNoSei {
     EditorNativo(#[from] nativo::ErroEditorNativo),
+    Normalizacao(#[from] crate::tela_html::ErroNormalizacao),
     Local(#[source] ErroCopia),
     PastaAtualIlegivel(#[source] std::io::Error),
     /// Instalação fora do escopo de treinamento desta operação.
@@ -221,6 +223,7 @@ fn executar(
     indice: &crate::indice_local::IndiceLocal,
     numero: &NumeroDocumento,
     previa: &PreviaCopia,
+    normalizar: bool,
 ) -> Resultado {
     let instalacao = match Instalacao::interpretar(sessao.origem) {
         Some(instalacao) if instalacao.host() == "sei.test" => instalacao,
@@ -231,7 +234,7 @@ fn executar(
             )
             .is_ok() =>
         {
-            return nativo::executar(cli, sessao, indice, numero, previa, &instalacao)
+            return nativo::executar(cli, sessao, indice, numero, previa, &instalacao, normalizar)
                 .unwrap_or_else(Resultado::Recusado);
         }
         _ => return Resultado::Recusado(ErroSalvarNoSei::InstalacaoSemEditorObservado),
@@ -272,6 +275,10 @@ fn executar(
         Ok(par) => par,
         Err(falha) => return Resultado::Recusado(falha),
     };
+    let editada = match html_para_envio(editada, normalizar) {
+        Ok(html) => html,
+        Err(falha) => return Resultado::Recusado(falha.into()),
+    };
     let url = format!(
         "{}/controlador.php?acao={acao}&id_documento={}",
         sessao.origem,
@@ -295,7 +302,7 @@ fn executar(
             codificacao: CodificacaoDaTela::Utf8,
         },
         cli.unidade.as_deref(),
-        &[("txaEditor_1", editada), ("confirmar_assinaturas", "1")],
+        &[("txaEditor_1", &editada), ("confirmar_assinaturas", "1")],
     );
     let envio_unico = match envio_unico {
         Ok(envio_unico) => envio_unico,
@@ -317,7 +324,7 @@ fn executar(
             url_editor: &url,
             numero,
             versao_nova: previa.versao_editada,
-            editada,
+            editada: &editada,
             respondeu,
         },
     )
@@ -327,9 +334,10 @@ pub(super) fn confirmar(
     cli: &Cli,
     numero: &NumeroDocumento,
     previa: &PreviaCopia,
+    normalizar: bool,
 ) -> anyhow::Result<()> {
     com_sessao(cli, |sessao, indice| {
-        match executar(cli, sessao, indice, numero, previa) {
+        match executar(cli, sessao, indice, numero, previa, normalizar) {
             Resultado::Confirmado(versao) => {
                 if cli.json {
                     let mut valor = json!({
@@ -337,6 +345,7 @@ pub(super) fn confirmar(
                         "confirmado": true,
                         "versao_criada": versao,
                         "releitura_confirmada": true,
+                        "normalizou_html_antes_do_envio": normalizar,
                         "assinaturas_apos": 0
                     });
                     crate::indice_local::anexar_avisos(&mut valor, indice);

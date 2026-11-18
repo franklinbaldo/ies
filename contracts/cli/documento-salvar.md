@@ -9,7 +9,7 @@ effect: write
 
 # Prévia local e salvamento de documento
 
-`ies documento salvar DOC [--versao N] [--confirmar]` compara, no
+`ies documento salvar DOC [--versao N] [--sem-normalizar] [--confirmar]` compara, no
 diretório atual, o par local de #207: `DOC.vN.html`, a **foto** que
 `ies documento DOC --saida` gravou com o HTML servido da versão N
 ([versões e foto](documento-obter-versoes.md)), e `DOC.v(N+1).html`, a
@@ -82,7 +82,16 @@ O editor clássico usa o formulário publicado. O CKEditor 5 usa o JSON
 da operação indicada pela tela. Em ambos, os valores das outras seções
 vêm do editor. Se a foto e as seções não permitem localizar o corpo
 com segurança, a CLI recusa sem gravar.
-A resposta e uma nova leitura conferem a versão criada e o conteúdo persistido.
+
+Por padrão, a confirmação normaliza o fragmento editável com o parser
+HTML5 antes do envio. Isso pode fechar tags, ajustar a estrutura,
+padronizar atributos e normalizar quebras de linha. O arquivo local
+permanece como o usuário o deixou. A prévia offline informa o modo
+escolhido. Com `--sem-normalizar`, o trecho segue como está no arquivo.
+Nos dois modos, aplica-se a codificação exigida pelo editor.
+
+A resposta e uma nova leitura conferem a versão criada e o HTML
+efetivamente enviado.
 Se a versão mudar e o conteúdo lido diferir, a recusa informa a
 versão gravada. Nenhuma tentativa é repetida automaticamente.
 
