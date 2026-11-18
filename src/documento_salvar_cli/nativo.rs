@@ -61,7 +61,6 @@ pub(super) enum ErroEditorNativo {
     FormularioDeOutroDocumento,
     EnvioSemAceite(#[source] ErroSubmissaoFormulario),
     JsonDoEditor(#[source] serde_json::Error),
-    ConteudoPersistidoDiferente { versao: u32 },
 }
 
 fn link_em_script(html: &HtmlServido, inicio: &str, fim: &str) -> Option<String> {
@@ -505,7 +504,8 @@ pub(super) fn executar(
         .iter()
         .any(|s| s.nome == principal && s.html == editado.as_ref())
     {
-        return Err(ErroEditorNativo::ConteudoPersistidoDiferente { versao: nova }.into());
+        // O POST pode ter gravado outra versão/conteúdo; não sugerir retry.
+        return Ok(Resultado::Incerto);
     }
     Ok(Resultado::Confirmado(nova))
 }
