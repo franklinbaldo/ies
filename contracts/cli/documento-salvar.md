@@ -85,12 +85,20 @@ com segurança, a CLI recusa sem gravar.
 
 O fragmento editável permanece **HTML opaco**: nenhum parser HTML5
 transforma tags, atributos, listas, tabelas ou marcação malformada do
-corpo. Apenas as quebras de linha são canonicalizadas **no transporte**:
+corpo. A regra de LF canônico vale para **todo valor HTML incluído no POST**,
+inclusive seções vizinhas obtidas do editor e não editadas pelo usuário:
 CRCRLF, CRLF e CR isolado são convertidos em LF, como no Todos #1271/#1272
-e na issue #856. Os bytes originais da foto e da edição local permanecem
-intactos, e a conferência da base anterior ao POST é literal. Não existe
-opção para desativar LF canônico. A codificação de transporte do formulário
-clássico ou do JSON CKEditor continua sendo aplicada pelo respectivo editor.
+e na issue #856. Não há interpretação, mesclagem ou reescrita estrutural
+do HTML de nenhuma seção. As seções vizinhas só passam por essa
+canonicalização de quebras no momento de codificar o envio; os valores
+servidos, os bytes da foto e a edição local permanecem intactos, e a
+conferência da base anterior ao POST é literal. Não existe opção para
+desativar LF canônico. A codificação URL-encoded do formulário clássico
+ou a serialização JSON do CKEditor aplica-se *depois* da canonicalização.
+Essa política também pode normalizar finais de linha de seções vizinhas
+persistidas pelo SEI, efeito que deve ser incluído na revisão pré-merge
+e na validação de treinamento, sem atribuir tal comportamento a testes
+de escrita real ainda não realizados.
 
 Após aceite da versão esperada, uma nova leitura compara a versão criada
 e a seção principal com o **conteúdo efetivamente enviado** (HTML opaco
