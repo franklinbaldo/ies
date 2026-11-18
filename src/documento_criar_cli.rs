@@ -10,6 +10,12 @@ use crate::visao_do_controle::EnvioHttps;
 use crate::{Cli, Documento, DocumentoAcao, Domain};
 use serde_json::json;
 
+#[path = "documento_criar/copia_editavel.rs"]
+mod copia_editavel;
+use copia_editavel::CopiaEditavel;
+#[cfg(test)]
+pub(crate) use copia_editavel::contem_estilos;
+
 pub(crate) fn tentar_criar(cli: &Cli) -> Option<anyhow::Result<()>> {
     let Domain::Documento(Documento {
         acao:
@@ -31,6 +37,13 @@ pub(crate) fn tentar_criar(cli: &Cli) -> Option<anyhow::Result<()>> {
         return Some(Err(erro.into()));
     }
     Some(com_sessao(cli, |sessao, indice| {
+        let pasta = if *confirmar {
+            let pasta = std::env::current_dir()?;
+            crate::foto_documento::conferir_pasta(&pasta)?;
+            Some(pasta)
+        } else {
+            None
+        };
         let pedido = PedidoCriacao {
             nup: processo,
             unidade: cli.unidade.as_deref(),
@@ -43,12 +56,38 @@ pub(crate) fn tentar_criar(cli: &Cli) -> Option<anyhow::Result<()>> {
         let mut contagem = Contador::novo(&mut envio);
         let resultado = executar_criacao(sessao, &pedido, indice, &mut contagem, *confirmar);
         let requisicoes = contagem.feitas();
-        let resultado = resultado.map_err(|erro| {
+        let mut resultado = resultado.map_err(|erro| {
             anyhow::Error::from(erro).context(TentativaDeCriacao { requisicoes })
         })?;
-        publicar_resultado(cli.json, &resultado, indice);
-        Ok(())
+        let copia = match (&resultado.estado, pasta) {
+            (EstadoCriacao::Criado { numero_sei }, Some(pasta)) => {
+                copia_editavel::preparar(&pasta, numero_sei, &pedido, sessao, indice, &mut contagem)
+                    .map(Some)
+                    .map_err(|erro| {
+                        anyhow::Error::from(erro).context(CriadoSemCopia {
+                            numero_sei: numero_sei.clone(),
+                        })
+                    })
+            }
+            _ => Ok(None),
+        };
+        resultado.requisicoes = contagem.feitas();
+        publicar_resultado(
+            cli.json,
+            &resultado,
+            indice,
+            copia.as_ref().ok().and_then(Option::as_ref),
+        );
+        copia.map(|_| ())
     }))
+}
+
+#[derive(Debug, thiserror::Error)]
+#[error(
+    "Documento SEI {numero_sei} criado e confirmado. A cópia editável falhou; recupere o documento pelo número SEI."
+)]
+struct CriadoSemCopia {
+    numero_sei: String,
 }
 
 /// Requisições feitas até a falha: depois do POST, a criação pode ter
@@ -95,6 +134,7 @@ fn publicar_resultado(
     json_mode: bool,
     resultado: &ResultadoCriacao,
     indice: &crate::indice_local::IndiceLocal,
+    copia: Option<&CopiaEditavel>,
 ) {
     let numero_sei = match &resultado.estado {
         EstadoCriacao::Previa => None,
@@ -102,6 +142,9 @@ fn publicar_resultado(
     };
     if json_mode {
         let mut valor = resultado_json(resultado);
+        if let (Some(copia), Some(objeto)) = (copia, valor.as_object_mut()) {
+            objeto.insert("copia_editavel".to_owned(), json!(copia));
+        }
         crate::indice_local::anexar_avisos(&mut valor, indice);
         println!("{valor}");
         return;
@@ -123,6 +166,12 @@ fn publicar_resultado(
     }
     if let Some(nivel) = resultado.nivel {
         println!("Nível: {}", nivel.como_texto());
+    }
+    if let Some(copia) = copia {
+        println!("Cópia editável: {}", copia.arquivo);
+        if let Some(orientacao) = copia.orientacao {
+            println!("{orientacao}");
+        }
     }
     println!("Requisições: {}", resultado.requisicoes);
 }
