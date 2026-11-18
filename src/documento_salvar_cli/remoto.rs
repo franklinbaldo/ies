@@ -239,6 +239,18 @@ fn executar(
         }
         _ => return Resultado::Recusado(ErroSalvarNoSei::InstalacaoSemEditorObservado),
     };
+    executar_sintetico(cli, sessao, indice, numero, previa, normalizar, &instalacao)
+}
+
+fn executar_sintetico(
+    cli: &Cli,
+    sessao: &SessaoDoProcesso<'_>,
+    indice: &crate::indice_local::IndiceLocal,
+    numero: &NumeroDocumento,
+    previa: &PreviaCopia,
+    normalizar: bool,
+    instalacao: &Instalacao,
+) -> Resultado {
     let (n, local_base, local_editada) = match carregar_par(numero, previa) {
         Ok(par) => par,
         Err(falha) => return Resultado::Recusado(falha),
@@ -295,7 +307,7 @@ fn executar(
     }
     let envio_unico = derivar_submissao(
         &EDITAR,
-        &instalacao,
+        instalacao,
         &TelaServida {
             url: &url,
             html: &editor,

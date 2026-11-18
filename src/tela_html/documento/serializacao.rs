@@ -59,7 +59,7 @@ impl Serialize for Documento {
             };
             match &no.conteudo {
                 Conteudo::Raiz => {
-                    eventos.extend(no.filhos.iter().rev().copied().map(Evento::Abrir))
+                    eventos.extend(no.filhos.iter().rev().copied().map(Evento::Abrir));
                 }
                 Conteudo::Texto(texto) => serializador.write_text(texto)?,
                 Conteudo::Comentario(texto) => serializador.write_comment(texto)?,
