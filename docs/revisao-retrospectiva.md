@@ -26,9 +26,9 @@ merge a parecer prévio do 🦅, prevalece esta página.
 
 ## Exceções com revisão antes do merge
 
-**Proposta da direção (🐘), ainda a confirmar pelo proprietário.** Até
-a confirmação, a direção pede que sejam tratadas assim. Nelas o erro não
-se desfaz com revert, e a PR espera parecer do 🦅 no head exato:
+**Exceções determinadas expressamente pelo proprietário em 18/11/2026.**
+Nessas classes sensíveis, a PR exige revisão independente do 🦅 **antes**
+do merge, no diff e nos arquivos efetivamente integrados:
 
 - credenciais, sessão e escrita no SEI;
 - mudança de contrato do projeto (`AGENTS.md` e suas partes extraídas).
