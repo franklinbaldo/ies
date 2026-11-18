@@ -1,4 +1,4 @@
-//! Salvamento de despacho sem assinatura no editor clássico da UnB.
+//! Salvamento de despacho sem assinatura no editor clássico da `UnB`.
 use super::{ErroSalvarNoSei, Resultado, carregar_par};
 use crate::acao_do_sei::AcaoDoSei;
 use crate::arvore_processo::{endereco::conferir_endereco_relativo_por, tela_do_documento};
@@ -59,7 +59,7 @@ pub(super) enum ErroEditorUnb {
     ConteudoPersistidoDiferente { versao: u32 },
 }
 
-/// A foto de impressão da UnB precede o corpo com o cabeçalho de Despacho
+/// A foto de impressão da `UnB` precede o corpo com o cabeçalho de Despacho
 /// centralizado e o encerra antes do separador do rodapé. Os delimitadores
 /// vêm da base conferida, nunca da edição local.
 fn corpo_editado<'a>(base: &str, edicao: &'a str) -> Result<&'a str, ErroSalvarNoSei> {
