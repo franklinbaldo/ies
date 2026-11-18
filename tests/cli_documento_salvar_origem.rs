@@ -32,17 +32,17 @@ fn conferir_recusa(
     for modo_json in [false, true] {
         let mut comando = Command::new(env!("CARGO_BIN_EXE_ies"));
         comando
-            .current_dir(&pasta)
+            .current_dir(pasta)
             .env("IES_ORIGEM_FILE", pasta.join("origem"))
             .env("IES_URL_CONTROLE_FILE", pasta.join("url"))
             .env("IES_COOKIE_FILE", pasta.join("cookie"))
             .env("IES_INDICE_FILE", pasta.join("indice.sqlite3"))
-            .env("HOME", &pasta)
+            .env("HOME", pasta)
             .env_remove("IES_CONFIG_FILE")
             .env_remove("IES_CREDENCIAIS_FILE")
-            .env("HTTP_PROXY", &proxy)
-            .env("HTTPS_PROXY", &proxy)
-            .env("ALL_PROXY", &proxy)
+            .env("HTTP_PROXY", proxy)
+            .env("HTTPS_PROXY", proxy)
+            .env("ALL_PROXY", proxy)
             .env("NO_PROXY", "");
         if modo_json {
             comando.arg("--json");
