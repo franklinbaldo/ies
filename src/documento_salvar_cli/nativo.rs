@@ -355,19 +355,13 @@ mod testes_releitura_condicional {
 
         let sem_versao = reabrir_apos_aceite(Ok(None), 2, reler).unwrap();
         assert_eq!(sem_versao, None);
-        let errada = reabrir_apos_aceite(
-            Ok(Some(VersaoDocumento::nova(3).unwrap())),
-            2,
-            reler,
-        ).unwrap();
+        let errada =
+            reabrir_apos_aceite(Ok(Some(VersaoDocumento::nova(3).unwrap())), 2, reler).unwrap();
         assert_eq!(errada, None);
         assert_eq!(leituras.get(), 0);
 
-        let correta = reabrir_apos_aceite(
-            Ok(Some(VersaoDocumento::nova(2).unwrap())),
-            2,
-            reler,
-        ).unwrap();
+        let correta =
+            reabrir_apos_aceite(Ok(Some(VersaoDocumento::nova(2).unwrap())), 2, reler).unwrap();
         assert_eq!(correta, Some(42));
         assert_eq!(leituras.get(), 1);
     }
@@ -435,9 +429,8 @@ pub(super) fn executar(
     let nova = previa.versao_editada;
     // Não emitir GET de assinatura/editor quando o POST falhou, não recebeu
     // versão ou recebeu uma versão inesperada: a leitura seria descartada.
-    let persistido = reabrir_apos_aceite(aceite, nova, || {
-        abrir_editor(&mut envio, instalacao, &alvo)
-    })?;
+    let persistido =
+        reabrir_apos_aceite(aceite, nova, || abrir_editor(&mut envio, instalacao, &alvo))?;
     let Some(Ok(persistido)) = persistido else {
         return Ok(Resultado::Incerto);
     };
