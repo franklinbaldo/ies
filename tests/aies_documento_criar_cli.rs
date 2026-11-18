@@ -174,6 +174,7 @@ fn preparar_banco(duplicar_tipo: bool) -> (Connection, Instalacao) {
         )
         .unwrap();
     }
+    copia_editavel::semear_revisao_na_criacao(&banco);
     documentos::criar(&banco, &origem, CENARIO, "10", "291", "Anterior").unwrap();
     (banco, origem)
 }
@@ -200,6 +201,15 @@ fn executar_com_cena(
     duplicar_tipo: bool,
 ) -> (Vec<Output>, Vec<String>, usize) {
     let pasta = Pasta::nova();
+    executar_em(&pasta, comandos, resposta_incerta, duplicar_tipo)
+}
+
+fn executar_em(
+    pasta: &Pasta,
+    comandos: &[&[&str]],
+    resposta_incerta: bool,
+    duplicar_tipo: bool,
+) -> (Vec<Output>, Vec<String>, usize) {
     let (cert, identity) = identidade(&pasta.0, "sei.test");
     let origem = pasta.privado("origem", ORIGEM);
     let chave = ["infra", "hash"].join("_");
@@ -278,6 +288,7 @@ fn executar_com_cena(
         .map(|args| {
             Command::new(env!("CARGO_BIN_EXE_ies"))
                 .args(*args)
+                .current_dir(&pasta.0)
                 .env("IES_URL_CONTROLE_FILE", &controle)
                 .env("IES_COOKIE_FILE", &cookie)
                 .env("IES_ORIGEM_FILE", &origem)
@@ -345,6 +356,7 @@ fn bdd_246_01_cli_previa_sem_post_criador() {
     assert_eq!(resultado["tipo"], "Despacho");
     assert_eq!(resultado["nivel"], "publico");
     assert_eq!(resultado["confirmado"], false);
+    assert!(resultado.get("copia_editavel").is_none());
     assert_eq!(quantidade, 1);
     assert_eq!(
         trilha
@@ -377,6 +389,7 @@ fn bdd_246_02_cli_confirma_um_post_e_releitura() {
     let resultado = json(&saidas[0]);
     assert_eq!(resultado["numero_sei"], "1000002");
     assert_eq!(resultado["confirmado"], true);
+    assert_eq!(resultado["copia_editavel"]["arquivo"], "1000002.v2.html");
     assert_eq!(
         saidas[1].status.code(),
         Some(0),
@@ -433,3 +446,6 @@ mod cancelamento;
 
 #[path = "aies_documento_criar_cli/recusas.rs"]
 mod recusas;
+
+#[path = "aies_documento_criar_cli/copia_editavel.rs"]
+mod copia_editavel;

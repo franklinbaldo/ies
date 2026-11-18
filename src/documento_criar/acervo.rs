@@ -101,4 +101,24 @@ fn replay_documento_criar_go() {
     println!(
         "documento.criar GO: {respostas_alvo} respostas; {lidas} lidas, {recusadas} recusadas, {nao_aplicaveis} não aplicáveis"
     );
+    conferir_css_no_documento_gerado(raiz, &zip);
+}
+
+/// Exercita apenas a detecção de CSS no HTML original de impressão. A
+/// captura tem a impressão depois de salvar, não a foto da minuta inicial.
+fn conferir_css_no_documento_gerado(raiz: &Path, zip: &ZipDoAcervo) {
+    let card = raiz.join("cassettes/go/documento-criar-texto-go--5621c99af5dc.md");
+    let cassette =
+        conferir_cassette_ate(&card, zip, 120_000_000).expect("card GO da criação com texto");
+    let mut impressoes = 0;
+    for resposta in gravacao::respostas(&cassette.json) {
+        if resposta.operacao == "documento_imprimir_web" && resposta.status == 200 {
+            let html = html_da_resposta(resposta.interacao).expect("HTML de impressão GO");
+            assert!(crate::documento_criar_cli::contem_estilos(
+                &HtmlServido::de_teste(&html)
+            ));
+            impressoes += 1;
+        }
+    }
+    assert_eq!(impressoes, 2);
 }

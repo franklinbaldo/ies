@@ -25,7 +25,7 @@ pub(crate) enum DocumentoAcao {
         #[arg(long)]
         confirmar: bool,
     },
-    /// Inclui documento interno: prévia Web; confirmar faz escrita única com releitura.
+    /// Inclui documento interno: confirma por releitura e prepara a cópia editável.
     Criar {
         #[arg(long, required = true, value_parser = crate::processo::NumeroProcesso::novo)]
         processo: crate::processo::NumeroProcesso,
@@ -35,6 +35,7 @@ pub(crate) enum DocumentoAcao {
         descricao: Option<String>,
         #[arg(long, value_enum)]
         nivel: Option<crate::dominio::NivelDeAcesso>,
+        /// Cria uma vez no SEI e prepara os arquivos HTML no diretório atual.
         #[arg(long)]
         confirmar: bool,
     },
