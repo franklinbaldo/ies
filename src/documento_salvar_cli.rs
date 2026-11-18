@@ -102,7 +102,9 @@ pub(super) fn tentar_salvar_documento(cli: &Cli) -> Option<anyhow::Result<()>> {
                     "Diferenças locais (não comprovam alteração remota):\n{}",
                     dados.diff_humano
                 );
-                println!("A confirmação preservará o HTML opaco, normalizando apenas as quebras de linha para LF.");
+                println!(
+                    "A confirmação preservará o HTML opaco, normalizando apenas as quebras de linha para LF."
+                );
                 println!(
                     "Aviso: editar pode remover assinaturas; a oferta de edição do SEI ainda não foi verificada."
                 );
@@ -123,8 +125,14 @@ mod testes_listagem {
     fn somente_lf_e_canonizado_sem_parser_ou_reescrita_estrutural() {
         for (bruto, esperado) in [
             ("<p>A\r\r\n<b>B", "<p>A\n<b>B"),
-            ("<table><tr><td>1<br>\r\n2</td></tr></table>", "<table><tr><td>1<br>\n2</td></tr></table>"),
-            ("<ul><li>Um</li></ul>\r<p>Dois", "<ul><li>Um</li></ul>\n<p>Dois"),
+            (
+                "<table><tr><td>1<br>\r\n2</td></tr></table>",
+                "<table><tr><td>1<br>\n2</td></tr></table>",
+            ),
+            (
+                "<ul><li>Um</li></ul>\r<p>Dois",
+                "<ul><li>Um</li></ul>\n<p>Dois",
+            ),
             ("a\r\r\nb\r\nc\rd", "a\nb\nc\nd"),
             ("<p>&nbsp;</p>\né 🔎", "<p>&nbsp;</p>\né 🔎"),
         ] {
@@ -134,9 +142,10 @@ mod testes_listagem {
 
     #[test]
     fn nao_oferece_bypass_que_permita_cr_no_transporte() {
-        assert!(Cli::try_parse_from([
-            "ies", "documento", "salvar", "0007", "--sem-normalizar"
-        ]).is_err());
+        assert!(
+            Cli::try_parse_from(["ies", "documento", "salvar", "0007", "--sem-normalizar"])
+                .is_err()
+        );
     }
 
     #[test]
