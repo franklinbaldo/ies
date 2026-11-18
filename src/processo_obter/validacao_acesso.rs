@@ -90,8 +90,8 @@ pub(super) fn validar<V: EnvioDoProcesso>(
         ));
     };
     let url = link_oferecido(contexto, id, tela_do_trabalho)?;
-    let credenciais =
-        Credenciais::ler(&PathBuf::from(caminho)).map_err(ErroValidacaoAcesso::from)?;
+    let credenciais = Credenciais::ler(&PathBuf::from(caminho), &contexto.instalacao)
+        .map_err(ErroValidacaoAcesso::from)?;
     let (html, codificacao) = match rede.get(&url)? {
         Lida::Html { html, mime } => {
             let codificacao = crate::pagina_do_controle::codificacao_da_tela(&mime)

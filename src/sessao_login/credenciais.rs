@@ -1,7 +1,10 @@
 //! Credenciais do login, lidas só de arquivo privado `0600` e só quando o
 //! login é necessário. Formato: `usuario=`, `senha=` e `orgao=`, uma vez
-//! cada, uma por linha; linhas vazias são ignoradas.
+//! cada, uma por linha; linhas vazias são ignoradas. Sem a linha `senha=`,
+//! a senha vem do cofre do sistema operacional ([`crate::cofre`]).
 use super::{CampoDasCredenciais, ErroLogin};
+use crate::cofre::{self, ChaveDoCofre, ErroCofre};
+use crate::instalacao::Instalacao;
 use std::fmt;
 use std::path::Path;
 
@@ -37,15 +40,29 @@ impl Credenciais {
     }
 
     /// Arquivo privado pelas travas do transporte (`0600`, sem link, limite).
-    pub(crate) fn ler(caminho: &Path) -> Result<Self, ErroLogin> {
+    /// Sem `senha=`, a do cofre para o usuário nesta instalação.
+    pub(crate) fn ler(caminho: &Path, instalacao: &Instalacao) -> Result<Self, ErroLogin> {
         let texto = crate::arquivo_privado::ler(caminho, LIMITE_DO_ARQUIVO)
             .map_err(ErroLogin::ArquivoDeCredenciais)?;
-        Self::interpretar(&texto)
+        Self::interpretar_com_cofre(&texto, |usuario| {
+            cofre::obter(&ChaveDoCofre::nova(instalacao, usuario))
+        })
+    }
+
+    /// Só o arquivo: sem `senha=`, a senha é ausente.
+    #[cfg(test)]
+    pub(crate) fn interpretar(texto: &str) -> Result<Self, ErroLogin> {
+        Self::interpretar_com_cofre(texto, |_| Ok(None))
     }
 
     /// `usuario` e `orgao` aparados; `senha` exatamente como escrita depois
-    /// do primeiro `=`, só sem o fim de linha.
-    pub(crate) fn interpretar(texto: &str) -> Result<Self, ErroLogin> {
+    /// do primeiro `=`, só sem o fim de linha. Sem a linha `senha=`, o
+    /// cofre é consultado (uma vez, pelo usuário lido): entrada ausente é
+    /// `CampoDasCredenciaisAusente(Senha)`, falha do cofre é `Cofre`.
+    pub(crate) fn interpretar_com_cofre(
+        texto: &str,
+        senha_do_cofre: impl FnOnce(&str) -> Result<Option<String>, ErroCofre>,
+    ) -> Result<Self, ErroLogin> {
         let mut valores: [Option<String>; 3] = [None, None, None];
         for linha in texto.lines().filter(|linha| !linha.is_empty()) {
             let (chave, valor) = linha
@@ -72,16 +89,32 @@ impl Credenciais {
             *guardado = Some(valor.to_owned());
         }
         let [usuario, senha, orgao] = valores;
+        let usuario = usuario.ok_or(ErroLogin::CampoDasCredenciaisAusente(
+            CampoDasCredenciais::Usuario,
+        ))?;
+        let orgao = orgao.ok_or(ErroLogin::CampoDasCredenciaisAusente(
+            CampoDasCredenciais::Orgao,
+        ))?;
+        let senha = match senha {
+            Some(senha) => senha,
+            None => match senha_do_cofre(&usuario)? {
+                Some(senha) if !senha.is_empty() => senha,
+                Some(_) => {
+                    return Err(ErroLogin::CampoDasCredenciaisVazio(
+                        CampoDasCredenciais::Senha,
+                    ));
+                }
+                None => {
+                    return Err(ErroLogin::CampoDasCredenciaisAusente(
+                        CampoDasCredenciais::Senha,
+                    ));
+                }
+            },
+        };
         Ok(Self {
-            usuario: usuario.ok_or(ErroLogin::CampoDasCredenciaisAusente(
-                CampoDasCredenciais::Usuario,
-            ))?,
-            senha: senha.ok_or(ErroLogin::CampoDasCredenciaisAusente(
-                CampoDasCredenciais::Senha,
-            ))?,
-            orgao: orgao.ok_or(ErroLogin::CampoDasCredenciaisAusente(
-                CampoDasCredenciais::Orgao,
-            ))?,
+            usuario,
+            senha,
+            orgao,
         })
     }
 }

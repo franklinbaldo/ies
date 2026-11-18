@@ -113,6 +113,12 @@ exposição do caminho recusado. Ver [erros tipados](../docs/erros-tipados.md).
 
 - `ies login [--forcar]` (login Web na instalação configurada; grava a sessão
   nos arquivos privados)
+- `ies credenciais salvar|status|excluir --origem URL --usuario LOGIN`
+  (senha do login no cofre do sistema operacional, sem rede;
+  [contrato](cli/credenciais.md))
+- `ies wizard [--perfil NOME]` (assistente que cria um perfil local em
+  `~/.ies/<perfil>`, sem rede, com a senha no cofre;
+  [contrato](cli/wizard.md))
 - `ies esquema`
 
 ## Configurar caminhos locais
@@ -153,7 +159,7 @@ em stderr; opção obrigatória ausente é erro do clap (2).
   sem POST, escrita não confirmada sai com 1; vale para todos os agentes da sessão.
 - [indice.caminho](cli/indice-caminho.md): descoberta local do SQLite, sem rede.
 - [sessao.login](cli/sessao-login.md): `ies login`, credenciais em arquivo
-  `0600`, um GET de conferência da sessão gravada, redirecionamentos só no
+  `0600` (sem `senha=`, a senha vem do [cofre](cli/credenciais.md)), um GET de conferência da sessão gravada, redirecionamentos só no
   host da instalação e gravação atômica por geração, sob lock.
 
 Os comandos `ies unidade listar-processos`, `recebidos`, `gerados` e
