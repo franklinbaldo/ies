@@ -85,8 +85,9 @@ fn ler_par(
     n: VersaoDocumento,
 ) -> Result<(String, String), ErroSalvarNoSei> {
     copia_documento::pasta_segura(pasta).map_err(ErroSalvarNoSei::Local)?;
-    let seguinte =
-        VersaoDocumento::nova(n.numero() + 1).map_err(ErroSalvarNoSei::ProximaVersaoInvalida)?;
+    let seguinte = n.seguinte().ok_or(ErroSalvarNoSei::ProximaVersaoInvalida(
+        ErroVersao::VersaoDocumentoInvalida,
+    ))?;
     let ler = |v, ausente| {
         let bytes = ler_regular(
             &pasta.join(crate::foto_documento::nome(numero.as_str(), v)),
@@ -367,6 +368,23 @@ mod acervo_editor;
 #[cfg(test)]
 mod testes_moldura {
     use super::corpos_da_edicao;
+
+    #[test]
+    fn versao_maxima_recusa_sem_desbordar_antes_da_leitura() {
+        use super::{ErroSalvarNoSei, ler_par};
+        use crate::documento::NumeroDocumento;
+        use crate::documento_versoes::{ErroVersao, VersaoDocumento};
+
+        let numero = NumeroDocumento::novo("719").unwrap();
+        let ultima = VersaoDocumento::nova(u32::MAX).unwrap();
+        let resultado = ler_par(&std::env::temp_dir(), &numero, ultima);
+        assert!(matches!(
+            resultado,
+            Err(ErroSalvarNoSei::ProximaVersaoInvalida(
+                ErroVersao::VersaoDocumentoInvalida
+            ))
+        ));
+    }
 
     #[test]
     fn url_do_editor_usa_a_mesma_base_canonica_da_guarda() {
