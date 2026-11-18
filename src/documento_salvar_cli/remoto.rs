@@ -238,9 +238,8 @@ fn executar(
     }
     // A liberação do protocolo nativo SEI4/5 é outra etapa, não um
     // fallback para o formulário sintético de sei.test.
-    let instalacao = match Instalacao::interpretar(sessao.origem) {
-        Some(instalacao) => instalacao,
-        None => return Resultado::Recusado(ErroSalvarNoSei::InstalacaoSemEditorObservado),
+    let Some(instalacao) = Instalacao::interpretar(sessao.origem) else {
+        return Resultado::Recusado(ErroSalvarNoSei::InstalacaoSemEditorObservado);
     };
     if instalacao.host() != "sei.test" {
         return Resultado::Recusado(ErroSalvarNoSei::InstalacaoSemEditorObservado);

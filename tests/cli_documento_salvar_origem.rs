@@ -15,6 +15,72 @@ fn arquivo_privado(caminho: &Path, conteudo: &str) {
     }
 }
 
+fn conferir_recusa(
+    pasta: &Path,
+    escuta: &TcpListener,
+    proxy: &str,
+    origem: &str,
+    erro_esperado: &str,
+) {
+    let url_controle = format!(
+        "{origem}/controlador.php?acao=procedimento_controlar&infra_hash={}",
+        "a".repeat(64)
+    );
+    arquivo_privado(&pasta.join("origem"), origem);
+    arquivo_privado(&pasta.join("url"), &url_controle);
+
+    for modo_json in [false, true] {
+        let mut comando = Command::new(env!("CARGO_BIN_EXE_ies"));
+        comando
+            .current_dir(&pasta)
+            .env("IES_ORIGEM_FILE", pasta.join("origem"))
+            .env("IES_URL_CONTROLE_FILE", pasta.join("url"))
+            .env("IES_COOKIE_FILE", pasta.join("cookie"))
+            .env("IES_INDICE_FILE", pasta.join("indice.sqlite3"))
+            .env("HOME", &pasta)
+            .env_remove("IES_CONFIG_FILE")
+            .env_remove("IES_CREDENCIAIS_FILE")
+            .env("HTTP_PROXY", &proxy)
+            .env("HTTPS_PROXY", &proxy)
+            .env("ALL_PROXY", &proxy)
+            .env("NO_PROXY", "");
+        if modo_json {
+            comando.arg("--json");
+        }
+        let saida = comando
+            .args([
+                "documento",
+                "salvar",
+                "0011519",
+                "--versao",
+                "2",
+                "--confirmar",
+            ])
+            .output()
+            .unwrap();
+
+        assert_eq!(
+            saida.status.code(),
+            Some(1),
+            "recusa esperada: {}",
+            String::from_utf8_lossy(&saida.stderr)
+        );
+        assert!(saida.stdout.is_empty(), "nenhuma saída de sucesso");
+        let erro = String::from_utf8_lossy(&saida.stderr);
+        assert!(
+            erro.starts_with(&format!("Error: {erro_esperado}")),
+            "recusa tipada esperada ({erro_esperado}): {erro}"
+        );
+        let tentativa = escuta.accept();
+        assert!(
+            tentativa
+                .as_ref()
+                .is_err_and(|erro| erro.kind() == std::io::ErrorKind::WouldBlock),
+            "zero conexões via proxy de teste: {tentativa:?}"
+        );
+    }
+}
+
 #[test]
 fn documento_salvar_recusa_origens_sem_transporte_nativo() {
     let pasta = std::env::temp_dir().join(format!(
@@ -65,63 +131,7 @@ fn documento_salvar_recusa_origens_sem_transporte_nativo() {
             "OrigemForaDoTreinamento",
         ),
     ] {
-        let url_controle = format!(
-            "{origem}/controlador.php?acao=procedimento_controlar&infra_hash={}",
-            "a".repeat(64)
-        );
-        arquivo_privado(&pasta.join("origem"), origem);
-        arquivo_privado(&pasta.join("url"), &url_controle);
-
-        for modo_json in [false, true] {
-            let mut comando = Command::new(env!("CARGO_BIN_EXE_ies"));
-            comando
-                .current_dir(&pasta)
-                .env("IES_ORIGEM_FILE", pasta.join("origem"))
-                .env("IES_URL_CONTROLE_FILE", pasta.join("url"))
-                .env("IES_COOKIE_FILE", pasta.join("cookie"))
-                .env("IES_INDICE_FILE", pasta.join("indice.sqlite3"))
-                .env("HOME", &pasta)
-                .env_remove("IES_CONFIG_FILE")
-                .env_remove("IES_CREDENCIAIS_FILE")
-                .env("HTTP_PROXY", &proxy)
-                .env("HTTPS_PROXY", &proxy)
-                .env("ALL_PROXY", &proxy)
-                .env("NO_PROXY", "");
-            if modo_json {
-                comando.arg("--json");
-            }
-            let saida = comando
-                .args([
-                    "documento",
-                    "salvar",
-                    "0011519",
-                    "--versao",
-                    "2",
-                    "--confirmar",
-                ])
-                .output()
-                .unwrap();
-
-            assert_eq!(
-                saida.status.code(),
-                Some(1),
-                "recusa esperada: {}",
-                String::from_utf8_lossy(&saida.stderr)
-            );
-            assert!(saida.stdout.is_empty(), "nenhuma saída de sucesso");
-            let erro = String::from_utf8_lossy(&saida.stderr);
-            assert!(
-                erro.starts_with(&format!("Error: {erro_esperado}")),
-                "recusa tipada esperada ({erro_esperado}): {erro}"
-            );
-            let tentativa = escuta.accept();
-            assert!(
-                tentativa
-                    .as_ref()
-                    .is_err_and(|erro| erro.kind() == std::io::ErrorKind::WouldBlock),
-                "zero conexões via proxy de teste: {tentativa:?}"
-            );
-        }
+        conferir_recusa(&pasta, &escuta, &proxy, origem, erro_esperado);
     }
 
     assert_eq!(
