@@ -267,6 +267,22 @@ struct AlvoDaEdicao<'a> {
     documento: &'a DocumentoNaArvoreAberto,
 }
 
+/// Todas as seções retornam ao SEI no mesmo POST. A regra de LF vale para
+/// cada HTML transportado, inclusive os campos não editáveis. O texto servido
+/// e as cópias locais permanecem intactos; não há parser de conteúdo.
+fn htmls_para_post(secoes: &[Secao], principal: &str, editado: &str) -> Vec<String> {
+    secoes
+        .iter()
+        .map(|s| {
+            if s.nome == principal {
+                html_para_envio(editado)
+            } else {
+                html_para_envio(&s.html)
+            }
+        })
+        .collect()
+}
+
 fn enviar_classico(
     envio: &mut EnvioHttps,
     alvo: &AlvoDaEdicao<'_>,
@@ -275,18 +291,11 @@ fn enviar_classico(
     principal: &str,
     editado: &str,
 ) -> Result<Option<VersaoDocumento>, ErroEditorNativo> {
+    let htmls = htmls_para_post(secoes, principal, editado);
     let pares: Vec<_> = secoes
         .iter()
-        .map(|s| {
-            (
-                s.nome.as_str(),
-                if s.nome == principal {
-                    editado
-                } else {
-                    s.html.as_str()
-                },
-            )
-        })
+        .zip(&htmls)
+        .map(|(s, html)| (s.nome.as_str(), html.as_str()))
         .collect();
     let submissao = derivar_submissao(
         &EDITAR,
@@ -360,6 +369,64 @@ fn reabrir_apos_aceite<T>(
 mod testes_releitura_condicional {
     use super::*;
     use std::cell::Cell;
+
+    #[test]
+    fn formulario_classico_envia_lf_em_todas_as_secoes_sem_reescrever_html() {
+        use crate::formulario_web::CodificacaoDaTela;
+
+        let secoes = [
+            Secao {
+                nome: "txaEditor_4".into(),
+                html: "<table><tr><td>Antes<br>\r\r\nDepois\r</td></tr></table>".into(),
+            },
+            Secao {
+                nome: "txaEditor_12".into(),
+                html: "<p>Original</p>".into(),
+            },
+        ];
+        let editado = "<p class='x'>Novo\r\ntexto\r";
+        let htmls = htmls_para_post(&secoes, "txaEditor_12", editado);
+        assert_eq!(htmls[0], "<table><tr><td>Antes<br>\nDepois\n</td></tr></table>");
+        assert_eq!(htmls[1], "<p class='x'>Novo\ntexto\n");
+        assert_eq!(secoes[0].html, "<table><tr><td>Antes<br>\r\r\nDepois\r</td></tr></table>");
+
+        // O mesmo builder que enviar_classico utiliza monta o POST efetivo.
+        let pares: Vec<_> = secoes
+            .iter()
+            .zip(&htmls)
+            .map(|(s, html)| (s.nome.as_str(), html.as_str()))
+            .collect();
+        let instalacao = Instalacao::interpretar("https://sei.exemplo.gov.br/sei").unwrap();
+        let hash = "a".repeat(64);
+        let html = HtmlServido::de_teste(&format!(
+            "<form id='frmEditor' method='post' action='controlador.php?acao=editor_salvar&amp;infra_hash={hash}'>\
+             <input type='hidden' name='hdnVersao' value='1'>\
+             <input type='hidden' name='hdnIgnorarNovaVersao' value='N'>\
+             <textarea name='txaEditor_4'>Antigo</textarea>\
+             <textarea name='txaEditor_12'>Antigo</textarea></form>"
+        ));
+        let url = format!(
+            "https://sei.exemplo.gov.br/sei/controlador.php?acao=editor_montar&infra_hash={hash}"
+        );
+        let submissao = derivar_submissao(
+            &EDITAR,
+            &instalacao,
+            &TelaServida {
+                url: &url,
+                html: &html,
+                codificacao: CodificacaoDaTela::Utf8,
+            },
+            None,
+            &pares,
+        )
+        .unwrap();
+        let corpo = String::from_utf8(submissao.corpo().to_vec()).unwrap();
+        assert!(!corpo.contains("%0D"), "POST não deve conter CR escapado");
+        assert!(corpo.contains("Antes%3Cbr%3E%0ADepois%0A"));
+        assert!(corpo.contains("Novo%0Atexto%0A"));
+        assert!(corpo.contains("txaEditor_4="));
+        assert!(corpo.contains("txaEditor_12="));
+    }
 
     #[test]
     fn post_aplicado_com_resposta_perdida_e_incerto_sem_novo_envio() {
