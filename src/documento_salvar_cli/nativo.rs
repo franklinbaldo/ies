@@ -321,6 +321,28 @@ fn enviar_classico(
     }
 }
 
+/// Falha do transporte ou da decodificação após a tentativa de POST
+/// NÃO comprova ausência de gravação. Recusas de forma anteriores ao
+/// envio continuam sendo erros determinísticos.
+enum RespostaDoPost {
+    Aceite(Option<VersaoDocumento>),
+    Incerta,
+}
+
+fn classificar_resposta_do_post(
+    resposta: Result<Option<VersaoDocumento>, ErroEditorNativo>,
+) -> Result<RespostaDoPost, ErroEditorNativo> {
+    match resposta {
+        Ok(versao) => Ok(RespostaDoPost::Aceite(versao)),
+        Err(
+            ErroEditorNativo::EnvioSemAceite(_)
+            | ErroEditorNativo::Tela(_)
+            | ErroEditorNativo::JsonDoEditor(_),
+        ) => Ok(RespostaDoPost::Incerta),
+        Err(erro) => Err(erro),
+    }
+}
+
 /// Releitura do editor pode emitir vários GETs (inclusive assinatura).
 /// Só a realiza quando o POST recebeu aceite da versão esperada.
 /// Um erro ou aceite inconclusivo não justifica GET descartado.
@@ -339,6 +361,36 @@ fn reabrir_apos_aceite<T>(
 mod testes_releitura_condicional {
     use super::*;
     use std::cell::Cell;
+
+    #[test]
+    fn post_aplicado_com_resposta_perdida_e_incerto_sem_novo_envio() {
+        use crate::formulario_web::ErroSubmissaoFormulario;
+
+        let post_aplicado = Cell::new(false);
+        let tentativas = Cell::new(0usize);
+        let releituras = Cell::new(0usize);
+        let resposta = {
+            tentativas.set(tentativas.get() + 1);
+            post_aplicado.set(true); // Simula o servidor gravando antes da perda da resposta.
+            Err(ErroEditorNativo::EnvioSemAceite(
+                ErroSubmissaoFormulario::EfeitoDaOperacaoNaoAvaliado,
+            ))
+        };
+        let classificada = classificar_resposta_do_post(resposta).unwrap();
+        assert!(matches!(classificada, RespostaDoPost::Incerta));
+        assert!(post_aplicado.get());
+        assert_eq!(tentativas.get(), 1);
+        assert_eq!(releituras.get(), 0);
+
+        // JSON malformado recebido após o POST também não permite afirmar recusa.
+        let erro_json = serde_json::from_str::<serde_json::Value>("{").unwrap_err();
+        assert!(matches!(
+            classificar_resposta_do_post(Err(ErroEditorNativo::JsonDoEditor(erro_json))).unwrap(),
+            RespostaDoPost::Incerta
+        ));
+        // A classificação não chama uma closure de leitura ou repetição.
+        assert_eq!(tentativas.get(), 1);
+    }
 
     #[test]
     fn erro_ou_aceite_inconclusivo_nao_faz_releitura() {
@@ -427,10 +479,16 @@ pub(super) fn executar(
         }
     };
     let nova = previa.versao_editada;
-    // Não emitir GET de assinatura/editor quando o POST falhou, não recebeu
-    // versão ou recebeu uma versão inesperada: a leitura seria descartada.
-    let persistido =
-        reabrir_apos_aceite(aceite, nova, || abrir_editor(&mut envio, instalacao, &alvo))?;
+    // Erros depois da tentativa de envio podem ter persistido no SEI.
+    // Sem retry nem releitura descartada, classificar o efeito como incerto.
+    let aceite = match classificar_resposta_do_post(aceite)? {
+        RespostaDoPost::Aceite(versao) => versao,
+        RespostaDoPost::Incerta => return Ok(Resultado::Incerto),
+    };
+    // GET de assinatura/editor só após resposta com a versão esperada.
+    let persistido = reabrir_apos_aceite(Ok(aceite), nova, || {
+        abrir_editor(&mut envio, instalacao, &alvo)
+    })?;
     let Some(Ok(persistido)) = persistido else {
         return Ok(Resultado::Incerto);
     };
