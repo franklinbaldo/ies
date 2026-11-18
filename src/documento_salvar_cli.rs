@@ -1,4 +1,4 @@
-//! Prévia offline e confirmação exclusivamente contra o anti-IES de ensaio.
+//! Prévia offline e confirmação nos editores de treinamento observados.
 //! O par local é
 //! `DOC.vN.html` (a foto) e `DOC.v(N+1).html` (a edição), #207. Offline:
 //! não lê índice, configuração nem sessão, e não verifica a base.

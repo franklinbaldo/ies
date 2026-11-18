@@ -55,6 +55,7 @@ pub(super) enum ErroEditorUnb {
     CharsetNaoSuportado,
     Formulario(#[from] ErroSubmissaoFormulario),
     FormularioDeOutroDocumento,
+    EnvioSemAceite(#[source] ErroSubmissaoFormulario),
     ConteudoPersistidoDiferente { versao: u32 },
 }
 
@@ -202,7 +203,7 @@ fn abrir_editor(
     })
 }
 
-fn versao_do_editor(html: &HtmlServido) -> Option<VersaoDocumento> {
+pub(super) fn versao_do_editor(html: &HtmlServido) -> Option<VersaoDocumento> {
     let dom = arvore(html);
     let form = crate::formulario_web::localizar_formulario(&dom, "frmEditor").ok()?;
     let oculto = |nome| {
@@ -242,7 +243,7 @@ fn secao(html: &HtmlServido, nome: &str) -> Option<String> {
     secoes.next().is_none().then_some(unica)
 }
 
-fn principal_publicado(html: &HtmlServido) -> bool {
+pub(super) fn principal_publicado(html: &HtmlServido) -> bool {
     let dom = arvore(html);
     let mut gravaveis = Vec::new();
     for script in dom.elementos("script").filter(|s| !s.presente("src")) {
@@ -323,9 +324,11 @@ pub(super) fn executar(
     }
     let resposta = enviar_submissao_via(submissao, sessao.cookie, |s, c| envio.post(s, c));
     let nova = previa.versao_editada;
+    let persistido = abrir_editor(&mut envio, instalacao, &alvo);
+    let resposta = resposta.map_err(ErroEditorUnb::EnvioSemAceite)?;
     let aceitou =
-        matches!(resposta, Ok(RespostaDoEnvio::Html(html)) if html.trim() == format!("OK {nova}"));
-    let Ok(persistido) = abrir_editor(&mut envio, instalacao, &alvo) else {
+        matches!(resposta, RespostaDoEnvio::Html(html) if html.trim() == format!("OK {nova}"));
+    let Ok(persistido) = persistido else {
         return Ok(Resultado::Incerto);
     };
     if !aceitou || versao_do_editor(&persistido.html).map(VersaoDocumento::numero) != Some(nova) {

@@ -39,8 +39,8 @@ em dois outros pontos:
 - **releitura:** `ies documento DOC --saida` compara a foto local com o
   HTML servido e recusa com `ErroCopia::FotoDivergente`
   ([versões e foto](documento-obter-versoes.md));
-- **salvar remoto (#89, futuro):** lerá a versão N do SEI para confirmar
-  que ainda é a atual e comparará o hash com a vN local.
+- **salvar remoto (#89):** lê a versão atual no SEI e confere os bytes
+  da foto local antes de enviar a edição.
 
 | Erro (stderr) | Fato |
 | --- | --- |
@@ -64,10 +64,9 @@ O JSON continua sem conteúdo HTML, URLs assinadas ou cookies e traz
 `versao_editada`, `bytes_base`, `bytes_editada`, `escrita_remota: false`,
 `base_verificada: false` e `trecho_divergente`, e `confirmado: false`.
 
-`--confirmar` **continua bloqueado para instalações reais do SEI**:
-retorna `escrita_remota_nao_validada` após conferir o par.
-Somente no host sintético `sei.test`, com sessão de ensaio, a CLI
-executa os BDD-89-02/03/04 sintéticos: relê a versão N, confere
+`--confirmar` está disponível para o modelo clássico de Despacho na UnB
+de treinamento e na bancada sintética `sei.test`. Na bancada, a CLI
+relê a versão N, confere
 conteúdo idêntico à foto local, consulta o editor oferecido, deriva um
 único POST do formulário servido e comprova a versão N+1 por GET
 independente. Também relê o editor para observar a contagem de assinaturas
@@ -75,9 +74,16 @@ após a publicação; sem ambas as conferências, não declara sucesso.
 O JSON confirmado informa `assinaturas_apos: 0` somente quando observado.
 Resposta inconclusiva após a tentativa de POST resulta em
 `ErroSalvarNoSei::EdicaoNaoComprovada` (saída 1), sem retry. O editor da simulação usa uma região
-`main#corpoEditavel`; essa hipótese **não representa uma compatibilidade
-validada com o HTML de editores reais do SEI**. Mesclagem por seção e
-validação em treinamento continuam fora do escopo.
+`main#corpoEditavel`.
+
+Na UnB de treinamento, o corpo editável fica entre o cabeçalho e o
+rodapé do modelo de Despacho. Edite somente esse trecho da cópia
+`DOC.v(N+1).html`. A confirmação verifica uma minuta sem assinatura,
+confere no editor a versão vigente e a seção gravável, e envia o HTML
+do trecho uma vez pelo formulário publicado. A resposta e uma nova
+leitura do editor conferem a versão criada e o conteúdo persistido.
+Se a versão mudar e o conteúdo lido diferir, a recusa informa a
+versão gravada. Nenhuma tentativa é repetida automaticamente.
 
 - [Evidências legadas](../evidencias/documento-salvar.md)
 - [Decisão arquitetural](../../docs/decisoes/documento-salvar.md)
