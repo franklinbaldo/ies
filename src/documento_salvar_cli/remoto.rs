@@ -13,6 +13,7 @@ use crate::formulario_web::{
     enviar_submissao_via,
 };
 use crate::instalacao::Instalacao;
+use crate::origem_de_treinamento::{self, Escrita};
 use crate::processo_concluir_cli::com_sessao;
 use crate::processo_obter::{
     ErroDocumentoObter, PedidoDeVersoes, PedidoDoAnexo, PedidoDoDocumento, SessaoDoProcesso,
@@ -62,6 +63,7 @@ enum ErroSalvarNoSei {
     Normalizacao(#[from] crate::tela_html::ErroNormalizacao),
     Local(#[source] ErroCopia),
     PastaAtualIlegivel(#[source] std::io::Error),
+    OrigemForaDoTreinamento(#[source] origem_de_treinamento::CausaDaOrigem),
     /// Instalação fora do escopo de treinamento desta operação.
     InstalacaoSemEditorObservado,
     LeituraDoDocumento(#[source] ErroDocumentoObter),
@@ -89,8 +91,9 @@ fn ler_par(
     n: VersaoDocumento,
 ) -> Result<(String, String), ErroSalvarNoSei> {
     copia_documento::pasta_segura(pasta).map_err(ErroSalvarNoSei::Local)?;
-    let seguinte =
-        VersaoDocumento::nova(n.numero() + 1).map_err(ErroSalvarNoSei::ProximaVersaoInvalida)?;
+    let seguinte = n.seguinte().ok_or(ErroSalvarNoSei::ProximaVersaoInvalida(
+        ErroVersao::VersaoDocumentoInvalida,
+    ))?;
     let ler = |v, ausente| {
         let bytes = ler_regular(
             &pasta.join(crate::foto_documento::nome(numero.as_str(), v)),
@@ -225,19 +228,18 @@ fn executar(
     previa: &PreviaCopia,
     normalizar: bool,
 ) -> Resultado {
+    // Guardar a origem antes de interpretar o host e antes de qualquer GET/POST.
+    // Assim origens malformadas e imitadoras têm a mesma recusa tipada.
+    if let Err(causa) = origem_de_treinamento::exigir(Escrita::DocumentoSalvar, sessao.origem) {
+        return Resultado::Recusado(ErroSalvarNoSei::OrigemForaDoTreinamento(causa));
+    }
     let instalacao = match Instalacao::interpretar(sessao.origem) {
         Some(instalacao) if instalacao.host() == "sei.test" => instalacao,
-        Some(instalacao)
-            if crate::origem_de_treinamento::exigir(
-                crate::origem_de_treinamento::Escrita::DocumentoSalvar,
-                sessao.origem,
-            )
-            .is_ok() =>
-        {
+        Some(instalacao) => {
             return nativo::executar(cli, sessao, indice, numero, previa, &instalacao, normalizar)
                 .unwrap_or_else(Resultado::Recusado);
         }
-        _ => return Resultado::Recusado(ErroSalvarNoSei::InstalacaoSemEditorObservado),
+        None => return Resultado::Recusado(ErroSalvarNoSei::InstalacaoSemEditorObservado),
     };
     executar_sintetico(cli, sessao, indice, numero, previa, normalizar, &instalacao)
 }
