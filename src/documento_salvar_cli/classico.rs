@@ -71,9 +71,11 @@ mod testes {
         let html = HtmlServido::de_teste(
             "<textarea name='txaEditor_370'>&lt;p&gt;linha\r\r\nmais\r</textarea>",
         );
-        assert_eq!(
-            secao(&html, "txaEditor_370").as_deref(),
-            Some("<p>linha\r\r\nmais\r")
-        );
+        let lida = secao(&html, "txaEditor_370").unwrap();
+        assert_eq!(lida, "<p>linha\r\r\nmais\r");
+        // O formulário clássico recebe a seção opaca, com LF canônico.
+        let enviada = crate::documento_salvar_cli::html_para_envio(&lida);
+        assert_eq!(enviada, "<p>linha\nmais\n");
+        assert_eq!(lida, "<p>linha\r\r\nmais\r");
     }
 }

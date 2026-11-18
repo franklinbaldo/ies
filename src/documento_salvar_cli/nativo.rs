@@ -425,7 +425,6 @@ pub(super) fn executar(
     numero: &NumeroDocumento,
     previa: &PreviaCopia,
     instalacao: &Instalacao,
-    normalizar: bool,
 ) -> Result<Resultado, ErroSalvarNoSei> {
     let (versao, base, edicao) = carregar_par(numero, previa)?;
 
@@ -454,10 +453,12 @@ pub(super) fn executar(
     let principal = protocolo
         .principal()
         .ok_or(ErroEditorNativo::EditorForaDaForma)?;
-    let editado = html_para_envio(
-        copia_renderizada::corpo_editado(&base, &edicao, protocolo.secoes(), principal)?,
-        normalizar,
-    )?;
+    let editado = html_para_envio(copia_renderizada::corpo_editado(
+        &base,
+        &edicao,
+        protocolo.secoes(),
+        principal,
+    )?);
     let alvo_edicao = AlvoDaEdicao {
         instalacao,
         sessao,
@@ -502,7 +503,7 @@ pub(super) fn executar(
     if !persistido
         .secoes()
         .iter()
-        .any(|s| s.nome == principal && s.html == editado.as_ref())
+        .any(|s| s.nome == principal && s.html == editado.as_str())
     {
         // O POST pode ter gravado outra versão/conteúdo; não sugerir retry.
         return Ok(Resultado::Incerto);

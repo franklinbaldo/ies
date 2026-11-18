@@ -60,7 +60,6 @@ fn corpo_sintetico(html: &str) -> Option<&str> {
 #[error("{self:?}")]
 enum ErroSalvarNoSei {
     EditorNativo(#[from] nativo::ErroEditorNativo),
-    Normalizacao(#[from] crate::tela_html::ErroNormalizacao),
     Local(#[source] ErroCopia),
     PastaAtualIlegivel(#[source] std::io::Error),
     OrigemForaDoTreinamento(#[source] origem_de_treinamento::CausaDaOrigem),
@@ -238,7 +237,6 @@ fn executar(
     indice: &crate::indice_local::IndiceLocal,
     numero: &NumeroDocumento,
     previa: &PreviaCopia,
-    normalizar: bool,
 ) -> Resultado {
     // Guardar a origem antes de interpretar o host e antes de qualquer GET/POST.
     // Assim origens malformadas e imitadoras têm a mesma recusa tipada.
@@ -248,12 +246,12 @@ fn executar(
     let instalacao = match Instalacao::interpretar(sessao.origem) {
         Some(instalacao) if instalacao.host() == "sei.test" => instalacao,
         Some(instalacao) => {
-            return nativo::executar(cli, sessao, indice, numero, previa, &instalacao, normalizar)
+            return nativo::executar(cli, sessao, indice, numero, previa, &instalacao)
                 .unwrap_or_else(Resultado::Recusado);
         }
         None => return Resultado::Recusado(ErroSalvarNoSei::InstalacaoSemEditorObservado),
     };
-    executar_sintetico(cli, sessao, indice, numero, previa, normalizar, &instalacao)
+    executar_sintetico(cli, sessao, indice, numero, previa, &instalacao)
 }
 
 fn executar_sintetico(
@@ -262,7 +260,6 @@ fn executar_sintetico(
     indice: &crate::indice_local::IndiceLocal,
     numero: &NumeroDocumento,
     previa: &PreviaCopia,
-    normalizar: bool,
     instalacao: &Instalacao,
 ) -> Resultado {
     let (n, local_base, local_editada) = match carregar_par(numero, previa) {
@@ -301,10 +298,7 @@ fn executar_sintetico(
         Ok(par) => par,
         Err(falha) => return Resultado::Recusado(falha),
     };
-    let editada = match html_para_envio(editada, normalizar) {
-        Ok(html) => html,
-        Err(falha) => return Resultado::Recusado(falha.into()),
-    };
+    let editada = html_para_envio(editada);
     let origem = instalacao.url_base();
     let url = url_do_editor(&origem, &lido.id_documento);
     let cookie: &str = &lido.cookie;
@@ -356,10 +350,9 @@ pub(super) fn confirmar(
     cli: &Cli,
     numero: &NumeroDocumento,
     previa: &PreviaCopia,
-    normalizar: bool,
 ) -> anyhow::Result<()> {
     com_sessao(cli, |sessao, indice| {
-        match executar(cli, sessao, indice, numero, previa, normalizar) {
+        match executar(cli, sessao, indice, numero, previa) {
             Resultado::Confirmado(versao) => {
                 if cli.json {
                     let mut valor = json!({
@@ -367,7 +360,7 @@ pub(super) fn confirmar(
                         "confirmado": true,
                         "versao_criada": versao,
                         "releitura_confirmada": true,
-                        "normalizou_html_antes_do_envio": normalizar,
+                        "quebras_lf_canonicas_no_envio": true,
                         "assinaturas_apos": 0
                     });
                     crate::indice_local::anexar_avisos(&mut valor, indice);

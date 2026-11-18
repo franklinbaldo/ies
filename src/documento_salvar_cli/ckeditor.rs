@@ -230,11 +230,12 @@ mod testes {
             r#"<script>window.INFRA_EDITOR_CONFIG = {"sei":{"versao":1,"urlSalvar":"controlador_rest.php"},"initialData":{"txaEditor_40":"<p>Fixo</p>","txaEditor_3":"<p>Anterior</p>"},"rootsAttributes":{"txaEditor_40":{"principal":false,"somenteLeitura":true},"txaEditor_3":{"principal":true,"somenteLeitura":false}}};</script>"#,
         );
         let config = Configuracao::ler(&html).unwrap().unwrap();
-        let editado = "<p title=\"x\r\r\né 🔎";
-        let corpo = config.corpo(config.principal().unwrap(), editado).unwrap();
+        let editado = crate::documento_salvar_cli::html_para_envio("<p title=\"x\r\r\né 🔎");
+        let corpo = config.corpo(config.principal().unwrap(), &editado).unwrap();
         let json: serde_json::Value = serde_json::from_slice(&corpo).unwrap();
         assert_eq!(json["secoesConteudo"][0]["html"], "<p>Fixo</p>");
         assert_eq!(json["secoesConteudo"][1]["html"], editado);
+        assert_eq!(editado, "<p title=\"x\né 🔎");
         assert_eq!(json["ignorarNovaVersao"], "N");
         assert_eq!(json["versao"], 1);
     }

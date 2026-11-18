@@ -9,7 +9,7 @@ effect: write
 
 # Prévia local e salvamento de documento
 
-`ies documento salvar DOC [--versao N] [--sem-normalizar] [--confirmar]` compara, no
+`ies documento salvar DOC [--versao N] [--confirmar]` compara, no
 diretório atual, o par local de #207: `DOC.vN.html`, a **foto** que
 `ies documento DOC --saida` gravou com o HTML servido da versão N
 ([versões e foto](documento-obter-versoes.md)), e `DOC.v(N+1).html`, a
@@ -83,17 +83,21 @@ da operação indicada pela tela. Em ambos, os valores das outras seções
 vêm do editor. Se a foto e as seções não permitem localizar o corpo
 com segurança, a CLI recusa sem gravar.
 
-Por padrão, a confirmação normaliza o fragmento editável com o parser
-HTML5 antes do envio. Isso pode fechar tags, ajustar a estrutura,
-padronizar atributos e normalizar quebras de linha. O arquivo local
-permanece como o usuário o deixou. A prévia offline informa o modo
-escolhido. Com `--sem-normalizar`, o trecho segue como está no arquivo.
-Nos dois modos, aplica-se a codificação exigida pelo editor.
+O fragmento editável permanece **HTML opaco**: nenhum parser HTML5
+transforma tags, atributos, listas, tabelas ou marcação malformada do
+corpo. Apenas as quebras de linha são canonicalizadas **no transporte**:
+CRCRLF, CRLF e CR isolado são convertidos em LF, como no Todos #1271/#1272
+e na issue #856. Os bytes originais da foto e da edição local permanecem
+intactos, e a conferência da base anterior ao POST é literal. Não existe
+opção para desativar LF canônico. A codificação de transporte do formulário
+clássico ou do JSON CKEditor continua sendo aplicada pelo respectivo editor.
 
-A resposta e uma nova leitura conferem a versão criada e o HTML
-efetivamente enviado.
-Se a versão mudar e o conteúdo lido diferir, a recusa informa a
-versão gravada. Nenhuma tentativa é repetida automaticamente.
+Após aceite da versão esperada, uma nova leitura compara a versão criada
+e a seção principal com o **conteúdo efetivamente enviado** (HTML opaco
+com LF canônico). Aceite inconclusivo, falha pós-POST ou conteúdo divergente
+resultam em `EdicaoNaoComprovada`, sem alegar qual versão foi persistida.
+Não repetir a operação antes de conferência independente. Nenhuma tentativa
+é repetida automaticamente.
 
 - [Evidências legadas](../evidencias/documento-salvar.md)
 - [Decisão arquitetural](../../docs/decisoes/documento-salvar.md)

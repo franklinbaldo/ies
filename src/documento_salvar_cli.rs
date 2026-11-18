@@ -5,20 +5,16 @@
 use super::{Cli, Documento, DocumentoAcao, Domain};
 use crate::{copia_documento, copia_listagem, documento, documento_versoes};
 use serde_json::json;
-use std::borrow::Cow;
 
 #[path = "documento_salvar_cli/remoto.rs"]
 mod remoto;
 
-fn html_para_envio(
-    html: &str,
-    normalizar: bool,
-) -> Result<Cow<'_, str>, crate::tela_html::ErroNormalizacao> {
-    if normalizar {
-        Ok(Cow::Owned(crate::tela_html::normalizar_fragmento(html)?))
-    } else {
-        Ok(Cow::Borrowed(html))
-    }
+/// HTML opaco: somente finais de linha são canônicos no transporte.
+/// A cópia original em disco não é modificada.
+fn html_para_envio(html: &str) -> String {
+    html.replace("\r\r\n", "\n")
+        .replace("\r\n", "\n")
+        .replace('\r', "\n")
 }
 
 fn mostrar_listagem_copias(
@@ -64,7 +60,6 @@ pub(super) fn tentar_salvar_documento(cli: &Cli) -> Option<anyhow::Result<()>> {
                 versao,
                 confirmar,
                 listar_copias,
-                sem_normalizar,
             }),
         ..
     }) = &cli.command
@@ -90,7 +85,7 @@ pub(super) fn tentar_salvar_documento(cli: &Cli) -> Option<anyhow::Result<()>> {
                     json!({
                         "previa": dados,
                         "confirmado": false,
-                        "normalizar_html_no_envio": !sem_normalizar,
+                        "quebras_lf_canonicas_no_envio": true,
                         "aviso_assinaturas": "editar pode remover assinaturas; a oferta do editor ainda não foi verificada"
                     })
                 );
@@ -107,18 +102,14 @@ pub(super) fn tentar_salvar_documento(cli: &Cli) -> Option<anyhow::Result<()>> {
                     "Diferenças locais (não comprovam alteração remota):\n{}",
                     dados.diff_humano
                 );
-                if *sem_normalizar {
-                    println!("A confirmação enviará o HTML da seção como está no arquivo.");
-                } else {
-                    println!("A confirmação normalizará o HTML da seção antes de enviar.");
-                }
+                println!("A confirmação preservará o HTML opaco, normalizando apenas as quebras de linha para LF.");
                 println!(
                     "Aviso: editar pode remover assinaturas; a oferta de edição do SEI ainda não foi verificada."
                 );
             }
             Some(Ok(()))
         }
-        Ok(dados) => Some(remoto::confirmar(cli, &documento, &dados, !sem_normalizar)),
+        Ok(dados) => Some(remoto::confirmar(cli, &documento, &dados)),
         Err(erro) => Some(Err(erro.into())),
     }
 }
@@ -129,13 +120,23 @@ mod testes_listagem {
     use clap::Parser;
 
     #[test]
-    fn o_bypass_preserva_o_html_enquanto_o_padrao_fecha_as_tags() {
-        let html = "<p>A\r\r\n<b>B";
-        assert_eq!(html_para_envio(html, false).unwrap().as_ref(), html);
-        assert_eq!(
-            html_para_envio(html, true).unwrap().as_ref(),
-            "<p>A\n\n<b>B</b></p>"
-        );
+    fn somente_lf_e_canonizado_sem_parser_ou_reescrita_estrutural() {
+        for (bruto, esperado) in [
+            ("<p>A\r\r\n<b>B", "<p>A\n<b>B"),
+            ("<table><tr><td>1<br>\r\n2</td></tr></table>", "<table><tr><td>1<br>\n2</td></tr></table>"),
+            ("<ul><li>Um</li></ul>\r<p>Dois", "<ul><li>Um</li></ul>\n<p>Dois"),
+            ("a\r\r\nb\r\nc\rd", "a\nb\nc\nd"),
+            ("<p>&nbsp;</p>\né 🔎", "<p>&nbsp;</p>\né 🔎"),
+        ] {
+            assert_eq!(html_para_envio(bruto), esperado);
+        }
+    }
+
+    #[test]
+    fn nao_oferece_bypass_que_permita_cr_no_transporte() {
+        assert!(Cli::try_parse_from([
+            "ies", "documento", "salvar", "0007", "--sem-normalizar"
+        ]).is_err());
     }
 
     #[test]
