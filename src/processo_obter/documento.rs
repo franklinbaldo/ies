@@ -41,6 +41,10 @@ mod versao;
 pub(crate) use versao::{FotoDaVersao, SemVersaoAtual};
 pub(crate) use versao::{PedidoDeVersoes, VersoesDoDocumento};
 
+#[path = "documento_foto.rs"]
+mod foto;
+pub(crate) use foto::obter_foto_atual;
+
 /// O que se lê do nó além do texto: o anexo do externo e as versões.
 #[derive(Clone, Copy, Debug, Default)]
 pub(super) struct LeituraDoNo<'a> {
