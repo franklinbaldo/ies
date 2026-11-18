@@ -373,7 +373,7 @@ fn logar_e_gravar<T: TransporteDeLogin>(
     let caminho = pedido
         .credenciais
         .ok_or(ErroLogin::CaminhoDasCredenciaisNaoInformado)?;
-    let credenciais = Credenciais::ler(caminho)?;
+    let credenciais = Credenciais::ler(caminho, instalacao)?;
     let obtida = autenticar(instalacao, origem, &credenciais, transporte)?;
     conferir_unidade(pedido, &obtida.unidade)?;
     gravacao::gravar(

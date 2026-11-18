@@ -17,6 +17,50 @@ fn credenciais_aceitam_senha_com_igual_e_espacos_e_redigem_o_debug() {
 }
 
 #[test]
+fn sem_linha_de_senha_a_senha_vem_do_cofre_e_falha_do_cofre_nao_e_ausencia() {
+    use crate::cofre::ErroCofre;
+    let sem_senha = "usuario= u1 \norgao=O\n";
+    let mut consultado = None;
+    let c = Credenciais::interpretar_com_cofre(sem_senha, |usuario| {
+        consultado = Some(usuario.to_owned());
+        Ok(Some(" do cofre ".to_owned()))
+    })
+    .unwrap();
+    assert_eq!(consultado.as_deref(), Some("u1"));
+    assert_eq!(
+        (c.usuario(), c.senha(), c.orgao()),
+        ("u1", " do cofre ", "O")
+    );
+    assert_eq!(
+        Credenciais::interpretar_com_cofre(sem_senha, |_| Ok(None)).unwrap_err(),
+        ErroLogin::CampoDasCredenciaisAusente(CampoDasCredenciais::Senha)
+    );
+    assert_eq!(
+        Credenciais::interpretar_com_cofre(sem_senha, |_| Ok(Some(String::new()))).unwrap_err(),
+        ErroLogin::CampoDasCredenciaisVazio(CampoDasCredenciais::Senha)
+    );
+    let negado = ErroCofre::AcessoNegado {
+        mensagem_do_sistema: "bloqueado".to_owned(),
+    };
+    assert_eq!(
+        Credenciais::interpretar_com_cofre(sem_senha, |_| Err(negado.clone())).unwrap_err(),
+        ErroLogin::Cofre(negado)
+    );
+    // Com `senha=` no arquivo, o cofre nem é consultado, e vazia é recusa.
+    let nunca = |_: &str| -> Result<Option<String>, ErroCofre> { unreachable!() };
+    assert_eq!(
+        Credenciais::interpretar_com_cofre("usuario=u\nsenha=\norgao=o", nunca).unwrap_err(),
+        ErroLogin::CampoDasCredenciaisVazio(CampoDasCredenciais::Senha)
+    );
+    assert_eq!(
+        Credenciais::interpretar_com_cofre("usuario=u\nsenha=s\norgao=o", nunca)
+            .unwrap()
+            .senha(),
+        "s"
+    );
+}
+
+#[test]
 fn credenciais_recusam_campo_ausente_repetido_vazio_ou_desconhecido() {
     for (texto, erro) in [
         (

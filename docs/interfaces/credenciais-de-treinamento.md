@@ -31,9 +31,12 @@ subcódigo).
 
 ## Arquivo de credenciais do `ies login`
 
-O `ies login` só lê a senha de um arquivo privado (`0600`, sem link
+O `ies login` lê a senha de um arquivo privado (`0600`, sem link
 simbólico) apontado por `IES_CREDENCIAIS_FILE`
-([contrato](../../contracts/cli/sessao-login.md)). O arquivo de origem
+([contrato](../../contracts/cli/sessao-login.md)) ou, sem a linha
+`senha=`, do [cofre do sistema](../../contracts/cli/credenciais.md);
+`ies wizard` monta o perfil das quatro primeiras instalações com a senha
+no cofre ([contrato](../../contracts/cli/wizard.md)). O arquivo de origem
 leva a origem da tabela; cookie e URL do Controle podem nascer vazios
 (`0600`), e o primeiro login os grava.
 
