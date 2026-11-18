@@ -321,6 +321,58 @@ fn enviar_classico(
     }
 }
 
+/// Releitura do editor pode emitir vários GETs (inclusive assinatura).
+/// Só a realiza quando o POST recebeu aceite da versão esperada.
+/// Um erro ou aceite inconclusivo não justifica GET descartado.
+fn reabrir_apos_aceite<T>(
+    aceite: Result<Option<VersaoDocumento>, ErroEditorNativo>,
+    esperada: u32,
+    reler: impl FnOnce() -> T,
+) -> Result<Option<T>, ErroEditorNativo> {
+    if aceite?.map(VersaoDocumento::numero) != Some(esperada) {
+        return Ok(None);
+    }
+    Ok(Some(reler()))
+}
+
+#[cfg(test)]
+mod testes_releitura_condicional {
+    use super::*;
+    use std::cell::Cell;
+
+    #[test]
+    fn erro_ou_aceite_inconclusivo_nao_faz_releitura() {
+        let leituras = Cell::new(0usize);
+        let reler = || {
+            leituras.set(leituras.get() + 1);
+            42
+        };
+        assert!(matches!(
+            reabrir_apos_aceite(Err(ErroEditorNativo::EditorForaDaForma), 2, reler),
+            Err(ErroEditorNativo::EditorForaDaForma)
+        ));
+        assert_eq!(leituras.get(), 0);
+
+        let sem_versao = reabrir_apos_aceite(Ok(None), 2, reler).unwrap();
+        assert_eq!(sem_versao, None);
+        let errada = reabrir_apos_aceite(
+            Ok(Some(VersaoDocumento::nova(3).unwrap())),
+            2,
+            reler,
+        ).unwrap();
+        assert_eq!(errada, None);
+        assert_eq!(leituras.get(), 0);
+
+        let correta = reabrir_apos_aceite(
+            Ok(Some(VersaoDocumento::nova(2).unwrap())),
+            2,
+            reler,
+        ).unwrap();
+        assert_eq!(correta, Some(42));
+        assert_eq!(leituras.get(), 1);
+    }
+}
+
 pub(super) fn executar(
     cli: &Cli,
     sessao: &SessaoDoProcesso<'_>,
@@ -380,12 +432,16 @@ pub(super) fn executar(
             config.salvar(instalacao, &alvo, &editor.url, principal, &editado)
         }
     };
-    let persistido = abrir_editor(&mut envio, instalacao, &alvo);
     let nova = previa.versao_editada;
-    if aceite?.map(VersaoDocumento::numero) != Some(nova) {
+    // Não emitir GET de assinatura/editor quando o POST falhou, não recebeu
+    // versão ou recebeu uma versão inesperada: a leitura seria descartada.
+    let persistido = reabrir_apos_aceite(aceite, nova, || {
+        abrir_editor(&mut envio, instalacao, &alvo)
+    })?;
+    let Some(Ok(persistido)) = persistido else {
         return Ok(Resultado::Incerto);
-    }
-    let Ok(persistido) = persistido.and_then(|p| Protocolo::ler(&p.html)) else {
+    };
+    let Ok(persistido) = Protocolo::ler(&persistido.html) else {
         return Ok(Resultado::Incerto);
     };
     if persistido.versao().map(VersaoDocumento::numero) != Some(nova)
