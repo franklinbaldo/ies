@@ -22,6 +22,9 @@ use crate::visao_do_controle::{EnvioDoControle as _, EnvioHttps};
 use serde_json::json;
 use std::path::Path;
 
+#[path = "unb.rs"]
+mod unb;
+
 /// Fluxo SEI 4 observado no catálogo (UnB/PEN1/UFRJ), ainda sem replay
 /// dos corpos originais de POST. Só usado na instalação sintética sei.test.
 const EDITAR: OperacaoDeFormulario = OperacaoDeFormulario {
@@ -54,6 +57,7 @@ fn corpo_sintetico(html: &str) -> Option<&str> {
 #[derive(Debug, thiserror::Error)]
 #[error("{self:?}")]
 enum ErroSalvarNoSei {
+    EditorUnb(#[from] unb::ErroEditorUnb),
     Local(#[source] ErroCopia),
     PastaAtualIlegivel(#[source] std::io::Error),
     /// Só a instalação sintética (`sei.test`) tem o editor observado.
@@ -220,6 +224,10 @@ fn executar(
 ) -> Resultado {
     let instalacao = match Instalacao::interpretar(sessao.origem) {
         Some(instalacao) if instalacao.host() == "sei.test" => instalacao,
+        Some(instalacao) if instalacao.url_base() == "https://sei.treinamento.unb.br/sei" => {
+            return unb::executar(cli, sessao, indice, numero, previa, &instalacao)
+                .unwrap_or_else(Resultado::Recusado);
+        }
         _ => return Resultado::Recusado(ErroSalvarNoSei::InstalacaoSemEditorObservado),
     };
     let (n, local_base, local_editada) = match carregar_par(numero, previa) {
