@@ -2,8 +2,8 @@
 //! (contracts/cli/documento-assinar.md): número inválido sai com 2 antes de
 //! qualquer arquivo (`--confirmar` sem `--cargo`, também 2, pelo clap);
 //! prévia sem POST; com `--confirmar`, a senha do arquivo privado
-//! `IES_CREDENCIAIS_FILE` é lida antes da primeira requisição e só vai ao
-//! corpo do POST. A saída nunca traz URL, `infra_hash`, cookie ou senha.
+//! `IES_CREDENCIAIS_FILE` (ou, sem `senha=`, do cofre do sistema) é lida
+//! antes da primeira requisição e só vai ao corpo do POST. A saída nunca traz URL, `infra_hash`, cookie ou senha.
 use crate::arvore_processo::Assinante;
 use crate::documento::NumeroDocumento;
 use crate::documento_assinar::{
@@ -11,6 +11,7 @@ use crate::documento_assinar::{
     ResultadoDaAssinatura, assinar_documento, edicao_como_texto,
 };
 use crate::indice_local::IndiceLocal;
+use crate::instalacao::Instalacao;
 use crate::processo::NumeroProcesso;
 use crate::processo_concluir_cli::com_sessao;
 use crate::processo_obter::SessaoDoProcesso;
@@ -56,13 +57,15 @@ struct Entrada<'a> {
     confirmar: bool,
 }
 
-/// As credenciais do arquivo privado, só com `--confirmar`.
-fn credenciais() -> Result<Credenciais, ErroLogin> {
+/// As credenciais do arquivo privado (a senha, sem `senha=`, do cofre da
+/// instalação da sessão), só com `--confirmar`.
+fn credenciais(origem: &str) -> Result<Credenciais, ErroLogin> {
     let caminho = std::env::var_os("IES_CREDENCIAIS_FILE")
         .filter(|valor| !valor.is_empty())
         .map(PathBuf::from)
         .ok_or(ErroLogin::CaminhoDasCredenciaisNaoInformado)?;
-    Credenciais::ler(&caminho)
+    let instalacao = Instalacao::interpretar(origem).ok_or(ErroLogin::OrigemNaoAutorizada)?;
+    Credenciais::ler(&caminho, &instalacao)
 }
 
 fn assinar_na_sessao(
@@ -72,7 +75,7 @@ fn assinar_na_sessao(
     entrada: &Entrada<'_>,
 ) -> anyhow::Result<()> {
     let lidas = if entrada.confirmar {
-        Some(credenciais().map_err(ErroAssinar::Credenciais)?)
+        Some(credenciais(sessao.origem).map_err(ErroAssinar::Credenciais)?)
     } else {
         None
     };

@@ -51,6 +51,8 @@ pub(crate) enum ErroLogin {
     CampoDasCredenciaisRepetido(CampoDasCredenciais),
     CampoDasCredenciaisVazio(CampoDasCredenciais),
     LinhaDasCredenciaisSemCampoConhecido,
+    /// Sem `senha=` no arquivo, o cofre do sistema falhou (não é ausência).
+    Cofre(#[from] crate::cofre::ErroCofre),
     LoginEmAndamentoEmOutroProcesso,
     ArquivoDeLockDoLoginInacessivel(ErroDeIo),
     /// O arquivo da URL ou do cookie gravados não foi lido.
@@ -118,6 +120,7 @@ impl ErroLogin {
             | Self::CampoDasCredenciaisRepetido(_)
             | Self::CampoDasCredenciaisVazio(_)
             | Self::LinhaDasCredenciaisSemCampoConhecido
+            | Self::Cofre(_)
             | Self::LoginEmAndamentoEmOutroProcesso
             | Self::ArquivoDeLockDoLoginInacessivel(_)
             | Self::ArquivoDaSessao(_)
