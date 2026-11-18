@@ -1,4 +1,4 @@
-//! Salvamento de despacho sem assinatura no editor clássico da `UnB`.
+//! Salvamento no editor publicado para uma minuta sem assinatura.
 use super::{ErroSalvarNoSei, Resultado, carregar_par};
 use crate::acao_do_sei::AcaoDoSei;
 use crate::arvore_processo::{endereco::conferir_endereco_relativo_por, tela_do_documento};
@@ -22,11 +22,11 @@ use crate::transporte::{FalhaTransporte, decodificar_resposta, decodificar_respo
 use crate::visao_do_controle::{EnvioDoControle, EnvioHttps};
 use crate::{Cli, documento_versoes::VersaoDocumento};
 
-const PRINCIPAL: &str = "txaEditor_370";
-const SECOES: [&str; 3] = ["txaEditor_368", PRINCIPAL, "txaEditor_372"];
-const FIM_CABECALHO: &str = "</div>";
-const INICIO_RODAPE: &str =
-    r#"<hr style="border:none; padding:0; margin:5px 2px 0 2px; border-top:medium double #333" />"#;
+#[path = "ckeditor.rs"]
+mod ckeditor;
+#[path = "copia_renderizada.rs"]
+mod copia_renderizada;
+use copia_renderizada::Secao;
 
 const EDITAR: OperacaoDeFormulario = OperacaoDeFormulario {
     acao: AcaoDoSei::EditorSalvar,
@@ -34,7 +34,7 @@ const EDITAR: OperacaoDeFormulario = OperacaoDeFormulario {
     envio: EnvioDoFormulario::SubmitPorScript,
     campos_ocultos_exigidos: &["hdnVersao", "hdnIgnorarNovaVersao"],
     campos_ocultos_reescritos: &[],
-    campos_usuario: &SECOES,
+    campos_usuario: &["txaEditor_*"],
     resultado: ResultadoDoEnvio::ConferidoPorLeituraPosterior,
     unidade: ConferenciaDaUnidade::NaTelaDeOrigemDoLink,
     efeito: EfeitoAvaliado::AlteraEstadoDoProcesso {
@@ -44,7 +44,7 @@ const EDITAR: OperacaoDeFormulario = OperacaoDeFormulario {
 
 #[derive(Debug, thiserror::Error)]
 #[error("{self:?}")]
-pub(super) enum ErroEditorUnb {
+pub(super) enum ErroEditorNativo {
     TelaDoDocumentoNaoPublicada,
     LinkDoEditorNaoConferido,
     ConsultaDaAssinaturaNaoConferida,
@@ -56,38 +56,8 @@ pub(super) enum ErroEditorUnb {
     Formulario(#[from] ErroSubmissaoFormulario),
     FormularioDeOutroDocumento,
     EnvioSemAceite(#[source] ErroSubmissaoFormulario),
+    JsonDoEditor(#[source] serde_json::Error),
     ConteudoPersistidoDiferente { versao: u32 },
-}
-
-/// A foto de impressão da `UnB` precede o corpo com o cabeçalho de Despacho
-/// centralizado e o encerra antes do separador do rodapé. Os delimitadores
-/// vêm da base conferida, nunca da edição local.
-fn corpo_editado<'a>(base: &str, edicao: &'a str) -> Result<&'a str, ErroSalvarNoSei> {
-    let (head, body) = base
-        .split_once("<body>")
-        .ok_or(ErroSalvarNoSei::FotoLocalForaDaForma)?;
-    if !body.trim_start().starts_with(r#"<div align="center">"#) {
-        return Err(ErroSalvarNoSei::FotoLocalForaDaForma);
-    }
-    let (cabecalho, resto) = body
-        .split_once(FIM_CABECALHO)
-        .ok_or(ErroSalvarNoSei::FotoLocalForaDaForma)?;
-    let (corpo, rodape) = resto
-        .split_once(INICIO_RODAPE)
-        .ok_or(ErroSalvarNoSei::FotoLocalForaDaForma)?;
-    if rodape.contains(INICIO_RODAPE) {
-        return Err(ErroSalvarNoSei::FotoLocalForaDaForma);
-    }
-    let prefixo = format!("{head}<body>{cabecalho}{FIM_CABECALHO}");
-    let sufixo = format!("{INICIO_RODAPE}{rodape}");
-    let editado = edicao
-        .strip_prefix(&prefixo)
-        .and_then(|html| html.strip_suffix(&sufixo))
-        .ok_or(ErroSalvarNoSei::RegiaoNaoEditavelAlterada)?;
-    if corpo == editado {
-        return Err(ErroSalvarNoSei::BaseAlterada);
-    }
-    Ok(editado)
 }
 
 fn link_em_script(html: &HtmlServido, inicio: &str, fim: &str) -> Option<String> {
@@ -123,19 +93,19 @@ fn assinatura(
     instalacao: &Instalacao,
     pagina: &HtmlServido,
     alvo: &DocumentoNaArvoreAberto,
-) -> Result<(), ErroEditorUnb> {
-    let recusa = ErroEditorUnb::ConsultaDaAssinaturaNaoConferida;
+) -> Result<(), ErroEditorNativo> {
+    let recusa = ErroEditorNativo::ConsultaDaAssinaturaNaoConferida;
     let relativo = link_em_script(
         pagina,
         "objAjaxVerificacaoAssinatura = new infraAjaxComplementar(null,'",
         "');",
     )
-    .ok_or(ErroEditorUnb::ConsultaDaAssinaturaNaoConferida)?;
+    .ok_or(ErroEditorNativo::ConsultaDaAssinaturaNaoConferida)?;
     let consulta = relativo
         .strip_prefix("controlador_ajax.php?")
-        .ok_or(ErroEditorUnb::ConsultaDaAssinaturaNaoConferida)?;
+        .ok_or(ErroEditorNativo::ConsultaDaAssinaturaNaoConferida)?;
     let campos = ConsultaDoControlador::ler(consulta)
-        .map_err(|_| ErroEditorUnb::ConsultaDaAssinaturaNaoConferida)?;
+        .map_err(|_| ErroEditorNativo::ConsultaDaAssinaturaNaoConferida)?;
     if relativo.contains(['#', '\\', '\'', '"'])
         || !relativo.bytes().all(|b| (33..=126).contains(&b))
         || campos.valores("acao").next().is_some()
@@ -150,7 +120,7 @@ fn assinatura(
     let url = format!("{}/{relativo}", instalacao.url_base());
     let resposta = decodificar_resposta_xml(envio.get(&url, &alvo.cookie)?)?;
     let xml = crate::resposta_ajax::RespostaAjax::ler(&resposta)
-        .map_err(|_| ErroEditorUnb::AssinaturaNaoVerificada)?;
+        .map_err(|_| ErroEditorNativo::AssinaturaNaoVerificada)?;
     let sinais: Vec<_> = xml
         .elementos("complemento")
         .into_iter()
@@ -159,8 +129,8 @@ fn assinatura(
         .collect();
     match sinais.as_slice() {
         ["N"] => Ok(()),
-        ["S"] => Err(ErroEditorUnb::DocumentoAssinado),
-        _ => Err(ErroEditorUnb::AssinaturaNaoVerificada),
+        ["S"] => Err(ErroEditorNativo::DocumentoAssinado),
+        _ => Err(ErroEditorNativo::AssinaturaNaoVerificada),
     }
 }
 
@@ -174,27 +144,28 @@ fn abrir_editor(
     envio: &mut EnvioHttps,
     instalacao: &Instalacao,
     alvo: &DocumentoNaArvoreAberto,
-) -> Result<Editor, ErroEditorUnb> {
+) -> Result<Editor, ErroEditorNativo> {
     let tela = tela_do_documento(
         instalacao,
         &alvo.html,
         &alvo.id_documento,
         &alvo.processo.id,
     )
-    .ok_or(ErroEditorUnb::TelaDoDocumentoNaoPublicada)?;
+    .ok_or(ErroEditorNativo::TelaDoDocumentoNaoPublicada)?;
     let pagina = decodificar_resposta(envio.get(tela.as_str(), &alvo.cookie)?)?;
     assinatura(envio, instalacao, &pagina, alvo)?;
     let relativo = link_em_script(&pagina, "janelaEditor.location.href = '", "';")
-        .ok_or(ErroEditorUnb::LinkDoEditorNaoConferido)?;
+        .or_else(|| link_em_script(&pagina, "var linkEditarConteudo = '", "';"))
+        .ok_or(ErroEditorNativo::LinkDoEditorNaoConferido)?;
     let conferir = |chave, valor| {
         conferir_endereco_relativo_por(instalacao, &relativo, AcaoDoSei::EditorMontar, chave, valor)
-            .map_err(|_| ErroEditorUnb::LinkDoEditorNaoConferido)
+            .map_err(|_| ErroEditorNativo::LinkDoEditorNaoConferido)
     };
     conferir("id_procedimento", &alvo.processo.id)?;
     let url = conferir("id_documento", &alvo.id_documento)?;
     let resposta = envio.get(&url, &alvo.cookie)?;
     let codificacao =
-        codificacao_da_tela(&resposta.mime).ok_or(ErroEditorUnb::CharsetNaoSuportado)?;
+        codificacao_da_tela(&resposta.mime).ok_or(ErroEditorNativo::CharsetNaoSuportado)?;
     let html = decodificar_resposta(resposta)?;
     Ok(Editor {
         url,
@@ -243,25 +214,161 @@ fn secao(html: &HtmlServido, nome: &str) -> Option<String> {
     secoes.next().is_none().then_some(unica)
 }
 
-pub(super) fn principal_publicado(html: &HtmlServido) -> bool {
+pub(super) fn principal_publicado(html: &HtmlServido) -> Option<String> {
     let dom = arvore(html);
     let mut gravaveis = Vec::new();
     for script in dom.elementos("script").filter(|s| !s.presente("src")) {
         let texto = script.texto();
         for chamada in texto.split("CKEDITOR.replace(").skip(1) {
-            let Some((nome, config)) = chamada.split_once(',') else {
-                return false;
-            };
+            let (nome, config) = chamada.split_once(',')?;
             let nome = nome.trim().trim_matches(['\'', '"']);
-            let Some((_, readonly)) = config.split_once("\"readOnly\":") else {
-                return false;
-            };
+            let (_, readonly) = config.split_once("\"readOnly\":")?;
             if readonly.trim_start().starts_with("false") {
                 gravaveis.push(nome.to_owned());
             }
         }
     }
-    gravaveis == [PRINCIPAL]
+    let [nome] = gravaveis.as_slice() else {
+        return None;
+    };
+    Some(nome.clone())
+}
+
+#[cfg(test)]
+pub(super) fn reconhece_ckeditor(html: &HtmlServido) -> bool {
+    ckeditor::Configuracao::ler(html)
+        .is_ok_and(|c| c.is_some_and(|c| c.versao().is_some() && c.principal().is_some()))
+}
+
+enum Protocolo {
+    Classico {
+        versao: VersaoDocumento,
+        principal: String,
+        secoes: Vec<Secao>,
+    },
+    Ckeditor(ckeditor::Configuracao),
+}
+
+impl Protocolo {
+    fn ler(html: &HtmlServido) -> Result<Self, ErroEditorNativo> {
+        if let Some(config) = ckeditor::Configuracao::ler(html)? {
+            return Ok(Self::Ckeditor(config));
+        }
+        let forma = ErroEditorNativo::EditorForaDaForma;
+        let versao = versao_do_editor(html).ok_or(ErroEditorNativo::EditorForaDaForma)?;
+        let principal = principal_publicado(html).ok_or(ErroEditorNativo::EditorForaDaForma)?;
+        let dom = arvore(html);
+        let form = crate::formulario_web::localizar_formulario(&dom, "frmEditor")
+            .map_err(ErroEditorNativo::Formulario)?;
+        let secoes: Option<Vec<_>> = form
+            .elementos("textarea")
+            .filter(|campo| !campo.presente("disabled"))
+            .map(|campo| {
+                let nome = campo.atributo("name")?;
+                let id = nome.strip_prefix("txaEditor_")?;
+                if id.is_empty()
+                    || !id.bytes().all(|b| b.is_ascii_digit())
+                    || (nome == principal && campo.presente("readonly"))
+                {
+                    return None;
+                }
+                Some(Secao {
+                    nome: nome.to_owned(),
+                    html: secao(html, nome)?,
+                })
+            })
+            .collect();
+        let secoes = secoes.ok_or(ErroEditorNativo::EditorForaDaForma)?;
+        if !secoes.iter().any(|s| s.nome == principal) {
+            return Err(forma);
+        }
+        Ok(Self::Classico {
+            versao,
+            principal,
+            secoes,
+        })
+    }
+
+    fn versao(&self) -> Option<VersaoDocumento> {
+        match self {
+            Self::Classico { versao, .. } => Some(*versao),
+            Self::Ckeditor(config) => config.versao(),
+        }
+    }
+
+    fn principal(&self) -> Option<&str> {
+        match self {
+            Self::Classico { principal, .. } => Some(principal),
+            Self::Ckeditor(config) => config.principal(),
+        }
+    }
+
+    fn secoes(&self) -> &[Secao] {
+        match self {
+            Self::Classico { secoes, .. } => secoes,
+            Self::Ckeditor(config) => config.secoes(),
+        }
+    }
+}
+
+struct AlvoDaEdicao<'a> {
+    instalacao: &'a Instalacao,
+    sessao: &'a SessaoDoProcesso<'a>,
+    unidade: Option<&'a str>,
+    documento: &'a DocumentoNaArvoreAberto,
+}
+
+fn enviar_classico(
+    envio: &mut EnvioHttps,
+    alvo: &AlvoDaEdicao<'_>,
+    editor: &Editor,
+    secoes: &[Secao],
+    principal: &str,
+    editado: &str,
+) -> Result<Option<VersaoDocumento>, ErroEditorNativo> {
+    let pares: Vec<_> = secoes
+        .iter()
+        .map(|s| {
+            (
+                s.nome.as_str(),
+                if s.nome == principal {
+                    editado
+                } else {
+                    s.html.as_str()
+                },
+            )
+        })
+        .collect();
+    let submissao = derivar_submissao(
+        &EDITAR,
+        alvo.instalacao,
+        &TelaServida {
+            url: &editor.url,
+            html: &editor.html,
+            codificacao: editor.codificacao,
+        },
+        alvo.unidade,
+        &pares,
+    )
+    .map_err(ErroEditorNativo::Formulario)?;
+    let consulta = crate::url_observada::UrlHttps::interpretar(submissao.url())
+        .and_then(|u| u.consulta)
+        .and_then(|q| ConsultaDoControlador::ler(q).ok())
+        .ok_or(ErroEditorNativo::FormularioDeOutroDocumento)?;
+    if consulta.unico("id_documento") != Ok(alvo.documento.id_documento.as_str())
+        || consulta.unico("id_procedimento") != Ok(alvo.documento.processo.id.as_str())
+    {
+        return Err(ErroEditorNativo::FormularioDeOutroDocumento);
+    }
+    let resposta = enviar_submissao_via(submissao, alvo.sessao.cookie, |s, c| envio.post(s, c))
+        .map_err(ErroEditorNativo::EnvioSemAceite)?;
+    match resposta {
+        RespostaDoEnvio::Html(html) => Ok(html
+            .trim()
+            .strip_prefix("OK ")
+            .and_then(|n| VersaoDocumento::interpretar(n).ok())),
+        RespostaDoEnvio::Redirecionamento(_) => Ok(None),
+    }
 }
 
 pub(super) fn executar(
@@ -273,7 +380,7 @@ pub(super) fn executar(
     instalacao: &Instalacao,
 ) -> Result<Resultado, ErroSalvarNoSei> {
     let (versao, base, edicao) = carregar_par(numero, previa)?;
-    let editado = corpo_editado(&base, &edicao)?;
+
     let pedido = PedidoDoDocumento {
         numero,
         processo: None,
@@ -292,51 +399,52 @@ pub(super) fn executar(
     let alvo = abrir_documento_na_arvore(sessao, &pedido, indice, &mut envio)
         .map_err(ErroSalvarNoSei::LeituraDoDocumento)?;
     let editor = abrir_editor(&mut envio, instalacao, &alvo)?;
-    if versao_do_editor(&editor.html) != Some(versao) || !principal_publicado(&editor.html) {
-        return Err(ErroEditorUnb::EditorForaDaForma.into());
+    let protocolo = Protocolo::ler(&editor.html)?;
+    if protocolo.versao() != Some(versao) {
+        return Err(ErroSalvarNoSei::VersaoAlterada);
     }
-    let cabecalho = secao(&editor.html, "txaEditor_368").ok_or(ErroEditorUnb::EditorForaDaForma)?;
-    let rodape = secao(&editor.html, "txaEditor_372").ok_or(ErroEditorUnb::EditorForaDaForma)?;
-    let submissao = derivar_submissao(
-        &EDITAR,
+    let principal = protocolo
+        .principal()
+        .ok_or(ErroEditorNativo::EditorForaDaForma)?;
+    let editado = copia_renderizada::corpo_editado(&base, &edicao, protocolo.secoes(), principal)?;
+    let alvo_edicao = AlvoDaEdicao {
         instalacao,
-        &TelaServida {
-            url: &editor.url,
-            html: &editor.html,
-            codificacao: editor.codificacao,
-        },
-        cli.unidade.as_deref(),
-        &[
-            ("txaEditor_368", &cabecalho),
-            (PRINCIPAL, editado),
-            ("txaEditor_372", &rodape),
-        ],
-    )
-    .map_err(ErroEditorUnb::Formulario)?;
-    let consulta = crate::url_observada::UrlHttps::interpretar(submissao.url())
-        .and_then(|u| u.consulta)
-        .and_then(|q| ConsultaDoControlador::ler(q).ok())
-        .ok_or(ErroEditorUnb::FormularioDeOutroDocumento)?;
-    if consulta.unico("id_documento") != Ok(alvo.id_documento.as_str())
-        || consulta.unico("id_procedimento") != Ok(alvo.processo.id.as_str())
-    {
-        return Err(ErroEditorUnb::FormularioDeOutroDocumento.into());
-    }
-    let resposta = enviar_submissao_via(submissao, sessao.cookie, |s, c| envio.post(s, c));
-    let nova = previa.versao_editada;
+        sessao,
+        unidade: cli.unidade.as_deref(),
+        documento: &alvo,
+    };
+    let aceite = match &protocolo {
+        Protocolo::Classico { secoes, .. } => enviar_classico(
+            &mut envio,
+            &alvo_edicao,
+            &editor,
+            secoes,
+            principal,
+            editado,
+        ),
+        Protocolo::Ckeditor(config) => {
+            config.salvar(instalacao, &alvo, &editor.url, principal, editado)
+        }
+    };
     let persistido = abrir_editor(&mut envio, instalacao, &alvo);
-    let resposta = resposta.map_err(ErroEditorUnb::EnvioSemAceite)?;
-    let aceitou =
-        matches!(resposta, RespostaDoEnvio::Html(html) if html.trim() == format!("OK {nova}"));
-    let Ok(persistido) = persistido else {
+    let nova = previa.versao_editada;
+    if aceite?.map(VersaoDocumento::numero) != Some(nova) {
+        return Ok(Resultado::Incerto);
+    }
+    let Ok(persistido) = persistido.and_then(|p| Protocolo::ler(&p.html)) else {
         return Ok(Resultado::Incerto);
     };
-    if !aceitou || versao_do_editor(&persistido.html).map(VersaoDocumento::numero) != Some(nova) {
+    if persistido.versao().map(VersaoDocumento::numero) != Some(nova)
+        || persistido.principal() != Some(principal)
+    {
         return Ok(Resultado::Incerto);
     }
-    let salvo = secao(&persistido.html, PRINCIPAL);
-    if salvo.as_deref() != Some(editado) {
-        return Err(ErroEditorUnb::ConteudoPersistidoDiferente { versao: nova }.into());
+    if !persistido
+        .secoes()
+        .iter()
+        .any(|s| s.nome == principal && s.html == editado)
+    {
+        return Err(ErroEditorNativo::ConteudoPersistidoDiferente { versao: nova }.into());
     }
     Ok(Resultado::Confirmado(nova))
 }
@@ -346,26 +454,12 @@ mod testes {
     use super::*;
 
     #[test]
-    fn recorta_a_edicao_com_os_limites_da_base_sem_alterar_o_html() {
-        let antes = "<html><body><div align=\"center\"><table></table></div>";
-        let depois = format!("{INICIO_RODAPE}<table></table></body></html>");
-        let base = format!("{antes}<p>Antes</p>{depois}");
-        let trecho = "<p title=\"sem fechamento\r\r\n<b>Exemplo";
-        let editada = format!("{antes}{trecho}{depois}");
-        assert_eq!(corpo_editado(&base, &editada).unwrap(), trecho);
-        assert!(matches!(
-            corpo_editado(&base, &editada.replace("center", "left")),
-            Err(ErroSalvarNoSei::RegiaoNaoEditavelAlterada)
-        ));
-    }
-
-    #[test]
     fn rele_o_textarea_preservando_caracteres_de_controle() {
         let html = HtmlServido::de_teste(
             "<textarea name='txaEditor_370'>&lt;p&gt;linha\r\r\nmais\r</textarea>",
         );
         assert_eq!(
-            secao(&html, PRINCIPAL).as_deref(),
+            secao(&html, "txaEditor_370").as_deref(),
             Some("<p>linha\r\r\nmais\r")
         );
     }

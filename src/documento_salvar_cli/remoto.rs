@@ -22,8 +22,8 @@ use crate::visao_do_controle::{EnvioDoControle as _, EnvioHttps};
 use serde_json::json;
 use std::path::Path;
 
-#[path = "unb.rs"]
-mod unb;
+#[path = "nativo.rs"]
+mod nativo;
 
 /// Fluxo SEI 4 observado no catálogo (UnB/PEN1/UFRJ), ainda sem replay
 /// dos corpos originais de POST. Só usado na instalação sintética sei.test.
@@ -57,7 +57,7 @@ fn corpo_sintetico(html: &str) -> Option<&str> {
 #[derive(Debug, thiserror::Error)]
 #[error("{self:?}")]
 enum ErroSalvarNoSei {
-    EditorUnb(#[from] unb::ErroEditorUnb),
+    EditorNativo(#[from] nativo::ErroEditorNativo),
     Local(#[source] ErroCopia),
     PastaAtualIlegivel(#[source] std::io::Error),
     /// Só a instalação sintética (`sei.test`) tem o editor observado.
@@ -224,8 +224,14 @@ fn executar(
 ) -> Resultado {
     let instalacao = match Instalacao::interpretar(sessao.origem) {
         Some(instalacao) if instalacao.host() == "sei.test" => instalacao,
-        Some(instalacao) if instalacao.url_base() == "https://sei.treinamento.unb.br/sei" => {
-            return unb::executar(cli, sessao, indice, numero, previa, &instalacao)
+        Some(instalacao)
+            if crate::origem_de_treinamento::exigir(
+                crate::origem_de_treinamento::Escrita::DocumentoSalvar,
+                sessao.origem,
+            )
+            .is_ok() =>
+        {
+            return nativo::executar(cli, sessao, indice, numero, previa, &instalacao)
                 .unwrap_or_else(Resultado::Recusado);
         }
         _ => return Resultado::Recusado(ErroSalvarNoSei::InstalacaoSemEditorObservado),

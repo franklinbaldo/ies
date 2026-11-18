@@ -35,6 +35,7 @@ pub(crate) enum CausaDaOrigem {
 pub(crate) enum Escrita {
     BlocoIncluirDocumento,
     DocumentoIncluirExterno,
+    DocumentoSalvar,
     ProcessoPrazo,
     ProcessoRelacionar,
     ProcessoAndamento,
