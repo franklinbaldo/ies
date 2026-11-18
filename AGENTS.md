@@ -112,10 +112,11 @@ Estas regras são a fonte única dos prompts curtos das automações.
    procuram cards primeiro e entregam fatia relevante sem criar
    narrativas Gherkin. Handoff: `FEITO` (operação/arquivo), `E2E`
    (cassette, resultado, CI), `CONTINUAR` (lacuna contratada).
-5. **Revisão e integração:** 🦅 verifica diff, regressão real, cassettes,
-   comportamento do usuário, escopo e ausência de invenção. 🐘/🦡 integram
-   somente após o GitHub Actions executar no head final da PR os replays
-   de cassettes originais aplicáveis e os gates oficiais verdes. O CI
+5. **Integração e revisão:** 🐘/🦡 integram somente após o GitHub
+   Actions executar no head final da PR os replays de cassettes
+   originais aplicáveis e os gates oficiais verdes, **sem esperar parecer
+   do 🦅**, salvo as exceções da [revisão retrospectiva](docs/revisao-retrospectiva.md).
+   O 🦅 audita depois a `main`: diff, regressão, cassettes, escopo. O CI
    completo ocorre no aceite da PR, não a cada commit WIP; se o head
    mudar, revalidar. A inspeção de hashes sozinha não é replay.
    Preservar testes ainda úteis; remover redundâncias fundamentadamente.
@@ -165,6 +166,7 @@ Antes de codificar ou testar, sincronize a branch com a `main` a cada rodada:
 1. Identifique issue e PR próprias e consulte SHAs da `main` e do head.
 2. **Sem PR:** crie uma branch nova a partir da `main` atual.
 3. **Com PR:** se estiver atrás, incorpore `main → branch` por merge verdadeiro.
+   Atraso só por `team/memories/` não exige sincronização nem novo CI.
 4. Confira SHAs e registre na PR. CI verde do SHA atual valida a fatia.
 5. Havendo conflito complexo, registre o ponto de dúvida para alinhamento.
 
@@ -180,8 +182,9 @@ Antes de codificar ou testar, sincronize a branch com a `main` a cada rodada:
 
 ## Revisão e integração
 
-Procedimentos específicos: [🦅 Gavião](team/gaviao.md) e
-[🐘 Elefante](team/elefante.md).
+Padrão sem revisão prévia, ronda retrospectiva do 🦅 e exceções:
+[revisão retrospectiva](docs/revisao-retrospectiva.md), que prevalece
+sobre as fichas. Procedimentos: [🦅](team/gaviao.md), [🐘](team/elefante.md).
 
 ## Método: observar → contratar → RED → GREEN → validar
 
