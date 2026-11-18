@@ -33,8 +33,10 @@ documento).
   prévia; **obrigatório** com `--confirmar` (sem ele, saída 2 do clap,
   antes de qualquer arquivo).
 - `--confirmar`: assina. Sem ele, só prévia.
-- **Senha**: só a linha `senha=` do arquivo privado `0600` de
-  `IES_CREDENCIAIS_FILE` ([formato](sessao-login.md)), a mesma do login.
+- **Senha**: a linha `senha=` do arquivo privado `0600` de
+  `IES_CREDENCIAIS_FILE` ([formato](sessao-login.md)), a mesma do login;
+  sem essa linha, a do [cofre](credenciais.md) para a instalação da
+  sessão e o `usuario=` do arquivo.
   Lida **só** com `--confirmar`, antes da primeira requisição; nunca vem de
   argumento, nunca sai em log, saída, erro ou `Debug`. O cargo não vai ao
   arquivo: o formato das credenciais é fechado (três chaves) e o cargo é
