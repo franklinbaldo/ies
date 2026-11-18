@@ -5,8 +5,6 @@
 //! tipo do html5ever sai deste módulo.
 
 mod construtor;
-mod serializacao;
-pub(crate) use serializacao::{ErroNormalizacao, normalizar_fragmento};
 
 use construtor::Construtor;
 use html5ever::tendril::{StrTendril, TendrilSink};
@@ -50,7 +48,7 @@ enum Conteudo {
     Raiz,
     Elemento(DadosDoElemento),
     Texto(StrTendril),
-    Comentario(StrTendril),
+    Comentario,
 }
 
 struct DadosDoElemento {
@@ -130,7 +128,7 @@ impl Documento {
                 dados,
             })),
             Conteudo::Texto(texto) => Some(No::Texto(texto)),
-            Conteudo::Comentario(_) => Some(No::Comentario),
+            Conteudo::Comentario => Some(No::Comentario),
             Conteudo::Raiz => None,
         }
     }
@@ -142,7 +140,7 @@ impl Documento {
                 indice,
                 dados,
             }),
-            Conteudo::Raiz | Conteudo::Texto(_) | Conteudo::Comentario(_) => None,
+            Conteudo::Raiz | Conteudo::Texto(_) | Conteudo::Comentario => None,
         }
     }
 
@@ -256,7 +254,7 @@ impl<'d> Elemento<'d> {
             .abaixo(self.indice)
             .filter_map(|indice| match &self.documento.nos.get(indice)?.conteudo {
                 Conteudo::Texto(texto) => Some(&**texto),
-                Conteudo::Raiz | Conteudo::Elemento(_) | Conteudo::Comentario(_) => None,
+                Conteudo::Raiz | Conteudo::Elemento(_) | Conteudo::Comentario => None,
             })
             .collect()
     }

@@ -6,9 +6,7 @@ use crate::transporte::corpo::{ErroCorpoHttp, legivel};
 mod documento;
 #[cfg(test)]
 pub(crate) mod teste;
-pub(crate) use documento::{
-    Documento, Elemento, ErroNormalizacao, No, arvore, fragmento, normalizar_fragmento,
-};
+pub(crate) use documento::{Documento, Elemento, No, arvore, fragmento};
 
 /// Bytes UTF-8 que um corpo de até `MAX_HTML_BYTES` bytes rende: em
 /// ISO-8859-1 cada byte vira um caractere de até dois bytes.

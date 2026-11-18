@@ -157,12 +157,12 @@ impl TreeSink for Construtor {
         }))
     }
 
-    fn create_comment(&self, texto: StrTendril) -> usize {
-        self.criar(Conteudo::Comentario(texto))
+    fn create_comment(&self, _texto: StrTendril) -> usize {
+        self.criar(Conteudo::Comentario)
     }
 
-    fn create_pi(&self, alvo: StrTendril, dados: StrTendril) -> usize {
-        self.criar(Conteudo::Comentario(format!("?{alvo} {dados}?").into()))
+    fn create_pi(&self, _alvo: StrTendril, _dados: StrTendril) -> usize {
+        self.criar(Conteudo::Comentario)
     }
 
     fn append(&self, pai: &usize, filho: NodeOrText<usize>) {
@@ -193,7 +193,7 @@ impl TreeSink for Construtor {
         let nos = self.nos.borrow();
         match nos.get(*alvo).map(|no| &no.conteudo) {
             Some(Conteudo::Elemento(dados)) => dados.conteudo_do_modelo.unwrap_or(*alvo),
-            Some(Conteudo::Raiz | Conteudo::Texto(_) | Conteudo::Comentario(_)) | None => *alvo,
+            Some(Conteudo::Raiz | Conteudo::Texto(_) | Conteudo::Comentario) | None => *alvo,
         }
     }
 
