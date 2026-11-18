@@ -161,10 +161,7 @@ fn verificar_publicacao(envio: &mut EnvioHttps, dados: &ConferenciaPublicacao<'_
         editada,
         respondeu,
     } = dados;
-    let url = format!(
-        "{origem}/controlador.php?acao={acao}&id_documento={id_documento}&versao={versao_nova}",
-        acao = AcaoDoSei::DocumentoVisualizar.como_na_url()
-    );
+    let url = url_da_releitura(origem, id_documento, versao_nova);
     let Ok(html) = envio.get(&url, cookie).and_then(decodificar_resposta) else {
         return Resultado::Incerto;
     };
@@ -189,6 +186,21 @@ fn verificar_publicacao(envio: &mut EnvioHttps, dados: &ConferenciaPublicacao<'_
     } else {
         Resultado::Incerto
     }
+}
+
+/// A guarda autoriza a base normalizada; URLs de GET não usam a origem bruta.
+fn url_do_editor(origem: &str, id_documento: &str) -> String {
+    format!(
+        "{origem}/controlador.php?acao={acao}&id_documento={id_documento}",
+        acao = AcaoDoSei::EditorMontar.como_na_url()
+    )
+}
+
+fn url_da_releitura(origem: &str, id_documento: &str, versao_nova: u32) -> String {
+    format!(
+        "{origem}/controlador.php?acao={acao}&id_documento={id_documento}&versao={versao_nova}",
+        acao = AcaoDoSei::DocumentoVisualizar.como_na_url()
+    )
 }
 
 fn carregar_par(
@@ -293,12 +305,8 @@ fn executar_sintetico(
         Ok(html) => html,
         Err(falha) => return Resultado::Recusado(falha.into()),
     };
-    let url = format!(
-        "{}/controlador.php?acao={acao}&id_documento={}",
-        sessao.origem,
-        lido.id_documento,
-        acao = AcaoDoSei::EditorMontar.como_na_url()
-    );
+    let origem = instalacao.url_base();
+    let url = url_do_editor(&origem, &lido.id_documento);
     let cookie: &str = &lido.cookie;
     let editor = match envio.get(&url, cookie).and_then(decodificar_resposta) {
         Ok(editor) => editor,
@@ -332,7 +340,7 @@ fn executar_sintetico(
     verificar_publicacao(
         &mut envio,
         &ConferenciaPublicacao {
-            origem: sessao.origem,
+            origem: &origem,
             cookie,
             id_documento: &lido.id_documento,
             url_editor: &url,
@@ -384,6 +392,29 @@ mod acervo_editor;
 #[cfg(test)]
 mod testes_moldura {
     use super::corpos_da_edicao;
+
+    #[test]
+    fn urls_de_editor_e_releitura_usam_base_autorizada_canonica() {
+        use super::{Instalacao, url_da_releitura, url_do_editor};
+
+        for configuracao in [
+            "https://sei.test/sei",
+            "https://sei.test/sei/",
+            "https://SEI.TEST/sei/",
+        ] {
+            let instalacao = Instalacao::interpretar(configuracao).unwrap();
+            let origem = instalacao.url_base();
+            assert_eq!(origem, "https://sei.test/sei");
+            let editor = url_do_editor(&origem, "11519");
+            let releitura = url_da_releitura(&origem, "11519", 4);
+            assert!(editor.starts_with("https://sei.test/sei/controlador.php?acao="));
+            assert!(editor.ends_with("&id_documento=11519"));
+            assert!(releitura.starts_with("https://sei.test/sei/controlador.php?acao="));
+            assert!(releitura.ends_with("&id_documento=11519&versao=4"));
+            assert!(!editor.contains("/sei//controlador.php"));
+            assert!(!releitura.contains("/sei//controlador.php"));
+        }
+    }
 
     const BASE: &str = "<html><head><title>Documento</title></head><body><main id='corpoEditavel'><p>Antes</p></main><div>Versão 3</div></body></html>";
 
