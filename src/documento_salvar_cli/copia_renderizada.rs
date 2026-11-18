@@ -38,26 +38,44 @@ fn marcar(html: &str) -> Option<HtmlServido> {
     HtmlServido::novo(marcado).ok()
 }
 
-fn moldura(html: &str, secoes: &[Secao], principal: &str) -> Option<(usize, usize)> {
-    // A visualização junta as seções em ordem, depois acrescenta o rodapé
-    // de versão. Os valores de variáveis podem mudar o texto da visualização.
+fn limites_do_corpo(html: &str) -> Option<(usize, usize)> {
     let corpo = html.find("<body")?;
     let inicio = corpo + html.get(corpo..)?.find('>')? + 1;
     let rodape = html.rfind("<div unselectable=\"on\"")?;
+    (inicio <= rodape).then_some((inicio, rodape))
+}
+
+fn assinaturas(html: &str) -> Option<Vec<(String, Option<String>)>> {
+    let fonte = HtmlServido::novo(html.to_owned()).ok()?;
+    let dom = arvore(&fonte);
+    let corpo = dom.elementos("body").next()?;
+    if corpo
+        .nos()
+        .any(|no| no.como_texto().is_some_and(|s| !s.trim().is_empty()))
+    {
+        return None;
+    }
+    Some(corpo.filhos().map(assinatura).collect())
+}
+
+fn moldura(html: &str, secoes: &[Secao], principal: &str) -> Option<(usize, usize)> {
+    // A visualização junta as seções em ordem, depois acrescenta o rodapé
+    // de versão. Os valores de variáveis podem mudar o texto da visualização.
+    let (inicio, rodape) = limites_do_corpo(html)?;
     let corpo = marcar(html.get(inicio..rodape)?)?;
     let dom = arvore(&corpo);
-    let elementos: Vec<_> = dom.elementos("body").next()?.filhos().collect();
+    let corpo = dom.elementos("body").next()?;
+    if corpo
+        .nos()
+        .any(|no| no.como_texto().is_some_and(|s| !s.trim().is_empty()))
+    {
+        return None;
+    }
+    let elementos: Vec<_> = corpo.filhos().collect();
     let mut atual = 0;
     let mut intervalo = None;
     for secao in secoes {
-        let fonte = HtmlServido::novo(secao.html.clone()).ok()?;
-        let raiz = arvore(&fonte);
-        let filhos: Vec<_> = raiz
-            .elementos("body")
-            .next()?
-            .filhos()
-            .map(assinatura)
-            .collect();
+        let filhos = assinaturas(&secao.html)?;
         let seguinte = atual + filhos.len();
         let renderizados = elementos.get(atual..seguinte)?;
         if !renderizados.iter().copied().map(assinatura).eq(filhos) {
@@ -88,14 +106,47 @@ fn moldura(html: &str, secoes: &[Secao], principal: &str) -> Option<(usize, usiz
     Some((antes, fechamento))
 }
 
+/// O HTML malformado pode mudar a árvore da visualização inteira. Uma
+/// ocorrência literal basta quando as seções vizinhas também conferem.
+fn moldura_literal(html: &str, secoes: &[Secao], principal: &str) -> Option<(usize, usize)> {
+    let (inicio, rodape) = limites_do_corpo(html)?;
+    let corpo = html.get(inicio..rodape)?;
+    let posicao = secoes.iter().position(|s| s.nome == principal)?;
+    let (anteriores, seguintes) = secoes.split_at_checked(posicao)?;
+    let (secao, seguintes) = seguintes.split_first()?;
+    if secao.html.is_empty() {
+        return None;
+    }
+    let mut encontrados = corpo.match_indices(&secao.html);
+    let (abertura, _) = encontrados.next()?;
+    if encontrados.next().is_some() {
+        return None;
+    }
+    let fechamento = abertura + secao.html.len();
+    let iguais = |vizinhanca: &[Secao], trecho: &str| {
+        let partes: Option<Vec<_>> = vizinhanca.iter().map(|s| assinaturas(&s.html)).collect();
+        Some(
+            assinaturas(trecho)?
+                .into_iter()
+                .eq(partes?.into_iter().flatten()),
+        )
+    };
+    if !iguais(anteriores, corpo.get(..abertura)?)? || !iguais(seguintes, corpo.get(fechamento..)?)?
+    {
+        return None;
+    }
+    Some((inicio + abertura, inicio + fechamento))
+}
+
 pub(super) fn corpo_editado<'a>(
     base: &str,
     edicao: &'a str,
     secoes: &[Secao],
     principal: &str,
 ) -> Result<&'a str, ErroSalvarNoSei> {
-    let (inicio, fim) =
-        moldura(base, secoes, principal).ok_or(ErroSalvarNoSei::FotoLocalForaDaForma)?;
+    let (inicio, fim) = moldura(base, secoes, principal)
+        .or_else(|| moldura_literal(base, secoes, principal))
+        .ok_or(ErroSalvarNoSei::FotoLocalForaDaForma)?;
     let prefixo = base
         .get(..inicio)
         .ok_or(ErroSalvarNoSei::FotoLocalForaDaForma)?;
@@ -141,5 +192,32 @@ mod testes {
             corpo_editado(&base, &edicao.replace("Unidade", "Outra"), &secoes, "28"),
             Err(ErroSalvarNoSei::RegiaoNaoEditavelAlterada)
         ));
+    }
+
+    #[test]
+    fn localiza_html_malformado_anterior_pelo_trecho_literal() {
+        let antigo = "<p style=\"color:red\">Antigo<strong> sem fechamento";
+        let antes = "<body><div>Unidade</div>\n";
+        let depois = "<hr><p>Rodapé</p><div unselectable=\"on\"></div></body>";
+        let base = format!("{antes}{antigo}{depois}");
+        let secoes = [
+            Secao {
+                nome: "x".into(),
+                html: "<div>@unidade@</div>".into(),
+            },
+            Secao {
+                nome: "y".into(),
+                html: antigo.into(),
+            },
+            Secao {
+                nome: "z".into(),
+                html: "<hr><p>Rodapé</p>".into(),
+            },
+        ];
+        let editada = format!("{antes}<p>Novo</p>{depois}");
+        assert_eq!(
+            corpo_editado(&base, &editada, &secoes, "y").unwrap(),
+            "<p>Novo</p>"
+        );
     }
 }

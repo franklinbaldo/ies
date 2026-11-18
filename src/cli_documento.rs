@@ -39,7 +39,7 @@ pub(crate) enum DocumentoAcao {
         #[arg(long)]
         confirmar: bool,
     },
-    /// Prévia de cópia local; confirmação no treinamento da `UnB` e no anti-IES.
+    /// Prévia de cópia local; confirma pelo editor publicado no SEI de treinamento.
     Salvar {
         #[arg(value_parser = crate::documento::NumeroDocumento::novo)]
         numero: crate::documento::NumeroDocumento,

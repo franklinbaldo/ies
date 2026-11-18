@@ -34,9 +34,7 @@ fn conferir_recusa_no_original(card_relativo: &str) {
             resposta.passo
         );
         if captura.instalacao == "unb" {
-            let versao = nativo::versao_do_editor(&html).expect("versão do editor clássico");
-            assert!(matches!(versao.numero(), 1 | 2));
-            assert!(nativo::principal_publicado(&html).is_some());
+            assert!(nativo::reconhece_classico(&html));
         } else if captura.instalacao == "go" {
             assert!(nativo::reconhece_ckeditor(&html));
         }

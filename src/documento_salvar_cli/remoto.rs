@@ -60,7 +60,7 @@ enum ErroSalvarNoSei {
     EditorNativo(#[from] nativo::ErroEditorNativo),
     Local(#[source] ErroCopia),
     PastaAtualIlegivel(#[source] std::io::Error),
-    /// Só a instalação sintética (`sei.test`) tem o editor observado.
+    /// Instalação fora do escopo de treinamento desta operação.
     InstalacaoSemEditorObservado,
     LeituraDoDocumento(#[source] ErroDocumentoObter),
     VersaoAlterada,

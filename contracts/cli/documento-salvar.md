@@ -64,9 +64,8 @@ O JSON continua sem conteúdo HTML, URLs assinadas ou cookies e traz
 `versao_editada`, `bytes_base`, `bytes_editada`, `escrita_remota: false`,
 `base_verificada: false` e `trecho_divergente`, e `confirmado: false`.
 
-`--confirmar` está disponível para o modelo clássico de Despacho na UnB
-de treinamento e na bancada sintética `sei.test`. Na bancada, a CLI
-relê a versão N, confere
+`--confirmar` está disponível nas instalações públicas de treinamento e
+na bancada sintética `sei.test`. Na bancada, a CLI relê a versão N, confere
 conteúdo idêntico à foto local, consulta o editor oferecido, deriva um
 único POST do formulário servido e comprova a versão N+1 por GET
 independente. Também relê o editor para observar a contagem de assinaturas
@@ -76,12 +75,14 @@ Resposta inconclusiva após a tentativa de POST resulta em
 `ErroSalvarNoSei::EdicaoNaoComprovada` (saída 1), sem retry. O editor da simulação usa uma região
 `main#corpoEditavel`.
 
-Na UnB de treinamento, o corpo editável fica entre o cabeçalho e o
-rodapé do modelo de Despacho. Edite somente esse trecho da cópia
-`DOC.v(N+1).html`. A confirmação verifica uma minuta sem assinatura,
-confere no editor a versão vigente e a seção gravável, e envia o HTML
-do trecho uma vez pelo formulário publicado. A resposta e uma nova
-leitura do editor conferem a versão criada e o conteúdo persistido.
+Nas instalações de treinamento, edite somente o corpo principal da cópia
+`DOC.v(N+1).html`. A CLI verifica que a minuta está sem assinatura,
+confere a versão vigente e lê da tela quais seções o editor oferece.
+O editor clássico usa o formulário publicado. O CKEditor 5 usa o JSON
+da operação indicada pela tela. Em ambos, os valores das outras seções
+vêm do editor. Se a foto e as seções não permitem localizar o corpo
+com segurança, a CLI recusa sem gravar.
+A resposta e uma nova leitura conferem a versão criada e o conteúdo persistido.
 Se a versão mudar e o conteúdo lido diferir, a recusa informa a
 versão gravada. Nenhuma tentativa é repetida automaticamente.
 
