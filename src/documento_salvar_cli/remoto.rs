@@ -184,6 +184,15 @@ fn verificar_publicacao(envio: &mut EnvioHttps, dados: &ConferenciaPublicacao<'_
     }
 }
 
+/// Constrói a URL do editor sobre a base canônica que foi autorizada.
+/// A sessão pode guardar barra final ou host com maiúsculas.
+fn url_do_editor(origem: &str, id_documento: &str) -> String {
+    format!(
+        "{origem}/controlador.php?acao={acao}&id_documento={id_documento}",
+        acao = AcaoDoSei::EditorMontar.como_na_url()
+    )
+}
+
 fn carregar_par(
     numero: &NumeroDocumento,
     previa: &PreviaCopia,
@@ -235,6 +244,9 @@ fn executar(
     if instalacao.host() != "sei.test" {
         return Resultado::Recusado(ErroSalvarNoSei::InstalacaoSemEditorObservado);
     }
+    // A autorização normaliza a URL base. Toda URL de GET/releitura precisa
+    // usar a mesma forma, nunca o valor bruto da sessão.
+    let origem = instalacao.url_base();
     let (n, local_base, local_editada) = match carregar_par(numero, previa) {
         Ok(par) => par,
         Err(falha) => return Resultado::Recusado(falha),
@@ -271,12 +283,7 @@ fn executar(
         Ok(par) => par,
         Err(falha) => return Resultado::Recusado(falha),
     };
-    let url = format!(
-        "{}/controlador.php?acao={acao}&id_documento={}",
-        sessao.origem,
-        lido.id_documento,
-        acao = AcaoDoSei::EditorMontar.como_na_url()
-    );
+    let url = url_do_editor(&origem, &lido.id_documento);
     let cookie: &str = &lido.cookie;
     let editor = match envio.get(&url, cookie).and_then(decodificar_resposta) {
         Ok(editor) => editor,
@@ -310,7 +317,7 @@ fn executar(
     verificar_publicacao(
         &mut envio,
         &ConferenciaPublicacao {
-            origem: sessao.origem,
+            origem: &origem,
             cookie,
             id_documento: &lido.id_documento,
             url_editor: &url,
@@ -360,6 +367,28 @@ mod acervo_editor;
 #[cfg(test)]
 mod testes_moldura {
     use super::corpos_da_edicao;
+
+    #[test]
+    fn url_do_editor_usa_a_mesma_base_canonica_da_guarda() {
+        use super::{Instalacao, url_do_editor};
+
+        for config in [
+            "https://sei.test/sei",
+            "https://sei.test/sei/",
+            "https://SEI.TEST/sei/",
+        ] {
+            let instalacao = Instalacao::interpretar(config).unwrap();
+            let origem = instalacao.url_base();
+            assert_eq!(origem, "https://sei.test/sei");
+            let url = url_do_editor(&origem, "11519");
+            assert!(
+                url.starts_with("https://sei.test/sei/controlador.php?acao="),
+                "{url}"
+            );
+            assert!(url.ends_with("&id_documento=11519"), "{url}");
+            assert!(!url.contains("/sei//controlador.php"), "{url}");
+        }
+    }
 
     const BASE: &str = "<html><head><title>Documento</title></head><body><main id='corpoEditavel'><p>Antes</p></main><div>Versão 3</div></body></html>";
 
