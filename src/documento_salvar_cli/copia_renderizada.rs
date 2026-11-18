@@ -104,7 +104,12 @@ fn moldura(html: &str, secoes: &[Secao], principal: &str) -> Option<(usize, usiz
         let filhos = assinaturas(&secao.html)?;
         let seguinte = atual + filhos.len();
         let renderizados = elementos.get(atual..seguinte)?;
-        if !renderizados.iter().copied().map(assinatura).eq(filhos.iter().cloned()) {
+        if !renderizados
+            .iter()
+            .copied()
+            .map(assinatura)
+            .eq(filhos.iter().cloned())
+        {
             return None;
         }
         let abertura_secao = renderizados
