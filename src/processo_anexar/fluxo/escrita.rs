@@ -83,7 +83,7 @@ pub(super) fn confirmar<V: EnvioDoProcesso>(
     })
     .map_err(|e| {
         if enviou {
-            FalhaAnexar::NaoConfirmado(EtapaNaoComprovada::RespostaDoPost)
+            FalhaAnexar::NaoConfirmadoNoPost(e)
         } else {
             FalhaAnexar::ConsultaDerivacao(e)
         }
