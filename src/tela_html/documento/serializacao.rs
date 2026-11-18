@@ -1,5 +1,6 @@
 //! Normalização de um fragmento de corpo com o parser e serializador HTML5.
-use super::{Conteudo, Documento, HtmlServido, fragmento};
+use super::{Conteudo, Documento, fragmento};
+use crate::tela_html::HtmlServido;
 use html5ever::QualName;
 use html5ever::serialize::{Serialize, SerializeOpts, Serializer, TraversalScope, serialize};
 use std::io;
@@ -9,7 +10,7 @@ use std::io;
 pub(crate) enum ErroNormalizacao {
     EntradaAcimaDoLimite(#[from] crate::tela_html::HtmlAcimaDoLimite),
     Serializacao(#[from] io::Error),
-    Utf8(#[from] std::string::FromUtf8Error),
+    Utf8(#[source] std::str::Utf8Error),
     FragmentoPerdidoNaNormalizacao,
     SaidaAcimaDoLimite,
 }
@@ -21,7 +22,8 @@ pub(crate) fn normalizar_fragmento(html: &str) -> Result<String, ErroNormalizaca
     if bytes.len() > crate::MAX_HTML_BYTES {
         return Err(ErroNormalizacao::SaidaAcimaDoLimite);
     }
-    let normalizado = String::from_utf8(bytes)?;
+    let normalizado =
+        String::from_utf8(bytes).map_err(|erro| ErroNormalizacao::Utf8(erro.utf8_error()))?;
     if !html.trim().is_empty() && normalizado.trim().is_empty() {
         return Err(ErroNormalizacao::FragmentoPerdidoNaNormalizacao);
     }
