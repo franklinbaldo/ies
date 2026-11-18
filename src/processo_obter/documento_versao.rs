@@ -158,21 +158,41 @@ fn ler_atual<V: EnvioDoProcesso>(
     if !foto {
         return Ok((tipo, texto, versoes));
     }
-    let versao = if let Some(n) = servida {
-        n
+    let foto = fotografar_atual(rede, no, html, servida)?;
+    versoes.atual = Ok(foto.versao);
+    versoes.foto = Some(foto);
+    Ok((tipo, texto, versoes))
+}
+
+/// Lê apenas a cópia HTML, inclusive uma minuta sem texto.
+pub(super) fn ler_foto_atual<V: EnvioDoProcesso>(
+    rede: &mut Rede<'_, V>,
+    no: &NoConferido<'_>,
+    conteudo: &EnderecoDoConteudo,
+) -> Result<FotoDaVersao, ErroDocumentoObter> {
+    let (_, html) = ler_html(rede, conteudo.as_str(), no.numero)?;
+    let servida = versao_do_rodape(&html);
+    fotografar_atual(rede, no, html, servida)
+}
+
+fn fotografar_atual<V: EnvioDoProcesso>(
+    rede: &mut Rede<'_, V>,
+    no: &NoConferido<'_>,
+    html: crate::tela_html::HtmlServido,
+    servida: Option<VersaoDocumento>,
+) -> Result<FotoDaVersao, ErroDocumentoObter> {
+    let versao = if let Some(versao) = servida {
+        versao
     } else {
         let lista = no
             .barra()?
             .versoes
             .ok_or(ErroDocumentoObter::ListaDeVersoesNaoPublicadaNaArvore)?;
-        let atual = ler_lista(rede, no, lista.as_str())?
+        ler_lista(rede, no, lista.as_str())?
             .atual()
-            .ok_or(ErroDocumentoObter::Versoes(ErroVersao::ListaIncompleta))?;
-        versoes.atual = Ok(atual);
-        atual
+            .ok_or(ErroDocumentoObter::Versoes(ErroVersao::ListaIncompleta))?
     };
-    versoes.foto = Some(fotografar(versao, html)?);
-    Ok((tipo, texto, versoes))
+    fotografar(versao, html)
 }
 
 /// `--versao N`: a lista publicada na barra e o `documento_visualizar` da
@@ -260,6 +280,16 @@ fn ler_pagina<V: EnvioDoProcesso>(
     url: &str,
     numero: &str,
 ) -> Result<(String, String, crate::tela_html::HtmlServido), ErroDocumentoObter> {
+    let (tipo, html) = ler_html(rede, url, numero)?;
+    let texto = texto_do_corpo(&html).map_err(ErroDocumentoObter::Corpo)?;
+    Ok((tipo, texto, html))
+}
+
+fn ler_html<V: EnvioDoProcesso>(
+    rede: &mut Rede<'_, V>,
+    url: &str,
+    numero: &str,
+) -> Result<(String, crate::tela_html::HtmlServido), ErroDocumentoObter> {
     let html = match rede.get(url).map_err(ErroDocumentoObter::Processo)? {
         Lida::Html { html, .. } => html,
         outra @ (Lida::Redirecionamento(_) | Lida::Login | Lida::Falha(_)) => {
@@ -270,6 +300,5 @@ fn ler_pagina<V: EnvioDoProcesso>(
     if identidade.numero != numero {
         return Err(ErroDocumentoObter::TituloDeOutroDocumento);
     }
-    let texto = texto_do_corpo(&html).map_err(ErroDocumentoObter::Corpo)?;
-    Ok((identidade.tipo, texto, html))
+    Ok((identidade.tipo, html))
 }
