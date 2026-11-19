@@ -258,3 +258,189 @@ fn instrucoes_posix_exportam_o_caminho_exato_sem_executar_o_nome() {
     assert!(texto.contains("$env:IES_CONFIG_FILE = '"));
     let _ = std::fs::remove_dir_all(&pasta);
 }
+
+fn chave_de_teste(host: &str) -> ChaveDoCofre {
+    let instalacao = Instalacao::interpretar(&format!("https://{host}/sei")).unwrap();
+    ChaveDoCofre::nova(&instalacao, "fulano")
+}
+
+#[test]
+fn outro_perfil_nao_substitui_senha_diferente_do_mesmo_host_e_usuario() {
+    let pasta = pasta_pessoal();
+    let chave = chave_de_teste("sei.wizard-compartilhado.test");
+    cofre::salvar(&chave, "senha-A").unwrap();
+    let erro = rodar(
+        &pasta,
+        "5\nhttps://sei.wizard-compartilhado.test/sei\nPGE\nfulano\n",
+        "senha-B",
+        Some("novo"),
+    )
+    .unwrap_err();
+    assert!(matches!(erro, ErroWizard::CredencialCompartilhada));
+    assert_eq!(cofre::obter(&chave).unwrap().as_deref(), Some("senha-A"));
+    assert!(!pasta.join(".ies").exists());
+    let _ = std::fs::remove_dir_all(pasta);
+}
+
+#[test]
+fn outro_perfil_pode_reusar_credencial_identica_sem_substituir_a_antiga() {
+    let pasta = pasta_pessoal();
+    let chave = chave_de_teste("sei.wizard-reuso.test");
+    cofre::salvar(&chave, "senha-A").unwrap();
+    let gravado = rodar(
+        &pasta,
+        "5\nhttps://sei.wizard-reuso.test/sei\nPGE\nfulano\n",
+        "senha-A",
+        Some("novo"),
+    )
+    .unwrap();
+    assert!(gravado.config.is_file());
+    assert_eq!(cofre::obter(&chave).unwrap().as_deref(), Some("senha-A"));
+    let _ = std::fs::remove_dir_all(pasta);
+}
+
+#[test]
+fn falha_no_disco_apos_cofre_novo_remove_apenas_a_entrada_criada() {
+    let pasta = pasta_pessoal();
+    let chave = chave_de_teste("sei.wizard-rollback-novo.test");
+    assert_eq!(cofre::obter(&chave), Ok(None));
+    let erro = configurar_apos_cofre(
+        &mut Cursor::new(b"5\nhttps://sei.wizard-rollback-novo.test/sei\nPGE\nfulano\n".to_vec()),
+        &mut Vec::new(),
+        || Ok("senha-B".to_owned()),
+        &pasta,
+        Some("novo"),
+        || {
+            // Neste ponto o cofre fake já gravou B, mas o disco ainda não.
+            assert_eq!(cofre::obter(&chave).unwrap().as_deref(), Some("senha-B"));
+            std::fs::write(pasta.join(".ies"), b"nao e diretorio").unwrap();
+        },
+    )
+    .unwrap_err();
+    assert!(matches!(erro, ErroWizard::Gravacao(_)));
+    assert_eq!(cofre::obter(&chave), Ok(None));
+    assert!(!pasta.join(".ies/novo").exists());
+    let _ = std::fs::remove_dir_all(pasta);
+}
+
+#[test]
+fn falha_no_disco_com_cofre_preexistente_preserva_senha_e_identidade() {
+    let pasta = pasta_pessoal();
+    let chave = chave_de_teste("sei.wizard-rollback-antigo.test");
+    cofre::salvar(&chave, "senha-A").unwrap();
+    let erro = configurar_apos_cofre(
+        &mut Cursor::new(b"5\nhttps://sei.wizard-rollback-antigo.test/sei\nPGE\nfulano\n".to_vec()),
+        &mut Vec::new(),
+        || Ok("senha-A".to_owned()),
+        &pasta,
+        Some("novo"),
+        || {
+            assert_eq!(cofre::obter(&chave).unwrap().as_deref(), Some("senha-A"));
+            std::fs::write(pasta.join(".ies"), b"nao e diretorio").unwrap();
+        },
+    )
+    .unwrap_err();
+    assert!(matches!(erro, ErroWizard::Gravacao(_)));
+    assert_eq!(cofre::obter(&chave).unwrap().as_deref(), Some("senha-A"));
+    assert!(!pasta.join(".ies/novo").exists());
+    let _ = std::fs::remove_dir_all(pasta);
+}
+
+#[test]
+fn falha_na_compensacao_nao_mascara_a_causa_nem_expoe_a_senha() {
+    let pasta = pasta_pessoal();
+    let chave = chave_de_teste("sei.wizard-rollback-falhou.test");
+    let erro = configurar_apos_cofre(
+        &mut Cursor::new(b"5\nhttps://sei.wizard-rollback-falhou.test/sei\nPGE\nfulano\n".to_vec()),
+        &mut Vec::new(),
+        || Ok("senha-secreta-testada".to_owned()),
+        &pasta,
+        Some("novo"),
+        || {
+            std::fs::write(pasta.join(".ies"), b"nao e diretorio").unwrap();
+            cofre::falhar_na_proxima(
+                &chave,
+                keyring_core::Error::PlatformFailure("falha da compensacao".into()),
+            );
+        },
+    )
+    .unwrap_err();
+    let diagnostico = format!("{erro:?}{erro}");
+    assert!(!diagnostico.contains("senha-secreta-testada"));
+    assert!(matches!(
+        erro,
+        ErroWizard::RecuperacaoIncompleta {
+            original,
+            cofre: Some(ErroCofre::FalhaDoCofre { .. }),
+            pasta: None,
+        } if matches!(*original, ErroWizard::Gravacao(_))
+    ));
+    assert_eq!(
+        cofre::obter(&chave).unwrap().as_deref(),
+        Some("senha-secreta-testada")
+    );
+    let _ = std::fs::remove_dir_all(pasta);
+}
+
+#[test]
+fn falha_apos_origem_gravada_remove_perfil_parcial_e_credencial_nova() {
+    let pasta = pasta_pessoal();
+    let perfil = pasta.join(".ies/novo");
+    let chave = chave_de_teste("sei.wizard-parcial-novo.test");
+    assert_eq!(cofre::obter(&chave), Ok(None));
+    let erro = configurar_apos_cofre(
+        &mut Cursor::new(b"5\nhttps://sei.wizard-parcial-novo.test/sei\nPGE\nfulano\n".to_vec()),
+        &mut Vec::new(),
+        || Ok("senha-nova".to_owned()),
+        &pasta,
+        Some("novo"),
+        || {
+            // O perfil estava ausente na verificação inicial. O obstáculo
+            // no segundo arquivo força escrever 'origem' antes da falha.
+            std::fs::create_dir_all(perfil.join("cookie")).unwrap();
+            assert!(!perfil.join("origem").exists());
+        },
+    )
+    .unwrap_err();
+    // DestinoJaExiste decorre de 'cookie', após escrita de 'origem'.
+    assert!(matches!(
+        erro,
+        ErroWizard::Gravacao(FalhaDaGravacao::DestinoJaExiste)
+    ));
+    assert!(
+        !perfil.exists(),
+        "a compensação deve remover a pasta parcial"
+    );
+    assert_eq!(cofre::obter(&chave), Ok(None));
+    let _ = std::fs::remove_dir_all(pasta);
+}
+
+#[test]
+fn falha_apos_origem_gravada_preserva_credencial_preexistente() {
+    let pasta = pasta_pessoal();
+    let perfil = pasta.join(".ies/novo");
+    let chave = chave_de_teste("sei.wizard-parcial-antigo.test");
+    cofre::salvar(&chave, "senha-A").unwrap();
+    let erro = configurar_apos_cofre(
+        &mut Cursor::new(b"5\nhttps://sei.wizard-parcial-antigo.test/sei\nPGE\nfulano\n".to_vec()),
+        &mut Vec::new(),
+        || Ok("senha-A".to_owned()),
+        &pasta,
+        Some("novo"),
+        || {
+            std::fs::create_dir_all(perfil.join("cookie")).unwrap();
+            assert!(!perfil.join("origem").exists());
+        },
+    )
+    .unwrap_err();
+    assert!(matches!(
+        erro,
+        ErroWizard::Gravacao(FalhaDaGravacao::DestinoJaExiste)
+    ));
+    assert!(
+        !perfil.exists(),
+        "a compensação deve remover a pasta parcial"
+    );
+    assert_eq!(cofre::obter(&chave).unwrap().as_deref(), Some("senha-A"));
+    let _ = std::fs::remove_dir_all(pasta);
+}

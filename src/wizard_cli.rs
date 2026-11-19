@@ -87,6 +87,14 @@ pub(crate) enum ErroWizard {
     PerfilInvalido,
     /// `~/.ies/<perfil>` já existe: o assistente não sobrescreve.
     PerfilJaExiste,
+    /// A chave (instalação, usuário) já é usada com outra senha.
+    CredencialCompartilhada,
+    /// A gravação falhou e a compensação do cofre ou da pasta também falhou.
+    RecuperacaoIncompleta {
+        original: Box<ErroWizard>,
+        cofre: Option<ErroCofre>,
+        pasta: Option<io::ErrorKind>,
+    },
     /// A pasta do perfil não pôde ser consultada (o motivo do sistema).
     PerfilNaoConsultado(io::ErrorKind),
     Senha(#[from] ErroCredenciais),
@@ -168,14 +176,27 @@ fn instrucoes_de_ativacao(config: &str, credenciais: &str) -> String {
     )
 }
 
-/// Pergunta, confere o perfil e só então grava: cofre primeiro (sem cofre,
-/// nada vai ao disco), depois os arquivos do perfil.
+/// Pergunta, confere o perfil e só então grava: o cofre é consultado
+/// antes do disco; uma nova entrada é compensada em falha de gravação.
 fn configurar(
     entrada: &mut impl BufRead,
     saida: &mut impl Write,
     ler_senha: impl FnOnce() -> Result<String, ErroCredenciais>,
     pasta_pessoal: &Path,
     perfil: Option<&str>,
+) -> Result<PerfilGravado, ErroWizard> {
+    configurar_apos_cofre(entrada, saida, ler_senha, pasta_pessoal, perfil, || {})
+}
+
+/// O gatilho permite testar falhas de disco após o sucesso do cofre fake,
+/// sem mexer em permissões reais nem consultar o SEI.
+fn configurar_apos_cofre(
+    entrada: &mut impl BufRead,
+    saida: &mut impl Write,
+    ler_senha: impl FnOnce() -> Result<String, ErroCredenciais>,
+    pasta_pessoal: &Path,
+    perfil: Option<&str>,
+    apos_cofre: impl FnOnce(),
 ) -> Result<PerfilGravado, ErroWizard> {
     let respostas = perguntar(entrada, saida, ler_senha, perfil)?;
     let pasta = pasta_pessoal.join(".ies").join(&respostas.perfil);
@@ -185,7 +206,20 @@ fn configurar(
         Err(erro) => return Err(ErroWizard::PerfilNaoConsultado(erro.kind())),
     }
     let chave = ChaveDoCofre::nova(&respostas.instalacao, &respostas.usuario);
-    cofre::salvar(&chave, &respostas.senha)?;
+    // A chave não inclui o perfil: outro perfil pode depender da mesma senha.
+    // Reutilizar a mesma senha é seguro; trocar por outra não é.
+    let anterior = cofre::obter(&chave)?;
+    if anterior
+        .as_deref()
+        .is_some_and(|atual| atual != respostas.senha.as_str())
+    {
+        return Err(ErroWizard::CredencialCompartilhada);
+    }
+    let entrada_nova = anterior.is_none();
+    if entrada_nova {
+        cofre::salvar(&chave, &respostas.senha)?;
+    }
+    apos_cofre();
     let arquivos = ArquivosDeAcesso {
         url_controle: pasta.join("url-controle"),
         cookie: pasta.join("cookie"),
@@ -197,19 +231,66 @@ fn configurar(
         .diretorio_do_ies()
         .criando_diretorios();
     let origem = format!("{}\n", respostas.instalacao.url_base());
-    arquivo_privado::gravar(&arquivos.origem, origem.as_bytes(), novo)?;
-    // Sessão vazia: o primeiro `ies login` a grava.
-    arquivo_privado::gravar(&arquivos.cookie, b"", novo)?;
-    arquivo_privado::gravar(&arquivos.url_controle, b"", novo)?;
-    let linhas = format!("usuario={}\norgao={}\n", respostas.usuario, respostas.orgao);
-    arquivo_privado::gravar(&credenciais, linhas.as_bytes(), novo)?;
-    crate::configuracao::salvar_arquivos_de_acesso(&config, &arquivos)?;
+    let gravacao = (|| -> Result<(), ErroWizard> {
+        arquivo_privado::gravar(&arquivos.origem, origem.as_bytes(), novo)?;
+        // Sessão vazia: o primeiro `ies login` a grava.
+        arquivo_privado::gravar(&arquivos.cookie, b"", novo)?;
+        arquivo_privado::gravar(&arquivos.url_controle, b"", novo)?;
+        let linhas = format!("usuario={}\norgao={}\n", respostas.usuario, respostas.orgao);
+        arquivo_privado::gravar(&credenciais, linhas.as_bytes(), novo)?;
+        crate::configuracao::salvar_arquivos_de_acesso(&config, &arquivos)?;
+        Ok(())
+    })();
+    if let Err(erro) = gravacao {
+        return Err(desfazer_falha(&pasta, &chave, entrada_nova, erro));
+    }
     Ok(PerfilGravado {
         perfil: respostas.perfil,
         servico: chave.servico().to_owned(),
         config,
         credenciais,
     })
+}
+
+/// Desfaz apenas o que esta tentativa poderia ter criado. Uma entrada
+/// preexistente do cofre nunca é excluída. Erros de compensação ficam
+/// distintos do erro inicial, sem carregar senha ou conteúdo de arquivo.
+fn desfazer_falha(
+    pasta: &Path,
+    chave: &ChaveDoCofre,
+    entrada_nova: bool,
+    original: ErroWizard,
+) -> ErroWizard {
+    let falha_cofre = if entrada_nova {
+        cofre::excluir(chave).err()
+    } else {
+        None
+    };
+    let falha_pasta = match std::fs::symlink_metadata(pasta) {
+        Ok(info) if info.is_dir() && !info.file_type().is_symlink() => {
+            std::fs::remove_dir_all(pasta).err().map(|erro| erro.kind())
+        }
+        // Não remover um alvo que apareceu como link ou não diretório.
+        Ok(_) => Some(io::ErrorKind::AlreadyExists),
+        Err(erro)
+            if matches!(
+                erro.kind(),
+                io::ErrorKind::NotFound | io::ErrorKind::NotADirectory
+            ) =>
+        {
+            None
+        }
+        Err(erro) => Some(erro.kind()),
+    };
+    if falha_cofre.is_some() || falha_pasta.is_some() {
+        ErroWizard::RecuperacaoIncompleta {
+            original: Box::new(original),
+            cofre: falha_cofre,
+            pasta: falha_pasta,
+        }
+    } else {
+        original
+    }
 }
 
 fn perguntar(

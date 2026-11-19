@@ -38,18 +38,28 @@ sem começar por `.`. Fora disso, recusa (saída 2 pelo clap com
 
 1. `~/.ies/<perfil>` não pode existir (nem como link): perfil existente é
    `PerfilJaExiste`, sem tocar no cofre nem no disco. Nada é sobrescrito.
-2. A senha vai ao cofre (`ies:<host>`, conta = usuário). Falha do cofre
-   para tudo antes do disco.
-3. Na pasta do perfil (`0700`, criada se faltar, como `~/.ies`), cada um
-   em criação exclusiva, `0600`, pela gravação privada única:
-   `origem` (a URL base), `cookie` e `url-controle` vazios (o primeiro
-   `ies login` os grava), `credenciais` com **só** `usuario=` e `orgao=`
-   (a senha nunca vai ao disco) e `ies-config.json`, a configuração do
-   `ies setup` com os três caminhos.
+2. O cofre é consultado pela chave canônica `(ies:<host>, usuário)`,
+   **independente do nome do perfil**. Se a entrada já existe com outra
+   senha, recusa `CredencialCompartilhada` antes de escrever; se existe
+   com a mesma senha, reutiliza-a sem substituição. Se está ausente,
+   salva a senha no cofre. Falhas de acesso ao cofre impedem a escrita no
+   disco.
+3. Na pasta do perfil (`0700`, criada se faltar, como `~/.ies`),
+   cada arquivo é criado exclusivamente com `0600`: `origem`, `cookie`
+   e `url-controle` vazios, `credenciais` sem senha e `ies-config.json`.
+4. Se qualquer gravação de perfil falhar **depois da criação de uma nova
+   entrada do cofre**, o wizard tenta excluir somente essa entrada nova
+   e remover a pasta do perfil criado. Uma credencial anteriormente
+   existente nunca é excluída nem reescrita. Falha de compensação é
+   `RecuperacaoIncompleta`, que conserva o erro original e o motivo do
+   cofre/diretório, sem imprimir senhas. Uma pasta que apareça como link
+   ou arquivo no momento da compensação não é apagada.
 
-Não gera script de ativação nem altera variáveis do ambiente. Falha
-depois do passo 2 deixa a pasta do perfil incompleta: apagá-la e rodar de
-novo (o passo 2 substitui a senha no cofre).
+A compensação protege a execução sequencial local, **não é uma
+transação distribuída ou trava interprocessos**: alterações concorrentes
+no mesmo cofre e pasta permanecem fora desta garantia. Em
+`RecuperacaoIncompleta`, inspecionar o estado local antes de repetir;
+não repetir automaticamente a criação de perfil.
 
 ## Saída
 
@@ -73,7 +83,8 @@ senha.
 Saída 1 com `Error: ErroWizard::…` em stderr: `PastaPessoalDesconhecida`,
 `EntradaEncerrada`, `EntradaIlegivel`, `OpcaoInvalida`,
 `OrigemNaoReconhecida`, `OrgaoVazio`, `UsuarioVazio`, `PerfilInvalido`,
-`PerfilJaExiste`, `PerfilNaoConsultado`, `Senha(ErroCredenciais)`,
+`PerfilJaExiste`, `PerfilNaoConsultado`, `CredencialCompartilhada`,
+`RecuperacaoIncompleta`, `Senha(ErroCredenciais)`,
 `Cofre(ErroCofre)` ([cofre](credenciais.md#falhas-tipadas)),
 `Gravacao(FalhaDaGravacao)` e
 `Configuracao(ErroGravacaoDaConfiguracao)`. Sem cofre utilizável
