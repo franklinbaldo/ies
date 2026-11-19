@@ -404,7 +404,7 @@ fn falha_apos_origem_gravada_remove_perfil_parcial_e_credencial_nova() {
     .unwrap_err();
     // DestinoJaExiste decorre de 'cookie', após escrita de 'origem'.
     assert!(matches!(
-        erro,
+        &erro,
         ErroWizard::Gravacao(FalhaDaGravacao::DestinoJaExiste)
     ), "{erro:?}");
     assert!(!perfil.exists(), "a compensação deve remover a pasta parcial");
@@ -431,7 +431,7 @@ fn falha_apos_origem_gravada_preserva_credencial_preexistente() {
     )
     .unwrap_err();
     assert!(matches!(
-        erro,
+        &erro,
         ErroWizard::Gravacao(FalhaDaGravacao::DestinoJaExiste)
     ), "{erro:?}");
     assert!(!perfil.exists(), "a compensação deve remover a pasta parcial");
