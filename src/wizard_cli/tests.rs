@@ -365,6 +365,8 @@ fn falha_na_compensacao_nao_mascara_a_causa_nem_expoe_a_senha() {
         },
     )
     .unwrap_err();
+    let diagnostico = format!("{erro:?}{erro}");
+    assert!(!diagnostico.contains("senha-secreta-testada"));
     assert!(matches!(
         erro,
         ErroWizard::RecuperacaoIncompleta {
