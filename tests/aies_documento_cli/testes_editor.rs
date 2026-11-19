@@ -47,6 +47,7 @@ fn bdd_89_02_cli_publica_uma_versao_e_confere_por_releitura() {
     assert_eq!(salvo["confirmado"], true);
     assert_eq!(salvo["versao_criada"], 4);
     assert_eq!(salvo["releitura_confirmada"], true);
+    assert_eq!(salvo["quebras_lf_canonicas_no_envio"], true);
     assert_eq!(
         fs::read_to_string(pasta.0.join("0011519.v3.html")).unwrap(),
         base

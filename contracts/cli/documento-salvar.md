@@ -39,8 +39,8 @@ em dois outros pontos:
 - **releitura:** `ies documento DOC --saida` compara a foto local com o
   HTML servido e recusa com `ErroCopia::FotoDivergente`
   ([versões e foto](documento-obter-versoes.md));
-- **salvar remoto (#89, futuro):** lerá a versão N do SEI para confirmar
-  que ainda é a atual e comparará o hash com a vN local.
+- **salvar remoto (#89):** lê a versão atual no SEI e confere os bytes
+  da foto local antes de enviar a edição.
 
 | Erro (stderr) | Fato |
 | --- | --- |
@@ -64,10 +64,8 @@ O JSON continua sem conteúdo HTML, URLs assinadas ou cookies e traz
 `versao_editada`, `bytes_base`, `bytes_editada`, `escrita_remota: false`,
 `base_verificada: false` e `trecho_divergente`, e `confirmado: false`.
 
-`--confirmar` **continua bloqueado para instalações reais do SEI**:
-retorna `escrita_remota_nao_validada` após conferir o par.
-Somente no host sintético `sei.test`, com sessão de ensaio, a CLI
-executa os BDD-89-02/03/04 sintéticos: relê a versão N, confere
+`--confirmar` está disponível nas instalações públicas de treinamento e
+na bancada sintética `sei.test`. Na bancada, a CLI relê a versão N, confere
 conteúdo idêntico à foto local, consulta o editor oferecido, deriva um
 único POST do formulário servido e comprova a versão N+1 por GET
 independente. Também relê o editor para observar a contagem de assinaturas
@@ -75,9 +73,39 @@ após a publicação; sem ambas as conferências, não declara sucesso.
 O JSON confirmado informa `assinaturas_apos: 0` somente quando observado.
 Resposta inconclusiva após a tentativa de POST resulta em
 `ErroSalvarNoSei::EdicaoNaoComprovada` (saída 1), sem retry. O editor da simulação usa uma região
-`main#corpoEditavel`; essa hipótese **não representa uma compatibilidade
-validada com o HTML de editores reais do SEI**. Mesclagem por seção e
-validação em treinamento continuam fora do escopo.
+`main#corpoEditavel`.
+
+Nas instalações de treinamento, edite somente o corpo principal da cópia
+`DOC.v(N+1).html`. A CLI verifica que a minuta está sem assinatura,
+confere a versão vigente e lê da tela quais seções o editor oferece.
+O editor clássico usa o formulário publicado. O CKEditor 5 usa o JSON
+da operação indicada pela tela. Em ambos, os valores das outras seções
+vêm do editor. Se a foto e as seções não permitem localizar o corpo
+com segurança, a CLI recusa sem gravar.
+
+O fragmento editável permanece **HTML opaco**: nenhum parser HTML5
+transforma tags, atributos, listas, tabelas ou marcação malformada do
+corpo. A regra de LF canônico vale para **todo valor HTML incluído no POST**,
+inclusive seções vizinhas obtidas do editor e não editadas pelo usuário:
+CRCRLF, CRLF e CR isolado são convertidos em LF, como no Todos #1271/#1272
+e na issue #856. Não há interpretação, mesclagem ou reescrita estrutural
+do HTML de nenhuma seção. As seções vizinhas só passam por essa
+canonicalização de quebras no momento de codificar o envio; os valores
+servidos, os bytes da foto e a edição local permanecem intactos, e a
+conferência da base anterior ao POST é literal. Não existe opção para
+desativar LF canônico. A codificação URL-encoded do formulário clássico
+ou a serialização JSON do CKEditor aplica-se *depois* da canonicalização.
+Essa política também pode normalizar finais de linha de seções vizinhas
+persistidas pelo SEI, efeito que deve ser incluído na revisão pré-merge
+e na validação de treinamento, sem atribuir tal comportamento a testes
+de escrita real ainda não realizados.
+
+Após aceite da versão esperada, uma nova leitura compara a versão criada
+e a seção principal com o **conteúdo efetivamente enviado** (HTML opaco
+com LF canônico). Aceite inconclusivo, falha pós-POST ou conteúdo divergente
+resultam em `EdicaoNaoComprovada`, sem alegar qual versão foi persistida.
+Não repetir a operação antes de conferência independente. Nenhuma tentativa
+é repetida automaticamente.
 
 - [Evidências legadas](../evidencias/documento-salvar.md)
 - [Decisão arquitetural](../../docs/decisoes/documento-salvar.md)

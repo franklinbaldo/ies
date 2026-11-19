@@ -1,5 +1,6 @@
 //! BDD-89-02/03/04: editor SEI 4 projetado a partir de observações, releitura.
 //! A escrita externa permanece bloqueada até validação da instalação.
+use super::html_para_envio;
 use crate::Cli;
 use crate::acao_do_sei::AcaoDoSei;
 use crate::arquivo_copia::ler_regular;
@@ -12,6 +13,7 @@ use crate::formulario_web::{
     enviar_submissao_via,
 };
 use crate::instalacao::Instalacao;
+use crate::origem_de_treinamento::{self, Escrita};
 use crate::processo_concluir_cli::com_sessao;
 use crate::processo_obter::{
     ErroDocumentoObter, PedidoDeVersoes, PedidoDoAnexo, PedidoDoDocumento, SessaoDoProcesso,
@@ -21,6 +23,9 @@ use crate::transporte::decodificar_resposta;
 use crate::visao_do_controle::{EnvioDoControle as _, EnvioHttps};
 use serde_json::json;
 use std::path::Path;
+
+#[path = "nativo.rs"]
+mod nativo;
 
 /// Fluxo SEI 4 observado no catálogo (UnB/PEN1/UFRJ), ainda sem replay
 /// dos corpos originais de POST. Só usado na instalação sintética sei.test.
@@ -54,9 +59,11 @@ fn corpo_sintetico(html: &str) -> Option<&str> {
 #[derive(Debug, thiserror::Error)]
 #[error("{self:?}")]
 enum ErroSalvarNoSei {
+    EditorNativo(#[from] nativo::ErroEditorNativo),
     Local(#[source] ErroCopia),
     PastaAtualIlegivel(#[source] std::io::Error),
-    /// Só a instalação sintética (`sei.test`) tem o editor observado.
+    OrigemForaDoTreinamento(#[source] origem_de_treinamento::CausaDaOrigem),
+    /// Instalação fora do escopo de treinamento desta operação.
     InstalacaoSemEditorObservado,
     LeituraDoDocumento(#[source] ErroDocumentoObter),
     VersaoAlterada,
@@ -83,8 +90,9 @@ fn ler_par(
     n: VersaoDocumento,
 ) -> Result<(String, String), ErroSalvarNoSei> {
     copia_documento::pasta_segura(pasta).map_err(ErroSalvarNoSei::Local)?;
-    let seguinte =
-        VersaoDocumento::nova(n.numero() + 1).map_err(ErroSalvarNoSei::ProximaVersaoInvalida)?;
+    let seguinte = n.seguinte().ok_or(ErroSalvarNoSei::ProximaVersaoInvalida(
+        ErroVersao::VersaoDocumentoInvalida,
+    ))?;
     let ler = |v, ausente| {
         let bytes = ler_regular(
             &pasta.join(crate::foto_documento::nome(numero.as_str(), v)),
@@ -152,10 +160,7 @@ fn verificar_publicacao(envio: &mut EnvioHttps, dados: &ConferenciaPublicacao<'_
         editada,
         respondeu,
     } = dados;
-    let url = format!(
-        "{origem}/controlador.php?acao={acao}&id_documento={id_documento}&versao={versao_nova}",
-        acao = AcaoDoSei::DocumentoVisualizar.como_na_url()
-    );
+    let url = url_da_releitura(origem, id_documento, versao_nova);
     let Ok(html) = envio.get(&url, cookie).and_then(decodificar_resposta) else {
         return Resultado::Incerto;
     };
@@ -180,6 +185,21 @@ fn verificar_publicacao(envio: &mut EnvioHttps, dados: &ConferenciaPublicacao<'_
     } else {
         Resultado::Incerto
     }
+}
+
+/// A guarda autoriza a base normalizada; URLs de GET não usam a origem bruta.
+fn url_do_editor(origem: &str, id_documento: &str) -> String {
+    format!(
+        "{origem}/controlador.php?acao={acao}&id_documento={id_documento}",
+        acao = AcaoDoSei::EditorMontar.como_na_url()
+    )
+}
+
+fn url_da_releitura(origem: &str, id_documento: &str, versao_nova: u32) -> String {
+    format!(
+        "{origem}/controlador.php?acao={acao}&id_documento={id_documento}&versao={versao_nova}",
+        acao = AcaoDoSei::DocumentoVisualizar.como_na_url()
+    )
 }
 
 fn carregar_par(
@@ -218,10 +238,30 @@ fn executar(
     numero: &NumeroDocumento,
     previa: &PreviaCopia,
 ) -> Resultado {
+    // Guardar a origem antes de interpretar o host e antes de qualquer GET/POST.
+    // Assim origens malformadas e imitadoras têm a mesma recusa tipada.
+    if let Err(causa) = origem_de_treinamento::exigir(Escrita::DocumentoSalvar, sessao.origem) {
+        return Resultado::Recusado(ErroSalvarNoSei::OrigemForaDoTreinamento(causa));
+    }
     let instalacao = match Instalacao::interpretar(sessao.origem) {
         Some(instalacao) if instalacao.host() == "sei.test" => instalacao,
-        _ => return Resultado::Recusado(ErroSalvarNoSei::InstalacaoSemEditorObservado),
+        Some(instalacao) => {
+            return nativo::executar(cli, sessao, indice, numero, previa, &instalacao)
+                .unwrap_or_else(Resultado::Recusado);
+        }
+        None => return Resultado::Recusado(ErroSalvarNoSei::InstalacaoSemEditorObservado),
     };
+    executar_sintetico(cli, sessao, indice, numero, previa, &instalacao)
+}
+
+fn executar_sintetico(
+    cli: &Cli,
+    sessao: &SessaoDoProcesso<'_>,
+    indice: &crate::indice_local::IndiceLocal,
+    numero: &NumeroDocumento,
+    previa: &PreviaCopia,
+    instalacao: &Instalacao,
+) -> Resultado {
     let (n, local_base, local_editada) = match carregar_par(numero, previa) {
         Ok(par) => par,
         Err(falha) => return Resultado::Recusado(falha),
@@ -258,12 +298,9 @@ fn executar(
         Ok(par) => par,
         Err(falha) => return Resultado::Recusado(falha),
     };
-    let url = format!(
-        "{}/controlador.php?acao={acao}&id_documento={}",
-        sessao.origem,
-        lido.id_documento,
-        acao = AcaoDoSei::EditorMontar.como_na_url()
-    );
+    let editada = html_para_envio(editada);
+    let origem = instalacao.url_base();
+    let url = url_do_editor(&origem, &lido.id_documento);
     let cookie: &str = &lido.cookie;
     let editor = match envio.get(&url, cookie).and_then(decodificar_resposta) {
         Ok(editor) => editor,
@@ -274,14 +311,14 @@ fn executar(
     }
     let envio_unico = derivar_submissao(
         &EDITAR,
-        &instalacao,
+        instalacao,
         &TelaServida {
             url: &url,
             html: &editor,
             codificacao: CodificacaoDaTela::Utf8,
         },
         cli.unidade.as_deref(),
-        &[("txaEditor_1", editada), ("confirmar_assinaturas", "1")],
+        &[("txaEditor_1", &editada), ("confirmar_assinaturas", "1")],
     );
     let envio_unico = match envio_unico {
         Ok(envio_unico) => envio_unico,
@@ -297,13 +334,13 @@ fn executar(
     verificar_publicacao(
         &mut envio,
         &ConferenciaPublicacao {
-            origem: sessao.origem,
+            origem: &origem,
             cookie,
             id_documento: &lido.id_documento,
             url_editor: &url,
             numero,
             versao_nova: previa.versao_editada,
-            editada,
+            editada: &editada,
             respondeu,
         },
     )
@@ -323,6 +360,7 @@ pub(super) fn confirmar(
                         "confirmado": true,
                         "versao_criada": versao,
                         "releitura_confirmada": true,
+                        "quebras_lf_canonicas_no_envio": true,
                         "assinaturas_apos": 0
                     });
                     crate::indice_local::anexar_avisos(&mut valor, indice);
@@ -347,6 +385,29 @@ mod acervo_editor;
 #[cfg(test)]
 mod testes_moldura {
     use super::corpos_da_edicao;
+
+    #[test]
+    fn urls_de_editor_e_releitura_usam_base_autorizada_canonica() {
+        use super::{Instalacao, url_da_releitura, url_do_editor};
+
+        for configuracao in [
+            "https://sei.test/sei",
+            "https://sei.test/sei/",
+            "https://SEI.TEST/sei/",
+        ] {
+            let instalacao = Instalacao::interpretar(configuracao).unwrap();
+            let origem = instalacao.url_base();
+            assert_eq!(origem, "https://sei.test/sei");
+            let editor = url_do_editor(&origem, "11519");
+            let releitura = url_da_releitura(&origem, "11519", 4);
+            assert!(editor.starts_with("https://sei.test/sei/controlador.php?acao="));
+            assert!(editor.ends_with("&id_documento=11519"));
+            assert!(releitura.starts_with("https://sei.test/sei/controlador.php?acao="));
+            assert!(releitura.ends_with("&id_documento=11519&versao=4"));
+            assert!(!editor.contains("/sei//controlador.php"));
+            assert!(!releitura.contains("/sei//controlador.php"));
+        }
+    }
 
     const BASE: &str = "<html><head><title>Documento</title></head><body><main id='corpoEditavel'><p>Antes</p></main><div>Versão 3</div></body></html>";
 

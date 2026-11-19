@@ -1,6 +1,6 @@
 //! Controle negativo com respostas originais: o editor nativo nao pode
 //! satisfazer o seletor exclusivo do ensaio sintetico sei.test.
-use super::editor_observado;
+use super::{editor_observado, nativo};
 use crate::cassette::acervo::gravacao;
 use crate::cassette::{ZipDoAcervo, archive_filename, conferir_cassette_ate, html_da_resposta};
 use crate::tela_html::HtmlServido;
@@ -33,6 +33,11 @@ fn conferir_recusa_no_original(card_relativo: &str) {
             captura.instalacao,
             resposta.passo
         );
+        if captura.instalacao == "unb" {
+            assert!(nativo::reconhece_classico(&html));
+        } else if captura.instalacao == "go" {
+            assert!(nativo::reconhece_ckeditor(&html));
+        }
         observados += 1;
     }
     assert_eq!(observados, 3, "tres editores montados na captura original");
