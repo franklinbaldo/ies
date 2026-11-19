@@ -407,7 +407,10 @@ fn falha_apos_origem_gravada_remove_perfil_parcial_e_credencial_nova() {
         erro,
         ErroWizard::Gravacao(FalhaDaGravacao::DestinoJaExiste)
     ));
-    assert!(!perfil.exists(), "a compensação deve remover a pasta parcial");
+    assert!(
+        !perfil.exists(),
+        "a compensação deve remover a pasta parcial"
+    );
     assert_eq!(cofre::obter(&chave), Ok(None));
     let _ = std::fs::remove_dir_all(pasta);
 }
@@ -434,7 +437,10 @@ fn falha_apos_origem_gravada_preserva_credencial_preexistente() {
         erro,
         ErroWizard::Gravacao(FalhaDaGravacao::DestinoJaExiste)
     ));
-    assert!(!perfil.exists(), "a compensação deve remover a pasta parcial");
+    assert!(
+        !perfil.exists(),
+        "a compensação deve remover a pasta parcial"
+    );
     assert_eq!(cofre::obter(&chave).unwrap().as_deref(), Some("senha-A"));
     let _ = std::fs::remove_dir_all(pasta);
 }
