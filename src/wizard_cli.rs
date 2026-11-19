@@ -185,6 +185,19 @@ fn configurar(
     pasta_pessoal: &Path,
     perfil: Option<&str>,
 ) -> Result<PerfilGravado, ErroWizard> {
+    configurar_apos_cofre(entrada, saida, ler_senha, pasta_pessoal, perfil, || {})
+}
+
+/// O gatilho permite testar falhas de disco após o sucesso do cofre fake,
+/// sem mexer em permissões reais nem consultar o SEI.
+fn configurar_apos_cofre(
+    entrada: &mut impl BufRead,
+    saida: &mut impl Write,
+    ler_senha: impl FnOnce() -> Result<String, ErroCredenciais>,
+    pasta_pessoal: &Path,
+    perfil: Option<&str>,
+    apos_cofre: impl FnOnce(),
+) -> Result<PerfilGravado, ErroWizard> {
     let respostas = perguntar(entrada, saida, ler_senha, perfil)?;
     let pasta = pasta_pessoal.join(".ies").join(&respostas.perfil);
     match std::fs::symlink_metadata(&pasta) {
@@ -206,6 +219,7 @@ fn configurar(
     if entrada_nova {
         cofre::salvar(&chave, &respostas.senha)?;
     }
+    apos_cofre();
     let arquivos = ArquivosDeAcesso {
         url_controle: pasta.join("url-controle"),
         cookie: pasta.join("cookie"),
