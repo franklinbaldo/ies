@@ -259,7 +259,6 @@ fn instrucoes_posix_exportam_o_caminho_exato_sem_executar_o_nome() {
     let _ = std::fs::remove_dir_all(&pasta);
 }
 
-
 fn chave_de_teste(host: &str) -> ChaveDoCofre {
     let instalacao = Instalacao::interpretar(&format!("https://{host}/sei")).unwrap();
     ChaveDoCofre::nova(&instalacao, "fulano")
@@ -306,9 +305,7 @@ fn falha_no_disco_apos_cofre_novo_remove_apenas_a_entrada_criada() {
     let chave = chave_de_teste("sei.wizard-rollback-novo.test");
     assert_eq!(cofre::obter(&chave), Ok(None));
     let erro = configurar_apos_cofre(
-        &mut Cursor::new(
-            b"5\nhttps://sei.wizard-rollback-novo.test/sei\nPGE\nfulano\n".to_vec(),
-        ),
+        &mut Cursor::new(b"5\nhttps://sei.wizard-rollback-novo.test/sei\nPGE\nfulano\n".to_vec()),
         &mut Vec::new(),
         || Ok("senha-B".to_owned()),
         &pasta,
@@ -332,9 +329,7 @@ fn falha_no_disco_com_cofre_preexistente_preserva_senha_e_identidade() {
     let chave = chave_de_teste("sei.wizard-rollback-antigo.test");
     cofre::salvar(&chave, "senha-A").unwrap();
     let erro = configurar_apos_cofre(
-        &mut Cursor::new(
-            b"5\nhttps://sei.wizard-rollback-antigo.test/sei\nPGE\nfulano\n".to_vec(),
-        ),
+        &mut Cursor::new(b"5\nhttps://sei.wizard-rollback-antigo.test/sei\nPGE\nfulano\n".to_vec()),
         &mut Vec::new(),
         || Ok("senha-A".to_owned()),
         &pasta,
@@ -356,9 +351,7 @@ fn falha_na_compensacao_nao_mascara_a_causa_nem_expoe_a_senha() {
     let pasta = pasta_pessoal();
     let chave = chave_de_teste("sei.wizard-rollback-falhou.test");
     let erro = configurar_apos_cofre(
-        &mut Cursor::new(
-            b"5\nhttps://sei.wizard-rollback-falhou.test/sei\nPGE\nfulano\n".to_vec(),
-        ),
+        &mut Cursor::new(b"5\nhttps://sei.wizard-rollback-falhou.test/sei\nPGE\nfulano\n".to_vec()),
         &mut Vec::new(),
         || Ok("senha-secreta-testada".to_owned()),
         &pasta,
