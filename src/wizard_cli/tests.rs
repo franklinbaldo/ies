@@ -381,3 +381,60 @@ fn falha_na_compensacao_nao_mascara_a_causa_nem_expoe_a_senha() {
     );
     let _ = std::fs::remove_dir_all(pasta);
 }
+
+#[test]
+fn falha_apos_origem_gravada_remove_perfil_parcial_e_credencial_nova() {
+    let pasta = pasta_pessoal();
+    let perfil = pasta.join(".ies/novo");
+    let chave = chave_de_teste("sei.wizard-parcial-novo.test");
+    assert_eq!(cofre::obter(&chave), Ok(None));
+    let erro = configurar_apos_cofre(
+        &mut Cursor::new(b"5\nhttps://sei.wizard-parcial-novo.test/sei\nPGE\nfulano\n".to_vec()),
+        &mut Vec::new(),
+        || Ok("senha-nova".to_owned()),
+        &pasta,
+        Some("novo"),
+        || {
+            // O perfil estava ausente na verificação inicial. O obstáculo
+            // no segundo arquivo força escrever 'origem' antes da falha.
+            std::fs::create_dir_all(perfil.join("cookie")).unwrap();
+            assert!(!perfil.join("origem").exists());
+        },
+    )
+    .unwrap_err();
+    // DestinoJaExiste decorre de 'cookie', após escrita de 'origem'.
+    assert!(matches!(
+        erro,
+        ErroWizard::Gravacao(FalhaDaGravacao::DestinoJaExiste)
+    ), "{erro:?}");
+    assert!(!perfil.exists(), "a compensação deve remover a pasta parcial");
+    assert_eq!(cofre::obter(&chave), Ok(None));
+    let _ = std::fs::remove_dir_all(pasta);
+}
+
+#[test]
+fn falha_apos_origem_gravada_preserva_credencial_preexistente() {
+    let pasta = pasta_pessoal();
+    let perfil = pasta.join(".ies/novo");
+    let chave = chave_de_teste("sei.wizard-parcial-antigo.test");
+    cofre::salvar(&chave, "senha-A").unwrap();
+    let erro = configurar_apos_cofre(
+        &mut Cursor::new(b"5\nhttps://sei.wizard-parcial-antigo.test/sei\nPGE\nfulano\n".to_vec()),
+        &mut Vec::new(),
+        || Ok("senha-A".to_owned()),
+        &pasta,
+        Some("novo"),
+        || {
+            std::fs::create_dir_all(perfil.join("cookie")).unwrap();
+            assert!(!perfil.join("origem").exists());
+        },
+    )
+    .unwrap_err();
+    assert!(matches!(
+        erro,
+        ErroWizard::Gravacao(FalhaDaGravacao::DestinoJaExiste)
+    ), "{erro:?}");
+    assert!(!perfil.exists(), "a compensação deve remover a pasta parcial");
+    assert_eq!(cofre::obter(&chave).unwrap().as_deref(), Some("senha-A"));
+    let _ = std::fs::remove_dir_all(pasta);
+}
