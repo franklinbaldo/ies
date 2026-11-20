@@ -366,10 +366,15 @@ pub(crate) fn criar_com_contagem<V: EnvioDoControle>(
     // mais de uma página, PEN1 10/11/2026), a escrita segue: o Location
     // continua a ser a prova, e uma resposta incerta sai com efeito incerto.
     // Esta leitura usa o Controle que já foi obtido: zero novos requests.
+    // Na visão detalhada (GO, 20/11/2026) não há tabela de Gerados: mesma
+    // regra, sem trocar a visão da conta compartilhada.
     let gerados_antes =
         match reconciliacao::FotografiaDosGerados::da_tela(&controle.html, &feito.unidade) {
             Ok(fotografia) => Some(fotografia),
-            Err(reconciliacao::ErroFotografia::CoberturaIncompleta) => None,
+            Err(
+                reconciliacao::ErroFotografia::CoberturaIncompleta
+                | reconciliacao::ErroFotografia::VisaoDetalhada,
+            ) => None,
             Err(erro) => return Err(ErroCriar::Fotografia(erro)),
         };
     // Não há retry após a submissão.
@@ -519,3 +524,7 @@ mod tests_contagem;
 #[cfg(test)]
 #[path = "tests_select_desabilitado.rs"]
 mod tests_select_desabilitado;
+
+#[cfg(test)]
+#[path = "tests_visao_detalhada.rs"]
+mod tests_visao_detalhada;
