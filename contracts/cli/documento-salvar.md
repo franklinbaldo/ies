@@ -159,3 +159,11 @@ Naquele ensaio a foto v3 alterada em um byte deu `base_versao_divergente`;
 essa conferência saiu da prévia e passou à releitura
 (`ErroCopia::FotoDivergente`); a confirmação remota permanece bloqueada.
 Aposentadoria de `base_versao_divergente`: #207, integrada pela PR #219.
+
+## Produção (20/11/2026)
+
+Esta escrita foi aprovada no ensaio das sete instalações de treinamento
+([relatório](../../docs/validacao-live/2026-11-20-promocao-7-instalacoes.md))
+e `--confirmar` grava também em produção. Esta seção prevalece sobre as
+menções anteriores a "somente em treinamento". Prévia, POST único, releitura
+e ausência de retry continuam obrigatórios.

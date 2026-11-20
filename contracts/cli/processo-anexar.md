@@ -48,3 +48,11 @@ A abertura do principal reutiliza o índice/fluxo normal e pode precisar de vár
 ## Critérios ainda pendentes
 
 **Comprovado apenas sinteticamente:** formulário derivado, POST único, aceite 302 e releitura por outra execução da CLI sobre SQLite, além de saída 1 para HTTP 503 injetado sem retry. **Pendentes:** confronto semântico independente IES e anti-IES ↔ cassettes e prévia/validação externa em UnB e segunda instalação de treinamento, com relatório e resíduo. Nenhuma escrita é autorizada fora de treinamento.
+
+## Produção (20/11/2026)
+
+Esta escrita foi aprovada no ensaio das sete instalações de treinamento
+([relatório](../../docs/validacao-live/2026-11-20-promocao-7-instalacoes.md))
+e `--confirmar` grava também em produção. Esta seção prevalece sobre as
+menções anteriores a "somente em treinamento". Prévia, POST único, releitura
+e ausência de retry continuam obrigatórios.

@@ -159,3 +159,11 @@ No PEN1, a captura de bloco interno registra a seleção oferecida pela
 O detalhe do mesmo bloco passa de vazio a uma linha com o NUP.
 O replay do leitor verifica esses dois estados do detalhe. O corpo
 da requisição POST não faz parte da captura.
+
+## Produção (20/11/2026)
+
+Esta escrita foi aprovada no ensaio das sete instalações de treinamento
+([relatório](../../docs/validacao-live/2026-11-20-promocao-7-instalacoes.md))
+e `--confirmar` grava também em produção. Esta seção prevalece sobre as
+menções anteriores a "somente em treinamento". Prévia, POST único, releitura
+e ausência de retry continuam obrigatórios.

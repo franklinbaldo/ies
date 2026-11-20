@@ -53,7 +53,11 @@ impl Escrita {
     /// - prazo: `docs/validacao-live/2026-11-10-processo-prazo-7-instalacoes.md`;
     /// - incluir externo, relacionar, andamento e enviar removendo anotações:
     ///   `docs/validacao-live/2026-11-10-cobertura-7-instalacoes.md` (mais os
-    ///   relatórios da `UnB` lá citados).
+    ///   relatórios da `UnB` lá citados);
+    /// - anotar, marcar, atribuir, anexar, documento salvar e bloco incluir
+    ///   documento: `docs/validacao-live/2026-11-20-promocao-7-instalacoes.md`.
+    ///
+    /// Comentar e deixar de acompanhar falharam no ensaio e seguem restritas.
     fn aprovada_em_treinamento(self) -> bool {
         matches!(
             self,
@@ -62,6 +66,12 @@ impl Escrita {
                 | Self::ProcessoRelacionar
                 | Self::ProcessoAndamento
                 | Self::ProcessoEnviarRemovendoAnotacoes
+                | Self::ProcessoAnotar
+                | Self::ProcessoMarcar
+                | Self::ProcessoAtribuir
+                | Self::ProcessoAnexar
+                | Self::DocumentoSalvar
+                | Self::BlocoIncluirDocumento
         )
     }
 }
@@ -87,11 +97,14 @@ mod tests {
     use super::*;
 
     #[test]
-    fn documento_salvar_recusa_producao_e_origens_imitadoras() {
-        // Esta operação não foi promovida para qualquer ambiente de produção.
-        assert!(!Escrita::DocumentoSalvar.aprovada_em_treinamento());
+    fn escrita_restrita_recusa_producao_e_origens_imitadoras() {
+        // Comentar não foi promovido (ensaio de 20/11/2026).
+        assert!(!Escrita::ProcessoComentar.aprovada_em_treinamento());
         for origem in ORIGENS {
-            assert!(exigir(Escrita::DocumentoSalvar, origem).is_ok(), "{origem}");
+            assert!(
+                exigir(Escrita::ProcessoComentar, origem).is_ok(),
+                "{origem}"
+            );
         }
         for origem in [
             "https://sei.unb.br/sei",
@@ -103,7 +116,7 @@ mod tests {
             "https://sei.go.gov.br/sei",
         ] {
             assert_eq!(
-                exigir(Escrita::DocumentoSalvar, origem),
+                exigir(Escrita::ProcessoComentar, origem),
                 Err(CausaDaOrigem::OrigemForaDoTreinamento),
                 "{origem}"
             );
@@ -135,7 +148,7 @@ mod tests {
     fn aceita_so_instalacoes_de_treinamento_e_a_bancada() {
         for origem in ORIGENS {
             assert!(
-                exigir(Escrita::ProcessoAtribuir, origem).is_ok(),
+                exigir(Escrita::ProcessoAcompanharDeixar, origem).is_ok(),
                 "{origem}"
             );
         }
@@ -149,7 +162,7 @@ mod tests {
         ] {
             assert!(
                 matches!(
-                    exigir(Escrita::ProcessoAtribuir, producao_ou_parecida),
+                    exigir(Escrita::ProcessoAcompanharDeixar, producao_ou_parecida),
                     Err(CausaDaOrigem::OrigemForaDoTreinamento)
                 ),
                 "{producao_ou_parecida}"
@@ -165,6 +178,17 @@ mod tests {
                 .is_ok()
             );
             assert!(exigir(Escrita::DocumentoIncluirExterno, producao_ou_parecida).is_ok());
+            for promovida in [
+                Escrita::ProcessoAnotar,
+                Escrita::ProcessoMarcar,
+                Escrita::ProcessoAtribuir,
+                Escrita::ProcessoAnexar,
+                Escrita::DocumentoSalvar,
+                Escrita::BlocoIncluirDocumento,
+            ] {
+                assert!(exigir(promovida, producao_ou_parecida).is_ok());
+            }
+            assert!(exigir(Escrita::ProcessoComentar, producao_ou_parecida).is_err());
         }
     }
 }

@@ -150,3 +150,11 @@ envio e verificação por leitura, nunca retry.
 Ver [estrutura observada](../../docs/como-o-sei-funciona/marcadores-do-processo.md),
 [decisão](../../docs/decisoes/processo-marcar.md) e
 [relatório live](../../docs/validacao-live/2026-11-05-processo-marcar.md).
+
+## Produção (20/11/2026)
+
+Esta escrita foi aprovada no ensaio das sete instalações de treinamento
+([relatório](../../docs/validacao-live/2026-11-20-promocao-7-instalacoes.md))
+e `--confirmar` grava também em produção. Esta seção prevalece sobre as
+menções anteriores a "somente em treinamento". Prévia, POST único, releitura
+e ausência de retry continuam obrigatórios.

@@ -42,3 +42,11 @@ O anti-IES já aceita anotação vazia e persiste no SQLite efêmero; `tests/aie
 **BDD-ANOT-05:** interação com envio permanece pendente; não ampliar esse cenário nesta PR.
 
 [Decisão](../../docs/decisoes/processo-anotar.md) · [Issue #638](https://github.com/franklinbaldo/ies/issues/638)
+
+## Produção (20/11/2026)
+
+Esta escrita foi aprovada no ensaio das sete instalações de treinamento
+([relatório](../../docs/validacao-live/2026-11-20-promocao-7-instalacoes.md))
+e `--confirmar` grava também em produção. Esta seção prevalece sobre as
+menções anteriores a "somente em treinamento". Prévia, POST único, releitura
+e ausência de retry continuam obrigatórios.
