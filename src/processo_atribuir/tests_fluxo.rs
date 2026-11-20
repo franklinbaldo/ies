@@ -311,6 +311,38 @@ fn confirmar_atribuicao_faz_um_post_e_verifica_por_arvore_nova() {
     assert_eq!(pedidos.iter().filter(|p| p.metodo == "POST").count(), 1);
 }
 
+// Location do aceite como gravada na cassette `processo-atribuir-unb`
+// (sem `infra_hash`): a UnB 4.0.9 repete `id_procedimento`.
+fn retorno_arvore_com_id_repetido_observado() -> Resposta {
+    r302(&format!(
+        "controlador.php?acao=arvore_visualizar&acao_origem=procedimento_atribuicao_cadastrar&arvore=1&id_procedimento={ID}&id_procedimento={ID}&atualizar_arvore=1#ID-{ID}"
+    ))
+}
+
+#[test]
+fn aceite_da_unb_com_id_repetido_confirma_a_atribuicao() {
+    let mut respostas = respostas_previa("aluno20");
+    respostas.push(retorno_arvore_com_id_repetido_observado());
+    respostas.push(ok(arvore_atual("aluno2")));
+    let (resultado, pedidos) = rodar_confirmacao(Some("aluno2"), respostas);
+    assert_eq!(
+        resultado.unwrap().estado,
+        EstadoDaAtribuicao::AlteracaoConfirmada
+    );
+    assert_eq!(pedidos.iter().filter(|p| p.metodo == "POST").count(), 1);
+}
+
+#[test]
+fn aceite_com_id_repetido_divergente_nao_confirma() {
+    let mut respostas = respostas_previa("aluno20");
+    respostas.push(r302(&format!(
+        "controlador.php?acao=arvore_visualizar&acao_origem=procedimento_atribuicao_cadastrar&id_procedimento={ID}&id_procedimento=1&atualizar_arvore=1"
+    )));
+    respostas.push(ok(arvore_atual("aluno2")));
+    let (resultado, _) = rodar_confirmacao(Some("aluno2"), respostas);
+    assert!(resultado.is_err());
+}
+
 // Caso de Todos tests/test_ciclo_atribuir_010.py @323eb01: remover = null.
 #[test]
 fn confirmar_remocao_posta_null_e_verifica_ausencia_de_atribuicao() {

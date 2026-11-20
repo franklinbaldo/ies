@@ -313,8 +313,13 @@ fn redirecionamento_esperado(resposta: &Redirecionamento302, id: &str) -> bool {
     // O aceite observado publica também a ação que originou o 302.
     // Sem essa ligação ao POST de atribuição, a árvore coincidente
     // pode ter sido alterada por outro agente: não declarar sucesso.
+    // A UnB 4.0.9 repete `id_procedimento` no 302 de aceite (cassette
+    // `processo-atribuir-unb` e ensaio live de 20/11/2026): todas as
+    // ocorrências precisam ser o mesmo id, e pelo menos uma deve existir.
+    let mut ids = consulta.valores("id_procedimento").peekable();
+    let identidade = ids.peek().is_some() && ids.all(|valor| valor == id);
     acao_esperada
-        && consulta.unico("id_procedimento") == Ok(id)
+        && identidade
         && consulta.unico("acao_origem").ok().and_then(AcaoDoSei::ler)
             == Some(AcaoDoSei::ProcedimentoAtribuicaoCadastrar)
 }

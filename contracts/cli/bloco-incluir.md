@@ -60,7 +60,10 @@ não é afirmada a partir de lista parcial.
 A leitura `ies bloco N` é ampliada na mesma fatia de prévia
 processual para resolver detalhes de **assinatura, interno e reunião**
 pelas listas tipadas publicadas ([contrato](bloco-obter.md)).
-Colisões e páginas parciais não podem virar identidade inequívoca.
+O número do bloco é sequência única da instalação (observado na UnB em
+20/11/2026: 2503 assinatura, 2502 interno); encontrado numa lista tipada,
+não se exige ler as páginas restantes das outras. Achado em duas listas
+continua sendo identidade ambígua.
 A ampliação tem comprovação sintética, não prova de paridade com
 instalação real. Não usar HTML inventado como evidência externa.
 

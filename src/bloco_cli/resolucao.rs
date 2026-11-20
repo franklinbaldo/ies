@@ -7,7 +7,9 @@ use crate::acao_do_sei::AcaoDoSei;
 use crate::bloco_estado::EstadoDoBloco;
 
 /// Resolve um número pelas listas tipadas efetivamente publicadas, sem
-/// escolher assinatura por padrão. Uma página parcial não exclui colisões.
+/// escolher assinatura por padrão. O número do bloco é uma sequência única
+/// da instalação (`UnB`: 2503 assinatura, 2502 interno), então a página de
+/// outro tipo não lida não esconde colisão.
 pub(crate) fn ler_bloco_por_numero_via<V: EnvioDoControle>(
     sessao: &ReferenciasDaSessao,
     unidade_esperada: Option<&str>,
@@ -29,7 +31,6 @@ pub(crate) fn ler_bloco_por_numero_via<V: EnvioDoControle>(
     }
     let cookie = sessao.cookie().valor()?;
     let mut identidade: Option<(TipoBloco, String, EstadoDoBloco)> = None;
-    let mut lista_parcial_sem_numero = false;
     for tipo in [
         TipoBloco::Assinatura,
         TipoBloco::Interno,
@@ -58,18 +59,12 @@ pub(crate) fn ler_bloco_por_numero_via<V: EnvioDoControle>(
                 Some(numero),
             )?;
             identidade = Some((tipo, url, item.estado));
-        } else if lista.lista.itens.len() != lista.lista.total_declarado {
-            lista_parcial_sem_numero = true;
         }
     }
     let Some((tipo, url, estado)) = identidade else {
         // Respeita o contrato antigo: o número não foi observado na página.
         return Err(ErroBloco::BlocoNaoEncontradoNaPagina.into());
     };
-    if lista_parcial_sem_numero {
-        // Encontrar em A não exclui que a parte não lida de B também o tenha.
-        return Err(FalhaLeitura::ListaParcialNaoExcluiColisao);
-    }
     requisicoes += 1;
     let resposta = envio.get(&url, cookie)?;
     let html = transporte::decodificar_resposta(resposta)?;
