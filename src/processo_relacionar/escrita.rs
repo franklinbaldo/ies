@@ -62,7 +62,7 @@ fn id_da_origem(url: &str) -> Result<&str, FalhaRelacionar> {
 }
 
 /// O 302 de aceite volta à tela; resultado=1 e ação únicos.
-pub(super) fn aceite_da_remocao(localizacao: &str, url_post: &str, id: &str) -> bool {
+pub(crate) fn aceite_da_remocao(localizacao: &str, url_post: &str, id: &str) -> bool {
     let Some(query) = consulta_do_controlador(localizacao, url_post) else {
         return false;
     };

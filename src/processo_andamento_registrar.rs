@@ -138,7 +138,7 @@ pub(crate) fn inserido_uma_vez(
     }
     cauda.iter().zip(&antes.itens).all(|(a, b)| a == b)
 }
-fn localizacao_esperada(local: Option<&str>, origem: &str, id: &str) -> bool {
+pub(crate) fn localizacao_esperada(local: Option<&str>, origem: &str, id: &str) -> bool {
     let Some(consulta) = local.and_then(|l| consulta_do_controlador(l, origem)) else {
         return false;
     };

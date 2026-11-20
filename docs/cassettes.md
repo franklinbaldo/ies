@@ -129,6 +129,17 @@ o tempo de execução é variável.
 
 Os relatórios de cada rodada ficam em `docs/validacao-replay/`.
 
+### Gate dos aceites de escrita
+
+`cassette::aceites_acervo` passa **todo 302 de POST** gravado nas sete
+instalações pelo predicado de aceite que o comando de escrita usa de fato.
+O gate falha se o IES recusar um aceite que o SEI deu, e também se uma
+ação que o IES conhece aparecer como POST com 302 sem estar classificada:
+com predicado, confirmada só por releitura, ou fora das escritas do IES.
+Um predicado novo entra na tabela do módulo junto com o comando. Fixture
+sintético não substitui esse confronto: foi assim que o `atribuir` passou
+nos testes recusando os 14 aceites reais (#867).
+
 ## Limites da evidência
 
 O corpus histórico preserva metadados da requisição e respostas

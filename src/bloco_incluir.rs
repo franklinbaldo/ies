@@ -414,7 +414,7 @@ const INCLUIR_DOCUMENTO: OperacaoDeFormulario = OperacaoDeFormulario {
 
 /// O 302 é apenas aceitação causal da inclusão quando vinculado à mesma
 /// identidade e à ação publicada, sem seguir redirecionamento.
-fn redirecionamento_da_inclusao(
+pub(crate) fn redirecionamento_da_inclusao(
     location: Option<&str>,
     url_do_envio: &str,
     id_procedimento: &str,

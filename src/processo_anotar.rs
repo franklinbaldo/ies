@@ -167,7 +167,7 @@ pub(crate) fn executar<V: EnvioDoProcesso>(
 }
 
 /// O 302 não é seguido. A identidade e a ação precisam concordar.
-fn redirecionamento_esperado(localizacao: Option<&str>, url: &str, id: &str) -> bool {
+pub(crate) fn redirecionamento_esperado(localizacao: Option<&str>, url: &str, id: &str) -> bool {
     let Some(consulta) = localizacao.and_then(|l| consulta_do_controlador(l, url)) else {
         return false;
     };

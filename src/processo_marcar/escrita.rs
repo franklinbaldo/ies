@@ -82,7 +82,7 @@ pub(super) fn action_de_remocao(html: &str, id: &str) -> Result<String, ErroMarc
     Ok(url.to_owned())
 }
 
-pub(super) fn aceite_da_remocao(redir: &Redirecionamento302, id: &str) -> bool {
+pub(crate) fn aceite_da_remocao(redir: &Redirecionamento302, id: &str) -> bool {
     let Some(consulta) = redir
         .localizacao()
         .and_then(|url| consulta_do_controlador(url, redir.url_do_envio()))

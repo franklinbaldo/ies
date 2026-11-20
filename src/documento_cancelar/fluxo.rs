@@ -252,7 +252,7 @@ pub(super) fn conferir_formulario(
 
 /// O 302 aceito tem a ação, a identidade do processo/documento e o marcador
 /// `atualizar_arvore=1` exatamente uma vez; Location nunca é seguido.
-pub(super) fn localizacao_aceita(
+pub(crate) fn localizacao_aceita(
     localizacao: &str,
     enviado: &str,
     id_proc: &str,

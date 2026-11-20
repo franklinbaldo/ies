@@ -151,7 +151,11 @@ fn link_do_cadastro(
 }
 
 /// Confere a identidade do aceite sem seguir o redirecionamento.
-fn id_do_aceite<'a>(local: &'a str, url_post: &str, id_processo: &str) -> Option<&'a str> {
+pub(crate) fn id_do_aceite<'a>(
+    local: &'a str,
+    url_post: &str,
+    id_processo: &str,
+) -> Option<&'a str> {
     let Ok(consulta) = ConsultaDoControlador::ler(consulta_do_controlador(local, url_post)?) else {
         return None;
     };
