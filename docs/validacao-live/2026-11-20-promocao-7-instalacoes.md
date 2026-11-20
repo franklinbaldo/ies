@@ -81,8 +81,12 @@ houve conferência de que nada tinha sido gravado.
   `bloco`.
 - `documento criar` sem `--nivel`: a prévia sai 0 e o `--confirmar` recusa
   com `NivelNaoInformado`.
-- `processo criar` exige a visão resumida do Controle, mas `unidade
-  listar-processos` deixa a sessão na detalhada (GO; transitório na PEN2).
+- ~~`processo criar` exige a visão resumida do Controle, mas `unidade
+  listar-processos` deixa a sessão na detalhada (GO; transitório na PEN2).~~
+  Corrigido no mesmo dia: na visão detalhada a fotografia dos Gerados fica
+  indisponível, como na cobertura incompleta, e a criação segue. Na GO,
+  com a sessão deixada na D por `unidade listar-processos`, a prévia e um
+  único `--confirmar` deram saída 0 (`202600005006544`).
 - `acompanhar`: `ja_estava` e `id_acompanhamento` divergem entre a prévia de
   gravar e a de `--deixar`.
 - `documento assinar` publica `unidade: null`.

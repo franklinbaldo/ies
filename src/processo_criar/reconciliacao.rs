@@ -19,6 +19,8 @@ pub(crate) struct FotografiaDosGerados {
 pub(crate) enum ErroFotografia {
     Caixa(#[from] crate::erro_web::ErroCaixa),
     CoberturaIncompleta,
+    /// O Controle está na visão detalhada: não há tabela de Gerados.
+    VisaoDetalhada,
     NupRepetido,
     IdentidadeAlterada,
     IdentidadeAnteriorAusente,
@@ -34,6 +36,9 @@ impl FotografiaDosGerados {
         html: &crate::tela_html::HtmlServido,
         unidade: &str,
     ) -> Result<Self, ErroFotografia> {
+        if crate::controle_contexto::contexto_da_pagina(html)?.eh_detalhada() {
+            return Err(ErroFotografia::VisaoDetalhada);
+        }
         let leitura = crate::paginas::juntar(std::slice::from_ref(html), Some(unidade))?;
         let tabela = &leitura.caixa.gerados;
         let total = tabela.total_declarado;

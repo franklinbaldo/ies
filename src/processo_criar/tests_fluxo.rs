@@ -56,7 +56,7 @@ pub(super) fn pedido(confirmar: bool) -> PedidoCriar<'static> {
     }
 }
 
-fn arvore_verificadora() -> String {
+pub(super) fn arvore_verificadora() -> String {
     arvore(
         &[UNIDADE],
         &[acao_da_barra(&link_das_propriedades(
@@ -66,7 +66,7 @@ fn arvore_verificadora() -> String {
     )
 }
 
-fn propriedades_verificadoras() -> String {
+pub(super) fn propriedades_verificadoras() -> String {
     tela_das_propriedades(NUP, "10")
         .replace("Tipo Sintetico: Teste", TIPO)
         .replace(
