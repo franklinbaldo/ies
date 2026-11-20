@@ -1,6 +1,6 @@
 //! Recusa pré-rede da escrita ainda não aprovada, via CLI real e escuta local.
 //! BDD-620-01/02 reconciliados pelo Elefante em 10/11/2026 (#620).
-//! Atribuição continua restrita; outras escritas aprovadas não se bloqueiam.
+//! Comentar continua restrito (ensaio de 20/11/2026); atribuição foi promovida.
 //! Não usa credenciais, rede externa, cassette sintética ou SEI.
 use std::fs;
 use std::net::TcpListener;
@@ -76,15 +76,8 @@ fn executar(args: &[&str]) -> Output {
 }
 
 #[test]
-fn bdd_620_01_atribuicao_humana_recusa_antes_de_qualquer_requisicao() {
-    let saida = executar(&[
-        "processo",
-        "atribuir",
-        NUP,
-        "--usuario",
-        "aluno2",
-        "--confirmar",
-    ]);
+fn bdd_620_01_comentario_humano_recusa_antes_de_qualquer_requisicao() {
+    let saida = executar(&["processo", "comentar", NUP, "--texto", "T", "--confirmar"]);
     assert_eq!(saida.status.code(), Some(1));
     assert_eq!(saida.stdout, Vec::<u8>::new());
     let erro = String::from_utf8_lossy(&saida.stderr);
@@ -92,14 +85,14 @@ fn bdd_620_01_atribuicao_humana_recusa_antes_de_qualquer_requisicao() {
 }
 
 #[test]
-fn bdd_620_02_atribuicao_json_recusa_antes_de_qualquer_requisicao() {
+fn bdd_620_02_comentario_json_recusa_antes_de_qualquer_requisicao() {
     let saida = executar(&[
         "--json",
         "processo",
-        "atribuir",
+        "comentar",
         NUP,
-        "--usuario",
-        "aluno2",
+        "--texto",
+        "T",
         "--confirmar",
     ]);
     assert_eq!(saida.status.code(), Some(1));

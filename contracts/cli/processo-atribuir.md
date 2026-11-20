@@ -139,3 +139,11 @@ O [ensaio da CLI real](../../docs/validacao-live/2026-11-09-processo-atribuir-un
 O estado relido é **um possível resíduo**, não prova de autoria: a resposta do envio não forneceu a identidade causal exigida por este contrato. A instalação é compartilhada e outra sessão pode produzir o mesmo estado. Não repetir a atribuição para tentar obter saída 0; qualquer eventual remoção exige decisão separada, leitura e prévia atuais. O registro privado `0600` foi preservado pelo executor de ensaio. Nenhuma operação em produção ocorreu.
 
 **Evidências distintas:** IES↔anti-IES↔SQLite **PASS sintético anterior, NOT_RUN neste ensaio**; GET de atribuição↔cassettes **PASS restrito** para 28 formulários, POST histórico (14 respostas 302) **caracterizado sem confronto causal**; treinamento **prévia PASS, confirmação INCONCLUSIVA, remoção NOT_RUN**. Esta atualização não reclassifica os ensaios passados nem libera `--confirmar` para outras origens.
+
+## Produção (20/11/2026)
+
+Esta escrita foi aprovada no ensaio das sete instalações de treinamento
+([relatório](../../docs/validacao-live/2026-11-20-promocao-7-instalacoes.md))
+e `--confirmar` grava também em produção. Esta seção prevalece sobre as
+menções anteriores a "somente em treinamento". Prévia, POST único, releitura
+e ausência de retry continuam obrigatórios.

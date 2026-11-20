@@ -60,36 +60,6 @@ fn bdd_264_03_confirmar_remocao_e_reler_pela_cli_real() {
 }
 
 #[test]
-fn confirmacao_recusa_origem_fora_do_treinamento_sem_post_ou_rede() {
-    let pasta = Pasta::nova();
-    let origem = pasta.privado("origem", "https://sei.producao.exemplo/sei");
-    let cookie = pasta.privado("cookie", "PHPSESSID=FICTICIO");
-    let url = pasta.privado("url", &format!(
-        "https://sei.producao.exemplo/sei/controlador.php?acao=procedimento_controlar&infra_hash={}",
-        "a".repeat(64),
-    ));
-    let saida = Command::new(env!("CARGO_BIN_EXE_ies"))
-        .args([
-            "--json",
-            "processo",
-            "atribuir",
-            NUP,
-            "--usuario",
-            "aluno2",
-            "--confirmar",
-        ])
-        .env("IES_URL_CONTROLE_FILE", url)
-        .env("IES_COOKIE_FILE", cookie)
-        .env("IES_ORIGEM_FILE", origem)
-        .env("HOME", &pasta.0)
-        .env_remove("IES_CONFIG_FILE")
-        .env_remove("IES_CREDENCIAIS_FILE")
-        .output()
-        .unwrap();
-    falha(&saida, "OrigemForaDoTreinamento");
-}
-
-#[test]
 fn bdd_264_03_resposta_403_apos_post_aplicado_nao_confirma_autoria() {
     let (escrita, releitura, eventos, _, estado) =
         executar_cenario_com_resposta(true, false, None, true, RespostaPost::Recusa403);

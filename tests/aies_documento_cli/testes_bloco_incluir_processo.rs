@@ -262,7 +262,9 @@ fn bdd_381_04_colisao_entre_tipos_nao_escolhe_o_primeiro() {
 }
 
 #[test]
-fn bdd_381_04_lista_parcial_nao_prova_ausencia_de_colisao() {
+// Número de bloco é sequência única da instalação (UnB, 20/11/2026):
+// página não lida de outro tipo não pode esconder o mesmo número.
+fn lista_parcial_de_outro_tipo_nao_impede_a_previa() {
     let pasta = Pasta::nova();
     preparar(&pasta);
     let (mut banco, instalacao) = estado(&pasta.0.join("anti-ies.sqlite3"), true, 0, false);
@@ -295,8 +297,14 @@ fn bdd_381_04_lista_parcial_nao_prova_ausencia_de_colisao() {
     );
     assert_eq!(
         resultado.status.code(),
-        Some(1),
-        "lista parcial não exclui colisão"
+        Some(0),
+        "lista parcial de outro tipo não bloqueia"
     );
-    assert!(pedidos.iter().all(|p| p.starts_with("GET ")), "{pedidos:?}");
+    // Prévia: a pesquisa rápida é o único POST, e só lê.
+    assert!(
+        pedidos
+            .iter()
+            .all(|p| p.starts_with("GET ") || p == "POST protocolo_pesquisa_rapida"),
+        "{pedidos:?}"
+    );
 }

@@ -70,8 +70,8 @@ pub(crate) fn responder(
     if numero.is_empty() || !numero.bytes().all(|b| b.is_ascii_digit()) {
         return Resposta::nova(Estado::RequisicaoInvalida);
     }
-    // A URL observada não identifica o tipo. Só publicar quando uma única
-    // lista completa comprovar o número, sem adivinhar assinatura.
+    // A URL observada não identifica o tipo. O número é sequência única da
+    // instalação: basta uma lista o publicar, sem adivinhar assinatura.
     let mut tipo_encontrado = None;
     for tipo in [Tipo::Assinatura, Tipo::Interno, Tipo::Reuniao] {
         let Ok(pagina) = blocos::ler(banco, instalacao, cenario, tipo) else {
@@ -80,11 +80,9 @@ pub(crate) fn responder(
         let Some(pagina) = pagina else {
             continue;
         };
-        if pagina.linhas.iter().any(|linha| linha.numero == numero) {
-            if tipo_encontrado.replace(tipo).is_some() {
-                return Resposta::nova(Estado::DadosInsuficientes);
-            }
-        } else if pagina.total != pagina.linhas.len() {
+        if pagina.linhas.iter().any(|linha| linha.numero == numero)
+            && tipo_encontrado.replace(tipo).is_some()
+        {
             return Resposta::nova(Estado::DadosInsuficientes);
         }
     }

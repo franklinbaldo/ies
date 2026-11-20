@@ -60,7 +60,10 @@ não é afirmada a partir de lista parcial.
 A leitura `ies bloco N` é ampliada na mesma fatia de prévia
 processual para resolver detalhes de **assinatura, interno e reunião**
 pelas listas tipadas publicadas ([contrato](bloco-obter.md)).
-Colisões e páginas parciais não podem virar identidade inequívoca.
+O número do bloco é sequência única da instalação (observado na UnB em
+20/11/2026: 2503 assinatura, 2502 interno); encontrado numa lista tipada,
+não se exige ler as páginas restantes das outras. Achado em duas listas
+continua sendo identidade ambígua.
 A ampliação tem comprovação sintética, não prova de paridade com
 instalação real. Não usar HTML inventado como evidência externa.
 
@@ -156,3 +159,11 @@ No PEN1, a captura de bloco interno registra a seleção oferecida pela
 O detalhe do mesmo bloco passa de vazio a uma linha com o NUP.
 O replay do leitor verifica esses dois estados do detalhe. O corpo
 da requisição POST não faz parte da captura.
+
+## Produção (20/11/2026)
+
+Esta escrita foi aprovada no ensaio das sete instalações de treinamento
+([relatório](../../docs/validacao-live/2026-11-20-promocao-7-instalacoes.md))
+e `--confirmar` grava também em produção. Esta seção prevalece sobre as
+menções anteriores a "somente em treinamento". Prévia, POST único, releitura
+e ausência de retry continuam obrigatórios.
