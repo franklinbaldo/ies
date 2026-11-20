@@ -11,6 +11,8 @@ mod acervo;
 mod erro;
 mod fluxo;
 #[cfg(test)]
+pub(crate) use fluxo::localizacao_aceita as aceite_302;
+#[cfg(test)]
 mod tests_fluxo;
 
 #[cfg(test)]

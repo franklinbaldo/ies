@@ -179,6 +179,8 @@ pub(super) fn preparar_com_acao<V: EnvioDoProcesso>(
 mod acervo;
 mod tela;
 #[cfg(test)]
+pub(crate) use tela::redirecionamento_esperado as aceite_302;
+#[cfg(test)]
 mod tests;
 #[cfg(test)]
 mod tests_escrita;

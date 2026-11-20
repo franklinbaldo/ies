@@ -199,7 +199,11 @@ pub(crate) fn releitura_de_marcadores<V: EnvioDoProcesso>(
 
 mod catalogo;
 mod escrita;
+#[cfg(test)]
+pub(crate) use catalogo::aceite_da_atribuicao as aceite_302_da_atribuicao;
 pub(crate) use catalogo::executar_atribuicao;
+#[cfg(test)]
+pub(crate) use escrita::aceite_da_remocao as aceite_302_da_remocao;
 pub(crate) use escrita::confirmar_retirada;
 
 #[cfg(test)]

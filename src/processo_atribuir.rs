@@ -281,6 +281,8 @@ pub(crate) fn preparar_submissao(
 }
 
 mod fluxo;
+#[cfg(test)]
+pub(crate) use fluxo::redirecionamento_esperado as aceite_302;
 pub(crate) use fluxo::{
     EstadoDaAtribuicao, PedidoDaAtribuicao, ProcessoAtribuido, executar_previa,
 };

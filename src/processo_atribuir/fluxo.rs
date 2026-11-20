@@ -292,7 +292,7 @@ fn situacao_da_unidade<'a>(
 
 /// O 302 é apenas um dado, nunca seguido. Conferimos a ação do destino
 /// e, quando publicada, a identidade do mesmo processo antes da releitura.
-fn redirecionamento_esperado(resposta: &Redirecionamento302, id: &str) -> bool {
+pub(crate) fn redirecionamento_esperado(resposta: &Redirecionamento302, id: &str) -> bool {
     let Some(consulta) = resposta
         .localizacao()
         .and_then(|url| consulta_do_controlador(url, resposta.url_do_envio()))

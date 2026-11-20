@@ -3,6 +3,8 @@
 //! `sha1` (dependências de desenvolvimento). Os replays do acervo são os
 //! testes `#[ignore]` `*::acervo*`, executados por `scripts/replay`.
 use std::path::Path;
+#[cfg(test)]
+mod aceites_acervo;
 pub(crate) mod acervo;
 mod conferencia;
 pub(crate) use conferencia::ZipDoAcervo;

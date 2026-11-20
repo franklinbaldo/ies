@@ -53,7 +53,8 @@ fn cards() -> Vec<PathBuf> {
 }
 
 /// Chama `ler(nome, instalação, json)` para cada card conferido que
-/// registra alguma das `operacoes`; devolve quantos foram lidos. Falha
+/// registra alguma das `operacoes` (todos, se a lista for vazia); devolve
+/// quantos foram lidos. Falha
 /// (pânico) se um ZIP faltar ou um card não conferir.
 pub(crate) fn percorrer(
     operacoes: &[&str],
@@ -64,9 +65,10 @@ pub(crate) fn percorrer(
     let mut lidos = 0usize;
     for card in cards() {
         let texto = std::fs::read_to_string(&card).expect("card");
-        if !operacoes
-            .iter()
-            .any(|op| texto.contains(&format!("- `{op}`")))
+        if !operacoes.is_empty()
+            && !operacoes
+                .iter()
+                .any(|op| texto.contains(&format!("- `{op}`")))
         {
             continue;
         }

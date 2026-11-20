@@ -2,6 +2,8 @@
 #[cfg(test)]
 mod acervo;
 mod escrita;
+#[cfg(test)]
+pub(crate) use escrita::aceite_da_remocao as aceite_302_da_remocao;
 mod tela;
 #[cfg(test)]
 #[path = "processo_relacionar/tests.rs"]

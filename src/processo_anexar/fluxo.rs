@@ -75,6 +75,8 @@ pub(crate) enum FalhaAnexar {
     ConsultaResposta(FalhaTransporte),
 }
 pub(super) mod escrita;
+#[cfg(test)]
+pub(crate) use escrita::aceite as aceite_302;
 
 pub(crate) struct Pedido<'a> {
     pub(crate) anexado: &'a NumeroProcesso,

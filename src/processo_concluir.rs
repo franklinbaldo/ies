@@ -8,6 +8,8 @@ mod erro;
 pub(crate) mod escrita;
 mod fluxo;
 mod tela;
+#[cfg(test)]
+pub(crate) use tela::redirecionamento_esperado as aceite_302;
 
 #[cfg(test)]
 mod acervo;
