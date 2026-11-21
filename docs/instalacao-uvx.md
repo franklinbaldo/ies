@@ -18,9 +18,9 @@ ocupado por outro projeto no PyPI. O executavel continua se chamando
 ## Executar sem instalar Rust (apos publicar os wheels)
 
 ```sh
-uvx --from ies-sei ies --help
-uvx --from ies-sei ies --version
-uvx --from ies-sei ies status --json
+uvx ies-sei --help
+uvx ies-sei --version
+uvx ies-sei status --json
 ```
 
 O `uvx` prepara um ambiente isolado, baixa o wheel compatível com o
@@ -35,6 +35,8 @@ diretamente:
 ```sh
 uv tool install ies-sei
 ies --help
+sei --help
+ies-sei --help
 ```
 
 **Atencao:** estes comandos do indice PyPI so funcionam **depois** de
