@@ -187,11 +187,7 @@ fn abrir_editor_exige_barra_e_consulta_sem_assinatura() {
             panic!("POST fora da abertura do editor")
         }
 
-        fn get(
-            &mut self,
-            url: &str,
-            _: &str,
-        ) -> Result<RespostaWeb<Self::Corpo>, FalhaTransporte> {
+        fn get(&mut self, url: &str, _: &str) -> Result<RespostaWeb<Self::Corpo>, FalhaTransporte> {
             self.pedidos.push(url.to_owned());
             let (mime, corpo) = if url == self.tela {
                 (
@@ -277,7 +273,10 @@ fn abrir_editor_exige_barra_e_consulta_sem_assinatura() {
         match (sinal_barra, sinal_ajax) {
             (Some('N'), 'N') => assert_eq!(resultado.unwrap().url, envio.editor),
             (Some('N'), 'S') | (Some('S'), _) => {
-                assert!(matches!(resultado, Err(ErroEditorNativo::DocumentoAssinado)));
+                assert!(matches!(
+                    resultado,
+                    Err(ErroEditorNativo::DocumentoAssinado)
+                ));
             }
             _ => assert!(matches!(
                 resultado,
