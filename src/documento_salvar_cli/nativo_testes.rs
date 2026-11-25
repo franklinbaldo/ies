@@ -1,5 +1,9 @@
 use super::*;
+use crate::formulario_web::{RespostaDoPost, SubmissaoDerivada};
+use crate::transporte::RespostaWeb;
+use crate::transporte::testes_http::resposta;
 use std::cell::Cell;
+use std::io::Cursor;
 
 #[test]
 fn formulario_classico_envia_lf_em_todas_as_secoes_sem_reescrever_html() {
@@ -153,6 +157,53 @@ fn oferta_de_edicao_vem_da_barra_do_documento_e_nao_de_script_generico() {
     }
 }
 
+struct Roteiro {
+    tela: String,
+    consulta: String,
+    editor: String,
+    sinal: char,
+    pedidos: Vec<String>,
+}
+
+impl EnvioDoControle for Roteiro {
+    type Corpo = Cursor<Vec<u8>>;
+
+    fn post(
+        &mut self,
+        _: SubmissaoDerivada,
+        _: &str,
+    ) -> Result<RespostaDoPost<Self::Corpo>, FalhaTransporte> {
+        panic!("POST fora da abertura do editor")
+    }
+
+    fn get(&mut self, url: &str, _: &str) -> Result<RespostaWeb<Self::Corpo>, FalhaTransporte> {
+        self.pedidos.push(url.to_owned());
+        let (mime, corpo) = if url == self.tela {
+            (
+                "text/html; charset=utf-8",
+                format!(
+                    "<script>\nobjAjaxVerificacaoAssinatura = new infraAjaxComplementar(null,'{}');\nvar linkEditarConteudo = '{}';\n</script>",
+                    self.consulta.split_once("/sei/").unwrap().1,
+                    self.editor.split_once("/sei/").unwrap().1
+                ),
+            )
+        } else if url == self.consulta {
+            (
+                "text/xml; charset=utf-8",
+                format!(
+                    "<resposta><complemento nome='SinAssinado'>{}</complemento></resposta>",
+                    self.sinal
+                ),
+            )
+        } else if url == self.editor {
+            ("text/html; charset=utf-8", "<html></html>".into())
+        } else {
+            panic!("GET fora do roteiro")
+        };
+        Ok(resposta(200, mime, corpo.into_bytes(), None))
+    }
+}
+
 // Hipótese sintética: divergência entre a barra e a resposta AJAX.
 // Exercita a abertura real do editor, sem rede ou cassete fabricada.
 #[test]
@@ -161,59 +212,8 @@ fn abrir_editor_exige_barra_e_consulta_sem_assinatura() {
     use crate::arvore_processo::tests::{NUP, arvore, interno, no_documento, no_processo};
     use crate::arvore_processo::tests_assinatura::{arvore_assinavel, link_da_tela_do_documento};
     use crate::arvore_processo::tests_barra_documento::{barra, com_barra};
-    use crate::formulario_web::{RespostaDoPost, SubmissaoDerivada};
     use crate::processo_obter::ResolvidoPor;
-    use crate::transporte::RespostaWeb;
     use crate::transporte::sessao::CookieLido;
-    use crate::transporte::testes_http::resposta;
-    use std::io::Cursor;
-
-    struct Roteiro {
-        tela: String,
-        consulta: String,
-        editor: String,
-        sinal: char,
-        pedidos: Vec<String>,
-    }
-
-    impl EnvioDoControle for Roteiro {
-        type Corpo = Cursor<Vec<u8>>;
-
-        fn post(
-            &mut self,
-            _: SubmissaoDerivada,
-            _: &str,
-        ) -> Result<RespostaDoPost<Self::Corpo>, FalhaTransporte> {
-            panic!("POST fora da abertura do editor")
-        }
-
-        fn get(&mut self, url: &str, _: &str) -> Result<RespostaWeb<Self::Corpo>, FalhaTransporte> {
-            self.pedidos.push(url.to_owned());
-            let (mime, corpo) = if url == self.tela {
-                (
-                    "text/html; charset=utf-8",
-                    format!(
-                        "<script>\nobjAjaxVerificacaoAssinatura = new infraAjaxComplementar(null,'{}');\nvar linkEditarConteudo = '{}';\n</script>",
-                        self.consulta.split_once("/sei/").unwrap().1,
-                        self.editor.split_once("/sei/").unwrap().1
-                    ),
-                )
-            } else if url == self.consulta {
-                (
-                    "text/xml; charset=utf-8",
-                    format!(
-                        "<resposta><complemento nome='SinAssinado'>{}</complemento></resposta>",
-                        self.sinal
-                    ),
-                )
-            } else if url == self.editor {
-                ("text/html; charset=utf-8", "<html></html>".into())
-            } else {
-                panic!("GET fora do roteiro")
-            };
-            Ok(resposta(200, mime, corpo.into_bytes(), None))
-        }
-    }
 
     let instalacao = Instalacao::interpretar("https://sei.exemplo.gov.br/sei").unwrap();
     let origem = instalacao.url_base();
