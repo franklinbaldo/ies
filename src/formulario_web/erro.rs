@@ -1,4 +1,5 @@
 //! Recusas tipadas da derivação e do envio de formulário (uma por fato).
+use crate::consulta_do_controlador::ErroConsultaDoControlador;
 use crate::transporte::{FalhaTransporte, FatoDaResposta, StatusHttpRecusado};
 
 #[derive(Clone, Debug, PartialEq, Eq, thiserror::Error)]
@@ -16,6 +17,7 @@ pub(crate) enum ErroSubmissaoFormulario {
     AcaoDoFormularioForaDaInstalacao,
     AcaoDoFormularioDiferenteDaOperacao,
     AcaoDoFormularioSemInfraHashUnico,
+    ConsultaDaAcaoIlegivel(#[from] ErroConsultaDoControlador),
     CampoOcultoAusenteNoFormulario {
         campo: String,
     },
@@ -71,6 +73,7 @@ impl ErroSubmissaoFormulario {
             | Self::AcaoDoFormularioForaDaInstalacao
             | Self::AcaoDoFormularioDiferenteDaOperacao
             | Self::AcaoDoFormularioSemInfraHashUnico
+            | Self::ConsultaDaAcaoIlegivel(_)
             | Self::CampoOcultoAusenteNoFormulario { .. }
             | Self::CampoOcultoRepetidoNoFormulario { .. }
             | Self::HdnAcaoPublicadoSemRegraDaOperacao
@@ -108,6 +111,7 @@ impl ErroSubmissaoFormulario {
             | Self::AcaoDoFormularioForaDaInstalacao
             | Self::AcaoDoFormularioDiferenteDaOperacao
             | Self::AcaoDoFormularioSemInfraHashUnico
+            | Self::ConsultaDaAcaoIlegivel(_)
             | Self::CampoOcultoAusenteNoFormulario { .. }
             | Self::CampoOcultoRepetidoNoFormulario { .. }
             | Self::HdnAcaoPublicadoSemRegraDaOperacao

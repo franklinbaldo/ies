@@ -121,3 +121,29 @@ fn tela_ou_action_fora_do_host_sao_recusados() {
         ErroSubmissaoFormulario::AcaoDoFormularioForaDaInstalacao
     );
 }
+
+#[test]
+fn consulta_da_action_de_login_ilegivel_preserva_causa() {
+    use crate::consulta_do_controlador::ErroConsultaDoControlador as Causa;
+    for (consulta, causa) in [
+        ("sem_igual", Causa::ParSemIgual),
+        ("Chave=x", Causa::ChaveDeConsultaNaoCanonica),
+        ("chave=x;y", Causa::SeparadorDeConsultaAmbiguo),
+    ] {
+        let html = HtmlServido::de_teste(
+            &FORM
+                .replace("BOTAO", "Acessar")
+                .replace("login.php?s=1", &format!("login.php?{consulta}")),
+        );
+        assert_eq!(
+            derivar_submissao_de_login(
+                &ENTRAR_COM_ACESSAR,
+                &instalacao(),
+                &tela("https://sei.exemplo.gov.br/sip/login.php?s=1", &html),
+                CAMPOS,
+            )
+            .unwrap_err(),
+            ErroSubmissaoFormulario::ConsultaDaAcaoIlegivel(causa)
+        );
+    }
+}

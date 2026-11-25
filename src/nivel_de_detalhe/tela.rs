@@ -85,6 +85,7 @@ pub(crate) fn ler_nivel_de_detalhe(
             | ErroSubmissaoFormulario::AcaoDoFormularioForaDaInstalacao
             | ErroSubmissaoFormulario::AcaoDoFormularioDiferenteDaOperacao
             | ErroSubmissaoFormulario::AcaoDoFormularioSemInfraHashUnico
+            | ErroSubmissaoFormulario::ConsultaDaAcaoIlegivel(_)
             | ErroSubmissaoFormulario::CampoOcultoAusenteNoFormulario { .. }
             | ErroSubmissaoFormulario::CampoOcultoRepetidoNoFormulario { .. }
             | ErroSubmissaoFormulario::HdnAcaoPublicadoSemRegraDaOperacao

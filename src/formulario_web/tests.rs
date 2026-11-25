@@ -546,3 +546,28 @@ fn debug_da_submissao_nao_expoe_hash_referer_nem_valores() {
     assert!(texto.contains("txtProtocoloPesquisa"));
     assert!(texto.contains("sei.exemplo.gov.br"));
 }
+
+#[test]
+fn consulta_da_action_preserva_causa_sem_classificar_como_transporte() {
+    use crate::consulta_do_controlador::ErroConsultaDoControlador as Causa;
+    for (par, causa) in [
+        ("sem_igual", Causa::ParSemIgual),
+        ("Chave=x", Causa::ChaveDeConsultaNaoCanonica),
+        ("chave=x;y", Causa::SeparadorDeConsultaAmbiguo),
+    ] {
+        let action = format!(
+            "controlador.php?acao=protocolo_pesquisar&amp;infra_hash={HASH_FORM}&amp;{par}"
+        );
+        let falha = erro(&com_action(&action), &[]);
+        assert_eq!(
+            falha,
+            ErroSubmissaoFormulario::ConsultaDaAcaoIlegivel(causa.clone())
+        );
+        assert!(!falha.sessao_encerrada());
+        assert!(falha.status_http().is_none());
+        assert_eq!(
+            std::error::Error::source(&falha).and_then(|e| e.downcast_ref::<Causa>()),
+            Some(&causa)
+        );
+    }
+}

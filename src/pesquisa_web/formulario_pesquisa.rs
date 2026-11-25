@@ -318,6 +318,7 @@ pub(crate) fn falha_do_envio(erro: ErroSubmissaoFormulario) -> ErroPesquisaProto
         | ErroSubmissaoFormulario::AcaoDoFormularioForaDaInstalacao
         | ErroSubmissaoFormulario::AcaoDoFormularioDiferenteDaOperacao
         | ErroSubmissaoFormulario::AcaoDoFormularioSemInfraHashUnico
+        | ErroSubmissaoFormulario::ConsultaDaAcaoIlegivel(_)
         | ErroSubmissaoFormulario::CampoOcultoAusenteNoFormulario { .. }
         | ErroSubmissaoFormulario::CampoOcultoRepetidoNoFormulario { .. }
         | ErroSubmissaoFormulario::HdnAcaoPublicadoSemRegraDaOperacao
