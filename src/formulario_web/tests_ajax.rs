@@ -126,3 +126,19 @@ fn recusa_sem_rede_o_que_a_tela_nao_declarou() {
         Err(ErroSubmissaoFormulario::EfeitoDaOperacaoNaoAvaliado)
     );
 }
+
+#[test]
+fn consulta_ajax_ilegivel_preserva_causa() {
+    use crate::consulta_do_controlador::ErroConsultaDoControlador as Causa;
+    for (par, causa) in [
+        ("sem_igual", Causa::ParSemIgual),
+        ("Chave=x", Causa::ChaveDeConsultaNaoCanonica),
+        ("chave=x;y", Causa::SeparadorDeConsultaAmbiguo),
+    ] {
+        let url = format!("{}&{par}", declarada());
+        assert_eq!(
+            derivar(&AUTOCOMPLETAR, &url, &[]).map(|_| ()),
+            Err(ErroSubmissaoFormulario::ConsultaDaAcaoIlegivel(causa))
+        );
+    }
+}

@@ -91,8 +91,7 @@ fn conferir_consulta_ajax(
     consulta: &str,
     acao_ajax: AcaoAjaxDoSei,
 ) -> Result<(), ErroSubmissaoFormulario> {
-    let consulta = ConsultaDoControlador::ler(consulta)
-        .map_err(|_| ErroSubmissaoFormulario::Transporte(FalhaTransporte::UrlInvalida))?;
+    let consulta = ConsultaDoControlador::ler(consulta)?;
     if consulta
         .unico("acao_ajax")
         .ok()
