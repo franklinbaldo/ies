@@ -12,6 +12,8 @@ use crate::processo_comentarios::{EnderecoDosComentarios, ErroLinkDosComentarios
 pub(crate) struct AcoesDeEstado {
     /// Link da inclusão de documentos internos; falha só pesa no comando #246.
     pub(crate) incluir: Result<Option<EnderecoDoIncluirDocumento>, ErroLinkIncluirDocumento>,
+    /// Oferta de inclusão do processo em bloco interno/reunião (#381).
+    pub(crate) bloco: Result<bool, crate::arvore_processo::ErroOfertaDeBloco>,
     /// contracts/cli/processo-prazo.md
     pub(crate) prazo: Result<Option<String>, crate::arvore_processo::ErroLinkPrazo>,
     /// contracts/cli/processo-concluir.md
