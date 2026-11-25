@@ -167,7 +167,12 @@ fn abrir_editor(
     instalacao: &Instalacao,
     alvo: &DocumentoNaArvoreAberto,
 ) -> Result<Editor, ErroEditorNativo> {
-    conferir_oferta(instalacao, &alvo.html, &alvo.id_documento, &alvo.processo.id)?;
+    conferir_oferta(
+        instalacao,
+        &alvo.html,
+        &alvo.id_documento,
+        &alvo.processo.id,
+    )?;
     let tela = tela_do_documento(
         instalacao,
         &alvo.html,
