@@ -1,5 +1,5 @@
 use super::*;
-use crate::formulario_web::{RespostaDoPost, SubmissaoDerivada};
+use crate::formulario_web::SubmissaoDerivada;
 use crate::transporte::RespostaWeb;
 use crate::transporte::testes_http::resposta;
 use std::cell::Cell;
@@ -172,7 +172,7 @@ impl EnvioDoControle for Roteiro {
         &mut self,
         _: SubmissaoDerivada,
         _: &str,
-    ) -> Result<RespostaDoPost<Self::Corpo>, FalhaTransporte> {
+    ) -> Result<crate::formulario_web::RespostaDoPost<Self::Corpo>, FalhaTransporte> {
         panic!("POST fora da abertura do editor")
     }
 
