@@ -104,7 +104,8 @@ impl IndiceLocal {
                     })
                 })?
                 .collect::<rusqlite::Result<_>>()?;
-            let total = usize::try_from(total).map_err(|_| rusqlite::Error::InvalidQuery)?;
+            let total = usize::try_from(total)
+                .map_err(|_| rusqlite::Error::IntegralValueOutOfRange(1, total))?;
             if total != unidades.len() {
                 return Err(rusqlite::Error::InvalidQuery);
             }
@@ -132,7 +133,7 @@ impl IndiceLocal {
         if pedida.is_empty() {
             return Vec::new();
         }
-        let ultimo = sigla.rsplit('/').next().unwrap_or(sigla);
+        let ultimo = sigla.rsplit_once('/').map_or(sigla, |(_, depois)| depois);
         let trecho = ultimo.rsplit_once('-').map_or(ultimo, |(parte, sufixo)| {
             if !sufixo.is_empty() && sufixo.bytes().all(|b| b.is_ascii_digit()) {
                 parte
@@ -288,7 +289,11 @@ mod tests {
             unidade("2", "RETOMADA/CDE-21385", "Descrição"),
         ];
         assert_eq!(indice.lista_de_unidades("https://sei.exemplo", "7"), None);
-        assert!(indice.guardar_lista_de_unidades("https://sei.exemplo", "7", &lista, 2));
+        assert!(
+            indice.guardar_lista_de_unidades("https://sei.exemplo", "7", &lista, 2),
+            "{:?}",
+            indice.avisos()
+        );
         let achadas = indice
             .pesquisar_unidades_guardadas("https://sei.exemplo", "7", "descricão")
             .unwrap();

@@ -1,44 +1,21 @@
 //! `ies processo enviar NUP --para SIGLA [--manter-aberto] [--confirmar]`
 //! (contracts/cli/processo-enviar.md): uso inválido sai com 2 antes de
 //! qualquer arquivo; prévia sem POST de escrita; com `--confirmar`, um POST
-//! conferido por leitura; efeito incerto, 3. A saída nunca traz URL,
+//! conferido por leitura; falha não confirmada, saída 1. A saída nunca traz URL,
 //! `infra_hash` ou cookie.
 use crate::processo::NumeroProcesso;
-use crate::processo_concluir_cli::{
-    com_sessao, erro_de_uso, falha::FalhaDaSituacao, falha_do_envio_publica, lista_humana,
-};
+use crate::processo_concluir_cli::{com_sessao, lista_humana};
 use crate::processo_enviar::{ErroEnviar, PedidoDoEnvio, ProcessoEnviado, enviar_processo};
 use crate::visao_do_controle::EnvioHttps;
-use crate::{Cli, Domain, Processo, ProcessoAcao, saida_erro};
+use crate::{Cli, Domain, Processo, ProcessoAcao};
 #[cfg(test)]
 use serde_json::Value;
-use serde_json::json;
-use std::process::ExitCode;
 
 mod humano;
 pub(crate) use humano::humano;
 
-// A confirmação de remoção continua fechada em instalações reais.
-// A bancada E2E da #333 pode exercitar o mesmo código somente com origem
-// .test reservada e proxy HTTP numericamente limitado ao loopback.
-fn ensaio_local_habilitado() -> bool {
-    std::env::var("IES_ANTI_IES_TESTE").as_deref() == Ok("1")
-}
-
-fn destino_do_ensaio_local(origem: &str) -> bool {
-    origem == "https://sei.test/sei"
-        && std::env::var("https_proxy")
-            .ok()
-            .and_then(|proxy| {
-                proxy
-                    .strip_prefix("http://127.0.0.1:")
-                    .and_then(|porta| porta.parse::<u16>().ok())
-            })
-            .is_some_and(|porta| porta != 0)
-}
-
 /// `Some` só para `ies processo enviar`.
-pub(crate) fn tentar_enviar(cli: &Cli) -> Option<ExitCode> {
+pub(crate) fn tentar_enviar(cli: &Cli) -> Option<anyhow::Result<()>> {
     let Domain::Processo(Processo {
         acao:
             Some(ProcessoAcao::Enviar {
@@ -53,64 +30,30 @@ pub(crate) fn tentar_enviar(cli: &Cli) -> Option<ExitCode> {
     else {
         return None;
     };
-    let nup = match NumeroProcesso::novo(numero) {
-        Ok(nup) => nup,
-        Err(erro) => return Some(erro_de_uso(cli.json, erro.subcodigo())),
-    };
-    let sigla = match sigla_de_destino(para) {
-        Ok(sigla) => sigla,
-        Err(subcodigo) => return Some(destino_invalido(cli.json, subcodigo)),
-    };
-    // A implementação já tem ensaios sintéticos, mas não passou pelo ciclo
-    // de escrita e releitura numa instalação de treinamento (#333).
-    // Bloquear a confirmação pública antes da sessão; manter a prévia livre.
-    if *remover_anotacoes && *confirmar && !ensaio_local_habilitado() {
-        let erro = ErroEnviar::RemocaoDeAnotacoesSemVerificacao;
-        return Some(saida_erro::erro_fonte_http(
-            cli.json,
-            erro.subcodigo(),
-            erro.mensagem(),
-            None,
-        ));
-    }
+    let nup = numero.clone();
     Some(enviar(
         cli,
         &nup,
-        sigla,
+        para,
         *manter_aberto,
         *remover_anotacoes,
         *confirmar,
     ))
 }
 
-/// A única sigla de `--para`, aparada; vazia, com controle ou longa é uso
-/// inválido.
-pub(crate) fn sigla_de_destino(para: &[String]) -> Result<&str, &'static str> {
-    let [sigla] = para else {
-        return Err("mais_de_um_destino_nao_suportado");
-    };
-    let sigla = sigla.trim();
-    if sigla.is_empty() || sigla.chars().count() > 100 || sigla.chars().any(char::is_control) {
-        return Err("sigla_de_destino_invalida");
-    }
-    Ok(sigla)
-}
+/// Sigla de `--para` vazia, com controle ou com mais de 100 caracteres.
+#[derive(Debug, thiserror::Error)]
+#[error("{self:?}")]
+pub(crate) struct SiglaDeDestinoInvalida;
 
-fn destino_invalido(json_mode: bool, subcodigo: &str) -> ExitCode {
-    if json_mode {
-        println!(
-            "{}",
-            json!({
-                "codigo": "entrada_invalida",
-                "subcodigo": subcodigo,
-                "erro": "destino inválido: informe uma sigla de unidade em --para",
-                "retentavel": false
-            })
-        );
-    } else {
-        eprintln!("IES: destino inválido: informe uma sigla de unidade em --para [{subcodigo}]");
+/// A sigla de `--para`, aparada; o clap recusa a inválida (saída 2) e
+/// também `--para` repetido.
+pub(crate) fn sigla_de_destino(para: &str) -> Result<String, SiglaDeDestinoInvalida> {
+    let sigla = para.trim();
+    if sigla.is_empty() || sigla.chars().count() > 100 || sigla.chars().any(char::is_control) {
+        return Err(SiglaDeDestinoInvalida);
     }
-    ExitCode::from(2)
+    Ok(sigla.to_owned())
 }
 
 fn enviar(
@@ -120,13 +63,17 @@ fn enviar(
     manter_aberto: bool,
     remover_anotacoes: bool,
     confirmar: bool,
-) -> ExitCode {
+) -> anyhow::Result<()> {
     com_sessao(cli, |sessao, indice| {
-        // Opt-in não autoriza tocar em uma instalação real, nem sequer GET.
-        // A recusa ocorre antes de construir o pedido ou abrir a rede.
-        if remover_anotacoes && confirmar && !destino_do_ensaio_local(sessao.origem) {
-            let erro = ErroEnviar::RemocaoDeAnotacoesSemVerificacao;
-            return saida_erro::erro_fonte_http(cli.json, erro.subcodigo(), erro.mensagem(), None);
+        // Aprovada nas sete instalações (10/11/2026): grava também em produção.
+        if remover_anotacoes
+            && confirmar
+            && let Err(causa) = crate::origem_de_treinamento::exigir(
+                crate::origem_de_treinamento::Escrita::ProcessoEnviarRemovendoAnotacoes,
+                sessao.origem,
+            )
+        {
+            return Err(causa.into());
         }
         let pedido = PedidoDoEnvio {
             nup,
@@ -136,48 +83,33 @@ fn enviar(
             remover_anotacoes,
             confirmar,
         };
-        match enviar_processo(sessao, &pedido, indice, &mut EnvioHttps) {
-            Ok(feito) => {
-                if cli.json {
-                    if let Err(erro) = crate::saida::imprimir_json(&resultado_envio(&feito)) {
-                        eprintln!("IES: falha ao emitir JSON: {erro}");
-                        return std::process::ExitCode::from(1);
-                    }
-                } else {
-                    println!("{}", humano(&feito));
-                }
-                ExitCode::SUCCESS
+        let feito = enviar_processo(sessao, &pedido, indice, &mut EnvioHttps).map_err(|erro| {
+            let sugestoes = sugestoes_guardadas(&erro, sessao, indice, para);
+            let erro = anyhow::Error::from(erro);
+            if sugestoes.is_empty() {
+                erro
+            } else {
+                erro.context(SugestoesGuardadas(sugestoes))
             }
-            Err(ErroEnviar::Abertura(erro)) => saida_erro::erro_fonte_http(
-                cli.json,
-                erro.subcodigo(),
-                erro.mensagem(),
-                erro.status_http(),
-            ),
-            Err(erro) => {
-                if cli.json {
-                    if let Err(falha) = crate::saida::imprimir_json_compacto(
-                        &json_de_falha_com_sugestoes(&erro, sessao, indice, para),
-                    ) {
-                        eprintln!("IES: falha ao emitir JSON: {falha}");
-                    }
-                } else {
-                    for linha in linhas_da_falha(&erro) {
-                        eprintln!("{linha}");
-                    }
-                    let sugestoes = sugestoes_guardadas(&erro, sessao, indice, para);
-                    if let Some(mensagem) = texto_das_sugestoes(&sugestoes) {
-                        eprintln!("{mensagem}");
-                    }
-                }
-                ExitCode::from(erro.saida())
-            }
+        })?;
+        if cli.json {
+            let mut valor = serde_json::to_value(resultado_envio(&feito))?;
+            crate::indice_local::anexar_avisos(&mut valor, indice);
+            println!("{}", serde_json::to_string_pretty(&valor)?);
+        } else {
+            println!("{}", humano(&feito));
         }
+        Ok(())
     })
 }
 
-/// Sugestões locais não são oferta do SEI nem autorizam uma escrita.
-/// Não faz pedidos HTTP e somente é consultado para a falha pertinente.
+/// Siglas do índice local parecidas com o destino recusado. Não são oferta
+/// do SEI nem autorizam escrita.
+#[derive(Debug, PartialEq, Eq, thiserror::Error)]
+#[error("{self:?}")]
+pub(crate) struct SugestoesGuardadas(pub(crate) Vec<String>);
+
+/// Sem rede; só para destino não oferecido pelo SEI.
 fn sugestoes_guardadas(
     erro: &ErroEnviar,
     sessao: &crate::processo_obter::SessaoDoProcesso<'_>,
@@ -188,89 +120,14 @@ fn sugestoes_guardadas(
         return Vec::new();
     }
     let instalacao = crate::instalacao::Instalacao::interpretar(sessao.origem);
-    let ativa = crate::indice_local::unidade_dos_links(sessao.url_do_controle);
+    // Sugestões são melhor esforço: sem unidade legível, não sugere.
+    let ativa = crate::indice_local::unidade_dos_links(sessao.url_do_controle).ok();
     match (instalacao, ativa) {
         (Some(instalacao), Some(ativa)) => {
             indice.sugestoes_de_unidades_guardadas(&instalacao.url_base(), &ativa, para)
         }
         _ => Vec::new(),
     }
-}
-
-/// Projeção de falha para agentes; não cria sugestões nem as converte
-/// de volta a valores Rust para a saída humana.
-fn json_de_falha_com_sugestoes<'a>(
-    erro: &'a ErroEnviar,
-    sessao: &crate::processo_obter::SessaoDoProcesso<'_>,
-    indice: &crate::indice_local::IndiceLocal,
-    para: &str,
-) -> FalhaDaSituacao<'a> {
-    let mut valor = json_de_falha(erro);
-    valor.sugestoes_guardadas = sugestoes_guardadas(erro, sessao, indice, para);
-    valor
-}
-
-/// Apresentação humana só a partir de dados tipados do índice local.
-fn texto_das_sugestoes(sugestoes: &[String]) -> Option<String> {
-    if sugestoes.is_empty() {
-        return None;
-    }
-    Some(format!(
-        "IES: sugestões guardadas (não confirmadas pelo SEI): {}",
-        sugestoes.join(", ")
-    ))
-}
-
-/// Mantém a ordem histórica: mensagem, situação, falha de escrita,
-/// verificação. Não constrói nem interpreta `serde_json::Value`.
-fn linhas_da_falha(erro: &ErroEnviar) -> Vec<String> {
-    use ErroEnviar as E;
-    let mut linhas = vec![format!("IES: {} [{}]", erro.mensagem(), erro.subcodigo())];
-    let aberto_em = match erro {
-        E::ProcessoNaoAbertoNaUnidadeDaSessao { aberto_em }
-        | E::UnidadeDaSessaoAusenteDaSituacao { aberto_em }
-        | E::EnvioNaoPublicadoNaBarra { aberto_em }
-        | E::ProcessoJaAbertoNoDestino { aberto_em }
-        | E::EnvioNaoAplicado { aberto_em, .. }
-        | E::SituacaoDaOrigemDiferenteDaPedidaAposEnvio { aberto_em, .. }
-        | E::EfeitoIncertoNoEnvio { aberto_em, .. } => Some(aberto_em.as_slice()),
-        _ => None,
-    };
-    let depois = match erro {
-        E::EnvioNaoAplicado { depois, .. }
-        | E::SituacaoDaOrigemDiferenteDaPedidaAposEnvio { depois, .. } => Some(depois.as_slice()),
-        E::AnotacoesNaoRemovidasAposEnvio { depois }
-        | E::EfeitoIncertoNaRemocaoDeAnotacoes { depois } => depois.as_deref(),
-        _ => None,
-    };
-    for (campo, lista) in [("aberto_em", aberto_em), ("depois", depois)] {
-        if let Some(lista) = lista {
-            let siglas: Vec<_> = lista.iter().map(String::as_str).collect();
-            linhas.push(format!("IES: {campo}: {}", lista_humana(&siglas)));
-        }
-    }
-    let falha_do_envio = match erro {
-        E::EnvioNaoAplicado { falha_do_envio, .. }
-        | E::SituacaoDaOrigemDiferenteDaPedidaAposEnvio { falha_do_envio, .. }
-        | E::EfeitoIncertoNoEnvio { falha_do_envio, .. } => falha_do_envio.as_ref(),
-        _ => None,
-    };
-    if let Some(falha) = falha_do_envio {
-        linhas.push(format!("IES: resposta da escrita: {}", falha.subcodigo()));
-    }
-    if let E::EfeitoIncertoNoEnvio { verificacao, .. } = erro
-        && let Some(motivo) = verificacao.motivo()
-    {
-        linhas.push(format!("IES: verificação: {motivo}"));
-    }
-    if let E::EfeitoIncertoNoEnvio {
-        anotacao_depois: Some(false),
-        ..
-    } = erro
-    {
-        linhas.push("IES: anotacao_depois: removida (releitura antes da tramitação)".to_owned());
-    }
-    linhas
 }
 
 /// JSON do sucesso (prévia, ou enviado e conferido).
@@ -291,11 +148,12 @@ struct ResultadoEnvio<'a> {
     aberto_em: &'a [String],
     alterado: bool,
     confirmado: bool,
+    #[serde(skip_serializing_if = "Option::is_none")]
     depois: Option<&'a [String]>,
     depois_esperado: Vec<String>,
     destino: DestinoPublico<'a>,
     #[serde(skip_serializing_if = "Option::is_none")]
-    falha_do_envio: Option<crate::saida_erro::FalhaPublica>,
+    falha_do_envio: Option<String>,
     id_procedimento: &'a str,
     manter_aberto: bool,
     #[serde(skip_serializing_if = "Option::is_none")]
@@ -319,13 +177,13 @@ fn resultado_envio(feito: &ProcessoEnviado) -> ResultadoEnvio<'_> {
         id_procedimento: &feito.id_procedimento,
         unidade: &feito.unidade,
         origem: "web",
-        confirmado: feito.confirmado,
-        alterado: feito.alterado,
+        confirmado: feito.confirmado(),
+        alterado: feito.alterado(),
         manter_aberto: feito.manter_aberto,
-        remover_anotacoes: feito.remover_anotacoes.then_some(true),
-        anotacao_antes: feito.anotacao_antes,
-        anotacao_depois: feito.anotacao_depois,
-        metodo_remocao: feito.metodo_remocao,
+        remover_anotacoes: feito.remover_anotacoes().then_some(true),
+        anotacao_antes: feito.anotacao_antes(),
+        anotacao_depois: feito.anotacao_depois(),
+        metodo_remocao: feito.metodo_remocao(),
         destino: DestinoPublico {
             sigla: &feito.destino.sigla,
             descricao: &feito.destino.descricao,
@@ -333,13 +191,10 @@ fn resultado_envio(feito: &ProcessoEnviado) -> ResultadoEnvio<'_> {
         },
         aberto_em: &feito.aberto_em,
         depois_esperado: feito.depois_esperado(),
-        depois: feito.depois.as_deref(),
-        reconciliado_por_leitura: feito.reconciliado_por.is_some(),
+        depois: feito.depois(),
+        reconciliado_por_leitura: feito.reconciliado_por().is_some(),
         requisicoes: feito.requisicoes,
-        falha_do_envio: feito
-            .reconciliado_por
-            .as_ref()
-            .map(crate::processo_concluir_cli::falha_do_envio_publica),
+        falha_do_envio: feito.reconciliado_por().map(|f| format!("{f:?}")),
     }
 }
 
@@ -348,64 +203,6 @@ fn resultado_envio(feito: &ProcessoEnviado) -> ResultadoEnvio<'_> {
 pub(crate) fn json_de_sucesso(feito: &ProcessoEnviado) -> Value {
     serde_json::to_value(resultado_envio(feito))
         .expect("a projeção tipada do envio só possui valores JSON")
-}
-
-/// JSON da falha depois da abertura.
-pub(crate) fn json_de_falha(erro: &ErroEnviar) -> FalhaDaSituacao<'_> {
-    let mut valor = FalhaDaSituacao::nova(
-        erro.codigo(),
-        erro.subcodigo(),
-        erro.mensagem(),
-        erro.status_http(),
-    );
-    match erro {
-        ErroEnviar::SituacaoDoProcessoNaoLidaAntesDeEnviar { motivo } => {
-            valor.motivo = Some(motivo.como_texto());
-        }
-        ErroEnviar::ProcessoNaoAbertoNaUnidadeDaSessao { aberto_em }
-        | ErroEnviar::UnidadeDaSessaoAusenteDaSituacao { aberto_em }
-        | ErroEnviar::EnvioNaoPublicadoNaBarra { aberto_em }
-        | ErroEnviar::ProcessoJaAbertoNoDestino { aberto_em } => {
-            valor.aberto_em = Some(aberto_em);
-        }
-        ErroEnviar::DestinoNaoOferecidoPeloSei { oferecidos } => {
-            valor.oferecidos = Some(oferecidos);
-        }
-        ErroEnviar::VariosDestinosComASigla { candidatos } => {
-            valor.candidatos = Some(candidatos);
-        }
-        ErroEnviar::EnvioNaoAplicado {
-            aberto_em,
-            depois,
-            falha_do_envio,
-        }
-        | ErroEnviar::SituacaoDaOrigemDiferenteDaPedidaAposEnvio {
-            aberto_em,
-            depois,
-            falha_do_envio,
-        } => {
-            valor.aberto_em = Some(aberto_em);
-            valor.depois = Some(depois);
-            valor.falha_do_envio = falha_do_envio.as_ref().map(falha_do_envio_publica);
-        }
-        ErroEnviar::AnotacoesNaoRemovidasAposEnvio { depois }
-        | ErroEnviar::EfeitoIncertoNaRemocaoDeAnotacoes { depois } => {
-            valor.depois = depois.as_deref();
-        }
-        ErroEnviar::EfeitoIncertoNoEnvio {
-            aberto_em,
-            anotacao_depois,
-            falha_do_envio,
-            verificacao,
-        } => {
-            valor.aberto_em = Some(aberto_em);
-            valor.anotacao_depois = *anotacao_depois;
-            valor.verificacao = Some(verificacao.motivo());
-            valor.falha_do_envio = falha_do_envio.as_ref().map(falha_do_envio_publica);
-        }
-        _ => {}
-    }
-    valor
 }
 
 #[cfg(test)]

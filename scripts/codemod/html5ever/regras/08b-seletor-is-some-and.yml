@@ -1,0 +1,19 @@
+id: 08b-seletor-is-some-and
+language: rust
+message: 'Seletor por nome que só falhava com seletor inválido, em is_some_and.'
+severity: hint
+rule:
+  any:
+    - pattern: $T.query_selector($P, $S).is_some_and(|mut $I| $I.$M($$$A))
+    - pattern: '$T.query_selector($P, $S).is_some_and(|mut $I| { $I.$M($$$A) })'
+  not:
+    inside:
+      stopBy: end
+      kind: mod_item
+      follows:
+        kind: attribute_item
+        regex: 'cfg\(test\)'
+constraints:
+  S:
+    regex: '^"[a-z][a-z0-9]*"$'
+fix: '$T.elementos($S).$M($$$A)'

@@ -1,0 +1,18 @@
+id: 44a-indice-para-funcao
+language: rust
+message: "v.get(i).map(|t| f(t)) com f que agora recebe Elemento por valor (regra 40): copia o achado e passa a função"
+severity: hint
+rule:
+  all:
+    - pattern: $V.get($I).map(|$T| $F($T))
+    - not:
+        inside:
+          stopBy: end
+          kind: mod_item
+          follows:
+            kind: attribute_item
+            regex: 'cfg\(test\)'
+constraints:
+  F:
+    regex: "^(FUNCOES)$"
+fix: "$V.get($I).copied().map($F)"

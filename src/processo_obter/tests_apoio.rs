@@ -3,6 +3,7 @@
 //! `tr#P{id}` e `frmProtocoloPesquisaRapida`, 302 da pesquisa rápida de GO,
 //! tela do processo e árvore). Hosts, hashes, ids e números inventados.
 use super::*;
+use crate::acao_do_sei::AcaoDoSei;
 use crate::arvore_processo::tests::{NUP, arvore, no_documento, no_processo};
 use crate::arvore_processo::tests_tela::{src_da_arvore, tela_do_processo};
 use crate::formulario_web::SubmissaoDerivada;
@@ -122,7 +123,7 @@ pub(super) fn controle(linhas: &[(&str, &str)]) -> String {
     let legenda = if n == 0 {
         "0 registros:".to_owned()
     } else {
-        format!("{n} registros - 1 a {n}):")
+        format!("Processos recebidos ({n} registros - 1 a {n}):")
     };
     format!(
         "<html><body>{}<a id=\"lnkInfraUnidade\">{UNIDADE}</a>\
@@ -178,7 +179,7 @@ pub(super) fn historico(tipo: char, total: u64, linhas: usize) -> String {
 
 /// Árvore com o histórico (forma GO) e, na barra do processo, o link
 /// `acao` das propriedades.
-pub(super) fn arvore_com_propriedades(id: &str, nup: &str, acao: &str) -> String {
+pub(super) fn arvore_com_propriedades(id: &str, nup: &str, acao: AcaoDoSei) -> String {
     use crate::propriedades_processo::tests_apoio::{
         acao_da_barra, barra, com_barra, link_das_propriedades,
     };
@@ -187,7 +188,7 @@ pub(super) fn arvore_com_propriedades(id: &str, nup: &str, acao: &str) -> String
 }
 
 /// URL absoluta das propriedades publicada pela barra sintética.
-pub(super) fn url_propriedades(acao: &str, id: &str) -> String {
+pub(super) fn url_propriedades(acao: AcaoDoSei, id: &str) -> String {
     absoluta(&crate::propriedades_processo::tests_apoio::link_das_propriedades(acao, id))
 }
 
@@ -357,12 +358,12 @@ pub(super) fn geracao() -> String {
     crate::sessao_login::geracao_da_sessao(COOKIE)
 }
 
-pub(super) fn chave<'a>(geracao: &'a str, acao: &'a str, objeto: &'a str) -> ChaveDoLink<'a> {
+pub(super) fn chave<'a>(geracao: &'a str, acao: AcaoDoSei, alvo: &'a str) -> ChaveDoLink<'a> {
     ChaveDoLink {
         geracao_sessao: geracao,
         unidade: ID_UNIDADE,
         acao,
-        objeto,
+        alvo,
     }
 }
 
@@ -393,7 +394,7 @@ pub(super) fn rodar_nup(
     andamentos: PedidoDeAndamentos,
     respostas: Vec<Resposta>,
 ) -> (Result<ProcessoAberto, ErroProcessoObter>, Vec<Pedido>) {
-    rodar_tudo(amb, nup, unidade, (andamentos, true, true), respostas)
+    rodar_tudo(amb, nup, unidade, (andamentos, false, false), respostas)
 }
 
 /// Como [`rodar_com`], dizendo também se as propriedades são lidas.
@@ -403,7 +404,7 @@ pub(super) fn rodar_props(
     propriedades: bool,
     respostas: Vec<Resposta>,
 ) -> (Result<ProcessoAberto, ErroProcessoObter>, Vec<Pedido>) {
-    rodar_tudo(amb, NUP, None, (andamentos, propriedades, true), respostas)
+    rodar_tudo(amb, NUP, None, (andamentos, propriedades, false), respostas)
 }
 
 /// Como [`rodar_props`], dizendo também se os marcadores são lidos.

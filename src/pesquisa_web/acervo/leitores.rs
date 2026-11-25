@@ -9,7 +9,6 @@ use crate::controle_reconhecido::unidade_do_controle;
 use crate::formulario_web::{
     RespostaDoEnvio, RespostaDoPost, SubmissaoDerivada, TelaServida, enviar_submissao_via,
 };
-use crate::html_atributos::{atributo_presente, nos_com_id};
 use crate::instalacao::Instalacao;
 use crate::pagina_do_controle::codificacao_da_tela;
 use crate::pesquisa_web::erro_busca::ErroBuscaDeProcesso;
@@ -19,6 +18,7 @@ use crate::pesquisa_web::formulario_pesquisa::{
 use crate::pesquisa_web::link_da_pesquisa::link_da_pesquisa;
 use crate::pesquisa_web::paginacao::{ErroPaginacaoDaPesquisa, planejar_pagina};
 use crate::pesquisa_web::resposta::{RespostaDaPesquisa, ler_resposta_html};
+use crate::tela_html::HtmlServido;
 use crate::transporte::sessao::CookieDaSessao;
 use crate::transporte::{RespostaWeb, decodificar_resposta};
 use std::path::PathBuf;
@@ -104,27 +104,29 @@ pub(super) fn replay(card: &str, instalacao_nome: &str, json: &serde_json::Value
 }
 
 fn url(r: &Resposta<'_>) -> String {
-    r.item["response"]["url"].as_str().unwrap_or("").to_owned()
+    r.interacao["response"]["url"]
+        .as_str()
+        .unwrap_or("")
+        .to_owned()
 }
 
 fn web(r: &Resposta<'_>) -> RespostaWeb<std::io::Cursor<Vec<u8>>> {
     RespostaWeb {
         status_code: i32::try_from(r.status).unwrap_or(0),
-        mime: gravacao::mime(r.item),
+        mime: gravacao::mime(r.interacao),
         content_length: None,
         localizacao: None,
-        corpo: std::io::Cursor::new(gravacao::corpo(r.item)),
+        corpo: std::io::Cursor::new(gravacao::corpo(r.interacao)),
     }
 }
 
 /// Requisição 1 do comando: transporte, unidade reconhecida e link do menu.
 fn controle(c: &Cassette<'_>, r: &Resposta<'_>, estado: &mut Estado) -> Registro {
     let lido = decodificar_resposta(web(r))
-        .map_err(|f| f.subcodigo())
+        .map_err(|f| format!("{f:?}"))
         .and_then(|html| {
-            let unidade = unidade_do_controle(&html).map_err(|e| e.subcodigo())?;
-            link_da_pesquisa(&c.instalacao, &url(r), &html)
-                .map_err(|e| crate::erro_publico::folha(&e))?;
+            let unidade = unidade_do_controle(&html).map_err(|e| format!("{e:?}"))?;
+            link_da_pesquisa(&c.instalacao, &url(r), &html).map_err(|e| format!("{e:?}"))?;
             Ok(unidade)
         });
     match lido {
@@ -141,12 +143,13 @@ fn tela(c: &Cassette<'_>, r: &Resposta<'_>, estado: &mut Estado) -> Registro {
     estado.pendente = None;
     estado.na_tela_de_resultado = false;
     let Some(unidade) = estado.unidade.as_deref() else {
-        let motivo = Resultado::NaoAplicavel("unidade_do_controle_nao_gravada_antes_da_tela");
+        let motivo =
+            Resultado::NaoAplicavel("unidade_do_controle_nao_gravada_antes_da_tela".to_owned());
         return c.registro(Leitor::Tela, r.passo, motivo);
     };
     let derivada = derivar(r, &url(r), |tela| {
         derivar_pesquisa_de_protocolo(&c.instalacao, tela, unidade, TERMO_DE_PROVA)
-            .map_err(|e| crate::erro_publico::folha(&e))
+            .map_err(|e| format!("{e:?}"))
     });
     match derivada {
         Ok(submissao) => {
@@ -162,12 +165,14 @@ fn tela(c: &Cassette<'_>, r: &Resposta<'_>, estado: &mut Estado) -> Registro {
 fn derivar<T>(
     r: &Resposta<'_>,
     url: &str,
-    f: impl FnOnce(&TelaServida<'_>) -> Result<T, &'static str>,
-) -> Result<T, &'static str> {
-    let mime = gravacao::mime(r.item);
-    let html = decodificar_resposta(web(r)).map_err(|f| f.subcodigo())?;
-    let codificacao = codificacao_da_tela(&mime)
-        .ok_or(ErroBuscaDeProcesso::CharsetDaTelaNaoSuportado.subcodigo())?;
+    f: impl FnOnce(&TelaServida<'_>) -> Result<T, String>,
+) -> Result<T, String> {
+    let mime = gravacao::mime(r.interacao);
+    let html = decodificar_resposta(web(r)).map_err(|f| format!("{f:?}"))?;
+    let codificacao = codificacao_da_tela(&mime).ok_or(format!(
+        "{:?}",
+        ErroBuscaDeProcesso::CharsetDaTelaNaoSuportado
+    ))?;
     f(&TelaServida {
         url,
         html: &html,
@@ -189,17 +194,17 @@ fn envio(c: &Cassette<'_>, r: &Resposta<'_>, estado: &mut Estado) -> Vec<Registr
                 "tela_da_pesquisa_nao_derivada_antes_do_envio",
             )
         };
-        return vec![c.registro(leitor, r.passo, Resultado::NaoAplicavel(motivo))];
+        return vec![c.registro(leitor, r.passo, Resultado::NaoAplicavel(motivo.to_owned()))];
     };
     let url_do_envio = submissao.url().to_owned();
     let gravada = RespostaDoPost {
         resposta: web(r),
-        localizacao: gravacao::localizacao(r.item).map(str::to_owned),
+        localizacao: gravacao::localizacao(r.interacao).map(str::to_owned),
     };
     let enviada = match enviar_submissao_via(submissao, c.cookie, |_, _| Ok(gravada)) {
         Ok(enviada) => enviada,
         Err(erro) => {
-            let sub = crate::erro_publico::folha(&falha_do_envio(erro));
+            let sub = format!("{:?}", falha_do_envio(erro));
             return vec![c.registro(Leitor::Envio, r.passo, Resultado::Recusado(sub))];
         }
     };
@@ -216,12 +221,12 @@ fn envio(c: &Cassette<'_>, r: &Resposta<'_>, estado: &mut Estado) -> Vec<Registr
     let interpretado = match interpretar_envio(enviada, &c.instalacao) {
         Ok(i) => i,
         Err(erro) => {
-            let sub = crate::erro_publico::folha(&erro);
+            let sub = format!("{erro:?}");
             return vec![c.registro(Leitor::Envio, r.passo, Resultado::Recusado(sub))];
         }
     };
     if opcao == Opcao::Indeterminada {
-        let motivo = Resultado::NaoAplicavel("opcao_pesquisar_em_nao_observada_na_resposta");
+        let motivo = Resultado::NaoAplicavel("opcao_pesquisar_em_ausente_na_resposta".to_owned());
         return vec![c.registro(Leitor::Envio, r.passo, motivo)];
     }
     match interpretado.resposta {
@@ -259,7 +264,7 @@ fn em_documentos(c: &Cassette<'_>, r: &Resposta<'_>, enviada: &RespostaDoEnvio) 
         _ => c.registro(
             Leitor::Envio,
             r.passo,
-            Resultado::NaoAplicavel("lista_da_pesquisa_em_documentos"),
+            Resultado::NaoAplicavel("lista_da_pesquisa_em_documentos".to_owned()),
         ),
     }
 }
@@ -274,20 +279,24 @@ fn plano(
     unidade: &str,
 ) -> Registro {
     let html = decodificar_resposta(web(r)).ok();
-    let pedido = match planejar_pagina(resposta, html.as_deref(), 2) {
+    let pedido = match planejar_pagina(
+        resposta,
+        html.as_deref().map(HtmlServido::de_teste).as_ref(),
+        2,
+    ) {
         Ok(Some(pedido)) => pedido,
         Ok(None) => unreachable!("página 2 nunca é a página 1"),
         Err(ErroPaginacaoDaPesquisa::PaginaForaDoIntervalo { paginas: 1, .. }) => {
             return c.lido(Leitor::PlanoDaPagina, r.passo, "uma_pagina_so");
         }
         Err(erro) => {
-            let sub = crate::erro_publico::folha(&erro);
+            let sub = format!("{erro:?}");
             return c.registro(Leitor::PlanoDaPagina, r.passo, Resultado::Recusado(sub));
         }
     };
     let derivada = derivar(r, url_do_envio, |tela| {
         derivar_pagina_da_pesquisa(&c.instalacao, tela, unidade, TERMO_DE_PROVA, pedido.inicio)
-            .map_err(|e| crate::erro_publico::folha(&e))
+            .map_err(|e| format!("{e:?}"))
     });
     match derivada {
         Ok(_) => c.lido(Leitor::PlanoDaPagina, r.passo, "pagina_2_planejada"),
@@ -303,18 +312,16 @@ pub(super) enum Opcao {
 }
 
 /// O rádio `rdoPesquisarEm` marcado na tela de resultado (por
-/// `html_atributos`): exatamente um de `#optProcessos` e `#optDocumentos`.
+/// árvore `tela_html`): exatamente um de `#optProcessos` e `#optDocumentos`.
 fn opcao_marcada(html: &str) -> Opcao {
-    let Ok(dom) = tl::parse(html, tl::ParserOptions::default()) else {
-        return Opcao::Indeterminada;
-    };
+    let servido = HtmlServido::de_teste(html);
+    let dom = crate::tela_html::arvore(&servido);
     let marcado = |id: &str| -> Option<bool> {
-        let nos = nos_com_id(&dom, id).ok()?;
+        let nos = dom.com_id(id).collect::<Vec<_>>();
         let [no] = nos.as_slice() else {
             return None;
         };
-        let tag = no.get(dom.parser())?.as_tag()?;
-        atributo_presente(tag, "checked").ok()
+        Some(no.presente("checked"))
     };
     match (marcado("optProcessos"), marcado("optDocumentos")) {
         (Some(true), Some(false)) => Opcao::Processos,

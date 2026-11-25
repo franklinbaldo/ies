@@ -1,5 +1,6 @@
 //! Casos sintéticos derivados de `marcadores_processo/tests_apoio.rs` e da
 //! identidade id#nome observada no relatório live 2026-11-04 (Refs #255).
+use super::escrita::action_de_remocao;
 use super::*;
 use crate::marcadores_processo::MarcadorDoProcesso;
 fn marcadores(ids: &[(&str, &str)], total: usize) -> MarcadoresLidos {
@@ -74,14 +75,14 @@ fn retirada_ausente_sem_escrita() {
     );
 }
 #[test]
-fn atribuir_sem_catalogo_da_unidade_falha_fechado() {
+fn atribuir_ausente_segue_para_o_catalogo_sem_escrita() {
     assert_eq!(
         decidir(
             &marcadores(&[], 0),
             &interpretar_rotulo("501#A").unwrap(),
             Operacao::Atribuir
         ),
-        Err(ErroMarcar::CatalogoDaUnidadeNaoObservado)
+        Ok(Decisao::PreviaDeAtribuicao)
     );
 }
 #[test]
@@ -124,4 +125,108 @@ fn texto_de_textarea_admite_multiplas_linhas_e_nao_presume_charset() {
     ] {
         assert_eq!(validar_texto(texto), Ok(()));
     }
+}
+
+/// Atribuição de `action` como o SEI a publica no corpo de uma função (sintética).
+fn atribuicao_de_acao(url: &str) -> String {
+    format!("document.getElementById('frmGerenciarMarcador').action='{url}';")
+}
+
+/// Tela de remoção sintética: `acaoRemover` com `em_remover` no corpo e
+/// `acaoRemocaoMultipla` logo depois, com `na_multipla`.
+fn tela_de_remocao(em_remover: &str, na_multipla: &str) -> String {
+    format!(
+        r#"<a onclick="acaoRemover('501','A');">Remover</a>
+<script>
+function acaoRemover(id,desc){{
+if (confirm("Confirma remoção do Marcador \"" + desc + "\" do processo?")){{
+document.getElementById('hdnInfraItemId').value=id;
+{em_remover}
+document.getElementById('frmGerenciarMarcador').submit();
+}}
+}}
+function acaoRemocaoMultipla(){{
+{na_multipla}
+}}
+</script>"#
+    )
+}
+
+const URL_REMOVER: &str =
+    "controlador.php?acao=andamento_marcador_remover&id_procedimento=1&infra_hash=SINTETICO";
+const URL_MULTIPLA: &str =
+    "controlador.php?acao=andamento_marcador_remover&id_procedimento=1&infra_hash=OUTRO";
+
+#[test]
+fn acao_de_remocao_aceita_uma_atribuicao_no_corpo_de_acao_remover_mesmo_com_outra_na_multipla() {
+    let html = tela_de_remocao(
+        &atribuicao_de_acao(URL_REMOVER),
+        &atribuicao_de_acao(URL_MULTIPLA),
+    );
+    assert_eq!(action_de_remocao(&html, "501"), Ok(URL_REMOVER.to_owned()));
+}
+
+#[test]
+fn acao_de_remocao_recusa_duas_atribuicoes_dentro_de_acao_remover() {
+    let html = tela_de_remocao(
+        &format!(
+            "{}\n{}",
+            atribuicao_de_acao(URL_REMOVER),
+            atribuicao_de_acao(URL_MULTIPLA)
+        ),
+        "",
+    );
+    assert_eq!(
+        action_de_remocao(&html, "501"),
+        Err(ErroMarcar::AcaoDeRemocaoAmbigua)
+    );
+}
+
+#[test]
+fn acao_de_remocao_recusa_atribuicao_so_fora_do_corpo_de_acao_remover() {
+    let html = tela_de_remocao("", &atribuicao_de_acao(URL_MULTIPLA));
+    assert_eq!(
+        action_de_remocao(&html, "501"),
+        Err(ErroMarcar::AcaoDeRemocaoAusente)
+    );
+}
+
+#[test]
+fn acao_de_remocao_recusa_id_sem_handler_na_tela() {
+    let html = tela_de_remocao(&atribuicao_de_acao(URL_REMOVER), "");
+    assert_eq!(
+        action_de_remocao(&html, "999"),
+        Err(ErroMarcar::AcaoDeRemocaoAusente)
+    );
+}
+
+/// O SEI publica o texto do marcador na célula `tdAndamentoMarcador<n>`
+/// (cassettes `marcador-escritas-*`: `<td id="tdAndamentoMarcador19"
+/// valign="center">Teste do Todos</td>`); sem texto, a célula fica vazia e o
+/// leitor devolve `None`. A releitura confere o `txaTexto` enviado por essa
+/// forma: `--texto ""` e a ausência de `--texto` enviam o campo vazio, e os
+/// dois são confirmados pela célula vazia.
+#[test]
+fn celula_vazia_confirma_tanto_texto_ausente_quanto_texto_vazio() {
+    use crate::arvore_processo::tests::NUP;
+    use crate::formulario_web::CampoDeTexto;
+    use crate::marcadores_processo::tests_apoio::tela_dos_marcadores;
+    use crate::marcadores_processo::{TelaDosMarcadores, ler_marcadores};
+    let html = crate::tela_html::HtmlServido::de_teste(&tela_dos_marcadores(NUP, "10"));
+    let Ok(TelaDosMarcadores::Lidos(lidos)) = ler_marcadores(&html, NUP, "10") else {
+        panic!("tela sintética não lida");
+    };
+    let [sem_texto, com_texto] = lidos.itens.as_slice() else {
+        panic!("dois marcadores esperados");
+    };
+    let sem_texto = sem_texto.texto.as_deref();
+    assert_eq!(sem_texto, None);
+    assert!(texto_relido(sem_texto, CampoDeTexto::de(None)));
+    assert!(texto_relido(sem_texto, CampoDeTexto::de(Some(""))));
+    assert!(!texto_relido(sem_texto, CampoDeTexto::de(Some("Conferir"))));
+    let com_texto = com_texto.texto.as_deref();
+    let publicado = "Texto sint\u{e9}tico & anota\u{e7}\u{e3}o";
+    assert!(texto_relido(com_texto, CampoDeTexto::de(Some(publicado))));
+    assert!(!texto_relido(com_texto, CampoDeTexto::de(None)));
+    assert!(!texto_relido(com_texto, CampoDeTexto::de(Some(""))));
 }

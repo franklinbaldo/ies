@@ -2,6 +2,7 @@
 //! candidatos da caixa Gerados; não basta observar a linha nova.
 use super::tests::{cadastro, lista, pedido, tela_controle};
 use super::*;
+use crate::acao_do_sei::AcaoDoSei;
 use crate::processo_concluir::tests_apoio::{
     NUP, UNIDADE, ambiente, arvore, ok, rodar_com, trabalhar, trabalhar_controle,
 };
@@ -14,7 +15,7 @@ pub(super) fn gerados_com_candidato() -> String {
     tela_controle().replace(
         "<table id=\"tblProcessosGerados\"><caption>0 registros:</caption></table>",
         &format!(
-            "<table id=\"tblProcessosGerados\"><caption>1 registros - 1 a 1):</caption>\
+            "<table id=\"tblProcessosGerados\"><caption>Processos (1 registros - 1 a 1):</caption>\
              <tr id=\"P10\"><td><a href=\"{}\" class=\"processoVisualizado\">{NUP}</a></td></tr></table>",
             trabalhar_controle("10")
         ),
@@ -25,7 +26,7 @@ pub(super) fn arvore_com_propriedades() -> String {
     arvore(
         &[UNIDADE],
         &[acao_da_barra(&link_das_propriedades(
-            "procedimento_alterar",
+            AcaoDoSei::ProcedimentoAlterar,
             "10",
         ))],
     )
@@ -63,8 +64,6 @@ fn post_falha_e_propriedades_iguais_identificam_residuo_nao_autoria() {
         )
     });
     let erro = resultado.expect_err("um candidato nao comprova autoria de POST sem resposta");
-    assert_eq!(erro.saida(), 3);
-    assert_eq!(erro.subcodigo(), "candidato_unico_sem_prova_causal");
     let diagnostico = erro.diagnostico_apos_post().unwrap();
     assert_eq!(diagnostico.candidatos_compativeis, Some(vec![NUP.into()]));
     assert_eq!(requests.len(), 8); // 3 GET + 1 POST + 1 Controle + 3 GET de processo
@@ -124,8 +123,7 @@ fn falha_da_leitura_de_propriedades_apos_post_nao_repete_a_escrita() {
             rede,
         )
     });
-    let erro = resultado.expect_err("falha da leitura nao e confirmacao");
-    assert_eq!(erro.saida(), 3);
+    let _erro = resultado.expect_err("falha da leitura nao e confirmacao");
     assert_eq!(requests.len(), 8);
     assert_eq!(requests.iter().filter(|r| r.metodo == "POST").count(), 1);
 }
@@ -152,10 +150,7 @@ fn recusa_explicita_da_infra_nao_vira_criacao_por_candidato_concorrente() {
         )
     });
     let erro = resultado.expect_err("recusa explicita nao confirma escrita");
-    assert_eq!(erro.subcodigo(), "validacao_recusada_pelo_sei");
     assert!(erro.nao_aplicada_comprovada()); // prova expressa de recusa na tela do SEI
-    assert_eq!(erro.saida(), 1);
-    assert_eq!(erro.status_http().map(|status| status.status), Some(200));
     assert_eq!(requests.len(), 4); // 3 GET + 1 POST, sem consulta pos-recusa
     assert_eq!(requests.iter().filter(|r| r.metodo == "POST").count(), 1);
 }
@@ -167,7 +162,7 @@ fn http_403_no_post_nao_vira_criacao_por_candidato_concorrente() {
         ok(tela_controle()),
         ok(lista(false)),
         ok(cadastro()),
-        Err(FalhaTransporte::AcessoNegado(
+        Err(FalhaTransporte::Status(
             crate::transporte::StatusHttpRecusado {
                 status: 403,
                 mensagem_do_servidor: Some("Acesso negado.".to_owned()),
@@ -184,10 +179,8 @@ fn http_403_no_post_nao_vira_criacao_por_candidato_concorrente() {
         )
     });
     let erro = resultado.expect_err("recusa HTTP 403 nao confirma escrita");
-    assert_eq!(erro.subcodigo(), "sessao_nao_autorizada");
     assert!(!erro.nao_aplicada_comprovada()); // 403 por si não prova ausência de efeito
     // HTTP 403 não prova não aplicação: o efeito segue incerto, saída 3.
-    assert_eq!(erro.saida(), 3);
     assert_eq!(erro.status_http().map(|status| status.status), Some(403));
     assert_eq!(requests.len(), 4); // 3 GET + 1 POST, sem consulta pos-recusa
     assert_eq!(requests.iter().filter(|r| r.metodo == "POST").count(), 1);
@@ -201,7 +194,7 @@ pub(super) fn gerados_com_dois_candidatos() -> String {
     tela_controle().replace(
         "<table id=\"tblProcessosGerados\"><caption>0 registros:</caption></table>",
         &format!(
-            "<table id=\"tblProcessosGerados\"><caption>2 registros - 1 a 2):</caption>\
+            "<table id=\"tblProcessosGerados\"><caption>Processos (2 registros - 1 a 2):</caption>\
              <tr id=\"P10\"><td><a href=\"{}\" class=\"processoVisualizado\">{NUP}</a></td></tr>\
              <tr id=\"P11\"><td><a href=\"{}\" class=\"processoVisualizado\">{SEGUNDO_NUP}</a></td></tr></table>",
             trabalhar_controle("10"),
@@ -216,7 +209,7 @@ fn arvore_com_propriedades_de(id: &str, nup: &str) -> String {
         nup,
         &crate::processo_concluir::tests_apoio::situacao(&[UNIDADE]),
         &[acao_da_barra(&link_das_propriedades(
-            "procedimento_alterar",
+            AcaoDoSei::ProcedimentoAlterar,
             id,
         ))],
     )
@@ -260,11 +253,7 @@ fn dois_candidatos_web_comprovados_sao_publicados_como_ambiguos() {
         )
     });
     let erro = resultado.expect_err("duas provas nao permitem atribuir o POST");
-    assert_eq!(erro.saida(), 3);
-    assert_eq!(erro.subcodigo(), "candidatos_ambiguos_na_criacao");
     let diagnostico = erro.diagnostico_apos_post().expect("diagnostico tipado");
-    assert_eq!(diagnostico.causa_post, "falha_de_rede");
-    assert_eq!(diagnostico.causa_releitura, None);
     assert_eq!(
         diagnostico.candidatos_observados,
         Some(vec![NUP.to_owned(), SEGUNDO_NUP.to_owned()])
@@ -272,6 +261,10 @@ fn dois_candidatos_web_comprovados_sao_publicados_como_ambiguos() {
     assert_eq!(
         diagnostico.candidatos_compativeis,
         Some(vec![NUP.to_owned(), SEGUNDO_NUP.to_owned()])
+    );
+    assert_eq!(
+        diagnostico.evidencia(),
+        Some(crate::processo_criar_fluxo::erro_fluxo::EvidenciaDeCoincidencia::Multiplas)
     );
     assert_eq!(requests.len(), 11); // 3 GET + 1 POST + 1 Controle + 3 GET por candidato
     assert_eq!(requests.iter().filter(|r| r.metodo == "POST").count(), 1);
@@ -307,8 +300,6 @@ fn dois_candidatos_mas_so_um_confere_exigem_todas_as_leituras() {
         )
     });
     let erro = resultado.expect_err("uma coincidencia e insuficiente para demonstrar autoria");
-    assert_eq!(erro.saida(), 3);
-    assert_eq!(erro.subcodigo(), "candidato_unico_sem_prova_causal");
     let diagnostico = erro.diagnostico_apos_post().unwrap();
     assert_eq!(diagnostico.candidatos_compativeis, Some(vec![NUP.into()]));
     assert_eq!(requests.len(), 11);
@@ -341,13 +332,9 @@ fn falha_no_segundo_candidato_preserva_primeira_coincidencia_sem_declarar_aplica
         )
     });
     let erro = resultado.expect_err("a segunda leitura falhou; efeito segue incerto");
-    assert_eq!(erro.saida(), 3);
-    assert_eq!(erro.subcodigo(), "efeito_incerto_na_criacao");
     let diagnostico = erro
         .diagnostico_apos_post()
         .expect("duas causas e provas parciais");
-    assert_eq!(diagnostico.causa_post, "falha_de_rede");
-    assert_eq!(diagnostico.causa_releitura, Some("falha_de_rede"));
     assert_eq!(
         diagnostico.candidatos_observados,
         Some(vec![NUP.to_owned(), SEGUNDO_NUP.to_owned()])
@@ -384,12 +371,9 @@ fn falha_apos_fotografia_preserva_candidatos_ja_observados() {
         )
     });
     let erro = resultado.expect_err("falha da conferência não comprova criação");
-    assert_eq!(erro.saida(), 3);
     let diagnostico = erro
         .diagnostico_apos_post()
         .expect("diagnóstico com ambas causas");
-    assert_eq!(diagnostico.causa_post, "falha_de_rede");
-    assert_eq!(diagnostico.causa_releitura, Some("falha_de_rede"));
     assert_eq!(
         diagnostico.candidatos_observados,
         Some(vec![NUP.to_owned()])
@@ -412,7 +396,7 @@ fn falha_http_na_releitura_apos_post_sem_resposta_preserva_status_503() {
         ok(lista(false)),
         ok(cadastro()),
         Err(FalhaTransporte::Rede),
-        Err(FalhaTransporte::StatusHttpDeErroDoServidor(
+        Err(FalhaTransporte::Status(
             crate::transporte::StatusHttpRecusado {
                 status: 503,
                 mensagem_do_servidor: Some("Controle indisponível".to_owned()),
@@ -429,16 +413,13 @@ fn falha_http_na_releitura_apos_post_sem_resposta_preserva_status_503() {
         )
     });
     let erro = resultado.expect_err("a escrita não foi comprovada");
-    assert_eq!(erro.saida(), 3);
-    assert_eq!(erro.subcodigo(), "efeito_incerto_na_criacao");
     let diagnostico = erro.diagnostico_apos_post().expect("duas causas");
-    assert_eq!(diagnostico.causa_post, "falha_de_rede");
     assert_eq!(
-        diagnostico.causa_releitura,
-        Some("status_http_de_erro_do_servidor")
-    );
-    assert_eq!(
-        diagnostico.http_releitura.as_ref().map(|http| http.status),
+        diagnostico
+            .releitura_falhou
+            .as_ref()
+            .and_then(|falha| falha.http.as_ref())
+            .map(|http| http.status),
         Some(503)
     );
     assert_eq!(diagnostico.candidatos_observados, None);
@@ -462,10 +443,10 @@ fn post_503_e_releitura_502_sao_status_distintos_sem_retry() {
         ok(tela_controle()),
         ok(lista(false)),
         ok(cadastro()),
-        Err(FalhaTransporte::StatusHttpDeErroDoServidor(
+        Err(FalhaTransporte::Status(
             crate::transporte::StatusHttpRecusado::sem_mensagem(503),
         )),
-        Err(FalhaTransporte::StatusHttpDeErroDoServidor(
+        Err(FalhaTransporte::Status(
             crate::transporte::StatusHttpRecusado {
                 status: 502,
                 mensagem_do_servidor: Some("Falha de leitura saneada".to_owned()),
@@ -482,15 +463,12 @@ fn post_503_e_releitura_502_sao_status_distintos_sem_retry() {
         )
     });
     let erro = resultado.expect_err("duas falhas nao confirmam criacao");
-    assert_eq!(erro.saida(), 3);
     assert_eq!(erro.status_http().map(|http| http.status), Some(503));
     let diagnostico = erro.diagnostico_apos_post().expect("duas causas");
-    assert_eq!(diagnostico.causa_post, "status_http_de_erro_do_servidor");
-    assert_eq!(
-        diagnostico.causa_releitura,
-        Some("status_http_de_erro_do_servidor")
-    );
-    let http_releitura = diagnostico.http_releitura.expect("HTTP da releitura");
+    let http_releitura = diagnostico
+        .releitura_falhou
+        .and_then(|falha| falha.http)
+        .expect("HTTP da releitura");
     assert_eq!(http_releitura.status, 502);
     assert_eq!(
         http_releitura.mensagem_do_servidor.as_deref(),

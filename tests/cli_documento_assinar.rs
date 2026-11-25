@@ -1,9 +1,17 @@
 //! Superfície de `ies documento assinar DOC [--cargo TEXTO] [--confirmar]`
 //! (Refs #174): número inválido e `--confirmar` sem `--cargo` saem com 2
-//! antes de qualquer arquivo; sem configuração, 1 `fonte_invalida`, sem
+//! antes de qualquer arquivo; sem configuração, saída 1 e erro tipado, sem
 //! rede; com `--confirmar`, credenciais ausentes são recusa antes da rede e
 //! a senha nunca aparece. Nenhum teste abre sessão nem acessa o SEI.
 use std::process::{Command, Output};
+
+#[path = "support/falha.rs"]
+mod falha_cli;
+#[cfg(unix)]
+use falha_cli::falha;
+#[path = "support/falha_por.rs"]
+mod falha_por_cli;
+use falha_por_cli::falha_por;
 
 fn sem_sessao(args: &[&str], credenciais: Option<&str>) -> Output {
     let mut comando = Command::new(env!("CARGO_BIN_EXE_ies"));
@@ -21,10 +29,6 @@ fn sem_sessao(args: &[&str], credenciais: Option<&str>) -> Output {
     comando.output().expect("IES deve iniciar")
 }
 
-fn json(saida: &Output) -> serde_json::Value {
-    serde_json::from_slice(&saida.stdout).expect("JSON na saída")
-}
-
 #[test]
 fn numero_invalido_e_erro_de_uso_antes_da_configuracao() {
     for extra in [&[][..], &["--cargo", "Assessor(a)", "--confirmar"][..]] {
@@ -32,9 +36,10 @@ fn numero_invalido_e_erro_de_uso_antes_da_configuracao() {
         args.extend_from_slice(extra);
         let saida = sem_sessao(&args, None);
         assert_eq!(saida.status.code(), Some(2), "{args:?}");
-        let valor = json(&saida);
-        assert_eq!(valor["codigo"], "entrada_invalida");
-        assert_eq!(valor["subcodigo"], "numero_documento_nao_numerico");
+        assert!(
+            saida.stdout.is_empty(),
+            "uso inválido é recusado pelo clap, sem JSON"
+        );
     }
 }
 
@@ -51,10 +56,7 @@ fn sem_configuracao_falha_fechado_sem_rede() {
         let mut args = vec!["documento", "assinar", "0000101", "--json"];
         args.extend_from_slice(extra);
         let saida = sem_sessao(&args, Some("/nao/existe/credenciais"));
-        assert_eq!(saida.status.code(), Some(1), "{args:?}");
-        let valor = json(&saida);
-        assert_eq!(valor["codigo"], "fonte_invalida");
-        assert_ne!(valor["codigo"], "nao_implementado");
+        falha_por(&saida, "UrlDoControleIlegivel", "Ausente");
     }
 }
 
@@ -72,7 +74,7 @@ fn processo_invalido_e_erro_de_uso() {
         None,
     );
     assert_eq!(saida.status.code(), Some(2));
-    assert_eq!(json(&saida)["codigo"], "entrada_invalida");
+    assert_eq!(saida.stdout, b"");
 }
 
 #[cfg(unix)]
@@ -113,8 +115,7 @@ fn confirmar_sem_credenciais_e_recusa_antes_da_rede() {
         .output()
         .expect("IES deve iniciar");
     let _ = std::fs::remove_dir_all(&pasta);
-    assert_eq!(saida.status.code(), Some(1));
-    let valor = json(&saida);
-    assert_eq!(valor["subcodigo"], "caminho_credenciais_nao_informado");
-    assert!(valor.get("requisicoes").is_none());
+    // A recusa vem antes da rede: com o proxy morto, qualquer pedido
+    // teria virado falha de transporte, não de credenciais.
+    falha(&saida, "Credenciais");
 }

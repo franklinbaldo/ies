@@ -33,7 +33,7 @@ fn aceitar(escuta: &TcpListener) -> TcpStream {
     }
 }
 
-fn pedir(endereco: SocketAddr, alvo: &str) -> String {
+fn pedir_metodo(endereco: SocketAddr, metodo: &str, alvo: &str) -> String {
     let mut fluxo = TcpStream::connect_timeout(&endereco, Duration::from_secs(5)).unwrap();
     fluxo
         .set_read_timeout(Some(Duration::from_secs(5)))
@@ -41,11 +41,19 @@ fn pedir(endereco: SocketAddr, alvo: &str) -> String {
     fluxo
         .set_write_timeout(Some(Duration::from_secs(5)))
         .unwrap();
-    write!(fluxo, "GET {alvo} HTTP/1.1\r\nHost: localhost\r\n\r\n").unwrap();
+    write!(
+        fluxo,
+        "{metodo} {alvo} HTTP/1.1\r\nHost: localhost\r\nContent-Length: 0\r\n\r\n"
+    )
+    .unwrap();
     fluxo.shutdown(Shutdown::Write).unwrap();
     let mut resposta = String::new();
     fluxo.read_to_string(&mut resposta).unwrap();
     resposta
+}
+
+fn pedir(endereco: SocketAddr, alvo: &str) -> String {
+    pedir_metodo(endereco, "GET", alvo)
 }
 
 #[test]
@@ -89,7 +97,15 @@ fn bdd_332_03_pdf_so_aparece_na_arvore_js_apos_cadastro() {
             let mut conexao = aceitar(&escuta);
             anti_ies::atender_http(&mut conexao, Some((&banco, &origem, "caso"))).unwrap();
         }
-        let temporario = externo::receber(&banco, &origem, "caso", "7", "prova.pdf", 42).unwrap();
+        let temporario = externo::receber_conteudo(
+            &banco,
+            &origem,
+            "caso",
+            "7",
+            "prova.pdf",
+            b"%PDF-1.7\nconteudo",
+        )
+        .unwrap();
         externo::cadastrar(&banco, &origem, "caso", "7", "293", temporario.id).unwrap();
         let mut conexao = aceitar(&escuta);
         anti_ies::atender_http(&mut conexao, Some((&banco, &origem, "caso"))).unwrap();
@@ -106,7 +122,7 @@ fn bdd_332_03_pdf_so_aparece_na_arvore_js_apos_cadastro() {
     assert!(depois.starts_with("HTTP/1.1 200 OK\r\n"));
     assert!(depois.contains("Despacho"));
     assert!(depois.contains("Nos[2] = new infraArvoreNo(\"DOCUMENTO\""));
-    assert!(depois.contains("Anexo 050000001"));
+    assert!(depois.contains("Anexo (050000001)"));
     // A árvore do PDF usa o mesmo token emulado da barra e do Controle R.
     assert!(depois.contains(&format!("infra_hash={}", "4".repeat(64))));
 }
@@ -137,8 +153,15 @@ fn bdd_332_03_selecionar_pdf_cadastrado_nao_oculta_arvore_do_processo() {
             },
         )
         .unwrap();
-        let temporario =
-            externo::receber(&banco, &origem, "selecao", "7", "prova.pdf", 42).unwrap();
+        let temporario = externo::receber_conteudo(
+            &banco,
+            &origem,
+            "selecao",
+            "7",
+            "prova.pdf",
+            b"%PDF-1.7\nconteudo",
+        )
+        .unwrap();
         externo::cadastrar(&banco, &origem, "selecao", "7", "293", temporario.id).unwrap();
         let mut conexao = aceitar(&escuta);
         anti_ies::atender_http(&mut conexao, Some((&banco, &origem, "selecao"))).unwrap();
@@ -149,7 +172,7 @@ fn bdd_332_03_selecionar_pdf_cadastrado_nao_oculta_arvore_do_processo() {
     );
     assert!(resposta.starts_with("HTTP/1.1 200 OK\r\n"));
     assert!(resposta.contains("Nos[1] = new infraArvoreNo(\"DOCUMENTO\""));
-    assert!(resposta.contains("Anexo 050000001"));
+    assert!(resposta.contains("Anexo (050000001)"));
     servidor.join().unwrap();
 }
 
@@ -212,7 +235,15 @@ fn bdd_332_03_pdf_cadastrado_preserva_documento_versionado_e_interno() {
             },
         )
         .unwrap();
-        let temporario = externo::receber(&banco, &origem, "triplo", "7", "anexo.pdf", 42).unwrap();
+        let temporario = externo::receber_conteudo(
+            &banco,
+            &origem,
+            "triplo",
+            "7",
+            "anexo.pdf",
+            b"%PDF-1.7\nconteudo",
+        )
+        .unwrap();
         externo::cadastrar(&banco, &origem, "triplo", "7", "293", temporario.id).unwrap();
         let mut conexao = aceitar(&escuta);
         anti_ies::atender_http(&mut conexao, Some((&banco, &origem, "triplo"))).unwrap();
@@ -225,7 +256,7 @@ fn bdd_332_03_pdf_cadastrado_preserva_documento_versionado_e_interno() {
     assert!(resposta.contains("Oficio 2000003"));
     assert!(resposta.contains("documento_versao_listar"));
     assert!(resposta.contains("Despacho 1000001"));
-    assert!(resposta.contains("Anexo 050000001"));
+    assert!(resposta.contains("Anexo (050000001)"));
     assert_eq!(
         resposta.matches("new infraArvoreNo(\"DOCUMENTO\"").count(),
         3
@@ -271,7 +302,15 @@ fn bdd_332_03_pdf_selecionado_preserva_acoes_do_processo() {
         },
     )
     .unwrap();
-    let temp = externo::receber(&banco, &origem, "barra", "7", "prova.pdf", 42).unwrap();
+    let temp = externo::receber_conteudo(
+        &banco,
+        &origem,
+        "barra",
+        "7",
+        "prova.pdf",
+        b"%PDF-1.7\nconteudo",
+    )
+    .unwrap();
     let doc = externo::cadastrar(&banco, &origem, "barra", "7", "293", temp.id).unwrap();
     let escuta = TcpListener::bind(("127.0.0.1", 0)).unwrap();
     let endereco = escuta.local_addr().unwrap();
@@ -285,9 +324,110 @@ fn bdd_332_03_pdf_selecionado_preserva_acoes_do_processo() {
     );
     let resposta = pedir(endereco, &alvo);
     assert!(resposta.starts_with("HTTP/1.1 200 OK\r\n"));
-    assert!(resposta.contains("Anexo 050000001"));
+    assert!(resposta.contains("Anexo (050000001)"));
     assert!(resposta.contains("Nos[0].acoes = '"));
     assert!(resposta.contains("procedimento_enviar"));
     assert!(resposta.contains("anotacao_registrar"));
     servidor.join().unwrap();
+}
+
+/// BDD-60-05: identidade de PDF em outra árvore conhecida não autoriza
+/// fallback para o processo pedido. A recusa é hipótese sintética:
+/// a cassette `UnB` registra navegação, não esta seleção cruzada.
+#[test]
+fn bdd_60_05_pdf_conhecido_em_outro_processo_recusa_sem_trocar_arvore() {
+    let banco = Connection::open_in_memory().unwrap();
+    iniciar(&banco).unwrap();
+    let origem = Instalacao::interpretar("https://simulado.invalid/sei").unwrap();
+    let tipo = TipoExterno {
+        id: "293".into(),
+        nome: "Anexo".into(),
+        limite_bytes: 100_000,
+    };
+    let mut registrados = Vec::new();
+    for (id, nup, nome) in [
+        ("7", "00001.000001/2026-01", "primeiro.pdf"),
+        ("8", "00001.000002/2026-02", "segundo.pdf"),
+    ] {
+        externo::semear(
+            &banco,
+            &origem,
+            "identidades",
+            &Processo {
+                id: id.into(),
+                nup: nup.into(),
+                unidade: "TESTE".into(),
+            },
+            &tipo,
+        )
+        .unwrap();
+        let temporario = externo::receber_conteudo(
+            &banco,
+            &origem,
+            "identidades",
+            id,
+            nome,
+            b"%PDF-1.7\nconteudo",
+        )
+        .unwrap();
+        registrados.push(
+            externo::cadastrar(&banco, &origem, "identidades", id, "293", temporario.id).unwrap(),
+        );
+    }
+    let escuta = TcpListener::bind(("127.0.0.1", 0)).unwrap();
+    let endereco = escuta.local_addr().unwrap();
+    let servidor = std::thread::spawn(move || {
+        for _ in 0..6 {
+            let mut conexao = aceitar(&escuta);
+            anti_ies::atender_http(&mut conexao, Some((&banco, &origem, "identidades"))).unwrap();
+        }
+        for processo in ["7", "8"] {
+            assert_eq!(
+                externo::documentos(&banco, &origem, "identidades", processo)
+                    .unwrap()
+                    .len(),
+                1,
+                "GET e recusa não alteram o SQLite"
+            );
+        }
+    });
+
+    let url_primeiro = format!(
+        "/sei/controlador.php?acao=procedimento_visualizar&id_procedimento=7&id_documento={}",
+        registrados[0].id_publico()
+    );
+    let url_cruzado = format!(
+        "/sei/controlador.php?acao=procedimento_visualizar&id_procedimento=7&id_documento={}",
+        registrados[1].id_publico()
+    );
+    let url_segundo = format!(
+        "/sei/controlador.php?acao=procedimento_visualizar&id_procedimento=8&id_documento={}",
+        registrados[1].id_publico()
+    );
+    let primeiro = pedir(endereco, &url_primeiro);
+    let cruzado = pedir(endereco, &url_cruzado);
+    let segundo = pedir(endereco, &url_segundo);
+    let desconhecido = pedir(
+        endereco,
+        "/sei/controlador.php?acao=procedimento_visualizar&id_procedimento=7&id_documento=8000000000999",
+    );
+    let metodo = pedir_metodo(endereco, "POST", &url_primeiro);
+    let novamente = pedir(endereco, &url_primeiro);
+    servidor.join().unwrap();
+
+    assert!(primeiro.starts_with("HTTP/1.1 200 OK\r\n"));
+    assert!(primeiro.contains(&registrados[0].numero_sei));
+    assert!(segundo.starts_with("HTTP/1.1 200 OK\r\n"));
+    assert!(segundo.contains(&registrados[1].numero_sei));
+    assert!(
+        cruzado.starts_with("HTTP/1.1 404 Not Found\r\n"),
+        "PDF de outro processo conhecido deve recusar, sem resposta ambígua: {cruzado}"
+    );
+    assert!(!cruzado.contains(&registrados[1].numero_sei));
+    assert!(
+        desconhecido.starts_with("HTTP/1.1 503"),
+        "ausência de observação de PDF não prova inexistência: {desconhecido}"
+    );
+    assert!(metodo.starts_with("HTTP/1.1 405"));
+    assert_eq!(primeiro, novamente, "recusa não modifica a árvore original");
 }

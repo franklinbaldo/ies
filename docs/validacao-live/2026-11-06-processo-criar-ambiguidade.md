@@ -152,7 +152,7 @@ GET verificador perdia `status_http`; a falha de rede perdia o
 subcódigo `falha_de_rede`. Os testes permanecem ativos.
 
 **Implementação:** a verificação após `Location` preserva a causa do
-GET/DOM em variante tipada, mas continua **saída 3** até comprovar a
+GET/DOM em erro tipado, mas continua **saída 3** até comprovar a
 criação. Sem retry, sem novo POST, sem sucesso por redirecionamento.
 
 **Orçamento sintético exato:** cada teste usa 3 GET iniciais + 1 POST

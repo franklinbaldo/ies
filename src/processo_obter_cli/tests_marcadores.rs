@@ -1,5 +1,5 @@
 //! RED/GREEN do JSON dos marcadores: **lista** com cada marcador (nunca
-//! texto concatenado), total declarado e faixa; `null` com motivo, ou
+//! texto concatenado), total declarado e faixa; chave ausente com motivo, ou
 //! ausente com `--sem-marcadores`; `nao_lidos` diz o que faltou.
 use super::tests::aberto;
 use super::*;
@@ -39,7 +39,7 @@ fn dois_marcadores_saem_como_lista_de_dois_objetos() {
     assert_eq!(
         valor["marcadores"],
         json!([
-            {"id": "501", "rotulo": "501#Revis\u{e3}o", "nome": "Revis\u{e3}o", "cor": "azul", "texto": null,
+            {"id": "501", "rotulo": "501#Revis\u{e3}o", "nome": "Revis\u{e3}o", "cor": "azul",
              "usuario": "pessoa1", "data_hora": "03/11/2026 10:15"},
             {"id": "502", "rotulo": "502#Pendente", "nome": "Pendente", "cor": "amarelo", "texto": "Texto sint\u{e9}tico",
              "usuario": "pessoa1", "data_hora": "03/11/2026 10:15"}
@@ -67,28 +67,7 @@ fn menos_linhas_que_a_legenda_publicam_total_e_faixa_sem_alegar_completude() {
 }
 
 #[test]
-fn nao_publicados_ou_sem_tabela_saem_null_com_motivo_e_omitidos_tiram_a_chave() {
-    for (estado, motivo) in [
-        (
-            Marcadores::NaoPublicadosNaBarra,
-            "tela_de_marcadores_nao_publicada_na_barra",
-        ),
-        (
-            Marcadores::TabelaNaoPublicada,
-            "tabela_de_marcadores_nao_publicada_na_tela",
-        ),
-    ] {
-        let mut aberto = aberto(None);
-        aberto.marcadores = estado;
-        let valor = json_do_processo(&nup(), &aberto, true);
-        assert!(valor.get("marcadores").is_some_and(Value::is_null));
-        assert!(valor.get("marcadores_total_declarado").is_none());
-        assert_eq!(valor["marcadores_nao_lidos_motivo"], motivo);
-        assert_eq!(
-            valor["nao_lidos"],
-            json!(["andamentos", "marcadores", "propriedades"])
-        );
-    }
+fn omitidos_tiram_a_chave_e_so_dizem_o_motivo_pedido() {
     let omitidos = json_do_processo(&nup(), &aberto(None), true);
     assert!(omitidos.get("marcadores").is_none());
     assert_eq!(
@@ -101,7 +80,7 @@ fn nao_publicados_ou_sem_tabela_saem_null_com_motivo_e_omitidos_tiram_a_chave() 
 fn texto_humano_lista_cada_marcador_numa_linha() {
     let texto = humano(&nup(), &com_marcadores(2), true);
     assert!(texto.contains("Marcadores: 2 de 2 declarados:"), "{texto}");
-    assert!(texto.contains("\n- 501#Revis\u{e3}o [azul]"), "{texto}");
+    assert!(texto.contains("\n- 501#Revis\u{e3}o"), "{texto}");
     assert!(
         texto.contains("\n- 502#Pendente [amarelo]: Texto sint\u{e9}tico"),
         "{texto}"

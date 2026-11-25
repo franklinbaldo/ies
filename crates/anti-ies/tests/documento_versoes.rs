@@ -303,3 +303,90 @@ fn parametros_repetidos_na_visualizacao_recusam_sem_entregar_documento() {
     assert!(valido.contains("Texto atual"));
     servidor.join().unwrap();
 }
+
+/// BDD-60-05 (apoio HTTP): o histórico não pode continuar oferecendo links
+/// de conteúdo depois do cancelamento no mesmo SQLite. A cassette GO
+/// registra o cancelamento, mas não a consulta ao histórico depois dele:
+/// esta transição é uma hipótese funcional do simulador.
+#[test]
+fn historico_antigo_de_documento_cancelado_nao_oferece_versoes() {
+    use iesei::cancelamento_documento::{self, Situacao};
+    use std::io::{Read, Write};
+    use std::net::{Shutdown, SocketAddr, TcpListener, TcpStream};
+
+    fn pedir(endereco: SocketAddr, metodo: &str, alvo: &str, corpo: &str) -> String {
+        let mut tcp = TcpStream::connect(endereco).unwrap();
+        write!(
+            tcp,
+            "{metodo} {alvo} HTTP/1.1\r\nHost: localhost\r\nContent-Length: {}\r\nConnection: close\r\n\r\n{corpo}",
+            corpo.len()
+        )
+        .unwrap();
+        tcp.shutdown(Shutdown::Write).unwrap();
+        let mut resposta = String::new();
+        tcp.read_to_string(&mut resposta).unwrap();
+        resposta
+    }
+
+    let escuta = TcpListener::bind(("127.0.0.1", 0)).unwrap();
+    let endereco = escuta.local_addr().unwrap();
+    let servidor = std::thread::spawn(move || {
+        let mut banco = Connection::open_in_memory().unwrap();
+        iniciar(&banco).unwrap();
+        guardar(&mut banco, "ensaio", &documento()).unwrap();
+        let mut outro = documento();
+        outro.id_documento = "43".into();
+        outro.id_procedimento = "8".into();
+        outro.numero = "0011520".into();
+        outro.numero_processo = "00001.000002/2026-02".into();
+        guardar(&mut banco, "ensaio", &outro).unwrap();
+        for _ in 0..7 {
+            let (mut tcp, _) = escuta.accept().unwrap();
+            anti_ies::atender_http(&mut tcp, Some((&banco, &origem(), "ensaio"))).unwrap();
+        }
+        assert!(matches!(
+            cancelamento_documento::consultar(&banco, &origem(), "ensaio", "42", "7"),
+            Ok(Some(Situacao::Cancelado { .. }))
+        ));
+        assert_eq!(
+            cancelamento_documento::consultar(&banco, &origem(), "ensaio", "43", "8").unwrap(),
+            Some(Situacao::Disponivel)
+        );
+    });
+
+    let historico = "/sei/controlador.php?acao=documento_versao_listar&id_documento=42";
+    let disponivel = pedir(endereco, "GET", historico, "");
+    assert!(disponivel.starts_with("HTTP/1.1 200"), "{disponivel}");
+    assert!(disponivel.contains("documento_visualizar"), "{disponivel}");
+    let cancelar = "/sei/controlador.php?acao=documento_cancelar&id_procedimento=7&id_documento=42";
+    let confirmado = pedir(
+        endereco,
+        "POST",
+        cancelar,
+        "hdnInfraTipoPagina=2&sbmSalvar=Salvar&txaMotivo=Obsoleto",
+    );
+    assert!(confirmado.starts_with("HTTP/1.1 302"), "{confirmado}");
+
+    let antigo = pedir(endereco, "GET", historico, "");
+    assert!(antigo.starts_with("HTTP/1.1 403"), "{antigo}");
+    assert!(!antigo.contains("documento_visualizar"), "{antigo}");
+    let versao = pedir(
+        endereco,
+        "GET",
+        "/sei/controlador.php?acao=documento_visualizar&id_documento=42&versao=1",
+        "",
+    );
+    assert!(versao.starts_with("HTTP/1.1 403"), "{versao}");
+
+    let outro = "/sei/controlador.php?acao=documento_versao_listar&id_documento=43";
+    let nao_afetado = pedir(endereco, "GET", outro, "");
+    assert!(nao_afetado.starts_with("HTTP/1.1 200"), "{nao_afetado}");
+    assert!(
+        nao_afetado.contains("documento_visualizar"),
+        "{nao_afetado}"
+    );
+    let metodo = pedir(endereco, "POST", outro, "");
+    assert!(metodo.starts_with("HTTP/1.1 405"), "{metodo}");
+    assert!(pedir(endereco, "GET", outro, "").starts_with("HTTP/1.1 200"));
+    servidor.join().unwrap();
+}

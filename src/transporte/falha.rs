@@ -1,10 +1,11 @@
-//! Falhas tipadas do transporte Web: uma variante por fato, subcódigos
-//! estáveis (docs/erros-tipados.md). Contrato: contracts/cli.md.
-use super::proxy;
+//! Falhas tipadas do transporte Web: um erro por fato
+//! (docs/erros-tipados.md). Contrato: contracts/cli.md.
+use crate::arquivo_privado::ErroArquivoPrivado;
 
 /// Status de uma recusa HTTP e o texto que o SEI enviou junto, já saneado
-/// (`corpo_de_recusa`). É apresentação: o subcódigo da variante classifica.
-#[derive(Clone, Debug, PartialEq, Eq)]
+/// (`corpo_de_recusa`).
+#[derive(Clone, Debug, PartialEq, Eq, thiserror::Error)]
+#[error("HTTP {status}")]
 pub struct StatusHttpRecusado {
     pub status: u16,
     /// `None` em 3xx (corpo não lido) ou quando o corpo não rendeu texto.
@@ -20,12 +21,9 @@ impl StatusHttpRecusado {
     }
 }
 
-#[derive(Clone, Debug, PartialEq, Eq, crate::erro_publico::Causa)]
+#[derive(Clone, Debug, PartialEq, Eq, thiserror::Error)]
+#[error("{self:?}")]
 pub enum FalhaTransporte {
-    #[causa(nome = "chave_de_consulta_do_controle_nao_canonica")]
-    ChaveDeConsultaNaoCanonica,
-    #[causa(nome = "separador_de_consulta_do_controle_ambiguo")]
-    SeparadorDeConsultaAmbiguo,
     OrigemNaoAutorizada,
     /// URL assinada inválida: falha da validação do transporte.
     UrlInvalida,
@@ -33,108 +31,61 @@ pub enum FalhaTransporte {
     CookieInvalido,
     /// A resposta não declarou o Content-Type HTML esperado.
     TipoDeConteudoNaoHtml,
-    ArquivoPrivadoAusenteOuInacessivel,
-    #[cfg_attr(not(unix), allow(dead_code))]
-    ArquivoPrivadoComPermissoesInseguras,
-    #[causa(nome = "caminho_nao_eh_arquivo")]
-    CaminhoDeArquivoNaoEhArquivo,
-    ArquivoPrivadoLinkSimbolico,
-    ArquivoPrivadoVazio,
-    ArquivoPrivadoAcimaDoLimite,
-    ArquivoPrivadoNaoPodeSerLido,
+    /// A consulta AJAX não declarou `application/xml` nem `text/xml`.
+    TipoDeConteudoNaoXml,
+    /// O arquivo da URL assinada do Controle não foi lido.
+    UrlDoControleIlegivel(#[source] ErroArquivoPrivado),
+    /// O arquivo da origem autorizada não foi lido.
+    OrigemIlegivel(#[source] ErroArquivoPrivado),
+    /// O arquivo do cookie da sessão não foi lido.
+    CookieDaSessaoIlegivel(#[source] ErroArquivoPrivado),
+    /// O marcador `.geracao` existe e não foi lido.
+    MarcadorDaSessaoIlegivel(#[source] ErroArquivoPrivado),
     /// O marcador `.geracao` mudou (ou não confere com URL e cookie) nas
     /// duas leituras locais da sessão: outro processo gravou no meio.
     SessaoTrocadaDuranteALeitura,
-    /// Status HTTP 401 ou 403.
-    #[causa(http, nome = "sessao_nao_autorizada", acao = "relogar")]
-    AcessoNegado(StatusHttpRecusado),
+    /// Status HTTP diferente de 200, com o número e o texto do SEI.
+    Status(#[source] StatusHttpRecusado),
     /// 403 com a página de bloqueio de segurança da instalação (WAF): a
     /// sessão não venceu; não há relogin nem nova tentativa.
-    #[causa(http, acao = "trocar_instalacao")]
-    BloqueioDeSegurancaDaInstalacao(StatusHttpRecusado),
-    /// Status HTTP 3xx; o corpo não é lido.
-    #[causa(http, nome = "redirecionamento_recusado")]
-    Redirecionamento(StatusHttpRecusado),
+    BloqueioDeSegurancaDaInstalacao(#[source] StatusHttpRecusado),
     /// 302 do GET do Controle cujo `Location` é a entrada do login da
-    /// própria instalação: a sessão foi encerrada. Mesmo subcódigo dos
+    /// própria instalação: a sessão foi encerrada. Mesmo erro dos
     /// fluxos que veem o 302 para o login (entrada por id, link guardado).
-    #[causa(http, nome = "sessao_encerrada_rode_ies_login", acao = "relogar")]
-    ControleRedirecionadoParaOLogin(StatusHttpRecusado),
-    /// Status HTTP 5xx, fora 3xx/401/403 já tipados.
-    #[causa(http)]
-    StatusHttpDeErroDoServidor(StatusHttpRecusado),
-    /// Status HTTP 429.
-    #[causa(http)]
-    StatusHttpDeLimiteDeRequisicoes(StatusHttpRecusado),
-    /// Qualquer outro status diferente de 200.
-    #[causa(http)]
-    StatusHttpDiferenteDe200(StatusHttpRecusado),
+    ControleRedirecionadoParaOLogin(#[source] StatusHttpRecusado),
     /// Corpo que não decodifica no charset declarado (ou UTF-8).
-    CorpoNaoDecodificavelNoCharsetDeclarado,
-    #[causa(acao = "relogar")]
+    CorpoNaoDecodificavelNoCharsetDeclarado(#[source] super::corpo::ErroCorpoHttp),
     PaginaDeLoginRecebidaNoControle,
     RespostaExcessiva,
-    #[causa(nome = "falha_de_rede")]
     Rede,
-    /// Proxy do ambiente (cliente HTTPS único, todos os comandos): `transporte::proxy`.
-    #[causa(interna)]
-    Proxy(proxy::FalhaDoProxy),
+    /// O proxy do ambiente (`HTTPS_PROXY`) é inválido ou recusou o túnel.
+    Proxy,
 }
 
 impl FalhaTransporte {
-    pub fn subcodigo(&self) -> &'static str {
-        crate::erro_publico::folha(self)
-    }
-    pub fn mensagem(&self) -> &'static str {
+    /// A sessão do SEI acabou (decide o relogin único): por `match` no tipo, sem
+    /// percorrer a cadeia `source()`.
+    pub(crate) fn sessao_encerrada(&self) -> bool {
         match self {
-            Self::ChaveDeConsultaNaoCanonica => {
-                "nome de parâmetro da URL de controle não é canônico"
+            Self::ControleRedirecionadoParaOLogin(_) | Self::PaginaDeLoginRecebidaNoControle => {
+                true
             }
-            Self::SeparadorDeConsultaAmbiguo => {
-                "separador de parâmetros da URL de controle não é inequívoco"
-            }
-            Self::OrigemNaoAutorizada => "destino HTTPS diferente da origem autorizada da sessão",
-            Self::UrlInvalida => "URL assinada da caixa inválida",
-            Self::CookieInvalido => "formato de cookie de sessão inválido",
-            Self::TipoDeConteudoNaoHtml => "a resposta não declara Content-Type text/html",
-            Self::ArquivoPrivadoAusenteOuInacessivel => {
-                "arquivo privado não encontrado ou sem acesso"
-            }
-            Self::ArquivoPrivadoComPermissoesInseguras => {
-                "arquivo privado permite acesso por outros usuários"
-            }
-            Self::CaminhoDeArquivoNaoEhArquivo => {
-                "caminho informado não aponta para arquivo regular"
-            }
-            Self::ArquivoPrivadoLinkSimbolico => "arquivo privado não pode ser link simbólico",
-            Self::ArquivoPrivadoVazio => "arquivo privado vazio",
-            Self::ArquivoPrivadoAcimaDoLimite => "arquivo privado supera o limite permitido",
-            Self::ArquivoPrivadoNaoPodeSerLido => "não foi possível ler o arquivo privado",
-            Self::SessaoTrocadaDuranteALeitura => {
-                "a sessão local foi regravada durante a leitura, duas vezes; nada foi pedido ao SEI"
-            }
-            Self::AcessoNegado(_) => "SEI negou acesso; a sessão pode estar vencida",
-            Self::BloqueioDeSegurancaDaInstalacao(_) => {
-                "a política de segurança da instalação bloqueou a requisição; espace as execuções"
-            }
-            Self::Redirecionamento(_) => {
-                "redirecionamento recusado; a sessão pode exigir novo login"
-            }
-            Self::ControleRedirecionadoParaOLogin(_) => {
-                "o SEI redirecionou o Controle para a tela de login; rode ies login"
-            }
-            Self::StatusHttpDeErroDoServidor(_) => "o SEI respondeu com erro do servidor (5xx)",
-            Self::StatusHttpDeLimiteDeRequisicoes(_) => "o SEI limitou as requisições (429)",
-            Self::StatusHttpDiferenteDe200(_) => "o SEI respondeu com status HTTP diferente de 200",
-            Self::CorpoNaoDecodificavelNoCharsetDeclarado => {
-                "o corpo da resposta não decodifica no charset declarado"
-            }
-            Self::PaginaDeLoginRecebidaNoControle => {
-                "o SEI devolveu formulário de login em vez da caixa"
-            }
-            Self::RespostaExcessiva => "resposta HTML supera o limite permitido",
-            Self::Rede => "falha de transporte HTTPS; nenhum pedido foi repetido",
-            Self::Proxy(falha) => falha.mensagem(),
+            Self::OrigemNaoAutorizada
+            | Self::UrlInvalida
+            | Self::CookieInvalido
+            | Self::TipoDeConteudoNaoHtml
+            | Self::TipoDeConteudoNaoXml
+            | Self::UrlDoControleIlegivel(_)
+            | Self::OrigemIlegivel(_)
+            | Self::CookieDaSessaoIlegivel(_)
+            | Self::MarcadorDaSessaoIlegivel(_)
+            | Self::SessaoTrocadaDuranteALeitura
+            | Self::Status(_)
+            | Self::BloqueioDeSegurancaDaInstalacao(_)
+            | Self::CorpoNaoDecodificavelNoCharsetDeclarado(_)
+            | Self::RespostaExcessiva
+            | Self::Rede
+            | Self::Proxy => false,
         }
     }
 }
@@ -142,14 +93,63 @@ impl FalhaTransporte {
 impl FalhaTransporte {
     /// Status e mensagem do SEI, só nas recusas por status HTTP.
     pub fn status_http(&self) -> Option<&StatusHttpRecusado> {
-        crate::erro_publico::Causa::status_http(self)
-    }
-
-    /// Status com que o proxy recusou o `CONNECT`.
-    pub fn status_do_proxy(&self) -> Option<u16> {
         match self {
-            Self::Proxy(proxy::FalhaDoProxy::RecusouOTunel { status }) => Some(*status),
-            _ => None,
+            Self::Status(recusa)
+            | Self::BloqueioDeSegurancaDaInstalacao(recusa)
+            | Self::ControleRedirecionadoParaOLogin(recusa) => Some(recusa),
+            Self::OrigemNaoAutorizada
+            | Self::UrlInvalida
+            | Self::CookieInvalido
+            | Self::TipoDeConteudoNaoHtml
+            | Self::TipoDeConteudoNaoXml
+            | Self::UrlDoControleIlegivel(_)
+            | Self::OrigemIlegivel(_)
+            | Self::CookieDaSessaoIlegivel(_)
+            | Self::MarcadorDaSessaoIlegivel(_)
+            | Self::SessaoTrocadaDuranteALeitura
+            | Self::CorpoNaoDecodificavelNoCharsetDeclarado(_)
+            | Self::PaginaDeLoginRecebidaNoControle
+            | Self::RespostaExcessiva
+            | Self::Rede
+            | Self::Proxy => None,
+        }
+    }
+}
+
+/// O fato de domínio que uma falha estabelece sobre a resposta lida, para
+/// quem a traduz no erro da própria operação.
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+pub(crate) enum FatoDaResposta {
+    /// O corpo passou do limite de leitura.
+    CorpoAcimaDoLimite,
+    /// A tela de login veio no lugar da resposta pedida.
+    TelaDeLoginNoLugarDaResposta,
+    /// A falha não estabelece fato sobre a resposta: segue como transporte.
+    NenhumAlemDoTransporte,
+}
+
+impl FalhaTransporte {
+    /// O único `match` sobre todas as falhas para quem lê uma resposta.
+    pub(crate) fn fato_da_resposta(&self) -> FatoDaResposta {
+        match self {
+            Self::RespostaExcessiva => FatoDaResposta::CorpoAcimaDoLimite,
+            Self::PaginaDeLoginRecebidaNoControle => FatoDaResposta::TelaDeLoginNoLugarDaResposta,
+            Self::OrigemNaoAutorizada
+            | Self::UrlInvalida
+            | Self::CookieInvalido
+            | Self::TipoDeConteudoNaoHtml
+            | Self::TipoDeConteudoNaoXml
+            | Self::UrlDoControleIlegivel(_)
+            | Self::OrigemIlegivel(_)
+            | Self::CookieDaSessaoIlegivel(_)
+            | Self::MarcadorDaSessaoIlegivel(_)
+            | Self::SessaoTrocadaDuranteALeitura
+            | Self::Status(_)
+            | Self::BloqueioDeSegurancaDaInstalacao(_)
+            | Self::ControleRedirecionadoParaOLogin(_)
+            | Self::CorpoNaoDecodificavelNoCharsetDeclarado(_)
+            | Self::Rede
+            | Self::Proxy => FatoDaResposta::NenhumAlemDoTransporte,
         }
     }
 }

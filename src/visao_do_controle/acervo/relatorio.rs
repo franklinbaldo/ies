@@ -1,6 +1,6 @@
 //! Agregação em Markdown: tabela leitor × instalação, páginas publicadas
 //! (listas com mais de uma página e o plano da página 2), continuidade
-//! entre páginas gravadas, formas vistas e recusas por subcódigo.
+//! entre páginas gravadas, formas vistas e recusas por erro.
 use super::continuidade::{Relacao, alem_da_primeira, pares, rotulo};
 use super::{Leitor, Registro, Replay, Resultado};
 use crate::cassette::acervo::INSTALACOES;
@@ -192,13 +192,13 @@ fn formas(s: &mut String, registros: &[Registro]) {
 fn recusas(s: &mut String, registros: &[Registro]) {
     let mut mapa: BTreeMap<(Leitor, &str, usize), Vec<String>> = BTreeMap::new();
     for r in registros {
-        if let Resultado::Recusado(sub) = r.resultado {
+        if let Resultado::Recusado(sub) = &r.resultado {
             mapa.entry((r.leitor, sub, ordem(&r.instalacao)))
                 .or_default()
                 .push(format!("{}#{}", r.card, r.passo));
         }
     }
-    s.push_str("| Leitor | Subcódigo | Instalação | Leituras | Exemplos (cassette#passo) |\n");
+    s.push_str("| Leitor | Erro | Instalação | Leituras | Exemplos (cassette#passo) |\n");
     s.push_str("|---|---|---|---:|---|\n");
     for ((leitor, sub, i), exemplos) in &mapa {
         let mostrados: Vec<&str> = exemplos.iter().take(2).map(String::as_str).collect();

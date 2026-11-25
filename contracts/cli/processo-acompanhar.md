@@ -1,14 +1,14 @@
 ---
 type: CommandContract
 title: Acompanhamento Especial por prévia e confirmação observada
-description: Prévia de inclusão e retirada; POST único e releitura para inclusão
+description: Prévia de inclusão e retirada; confirmação causal com POST único, restrita ao treinamento para retirada
 operation: processo.acompanhar
 command: ies processo acompanhar NUP [--grupo G] [--observacao T] [--deixar] [--confirmar]
 effect: write-process-state
 implementation: partial
 ---
 
-# `ies processo acompanhar NUP` — prévia e inclusão confirmada (Refs #254)
+# `ies processo acompanhar NUP` — prévia e confirmação por leitura (Refs #254, #348)
 
 O comando abre a árvore do processo e confere a unidade da sessão.
 Lê o link assinado `acompanhamento_gerenciar` publicado na barra da raiz.
@@ -43,32 +43,44 @@ ser enviado, independentemente da observação.
   explícita do gerenciador prova uma única linha nova com grupo e
   observação pedidos, preservadas as linhas anteriores. Falha no POST
   também exige releitura: se a alteração não puder ser comprovada,
-  saída **3** (`acompanhamento_nao_confirmado_por_leitura`, sem retry).
+  saída **1** (`AcompanhamentoNaoConfirmado`, sem retry).
   A inclusão já existente resulta em sucesso sem POST.
-- **Retirada:** `--deixar` tem somente prévia; `--confirmar --deixar`
-  continua bloqueado antes da sessão até a derivação segura do
-  formulário de exclusão da linha escolhida.
-- **Orçamento:** na bancada sintética sem índice quente, 3 GETs de
-  abertura + 1 GET gerenciar + 1 GET cadastro + 1 POST + 1 GET
-  de verificação = **7 requisições** para inclusão confirmada;
-  a prévia usa **5 GETs e 0 POST**. O custo de abertura real varia
-  com o índice local. Nenhum retry.
+- **Retirada `--deixar --confirmar`:** restrita a instalações públicas
+  de treinamento e ao anti-IES (`sei.test`). A oferta da linha e a action
+  assinada `acompanhamento_excluir` são reconhecidas na própria tela
+  servida. O envio reescreve somente `hdnInfraItemId`, executa **um POST**
+  e faz GET novo do gerenciador: só há confirmação quando exatamente a
+  identidade solicitada desapareceu e todas as outras foram preservadas.
+  Grupo solicitado já ausente é no-op sem POST. Resposta/estado incerto
+  produz saída **1**, sem retry. Falha de transporte/decodificação na
+  releitura posterior ao POST mantém o efeito incerto e a causa tipada
+  `ReleituraDaRetiradaFalhou`. Uma lista ilegível propaga seu erro de
+  leitura; divergência de estado permanece `AcompanhamentoNaoConfirmado`.
+  Redirecionamento 302 após excluir a última linha não comprova lista
+  vazia sozinho e permanece incerto.
+  A comprovação aqui é sintética (CLI ↔ anti-IES ↔ SQLite); confrontos
+  semânticos independentes com cassettes e treinamento/live são pendentes.
+- **Orçamento:** na bancada sintética sem índice quente, a inclusão
+  confirmada usa 3 requisições de abertura + GET gerenciar + GET cadastro
+  + POST + GET de verificação = **7 requisições**. Retirada de uma linha
+  com outras remanescentes usa 3 requisições de abertura + GET gerenciar
+  + POST + GET de verificação = **6 requisições**. O custo de abertura
+  real varia com o índice local; nunca há retry.
 - **Fonte:** observação histórica do Todos na UnB em 15/10/2026
   (`tests/test_processo_acompanhar_010.py` @323eb01), cassettes
-  `processo-acompanhar-*` e suas demais variantes.
+  `processo-acompanhar-*` e as demais gravações dessa operação.
 - Testes sintéticos de derivação e transporte integrados; evidência ao vivo e replay ainda pendentes: ver
   [relatório](../../docs/validacao-live/2026-11-05-processo-acompanhar.md).
 
-Os erros possuem `subcodigo` estável:
-`acompanhamento_nao_publicado_na_barra`,
-`cadastro_de_acompanhamento_de_outro_processo`,
-`grupos_de_acompanhamento_nao_publicados`,
-`grupo_de_acompanhamento_nao_oferecido`,
-`grupo_de_acompanhamento_ambiguo`,
-`lista_de_acompanhamentos_nao_publicada`,
+Os erros (o stderr traz o nome do erro):
+`ErroAcompanhar::LinkNaoPublicado`,
+`ErroAcompanhar::CadastroDeOutroProcesso`,
+`ErroAcompanhar::GruposNaoPublicados`,
+`ErroAcompanhar::GrupoNaoOferecido`,
+`ErroAcompanhar::GrupoAmbiguo`,
+`ErroAcompanhar::ListaNaoPublicada`,
 `linha_de_acompanhamento_invalida`,
-`acompanhamento_para_remover_ambiguo` e
-`confirmacao_de_acompanhamento_ainda_bloqueada`, entre outros
+`ErroAcompanhar::EscolhaDeAcompanhamentoAmbigua`, entre outros
 em `src/processo_acompanhar.rs`.
 
 Todos os URLs assinados e cookies ficam privados; nenhuma saída ou
@@ -76,36 +88,36 @@ fixture contém credencial real. Nenhuma operação é dirigida à produção.
 
 ## Inventário de erros tipados
 
-A coluna literal abaixo é normativa e verificável pelo gate de subcódigos.
+A coluna é o que aparece no stderr: o erro tipado, com o tipo que o declara.
 
-| Subcódigo | Condição |
+| Erro (stderr) | Condição |
 | --- | --- |
-| `acompanhamento_nao_confirmado_por_leitura` | A releitura não demonstrou a alteração exata; incerto |
-| `acompanhamento_nao_publicado_na_barra` | A barra do processo não oferece Acompanhamento Especial |
-| `acompanhamento_para_remover_ambiguo` | Mais de uma linha satisfaz a escolha de remoção |
-| `barra_de_acompanhamento_fora_da_forma` | Barra fora do formato observado |
-| `barra_de_acompanhamento_repetida` | A árvore publica mais de uma barra para a raiz |
-| `cadastro_de_acompanhamento_de_outro_processo` | Identidade do processo divergente no cadastro |
-| `cadastro_de_acompanhamento_nao_publicado` | Formulário de cadastro ausente |
-| `colunas_de_acompanhamentos_invalidas` | Cabeçalho da lista incompleto ou repetido |
-| `confirmacao_de_acompanhamento_ainda_bloqueada` | Confirmação da retirada ainda bloqueada antes da sessão |
-| `formularios_de_acompanhamento_repetidos` | Mais de um formulário para a operação |
-| `grupo_de_acompanhamento_ambiguo` | O nome informado corresponde a mais de uma opção |
-| `grupo_de_acompanhamento_nao_oferecido` | Grupo solicitado não é oferecido na tela |
-| `grupo_ja_acompanhado_no_processo` | O grupo já aparece na lista anterior |
-| `grupos_de_acompanhamento_nao_publicados` | Select de grupos ausente ou sem opções |
-| `html_de_acompanhamento_invalido` | HTML ilegível ou acima do limite |
-| `id_de_acompanhamento_repetido` | A tabela repete a identidade de uma linha |
-| `linha_de_acompanhamento_invalida` | Colunas ou checkbox de uma linha fora da forma |
-| `link_de_acompanhamento_de_outro_processo` | Link assinado da barra indica outro processo |
-| `link_de_acompanhamento_nao_reconhecido` | Link da barra não segue a forma permitida |
-| `links_de_acompanhamento_repetidos` | Mais de um link de acompanhamento na barra |
-| `lista_de_acompanhamentos_nao_publicada` | Não existe tabela comprovando a lista |
-| `listas_de_acompanhamentos_repetidas` | Mais de uma tabela de acompanhamento |
-| `opcoes_de_grupo_de_acompanhamento_invalidas` | Option sem valor válido |
-| `origem_do_acompanhamento_nao_autorizada` | Origem da sessão inválida |
-| `pedido_de_acompanhamento_invalido` | Combinação de opções inválida |
-| `processo_sem_acompanhamento` | Não há linha a selecionar para remoção |
-| `redirecionamento_de_acompanhamento_inesperado` | Redirect não comprovado para o cadastro da mesma origem |
-| `tela_de_acompanhamento_inesperada` | Formato ou controle da tela divergente |
-| `unidade_do_acompanhamento_nao_publicada` | Unidade da tela não está publicada |
+| `ErroAcompanhar::AcompanhamentoNaoConfirmado` | A releitura não demonstrou a alteração exata; incerto |
+| `ErroAcompanhar::ReleituraDaRetiradaFalhou(FalhaTransporte)` | Falha de transporte/decodificação na releitura após POST; escrita incerta |
+| `ErroAcompanhar::LinkNaoPublicado` | A barra do processo não oferece Acompanhamento Especial |
+| `ErroAcompanhar::EscolhaDeAcompanhamentoAmbigua` | Mais de uma linha satisfaz a escolha de remoção |
+| `ErroAcompanhar::Barra(ErroAcompanharNaBarra::Barra(ErroBarraDoProcesso::BarraDoProcessoForaDaFormaObservada))` | Barra fora do formato observado |
+| `ErroAcompanhar::Barra(ErroAcompanharNaBarra::Barra(ErroBarraDoProcesso::BarrasDoProcessoRepetidasNaArvore))` | A árvore publica mais de uma barra para a raiz |
+| `ErroAcompanhar::CadastroDeOutroProcesso` | Identidade do processo divergente no cadastro |
+| `ErroAcompanhar::CadastroNaoPublicado` | Formulário de cadastro ausente |
+| `ErroAcompanhar::ColunasDeAcompanhamentosInvalidas` | Cabeçalho da lista incompleto ou repetido |
+| `ErroAcompanhar::FormulariosDeAcompanhamentoRepetidos` | Mais de um formulário para a operação |
+| `ErroAcompanhar::GrupoAmbiguo` | O nome informado corresponde a mais de uma opção |
+| `ErroAcompanhar::GrupoNaoOferecido` | Grupo solicitado não é oferecido na tela |
+| `ErroAcompanhar::GrupoJaAcompanhado` | O grupo já aparece na lista anterior |
+| `ErroAcompanhar::GruposNaoPublicados` | Select de grupos ausente ou sem opções |
+| `ErroAcompanhar::HtmlDeAcompanhamentoInvalido` | HTML ilegível ou acima do limite |
+| `ErroAcompanhar::IdDeAcompanhamentoRepetido` | A tabela repete a identidade de uma linha |
+| `ErroAcompanhar::LinhaDeAcompanhamentoInvalida` | Colunas ou checkbox de uma linha fora da forma |
+| `ErroAcompanhar::Barra(ErroAcompanharNaBarra::LinkDeOutroProcesso)` | Link assinado da barra indica outro processo |
+| `ErroAcompanhar::Barra(ErroAcompanharNaBarra::LinkDeAcompanhamentoNaoReconhecido)` | Link da barra não segue a forma permitida |
+| `ErroAcompanhar::Barra(ErroAcompanharNaBarra::LinksDeAcompanhamentoRepetidos)` | Mais de um link de acompanhamento na barra |
+| `ErroAcompanhar::ListaNaoPublicada` | Não existe tabela comprovando a lista |
+| `ErroAcompanhar::ListasDeAcompanhamentosRepetidas` | Mais de uma tabela de acompanhamento |
+| `ErroAcompanhar::OpcoesDeGrupoDeAcompanhamentoInvalidas` | Option sem valor válido |
+| `ErroAcompanhar::OrigemNaoAutorizada` | Origem da sessão inválida |
+| `ErroAcompanhar::PedidoDeAcompanhamentoInvalido` | Combinação de opções inválida |
+| `ErroAcompanhar::NenhumAcompanhamento` | Não há linha a selecionar para remoção |
+| `ErroAcompanhar::RedirecionamentoDeAcompanhamentoInesperado` | Redirect não comprovado para o cadastro da mesma origem |
+| `ErroAcompanhar::TelaDeAcompanhamentoInesperada` | Formato ou controle da tela divergente |
+| `ErroAcompanhar::UnidadeNaoPublicada` | Unidade da tela não está publicada |

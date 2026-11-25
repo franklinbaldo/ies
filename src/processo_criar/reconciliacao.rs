@@ -14,21 +14,17 @@ pub(crate) struct FotografiaDosGerados {
     por_id: BTreeMap<String, String>,
 }
 
-#[derive(Debug, Clone, PartialEq, Eq, crate::erro_publico::Causa)]
+#[derive(Debug, Clone, PartialEq, Eq, thiserror::Error)]
+#[error("{self:?}")]
 pub(crate) enum ErroFotografia {
-    #[causa(interna)]
-    Caixa(crate::erro_web::ErroCaixa),
-    #[causa(nome = "gerados_sem_cobertura_completa_para_reconciliacao")]
+    Caixa(#[from] crate::erro_web::ErroCaixa),
     CoberturaIncompleta,
-    #[causa(nome = "nup_repetido_na_fotografia_de_gerados")]
+    /// O Controle está na visão detalhada: não há tabela de Gerados.
+    VisaoDetalhada,
     NupRepetido,
-    #[causa(nome = "identidade_ja_observada_alterada_na_reconciliacao")]
     IdentidadeAlterada,
-    #[causa(nome = "identidade_anterior_ausente_na_reconciliacao")]
     IdentidadeAnteriorAusente,
-    #[causa(nome = "link_do_candidato_nao_comprovado")]
     LinkDoCandidatoNaoComprovado,
-    #[causa(nome = "links_do_candidato_repetidos")]
     LinksDoCandidatoRepetidos,
 }
 
@@ -36,15 +32,24 @@ impl FotografiaDosGerados {
     /// Exige unidade e cobertura integral dos Gerados no Controle R.
     /// Uma página parcial, ainda que apresente o primeiro candidato,
     /// não comprova ausência nem unicidade depois da escrita.
-    pub(crate) fn da_tela(html: &str, unidade: &str) -> Result<Self, ErroFotografia> {
-        let leitura = crate::paginas::juntar(&[html.to_owned()], Some(unidade))
-            .map_err(ErroFotografia::Caixa)?;
+    pub(crate) fn da_tela(
+        html: &crate::tela_html::HtmlServido,
+        unidade: &str,
+    ) -> Result<Self, ErroFotografia> {
+        if crate::controle_contexto::contexto_da_pagina(html)?.eh_detalhada() {
+            return Err(ErroFotografia::VisaoDetalhada);
+        }
+        let leitura = crate::paginas::juntar(std::slice::from_ref(html), Some(unidade))?;
         let tabela = &leitura.caixa.gerados;
-        let total = tabela
-            .total_declarado
-            .ok_or(ErroFotografia::CoberturaIncompleta)?;
+        let total = tabela.total_declarado;
+        let faixa = leitura.gerados.faixa_observada()?;
         if tabela.processos.len() != total
-            || (total != 0 && leitura.gerados.faixa_observada() != Some((1, total)))
+            || (total != 0
+                && faixa
+                    != crate::paginas::FaixaObservada::Lidas {
+                        inicio: 1,
+                        fim: total,
+                    })
         {
             return Err(ErroFotografia::CoberturaIncompleta);
         }
@@ -94,7 +99,6 @@ impl FotografiaDosGerados {
     }
 }
 
-#[allow(dead_code)] // classificador test-first; ligação de transporte em fatia seguinte.
 #[path = "desfechos.rs"]
 pub(crate) mod desfechos;
 

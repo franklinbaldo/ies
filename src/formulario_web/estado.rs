@@ -9,6 +9,8 @@ pub(crate) enum EstadoDeSessao {
     PreferenciaDeVisualizacao,
     /// O login cria a sessão autenticada (cookies) no servidor.
     SessaoAutenticada,
+    /// Acesso revalidado na sessao para um processo determinado.
+    AcessoAoProcessoRevalidado,
 }
 
 /// Preferência persistente do usuário, que sobrevive à sessão.
@@ -25,6 +27,8 @@ pub(crate) enum EstadoDoProcesso {
     AndamentoAbertoNaUnidade,
     /// A assinatura do usuário no documento (não se desfaz).
     AssinaturaDoDocumento,
+    /// Inclusão de documento em bloco de assinatura, provada por releitura do detalhe.
+    DocumentoIncluidoNoBloco,
     /// Inclusão de documento interno, provada por releitura da árvore.
     DocumentoCriadoNoProcesso,
     /// O conteúdo de um documento foi editado e publicado em nova versão.
@@ -36,6 +40,8 @@ pub(crate) enum EstadoDoProcesso {
     UnidadesComOProcessoAberto,
     /// Registro de uma linha nova no histórico do processo.
     AndamentoNoHistorico,
+    /// Comentário associado à identidade do processo.
+    ComentarioNoProcesso,
     /// Inclusão ou remoção de Acompanhamento Especial na unidade.
     AcompanhamentoEspecial,
     /// Cadastro de novo processo na unidade ativa, com identidade conferida.
@@ -44,8 +50,14 @@ pub(crate) enum EstadoDoProcesso {
     Sobrestamento,
     /// Atribuição de um processo a usuário da unidade, ou sua remoção.
     AtribuicaoNaUnidade,
+    /// Associações de marcadores observadas no processo e na unidade.
+    MarcadoresNoProcesso,
     /// Texto e prioridade da anotação registrada na unidade do processo.
     AnotacaoNaUnidade,
+    /// Anexação de um processo a outro, potencialmente irreversível.
+    AnexacaoDeProcesso,
     /// Vínculo entre processos, incluindo sua remoção.
     RelacionamentosDoProcesso,
+    /// Data de vencimento do controle de prazo.
+    ControleDePrazo,
 }

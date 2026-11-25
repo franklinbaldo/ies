@@ -72,6 +72,20 @@ fn modo(caminho: &Path) -> u32 {
 }
 
 #[test]
+fn consulta_do_destino_nao_apaga_causa_do_sistema() {
+    let pasta = Pasta::nova("consulta-causa");
+    let regular = pasta.join("regular");
+    fs::write(&regular, b"conteudo intacto").unwrap();
+    let destino = regular.join("nao-existe");
+    assert_eq!(
+        conferir_destino(&destino, Modo::Exclusivo),
+        Err(FalhaDaGravacao::CriacaoFalhou(ErrorKind::NotADirectory))
+    );
+    assert_eq!(fs::read(&regular).unwrap(), b"conteudo intacto");
+    assert_eq!(pasta.nomes(), ["regular"]);
+}
+
+#[test]
 fn exclusiva_cria_arquivo_novo_privado_com_o_conteudo_exato() {
     let pasta = Pasta::nova("novo");
     let alvo = pasta.join("saida.json");

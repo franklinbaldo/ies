@@ -9,6 +9,7 @@ mod envio;
 mod plano;
 mod regras;
 
+use crate::acao_do_sei::AcaoDoSei;
 use crate::dominio::Categoria;
 use crate::erro_web::ErroCaixa;
 use crate::formulario_web::{
@@ -30,7 +31,7 @@ pub(crate) use regras::{ErroControleDoFormulario, campos_do_usuario};
 
 /// O servidor lembra a página de cada tabela na sessão.
 pub(crate) const OBTER_PAGINA_DO_CONTROLE: OperacaoDeFormulario = OperacaoDeFormulario {
-    acao: "procedimento_controlar",
+    acao: AcaoDoSei::ProcedimentoControlar,
     formulario: "frmProcedimentoControlar",
     envio: EnvioDoFormulario::SubmitPorScript,
     campos_ocultos_exigidos: &[
@@ -52,15 +53,20 @@ pub(crate) const OBTER_PAGINA_DO_CONTROLE: OperacaoDeFormulario = OperacaoDeForm
     },
 };
 
-/// Uma variante por fato verificável; nenhum valor servido é guardado.
-#[derive(Clone, Debug, PartialEq, Eq, crate::erro_publico::Causa)]
+/// um erro por fato verificável; nenhum valor servido é guardado.
+#[derive(Clone, Debug, PartialEq, Eq, thiserror::Error)]
+#[error("{self:?}")]
 pub(crate) enum ErroPaginaDoControle {
-    #[causa(nome = "pagina_do_controle_exige_visao_resumida")]
     PaginaExigeVisaoResumida,
-    #[causa(nome = "charset_da_tela_do_controle_nao_suportado")]
     CharsetDaTelaNaoSuportado,
     PaginaAtualDaTabelaIlegivel {
         categoria: Categoria,
+    },
+    /// O valor da página atual não cabe no tipo do paginador.
+    PaginaAtualDaTabelaNaoCabeNoTipo {
+        categoria: Categoria,
+        #[source]
+        erro: std::num::ParseIntError,
     },
     CamposDePaginaAtualDaTabelaRepetidos {
         categoria: Categoria,
@@ -68,7 +74,6 @@ pub(crate) enum ErroPaginaDoControle {
     PaginaAtualDaTabelaIncompativelComAFaixa {
         categoria: Categoria,
     },
-    #[causa(nome = "pagina_da_caixa_fora_do_intervalo")]
     PaginaForaDoIntervalo {
         categoria: Categoria,
         solicitada: usize,
@@ -87,25 +92,35 @@ pub(crate) enum ErroPaginaDoControle {
     FaixaDaRespostaDiferenteDaPaginaSolicitada {
         categoria: Categoria,
     },
-    #[causa(nome = "redirecionamento_apos_paginar_controle")]
     RedirecionamentoAposPaginar,
-    #[causa(interna)]
-    Formulario(ErroControleDoFormulario),
-    #[causa(interna)]
-    Submissao(ErroSubmissaoFormulario),
-    #[causa(interna)]
-    Caixa(ErroCaixa),
+    Formulario(#[from] ErroControleDoFormulario),
+    Submissao(#[from] ErroSubmissaoFormulario),
+    Caixa(#[from] ErroCaixa),
 }
 
 impl ErroPaginaDoControle {
-    /// Mensagem humana, a mesma com a sessão na R ou vinda da D.
-    pub(crate) const MENSAGEM: &'static str = "a página pedida do Controle não foi obtida";
-
-    /// Status e mensagem do SEI quando o POST foi recusado pelo status.
-    pub(crate) fn status_http(&self) -> Option<&crate::transporte::StatusHttpRecusado> {
+    /// A sessão do SEI acabou (decide o relogin único): por `match` no tipo, sem
+    /// percorrer a cadeia `source()`.
+    pub(crate) fn sessao_encerrada(&self) -> bool {
         match self {
-            Self::Submissao(erro) => erro.status_http(),
-            _ => None,
+            Self::Submissao(erro) => erro.sessao_encerrada(),
+            Self::PaginaExigeVisaoResumida
+            | Self::CharsetDaTelaNaoSuportado
+            | Self::PaginaAtualDaTabelaIlegivel { .. }
+            | Self::PaginaAtualDaTabelaNaoCabeNoTipo { .. }
+            | Self::CamposDePaginaAtualDaTabelaRepetidos { .. }
+            | Self::PaginaAtualDaTabelaIncompativelComAFaixa { .. }
+            | Self::PaginaForaDoIntervalo { .. }
+            | Self::PaginadorDaTabelaNaoPublicado { .. }
+            | Self::UnidadeAlteradaAposPaginar
+            | Self::VisualizacaoAlteradaAposPaginar
+            | Self::CriteriosRecebidosAlteradosAposPaginar
+            | Self::CriteriosGeradosAlteradosAposPaginar
+            | Self::TotalDeclaradoAlteradoAposPaginar { .. }
+            | Self::FaixaDaRespostaDiferenteDaPaginaSolicitada { .. }
+            | Self::RedirecionamentoAposPaginar
+            | Self::Formulario(_)
+            | Self::Caixa(_) => false,
         }
     }
 }

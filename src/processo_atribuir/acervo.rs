@@ -2,7 +2,7 @@
 //! Confere ZIPs, membros, schema e host antes de usar o leitor real.
 use crate::cassette::acervo::{INSTALACOES, Resultado, gravacao, publicar, tabela};
 use crate::cassette::{ZipDoAcervo, archive_filename, conferir_cassette_ate, html_da_resposta};
-use crate::html_atributos::{nos_com_id, valor_do_atributo};
+use crate::tela_html::HtmlServido;
 use serde_json::Value;
 use std::collections::HashMap;
 use std::fmt::Write as _;
@@ -17,18 +17,16 @@ struct Registro {
 /// Somente um ID oculto singular permite correlacionar a tela com seu
 /// formulário; não usamos URL assinada de sessão como identidade pública.
 fn id_da_tela(html: &str) -> Option<String> {
-    let dom = tl::parse(html, tl::ParserOptions::default()).ok()?;
-    let forms = nos_com_id(&dom, "frmAtividadeAtribuir").ok()?;
+    let servido = HtmlServido::de_teste(html);
+    let dom = crate::tela_html::arvore(&servido);
+    let forms = dom.com_id("frmAtividadeAtribuir").collect::<Vec<_>>();
     let [form] = forms.as_slice() else {
         return None;
     };
-    let parser = dom.parser();
-    let form = form.get(parser)?.as_tag()?;
     let mut ids = Vec::new();
-    for node in form.query_selector(parser, "input").into_iter().flatten() {
-        let input = node.get(parser)?.as_tag()?;
-        if valor_do_atributo(input, "name").ok()?.as_deref() == Some("hdnIdProtocolo") {
-            ids.push(valor_do_atributo(input, "value").ok()?);
+    for node in form.elementos("input") {
+        if node.atributo("name") == Some("hdnIdProtocolo") {
+            ids.push(node.atributo("value").map(str::to_owned));
         }
     }
     let [Some(id)] = ids.as_slice() else {
@@ -46,20 +44,20 @@ fn replay(instalacao: &str, json: &Value) -> Vec<Registro> {
         let (leitor, resultado) = match (resposta.metodo, resposta.status) {
             ("POST", _) => (
                 "resposta de escrita",
-                Resultado::NaoAplicavel("post_nao_comprova_atribuicao"),
+                Resultado::NaoAplicavel("post_nao_comprova_atribuicao".to_owned()),
             ),
             ("GET", 200) => (
                 "formulário de atribuição",
-                match html_da_resposta(resposta.item) {
-                    Err(_) => Resultado::NaoAplicavel("html_nao_observado"),
+                match html_da_resposta(resposta.interacao) {
+                    Err(_) => Resultado::NaoAplicavel("html_ilegivel".to_owned()),
                     Ok(html) => {
-                        let id =
-                            gravacao::id_procedimento(resposta.item).or_else(|| id_da_tela(&html));
+                        let id = gravacao::id_procedimento(resposta.interacao)
+                            .or_else(|| id_da_tela(&html));
                         match id {
-                            None => Resultado::NaoAplicavel("id_do_processo_nao_observado"),
-                            Some(id) => match super::ler_tela(&html, &id) {
+                            None => Resultado::NaoAplicavel("id_do_processo_ausente".to_owned()),
+                            Some(id) => match super::ler_tela(&HtmlServido::de_teste(&html), &id) {
                                 Ok(_) => Resultado::Lido,
-                                Err(erro) => Resultado::Recusado(erro.subcodigo()),
+                                Err(erro) => Resultado::Recusado(format!("{erro:?}")),
                             },
                         }
                     }
@@ -67,7 +65,7 @@ fn replay(instalacao: &str, json: &Value) -> Vec<Registro> {
             ),
             _ => (
                 "resposta sem formulário",
-                Resultado::NaoAplicavel("status_ou_metodo_nao_lido"),
+                Resultado::NaoAplicavel("status_ou_metodo_nao_lido".to_owned()),
             ),
         };
         registros.push(Registro {
@@ -99,8 +97,177 @@ fn replay_sintetico_nao_converte_post_em_prova_de_atribuicao() {
     assert_eq!(lidos[0].resultado, Resultado::Lido);
     assert_eq!(
         lidos[1].resultado,
-        Resultado::NaoAplicavel("post_nao_comprova_atribuicao")
+        Resultado::NaoAplicavel("post_nao_comprova_atribuicao".to_owned())
     );
+}
+
+/// Observação limitada da resposta ao POST gravado: estrutura do 302,
+/// nunca prova de alteração de estado nem de autoria do efeito.
+/// Não publica a Location inteira (pode conter URL assinada).
+fn post_historico_sem_id_decimal_unico(interacao: &Value) -> bool {
+    let Some(localizacao) = gravacao::localizacao(interacao) else {
+        return false;
+    };
+    let Some((_, consulta)) = localizacao.split_once('?') else {
+        return false;
+    };
+    let campos = consulta
+        .split('&')
+        .filter_map(|parte| parte.split_once('='))
+        .collect::<Vec<_>>();
+    let ocorrencias = |chave: &str| {
+        campos
+            .iter()
+            .filter(|(nome, _)| *nome == chave)
+            .map(|(_, valor)| *valor)
+            .collect::<Vec<_>>()
+    };
+    let ids = ocorrencias("id_procedimento");
+    let id_unico_decimal =
+        ids.len() == 1 && !ids[0].is_empty() && ids[0].bytes().all(|c| c.is_ascii_digit());
+    ocorrencias("acao") == ["arvore_visualizar"]
+        && ocorrencias("acao_origem") == ["procedimento_atribuicao_cadastrar"]
+        && !id_unico_decimal
+}
+
+/// Um GET sobre o mesmo HTTP local usado pela CLI, sem rede externa.
+fn resposta_http_do_anti_ies(
+    banco: rusqlite::Connection,
+    origem: iesei::instalacao::Instalacao,
+    cenario: &'static str,
+    id: &str,
+) -> String {
+    use std::io::{Read as _, Write as _};
+    use std::net::{Shutdown, TcpListener, TcpStream};
+
+    let escuta = TcpListener::bind(("127.0.0.1", 0)).unwrap();
+    let endereco = escuta.local_addr().unwrap();
+    let servidor = std::thread::spawn(move || {
+        let (mut fluxo, _) = escuta.accept().unwrap();
+        anti_ies::atender_http(&mut fluxo, Some((&banco, &origem, cenario))).unwrap();
+    });
+    let mut cliente = TcpStream::connect(endereco).unwrap();
+    write!(
+        cliente,
+        "GET /sei/controlador.php?acao=procedimento_atribuicao_cadastrar&id_procedimento={id} HTTP/1.1\r\nHost: localhost\r\n\r\n"
+    )
+    .unwrap();
+    cliente.shutdown(Shutdown::Write).unwrap();
+    let mut resposta = String::new();
+    cliente.read_to_string(&mut resposta).unwrap();
+    servidor.join().unwrap();
+    resposta
+}
+
+/// Compara o *mesmo* formulário observado em uma cassette pública com a
+/// projeção de menu do anti-IES, usando o leitor real do IES nos dois HTMLs.
+/// A unidade e o NUP são andaimes locais: o GET da atribuição não os publica.
+/// Só os usuários, seus IDs, rótulos e o ID do formulário são confrontados.
+/// Não se infere atribuição atual nem sucesso de POST a partir dessa prova.
+fn confrontar_formularios(instalacao: &str, json: &Value) -> usize {
+    use iesei::atribuicoes::{self, Observacao, Usuario};
+    use iesei::banco_cassettes::{self, ControleResumido, Linha};
+    use iesei::observacao::{TabelaObservada, UnidadeExibida};
+    use iesei::processos::{self, ProcessoSimulado};
+    const CENARIO: &str = "confronto-264-formulario-original";
+    const UNIDADE_TECNICA: &str = "ACERVO";
+    const NUP_TECNICO: &str = "00001.000001/2026-01";
+    let origem = gravacao::instalacao(json).expect("origem verificada da cassette");
+    let mut confrontados = 0;
+
+    for resposta in gravacao::respostas(json) {
+        if resposta.operacao != "procedimento_atribuicao_cadastrar"
+            || resposta.metodo != "GET"
+            || resposta.status != 200
+        {
+            continue;
+        }
+        let Ok(original) = html_da_resposta(resposta.interacao) else {
+            continue;
+        };
+        let Some(id) =
+            gravacao::id_procedimento(resposta.interacao).or_else(|| id_da_tela(&original))
+        else {
+            continue;
+        };
+        let Ok(esperado) = super::ler_tela(&HtmlServido::de_teste(&original), &id) else {
+            // O replay separado mantém a classificação de formas recusadas.
+            continue;
+        };
+        let usuarios = esperado
+            .usuarios
+            .iter()
+            .map(|u| {
+                let (_, nome) = u
+                    .rotulo
+                    .split_once(" - ")
+                    .expect("leitor aceitou rótulo login - nome");
+                Usuario {
+                    id: u.id.clone(),
+                    login: u.login.clone(),
+                    nome: nome.to_owned(),
+                }
+            })
+            .collect();
+        let observacao = Observacao {
+            login_atual: String::new(),
+            usuarios,
+        };
+        let mut banco = rusqlite::Connection::open_in_memory().unwrap();
+        banco_cassettes::iniciar(&banco).unwrap();
+        banco_cassettes::guardar(
+            &mut banco,
+            CENARIO,
+            &ControleResumido {
+                instalacao: origem.clone(),
+                unidade: UnidadeExibida::nova(UNIDADE_TECNICA).unwrap(),
+                recebidos: TabelaObservada::<Linha>::nova(Some(0), None, vec![]).unwrap(),
+                gerados: TabelaObservada::<Linha>::nova(Some(0), None, vec![]).unwrap(),
+            },
+        )
+        .unwrap();
+        processos::guardar(
+            &mut banco,
+            &origem,
+            CENARIO,
+            &ProcessoSimulado {
+                id: id.clone(),
+                numero: NUP_TECNICO.to_owned(),
+                unidade_origem: UNIDADE_TECNICA.to_owned(),
+                aberto_em: vec![UNIDADE_TECNICA.to_owned()],
+                anotacao_origem: None,
+                destinos: vec![],
+            },
+        )
+        .unwrap();
+        atribuicoes::registrar(
+            &mut banco,
+            &origem,
+            CENARIO,
+            &id,
+            UNIDADE_TECNICA,
+            &observacao,
+        )
+        .unwrap();
+
+        let resposta_http = resposta_http_do_anti_ies(banco, origem.clone(), CENARIO, &id);
+        let (cabecalho, corpo) = resposta_http
+            .split_once("\r\n\r\n")
+            .expect("resposta HTTP do anti-IES");
+        assert!(
+            cabecalho.starts_with("HTTP/1.1 200 OK"),
+            "formulário observado não foi oferecido pelo anti-IES em {instalacao}"
+        );
+        let obtido =
+            super::ler_tela(&HtmlServido::de_teste(corpo), &id).expect("projeção HTTP do anti-IES");
+        // Falhas não devem imprimir os nomes da cassette nos logs do CI.
+        assert!(
+            obtido.usuarios == esperado.usuarios,
+            "opções e rótulos divergem da cassette original em {instalacao}"
+        );
+        confrontados += 1;
+    }
+    confrontados
 }
 
 /// Rodado obrigatoriamente no CI após download dos ZIPs públicos com SHA-1.
@@ -117,10 +284,12 @@ fn replay_de_processo_atribuir_no_acervo() {
     let mut zips: HashMap<String, ZipDoAcervo> = HashMap::new();
     let mut registros = Vec::new();
     let mut total_cards = 0;
+    let mut formularios_confrontados = 0;
+    let mut posts_historicos_sem_id_decimal_unico = 0;
     for instalacao in INSTALACOES {
         let mut cards = std::fs::read_dir(raiz.join(instalacao))
             .expect("pasta das cassettes")
-            .map(|item| item.expect("card").path())
+            .map(|interacao| interacao.expect("card").path())
             .filter(|p| {
                 p.file_name()
                     .is_some_and(|s| s.to_string_lossy().starts_with("processo-atribuir-"))
@@ -137,7 +306,27 @@ fn replay_de_processo_atribuir_no_acervo() {
             let conferida = conferir_cassette_ate(&card, zip, 120_000_000)
                 .expect("hash, schema, completude e host da cassette");
             assert_eq!(conferida.instalacao, instalacao);
+            // Fato do acervo imutável: a Location dos POSTs não identifica
+            // o processo por um id_procedimento decimal singular. O anti-IES acrescenta esse ID sinteticamente
+            // para permitir uma prova causal estrita no E2E, portanto sua
+            // resposta não é paritária com a Location histórica.
+            for resposta in gravacao::respostas(&conferida.json) {
+                if resposta.operacao == "procedimento_atribuicao_cadastrar"
+                    && resposta.metodo == "POST"
+                {
+                    assert_eq!(
+                        resposta.status, 302,
+                        "status POST histórico divergente em {instalacao}"
+                    );
+                    assert!(
+                        post_historico_sem_id_decimal_unico(resposta.interacao),
+                        "forma POST histórica divergente em {instalacao}"
+                    );
+                    posts_historicos_sem_id_decimal_unico += 1;
+                }
+            }
             registros.extend(replay(instalacao, &conferida.json));
+            formularios_confrontados += confrontar_formularios(instalacao, &conferida.json);
         }
     }
     assert_eq!(
@@ -149,10 +338,27 @@ fn replay_de_processo_atribuir_no_acervo() {
         !registros.is_empty(),
         "nenhuma resposta de atribuição gravada"
     );
+    assert_eq!(
+        posts_historicos_sem_id_decimal_unico,
+        total_cards * 2,
+        "dois POSTs históricos sem ID decimal singular por cassette"
+    );
+    assert!(
+        formularios_confrontados > 0,
+        "nenhum formulário GET original pôde ser confrontado com o anti-IES"
+    );
     let mut saida = format!(
         "# Atribuição — replay offline #264\n\n{} cassettes, {} respostas classificadas, zero requisições reais. POST histórico não prova escrita.\n\n",
         total_cards,
         registros.len()
+    );
+    let _ = writeln!(
+        saida,
+        "{formularios_confrontados} formulários GET confrontados independentemente com o anti-IES por HTTP local (identidade, opções e rótulos).\n"
+    );
+    let _ = writeln!(
+        saida,
+        "{posts_historicos_sem_id_decimal_unico} POSTs históricos: HTTP 302, arvore_visualizar, acao_origem correta, sem id_procedimento decimal singular na Location. A resposta 302 do anti-IES inclui ID sintético: **divergência de forma**, não paridade nem prova de efeito.\n"
     );
     tabela(
         &mut saida,

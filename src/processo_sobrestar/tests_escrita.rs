@@ -1,7 +1,7 @@
 //! Testes de transporte roteirizado: uma escrita e uma leitura verificadora.
 //! Casos de Todos `tests/test_ciclo_sobrestar_010.py` @323eb01.
 use super::tests_tela::formulario;
-use super::{Acao, ErroSobrestamento as E, PedidoDaMudanca, executar};
+use super::{Acao, ErroSobrestamento, PedidoDaMudanca, executar};
 use crate::arvore_processo::tests_reabrir::tela_do_no_pela_variavel;
 use crate::processo_concluir::tests_apoio::*;
 use crate::propriedades_processo::tests_apoio::acao_da_barra;
@@ -47,7 +47,7 @@ fn rodar(
     motivo: Option<&str>,
     confirmar: bool,
     respostas: Vec<Resposta>,
-) -> (Result<super::Previa, E>, Vec<Pedido>) {
+) -> (Result<super::Previa, ErroSobrestamento>, Vec<Pedido>) {
     let amb = ambiente();
     rodar_com(&amb, respostas, |sessao, nup, indice, envio| {
         let pedido = PedidoDaMudanca {
@@ -86,7 +86,7 @@ fn sobrestar_um_post_verifica_sobrestamento_por_leitura_nova() {
         respostas_sobrestar(r302(&volta_a_arvore()), ok(sobrestado())),
     );
     let feito = r.unwrap();
-    assert!(feito.confirmado && feito.alterado && feito.reconciliado_por_leitura);
+    assert!(feito.estado.aplicada() && feito.estado.aplicada() && feito.estado.aplicada());
     assert_eq!(feito.requisicoes, 6);
     assert_eq!(pedidos, pedidos_sobrestar());
     assert_eq!(pedidos.iter().filter(|p| p.metodo == "POST").count(), 1);
@@ -100,7 +100,7 @@ fn sobrestar_preserva_espacos_e_quebra_de_linha_no_post_unico() {
         respostas_sobrestar(r302(&volta_a_arvore()), ok(sobrestado())),
     );
     let feito = r.unwrap();
-    assert!(feito.confirmado && feito.alterado && feito.reconciliado_por_leitura);
+    assert!(feito.estado.aplicada() && feito.estado.aplicada() && feito.estado.aplicada());
     assert_eq!(feito.requisicoes, 6);
     let mut esperados = pedidos_da_abertura();
     esperados.extend([
@@ -126,7 +126,7 @@ fn sobrestar_nao_aplicado_na_releitura_nao_declara_sucesso() {
             ok(arvore(&[UNIDADE], &[sobrestar()])),
         ),
     );
-    assert_eq!(r, Err(E::EscritaNaoAplicada));
+    assert_eq!(r, Err(ErroSobrestamento::EscritaNaoAplicada));
     assert_eq!(pedidos, pedidos_sobrestar());
 }
 #[test]
@@ -137,7 +137,10 @@ fn sobrestar_sem_resposta_exige_releitura_sem_retry() {
         true,
         respostas_sobrestar(Err(FalhaTransporte::Rede), Err(FalhaTransporte::Rede)),
     );
-    assert_eq!(r, Err(E::EfeitoIncerto));
+    assert!(matches!(
+        r,
+        Err(ErroSobrestamento::NaoConfirmadoNaReleitura(_))
+    ));
     assert_eq!(pedidos, pedidos_sobrestar());
 }
 #[test]
@@ -150,7 +153,9 @@ fn formulario_de_outro_processo_recusa_antes_de_enviar() {
     let (r, pedidos) = rodar(Acao::Sobrestar, Some("Aguarda decisao"), true, respostas);
     assert_eq!(
         r,
-        Err(E::TelaSobrestar(super::tela::ErroTela::OutroProcesso))
+        Err(ErroSobrestamento::TelaSobrestar(
+            super::tela::ErroTela::OutroProcesso
+        ))
     );
     let mut esperados = pedidos_da_abertura();
     esperados.push(get(&url_tela_sobrestar()));
@@ -177,9 +182,38 @@ fn retomar_uma_escrita_get_sem_retry_e_verificacao() {
     ]);
     let (r, pedidos) = rodar(Acao::Retomar, None, true, respostas);
     let feito = r.unwrap();
-    assert!(feito.confirmado && feito.alterado && feito.reconciliado_por_leitura);
+    assert!(feito.estado.aplicada() && feito.estado.aplicada() && feito.estado.aplicada());
     assert_eq!(feito.requisicoes, 6);
     let mut esperados = pedidos_da_abertura();
     esperados.extend([get(&links().1), get(&url_retomar()), get(&url_arvore())]);
     assert_eq!(pedidos, esperados);
+}
+
+#[test]
+fn retomar_get_mutador_recusado_nao_atribui_mudanca_concorrente() {
+    let mut respostas = abertura(sobrestado());
+    respostas.extend([
+        ok(tela_de_retomar()),
+        r302("controlador.php?acao=login"),
+        // Outra sessão pode ter alterado o processo antes da releitura.
+        // A ausência de sobrestamento não prova que este GET o retirou.
+        ok(arvore(&[UNIDADE], &[sobrestar()])),
+    ]);
+    let (resultado, pedidos) = rodar(Acao::Retomar, None, true, respostas);
+    assert!(matches!(resultado, Err(ErroSobrestamento::NaoConfirmado)));
+    assert_eq!(pedidos.len(), 6);
+    assert_eq!(pedidos.iter().filter(|p| p.metodo == "GET").count(), 6);
+}
+
+#[test]
+fn sobrestar_post_redirecionado_ao_login_nao_prova_efeito_concorrente() {
+    let (resultado, pedidos) = rodar(
+        Acao::Sobrestar,
+        Some("Aguarda decisao"),
+        true,
+        respostas_sobrestar(r302("controlador.php?acao=login"), ok(sobrestado())),
+    );
+    assert!(matches!(resultado, Err(ErroSobrestamento::NaoConfirmado)));
+    assert_eq!(pedidos, pedidos_sobrestar());
+    assert_eq!(pedidos.iter().filter(|p| p.metodo == "POST").count(), 1);
 }

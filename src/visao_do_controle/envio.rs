@@ -1,7 +1,7 @@
 //! Envio injetável das requisições da troca de visão: cada chamada de
 //! `post`/`get` é uma requisição real única (sem retry); os testes contam
 //! e conferem a sequência.
-use super::ErroVisaoDoControle as E;
+use crate::acao_do_sei::AcaoDoSei;
 use crate::formulario_web::{
     OperacaoDeFormulario, RespostaDoEnvio, RespostaDoPost, SubmissaoDerivada, TelaServida,
     derivar_submissao, enviar_submissao_via,
@@ -16,7 +16,7 @@ use std::io::Read;
 /// HTML, URL e `Content-Type` da mesma resposta, para derivar o envio seguinte.
 pub(crate) struct TelaAtual {
     pub(crate) url: String,
-    pub(crate) html: String,
+    pub(crate) html: crate::tela_html::HtmlServido,
     pub(crate) mime: String,
 }
 
@@ -42,7 +42,7 @@ pub(crate) trait EnvioDoControle {
     -> Result<RespostaWeb<Self::Corpo>, FalhaTransporte>;
     /// Uma tela do Controle que o fluxo acabou de receber, para a colheita
     /// do índice local (nenhuma requisição). Padrão: nada.
-    fn colher_controle(&mut self, _html: &str, _mime: Option<&str>) {}
+    fn colher_controle(&mut self, _html: &crate::tela_html::HtmlServido, _mime: Option<&str>) {}
 }
 
 /// Transporte real: os mesmos POST e GET HTTPS das demais leituras.
@@ -109,7 +109,7 @@ impl<V: EnvioDoControle> EnvioDoControle for EnvioContado<V> {
         self.interno.get(url, cookie)
     }
 
-    fn colher_controle(&mut self, html: &str, mime: Option<&str>) {
+    fn colher_controle(&mut self, html: &crate::tela_html::HtmlServido, mime: Option<&str>) {
         self.interno.colher_controle(html, mime);
     }
 }
@@ -137,15 +137,21 @@ impl<V: EnvioDoControle> Sessao<'_, V> {
         operacao: &OperacaoDeFormulario,
         campos: &[(&str, &str)],
         redirecionado: Redirecionado,
-    ) -> Result<TelaAtual, E> {
-        let codificacao = codificacao_da_tela(&tela.mime).ok_or(E::CharsetDaTelaNaoSuportado)?;
+    ) -> Result<TelaAtual, super::ErroVisaoDoControle> {
+        let codificacao = codificacao_da_tela(&tela.mime)
+            .ok_or(super::ErroVisaoDoControle::CharsetDaTelaNaoSuportado)?;
         let servida = TelaServida {
             url: &tela.url,
             html: &tela.html,
             codificacao,
         };
-        let submissao =
-            derivar_submissao(operacao, self.instalacao, &servida, self.unidade, campos)?;
+        let submissao = derivar_submissao(
+            operacao,
+            self.instalacao,
+            &servida,
+            Some(self.unidade),
+            campos,
+        )?;
         let url = submissao.url().to_owned();
         let mime = RefCell::new(String::new());
         let envio = &mut *self.envio;
@@ -158,14 +164,16 @@ impl<V: EnvioDoControle> Sessao<'_, V> {
             RespostaDoEnvio::Html(html) => {
                 let mime = mime.into_inner();
                 // Só os envios de `frmProcedimentoControlar` devolvem o Controle.
-                if operacao.acao == "procedimento_controlar" {
+                if operacao.acao == AcaoDoSei::ProcedimentoControlar {
                     self.envio.colher_controle(&html, Some(&mime));
                 }
                 Ok(TelaAtual { url, html, mime })
             }
             RespostaDoEnvio::Redirecionamento(_) => Err(match redirecionado {
-                Redirecionado::AoTrocarVisao => E::RedirecionamentoAoTrocarVisao,
-                Redirecionado::AoPaginar => E::RedirecionamentoAposPaginar,
+                Redirecionado::AoTrocarVisao => {
+                    super::ErroVisaoDoControle::RedirecionamentoAoTrocarVisao
+                }
+                Redirecionado::AoPaginar => super::ErroVisaoDoControle::RedirecionamentoAposPaginar,
             }),
         }
     }

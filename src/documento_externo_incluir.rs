@@ -2,28 +2,28 @@
 //! O limite da instalação só será aplicado depois de observado no cadastro.
 
 // Núcleo de protocolo separado: ainda sem transmissão ou cadastro remoto.
-#[allow(dead_code)] // #332: plano de hdnAnexos será ligado ao cadastro depois da prévia Web.
 pub(crate) mod anexo;
-#[allow(dead_code)] // #332: observação do cadastro será conectada à prévia Web.
 pub(crate) mod cadastro;
-#[allow(dead_code)] // #332: cadastro definitivo offline, sem integração de POST.
 pub(crate) mod cadastro_envio;
-#[allow(dead_code)] // #332: sequência sob ensaio, confirmação pública ainda fechada.
 pub(crate) mod confirmacao;
-#[allow(dead_code)] // #332: seleção externa será ligada à prévia Web.
 pub(crate) mod escolha;
-#[allow(dead_code)] // #332: prévia remota será chamada pela CLI.
 pub(crate) mod fluxo;
-#[allow(dead_code)] // #332: conectada à CLI após validar upload real em treinamento.
 pub(crate) mod fluxo_confirmar;
-#[allow(dead_code)]
 // #332: corpo multipart só será enviado após validar o formulário em treinamento.
 pub(crate) mod multipart;
-#[allow(dead_code)] // #332: será consumido pelo fluxo de upload após a prévia em treinamento.
 pub(crate) mod recibo;
-#[allow(dead_code)] // #332: transporte de upload à espera de ensaio autenticado em treinamento.
 pub(crate) mod upload;
 
+/// Soma ao total os bytes lidos; estouro de `u64` é leitura impossível.
+fn somar_lidos(total: u64, lidos: usize) -> Result<u64, FalhaPdf> {
+    u64::try_from(lidos)
+        .ok()
+        .and_then(|lidos| total.checked_add(lidos))
+        .ok_or(FalhaPdf::Leitura)
+}
+
+#[cfg(test)]
+mod acervo;
 #[cfg(test)]
 #[path = "documento_externo_incluir/tests_upload.rs"]
 mod tests_upload;
@@ -40,7 +40,8 @@ pub(crate) struct PdfLocal {
     pub(crate) sha256: String,
 }
 
-#[derive(Clone, Copy, Debug, PartialEq, Eq, serde::Serialize)]
+#[derive(Clone, Copy, Debug, PartialEq, Eq, thiserror::Error)]
+#[error("{self:?}")]
 pub(crate) enum FalhaPdf {
     Ausente,
     NaoRegular,
@@ -50,6 +51,9 @@ pub(crate) enum FalhaPdf {
     NomeInvalido,
     Conteudo,
     AcimaDoLimite,
+    /// O sistema recusou consultar, abrir ou ler o arquivo (motivo do sistema).
+    ArquivoIlegivel(ErrorKind),
+    /// A soma dos bytes lidos não cabe em `u64`: leitura impossível.
     Leitura,
     AlteradoDuranteLeitura,
     DivergenteDaPrevia,
@@ -102,26 +106,32 @@ fn inspecionar_pdf_com_acao(
         .map(|(pdf, _)| pdf)
 }
 
-fn inspecionar_pdf_com_arquivo(
-    caminho: &Path,
-    limite_observado: Option<u64>,
-    entre_metadata_e_leitura: impl FnOnce(),
-) -> Result<(PdfLocal, fs::File), FalhaPdf> {
-    // A recusa acontece antes de ler qualquer arquivo de sessão ou enviar HTTP.
+/// Recusa links simbólicos em qualquer nível do caminho, antes de abrir o arquivo.
+fn conferir_ancestrais(caminho: &Path) -> Result<(), FalhaPdf> {
     for parte in caminho.ancestors().filter(|p| !p.as_os_str().is_empty()) {
         let info = fs::symlink_metadata(parte).map_err(|erro| {
             if erro.kind() == ErrorKind::NotFound {
                 FalhaPdf::Ausente
             } else {
-                FalhaPdf::Leitura
+                FalhaPdf::ArquivoIlegivel(erro.kind())
             }
         })?;
         if info.file_type().is_symlink() {
             return Err(FalhaPdf::LinkSimbolico);
         }
     }
+    Ok(())
+}
+
+fn inspecionar_pdf_com_arquivo(
+    caminho: &Path,
+    limite_observado: Option<u64>,
+    entre_metadata_e_leitura: impl FnOnce(),
+) -> Result<(PdfLocal, fs::File), FalhaPdf> {
+    // A recusa acontece antes de ler qualquer arquivo de sessão ou enviar HTTP.
+    conferir_ancestrais(caminho)?;
     if !fs::symlink_metadata(caminho)
-        .map_err(|_| FalhaPdf::Leitura)?
+        .map_err(|erro| FalhaPdf::ArquivoIlegivel(erro.kind()))?
         .is_file()
     {
         return Err(FalhaPdf::NaoRegular);
@@ -150,8 +160,12 @@ fn inspecionar_pdf_com_arquivo(
         // Mesmo O_NOFOLLOW/O_NONBLOCK da leitura privada do transporte.
         abertura.custom_flags(0o400_000 | 0o4_000);
     }
-    let mut arquivo = abertura.open(caminho).map_err(|_| FalhaPdf::Leitura)?;
-    let antes = arquivo.metadata().map_err(|_| FalhaPdf::Leitura)?;
+    let mut arquivo = abertura
+        .open(caminho)
+        .map_err(|erro| FalhaPdf::ArquivoIlegivel(erro.kind()))?;
+    let antes = arquivo
+        .metadata()
+        .map_err(|erro| FalhaPdf::ArquivoIlegivel(erro.kind()))?;
     if !antes.is_file() {
         return Err(FalhaPdf::NaoRegular);
     }
@@ -168,22 +182,26 @@ fn inspecionar_pdf_com_arquivo(
         return Err(FalhaPdf::Conteudo);
     }
     digest.update(inicio);
-    let mut total = inicio.len() as u64;
+    let mut total = somar_lidos(0, inicio.len())?;
     let mut bloco = [0_u8; 8 * 1024];
     loop {
-        let lidos = arquivo.read(&mut bloco).map_err(|_| FalhaPdf::Leitura)?;
+        let lidos = arquivo
+            .read(&mut bloco)
+            .map_err(|erro| FalhaPdf::ArquivoIlegivel(erro.kind()))?;
         if lidos == 0 {
             break;
         }
-        total = total.checked_add(lidos as u64).ok_or(FalhaPdf::Leitura)?;
+        total = somar_lidos(total, lidos)?;
         if limite_observado.is_some_and(|limite| total > limite) {
             return Err(FalhaPdf::AcimaDoLimite);
         }
-        digest.update(&bloco[..lidos]);
+        digest.update(bloco.split_at(lidos.min(bloco.len())).0);
     }
     // Conferir o mesmo descritor após o hash: tamanho igual não prova
     // imutabilidade, pois outro processo pode regravar bytes no meio da leitura.
-    let depois = arquivo.metadata().map_err(|_| FalhaPdf::Leitura)?;
+    let depois = arquivo
+        .metadata()
+        .map_err(|erro| FalhaPdf::ArquivoIlegivel(erro.kind()))?;
     let alterado = total != antes.len()
         || depois.len() != antes.len()
         || matches!((antes.modified(), depois.modified()), (Ok(a), Ok(b)) if a != b);
@@ -195,12 +213,14 @@ fn inspecionar_pdf_com_arquivo(
     if alterado {
         return Err(FalhaPdf::AlteradoDuranteLeitura);
     }
-    arquivo.rewind().map_err(|_| FalhaPdf::Leitura)?;
+    arquivo
+        .rewind()
+        .map_err(|erro| FalhaPdf::ArquivoIlegivel(erro.kind()))?;
     Ok((
         PdfLocal {
             nome: nome.to_owned(),
             tamanho_bytes: total,
-            sha256: crate::hex::hex_minusculo(&digest.finalize()),
+            sha256: hex::encode(digest.finalize()),
         },
         arquivo,
     ))

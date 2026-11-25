@@ -1,6 +1,7 @@
 //! Preparação técnica do cadastro externo a partir do formulário recarregado (#332).
 //! Só prepara `SubmissaoDerivada`; nunca transmite uma escrita.
 use super::{anexo::FalhaAnexo, cadastro::CadastroExterno, recibo::ReciboUpload};
+use crate::acao_do_sei::AcaoDoSei;
 use crate::formulario_web::{
     ConferenciaDaUnidade, EfeitoAvaliado, EnvioDoFormulario, ErroSubmissaoFormulario,
     EstadoDoProcesso, OperacaoDeFormulario, ResultadoDoEnvio, SubmissaoDerivada, TelaServida,
@@ -9,7 +10,7 @@ use crate::formulario_web::{
 use crate::instalacao::Instalacao;
 
 const CADASTRAR_EXTERNO: OperacaoDeFormulario = OperacaoDeFormulario {
-    acao: "documento_receber",
+    acao: AcaoDoSei::DocumentoReceber,
     formulario: "frmDocumentoCadastro",
     envio: EnvioDoFormulario::SubmitPorScript,
     campos_ocultos_exigidos: &["hdnIdSerie", "hdnAnexos", "hdnFlagDocumentoCadastro"],
@@ -22,11 +23,12 @@ const CADASTRAR_EXTERNO: OperacaoDeFormulario = OperacaoDeFormulario {
     },
 };
 
-#[derive(Debug)]
+#[derive(Debug, thiserror::Error)]
+#[error("{self:?}")]
 pub(crate) enum FalhaCadastroEnvio {
     ReciboSemData,
-    Anexo(FalhaAnexo),
-    Formulario(ErroSubmissaoFormulario),
+    Anexo(#[source] FalhaAnexo),
+    Formulario(#[source] ErroSubmissaoFormulario),
 }
 
 pub(crate) fn preparar_cadastro_definitivo(
@@ -63,7 +65,7 @@ pub(crate) fn preparar_cadastro_definitivo(
         &CADASTRAR_EXTERNO,
         instalacao,
         tela,
-        unidade,
+        Some(unidade),
         &[
             ("hdnFlagDocumentoCadastro", "2"),
             ("hdnAnexos", &linha),
@@ -119,15 +121,17 @@ mod tests {
         recibo: &ReciboUpload,
     ) -> Result<SubmissaoDerivada, FalhaCadastroEnvio> {
         let instalacao = Instalacao::interpretar(a::ORIGEM).unwrap();
-        let cadastro = observar_cadastro(html, "Anexo", 68).unwrap();
+        let cadastro =
+            observar_cadastro(&crate::tela_html::HtmlServido::de_teste(html), "Anexo", 68).unwrap();
         let url = format!(
             "{}/controlador.php?acao=documento_receber&id_procedimento=10&infra_hash={}",
             a::ORIGEM,
             "a".repeat(64)
         );
+        let html = crate::tela_html::HtmlServido::de_teste(html);
         let tela = TelaServida {
             url: &url,
-            html,
+            html: &html,
             codificacao: CodificacaoDaTela::Iso88591,
         };
         preparar_cadastro_definitivo(&instalacao, &tela, a::UNIDADE, &cadastro, recibo)

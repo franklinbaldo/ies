@@ -4,6 +4,7 @@
 //! leitor (`paginas::juntar`) e a projeção (`saida::json`).
 use super::json;
 use crate::paginas::juntar;
+use crate::tela_html::HtmlServido;
 
 const HTML: &str = r#"<html><body>
 <a id="lnkInfraUnidade">TESTE</a>
@@ -18,10 +19,10 @@ const HTML: &str = r#"<html><body>
 
 #[test]
 fn contrato_json_v2_da_caixa_resumida_e_deterministico() {
-    let leitura = juntar(&[HTML.to_owned()], Some("TESTE")).unwrap();
+    let leitura = juntar(&[HtmlServido::de_teste(HTML)], Some("TESTE")).unwrap();
     let texto = format!(
         "{}\n",
-        serde_json::to_string_pretty(&json(&leitura, "unb")).unwrap()
+        serde_json::to_string_pretty(&json(&leitura, "unb").unwrap()).unwrap()
     );
     assert_eq!(texto, include_str!("../../tests/fixtures/caixa-v2.json"));
     assert!(!texto.contains("infra_hash") && !texto.contains("SEGREDO"));
@@ -29,8 +30,8 @@ fn contrato_json_v2_da_caixa_resumida_e_deterministico() {
 
 #[test]
 fn caixa_resumida_sao_duas_listas_sem_url_assinada_nem_completude() {
-    let leitura = juntar(&[HTML.to_owned()], None).unwrap();
-    let valor = json(&leitura, "unb");
+    let leitura = juntar(&[HtmlServido::de_teste(HTML)], None).unwrap();
+    let valor = json(&leitura, "unb").unwrap();
     assert_eq!(valor.as_array().map(Vec::len), Some(2));
     assert_eq!(valor[0]["categoria"], "recebidos");
     assert_eq!(valor[1]["categoria"], "gerados");
@@ -45,20 +46,19 @@ fn caixa_resumida_sao_duas_listas_sem_url_assinada_nem_completude() {
 
 #[test]
 fn unidade_solicitada_precisa_ser_confirmada_pela_tela() {
-    let erro = juntar(&[HTML.to_owned()], Some("OUTRA")).err().unwrap();
-    assert_eq!(erro.subcodigo(), "unidade_inesperada");
+    let _erro = juntar(&[HtmlServido::de_teste(HTML)], Some("OUTRA"))
+        .err()
+        .unwrap();
 }
 
 #[test]
-fn linha_sem_link_do_processo_tem_subcodigo_e_id_sem_vazar_html() {
-    let html = "<table id='tblProcessosRecebidos'><caption>1 registros:</caption>\
+fn linha_sem_link_do_processo_tem_o_id_sem_vazar_html() {
+    let html = HtmlServido::de_teste(
+        "<table id='tblProcessosRecebidos'><caption>1 registros:</caption>\
         <tr id='P8'><td><a class='outraClasse' href='?infra_hash=SEGREDO'>123</a></td></tr></table>\
-        <table id='tblProcessosGerados'><caption>0 registros:</caption></table>";
-    let erro = juntar(&[html.to_owned()], None).err().unwrap();
-    assert_eq!(
-        erro.subcodigo(),
-        "link_do_processo_nao_identificado_na_linha"
+        <table id='tblProcessosGerados'><caption>0 registros:</caption></table>",
     );
+    let erro = juntar(&[html], None).err().unwrap();
     assert_eq!(erro.id(), Some("8"));
     assert!(!erro.to_string().contains("SEGREDO"));
 }

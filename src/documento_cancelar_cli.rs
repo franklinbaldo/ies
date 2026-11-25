@@ -1,18 +1,12 @@
 //! `ies documento cancelar DOC --motivo T [--confirmar]` (#273).
 //! Números são validados antes da sessão; o motivo segue como texto opaco.
-use crate::documento::NumeroDocumento;
-use crate::documento_cancelar::{
-    DocumentoCancelado, ErroCancelar, FalhaDoCancelamento, PedidoDoCancelamento, cancelar_documento,
-};
-use crate::processo::NumeroProcesso;
-use crate::processo_concluir_cli::{com_sessao, json_base_da_falha};
+use crate::documento_cancelar::{DocumentoCancelado, PedidoDoCancelamento, cancelar_documento};
+use crate::processo_concluir_cli::com_sessao;
 use crate::visao_do_controle::EnvioHttps;
 use crate::{Cli, Documento, DocumentoAcao, Domain};
-use serde_json::{Value, json};
-use std::process::ExitCode;
 
 /// Só responde quando o comando é documento cancelar.
-pub(crate) fn tentar_cancelar(cli: &Cli) -> Option<ExitCode> {
+pub(crate) fn tentar_cancelar(cli: &Cli) -> Option<anyhow::Result<()>> {
     let Domain::Documento(Documento {
         acao:
             Some(DocumentoAcao::Cancelar {
@@ -26,119 +20,32 @@ pub(crate) fn tentar_cancelar(cli: &Cli) -> Option<ExitCode> {
     else {
         return None;
     };
-    let numero = match NumeroDocumento::novo(numero) {
-        Ok(n) => n,
-        Err(e) => {
-            return Some(uso_invalido(
-                cli.json,
-                e.subcodigo(),
-                "número de documento inválido",
-            ));
-        }
-    };
-    let processo = match processo.as_deref().map(NumeroProcesso::novo) {
-        None => None,
-        Some(Ok(n)) => Some(n),
-        Some(Err(e)) => {
-            return Some(uso_invalido(
-                cli.json,
-                e.subcodigo(),
-                "número de processo inválido",
-            ));
-        }
-    };
     Some(com_sessao(cli, |sessao, indice| {
         let pedido = PedidoDoCancelamento {
-            numero: &numero,
+            numero,
             processo: processo.as_ref(),
             unidade: cli.unidade.as_deref(),
             motivo,
             confirmar: *confirmar,
         };
-        match cancelar_documento(sessao, &pedido, indice, &mut EnvioHttps) {
-            Ok(feito) => {
-                if cli.json {
-                    if let Err(erro) = crate::saida::imprimir_json(&resultado_cancelamento(&feito))
-                    {
-                        eprintln!("IES: falha ao emitir JSON: {erro}");
-                        return std::process::ExitCode::from(1);
-                    }
-                } else if feito.alterado {
-                    println!(
-                        "Documento {} cancelado e conferido pela árvore. Requisições: {}.",
-                        feito.numero, feito.requisicoes
-                    );
-                } else {
-                    println!(
-                        "Prévia: cancelar documento {} no processo {}. Motivo: {}. Não foi enviado POST. Repita com --confirmar apenas em treinamento.",
-                        feito.numero, feito.processo.nup, feito.motivo
-                    );
-                }
-                ExitCode::SUCCESS
-            }
-            Err(erro) => {
-                if cli.json {
-                    println!("{}", json_da_falha(&erro));
-                } else {
-                    for linha in linhas_da_falha(&erro) {
-                        eprintln!("{linha}");
-                    }
-                }
-                ExitCode::from(erro.saida())
-            }
+        let feito = cancelar_documento(sessao, &pedido, indice, &mut EnvioHttps)?;
+        if cli.json {
+            let mut valor = serde_json::to_value(resultado_cancelamento(&feito))?;
+            crate::indice_local::anexar_avisos(&mut valor, indice);
+            println!("{}", serde_json::to_string_pretty(&valor)?);
+        } else if feito.resultado.cancelado() {
+            println!(
+                "Documento {} cancelado e conferido pela árvore. Requisições: {}.",
+                feito.numero, feito.requisicoes
+            );
+        } else {
+            println!(
+                "Prévia: cancelar documento {} no processo {}. Motivo: {}. Não foi enviado POST. Repita com --confirmar apenas em treinamento.",
+                feito.numero, feito.processo.nup, feito.motivo
+            );
         }
+        Ok(())
     }))
-}
-
-fn uso_invalido(json_mode: bool, subcodigo: &str, mensagem: &str) -> ExitCode {
-    if json_mode {
-        println!(
-            "{}",
-            json!({"codigo":"entrada_invalida","subcodigo":subcodigo,"erro":mensagem,"retentavel":false})
-        );
-    } else {
-        eprintln!("IES: {mensagem} [{subcodigo}]");
-    }
-    ExitCode::from(2)
-}
-
-fn json_da_falha_do_envio(f: &FalhaDoCancelamento) -> Value {
-    let mut valor = json!({"subcodigo":f.subcodigo()});
-    if let Some(http) = f.status_http()
-        && let Some(obj) = valor.as_object_mut()
-    {
-        if http.status != 200 {
-            obj.insert("status_http".to_owned(), json!(http.status));
-        }
-        if let Some(m) = http.mensagem_do_servidor {
-            obj.insert("mensagem_do_servidor".to_owned(), json!(m));
-        }
-    }
-    valor
-}
-
-fn json_da_falha(e: &ErroCancelar) -> Value {
-    let mut valor = json_base_da_falha(e.codigo(), e.subcodigo(), e.mensagem(), e.status_http());
-    if let Some(obj) = valor.as_object_mut() {
-        match e {
-            ErroCancelar::CancelamentoNaoAplicado {
-                falha_do_envio: Some(f),
-            } => {
-                obj.insert("falha_do_envio".to_owned(), json_da_falha_do_envio(f));
-            }
-            ErroCancelar::EfeitoIncerto {
-                falha_do_envio,
-                verificacao,
-            } => {
-                obj.insert("verificacao".to_owned(), json!(verificacao.motivo()));
-                if let Some(f) = falha_do_envio {
-                    obj.insert("falha_do_envio".to_owned(), json_da_falha_do_envio(f));
-                }
-            }
-            _ => {}
-        }
-    }
-    valor
 }
 
 /// Exposição pública sem os demais campos internos de `ProcessoNaArvore`.
@@ -153,7 +60,7 @@ struct ResultadoCancelamento<'a> {
     alterado: bool,
     confirmado: bool,
     #[serde(skip_serializing_if = "Option::is_none")]
-    falha_do_envio: Option<crate::saida_erro::FalhaPublica>,
+    falha_do_envio: Option<String>,
     id_documento: &'a str,
     motivo: &'a str,
     numero: &'a str,
@@ -161,17 +68,14 @@ struct ResultadoCancelamento<'a> {
     processo: ProcessoCanceladoPublico<'a>,
     reconciliado_por_leitura: bool,
     requisicoes: u8,
-    unidade: Option<&'a str>,
+    unidade: &'a str,
 }
 
 fn resultado_cancelamento(feito: &DocumentoCancelado) -> ResultadoCancelamento<'_> {
     ResultadoCancelamento {
-        alterado: feito.alterado,
-        confirmado: feito.confirmado,
-        falha_do_envio: feito
-            .reconciliado_por
-            .as_ref()
-            .map(|f| crate::saida_erro::FalhaPublica::nova(f.subcodigo(), f.status_http())),
+        alterado: feito.resultado.cancelado(),
+        confirmado: feito.resultado.cancelado(),
+        falha_do_envio: feito.resultado.falha_do_envio().map(|f| format!("{f:?}")),
         id_documento: &feito.id_documento,
         motivo: &feito.motivo,
         numero: &feito.numero,
@@ -180,48 +84,10 @@ fn resultado_cancelamento(feito: &DocumentoCancelado) -> ResultadoCancelamento<'
             id: &feito.processo.id,
             nup: &feito.processo.nup,
         },
-        reconciliado_por_leitura: feito.alterado,
+        reconciliado_por_leitura: feito.resultado.cancelado(),
         requisicoes: feito.requisicoes,
-        unidade: feito.unidade.as_deref(),
+        unidade: feito.unidade.as_str(),
     }
-}
-
-// Referência de contrato somente nos testes; produção emite Serialize diretamente.
-#[cfg(test)]
-fn json_do_sucesso(feito: &DocumentoCancelado) -> Value {
-    let mut valor = json!({
-        "numero": feito.numero, "id_documento":feito.id_documento,
-        "processo":{"nup":feito.processo.nup,"id":feito.processo.id},
-        "unidade":feito.unidade,
-        "motivo":feito.motivo,
-        "origem":"web", "confirmado":feito.confirmado,"alterado":feito.alterado,
-        "requisicoes":feito.requisicoes,
-        "reconciliado_por_leitura":feito.alterado
-    });
-    if let (Some(f), Some(obj)) = (&feito.reconciliado_por, valor.as_object_mut()) {
-        obj.insert("falha_do_envio".to_owned(), json_da_falha_do_envio(f));
-    }
-    valor
-}
-
-/// Mensagens humanas do cancelamento derivadas da falha tipada, sem
-/// construir JSON ou reclassificar sua causa.
-fn linhas_da_falha(erro: &ErroCancelar) -> Vec<String> {
-    let mut linhas = vec![format!("IES: {} [{}]", erro.mensagem(), erro.subcodigo())];
-    let falha_do_envio = match erro {
-        ErroCancelar::CancelamentoNaoAplicado { falha_do_envio }
-        | ErroCancelar::EfeitoIncerto { falha_do_envio, .. } => falha_do_envio.as_ref(),
-        _ => None,
-    };
-    if let Some(falha) = falha_do_envio {
-        linhas.push(format!("IES: resposta da escrita: {}", falha.subcodigo()));
-    }
-    if let ErroCancelar::EfeitoIncerto { verificacao, .. } = erro
-        && let Some(motivo) = verificacao.motivo()
-    {
-        linhas.push(format!("IES: verificação: {motivo}"));
-    }
-    linhas
 }
 
 #[cfg(test)]

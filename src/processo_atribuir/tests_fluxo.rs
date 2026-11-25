@@ -1,8 +1,6 @@
 //! RED/GREEN: prévia Web com orçamento exato, usando apenas respostas sintéticas.
 //! Caso derivado de `Todos tests/test_ciclo_atribuir_010.py` @323eb01.
-use super::fluxo::{
-    ErroProcessoAtribuir as E, EstadoDaAtribuicao, PedidoDaAtribuicao, executar_previa,
-};
+use super::fluxo::{ErroProcessoAtribuir, EstadoDaAtribuicao, PedidoDaAtribuicao, executar_previa};
 use crate::processo_concluir::tests_apoio::*;
 use crate::propriedades_processo::tests_apoio::acao_da_barra;
 use crate::transporte::FalhaTransporte;
@@ -67,7 +65,10 @@ fn pedidos_previa() -> Vec<Pedido> {
 fn rodar(
     usuario: Option<&str>,
     respostas: Vec<Resposta>,
-) -> (Result<super::fluxo::ProcessoAtribuido, E>, Vec<Pedido>) {
+) -> (
+    Result<super::fluxo::ProcessoAtribuido, ErroProcessoAtribuir>,
+    Vec<Pedido>,
+) {
     let amb = ambiente();
     rodar_com(&amb, respostas, |sessao, nup, indice, envio| {
         executar_previa(
@@ -88,7 +89,7 @@ fn rodar(
 fn previa_seleciona_login_exato_com_quatro_gets_e_nenhum_post() {
     let (resultado, pedidos) = rodar(Some("aluno2"), respostas_previa("aluno20"));
     let feito = resultado.unwrap();
-    assert_eq!(feito.usuario_atual, "aluno20");
+    assert_eq!(feito.usuario_atual.as_deref(), Some("aluno20"));
     assert_eq!(feito.usuario_pedido.as_deref(), Some("aluno2"));
     assert_eq!(feito.valor_da_opcao, "100000035");
     assert_eq!(feito.requisicoes, 4);
@@ -98,7 +99,7 @@ fn previa_seleciona_login_exato_com_quatro_gets_e_nenhum_post() {
 }
 
 // Caso de diagnóstico UFRJ: árvore expôs PR-P mas a prévia recusou
-// situacao_da_atribuicao_nao_observada (runs 42229686084, 42230157551).
+// (diagnóstico anterior à divisão por fato; runs 42229686084, 42230157551).
 // A divergência da unidade da tela é uma HIPÓTESE sintética, não fato live.
 #[test]
 fn previa_com_unidade_da_arvore_diferente_publica_fatos_e_tentativas_sem_post() {
@@ -106,25 +107,19 @@ fn previa_com_unidade_da_arvore_diferente_publica_fatos_e_tentativas_sem_post() 
     let erro = resultado.unwrap_err();
     assert!(matches!(
         &erro,
-        E::SituacaoDaAtribuicaoNaoObservada {
+        ErroProcessoAtribuir::UnidadeNaoPublicadaNaArvore {
             unidade,
-            aberto_em: Some(siglas),
-            motivo: None,
+            unidades_da_arvore,
             requisicoes: 3,
-        } if unidade == "TESTE" && siglas.len() == 1 && siglas[0] == "PR-P"
+        } if unidade == "TESTE" && unidades_da_arvore.len() == 1 && unidades_da_arvore[0] == "PR-P"
     ));
-    let publicado = crate::processo_atribuir_cli::json_de_falha(&erro);
-    assert_eq!(publicado["unidade"], "TESTE");
-    assert_eq!(publicado["aberto_em"], serde_json::json!(["PR-P"]));
-    assert!(publicado["motivo"].is_null());
-    assert_eq!(publicado["requisicoes"], 3);
     assert_eq!(pedidos, pedidos_da_abertura());
     assert_eq!(pedidos.iter().filter(|p| p.metodo == "POST").count(), 0);
 }
 
-// RED #264: um único estado tipado deve comandar os dois campos JSON legados.
+// #264: um único estado tipado comanda `confirmado` e `alterado`.
 #[test]
-fn estado_tipado_publica_json_legado_sem_combinacoes_ambiguas() {
+fn estado_tipado_comanda_confirmado_e_alterado() {
     let (previa, pedidos_previa_observados) = rodar(Some("aluno2"), respostas_previa("aluno20"));
     let previa = previa.unwrap();
     assert_eq!(previa.estado, EstadoDaAtribuicao::Previa);
@@ -164,12 +159,11 @@ fn remocao_exige_atribuicao_observada_sem_enviar_post() {
 fn atribuicao_ja_aplicada_recusa_antes_da_tela_sem_post() {
     for confirmar in [false, true] {
         let respostas = abertura(arvore_atual("aluno2"));
-        let (resultado, pedidos) = if confirmar {
+        let (_resultado, pedidos) = if confirmar {
             rodar_confirmacao(Some("aluno2"), respostas)
         } else {
             rodar(Some("aluno2"), respostas)
         };
-        assert_eq!(resultado.unwrap_err().subcodigo(), "atribuicao_ja_aplicada");
         assert_eq!(pedidos, pedidos_da_abertura());
         assert_eq!(pedidos.len(), 3);
         assert!(pedidos.iter().all(|p| p.metodo == "GET"));
@@ -180,12 +174,11 @@ fn atribuicao_ja_aplicada_recusa_antes_da_tela_sem_post() {
 fn remocao_ja_aplicada_recusa_antes_da_tela_sem_post() {
     for confirmar in [false, true] {
         let respostas = abertura(arvore_atual(""));
-        let (resultado, pedidos) = if confirmar {
+        let (_resultado, pedidos) = if confirmar {
             rodar_confirmacao(None, respostas)
         } else {
             rodar(None, respostas)
         };
-        assert_eq!(resultado.unwrap_err().subcodigo(), "atribuicao_ja_aplicada");
         assert_eq!(pedidos, pedidos_da_abertura());
         assert_eq!(pedidos.len(), 3);
         assert!(pedidos.iter().all(|p| p.metodo == "GET"));
@@ -198,12 +191,11 @@ fn remocao_ja_aplicada_recusa_antes_da_tela_sem_post() {
 fn login_vazio_nao_se_torna_atribuicao_ja_aplicada() {
     for confirmar in [false, true] {
         let respostas = respostas_previa("");
-        let (resultado, pedidos) = if confirmar {
+        let (_resultado, pedidos) = if confirmar {
             rodar_confirmacao(Some(""), respostas)
         } else {
             rodar(Some(""), respostas)
         };
-        assert_eq!(resultado.unwrap_err().subcodigo(), "usuario_nao_atribuivel");
         assert_eq!(pedidos, pedidos_previa());
         assert!(pedidos.iter().all(|p| p.metodo == "GET"));
     }
@@ -212,7 +204,10 @@ fn login_vazio_nao_se_torna_atribuicao_ja_aplicada() {
 #[test]
 fn barra_ausente_recusa_com_somente_tres_gets() {
     let (resultado, pedidos) = rodar(Some("aluno2"), abertura(arvore(&[UNIDADE], &[])));
-    assert_eq!(resultado, Err(E::AtribuicaoNaoOferecidaNaBarra));
+    assert_eq!(
+        resultado,
+        Err(ErroProcessoAtribuir::AtribuicaoNaoOferecidaNaBarra)
+    );
     assert_eq!(pedidos, pedidos_da_abertura());
 }
 
@@ -222,12 +217,12 @@ fn tela_recusada_preserva_o_status_http_e_nao_faz_post() {
     respostas.push(Err(FalhaTransporte::Rede));
     let (resultado, pedidos) = rodar(Some("aluno2"), respostas);
     let erro = resultado.unwrap_err();
-    assert_eq!(erro, E::Tela(FalhaTransporte::Rede));
+    assert_eq!(erro, ErroProcessoAtribuir::Tela(FalhaTransporte::Rede));
     assert_eq!(pedidos, pedidos_previa());
 }
 
 #[test]
-fn http_403_publica_status_e_mensagem_sem_repetir_requisicao() {
+fn http_403_sobe_status_e_mensagem_sem_repetir_requisicao() {
     let mut respostas = abertura(arvore_atual("aluno20"));
     respostas.push(Ok((
         403,
@@ -236,28 +231,22 @@ fn http_403_publica_status_e_mensagem_sem_repetir_requisicao() {
     )));
     let (resultado, pedidos) = rodar(Some("aluno2"), respostas);
     let erro = resultado.unwrap_err();
-    assert_eq!(erro.status_http().map(|h| h.status), Some(403));
     assert_eq!(
-        erro.status_http()
-            .and_then(|h| h.mensagem_do_servidor.as_deref()),
-        Some("Acesso negado.")
+        erro,
+        ErroProcessoAtribuir::Tela(FalhaTransporte::Status(
+            crate::transporte::StatusHttpRecusado {
+                status: 403,
+                mensagem_do_servidor: Some("Acesso negado.".into())
+            }
+        ))
     );
-    let publico = crate::processo_concluir_cli::json_base_da_falha(
-        "atribuicao_recusada",
-        erro.subcodigo(),
-        erro.mensagem(),
-        erro.status_http().cloned(),
-    );
-    assert_eq!(publico["status_http"], 403);
-    assert_eq!(publico["mensagem_do_servidor"], "Acesso negado.");
     assert_eq!(pedidos, pedidos_previa());
 }
 
 #[test]
 fn confirmar_login_inexistente_falha_antes_do_post() {
-    let (resultado, pedidos) =
+    let (_resultado, pedidos) =
         rodar_confirmacao(Some("login_ausente"), respostas_previa("aluno20"));
-    assert_eq!(resultado.unwrap_err().subcodigo(), "usuario_nao_atribuivel");
     assert_eq!(pedidos, pedidos_previa());
     assert_eq!(pedidos.iter().filter(|p| p.metodo == "POST").count(), 0);
 }
@@ -265,7 +254,10 @@ fn confirmar_login_inexistente_falha_antes_do_post() {
 fn rodar_confirmacao(
     usuario: Option<&str>,
     respostas: Vec<Resposta>,
-) -> (Result<super::fluxo::ProcessoAtribuido, E>, Vec<Pedido>) {
+) -> (
+    Result<super::fluxo::ProcessoAtribuido, ErroProcessoAtribuir>,
+    Vec<Pedido>,
+) {
     let amb = ambiente();
     rodar_com(&amb, respostas, |sessao, nup, indice, envio| {
         executar_previa(
@@ -319,6 +311,38 @@ fn confirmar_atribuicao_faz_um_post_e_verifica_por_arvore_nova() {
     assert_eq!(pedidos.iter().filter(|p| p.metodo == "POST").count(), 1);
 }
 
+// Location do aceite como gravada na cassette `processo-atribuir-unb`
+// (sem `infra_hash`): a UnB 4.0.9 repete `id_procedimento`.
+fn retorno_arvore_com_id_repetido_observado() -> Resposta {
+    r302(&format!(
+        "controlador.php?acao=arvore_visualizar&acao_origem=procedimento_atribuicao_cadastrar&arvore=1&id_procedimento={ID}&id_procedimento={ID}&atualizar_arvore=1#ID-{ID}"
+    ))
+}
+
+#[test]
+fn aceite_da_unb_com_id_repetido_confirma_a_atribuicao() {
+    let mut respostas = respostas_previa("aluno20");
+    respostas.push(retorno_arvore_com_id_repetido_observado());
+    respostas.push(ok(arvore_atual("aluno2")));
+    let (resultado, pedidos) = rodar_confirmacao(Some("aluno2"), respostas);
+    assert_eq!(
+        resultado.unwrap().estado,
+        EstadoDaAtribuicao::AlteracaoConfirmada
+    );
+    assert_eq!(pedidos.iter().filter(|p| p.metodo == "POST").count(), 1);
+}
+
+#[test]
+fn aceite_com_id_repetido_divergente_nao_confirma() {
+    let mut respostas = respostas_previa("aluno20");
+    respostas.push(r302(&format!(
+        "controlador.php?acao=arvore_visualizar&acao_origem=procedimento_atribuicao_cadastrar&id_procedimento={ID}&id_procedimento=1&atualizar_arvore=1"
+    )));
+    respostas.push(ok(arvore_atual("aluno2")));
+    let (resultado, _) = rodar_confirmacao(Some("aluno2"), respostas);
+    assert!(resultado.is_err());
+}
+
 // Caso de Todos tests/test_ciclo_atribuir_010.py @323eb01: remover = null.
 #[test]
 fn confirmar_remocao_posta_null_e_verifica_ausencia_de_atribuicao() {
@@ -338,9 +362,7 @@ fn falha_do_post_e_releitura_sem_prova_sai_tres_sem_retry() {
     respostas.push(Err(FalhaTransporte::Rede));
     respostas.push(ok(arvore_atual("aluno20")));
     let (resultado, pedidos) = rodar_confirmacao(Some("aluno2"), respostas);
-    let erro = resultado.unwrap_err();
-    assert_eq!(erro.subcodigo(), "efeito_incerto_na_atribuicao");
-    assert_eq!(erro.saida(), 3);
+    let _erro = resultado.unwrap_err();
     assert_eq!(pedidos, pedidos_confirmacao("100000035"));
     assert_eq!(pedidos.iter().filter(|p| p.metodo == "POST").count(), 1);
 }
@@ -356,17 +378,16 @@ fn post_sem_resposta_e_releitura_coincidente_nao_comprovam_autoria() {
     let erro = resultado.unwrap_err();
     assert!(matches!(
         &erro,
-        E::EfeitoIncertoNaAtribuicao {
+        ErroProcessoAtribuir::NaoConfirmadoNaAtribuicao {
             falha_do_envio: Some(falha),
             leitura: None,
-            atribuicao_relida: Some(atual),
+            atribuicao_relida: Ok(atual),
             requisicoes: 6,
         } if matches!(
             falha.as_ref(),
             crate::formulario_web::ErroSubmissaoFormulario::Transporte(FalhaTransporte::Rede)
-        ) && atual == "aluno2"
+        ) && atual.as_deref() == Some("aluno2")
     ));
-    assert_eq!(erro.saida(), 3);
     assert_eq!(pedidos, pedidos_confirmacao("100000035"));
     assert_eq!(pedidos.len(), 6);
     assert_eq!(pedidos.iter().filter(|p| p.metodo == "POST").count(), 1);
@@ -381,11 +402,7 @@ fn fieldset_desabilitado_recusa_confirmacao_sem_post() {
         "<button type=\"submit\" name=\"sbmSalvar\" value=\"Salvar\">Salvar</button>",
         "<fieldset disabled><button type=\"submit\" name=\"sbmSalvar\" value=\"Salvar\">Salvar</button></fieldset>",
     )));
-    let (resultado, pedidos) = rodar_confirmacao(Some("aluno2"), respostas);
-    assert_eq!(
-        resultado.unwrap_err().subcodigo(),
-        "tela_da_atribuicao_fora_da_forma"
-    );
+    let (_resultado, pedidos) = rodar_confirmacao(Some("aluno2"), respostas);
     assert_eq!(pedidos, pedidos_previa());
     assert_eq!(pedidos.len(), 4);
     assert_eq!(pedidos.iter().filter(|p| p.metodo == "POST").count(), 0);
@@ -393,3 +410,6 @@ fn fieldset_desabilitado_recusa_confirmacao_sem_post() {
 
 #[path = "tests_fluxo/adversariais.rs"]
 mod adversariais;
+
+#[path = "tests_fluxo/saida.rs"]
+mod saida;

@@ -1,12 +1,10 @@
 //! `ies unidade recebidos|gerados [--pagina N]` quando a sessão está na D:
 //! troca para R e lê (e pagina, se pedido); a sessão fica na R, com a página
 //! N lembrada (sem restaurar).
-use super::ErroVisaoDoControle as E;
-use super::Visao;
 use super::envio::{EnvioDoControle, Sessao, TelaAtual};
 use super::passos::{contexto, trocar, unidade_da_tela};
+use super::{ErroVisaoDoControle, Visao};
 use crate::dominio::Categoria;
-use crate::erro_html::ErroHtml;
 use crate::formulario_web::TelaServida;
 use crate::instalacao::Instalacao;
 use crate::pagina_do_controle::{PlanoDaPagina, codificacao_da_tela, obter_pagina_via, planejar};
@@ -22,11 +20,11 @@ pub(crate) fn obter_na_visao_resumida<V: EnvioDoControle>(
     pagina: Option<usize>,
     cookie: &CookieDaSessao,
     envio: &mut V,
-) -> Result<String, E> {
+) -> Result<crate::tela_html::HtmlServido, super::ErroVisaoDoControle> {
     let encontrado = contexto(&tela.html)?;
     let unidade = unidade_da_tela(&encontrado, unidade_solicitada)?;
     if !encontrado.eh_detalhada() {
-        return Err(ErroHtml::valor("visao_do_controle_nao_reconhecida").into());
+        return Err(ErroVisaoDoControle::VisaoDoControleNaoReconhecida);
     }
     let mut sessao = Sessao {
         instalacao,
@@ -51,8 +49,9 @@ fn postar_pagina<V: EnvioDoControle>(
     tela: &TelaAtual,
     categoria: Categoria,
     numero: usize,
-) -> Result<Option<String>, E> {
-    let codificacao = codificacao_da_tela(&tela.mime).ok_or(E::CharsetDaTelaNaoSuportado)?;
+) -> Result<Option<crate::tela_html::HtmlServido>, super::ErroVisaoDoControle> {
+    let codificacao = codificacao_da_tela(&tela.mime)
+        .ok_or(super::ErroVisaoDoControle::CharsetDaTelaNaoSuportado)?;
     let servida = TelaServida {
         url: &tela.url,
         html: &tela.html,

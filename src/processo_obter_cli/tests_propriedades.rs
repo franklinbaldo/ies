@@ -1,5 +1,5 @@
-//! RED/GREEN do JSON das propriedades: objeto inteiro, `null` com motivo
-//! ou ausente com `--sem-propriedades`; `nao_lidos` diz o que faltou.
+//! JSON das propriedades: objeto inteiro (sem `null`) ou ausente com
+//! `--sem-propriedades`; `nao_lidos` diz o que foi omitido por pedido.
 use super::tests::aberto;
 use super::*;
 use crate::processo_obter::Propriedades;
@@ -14,23 +14,23 @@ fn nup() -> NumeroProcesso {
 fn com_propriedades() -> ProcessoAberto {
     let mut aberto = aberto(Some("UNIDADE TESTE"));
     aberto.propriedades = Propriedades::Lidas(PropriedadesLidas {
-        tipo: Some("Tipo Sintetico: Teste".into()),
+        tipo: "Tipo Sintetico: Teste".into(),
         especificacao: "Especificacao sintetica".into(),
         interessados: vec!["Pessoa Sintetica A".into()],
         assuntos: vec![
             Assunto {
-                codigo: Some("000.01".into()),
+                codigo: "000.01".into(),
                 descricao: "Assunto sintetico".into(),
             },
             Assunto {
-                codigo: None,
-                descricao: "Sem codigo".into(),
+                codigo: "000.02".into(),
+                descricao: "Outro assunto".into(),
             },
         ],
         observacoes: String::new(),
         nivel_de_acesso: NivelDeAcesso::Restrito,
         hipotese_legal: Some("Hipotese Sintetica".into()),
-        data_de_geracao: None,
+        data_de_geracao: "01/02/2026".into(),
         fonte: FonteDasPropriedades::Consultar,
     });
     aberto
@@ -47,12 +47,12 @@ fn propriedades_lidas_saem_inteiras_e_deixam_nao_lidos() {
             "interessados": ["Pessoa Sintetica A"],
             "assuntos": [
                 {"codigo": "000.01", "descricao": "Assunto sintetico"},
-                {"codigo": null, "descricao": "Sem codigo"}
+                {"codigo": "000.02", "descricao": "Outro assunto"}
             ],
             "observacoes": "",
             "nivel_de_acesso": "restrito",
             "hipotese_legal": "Hipotese Sintetica",
-            "data_de_geracao": null,
+            "data_de_geracao": "01/02/2026",
             "fonte": "procedimento_consultar"
         })
     );
@@ -61,19 +61,7 @@ fn propriedades_lidas_saem_inteiras_e_deixam_nao_lidos() {
 }
 
 #[test]
-fn nao_publicadas_saem_null_com_motivo_e_omitidas_tiram_a_chave() {
-    let mut sem_link = aberto(None);
-    sem_link.propriedades = Propriedades::NaoPublicadasNaBarra;
-    let valor = json_do_processo(&nup(), &sem_link, true);
-    assert!(valor.get("propriedades").is_some_and(Value::is_null));
-    assert_eq!(
-        valor["propriedades_nao_lidas_motivo"],
-        "tela_de_propriedades_nao_publicada_na_barra"
-    );
-    assert_eq!(
-        valor["nao_lidos"],
-        json!(["andamentos", "marcadores", "propriedades"])
-    );
+fn omitidas_tiram_a_chave_e_so_dizem_o_motivo_pedido() {
     let omitidas = json_do_processo(&nup(), &aberto(None), true);
     assert!(omitidas.get("propriedades").is_none());
     assert_eq!(

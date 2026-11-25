@@ -123,7 +123,7 @@ fn post_preserva_texto_e_motivo_remoto_diferente_nao_comprova_cancelamento() {
     let mut respostas = ate_tela(arvore_ativa());
     respostas.extend([r302(&location()), ok(arvore_cancelada())]);
     let (resultado, pedidos) = executar_com_motivo(true, respostas, motivo);
-    assert!(matches!(resultado, Err(ErroCancelar::EfeitoIncerto { .. })));
+    assert!(matches!(resultado, Err(ErroCancelar::NaoConfirmado { .. })));
     let mut esperados = pedidos_previa();
     esperados.push(post(
         &absoluta(&action()),
@@ -139,7 +139,10 @@ fn previa_abre_arvore_e_tela_em_quatro_gets_sem_post() {
     let feito = resultado.unwrap();
     assert_eq!(pedidos, pedidos_previa());
     assert_eq!(feito.requisicoes, 4);
-    assert!(!feito.alterado && !feito.confirmado);
+    assert!(matches!(
+        feito.resultado,
+        super::ResultadoDaVerificacao::Previa
+    ));
     assert_eq!(feito.motivo, MOTIVO);
 }
 
@@ -154,7 +157,7 @@ fn confirmar_envia_um_post_e_prova_cancelamento_pela_arvore_nova() {
     esperados.push(get(&url_arvore()));
     assert_eq!(pedidos, esperados);
     assert_eq!(feito.requisicoes, 6);
-    assert!(feito.confirmado && feito.alterado && feito.reconciliado_por.is_none());
+    assert!(feito.resultado.cancelado() && feito.resultado.falha_do_envio().is_none());
 }
 
 #[test]
@@ -163,19 +166,18 @@ fn servidor_falha_depois_do_post_mas_arvore_confirma_sem_retry() {
     respostas.extend([Err(FalhaTransporte::Rede), ok(arvore_cancelada())]);
     let (resultado, pedidos) = executar(true, respostas);
     let feito = resultado.unwrap();
-    assert!(feito.alterado && feito.reconciliado_por.is_some());
+    assert!(feito.resultado.cancelado() && feito.resultado.falha_do_envio().is_some());
     assert_eq!(pedidos.iter().filter(|p| p.metodo == "POST").count(), 1);
     assert_eq!(pedidos.len(), 6);
 }
 
 #[test]
-fn servidor_falha_e_releitura_falha_e_efeito_incerto_saida_tres() {
+fn servidor_falha_e_releitura_falha_e_nao_confirmado_saida_tres() {
     let mut respostas = ate_tela(arvore_ativa());
     respostas.extend([Err(FalhaTransporte::Rede), Err(FalhaTransporte::Rede)]);
     let (resultado, pedidos) = executar(true, respostas);
     let erro = resultado.unwrap_err();
-    assert!(matches!(erro, ErroCancelar::EfeitoIncerto { .. }));
-    assert_eq!(erro.saida(), 3);
+    assert!(matches!(erro, ErroCancelar::NaoConfirmado { .. }));
     assert_eq!(pedidos.iter().filter(|p| p.metodo == "POST").count(), 1);
     assert_eq!(pedidos.len(), 6);
 }
@@ -197,7 +199,10 @@ fn formulario_assinado_de_outro_documento_recusa_antes_do_post() {
     let mut respostas = abertura(arvore_ativa());
     respostas.push(ok(tela("99")));
     let (resultado, pedidos) = executar(true, respostas);
-    assert_eq!(resultado, Err(ErroCancelar::FormularioDeOutroDocumento));
+    assert!(matches!(
+        resultado,
+        Err(ErroCancelar::EnderecoDoDocumentoRecusado(_))
+    ));
     assert_eq!(pedidos, pedidos_previa());
 }
 

@@ -29,7 +29,8 @@ pub struct Processo {
     pub sigiloso: bool,
 }
 
-#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, serde::Serialize)]
+#[serde(rename_all = "lowercase")]
 pub enum Categoria {
     Recebidos,
     Gerados,
@@ -44,16 +45,68 @@ impl Categoria {
     }
 }
 
+/// `rdoNivelAcesso` marcado no SEI (processo ou documento).
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, clap::ValueEnum)]
+#[serde(rename_all = "snake_case")]
+pub enum NivelDeAcesso {
+    Publico,
+    Restrito,
+    Sigiloso,
+}
+
+impl NivelDeAcesso {
+    pub fn como_texto(self) -> &'static str {
+        match self {
+            Self::Publico => "publico",
+            Self::Restrito => "restrito",
+            Self::Sigiloso => "sigiloso",
+        }
+    }
+}
+
+/// `rdoNivelAcesso` aceito na criação de processo (`publico` ou `restrito`).
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Default, Serialize, clap::ValueEnum)]
+#[serde(rename_all = "snake_case")]
+pub enum NivelDeCriacao {
+    #[default]
+    Publico,
+    Restrito,
+}
+
+impl NivelDeCriacao {
+    pub fn como_texto(self) -> &'static str {
+        match self {
+            Self::Publico => "publico",
+            Self::Restrito => "restrito",
+        }
+    }
+
+    pub fn valor_radio(self) -> &'static str {
+        match self {
+            Self::Publico => "0",
+            Self::Restrito => "1",
+        }
+    }
+
+    pub fn como_acesso(self) -> NivelDeAcesso {
+        match self {
+            Self::Publico => NivelDeAcesso::Publico,
+            Self::Restrito => NivelDeAcesso::Restrito,
+        }
+    }
+}
+
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct Tabela<T> {
     pub processos: Vec<T>,
-    pub total_declarado: Option<usize>,
+    /// Total lido da legenda; a legenda ilegível já falhou na leitura.
+    pub total_declarado: usize,
 }
 
 impl Tabela<Processo> {
     pub fn nova(
         categoria: Categoria,
-        total_declarado: Option<usize>,
+        total_declarado: usize,
         processos: Vec<Processo>,
     ) -> Result<Self, ErroCaixa> {
         let mut ids = HashSet::new();
@@ -65,7 +118,7 @@ impl Tabela<Processo> {
                 });
             }
         }
-        if total_declarado.is_some_and(|total| processos.len() > total) {
+        if processos.len() > total_declarado {
             return Err(ErroCaixa::TotalExcedido { categoria });
         }
         Ok(Self {
@@ -101,8 +154,8 @@ mod tests {
     }
     #[test]
     fn nenhuma_completude_e_armazenada() {
-        let tabela = Tabela::nova(Categoria::Recebidos, Some(100), Vec::new()).unwrap();
-        assert_eq!(tabela.total_declarado, Some(100));
+        let tabela = Tabela::nova(Categoria::Recebidos, 100, Vec::new()).unwrap();
+        assert_eq!(tabela.total_declarado, 100);
         assert_eq!(tabela.processos, []);
     }
 }

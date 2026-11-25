@@ -38,21 +38,17 @@ impl Documento {
     }
 }
 
-#[derive(Debug)]
-pub enum Falha {
-    Sqlite(rusqlite::Error),
+#[derive(Debug, thiserror::Error)]
+#[error("{self:?}")]
+pub enum ErroPdfExterno {
+    Sqlite(#[from] rusqlite::Error),
     EntradaInvalida,
     ProcessoAusente,
     ProcessoNaoAbertoNaUnidade,
     TipoAusente,
     UploadAusente,
+    UploadSemConteudoRecuperavel,
     LimiteExcedido,
-}
-
-impl From<rusqlite::Error> for Falha {
-    fn from(erro: rusqlite::Error) -> Self {
-        Self::Sqlite(erro)
-    }
 }
 
 fn id_valido(id: &str) -> bool {
@@ -63,8 +59,8 @@ fn texto_valido(texto: &str) -> bool {
     !texto.trim().is_empty() && !texto.contains(['\r', '\n', '±', '#'])
 }
 
-fn numero(tamanho: u64) -> Result<i64, Falha> {
-    i64::try_from(tamanho).map_err(|_| Falha::EntradaInvalida)
+fn numero(tamanho: u64) -> Result<i64, ErroPdfExterno> {
+    i64::try_from(tamanho).map_err(|_| ErroPdfExterno::EntradaInvalida)
 }
 
 /// Semeia uma hipótese sintética, sempre isolada por origem e cenário.
@@ -77,7 +73,7 @@ pub fn semear(
     cenario: &str,
     processo: &Processo,
     tipo: &TipoExterno,
-) -> Result<(), Falha> {
+) -> Result<(), ErroPdfExterno> {
     if !texto_valido(cenario)
         || !id_valido(&processo.id)
         || !texto_valido(&processo.nup)
@@ -86,14 +82,18 @@ pub fn semear(
         || !texto_valido(&tipo.nome)
         || tipo.limite_bytes == 0
     {
-        return Err(Falha::EntradaInvalida);
+        return Err(ErroPdfExterno::EntradaInvalida);
     }
     documentos::registrar_processo(banco, origem, cenario, processo).map_err(|e| match e {
-        documentos::Falha::Sqlite(e) => Falha::Sqlite(e),
-        documentos::Falha::EntradaInvalida => Falha::EntradaInvalida,
-        documentos::Falha::ProcessoIndisponivel => Falha::ProcessoAusente,
-        documentos::Falha::ProcessoNaoAbertoNaUnidade => Falha::ProcessoNaoAbertoNaUnidade,
-        documentos::Falha::TipoIndisponivel => Falha::TipoAusente,
+        documentos::ErroDocumentosSimulados::Sqlite(e) => ErroPdfExterno::Sqlite(e),
+        documentos::ErroDocumentosSimulados::EntradaInvalida => ErroPdfExterno::EntradaInvalida,
+        documentos::ErroDocumentosSimulados::ProcessoIndisponivel => {
+            ErroPdfExterno::ProcessoAusente
+        }
+        documentos::ErroDocumentosSimulados::ProcessoNaoAbertoNaUnidade => {
+            ErroPdfExterno::ProcessoNaoAbertoNaUnidade
+        }
+        documentos::ErroDocumentosSimulados::TipoIndisponivel => ErroPdfExterno::TipoAusente,
     })?;
     banco.execute(
         "INSERT INTO externo_tipo (origem, cenario, id_procedimento, id_serie, nome, limite_bytes)
@@ -121,8 +121,8 @@ pub fn processo(
     origem: &Instalacao,
     cenario: &str,
     id: &str,
-) -> Result<Option<Processo>, Falha> {
-    documentos::ler_processo(banco, origem, cenario, id).map_err(Falha::from)
+) -> Result<Option<Processo>, ErroPdfExterno> {
+    documentos::ler_processo(banco, origem, cenario, id).map_err(ErroPdfExterno::from)
 }
 
 /// Tipos realmente disponíveis no cenário, sem inventar alternativas.
@@ -134,7 +134,7 @@ pub fn tipos(
     origem: &Instalacao,
     cenario: &str,
     id: &str,
-) -> Result<Vec<TipoExterno>, Falha> {
+) -> Result<Vec<TipoExterno>, ErroPdfExterno> {
     let mut consulta = banco.prepare(
         "SELECT id_serie, nome, limite_bytes FROM externo_tipo
          WHERE origem=?1 AND cenario=?2 AND id_procedimento=?3 ORDER BY id_serie",
@@ -152,7 +152,7 @@ pub fn tipos(
         tipos.push(TipoExterno {
             id,
             nome,
-            limite_bytes: u64::try_from(limite).map_err(|_| Falha::EntradaInvalida)?,
+            limite_bytes: u64::try_from(limite).map_err(|_| ErroPdfExterno::EntradaInvalida)?,
         });
     }
     Ok(tipos)
@@ -169,29 +169,42 @@ pub fn receber(
     id_procedimento: &str,
     nome: &str,
     tamanho: u64,
-) -> Result<Temporario, Falha> {
+) -> Result<Temporario, ErroPdfExterno> {
+    inserir_upload(banco, origem, cenario, id_procedimento, nome, tamanho, None)
+}
+
+fn inserir_upload(
+    banco: &Connection,
+    origem: &Instalacao,
+    cenario: &str,
+    id_procedimento: &str,
+    nome: &str,
+    tamanho: u64,
+    conteudo: Option<&[u8]>,
+) -> Result<Temporario, ErroPdfExterno> {
     if !texto_valido(nome) || tamanho == 0 {
-        return Err(Falha::EntradaInvalida);
+        return Err(ErroPdfExterno::EntradaInvalida);
     }
     if processo(banco, origem, cenario, id_procedimento)?.is_none() {
-        return Err(Falha::ProcessoAusente);
+        return Err(ErroPdfExterno::ProcessoAusente);
     }
     let limites = tipos(banco, origem, cenario, id_procedimento)?;
     if limites.is_empty() {
-        return Err(Falha::TipoAusente);
+        return Err(ErroPdfExterno::TipoAusente);
     }
     if !limites.iter().any(|t| tamanho <= t.limite_bytes) {
-        return Err(Falha::LimiteExcedido);
+        return Err(ErroPdfExterno::LimiteExcedido);
     }
     banco.execute(
-        "INSERT INTO externo_upload (origem, cenario, id_procedimento, nome, tamanho)
-         VALUES (?1, ?2, ?3, ?4, ?5)",
+        "INSERT INTO externo_upload (origem, cenario, id_procedimento, nome, tamanho, conteudo)
+         VALUES (?1, ?2, ?3, ?4, ?5, ?6)",
         params![
             origem.url_base(),
             cenario,
             id_procedimento,
             nome,
-            numero(tamanho)?
+            numero(tamanho)?,
+            conteudo
         ],
     )?;
     Ok(Temporario {
@@ -211,14 +224,17 @@ pub fn receber_conteudo(
     id_procedimento: &str,
     nome: &str,
     bytes: &[u8],
-) -> Result<Temporario, Falha> {
-    let tamanho = u64::try_from(bytes.len()).map_err(|_| Falha::EntradaInvalida)?;
-    let temporario = receber(banco, origem, cenario, id_procedimento, nome, tamanho)?;
-    banco.execute(
-        "UPDATE externo_upload SET conteudo=?1 WHERE id=?2",
-        params![bytes, temporario.id],
-    )?;
-    Ok(temporario)
+) -> Result<Temporario, ErroPdfExterno> {
+    let tamanho = u64::try_from(bytes.len()).map_err(|_| ErroPdfExterno::EntradaInvalida)?;
+    inserir_upload(
+        banco,
+        origem,
+        cenario,
+        id_procedimento,
+        nome,
+        tamanho,
+        Some(bytes),
+    )
 }
 
 /// Consulta o original pelo `id_anexo` publicado na árvore de documentos.
@@ -229,13 +245,13 @@ pub fn conteudo_do_anexo(
     origem: &Instalacao,
     cenario: &str,
     id_anexo: &str,
-) -> Result<Option<Vec<u8>>, Falha> {
+) -> Result<Option<Vec<u8>>, ErroPdfExterno> {
     if !id_valido(id_anexo) {
-        return Err(Falha::EntradaInvalida);
+        return Err(ErroPdfExterno::EntradaInvalida);
     }
     let id = id_anexo
         .parse::<i64>()
-        .map_err(|_| Falha::EntradaInvalida)?;
+        .map_err(|_| ErroPdfExterno::EntradaInvalida)?;
     let conteudo: Option<Option<Vec<u8>>> = banco
         .query_row(
             "SELECT u.conteudo FROM externo_documento d
@@ -246,6 +262,38 @@ pub fn conteudo_do_anexo(
         )
         .optional()?;
     Ok(conteudo.flatten())
+}
+
+/// Processo proprietário de um PDF publicado na árvore.
+/// A identidade pública é derivada do rowid, nunca de uma URL assinada.
+/// Ausência no SQLite significa desconhecido, não prova de inexistência.
+///
+/// # Errors
+/// Propaga a causa SQLite sem reclassificar ausência como erro.
+pub fn processo_do_documento_publico(
+    banco: &Connection,
+    origem: &Instalacao,
+    cenario: &str,
+    id_publico: &str,
+) -> Result<Option<String>, ErroPdfExterno> {
+    let Some(sufixo) = id_publico.strip_prefix('8') else {
+        return Ok(None);
+    };
+    let Ok(id) = sufixo.parse::<i64>() else {
+        return Ok(None);
+    };
+    if format!("8{id:012}") != id_publico {
+        return Ok(None);
+    }
+    banco
+        .query_row(
+            "SELECT id_procedimento FROM externo_documento
+             WHERE origem=?1 AND cenario=?2 AND id=?3",
+            params![origem.url_base(), cenario, id],
+            |linha| linha.get(0),
+        )
+        .optional()
+        .map_err(ErroPdfExterno::from)
 }
 
 /// Um cadastro definitivo consome um recibo existente uma única vez.
@@ -260,23 +308,29 @@ pub fn cadastrar(
     id_procedimento: &str,
     id_serie: &str,
     id_upload: i64,
-) -> Result<Documento, Falha> {
+) -> Result<Documento, ErroPdfExterno> {
     let tipo = tipos(banco, origem, cenario, id_procedimento)?
         .into_iter()
         .find(|tipo| tipo.id == id_serie)
-        .ok_or(Falha::TipoAusente)?;
-    let temporario: Option<(String, i64)> = banco
+        .ok_or(ErroPdfExterno::TipoAusente)?;
+    let temporario: Option<(String, i64, bool)> = banco
         .query_row(
-            "SELECT nome, tamanho FROM externo_upload
+            "SELECT nome, tamanho,
+                    conteudo IS NOT NULL AND typeof(conteudo)='blob'
+                    AND length(conteudo)=tamanho
+             FROM externo_upload
              WHERE id=?1 AND origem=?2 AND cenario=?3 AND id_procedimento=?4",
             params![id_upload, origem.url_base(), cenario, id_procedimento],
-            |r| Ok((r.get(0)?, r.get(1)?)),
+            |r| Ok((r.get(0)?, r.get(1)?, r.get(2)?)),
         )
         .optional()?;
-    let (nome, tamanho) = temporario.ok_or(Falha::UploadAusente)?;
-    let tamanho = u64::try_from(tamanho).map_err(|_| Falha::EntradaInvalida)?;
+    let (nome, tamanho, conteudo_recuperavel) = temporario.ok_or(ErroPdfExterno::UploadAusente)?;
+    if !conteudo_recuperavel {
+        return Err(ErroPdfExterno::UploadSemConteudoRecuperavel);
+    }
+    let tamanho = u64::try_from(tamanho).map_err(|_| ErroPdfExterno::EntradaInvalida)?;
     if tamanho > tipo.limite_bytes {
-        return Err(Falha::LimiteExcedido);
+        return Err(ErroPdfExterno::LimiteExcedido);
     }
     let transacao = banco.unchecked_transaction()?;
     transacao.execute(
@@ -319,7 +373,7 @@ pub fn documentos(
     origem: &Instalacao,
     cenario: &str,
     id_procedimento: &str,
-) -> Result<Vec<Documento>, Falha> {
+) -> Result<Vec<Documento>, ErroPdfExterno> {
     let mut consulta = banco.prepare(
         "SELECT d.id, d.numero_sei, d.id_serie, t.nome, d.nome, d.tamanho
          FROM externo_documento d JOIN externo_tipo t ON
@@ -346,7 +400,7 @@ pub fn documentos(
             id_serie,
             tipo,
             nome,
-            tamanho: u64::try_from(tamanho).map_err(|_| Falha::EntradaInvalida)?,
+            tamanho: u64::try_from(tamanho).map_err(|_| ErroPdfExterno::EntradaInvalida)?,
         });
     }
     Ok(documentos)

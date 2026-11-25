@@ -1,10 +1,9 @@
 //! RED/GREEN da tela `procedimento_trabalhar`: unidade e `iframe#ifrArvore`
 //! na forma observada (`UnB` e GO, `&` cru no `src`). HTML sintético.
-use super::ErroTelaDoProcesso as E;
 use super::tela::TelaDoProcesso;
 use super::*;
-use crate::erro_html::ErroHtml;
 use crate::instalacao::Instalacao;
+use crate::tela_html::HtmlServido;
 use std::fmt::Write as _;
 
 pub(crate) const HASH_ARVORE: &str =
@@ -35,8 +34,8 @@ pub(crate) fn tela_do_processo(unidade: &str, iframes: &[String]) -> String {
     html
 }
 
-fn ler(html: &str, unidade: Option<&str>) -> Result<TelaDoProcesso, E> {
-    ler_tela_do_processo(&instalacao(), html, "10", unidade)
+fn ler(html: &str, unidade: Option<&str>) -> Result<TelaDoProcesso, super::ErroTelaDoProcesso> {
+    ler_tela_do_processo(&instalacao(), &HtmlServido::de_teste(html), "10", unidade)
 }
 
 #[test]
@@ -52,7 +51,7 @@ fn unidade_e_endereco_absoluto_da_arvore() {
     assert!(ler(&html, Some(" UNIDADE-TESTE ")).is_ok());
     assert_eq!(
         ler(&html, Some("OUTRA")),
-        Err(E::UnidadeDaTelaDiferenteDaSolicitada)
+        Err(super::ErroTelaDoProcesso::UnidadeDaTelaDiferenteDaSolicitada)
     );
 }
 
@@ -68,28 +67,22 @@ fn recusas_da_tela() {
         .replace("<a id=\"lnkInfraUnidade\" href=\"#\">U</a>", "");
     assert_eq!(
         ler(&sem_unidade, None),
-        Err(E::Html(ErroHtml::ausente(
-            "identificacao_da_unidade_ausente_na_tela_do_processo"
-        )))
+        Err(super::ErroTelaDoProcesso::IdentificacaoDaUnidadeAusenteNaTelaDoProcesso)
     );
     assert_eq!(
         ler(&tela_do_processo("U", &[]), None),
-        Err(E::Html(ErroHtml::ausente(
-            "arvore_ausente_na_tela_do_processo"
-        )))
+        Err(super::ErroTelaDoProcesso::ArvoreAusenteNaTelaDoProcesso)
     );
     assert_eq!(
         ler(
             &tela_do_processo("U", &[src_da_arvore("10"), src_da_arvore("10")]),
             None
         ),
-        Err(E::Html(ErroHtml::repetido(
-            "arvores_repetidas_na_tela_do_processo"
-        )))
+        Err(super::ErroTelaDoProcesso::ArvoresRepetidasNaTelaDoProcesso)
     );
     assert_eq!(
         ler(&tela_do_processo("U", &[src_da_arvore("11")]), None),
-        Err(E::EnderecoDaArvoreDeOutroProcesso)
+        Err(super::ErroTelaDoProcesso::EnderecoDaArvoreDeOutroProcesso)
     );
     for src in [
         src_da_arvore("10").replace("procedimento_visualizar", "arvore_visualizar"),
@@ -101,10 +94,58 @@ fn recusas_da_tela() {
     ] {
         assert_eq!(
             ler(&tela_do_processo("U", std::slice::from_ref(&src)), None),
-            Err(E::Html(ErroHtml::valor(
-                "endereco_da_arvore_nao_reconhecido"
-            ))),
+            Err(super::ErroTelaDoProcesso::EnderecoDaArvoreNaoReconhecido),
             "{src}"
         );
     }
+}
+
+#[test]
+fn arvore_vazia_com_validacao_de_acesso_e_erro_proprio() {
+    // GO 5.0.3 (live de 10/11/2026, processo 202600005006024): o SEI abre a
+    // modal `usuario_validar_acesso` (pede a senha) e serve a árvore vazia.
+    let html = tela_do_processo("SEAD/CDE-09516", &[String::new()]).replace(
+        "</body>",
+        "<script>function inicializar(){ if (''!='1'){ infraAbrirJanelaModal('controlador.php?acao=usuario_validar_acesso&acao_origem=procedimento_trabalhar&id_procedimento=10&infra_hash=SINTETICO',500,300,true,'finalizar'); return; } }</script></body>",
+    );
+    assert_eq!(
+        ler(&html, None),
+        Err(super::ErroTelaDoProcesso::ProcessoExigeValidacaoDeAcesso)
+    );
+    // Sem a modal, árvore vazia continua sendo endereço não reconhecido.
+    let sem_modal = tela_do_processo("SEAD/CDE-09516", &[String::new()]);
+    assert!(matches!(
+        ler(&sem_modal, None),
+        Err(super::ErroTelaDoProcesso::EnderecoDaArvoreNaoReconhecido)
+    ));
+}
+
+fn ler_documento(src: &str) -> Result<(TelaDoProcesso, String), super::ErroTelaDoProcesso> {
+    super::ler_tela_do_documento(
+        &instalacao(),
+        &HtmlServido::de_teste(&tela_do_processo("U", &[src.to_owned()])),
+        "21",
+        None,
+    )
+}
+
+#[test]
+fn tela_do_documento_com_consulta_ilegivel_ou_chave_repetida_tem_a_causa() {
+    let valido = src_da_arvore("10").replace("id_documento=&", "id_documento=21&");
+    assert!(ler_documento(&valido).is_ok());
+    assert_eq!(
+        ler_documento(&valido.replace("&infra_sistema", "&lixo&infra_sistema")).map(|_| ()),
+        Err(super::ErroTelaDoProcesso::ConsultaDaArvoreIlegivel(
+            crate::consulta_do_controlador::ErroConsultaDoControlador::ParSemIgual
+        ))
+    );
+    assert_eq!(
+        ler_documento(&valido.replace("&infra_sistema", "&id_procedimento=11&infra_sistema"))
+            .map(|_| ()),
+        Err(super::ErroTelaDoProcesso::IdDoProcessoNaArvore(
+            crate::consulta_do_controlador::ErroParametroDaUrl::ParametroRepetido(
+                "id_procedimento"
+            )
+        ))
+    );
 }

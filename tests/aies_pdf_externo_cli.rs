@@ -11,6 +11,9 @@ use iesei::processos::{self, ProcessoSimulado};
 use native_tls::TlsAcceptor;
 use rusqlite::Connection;
 use serde_json::Value;
+#[path = "support/falha.rs"]
+mod falha_cli;
+use falha_cli::falha;
 use std::fs;
 use std::io::{Read, Write};
 use std::net::{Shutdown, TcpListener, TcpStream};
@@ -134,14 +137,17 @@ fn preparar_banco() -> (Connection, Instalacao) {
     (banco, origem)
 }
 
-#[allow(clippy::too_many_lines)] // Bancada E2E reúne proxy TLS, servidor HTTP e processos reais.
+#[expect(
+    clippy::too_many_lines,
+    reason = "Bancada E2E reúne proxy TLS, servidor HTTP e processos reais"
+)]
 fn executar(
     incerteza: bool,
     somente_previa: bool,
     com_leitura: bool,
 ) -> (Vec<Output>, Vec<String>, usize, Option<Vec<u8>>) {
     let pasta = Pasta::nova();
-    let (cert, identidade_tls) = identidade(&pasta.0);
+    let (cert, identidade_tls) = identidade(&pasta.0, "sei.test");
     let origem = pasta.privado("origem", ORIGEM);
     let chave = ["infra", "hash"].join("_");
     let controle = pasta.privado(
@@ -257,7 +263,6 @@ fn executar(
         .map(|args| {
             Command::new(env!("CARGO_BIN_EXE_ies"))
                 .args(*args)
-                .env("IES_ANTI_IES_TESTE", "1")
                 .env("IES_URL_CONTROLE_FILE", &controle)
                 .env("IES_COOKIE_FILE", &cookie)
                 .env("IES_ORIGEM_FILE", &origem)
@@ -340,20 +345,9 @@ fn bdd_332_03_binario_confirma_upload_cadastro_e_releitura_independente() {
 }
 
 #[test]
-fn bdd_332_04_resposta_sem_autoria_retorna_tres_sem_repetir_post() {
+fn bdd_332_04_resposta_sem_autoria_falha_sem_repetir_post() {
     let (saidas, eventos, total, _) = executar(true, false, false);
-    assert_eq!(
-        saidas[0].status.code(),
-        Some(3),
-        "stdout={} stderr={} eventos={eventos:?}",
-        String::from_utf8_lossy(&saidas[0].stdout),
-        String::from_utf8_lossy(&saidas[0].stderr)
-    );
-    let incerto = json(&saidas[0]);
-    assert_eq!(incerto["confirmado"], false);
-    assert_eq!(incerto["efeito_incerto"], true);
-    assert_eq!(incerto["retentavel"], false);
-    assert_eq!(incerto["cadastro_tentado"], true);
+    falha(&saidas[0], "TentativaNaoComprovada");
     assert_eq!(total, 1, "efeito existiu mesmo com resposta adulterada");
     assert_eq!(
         eventos

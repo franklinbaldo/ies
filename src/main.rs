@@ -1,3 +1,4 @@
+mod acao_do_sei;
 mod anexo_documento;
 mod arquivo_caixa;
 mod arquivo_copia;
@@ -7,6 +8,9 @@ mod arvore_processo;
 mod bloco;
 mod bloco_cli;
 mod bloco_detalhe;
+mod bloco_estado;
+mod bloco_incluir;
+mod bloco_incluir_cli;
 mod cache_documento;
 mod caixa;
 mod caixa_detalhada;
@@ -19,12 +23,15 @@ mod classe_link_processo;
 mod cli_documento;
 mod cli_processo;
 mod cli_unidade_aux;
+mod cofre;
 mod colheita_do_controle;
 mod configuracao;
+mod consulta_do_controlador;
 mod controle_contexto;
 mod controle_reconhecido;
 mod copia_documento;
 mod copia_listagem;
+mod credenciais_cli;
 mod documento;
 mod documento_assinar;
 mod documento_assinar_cli;
@@ -42,23 +49,21 @@ mod documento_versao_cli;
 mod documento_versoes;
 mod documento_web;
 mod dominio;
-mod entidades_html;
-mod erro_html;
 mod erro_publico;
 mod erro_web;
 mod esquema_cli;
 mod formulario_web;
 mod foto_documento;
-mod hex;
 mod historico;
 mod historico_processo;
-mod html_atributos;
 mod indice_caminho_cli;
 mod indice_local;
 mod instalacao;
+mod legenda;
 mod marcadores_processo;
 mod mime_web;
 mod nivel_de_detalhe;
+mod origem_de_treinamento;
 mod pagina_do_controle;
 mod paginacao_controle;
 mod paginas;
@@ -70,30 +75,30 @@ mod processo_andamento_registrar;
 mod processo_andamento_registrar_cli;
 mod processo_anexar;
 mod processo_anexar_cli;
+mod processo_anotar;
+mod processo_anotar_cli;
 mod processo_atribuir;
 mod processo_atribuir_cli;
 mod processo_buscar_cli;
 pub mod processo_comentar;
-#[allow(dead_code)] // núcleo offline; leitura Web ainda não ligada à CLI (#257)
+mod processo_comentar_cli;
+mod processo_comentar_web;
 pub mod processo_comentarios;
+mod processo_comentarios_cli;
+mod processo_comentarios_web;
 mod processo_concluir;
 mod processo_concluir_cli;
-#[allow(dead_code)] // núcleo isolado: o fluxo Web ainda não está ligado
 #[path = "processo_criar/cadastro.rs"]
 mod processo_criar_cadastro;
 mod processo_criar_cli;
-#[allow(dead_code)] // fluxo Web a integrar pela CLI
 #[path = "processo_criar/fluxo.rs"]
 mod processo_criar_fluxo;
 #[path = "processo_criar/hipotese.rs"]
 mod processo_criar_hipotese;
-#[allow(dead_code)]
 #[path = "processo_criar/interessados.rs"]
 mod processo_criar_interessados;
-#[allow(dead_code)] // etapa isolada da #245; conectar ao despacho na etapa do fluxo
 #[path = "processo_criar/lista.rs"]
 mod processo_criar_lista;
-#[allow(dead_code)] // link do menu validado offline; fluxo Web pendente
 #[path = "processo_criar/menu.rs"]
 mod processo_criar_menu;
 mod processo_enviar;
@@ -113,15 +118,15 @@ mod processo_sobrestar_cli;
 mod propriedades_documento;
 mod propriedades_processo;
 mod relogin_cli;
+mod resposta_ajax;
 mod rodape_do_documento;
 mod saida;
-mod saida_erro;
-pub(crate) use saida_erro::erro_fonte;
 mod sessao_login;
 mod sessao_login_cli;
 mod setup_cli;
 mod status_cli;
 mod status_web;
+mod tela_html;
 mod tela_login;
 mod transporte;
 mod unidade_atual_cli;
@@ -138,12 +143,12 @@ mod unidade_retornos_web;
 mod unidade_trocar;
 mod unidade_trocar_cli;
 mod url_observada;
+mod uso_invalido;
 mod visao_do_controle;
+mod wizard_cli;
 
 use clap::{Args, Parser, Subcommand};
-use serde_json::json;
 use std::path::PathBuf;
-use std::process::ExitCode;
 
 pub(crate) use cli_documento::DocumentoAcao;
 pub(crate) use cli_processo::{Processo, ProcessoAcao};
@@ -180,10 +185,21 @@ enum Domain {
     /// Autentica na instalação configurada e grava a sessão nos arquivos privados
     ///
     /// Credenciais só no arquivo privado 0600 de `IES_CREDENCIAIS_FILE`, com as
-    /// linhas usuario=, senha= e orgao= (a sigla mostrada no selOrgao). Sem
+    /// linhas usuario=, senha= e orgao= (a sigla mostrada no selOrgao); sem a
+    /// linha senha=, a senha vem do cofre do sistema (`ies credenciais`). Sem
     /// --forcar, confere antes a sessão gravada com um GET e não loga se ela
     /// valer.
     Login(LoginArgs),
+    /// Guarda, confere ou apaga a senha do login no cofre do sistema operacional
+    ///
+    /// Uma entrada por instalação e usuário (serviço `ies:<host>`). A senha é
+    /// digitada sem eco, nunca por argumento.
+    Credenciais(credenciais_cli::CredenciaisArgs),
+    /// Assistente interativo que cria um perfil local em ~/.ies/<perfil>, sem rede
+    ///
+    /// Grava origem, sessão vazia, credenciais sem senha e a configuração do
+    /// `ies setup`; a senha vai para o cofre do sistema operacional.
+    Wizard(wizard_cli::WizardArgs),
     /// Mostra o contrato de saída (ainda não implementado)
     Esquema,
 }
@@ -191,13 +207,13 @@ enum Domain {
 #[derive(Debug, Args)]
 struct Documento {
     /// Números dos documentos SEI
-    #[arg(num_args = 0..)]
-    numeros: Vec<String>,
+    #[arg(num_args = 0.., value_parser = crate::documento::NumeroDocumento::novo)]
+    numeros: Vec<crate::documento::NumeroDocumento>,
     /// Contexto de processo, quando conhecido
-    #[arg(long)]
-    processo: Option<String>,
+    #[arg(long, value_parser = crate::processo::NumeroProcesso::novo)]
+    processo: Option<crate::processo::NumeroProcesso>,
     /// Solicita exatamente esta versão histórica (requer transporte autorizado)
-    #[arg(long)]
+    #[arg(long, value_parser = clap::value_parser!(u32).range(1..))]
     versao: Option<u32>,
     /// Interpreta HTML privado já capturado, sem rede ou confirmação de sessão
     #[arg(long = "html-privado", value_name = "ARQUIVO")]
@@ -221,7 +237,7 @@ struct Documento {
 #[derive(Debug, Args)]
 struct Bloco {
     /// Número de bloco de assinatura a detalhar; sem número, usar listar
-    numero: Option<String>,
+    numero: Option<u64>,
     #[command(subcommand)]
     acao: Option<BlocoAcao>,
 }
@@ -235,6 +251,21 @@ enum BlocoAcao {
         /// Página 1: validação da página atual; páginas adicionais em desenvolvimento
         #[arg(long, value_parser = clap::value_parser!(u32).range(1..))]
         pagina: Option<u32>,
+    },
+    /// Inclui documento (bloco de assinatura) ou processo (interno/reunião) em bloco; sem --confirmar, só prévia
+    #[command(group(clap::ArgGroup::new("alvo").required(true).args(["documento", "processo"])))]
+    Incluir {
+        /// Número do bloco publicado pela lista da unidade
+        bloco: u64,
+        /// Número SEI do documento (bloco de assinatura)
+        #[arg(long, value_parser = crate::documento::NumeroDocumento::novo)]
+        documento: Option<crate::documento::NumeroDocumento>,
+        /// NUP do processo (bloco interno ou de reunião)
+        #[arg(long)]
+        processo: Option<String>,
+        /// Executa a inclusão (sem isso, só prévia)
+        #[arg(long)]
+        confirmar: bool,
     },
 }
 
@@ -265,7 +296,10 @@ enum UnidadeAcao {
         atualizar: bool,
     },
     /// Pesquisa no índice local por sigla ou descrição, sem rede
-    Pesquisar { termo: String },
+    Pesquisar {
+        #[arg(value_parser = clap::builder::NonEmptyStringValueParser::new())]
+        termo: String,
+    },
     /// Mostra a unidade ativa pelo rótulo publicado na página do Controle
     Atual,
     /// Lista os processos da unidade na visão detalhada, com colunas; a sessão fica na D
@@ -284,8 +318,12 @@ enum UnidadeAcao {
     /// Mostra as 12 opções do Nível de detalhe; com --definir, prévia da escrita
     Colunas {
         /// Colunas a deixar marcadas: `todas` (as publicadas) ou chaves separadas por vírgula; sem --confirmar, só prévia
-        #[arg(long, value_name = "todas|LISTA")]
-        definir: Option<String>,
+        #[arg(
+            long,
+            value_name = "todas|LISTA",
+            value_parser = nivel_de_detalhe::AlvoDasColunas::interpretar
+        )]
+        definir: Option<nivel_de_detalhe::AlvoDasColunas>,
         /// Salva a configuração pedida (um POST) e confere por leitura
         #[arg(long, requires = "definir")]
         confirmar: bool,
@@ -293,6 +331,7 @@ enum UnidadeAcao {
     /// Troca a unidade ativa da sessão; vale para toda a sessão da conta (todos os agentes que a usam). Sem --confirmar, só prévia
     Trocar {
         /// Sigla como a tela Trocar Unidade a mostra (byte a byte)
+        #[arg(value_parser = unidade_trocar_cli::sigla_da_troca)]
         sigla: String,
         /// Envia a troca (um POST) e confere pelo Controle da unidade nova
         #[arg(long)]
@@ -305,8 +344,8 @@ enum UnidadeAcao {
     /// Lista os retornos programados da unidade na tela Web do SEI
     Retornos {
         /// Mes AAAA-MM (ausente: mes marcado como hoje pelo SEI)
-        #[arg(long, value_name = "AAAA-MM")]
-        mes: Option<String>,
+        #[arg(long, value_name = "AAAA-MM", value_parser = unidade_retornos_web::mes_da_cli)]
+        mes: Option<unidade_retornos::MesAno>,
     },
 }
 
@@ -360,14 +399,16 @@ struct SetupArgs {
 
 /// Despacha os recortes de leitura e prévia já implementados, sem duplicar
 /// verificações nem acessar serviços fora do comando explicitamente solicitado.
-fn tentar_operacao_documento_ou_processo(cli: &Cli) -> Option<ExitCode> {
+fn tentar_operacao_documento_ou_processo(cli: &Cli) -> Option<anyhow::Result<()>> {
     processo_criar_cli::tentar_criar(cli)
+        .or_else(|| processo_comentarios_cli::tentar_ler(cli))
+        .or_else(|| processo_comentar_cli::tentar_comentar(cli))
+        .or_else(|| processo_anotar_cli::tentar_anotar(cli))
         .or_else(|| processo_andamento_registrar_cli::tentar_registrar(cli))
         .or_else(|| processo_buscar_cli::tentar_buscar(cli))
         .or_else(|| documento_buscar_cli::tentar_buscar(cli))
         .or_else(|| documento_html_privado_cli::tentar_ler(cli))
         .or_else(|| documento_salvar_cli::tentar_salvar_documento(cli))
-        .or_else(|| documento_salvar_cli::tentar_validar_versao(cli))
         .or_else(|| documento_obter_cli::tentar_obter(cli))
         .or_else(|| processo_obter_cli::tentar_obter(cli))
         .or_else(|| processo_atribuir_cli::tentar_atribuir(cli))
@@ -389,16 +430,21 @@ fn tentar_operacao_documento_ou_processo(cli: &Cli) -> Option<ExitCode> {
 }
 
 /// `ies unidade colunas`: leitura; com `--definir`, prévia ou escrita.
-fn run(cli: &Cli) -> ExitCode {
-    if let Some(status) = unidade_indice_cli::tentar_consulta_local(cli) {
-        return status;
+fn run(cli: &Cli) -> anyhow::Result<()> {
+    if let Some(saida) = unidade_indice_cli::tentar_consulta_local(cli) {
+        return saida;
     }
-    if let Some(status) = tentar_operacao_documento_ou_processo(cli) {
-        return status;
+    if let Some(saida) = tentar_operacao_documento_ou_processo(cli) {
+        return saida;
     }
     match &cli.command {
         Domain::Bloco(bloco) => return bloco_cli::executar(cli, bloco),
-        Domain::Esquema => return esquema_cli::mostrar_esquema(cli.json),
+        Domain::Credenciais(args) => return credenciais_cli::executar(args, cli.json),
+        Domain::Wizard(args) => return wizard_cli::executar(args, cli.json),
+        Domain::Esquema => {
+            esquema_cli::mostrar_esquema(cli.json);
+            return Ok(());
+        }
         Domain::Setup(setup) => return setup_cli::executar_setup(setup, cli.json),
         Domain::Login(LoginArgs { forcar }) => {
             return sessao_login_cli::executar_login(cli.json, *forcar, cli.unidade.as_deref());
@@ -406,59 +452,10 @@ fn run(cli: &Cli) -> ExitCode {
         Domain::Status(args) => {
             return status_cli::mostrar_status(cli.json, args, cli.unidade.as_deref());
         }
-        Domain::Unidade(Unidade {
-            acao: Some(UnidadeAcao::Atual),
-        }) => return unidade_atual_cli::mostrar_unidade_atual(cli.unidade.as_deref(), cli.json),
-        Domain::Unidade(Unidade {
-            acao: Some(UnidadeAcao::Recebidos(lista)),
-        }) => {
-            return cli_unidade_aux::listar(
-                cli,
-                lista,
-                unidade_categoria::CategoriaLista::Recebidos,
-            );
+        Domain::Unidade(Unidade { acao: Some(acao) }) => {
+            return cli_unidade_aux::executar(cli, acao);
         }
-        Domain::Unidade(Unidade {
-            acao: Some(UnidadeAcao::Gerados(lista)),
-        }) => {
-            return cli_unidade_aux::listar(cli, lista, unidade_categoria::CategoriaLista::Gerados);
-        }
-        Domain::Unidade(Unidade {
-            acao: Some(UnidadeAcao::Retornos { mes }),
-        }) => {
-            return unidade_retornos_cli::listar(cli.unidade.as_deref(), cli.json, mes.as_deref());
-        }
-        Domain::Unidade(Unidade {
-            acao: Some(UnidadeAcao::ListarProcessos { saida, pagina }),
-        }) => {
-            return unidade_lista_cli::listar_processos_da_unidade(
-                cli.unidade.as_deref(),
-                cli.json,
-                saida.as_deref(),
-                pagina.map(|n| n as usize),
-            );
-        }
-        Domain::Unidade(Unidade {
-            acao: Some(UnidadeAcao::Colunas { definir, confirmar }),
-        }) => return cli_unidade_aux::colunas(cli, definir.as_deref(), *confirmar),
-        Domain::Unidade(Unidade {
-            acao: Some(UnidadeAcao::Trocar { sigla, confirmar }),
-        }) => {
-            return unidade_trocar_cli::trocar(sigla, *confirmar, cli.unidade.as_deref(), cli.json);
-        }
-        _ => {}
-    }
-    if let Domain::Documento(Documento {
-        numeros,
-        acao: None,
-        ..
-    }) = &cli.command
-        && let Some(status) = documento_salvar_cli::validar_documentos(numeros, cli.json)
-    {
-        return status;
-    }
-    if let Some(status) = processo_obter_cli::validar_numero(cli) {
-        return status;
+        Domain::Processo(_) | Domain::Documento(_) | Domain::Unidade(_) | Domain::Indice(_) => {}
     }
     match &cli.command {
         Domain::Processo(Processo {
@@ -467,7 +464,7 @@ fn run(cli: &Cli) -> ExitCode {
             ..
         }) => {
             esquema_cli::show_noun_help("processo");
-            return ExitCode::SUCCESS;
+            return Ok(());
         }
         Domain::Documento(Documento {
             numeros,
@@ -475,54 +472,38 @@ fn run(cli: &Cli) -> ExitCode {
             ..
         }) if numeros.is_empty() => {
             esquema_cli::show_noun_help("documento");
-            return ExitCode::SUCCESS;
+            return Ok(());
         }
         Domain::Indice(Indice { acao: None }) => {
             println!("ies indice caminho");
-            return ExitCode::SUCCESS;
+            return Ok(());
         }
         Domain::Unidade(Unidade { acao: None }) => {
             esquema_cli::show_noun_help("unidade");
-            return ExitCode::SUCCESS;
+            return Ok(());
         }
-        _ => {}
+        Domain::Processo(_)
+        | Domain::Documento(_)
+        | Domain::Unidade(_)
+        | Domain::Indice(_)
+        | Domain::Bloco(_)
+        | Domain::Status(_)
+        | Domain::Setup(_)
+        | Domain::Login(_)
+        | Domain::Credenciais(_)
+        | Domain::Wizard(_)
+        | Domain::Esquema => {}
     }
-    comando_nao_implementado(cli)
+    Err(ComandoSemImplementacaoNoSei(format!("{:?}", cli.command)).into())
 }
 
-fn comando_nao_implementado(cli: &Cli) -> ExitCode {
-    let detail = format!("{:?}", cli.command);
-    if cli.json {
-        println!(
-            "{}",
-            json!({
-                "erro": "Comando definido preliminarmente, mas sem implementação SEI",
-                "codigo": "nao_implementado",
-                "retentavel": false,
-                "dados": { "comando": detail },
-                "proximo_passo": "Implementar após aprovação do contrato CLI"
-            })
-        );
-    } else {
-        eprintln!("IES: comando ainda não implementado no SEI ({detail})");
-    }
-    ExitCode::from(1)
-}
+/// O comando existe na superfície Clap, mas ainda não tem fluxo SEI.
+#[derive(Debug, thiserror::Error)]
+#[error("{self:?}")]
+struct ComandoSemImplementacaoNoSei(String);
 
-fn main() -> ExitCode {
-    match Cli::try_parse() {
-        Ok(cli) => run(&cli),
-        Err(err) => {
-            let status = if matches!(
-                err.kind(),
-                clap::error::ErrorKind::DisplayHelp | clap::error::ErrorKind::DisplayVersion
-            ) {
-                0
-            } else {
-                2
-            };
-            let _ = err.print();
-            ExitCode::from(status)
-        }
-    }
+/// O erro que sobe é impresso pelo próprio Rust (`Error: …`, com o `Debug`
+/// e a cadeia de causas) e sai com 1; uso inválido é do clap (saída 2).
+fn main() -> anyhow::Result<()> {
+    run(&Cli::parse())
 }

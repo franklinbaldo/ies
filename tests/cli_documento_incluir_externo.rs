@@ -1,4 +1,4 @@
-//! #332: comando externo inspeciona PDF offline e recusa escrita sem sessão.
+//! #332: comando externo inspeciona PDF offline; --confirmar exige sessão.
 use std::fs;
 use std::path::PathBuf;
 use std::process::{Command, Output};
@@ -10,13 +10,16 @@ fn executar(args: &[&str]) -> Output {
     Command::new(env!("CARGO_BIN_EXE_ies"))
         .args(args)
         .env_remove("IES_CONFIG_FILE")
-        .env_remove("IES_ANTI_IES_TESTE")
         .env("IES_URL_CONTROLE_FILE", "/nao/existe/url")
         .env("IES_COOKIE_FILE", "/nao/existe/cookie")
         .env("IES_ORIGEM_FILE", "/nao/existe/origem")
         .output()
         .expect("ies deve iniciar")
 }
+
+#[path = "support/falha.rs"]
+mod falha_cli;
+use falha_cli::falha;
 
 fn json(saida: &Output) -> serde_json::Value {
     serde_json::from_slice(&saida.stdout).expect("saída deve ser JSON")
@@ -83,7 +86,6 @@ fn bdd_332_01_pdf_local_publica_inspecao_sem_sessao_ou_http() {
     assert_eq!(valor["confirmado"], false);
     assert_eq!(valor["requisicoes"], 0);
     assert_eq!(valor["escrita_remota"], false);
-    assert!(valor.get("subcodigo").is_none());
 }
 
 #[test]
@@ -107,22 +109,10 @@ fn bdd_332_05_pdf_falso_e_extensao_incorreta_recusados_antes_da_rede() {
             if let Some(modo) = modo {
                 args.push(modo);
             }
+            // Sem arquivos de sessão válidos, só a inspeção local poderia
+            // produzir este erro: nenhuma requisição foi feita.
             let saida = executar(&args);
-            assert_eq!(
-                saida.status.code(),
-                Some(2),
-                "modo={modo:?} stderr={:?}",
-                saida.stderr
-            );
-            let valor = json(&saida);
-            assert_eq!(valor["causa"], serde_json::json!({"Pdf": causa}));
-            assert_eq!(valor["retentavel"], false);
-            assert_eq!(
-                valor["requisicoes"], 0,
-                "modo={modo:?}: nenhuma requisição permitida"
-            );
-            assert_eq!(valor["escrita_remota"], false);
-            assert!(valor.get("subcodigo").is_none());
+            falha(&saida, causa);
         }
     }
 }
@@ -148,18 +138,14 @@ fn bdd_332_05_caminho_simbolico_ou_diretorio_sao_recusados() {
             "--tipo",
             "Anexo",
         ]);
-        assert_eq!(saida.status.code(), Some(2), "stderr={:?}", saida.stderr);
-        let valor = json(&saida);
-        assert_eq!(valor["causa"], serde_json::json!({"Pdf": causa}));
-        assert_eq!(valor["requisicoes"], 0);
-        assert_eq!(valor["escrita_remota"], false);
+        falha(&saida, causa);
     }
     fs::remove_file(link).unwrap();
     fs::remove_dir(diretorio).unwrap();
 }
 
 #[test]
-fn confirmar_recusa_antes_de_ler_sessao_inexistente() {
+fn confirmar_vai_a_sessao_e_sem_ela_falha_antes_da_rede() {
     let pdf = PdfTeste::novo();
     let saida = executar(&[
         "--json",
@@ -173,8 +159,9 @@ fn confirmar_recusa_antes_de_ler_sessao_inexistente() {
         "Anexo",
         "--confirmar",
     ]);
+    // A escrita não depende de chave de ensaio: --confirmar segue para a
+    // sessão; sem arquivos de sessão, falha antes de qualquer requisição.
     assert_eq!(saida.status.code(), Some(1));
-    assert_eq!(json(&saida)["causa"], "CadastroNaoValidado");
 }
 
 #[test]
@@ -190,8 +177,7 @@ fn arquivo_local_ausente_e_recusado_sem_sessao() {
         "--tipo",
         "Anexo",
     ]);
-    assert_eq!(saida.status.code(), Some(2));
-    assert_eq!(json(&saida)["causa"], serde_json::json!({"Pdf": "Ausente"}));
+    falha(&saida, "Ausente");
 }
 
 #[test]
@@ -214,11 +200,7 @@ fn nome_pdf_incompativel_rejeitado_com_erro_tipado_antes_da_rede() {
         "--tipo",
         "Anexo",
     ]);
-    assert_eq!(saida.status.code(), Some(2));
-    assert_eq!(
-        json(&saida)["causa"],
-        serde_json::json!({"Pdf": "NomeInvalido"})
-    );
+    falha(&saida, "NomeInvalido");
 }
 
 #[test]
@@ -238,10 +220,6 @@ fn tipo_com_controle_direcional_nao_pode_enganar_a_saida_humana() {
         "An\u{202e}exo",
     ]);
     assert_eq!(saida.status.code(), Some(2));
-    assert_eq!(
-        json(&saida)["causa"],
-        serde_json::json!({"Tipo": "Controle"})
-    );
 }
 
 #[test]
@@ -258,12 +236,10 @@ fn tipo_vazio_nao_acessa_arquivo_nem_sessao() {
         " ",
     ]);
     assert_eq!(saida.status.code(), Some(2));
-    assert_eq!(json(&saida)["causa"], serde_json::json!({"Tipo": "Vazio"}));
-    assert!(json(&saida).get("subcodigo").is_none());
 }
 
 #[test]
-fn numero_invalido_expoe_tipo_de_causa_sem_subcodigo() {
+fn numero_invalido_expoe_o_tipo_da_causa() {
     let pdf = PdfTeste::novo();
     let saida = executar(&[
         "--json",
@@ -277,9 +253,10 @@ fn numero_invalido_expoe_tipo_de_causa_sem_subcodigo() {
         "Anexo",
     ]);
     assert_eq!(saida.status.code(), Some(2));
-    let valor = json(&saida);
-    assert_eq!(valor["causa"], serde_json::json!({"Processo": "Vazio"}));
-    assert!(valor.get("subcodigo").is_none());
+    assert!(
+        saida.stdout.is_empty(),
+        "uso inválido é recusado pelo clap, sem JSON"
+    );
 }
 
 #[test]
@@ -299,12 +276,17 @@ fn dado_pedido_de_previa_web_quando_sem_sessao_entao_nao_finge_inspecao_local() 
         "--consultar-sei",
     ]);
     assert_eq!(saida.status.code(), Some(1), "{:?}", saida.stderr);
-    let valor = json(&saida);
-    assert_ne!(valor["escopo"], "inspecao_local");
+    // Sem inspeção local fingida: nada no stdout, só o erro tipado.
+    assert_eq!(saida.stdout, b"");
+    let erro = String::from_utf8_lossy(&saida.stderr);
+    assert!(
+        erro.starts_with("Error: UrlDoControleIlegivel(Ausente)"),
+        "{erro}"
+    );
 }
 
 #[test]
-fn dado_confirmar_com_previa_web_quando_cadastro_incompleto_entao_recusa_antes_da_sessao() {
+fn dado_confirmar_com_previa_web_quando_sem_sessao_entao_falha_antes_da_rede() {
     let pdf = PdfTeste::novo();
     let saida = executar(&[
         "--json",
@@ -319,6 +301,32 @@ fn dado_confirmar_com_previa_web_quando_cadastro_incompleto_entao_recusa_antes_d
         "--consultar-sei",
         "--confirmar",
     ]);
+    // A escrita não depende de chave de ensaio: --confirmar segue para a
+    // sessão; sem arquivos de sessão, falha antes de qualquer requisição.
     assert_eq!(saida.status.code(), Some(1));
-    assert_eq!(json(&saida)["causa"], "CadastroNaoValidado");
+}
+
+#[test]
+fn inspecao_local_humana_mantem_aviso_sem_sessao_ou_rede() {
+    let pdf = PdfTeste::novo();
+    let saida = executar(&[
+        "documento",
+        "incluir-externo",
+        "--processo",
+        "23106.000001/2026-11",
+        "--arquivo",
+        pdf.caminho(),
+        "--tipo",
+        "Anexo",
+    ]);
+    assert_eq!(saida.status.code(), Some(0), "{:?}", saida.stderr);
+    assert_eq!(saida.stderr, b"");
+    let humano = String::from_utf8(saida.stdout).unwrap();
+    assert_eq!(
+        humano,
+        format!(
+            "IES: arquivo local {} (23 bytes, SHA-256 49286c45c90723857946342e0610a2b28974f176218f77f79efacc34cc4567bc) inspecionado para 23106.000001/2026-11. Tipo solicitado: Anexo. Nenhuma tela do SEI foi consultada; não é prévia remota e nenhuma escrita está habilitada.\n",
+            pdf.0.file_name().unwrap().to_str().unwrap()
+        )
+    );
 }

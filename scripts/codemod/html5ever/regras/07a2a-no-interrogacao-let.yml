@@ -1,0 +1,21 @@
+id: 07a2a-no-interrogacao-let
+language: rust
+message: 'let x = h.get(parser)?: o nó sempre existe (o let)'
+severity: hint
+rule:
+  all:
+    - any:
+        - pattern: 'let $X = $H.get($P)?;'
+    - not:
+        inside:
+          stopBy: end
+          kind: mod_item
+          follows:
+            kind: attribute_item
+            regex: 'cfg\(test\)'
+constraints:
+  H:
+    kind: identifier
+  P:
+    regex: '^(parser|.*\.parser\(\))$'
+fix: '/* ies-codemod: remover linha */'

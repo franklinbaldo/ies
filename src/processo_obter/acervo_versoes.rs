@@ -9,9 +9,9 @@ use crate::arvore_processo::{
 };
 use crate::cassette::acervo::{INSTALACOES, gravacao, percorrer, publicar};
 use crate::cassette::html_da_resposta;
-use crate::documento::NumeroDocumento;
 use crate::documento_versoes::interpretar_historico;
 use crate::rodape_do_documento::versao_do_rodape;
+use crate::tela_html::HtmlServido;
 use std::collections::BTreeMap;
 use std::fmt::Write as _;
 
@@ -25,9 +25,9 @@ fn somar(contagem: &mut Contagem, leitor: &'static str, classe: String, instalac
         .or_default() += 1;
 }
 
-fn barras(html: &str, item: &serde_json::Value, json: &serde_json::Value) -> Vec<String> {
+fn barras(html: &str, interacao: &serde_json::Value, json: &serde_json::Value) -> Vec<String> {
     let (Some(id), Some(nup), Some(instalacao)) = (
-        gravacao::id_procedimento(item),
+        gravacao::id_procedimento(interacao),
         nup_declarado_na_arvore(html),
         gravacao::instalacao(json),
     ) else {
@@ -54,26 +54,25 @@ fn barras(html: &str, item: &serde_json::Value, json: &serde_json::Value) -> Vec
                     };
                     format!("{lista}, {edicao}")
                 }
-                Err(erro) => format!("`{}`", crate::erro_publico::folha(&erro)),
+                Err(erro) => format!("`{erro:?}`"),
             },
         )
         .collect()
 }
 
-fn lista(html: &str, item: &serde_json::Value) -> String {
-    let ids = gravacao::parametro(item, "id_documento");
+fn lista(html: &str, interacao: &serde_json::Value) -> String {
+    let ids = gravacao::parametro(interacao, "id_documento");
     let Some(id) = ids.first().filter(|p| ids.iter().all(|v| v == *p)) else {
         return "id_documento da gravação ilegível".to_owned();
     };
-    let numero = NumeroDocumento::novo("1").expect("número sintético");
-    match interpretar_historico(html, &numero, id, None) {
+    match interpretar_historico(&HtmlServido::de_teste(html), id, None) {
         Ok(h) => format!(
             "{} versões, atual {}",
             h.len(),
             h.atual()
                 .map_or(0, crate::documento_versoes::VersaoDocumento::numero)
         ),
-        Err(erro) => format!("`{}`", erro.subcodigo()),
+        Err(erro) => format!("`{erro:?}`"),
     }
 }
 
@@ -91,24 +90,24 @@ fn replay_de_versoes_no_acervo() {
             if r.status != 200 {
                 continue;
             }
-            let Ok(html) = html_da_resposta(r.item) else {
+            let Ok(html) = html_da_resposta(r.interacao) else {
                 continue;
             };
             match r.operacao {
                 "procedimento_visualizar" => {
-                    for classe in barras(&html, r.item, json) {
+                    for classe in barras(&html, r.interacao, json) {
                         somar(&mut contagem, "barra do documento", classe, instalacao);
                     }
                 }
                 "documento_visualizar" => {
-                    let classe = match versao_do_rodape(&html) {
+                    let classe = match versao_do_rodape(&HtmlServido::de_teste(&html)) {
                         Some(_) => "rodapé com a versão servida",
                         None => "sem rodapé na forma observada",
                     };
                     somar(&mut contagem, "conteúdo", classe.to_owned(), instalacao);
                 }
                 "documento_versao_listar" => {
-                    let classe = lista(&html, r.item);
+                    let classe = lista(&html, r.interacao);
                     somar(&mut contagem, "lista de versões", classe, instalacao);
                 }
                 _ => {}

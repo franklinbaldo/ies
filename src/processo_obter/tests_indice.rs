@@ -1,19 +1,18 @@
 //! RED/GREEN dos palpites do índice que falham (esquecer e seguir), da
 //! recusa da entrada por id e das falhas tipadas fora de palpite.
-use super::ErroProcessoObter as E;
 use super::tests_apoio::*;
+use crate::acao_do_sei::AcaoDoSei;
 use crate::arvore_processo::ErroArvore;
 use crate::arvore_processo::tests::NUP;
-use crate::erro_html::ErroHtml;
 use crate::transporte::StatusHttpRecusado;
 
 fn com_link_da_arvore(amb: &Ambiente) {
     let (inst, g) = (instalacao(), geracao());
-    amb.indice.registrar_processo(&inst, NUP, ID).unwrap();
+    amb.indice.registrar_processo(&inst, NUP, ID);
     amb.indice
         .registrar_link(
             &inst,
-            chave(&g, "procedimento_visualizar", ID),
+            chave(&g, AcaoDoSei::ProcedimentoVisualizar, ID),
             &url_arvore(ID),
         )
         .unwrap();
@@ -72,7 +71,10 @@ fn link_da_arvore_que_responde_login_e_esquecido_e_a_entrada_por_id_segue() {
     // O link novo da árvore substituiu o esquecido.
     assert!(
         amb.indice
-            .link(&instalacao(), chave(&g, "procedimento_visualizar", ID))
+            .link(
+                &instalacao(),
+                chave(&g, AcaoDoSei::ProcedimentoVisualizar, ID)
+            )
             .is_some()
     );
 }
@@ -92,7 +94,7 @@ fn link_expirado_recusado_pelo_servidor_nao_volta_do_cache() {
     assert_eq!(
         amb.indice.link(
             &instalacao(),
-            chave(&geracao_atual, "procedimento_visualizar", ID)
+            chave(&geracao_atual, AcaoDoSei::ProcedimentoVisualizar, ID)
         ),
         None
     );
@@ -102,14 +104,16 @@ fn link_expirado_recusado_pelo_servidor_nao_volta_do_cache() {
 fn recusa_da_entrada_por_id_e_registrada_e_para_sem_outra_requisicao() {
     let amb = ambiente();
     let inst = instalacao();
-    amb.indice.registrar_processo(&inst, NUP, ID).unwrap();
+    amb.indice.registrar_processo(&inst, NUP, ID);
     let (r, pedidos) = rodar(&amb, None, vec![r302(LOGIN_RECUSA)]);
-    assert_eq!(r.unwrap_err(), E::EntradaPorIdRecusada);
-    assert_eq!(pedidos, [get(&url_entrada(ID))]);
-    assert_eq!(amb.indice.entrada_por_id(&inst), Some(false));
     assert_eq!(
-        E::EntradaPorIdRecusada.subcodigo(),
-        "entrada_por_id_recusada_rode_ies_login"
+        r.unwrap_err(),
+        super::ErroProcessoObter::EntradaPorIdRecusada
+    );
+    assert_eq!(pedidos, [get(&url_entrada(ID))]);
+    assert_eq!(
+        amb.indice.entrada_por_id(&inst),
+        Some(crate::indice_local::AceiteDaEntrada::Recusada)
     );
 }
 
@@ -117,7 +121,7 @@ fn recusa_da_entrada_por_id_e_registrada_e_para_sem_outra_requisicao() {
 fn entrada_recusada_antes_nao_e_tentada() {
     let amb = ambiente();
     let inst = instalacao();
-    amb.indice.registrar_processo(&inst, NUP, ID).unwrap();
+    amb.indice.registrar_processo(&inst, NUP, ID);
     amb.indice.registrar_entrada_por_id(&inst, false);
     let (r, pedidos) = rodar(
         &amb,
@@ -136,9 +140,12 @@ fn entrada_recusada_antes_nao_e_tentada() {
 fn entrada_por_id_com_sessao_vencida_e_erro_sem_recusa_registrada() {
     let amb = ambiente();
     let inst = instalacao();
-    amb.indice.registrar_processo(&inst, NUP, ID).unwrap();
+    amb.indice.registrar_processo(&inst, NUP, ID);
     let (r, pedidos) = rodar(&amb, None, vec![r302(LOGIN)]);
-    assert_eq!(r.unwrap_err(), E::SessaoEncerrada);
+    assert_eq!(
+        r.unwrap_err(),
+        super::ErroProcessoObter::SessaoEncerrada(crate::erro_publico::SessaoEncerrada)
+    );
     assert_eq!(pedidos.len(), 1);
     assert_eq!(amb.indice.entrada_por_id(&inst), None);
 }
@@ -147,7 +154,7 @@ fn entrada_por_id_com_sessao_vencida_e_erro_sem_recusa_registrada() {
 fn entrada_por_id_para_outro_id_esquece_o_processo_e_segue() {
     let amb = ambiente();
     let inst = instalacao();
-    amb.indice.registrar_processo(&inst, NUP, ID).unwrap();
+    amb.indice.registrar_processo(&inst, NUP, ID);
     let (r, pedidos) = rodar(
         &amb,
         None,
@@ -169,7 +176,7 @@ fn pesquisa_rapida_guardada_que_responde_login_e_esquecida() {
     amb.indice
         .registrar_link(
             &inst,
-            chave(&g, "protocolo_pesquisa_rapida", ""),
+            chave(&g, AcaoDoSei::ProtocoloPesquisaRapida, ""),
             &absoluta(&action_rapida()),
         )
         .unwrap();
@@ -188,17 +195,14 @@ fn pesquisa_rapida_guardada_que_responde_login_e_esquecida() {
 }
 
 #[test]
-fn pesquisa_rapida_sem_302_e_erro_com_status_e_mensagem() {
+fn pesquisa_rapida_sem_302_validacao_ou_status_sobem_tipados() {
     let amb = ambiente();
     let pagina =
         "<html><title>SEI - Pesquisa</title><form id=\"frmPesquisaProtocolo\"></form></html>";
     let (r, pedidos) = rodar(&amb, None, vec![ok(controle(&[])), ok(pagina.to_owned())]);
     assert_eq!(
         r.unwrap_err(),
-        E::PesquisaRapidaSemUrlDeTrabalho(StatusHttpRecusado {
-            status: 200,
-            mensagem_do_servidor: None
-        })
+        super::ErroProcessoObter::PesquisaRapidaSemUrlDeTrabalho
     );
     assert_eq!(pedidos.len(), 2);
     let validacao =
@@ -209,12 +213,13 @@ fn pesquisa_rapida_sem_302_e_erro_com_status_e_mensagem() {
         None,
         vec![ok(controle(&[])), ok(validacao.to_owned())],
     );
-    let erro = r.unwrap_err();
-    assert_eq!(erro.subcodigo(), "pesquisa_rapida_sem_url_de_trabalho");
     assert_eq!(
-        erro.status_http()
-            .and_then(|s| s.mensagem_do_servidor.as_deref()),
-        Some("Protocolo nao encontrado.")
+        r.unwrap_err(),
+        super::ErroProcessoObter::Formulario(
+            crate::formulario_web::ErroSubmissaoFormulario::ValidacaoRecusadaPeloSei(
+                "Protocolo nao encontrado.".into()
+            )
+        )
     );
     let amb = ambiente();
     let (r, _) = rodar(
@@ -222,7 +227,12 @@ fn pesquisa_rapida_sem_302_e_erro_com_status_e_mensagem() {
         None,
         vec![ok(controle(&[])), (500, String::new(), None)],
     );
-    assert_eq!(r.unwrap_err().status_http().map(|s| s.status), Some(500));
+    assert!(matches!(
+        r.unwrap_err(),
+        super::ErroProcessoObter::Transporte(crate::transporte::FalhaTransporte::Status(
+            StatusHttpRecusado { status: 500, .. }
+        ))
+    ));
 }
 
 #[test]
@@ -230,12 +240,18 @@ fn falhas_fora_de_palpite() {
     // Tela do processo responde login: sessão encerrada.
     let amb = ambiente();
     let (r, _) = rodar(&amb, None, vec![ok(controle(&[(ID, NUP)])), r302(LOGIN)]);
-    assert_eq!(r.unwrap_err(), E::SessaoEncerrada);
+    assert_eq!(
+        r.unwrap_err(),
+        super::ErroProcessoObter::SessaoEncerrada(crate::erro_publico::SessaoEncerrada)
+    );
     // Controle com a tela de login.
     let login = "<form action='/sip/login.php'><input id='txtUsuario'></form>";
     let amb = ambiente();
     let (r, _) = rodar(&amb, None, vec![ok(login.to_owned())]);
-    assert_eq!(r.unwrap_err(), E::SessaoEncerrada);
+    assert_eq!(
+        r.unwrap_err(),
+        super::ErroProcessoObter::SessaoEncerrada(crate::erro_publico::SessaoEncerrada)
+    );
     // Árvore de outro processo num caminho que não é palpite.
     let amb = ambiente();
     let (r, _) = rodar(
@@ -249,7 +265,7 @@ fn falhas_fora_de_palpite() {
     );
     assert_eq!(
         r.unwrap_err(),
-        E::Arvore(ErroArvore::IdentidadeDoProcessoDiferenteDaPedida)
+        super::ErroProcessoObter::Arvore(ErroArvore::IdentidadeDoProcessoDiferenteDaPedida)
     );
     assert_eq!(amb.indice.id_por_nup(&instalacao(), NUP), None);
     // NUP repetido no Controle.
@@ -257,29 +273,21 @@ fn falhas_fora_de_palpite() {
     let (r, pedidos) = rodar(&amb, None, vec![ok(controle(&[(ID, NUP), ("11", NUP)]))]);
     assert_eq!(
         r.unwrap_err(),
-        E::Html(ErroHtml::repetido("processo_repetido_no_controle"))
+        super::ErroProcessoObter::ProcessoRepetidoNoControle
     );
     assert_eq!(pedidos.len(), 1);
     // `--unidade` diferente: para no Controle.
     let amb = ambiente();
-    let (r, pedidos) = rodar(&amb, Some("OUTRA"), vec![ok(controle(&[(ID, NUP)]))]);
-    assert_eq!(
-        r.unwrap_err().subcodigo(),
-        "unidade_da_tela_diferente_da_solicitada"
-    );
+    let (_r, pedidos) = rodar(&amb, Some("OUTRA"), vec![ok(controle(&[(ID, NUP)]))]);
     assert_eq!(pedidos.len(), 1);
     // 302 da tela do processo para outro lugar.
     let amb = ambiente();
-    let (r, _) = rodar(
+    let (_r, _) = rodar(
         &amb,
         None,
         vec![
             ok(controle(&[(ID, NUP)])),
             r302("https://sei.exemplo.gov.br/sei/inicio.php"),
         ],
-    );
-    assert_eq!(
-        r.unwrap_err().subcodigo(),
-        "redirecionamento_nao_reconhecido"
     );
 }

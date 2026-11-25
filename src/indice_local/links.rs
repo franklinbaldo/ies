@@ -5,31 +5,29 @@
 //! assinada: guarda a que a tela publicou e a devolve igual.
 use super::IndiceLocal;
 use super::validacao::{RegistroRecusado, UrlAssinada, conferir_chave, conferir_url};
+use crate::acao_do_sei::AcaoDoSei;
 use crate::instalacao::Instalacao;
 use rusqlite::OptionalExtension;
 
 /// Chave de um link assinado. `geracao_sessao` é opaca (o SHA-256 do cookie);
-/// `unidade` é o id de `infra_unidade_atual`; `objeto` identifica o alvo
+/// `unidade` é o id de `infra_unidade_atual`; `alvo` identifica o alvo
 /// (por exemplo o `id_procedimento`), vazio quando a tela não tem alvo.
 /// Sem `Debug`: a geração deriva do cookie.
 #[derive(Clone, Copy)]
 pub(crate) struct ChaveDoLink<'a> {
     pub(crate) geracao_sessao: &'a str,
     pub(crate) unidade: &'a str,
-    pub(crate) acao: &'a str,
-    pub(crate) objeto: &'a str,
+    pub(crate) acao: AcaoDoSei,
+    pub(crate) alvo: &'a str,
 }
 
 /// Unidade da chave dos links: o `infra_unidade_atual` único e decimal da
 /// URL privada do Controle. `None` se ausente, repetido ou não decimal.
-pub(crate) fn unidade_dos_links(url_do_controle: &str) -> Option<String> {
-    let consulta = url_do_controle.split_once('?')?.1;
-    let mut valores = consulta
-        .split('&')
-        .filter_map(|par| par.strip_prefix("infra_unidade_atual="));
-    let unidade = valores.next()?;
-    let decimal = !unidade.is_empty() && unidade.bytes().all(|b| b.is_ascii_digit());
-    (decimal && valores.next().is_none()).then(|| unidade.to_owned())
+pub(crate) fn unidade_dos_links(
+    url_do_controle: &str,
+) -> Result<String, crate::consulta_do_controlador::ErroIdDaUrl> {
+    crate::consulta_do_controlador::id_decimal(url_do_controle, "infra_unidade_atual")
+        .map(str::to_owned)
 }
 
 impl IndiceLocal {
@@ -40,6 +38,7 @@ impl IndiceLocal {
         instalacao: &Instalacao,
         chave: ChaveDoLink<'_>,
     ) -> Option<UrlAssinada> {
+        // Cache local é melhor esforço: registro fora da forma é ignorado.
         conferir_chave(chave).ok()?;
         let origem = instalacao.url_base();
         let url: Option<String> = self.executar(None, |banco, _| {
@@ -51,14 +50,15 @@ impl IndiceLocal {
                         origem.as_str(),
                         chave.geracao_sessao,
                         chave.unidade,
-                        chave.acao,
-                        chave.objeto,
+                        chave.acao.como_na_url(),
+                        chave.alvo,
                     ],
                     |l| l.get(0),
                 )
                 .optional()
         });
         let url = url?;
+        // Cache local é melhor esforço: registro fora da forma é ignorado.
         conferir_url(instalacao, chave, &url).ok()?;
         Some(UrlAssinada::guardada(url))
     }
@@ -85,8 +85,8 @@ impl IndiceLocal {
                     origem,
                     chave.geracao_sessao,
                     chave.unidade,
-                    chave.acao,
-                    chave.objeto,
+                    chave.acao.como_na_url(),
+                    chave.alvo,
                     url,
                     agora
                 ],
@@ -94,6 +94,17 @@ impl IndiceLocal {
             Ok(())
         });
         Ok(())
+    }
+
+    /// [`Self::registrar_link`] para quem não decide pela recusa: ela fica nos
+    /// avisos. `true` se a entrada passou na conferência.
+    pub(crate) fn guardar_link(
+        &self,
+        instalacao: &Instalacao,
+        chave: ChaveDoLink<'_>,
+        url: &str,
+    ) -> bool {
+        self.anotar_recusa(self.registrar_link(instalacao, chave, url))
     }
 
     /// O link guardado não abriu a tela esperada: esquece-o.
@@ -107,8 +118,8 @@ impl IndiceLocal {
                     origem.as_str(),
                     chave.geracao_sessao,
                     chave.unidade,
-                    chave.acao,
-                    chave.objeto,
+                    chave.acao.como_na_url(),
+                    chave.alvo,
                 ],
             )?;
             Ok(())

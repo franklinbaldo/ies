@@ -1,10 +1,11 @@
 //! Leitura Web de documentos e anexos. Contrato: contracts/cli/documento-obter-web.md.
 //! Refs #60; sem publicar URLs, HTML ou cookies.
+use crate::acao_do_sei::AcaoDoSei;
 use crate::anexo_documento::LimiteDoAnexo;
 use crate::documento::NumeroDocumento;
 use crate::documento_versao_cli;
 use crate::foto_documento::{self, FotoGravada};
-use crate::indice_local::IndiceLocal;
+use crate::indice_local::{self, IndiceLocal};
 use crate::processo::NumeroProcesso;
 use crate::processo_obter::{
     DocumentoObtido, ErroDocumentoObter, PedidoDeVersoes, PedidoDoAnexo, PedidoDoDocumento,
@@ -13,55 +14,54 @@ use crate::processo_obter::{
 use crate::propriedades_documento::PropriedadesDocumento;
 use crate::relogin_cli::{self, FalhaDaLeitura, NotaDoRelogin};
 use crate::visao_do_controle::EnvioHttps;
-use crate::{Cli, Documento, Domain, configuracao, erro_fonte, saida_erro, transporte};
+use crate::{Cli, Documento, Domain, configuracao, transporte};
 use serde_json::{Value, json};
 use std::path::Path;
-use std::process::ExitCode;
 
 #[path = "documento_obter_cli/anexo.rs"]
 mod anexo;
 #[path = "documento_obter_cli/lote.rs"]
 mod lote;
 
-/// Metadados de um documento lido, sem o texto.
+/// Metadados de um documento lido, sem o texto. Campo sem valor
+/// (`pasta`, `unidade`, `tipo` do externo) não tem chave.
 pub(crate) fn json_do_documento(d: &DocumentoObtido) -> serde_json::Map<String, Value> {
-    let valor = json!({
-        "numero": d.numero,
-        "id_documento": d.id_documento,
-        "rotulo": d.rotulo,
-        "tipo": d.tipo,
-        "icone": d.natureza.icone,
-        "cancelado": d.natureza.cancelado,
-        "pasta": d.pasta,
-        "processo": {"nup": d.processo.nup, "id": d.processo.id, "tipo": d.processo.tipo},
-        "unidade": d.unidade,
-        "resolvido_por": d.resolvido_por.como_texto(),
-        "requisicoes": d.requisicoes,
-        "fonte": "documento_visualizar",
-        "versao_atual": null,
-    });
-    let mut mapa = match valor {
-        Value::Object(mapa) => mapa,
-        _ => serde_json::Map::new(),
-    };
+    let mut mapa = serde_json::Map::new();
+    mapa.insert("numero".to_owned(), json!(d.numero));
+    mapa.insert("id_documento".to_owned(), json!(d.id_documento));
+    mapa.insert("rotulo".to_owned(), json!(d.rotulo));
+    mapa.insert("tipo".to_owned(), json!(d.tipo));
+    mapa.insert("icone".to_owned(), json!(d.natureza.icone));
+    mapa.insert(
+        "cancelado".to_owned(),
+        json!(d.natureza.cancelamento.cancelado()),
+    );
+    if let Some(pasta) = &d.pasta {
+        mapa.insert("pasta".to_owned(), json!(pasta));
+    }
+    mapa.insert(
+        "processo".to_owned(),
+        json!({"nup": d.processo.nup, "id": d.processo.id, "tipo": d.processo.tipo}),
+    );
+    if let Some(unidade) = &d.unidade {
+        mapa.insert("unidade".to_owned(), json!(unidade));
+    }
+    mapa.insert(
+        "resolvido_por".to_owned(),
+        json!(d.resolvido_por.como_texto()),
+    );
+    mapa.insert("requisicoes".to_owned(), json!(d.requisicoes));
+    mapa.insert("fonte".to_owned(), json!(AcaoDoSei::DocumentoVisualizar));
     match &d.propriedades {
         PropriedadesDocumento::NaoPedidas => {}
-        PropriedadesDocumento::NaoPublicadas => {
-            mapa.insert("propriedades".to_owned(), Value::Null);
-            mapa.insert(
-                "propriedades_motivo".to_owned(),
-                json!("nao_publicadas_na_barra"),
-            );
-        }
         PropriedadesDocumento::Lidas(p) => {
             mapa.insert("propriedades".to_owned(), json!(p));
-            mapa.insert("propriedades_motivo".to_owned(), Value::Null);
         }
     }
     if let Some(a) = &d.anexo {
         // Externo: o título do HTML recebido é do órgão de origem (fatia 3).
-        mapa.insert("tipo".to_owned(), Value::Null);
-        mapa.insert("fonte".to_owned(), json!("documento_download_anexo"));
+        mapa.remove("tipo");
+        mapa.insert("fonte".to_owned(), json!(AcaoDoSei::DocumentoDownloadAnexo));
         mapa.insert("anexo".to_owned(), anexo::json_do_anexo(a));
     }
     mapa
@@ -82,9 +82,8 @@ pub(crate) fn cabecalho(d: &DocumentoObtido) -> String {
 
 /// `Some` só para a leitura Web: sem `--html-privado`, subcomando nem
 /// opção de propriedades lida pelo link da barra. Número inválido e
-/// `--versao 0` ficam para a validação comum; NUP inválido em `--processo`
-/// é entrada inválida (saída 2).
-pub(crate) fn tentar_obter(cli: &Cli) -> Option<ExitCode> {
+/// `--versao 0` ficam para a validação comum.
+pub(crate) fn tentar_obter(cli: &Cli) -> Option<anyhow::Result<()>> {
     let Domain::Documento(
         comando @ Documento {
             acao: None,
@@ -98,32 +97,26 @@ pub(crate) fn tentar_obter(cli: &Cli) -> Option<ExitCode> {
     if comando.numeros.is_empty() {
         return None;
     }
-    let numeros = comando
-        .numeros
-        .iter()
-        .map(|n| NumeroDocumento::novo(n).ok())
-        .collect::<Option<Vec<_>>>()?;
+    let numeros = &comando.numeros;
     for (i, numero) in numeros.iter().enumerate() {
-        if numeros[..i].iter().any(|n| n.as_str() == numero.as_str()) {
-            let mensagem = "o mesmo número SEI foi pedido mais de uma vez";
-            return Some(invalida(cli.json, "numero_documento_repetido", mensagem));
+        if numeros
+            .iter()
+            .take(i)
+            .any(|n| n.as_str() == numero.as_str())
+        {
+            crate::uso_invalido::recusar(crate::uso_invalido::UsoInvalido::NumeroSeiRepetido);
         }
     }
     let saida = comando.saida.as_deref().map(Path::new);
-    let mut versoes = documento_versao_cli::pedido(comando.versao, saida.is_some())?;
-    versoes.cache = crate::cache_documento::habilitado_ambiente(comando.sem_cache);
-    let processo = match comando.processo.as_deref().map(NumeroProcesso::novo) {
-        None => None,
-        Some(Ok(nup)) => Some(nup),
-        Some(Err(erro)) => {
-            let mensagem = "número de processo inválido";
-            return Some(invalida(cli.json, erro.subcodigo(), mensagem));
-        }
+    let mut versoes = match documento_versao_cli::pedido(comando.versao, saida.is_some()) {
+        Ok(versoes) => versoes,
+        Err(erro) => return Some(Err(erro.into())),
     };
+    versoes.cache = crate::cache_documento::habilitado_ambiente(comando.sem_cache);
     Some(obter(
         cli,
-        &numeros,
-        processo.as_ref(),
+        numeros,
+        comando.processo.as_ref(),
         saida,
         versoes,
         comando.ocultar_inacessiveis,
@@ -131,22 +124,10 @@ pub(crate) fn tentar_obter(cli: &Cli) -> Option<ExitCode> {
     ))
 }
 
-fn invalida(json_mode: bool, subcodigo: &str, mensagem: &str) -> ExitCode {
-    if json_mode {
-        println!(
-            "{}",
-            json!({
-                "codigo": "entrada_invalida",
-                "subcodigo": subcodigo,
-                "erro": mensagem,
-                "retentavel": false
-            })
-        );
-    } else {
-        eprintln!("IES: {mensagem} [{subcodigo}]");
-    }
-    ExitCode::from(2)
-}
+/// `IES_LIMITE_ANEXO_BYTES` não é um inteiro de 1 a 2147483648.
+#[derive(Debug, thiserror::Error)]
+#[error("{self:?}")]
+struct LimiteDoAnexoInvalido;
 
 fn obter(
     cli: &Cli,
@@ -156,137 +137,116 @@ fn obter(
     versoes: PedidoDeVersoes,
     ocultar_inacessiveis: bool,
     com_propriedades: bool,
-) -> ExitCode {
-    let Some(limite) = LimiteDoAnexo::do_ambiente() else {
-        return anexo::limite_invalido(cli.json);
-    };
-    if let Some(diretorio) = saida
-        && let Err(erro) =
-            foto_documento::conferir_antes_da_rede(diretorio, numeros, versoes.versao)
-    {
-        return erro_fonte(cli.json, erro.subcodigo(), "nenhum arquivo foi gravado");
+) -> anyhow::Result<()> {
+    let limite = LimiteDoAnexo::do_ambiente().ok_or(LimiteDoAnexoInvalido)?;
+    if let Some(diretorio) = saida {
+        foto_documento::conferir_antes_da_rede(diretorio, numeros, versoes.versao)?;
     }
-    let arquivos = match configuracao::arquivos_de_acesso() {
-        Ok(arquivos) => arquivos,
-        Err(erro) => return erro_fonte(cli.json, erro.subcodigo(), erro.mensagem()),
-    };
-    // Cada tentativa relê a sessão e o índice e recomeça do primeiro DOC.
-    let lido = relogin_cli::ler(&arquivos, cli.unidade.as_deref(), || {
-        let referencias = transporte::sessao::ReferenciasDaSessao::ler(
-            &arquivos.url_controle,
-            &arquivos.origem,
-            &arquivos.cookie,
-        )
-        .map_err(FalhaDoDocumento::Sessao)?;
-        let sessao = SessaoDoProcesso {
-            url_do_controle: referencias.url_do_controle(),
-            origem: referencias.origem(),
-            cookie: referencias.cookie(),
-        };
-        let host = crate::instalacao::Instalacao::interpretar(referencias.origem())
-            .ok_or(FalhaDoDocumento::Sessao(
-                transporte::FalhaTransporte::OrigemNaoAutorizada,
-            ))?
-            .host()
-            .to_owned();
-        let indice = IndiceLocal::da_configuracao(&arquivos);
-        let lidos = lote::ler_lote(numeros, ocultar_inacessiveis, |numero| {
-            let pedido = PedidoDoDocumento {
-                numero,
-                unidade: cli.unidade.as_deref(),
-                processo,
-                anexo: PedidoDoAnexo {
-                    limite,
-                    saida,
-                    cache_host: versoes.cache.then_some(host.as_str()),
-                },
-            };
-            obter_documento_com_propriedades(
-                &sessao,
-                &pedido,
-                versoes,
-                &indice,
-                &mut EnvioHttps,
-                com_propriedades,
+    let arquivos = configuracao::arquivos_de_acesso()?;
+    let indice = IndiceLocal::da_configuracao(&arquivos);
+    // Cada tentativa relê a sessão e recomeça do primeiro DOC.
+    let lido = relogin_cli::ler(
+        &arquivos,
+        &indice,
+        cli.unidade.as_deref(),
+        FalhaDoDocumento::sessao_encerrada,
+        || {
+            let referencias = transporte::sessao::ReferenciasDaSessao::ler(
+                &arquivos.url_controle,
+                &arquivos.origem,
+                &arquivos.cookie,
             )
-        })?;
-        Ok((lidos, host))
-    });
+            .map_err(FalhaDoDocumento::Sessao)?;
+            let sessao = SessaoDoProcesso {
+                url_do_controle: referencias.url_do_controle(),
+                origem: referencias.origem(),
+                cookie: referencias.cookie(),
+            };
+            let host = crate::instalacao::Instalacao::interpretar(referencias.origem())
+                .ok_or(FalhaDoDocumento::Sessao(
+                    transporte::FalhaTransporte::OrigemNaoAutorizada,
+                ))?
+                .host()
+                .to_owned();
+            let lidos = lote::ler_lote(numeros, ocultar_inacessiveis, |numero| {
+                let pedido = PedidoDoDocumento {
+                    numero,
+                    unidade: cli.unidade.as_deref(),
+                    processo,
+                    anexo: PedidoDoAnexo {
+                        limite,
+                        saida,
+                        cache_host: versoes.cache.then_some(host.as_str()),
+                    },
+                };
+                obter_documento_com_propriedades(
+                    &sessao,
+                    &pedido,
+                    versoes,
+                    &indice,
+                    &mut EnvioHttps,
+                    com_propriedades,
+                )
+            })?;
+            Ok::<_, FalhaDoDocumento>((lidos, host))
+        },
+    );
     match lido {
         Ok(((lidos, host), nota)) => {
-            publicar(cli.json, lidos, saida, nota.as_ref(), &host, versoes.cache)
+            let rodape = (nota.as_ref(), &indice);
+            publicar(cli.json, lidos, saida, rodape, &host, versoes.cache)
         }
-        Err(FalhaDaLeitura::Relogin(erro)) => crate::sessao_login_cli::falhar(cli.json, &erro),
-        Err(FalhaDaLeitura::Leitura { erro, nota }) => match erro {
-            FalhaDoDocumento::Sessao(erro) => {
-                relogin_cli::publicar_falha(cli.json, &FalhaDaLeitura::Leitura { erro, nota })
-            }
-            FalhaDoDocumento::Documento {
-                numero,
-                lidos,
-                erro,
-            } => {
-                relogin_cli::avisar(cli.json, nota.as_ref());
-                falha(cli.json, &numero, lidos, &erro, nota.as_ref())
-            }
-        },
+        Err(falha) => Err(falha_da_leitura(falha)),
     }
 }
 
-/// A falha de uma tentativa: os arquivos da sessão ou um documento.
+/// A falha de uma leitura com relogin único, para subir pelo `?`: a do
+/// relogin, ou a da leitura com a nota de que ela recomeçou.
+pub(crate) fn falha_da_leitura<E>(falha: FalhaDaLeitura<E>) -> anyhow::Error
+where
+    E: std::error::Error + Send + Sync + 'static,
+{
+    match falha {
+        FalhaDaLeitura::Relogin(erro) => erro.into(),
+        FalhaDaLeitura::Leitura { erro, nota } => {
+            let erro = anyhow::Error::from(erro);
+            match nota {
+                Some(nota) => erro.context(LeituraRefeita(nota)),
+                None => erro,
+            }
+        }
+    }
+}
+
+/// A sessão tinha vencido e a leitura recomeçou (com ou sem relogin
+/// próprio): a nota traz os pedidos de cada tentativa.
+#[derive(Debug, thiserror::Error)]
+#[error("{self:?}")]
+pub(crate) struct LeituraRefeita(pub(crate) NotaDoRelogin);
+
+/// A falha de uma tentativa: os arquivos da sessão ou um documento. Os
+/// documentos já lidos (`lidos`) não são publicados.
+#[derive(Debug, thiserror::Error)]
+#[error("{self:?}")]
 enum FalhaDoDocumento {
-    Sessao(transporte::FalhaTransporte),
+    Sessao(#[source] transporte::FalhaTransporte),
     Documento {
         numero: String,
         lidos: usize,
+        #[source]
         erro: ErroDocumentoObter,
     },
 }
 
-impl relogin_cli::FalhaPublicavel for FalhaDoDocumento {
-    fn subcodigo(&self) -> &'static str {
+impl FalhaDoDocumento {
+    /// A sessão do SEI acabou (decide o relogin único): por `match` no tipo, sem
+    /// percorrer a cadeia `source()`.
+    pub(crate) fn sessao_encerrada(&self) -> bool {
         match self {
-            Self::Sessao(falha) => falha.subcodigo(),
-            Self::Documento { erro, .. } => erro.subcodigo(),
+            Self::Sessao(erro) => erro.sessao_encerrada(),
+            Self::Documento { erro, .. } => erro.sessao_encerrada(),
         }
     }
-    fn mensagem(&self) -> &'static str {
-        match self {
-            Self::Sessao(falha) => falha.mensagem(),
-            Self::Documento { erro, .. } => erro.mensagem(),
-        }
-    }
-    fn status_http(&self) -> Option<&crate::transporte::StatusHttpRecusado> {
-        match self {
-            Self::Sessao(falha) => falha.status_http(),
-            Self::Documento { erro, .. } => erro.status_http(),
-        }
-    }
-}
-
-/// A falha do documento `numero`; os já lidos não são publicados.
-fn falha(
-    json_mode: bool,
-    numero: &str,
-    lidos: usize,
-    erro: &ErroDocumentoObter,
-    nota: Option<&NotaDoRelogin>,
-) -> ExitCode {
-    let (subcodigo, mensagem, http) = (erro.subcodigo(), erro.mensagem(), erro.status_http());
-    if json_mode {
-        let mut valor = relogin_cli::json_da_falha(subcodigo, mensagem, http, nota);
-        if let Some(objeto) = valor.as_object_mut() {
-            objeto.insert("documento".to_owned(), json!(numero));
-            objeto.insert("documentos_lidos_antes".to_owned(), json!(lidos));
-        }
-        println!("{valor}");
-    } else {
-        eprintln!(
-            "{} (documento {numero})",
-            saida_erro::linha_humana(subcodigo, mensagem, http)
-        );
-    }
-    ExitCode::from(1)
 }
 
 /// O arquivo de cada documento em `DIR`: nome, bytes, SHA-256 e se foi
@@ -299,42 +259,42 @@ struct ArquivoDaSaida {
     gravado: bool,
 }
 
-impl From<FotoGravada> for ArquivoDaSaida {
-    fn from(f: FotoGravada) -> Self {
-        Self {
+impl TryFrom<FotoGravada> for ArquivoDaSaida {
+    type Error = std::num::TryFromIntError;
+
+    fn try_from(f: FotoGravada) -> Result<Self, Self::Error> {
+        Ok(Self {
             nome: f.nome,
-            bytes: f.bytes as u64,
+            bytes: u64::try_from(f.bytes)?,
             sha256: f.sha256,
             gravado: f.gravado,
-        }
+        })
     }
 }
 
 /// Confere as fotos do lote inteiro, liga o parcial `DOC.ext` dos externos
 /// e grava as fotos `DOC.vN.html` na ordem.
 fn gravar(
-    json_mode: bool,
     obtidos: &mut [DocumentoObtido],
     diretorio: &Path,
     caches: &[Option<crate::cache_documento::Registro>],
-) -> Result<Vec<Option<ArquivoDaSaida>>, ExitCode> {
+) -> anyhow::Result<Vec<Option<ArquivoDaSaida>>> {
     let fotos = if caches.iter().any(Option::is_some) {
         documento_versao_cli::gravar_fotos_com_cache(diretorio, obtidos, caches)
     } else {
         documento_versao_cli::gravar_fotos(diretorio, obtidos)
-    }
-    .map_err(|erro| erro_fonte(json_mode, erro.subcodigo(), "nenhum arquivo foi gravado"))?;
+    }?;
     let mut gravados = Vec::new();
     for (i, (d, foto)) in obtidos.iter_mut().zip(fotos).enumerate() {
         if let Some(foto) = foto {
-            gravados.push(Some(ArquivoDaSaida::from(foto)));
+            gravados.push(Some(ArquivoDaSaida::try_from(foto)?));
             continue;
         }
         let Some(a) = &mut d.anexo else {
             gravados.push(None);
             continue;
         };
-        let Some(arquivo) = a.arquivo.take() else {
+        let Some(arquivo) = a.tirar_arquivo() else {
             if let Some(Some(cache)) = caches.get(i) {
                 let extensao = cache
                     .caminho
@@ -344,8 +304,7 @@ fn gravar(
                 let nome = format!("{}.{}", d.numero, extensao);
                 let destino = diretorio.join(&nome);
                 let novo =
-                    crate::cache_documento::copiar_para_saida(&cache.caminho, &destino, &a.sha256)
-                        .map_err(|erro| erro_fonte(json_mode, erro.subcodigo(), erro.mensagem()))?;
+                    crate::cache_documento::copiar_para_saida(&cache.caminho, &destino, &a.sha256)?;
                 gravados.push(Some(ArquivoDaSaida {
                     nome,
                     bytes: a.tamanho,
@@ -358,9 +317,7 @@ fn gravar(
             continue;
         };
         let nome = arquivo.nome().to_owned();
-        arquivo
-            .concluir()
-            .map_err(|erro| erro_fonte(json_mode, erro.subcodigo(), erro.mensagem()))?;
+        arquivo.concluir()?;
         gravados.push(Some(ArquivoDaSaida {
             nome,
             bytes: a.tamanho,
@@ -416,14 +373,15 @@ fn apresentar_metadados(d: &DocumentoObtido) {
     }
 }
 
+/// `rodape`: a nota do relogin e o índice, cujos avisos vão na saída.
 fn publicar(
     json_mode: bool,
     lidos: lote::LoteLido,
     destino: Option<&Path>,
-    nota: Option<&NotaDoRelogin>,
+    (nota, indice): (Option<&NotaDoRelogin>, &IndiceLocal),
     host: &str,
     cache_ativo: bool,
-) -> ExitCode {
+) -> anyhow::Result<()> {
     let lote::LoteLido {
         documentos: mut obtidos,
         omitidos,
@@ -431,18 +389,13 @@ fn publicar(
     } = lidos;
     let mut caches = Vec::new();
     for d in &obtidos {
-        match registrar_cache(host, cache_ativo, d) {
-            Ok(registro) => caches.push(registro),
-            Err(erro) => return erro_fonte(json_mode, erro.subcodigo(), erro.mensagem()),
-        }
+        caches.push(registrar_cache(host, cache_ativo, d)?);
     }
-    let mut gravados = Vec::new();
-    if let Some(destino) = destino {
-        match gravar(json_mode, &mut obtidos, destino, &caches) {
-            Ok(lista) => gravados = lista,
-            Err(codigo) => return codigo,
-        }
-    }
+    let gravados = if let Some(destino) = destino {
+        gravar(&mut obtidos, destino, &caches)?
+    } else {
+        Vec::new()
+    };
     let antes = nota.map_or(0, |n| u32::try_from(n.antes).unwrap_or(u32::MAX));
     let total: u32 = obtidos
         .iter()
@@ -458,14 +411,16 @@ fn publicar(
             .map(|(i, d)| {
                 let mut objeto = json_do_documento(d);
                 documento_versao_cli::inserir_campos(&mut objeto, d);
-                objeto.insert(
-                    "cache".to_owned(),
-                    caches.get(i).and_then(Option::as_ref).map_or(
-                        Value::Null,
-                        |c| json!({"caminho": c.caminho, "versao": c.versao, "sha256": c.sha256}),
-                    ),
-                );
-                objeto.insert("crc_rodape".to_owned(), json!(d.versoes.crc_rodape));
+                if let Some(c) = caches.get(i).and_then(Option::as_ref) {
+                    let mut cache = json!({"caminho": c.caminho, "sha256": c.sha256});
+                    if let (Some(versao), Some(campos)) = (c.versao, cache.as_object_mut()) {
+                        campos.insert("versao".to_owned(), json!(versao));
+                    }
+                    objeto.insert("cache".to_owned(), cache);
+                }
+                if let Some(crc) = &d.versoes.crc_rodape {
+                    objeto.insert("crc_rodape".to_owned(), json!(crc));
+                }
                 if let Some(g) = gravado(i) {
                     let arquivo = documento_versao_cli::json_do_arquivo(
                         &g.nome, g.bytes, &g.sha256, g.gravado,
@@ -473,25 +428,28 @@ fn publicar(
                     objeto.insert("arquivo".to_owned(), arquivo);
                 } else {
                     let texto = match &d.anexo {
-                        Some(a) => json!(a.texto),
-                        None => json!(d.texto),
+                        Some(a) => a.texto().map(|t| json!(t)),
+                        None => Some(json!(d.texto)),
                     };
-                    objeto.insert("texto".to_owned(), texto);
+                    if let Some(texto) = texto {
+                        objeto.insert("texto".to_owned(), texto);
+                    }
                 }
                 Value::Object(objeto)
             })
             .collect();
         let mut valor = json!({"documentos": documentos, "requisicoes": total});
-        if omitidos > 0 {
-            valor["documentos_omitidos"] = json!(omitidos);
+        if omitidos > 0
+            && let Some(campos) = valor.as_object_mut()
+        {
+            campos.insert("documentos_omitidos".to_owned(), json!(omitidos));
         }
         relogin_cli::anotar(&mut valor, nota);
-        if let Err(erro) = crate::saida::imprimir_json(&valor) {
-            eprintln!("IES: falha ao emitir JSON: {erro}");
-            return std::process::ExitCode::from(1);
-        }
+        indice_local::anexar_avisos(&mut valor, indice);
+        println!("{}", serde_json::to_string_pretty(&valor)?);
     } else {
         relogin_cli::avisar(json_mode, nota);
+        indice_local::avisar_no_texto(indice);
         if omitidos > 0 {
             println!(
                 "IES: {omitidos} documento(s) sem conteúdo publicado omitido(s); total de {total} requisições."
@@ -509,7 +467,7 @@ fn publicar(
                     println!("{linha}");
                 }
                 (None, Some(a)) => {
-                    if let Some(texto) = &a.texto {
+                    if let Some(texto) = a.texto() {
                         println!("{texto}");
                     }
                 }
@@ -517,7 +475,7 @@ fn publicar(
             }
         }
     }
-    ExitCode::SUCCESS
+    Ok(())
 }
 
 #[cfg(test)]
@@ -532,10 +490,10 @@ mod testes {
     fn saida_grava_so_doc_vn_html_e_repetir_e_no_op() {
         let pasta = diretorio();
         let mut obtidos = vec![com_foto("0011519", 1, HTML)];
-        let gravados = gravar(true, &mut obtidos, &pasta, &[]).unwrap();
+        let gravados = gravar(&mut obtidos, &pasta, &[]).unwrap();
         let g = gravados[0].as_ref().unwrap();
         assert_eq!((g.nome.as_str(), g.gravado), ("0011519.v1.html", true));
-        let de_novo = gravar(true, &mut obtidos, &pasta, &[]).unwrap();
+        let de_novo = gravar(&mut obtidos, &pasta, &[]).unwrap();
         assert!(!de_novo[0].as_ref().unwrap().gravado);
         let mut nomes: Vec<String> = std::fs::read_dir(&pasta)
             .unwrap()

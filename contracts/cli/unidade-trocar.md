@@ -15,8 +15,8 @@ na barra. Observação em [troca de unidade](../../docs/como-o-sei-funciona/troc
 comportamento de referência no Todos (`src/todos/sei/troca.py`).
 
 Segue as invariantes de escrita do [contrato da CLI](../cli.md): prévia,
-confirmação e verificação; efeito incerto nunca se repete; saídas 0
-sucesso, 1 falha, 2 uso inválido, 3 efeito incerto. Só a Web, na mesma
+confirmação e verificação; escrita não confirmada nunca se repete; saídas 0
+sucesso, 1 falha, 2 uso inválido, 3 escrita não confirmada. Só a Web, na mesma
 sessão; nenhum login.
 
 **A troca vale para toda a sessão da conta.** A unidade é estado do cookie
@@ -30,11 +30,11 @@ o IES não volta à unidade anterior: para voltar,
 
 - `SIGLA`: a sigla como a tela a mostra (coluna Sigla, `title` do rádio),
   comparada byte a byte depois de tirar os espaços das pontas; maiúsculas
-  não são normalizadas. Vazia ou só espaços: `sigla_de_unidade_vazia`,
-  saída 2, `codigo: entrada_invalida`, antes de ler a configuração.
+  não são normalizadas. Vazia ou só espaços: erro do clap, saída 2,
+  antes de ler a configuração.
 - `--confirmar`: envia a troca. Sem ele, só prévia.
 - `--unidade U` (global): pré-condição da unidade **antes** da troca,
-  conferida no Controle (`unidade_exibida_diferente_da_solicitada`, saída
+  conferida no Controle (`UnidadeExibidaDiferenteDaSolicitada`, saída
   1, sem a tela de troca).
 
 ## Comportamento
@@ -55,8 +55,8 @@ o IES não volta à unidade anterior: para voltar,
    marcado é a unidade ativa; o script define `selecionarUnidade` com o
    campo `selInfraUnidades` e `submit()`.
 5. `SIGLA` entre as oferecidas: exatamente uma linha. Nenhuma:
-   `unidade_nao_oferecida` (com `oferecidas`); mais de uma:
-   `sigla_de_unidade_ambigua` (com `candidatas`). Saída 1, sem POST.
+   `UnidadeNaoOferecida` (com `oferecidas`); mais de uma:
+   `SiglaDeUnidadeAmbigua` (com `candidatas`). Saída 1, sem POST.
 6. Deriva o POST pelo primitivo de formulário (`TROCAR_UNIDADE`, envio
    `SubmitPorScriptComCampoCriado("selInfraUnidades")`): os ocultos como
    servidos, `hdnInfraItensSelecionados` = id, os filtros como servidos
@@ -105,37 +105,39 @@ preferência. Nada é restaurado.
 
 ```json
 {"antes": "PR-P", "pedida": "PR-A", "id_unidade": "110000938",
- "depois": null, "confirmado": false, "alterado": false,
+ "confirmado": false, "alterado": false,
  "escopo": "sessao_da_conta",
  "oferecidas": [{"sigla": "PR-A", "descricao": "Pró-Reitoria de Acesso", "id_unidade": "110000938"}, "…"],
  "envio": {"metodo": "POST", "acao": "infra_trocar_unidade",
            "campos": ["hdnInfraTipoPagina", "…", "selInfraUnidades"]},
- "links_descartados": null, "requisicoes": 2}
+ "requisicoes": 2}
 ```
 
 Com `--confirmar` e sucesso: `depois` = `SIGLA`, `confirmado: true`,
 `alterado: true` e `links_descartados` (quantos links o índice apagou;
-`null` com o índice desligado). Já na unidade: `alterado: false`,
-`id_unidade`, `oferecidas` e `envio` `null`. `envio` traz só nomes, nunca
+omitido com o índice desligado). Já na unidade: `alterado: false`, sem
+`id_unidade`, `oferecidas` e `envio`. Campo sem valor é omitido, nunca
+`null` (#749). `envio` traz só nomes, nunca
 valores, URL ou `infra_hash`. A saída humana diz a unidade antes e
 depois e repete que a troca vale para toda a sessão da conta.
 
 ## Falhas tipadas
 
 Antes do POST (saída 1, nada mudou): as do GET do Controle (como
-`ies unidade atual`, inclusive `sessao_encerrada_rode_ies_login`),
+`ies unidade atual`, inclusive `SessaoEncerrada`),
 `link_de_troca_de_unidade_ausente`, `links_de_troca_de_unidade_divergentes`,
 `link_de_troca_de_unidade_fora_da_forma_observada`,
-`tela_de_troca_de_unidade_nao_reconhecida`, `lista_de_unidades_incompleta`,
+`tela_de_troca_de_unidade_nao_reconhecida`, `ListaDeUnidadesIncompleta`,
 `linha_de_unidade_fora_da_forma_observada`,
-`unidade_marcada_diferente_da_ativa`, `selecao_de_unidade_por_script_nao_publicada`,
-`unidade_nao_oferecida`, `sigla_de_unidade_ambigua`, as do primitivo de
-formulário e as do lock (`login_em_andamento_em_outro_processo`).
+`UnidadeMarcadaDiferenteDaAtiva`, `SelecaoDeUnidadePorScriptNaoPublicada`,
+`UnidadeNaoOferecida`, `SiglaDeUnidadeAmbigua`, as do primitivo de
+formulário e as do lock (`LoginEmAndamentoEmOutroProcesso`).
 
-Depois do POST enviado, qualquer desvio do observado sai com **3**,
-`codigo: efeito_incerto`, `subcodigo: efeito_incerto_na_troca_de_unidade`
-e `etapa` (`envio`, `primeiro_redirecionamento`, `segundo_redirecionamento`
-ou `controle_da_unidade_nova`) com `falha` (o subcódigo do fato). A URL da
+Depois do POST enviado, qualquer desvio do observado sai com **1** e
+`Error: TrocaNaoFeita { erro: NaoConfirmado { etapa, falha }, requisicoes }`:
+`etapa` é a `EtapaDaTroca` e `falha` a `FalhaDepoisDoEnvio` (`Envio`,
+`RespostaSemRedirecionamento`, `LocalizacaoDeOutraUnidade`, `Status`,
+`ControleNaoReconhecido`, `UnidadeDoControleDiferenteDaPedida`…). A URL da
 sessão não é regravada e nenhum outro pedido sai: a unidade pode ter
 mudado, e a URL guardada pode não abrir mais o Controle. Conferir com
 `ies login --forcar` (sessão nova) antes de repetir. O índice é limpo

@@ -1,8 +1,8 @@
-//! Texto humano de uma tela de recusa do SEI, com `tl` para a árvore e
-//! `html_atributos` para `id`/classe (sem regex). Evidência estrutural: as
-//! telas reais do SEI testam a exceção por `getElementById('divInfraExcecao')`
-//! e o Todos lê `divInfraExcecao`, `infraExcecao` e `infraMensagemErro`.
-use crate::html_atributos::{nos_com_id, nos_por_elemento_e_classe};
+//! Texto humano de uma tela de recusa do SEI, lido na árvore html5ever
+//! (`tela_html`), sem regex. Evidência estrutural: as telas reais do SEI
+//! testam a exceção por `getElementById('divInfraExcecao')` e o Todos lê
+//! `divInfraExcecao`, `infraExcecao` e `infraMensagemErro`.
+use crate::tela_html::{Documento, Elemento, No};
 
 /// Classes de erro do SEI, na ordem de preferência, quando falta o `id`.
 const CLASSES_DE_ERRO: [&str; 2] = ["infraExcecao", "infraMensagemErro"];
@@ -22,102 +22,82 @@ const DE_LINHA: [&str; 13] = [
 const MAX_PROFUNDIDADE: usize = 256;
 
 /// Texto bruto (ainda não saneado) da exceção do SEI, ou `<title>` e o
-/// texto visível do `<body>`; entidades básicas decodificadas.
-pub(crate) fn texto_do_html(html: &str) -> Option<String> {
-    let dom = tl::parse(html, tl::ParserOptions::default()).ok()?;
-    let parser = dom.parser();
+/// texto visível do `<body>`; entidades decodificadas pela árvore.
+pub(crate) fn texto_do_html(html: &crate::tela_html::HtmlServido) -> Option<String> {
+    let dom = crate::tela_html::arvore(html);
     // A validação da Infra (txaInfraValidacao) vem antes de tudo.
     if let Some(texto) = super::validacao_da_infra::texto_da_validacao(&dom) {
         return Some(texto);
     }
-    // Tag ilegível: não se afirma o contêiner; vale o texto geral da tela.
-    if let Some(handle) = conteiner_de_erro(&dom) {
-        let texto = texto_visivel(handle, parser);
+    if let Some(conteiner) = conteiner_de_erro(&dom) {
+        let texto = texto_visivel(conteiner);
         if !texto.trim().is_empty() {
-            return Some(decodificar_entidades(&texto));
+            return Some(texto);
         }
     }
-    let titulo = primeiro(&dom, "title").map(|h| texto_visivel(h, parser));
-    let corpo = if let Some(body) = primeiro(&dom, "body") {
-        texto_visivel(body, parser)
-    } else {
-        // Sem `<body>`: os nós do topo, fora os invisíveis e o `<title>`.
-        let mut texto = String::new();
-        for handle in dom.children() {
-            let invisivel = handle
-                .get(parser)
-                .and_then(tl::Node::as_tag)
-                .is_some_and(|tag| nome_em(tag, &INVISIVEIS));
-            if !invisivel {
-                texto.push(' ');
-                texto.push_str(&texto_visivel(*handle, parser));
-            }
-        }
-        texto
-    };
-    let partes: Vec<&str> = [titulo.as_deref().unwrap_or(""), corpo.as_str()]
+    // A árvore tem `<body>` mesmo sem a tag (o html5ever o implica); o que
+    // vai ao `<head>` (script, style, title) não é texto do corpo.
+    let titulo = primeiro(&dom, "title").map(texto_visivel);
+    let corpo = primeiro(&dom, "body").map(texto_visivel);
+    let partes: Vec<&str> = [titulo.as_deref(), corpo.as_deref()]
         .into_iter()
+        .flatten()
         .map(str::trim)
         .filter(|parte| !parte.is_empty())
         .collect();
     if partes.is_empty() {
         return None;
     }
-    Some(decodificar_entidades(&partes.join(" — ")))
+    Some(partes.join(" — "))
 }
 
 /// A página traz o contêiner de exceção do SEI (`divInfraExcecao`,
 /// `div.infraExcecao` ou `div.infraMensagemErro`): é a tela de recusa,
 /// não um conteúdo (Refs #60, fatia 3: o HTML recebido de um anexo).
-pub(crate) fn e_excecao_do_sei(html: &str) -> bool {
-    tl::parse(html, tl::ParserOptions::default()).is_ok_and(|dom| conteiner_de_erro(&dom).is_some())
+pub(crate) fn e_excecao_do_sei(html: &crate::tela_html::HtmlServido) -> bool {
+    let dom = crate::tela_html::arvore(html);
+    conteiner_de_erro(&dom).is_some()
 }
 
-fn conteiner_de_erro(dom: &tl::VDom<'_>) -> Option<tl::NodeHandle> {
-    if let Some(handle) = nos_com_id(dom, "divInfraExcecao").ok()?.first() {
-        return Some(*handle);
-    }
-    for classe in CLASSES_DE_ERRO {
-        if let Some(handle) = nos_por_elemento_e_classe(dom, None, "div", classe)
-            .ok()?
-            .first()
-        {
-            return Some(*handle);
-        }
-    }
-    None
+fn conteiner_de_erro(dom: &Documento) -> Option<Elemento<'_>> {
+    dom.com_id("divInfraExcecao").next().or_else(|| {
+        CLASSES_DE_ERRO
+            .iter()
+            .find_map(|classe| dom.elementos("div").find(|div| div.tem_classe(classe)))
+    })
 }
 
-fn primeiro(dom: &tl::VDom<'_>, elemento: &str) -> Option<tl::NodeHandle> {
-    dom.query_selector(elemento)?.next()
+fn primeiro<'d>(dom: &'d Documento, elemento: &str) -> Option<Elemento<'d>> {
+    dom.elementos(elemento).next()
 }
 
-fn nome_em(tag: &tl::HTMLTag<'_>, nomes: &[&str]) -> bool {
-    let nome = tag.name().as_utf8_str();
+fn nome_em(tag: Elemento<'_>, nomes: &[&str]) -> bool {
+    let nome = tag.nome();
     nomes.iter().any(|n| nome.eq_ignore_ascii_case(n))
 }
 
-enum Passo {
-    No(tl::NodeHandle, usize),
+enum Passo<'d> {
+    No(No<'d>, usize),
     Espaco,
 }
 
 /// Texto dos nós de texto sob `raiz` (que é sempre lida), sem subárvores
 /// invisíveis; elementos de bloco separam palavras. Percurso iterativo.
-pub(crate) fn texto_visivel(raiz: tl::NodeHandle, parser: &tl::Parser<'_>) -> String {
+/// O texto já vem decodificado pela árvore.
+pub(crate) fn texto_visivel(raiz: Elemento<'_>) -> String {
     let mut saida = String::new();
-    let mut pilha = vec![Passo::No(raiz, 0)];
+    let mut pilha = vec![Passo::No(No::Elemento(raiz), 0)];
     while let Some(passo) = pilha.pop() {
-        let (handle, profundidade) = match passo {
+        let (no, profundidade) = match passo {
             Passo::Espaco => {
                 saida.push(' ');
                 continue;
             }
-            Passo::No(handle, profundidade) => (handle, profundidade),
+            Passo::No(no, profundidade) => (no, profundidade),
         };
-        match handle.get(parser) {
-            Some(tl::Node::Raw(texto)) => saida.push_str(&texto.as_utf8_str()),
-            Some(tl::Node::Tag(tag))
+        match no {
+            No::Texto(texto) => saida.push_str(texto),
+            No::Elemento(tag)
                 if profundidade == 0
                     || (profundidade < MAX_PROFUNDIDADE && !nome_em(tag, &INVISIVEIS)) =>
             {
@@ -126,89 +106,15 @@ pub(crate) fn texto_visivel(raiz: tl::NodeHandle, parser: &tl::Parser<'_>) -> St
                     saida.push(' ');
                     pilha.push(Passo::Espaco);
                 }
-                let filhos: Vec<tl::NodeHandle> = tag.children().top().iter().copied().collect();
+                let filhos: Vec<No<'_>> = tag.nos().collect();
                 for filho in filhos.into_iter().rev() {
                     pilha.push(Passo::No(filho, profundidade + 1));
                 }
             }
-            _ => {}
+            No::Elemento(_) | No::Comentario => {}
         }
     }
     saida
-}
-
-/// Letras acentuadas do português e ordinais, por nome (ISO-8859-1).
-const LATINAS: [(&str, char); 26] = [
-    ("aacute", 'á'),
-    ("Aacute", 'Á'),
-    ("agrave", 'à'),
-    ("Agrave", 'À'),
-    ("acirc", 'â'),
-    ("Acirc", 'Â'),
-    ("atilde", 'ã'),
-    ("Atilde", 'Ã'),
-    ("eacute", 'é'),
-    ("Eacute", 'É'),
-    ("ecirc", 'ê'),
-    ("Ecirc", 'Ê'),
-    ("iacute", 'í'),
-    ("Iacute", 'Í'),
-    ("oacute", 'ó'),
-    ("Oacute", 'Ó'),
-    ("ocirc", 'ô'),
-    ("Ocirc", 'Ô'),
-    ("otilde", 'õ'),
-    ("Otilde", 'Õ'),
-    ("uacute", 'ú'),
-    ("Uacute", 'Ú'),
-    ("ccedil", 'ç'),
-    ("Ccedil", 'Ç'),
-    ("ordm", 'º'),
-    ("ordf", 'ª'),
-];
-
-/// `&amp;`, `&lt;`, `&gt;`, `&quot;`, `&apos;`, `&#39;`, `&nbsp;`, as letras
-/// de `LATINAS` e referências numéricas; o resto fica como veio.
-pub(crate) fn decodificar_entidades(texto: &str) -> String {
-    let mut saida = String::with_capacity(texto.len());
-    let mut resto = texto;
-    while let Some(inicio) = resto.find('&') {
-        saida.push_str(&resto[..inicio]);
-        let depois = &resto[inicio + 1..];
-        let decodificada = depois
-            .find(';')
-            .filter(|fim| *fim <= 10)
-            .and_then(|fim| entidade(&depois[..fim]).map(|c| (c, fim)));
-        if let Some((c, fim)) = decodificada {
-            saida.push(c);
-            resto = &depois[fim + 1..];
-        } else {
-            saida.push('&');
-            resto = depois;
-        }
-    }
-    saida.push_str(resto);
-    saida
-}
-
-fn entidade(nome: &str) -> Option<char> {
-    match nome {
-        "amp" => Some('&'),
-        "lt" => Some('<'),
-        "gt" => Some('>'),
-        "quot" => Some('"'),
-        "apos" => Some('\''),
-        "nbsp" => Some('\u{a0}'),
-        _ if !nome.starts_with('#') => LATINAS.iter().find(|(n, _)| *n == nome).map(|(_, c)| *c),
-        _ => {
-            let numero = nome.strip_prefix('#')?;
-            let valor = match numero.strip_prefix(['x', 'X']) {
-                Some(hex) => u32::from_str_radix(hex, 16).ok()?,
-                None => numero.parse::<u32>().ok()?,
-            };
-            char::from_u32(valor)
-        }
-    }
 }
 
 #[cfg(test)]

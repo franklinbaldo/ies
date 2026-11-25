@@ -14,15 +14,15 @@ explícito, pela ação "Reabrir Processo" que a barra do nó `PROCESSO` da
 árvore publica. É o espelho de [`ies processo concluir`](processo-concluir.md):
 mesma abertura, mesma verificação por `aberto_em`, mesmas invariantes de
 escrita do [contrato da CLI](../cli.md) (prévia, confirmação e
-verificação; efeito incerto nunca se repete; saídas 0 sucesso, 1 falha, 2
-uso inválido, 3 efeito incerto). Só a Web, a mesma sessão; nenhuma URL
+verificação; escrita não confirmada nunca se repete; saídas 0 sucesso, 1 falha, 2
+uso inválido, 3 escrita não confirmada). Só a Web, a mesma sessão; nenhuma URL
 montada (só as publicadas pela barra e pela tela do nó). Estrutura
 observada em [reabertura do processo](../../docs/como-o-sei-funciona/reabertura-do-processo.md).
 
 ## Entrada
 
 - `NUP`: o mesmo de `ies processo NUP`; inválido sai com 2
-  (`entrada_invalida`) antes de qualquer arquivo ou requisição.
+  (erro do clap) antes de qualquer arquivo ou requisição.
 - `--unidade SIGLA` (global): conferida na tela do processo, como na leitura.
 - `--confirmar`: reabre. Sem ele, só prévia.
 
@@ -41,11 +41,11 @@ observada em [reabertura do processo](../../docs/como-o-sei-funciona/reabertura-
 
 | Situação lida | Barra | Resultado |
 | --- | --- | --- |
-| não lida (sobrestado, anexado, fora da forma) | qualquer | saída 1, `situacao_do_processo_nao_lida_antes_de_reabrir` (`motivo`) |
+| não lida (sobrestado, anexado, fora da forma) | qualquer | saída 1, `SituacaoDoProcessoNaoLidaAntesDeReabrir` (`motivo`) |
 | qualquer | fora da forma, repetida, raiz sem `href` | saída 1, subcódigo da barra |
 | com a unidade da sessão | sem reabrir | saída 0, `alterado: false`, `reabertura_oferecida: false` (já aberto nela), sem escrita |
-| com a unidade da sessão | com reabrir | saída 1, `unidade_da_sessao_ja_na_situacao` |
-| sem a unidade da sessão | sem reabrir | saída 1, `reabertura_nao_publicada_na_barra` |
+| com a unidade da sessão | com reabrir | saída 1, `UnidadeDaSessaoJaNaSituacao` |
+| sem a unidade da sessão | sem reabrir | saída 1, `ReaberturaNaoPublicadaNaBarra` |
 | sem a unidade da sessão | com reabrir | prévia (saída 0) ou escrita |
 
 4. **Sem `--confirmar`**: publica `unidade`, `aberto_em` (siglas) e o plano
@@ -65,19 +65,20 @@ observada em [reabertura do processo](../../docs/como-o-sei-funciona/reabertura-
    barato que o índice permitir, em geral o link da árvore: 1 GET):
    sucesso só se a situação lida lista a unidade da sessão.
 
-| Fato na tela do nó | Subcódigo |
+| Fato na tela do nó | Erro (stderr) |
 | --- | --- |
-| Nenhuma das duas formas | `endereco_de_reabrir_ausente_na_tela_do_no` |
-| Função ou variável fora da forma exata | `endereco_de_reabrir_fora_da_forma_observada` |
-| Duas funções, duas variáveis, ou as duas formas | `enderecos_de_reabrir_repetidos_na_tela_do_no` |
-| URL sem `procedimento_reabrir` assinado | `endereco_da_reabertura_nao_reconhecido` |
-| URL de outro `id_procedimento` | `endereco_da_reabertura_de_outro_processo` |
+| Nenhuma das duas formas | `ErroEnderecoDeReabrir::EnderecoDeReabrirAusenteNaTelaDoNo` |
+| Função fora da forma exata | `ErroEnderecoDeReabrir::FuncaoDeReabrirForaDaFormaObservada(FuncaoForaDaForma)` |
+| Variável fora da forma exata | `ErroEnderecoDeReabrir::EnderecoDeReabrirForaDaFormaObservada` |
+| Duas funções, duas variáveis, ou as duas formas | `ErroEnderecoDeReabrir::EnderecosDeReabrirRepetidosNaTelaDoNo` |
+| URL sem `procedimento_reabrir` assinado | `ErroEnderecoDeReabrir::EnderecoDaReaberturaNaoReconhecido` |
+| URL de outro `id_procedimento` | `EnderecoDaReaberturaDeOutroProcesso` |
 
-## Resposta e efeito incerto
+## Resposta e escrita não confirmada
 
 **Esperada**: HTML 200 sem tela de login nem validação da Infra (nas
 gravações, uma página no molde de `arvore_visualizar`). Qualquer outra
-(rede, tempo, status, 302 — `redirecionamento_na_reabertura` —, login,
+(rede, tempo, status, 302 — `RedirecionamentoNaReabertura` —, login,
 validação) é `falha_do_envio` e **não** repete a escrita: a leitura de
 verificação reconcilia, uma vez.
 
@@ -85,8 +86,8 @@ verificação reconcilia, uma vez.
 | --- | --- | --- | --- |
 | Esperada | com a unidade da sessão | 0 | `alterado: true` |
 | Não esperada | com a unidade da sessão | 0 | `alterado: true`, `reconciliado_por_leitura: true`, `falha_do_envio` |
-| Qualquer | sem a unidade da sessão | 1 | `escrita_nao_aplicada` / `reabertura_nao_aplicada` (com `falha_do_envio`, se houver) |
-| Qualquer | leitura falhou ou situação não lida | 3 | `efeito_incerto` / `efeito_incerto_na_reabertura` (`verificacao`: subcódigo ou motivo) |
+| Qualquer | sem a unidade da sessão | 1 | `ReaberturaNaoAplicada` (com `falha_do_envio`, se houver) |
+| Qualquer | leitura falhou ou situação não lida | 1 | `NaoConfirmadoNaReabertura` (campo `verificacao`: `VerificacaoPorLeitura`) |
 
 Um SEI que processe a escrita depois da leitura não é detectável: antes de
 repetir à mão, conferir com `ies processo NUP`. Falha **antes** da escrita
@@ -107,11 +108,12 @@ continuam como estavam. Desfaz-se com `ies processo concluir`.
  "depois": ["TESTE"], "reconciliado_por_leitura": false, "requisicoes": 6}
 ```
 
-`forma` é `funcao`, `variavel` ou `null` (antes de pedir a tela do nó: na
+`forma` é `funcao` ou `variavel`, omitida antes de pedir a tela do nó (na
 prévia e quando não há o que fazer). `depois` são as siglas lidas na
-verificação. Nunca URL, `infra_hash` ou cookie. Falhas: `{"codigo",
-"subcodigo", "erro", "retentavel": false}` mais `aberto_em`, `depois`,
-`motivo`, `falha_do_envio`, `verificacao` e `status_http` quando houver. A
+verificação. Nunca URL, `infra_hash` ou cookie. Falhas: saída 1, stdout
+vazio e `Error: <ErroReabrir::…>` em stderr; `aberto_em`,
+`depois`, `falha_do_envio` e `verificacao` são campos dos erros que
+os observaram, e o status HTTP vem na causa `Transporte(Status(..))`. A
 saída humana termina com "Para reabrir, repita com --confirmar" na prévia.
 
 ## Sequência e orçamento

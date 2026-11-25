@@ -1,51 +1,25 @@
 //! Configuração mínima por caminhos privados, sem segredos em argumentos CLI.
 use std::path::PathBuf;
 
+#[derive(Clone)]
 pub struct ArquivosDeAcesso {
     pub url_controle: PathBuf,
     pub cookie: PathBuf,
     pub origem: PathBuf,
 }
 
-#[derive(Debug, Clone, Copy, PartialEq, Eq, crate::erro_publico::Causa)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, thiserror::Error)]
+#[error("{self:?}")]
 pub enum ErroConfiguracao {
-    #[causa(nome = "caminho_url_controle_nao_informado")]
     UrlDoControleSemCaminho,
-    #[causa(nome = "caminho_cookie_nao_informado")]
     CookieSemCaminhoConfigurado,
-    #[causa(nome = "caminho_origem_nao_informado")]
     OrigemAutorizadaNaoConfigurada,
-    #[causa(nome = "arquivo_configuracao_nao_pode_ser_lido")]
     ArquivoDeConfiguracaoNaoPodeSerLido,
-    #[causa(nome = "arquivo_configuracao_permissoes_inseguras")]
+    #[cfg(unix)]
     ArquivoConfiguracaoPermissoesAbertas,
     ArquivoConfiguracaoLinkSimbolico,
     ArquivoConfiguracaoJsonInvalido,
     ArquivoConfiguracaoCampoInvalido,
-}
-
-impl ErroConfiguracao {
-    pub fn subcodigo(self) -> &'static str {
-        crate::erro_publico::folha(&self)
-    }
-    pub fn mensagem(self) -> &'static str {
-        match self {
-            Self::UrlDoControleSemCaminho => "defina IES_URL_CONTROLE_FILE",
-            Self::CookieSemCaminhoConfigurado => "defina IES_COOKIE_FILE",
-            Self::OrigemAutorizadaNaoConfigurada => "defina IES_ORIGEM_FILE",
-            Self::ArquivoDeConfiguracaoNaoPodeSerLido => {
-                "arquivo IES_CONFIG_FILE ausente, não regular, excessivo ou ilegível"
-            }
-            Self::ArquivoConfiguracaoPermissoesAbertas => {
-                "IES_CONFIG_FILE tem permissões inseguras"
-            }
-            Self::ArquivoConfiguracaoLinkSimbolico => "IES_CONFIG_FILE é link simbólico",
-            Self::ArquivoConfiguracaoJsonInvalido => "IES_CONFIG_FILE não contém JSON válido",
-            Self::ArquivoConfiguracaoCampoInvalido => {
-                "IES_CONFIG_FILE contém campo de caminho inválido"
-            }
-        }
-    }
 }
 
 fn caminho(nome: &str, erro: ErroConfiguracao) -> Result<PathBuf, ErroConfiguracao> {
@@ -88,47 +62,86 @@ fn arquivo_de_configuracao() -> Option<PathBuf> {
         .map(PathBuf::from)
 }
 
+/// Por que `ies setup` não gravou a configuração (nenhum caminho privado
+/// ou conteúdo vai no erro).
+#[derive(Debug, Clone, Copy, PartialEq, Eq, thiserror::Error)]
+#[error("{self:?}")]
+pub enum ErroGravacaoDaConfiguracao {
+    CaminhoPrivadoAusenteOuNaoAbsoluto,
+    /// O sistema não consultou o arquivo privado (o motivo do sistema).
+    ArquivoPrivadoNaoLido(std::io::ErrorKind),
+    #[cfg(unix)]
+    PermissoesDeArquivoPrivadoInseguras,
+    ConfiguracaoDeveTerCaminhoAbsoluto,
+    /// A serialização falhou (a categoria do erro de `serde_json`).
+    ConfiguracaoNaoSerializada(serde_json::error::Category),
+    ConfiguracaoNaoGravada,
+    ConfiguracaoJaExisteOuSemPermissao,
+}
+
 pub fn salvar_arquivos_de_acesso(
     destino: &std::path::Path,
     arquivos: &ArquivosDeAcesso,
-) -> Result<(), &'static str> {
-    use crate::arquivo_privado::{self, FalhaDaGravacao as F, Politica};
-    let campos = [&arquivos.url_controle, &arquivos.cookie, &arquivos.origem];
-    if campos.iter().any(|p| !p.is_absolute() || !p.is_file()) {
-        return Err("caminho_privado_ausente_ou_nao_absoluto");
-    }
-    #[cfg(unix)]
-    for path in campos {
-        use std::os::unix::fs::PermissionsExt;
-        let perms = std::fs::metadata(path)
-            .map_err(|_| "arquivo_privado_nao_lido")?
-            .permissions();
-        if perms.mode() & 0o077 != 0 {
-            return Err("permissoes_de_arquivo_privado_inseguras");
+) -> Result<(), ErroGravacaoDaConfiguracao> {
+    use crate::arquivo_privado::{self, FalhaDaGravacao, Politica};
+    for path in [&arquivos.url_controle, &arquivos.cookie, &arquivos.origem] {
+        if !path.is_absolute() {
+            return Err(ErroGravacaoDaConfiguracao::CaminhoPrivadoAusenteOuNaoAbsoluto);
+        }
+        // Consultar uma vez: Path::is_file descartava a causa da falha.
+        let info = std::fs::metadata(path).map_err(|erro| {
+            if erro.kind() == std::io::ErrorKind::NotFound {
+                ErroGravacaoDaConfiguracao::CaminhoPrivadoAusenteOuNaoAbsoluto
+            } else {
+                ErroGravacaoDaConfiguracao::ArquivoPrivadoNaoLido(erro.kind())
+            }
+        })?;
+        if !info.is_file() {
+            return Err(ErroGravacaoDaConfiguracao::CaminhoPrivadoAusenteOuNaoAbsoluto);
+        }
+        #[cfg(unix)]
+        {
+            use std::os::unix::fs::PermissionsExt;
+            if info.permissions().mode() & 0o077 != 0 {
+                return Err(ErroGravacaoDaConfiguracao::PermissoesDeArquivoPrivadoInseguras);
+            }
         }
     }
     if !destino.is_absolute() {
-        return Err("configuracao_deve_ter_caminho_absoluto");
+        return Err(ErroGravacaoDaConfiguracao::ConfiguracaoDeveTerCaminhoAbsoluto);
     }
     let config = ConfiguracaoLocal {
         url_controle: arquivos.url_controle.clone(),
         cookie: arquivos.cookie.clone(),
         origem: arquivos.origem.clone(),
     };
-    let data = serde_json::to_vec_pretty(&config).map_err(|_| "configuracao_nao_serializada")?;
+    let data = serde_json::to_vec_pretty(&config)
+        .map_err(|erro| ErroGravacaoDaConfiguracao::ConfiguracaoNaoSerializada(erro.classify()))?;
     // Gravação privada única (#211): arquivo novo 0600, sem link no
     // destino, em diretório fechado a outros, publicado inteiro ou não.
     arquivo_privado::gravar(destino, &data, Politica::exclusiva().diretorio_do_ies()).map_err(
         |falha| match falha {
-            F::EscritaFalhou | F::ConfirmacaoFalhou | F::AcimaDoLimite => {
-                "configuracao_nao_gravada"
+            FalhaDaGravacao::EscritaFalhou
+            | FalhaDaGravacao::ErroDeIoNaEscrita(_)
+            | FalhaDaGravacao::ConfirmacaoFalhou(_)
+            | FalhaDaGravacao::AcimaDoLimite => ErroGravacaoDaConfiguracao::ConfiguracaoNaoGravada,
+            #[cfg(unix)]
+            FalhaDaGravacao::DiretorioGravavelPorOutros => {
+                ErroGravacaoDaConfiguracao::ConfiguracaoJaExisteOuSemPermissao
             }
-            F::SemNomeDeArquivo
-            | F::DiretorioAusente
-            | F::DiretorioGravavelPorOutros
-            | F::DestinoJaExiste
-            | F::DestinoNaoEhArquivoRegular
-            | F::CriacaoFalhou => "configuracao_ja_existe_ou_sem_permissao",
+            FalhaDaGravacao::SemNomeDeArquivo
+            | FalhaDaGravacao::DiretorioAusente
+            | FalhaDaGravacao::DiretorioNaoConsultado(_)
+            | FalhaDaGravacao::DestinoJaExiste
+            | FalhaDaGravacao::DestinoNaoEhArquivoRegular
+            | FalhaDaGravacao::CriacaoFalhou(_)
+            | FalhaDaGravacao::NivelDoCaminhoNaoEhDiretorio
+            | FalhaDaGravacao::NivelDoCaminhoIlegivel(_)
+            | FalhaDaGravacao::CriacaoDoDiretorioFalhou(_)
+            | FalhaDaGravacao::CriacaoDoTemporarioFalhou(_)
+            | FalhaDaGravacao::NomesDeTemporarioEsgotados => {
+                ErroGravacaoDaConfiguracao::ConfiguracaoJaExisteOuSemPermissao
+            }
         },
     )
 }
@@ -137,15 +150,19 @@ pub fn salvar_arquivos_de_acesso(
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 enum FalhaConfiguracaoLocal {
     Ausente,
-    MetadadosNaoLidos,
     LinkSimbolico,
     NaoRegular,
     AcimaDoLimite,
     // Só construída na conferência de permissões Unix.
-    #[cfg_attr(not(unix), allow(dead_code))]
+    #[cfg(unix)]
     PermissoesAbertas,
-    LeituraFalhou,
-    JsonInvalido,
+    /// Só Unix: o caminho passou a apontar para outro arquivo (inode ou
+    /// dispositivo) entre a abertura e a conferência.
+    #[cfg(unix)]
+    ArquivoTrocadoDuranteALeitura,
+    /// Erro do sistema ao abrir, consultar ou ler o arquivo (o motivo).
+    ErroDeIoNaLeitura(std::io::ErrorKind),
+    JsonInvalido(serde_json::error::Category),
     CampoInvalido,
 }
 
@@ -153,14 +170,20 @@ impl From<FalhaConfiguracaoLocal> for ErroConfiguracao {
     fn from(causa: FalhaConfiguracaoLocal) -> Self {
         match causa {
             FalhaConfiguracaoLocal::LinkSimbolico => Self::ArquivoConfiguracaoLinkSimbolico,
+            #[cfg(unix)]
             FalhaConfiguracaoLocal::PermissoesAbertas => Self::ArquivoConfiguracaoPermissoesAbertas,
-            FalhaConfiguracaoLocal::JsonInvalido => Self::ArquivoConfiguracaoJsonInvalido,
+            FalhaConfiguracaoLocal::JsonInvalido(_) => Self::ArquivoConfiguracaoJsonInvalido,
             FalhaConfiguracaoLocal::CampoInvalido => Self::ArquivoConfiguracaoCampoInvalido,
             FalhaConfiguracaoLocal::Ausente
-            | FalhaConfiguracaoLocal::MetadadosNaoLidos
             | FalhaConfiguracaoLocal::NaoRegular
             | FalhaConfiguracaoLocal::AcimaDoLimite
-            | FalhaConfiguracaoLocal::LeituraFalhou => Self::ArquivoDeConfiguracaoNaoPodeSerLido,
+            | FalhaConfiguracaoLocal::ErroDeIoNaLeitura(_) => {
+                Self::ArquivoDeConfiguracaoNaoPodeSerLido
+            }
+            #[cfg(unix)]
+            FalhaConfiguracaoLocal::ArquivoTrocadoDuranteALeitura => {
+                Self::ArquivoDeConfiguracaoNaoPodeSerLido
+            }
         }
     }
 }
@@ -168,42 +191,45 @@ impl From<FalhaConfiguracaoLocal> for ErroConfiguracao {
 fn ler_configuracao_local(
     path: &std::path::Path,
 ) -> Result<ArquivosDeAcesso, FalhaConfiguracaoLocal> {
-    use FalhaConfiguracaoLocal as F;
     use std::io::Read as _;
 
     let info = std::fs::symlink_metadata(path).map_err(|erro| {
         if erro.kind() == std::io::ErrorKind::NotFound {
-            F::Ausente
+            FalhaConfiguracaoLocal::Ausente
         } else {
-            F::MetadadosNaoLidos
+            FalhaConfiguracaoLocal::ErroDeIoNaLeitura(erro.kind())
         }
     })?;
     if info.file_type().is_symlink() {
-        return Err(F::LinkSimbolico);
+        return Err(FalhaConfiguracaoLocal::LinkSimbolico);
     }
     if !info.is_file() {
-        return Err(F::NaoRegular);
+        return Err(FalhaConfiguracaoLocal::NaoRegular);
     }
     if info.len() > 8_192 {
-        return Err(F::AcimaDoLimite);
+        return Err(FalhaConfiguracaoLocal::AcimaDoLimite);
     }
     #[cfg(unix)]
     {
         use std::os::unix::fs::PermissionsExt as _;
         if info.permissions().mode() & 0o077 != 0 {
-            return Err(F::PermissoesAbertas);
+            return Err(FalhaConfiguracaoLocal::PermissoesAbertas);
         }
     }
     // Validar também o descritor aberto e reler a entrada: não aceitar
     // troca de arquivo/symlink entre a inspeção do caminho e a abertura.
-    let arquivo = std::fs::File::open(path).map_err(|_| F::LeituraFalhou)?;
-    let aberto = arquivo.metadata().map_err(|_| F::LeituraFalhou)?;
-    let no_caminho = std::fs::symlink_metadata(path).map_err(|_| F::LeituraFalhou)?;
+    let arquivo = std::fs::File::open(path)
+        .map_err(|erro| FalhaConfiguracaoLocal::ErroDeIoNaLeitura(erro.kind()))?;
+    let aberto = arquivo
+        .metadata()
+        .map_err(|erro| FalhaConfiguracaoLocal::ErroDeIoNaLeitura(erro.kind()))?;
+    let no_caminho = std::fs::symlink_metadata(path)
+        .map_err(|erro| FalhaConfiguracaoLocal::ErroDeIoNaLeitura(erro.kind()))?;
     if no_caminho.file_type().is_symlink() {
-        return Err(F::LinkSimbolico);
+        return Err(FalhaConfiguracaoLocal::LinkSimbolico);
     }
     if !aberto.is_file() || !no_caminho.is_file() {
-        return Err(F::NaoRegular);
+        return Err(FalhaConfiguracaoLocal::NaoRegular);
     }
     #[cfg(unix)]
     {
@@ -213,30 +239,33 @@ fn ler_configuracao_local(
             || no_caminho.ino() != aberto.ino()
             || no_caminho.dev() != aberto.dev()
         {
-            return Err(F::LeituraFalhou);
+            return Err(FalhaConfiguracaoLocal::ArquivoTrocadoDuranteALeitura);
         }
         if aberto.permissions().mode() & 0o077 != 0 {
-            return Err(F::PermissoesAbertas);
+            return Err(FalhaConfiguracaoLocal::PermissoesAbertas);
         }
     }
     let mut raw = Vec::new();
     arquivo
         .take(8_193)
         .read_to_end(&mut raw)
-        .map_err(|_| F::LeituraFalhou)?;
+        .map_err(|erro| FalhaConfiguracaoLocal::ErroDeIoNaLeitura(erro.kind()))?;
     if raw.len() > 8_192 {
-        return Err(F::AcimaDoLimite);
+        return Err(FalhaConfiguracaoLocal::AcimaDoLimite);
     }
-    let json: serde_json::Value = serde_json::from_slice(&raw).map_err(|_| F::JsonInvalido)?;
-    let objeto = json.as_object().ok_or(F::CampoInvalido)?;
-    let campo = |nome| -> Result<PathBuf, F> {
+    let json: serde_json::Value = serde_json::from_slice(&raw)
+        .map_err(|erro| FalhaConfiguracaoLocal::JsonInvalido(erro.classify()))?;
+    let objeto = json
+        .as_object()
+        .ok_or(FalhaConfiguracaoLocal::CampoInvalido)?;
+    let campo = |nome| -> Result<PathBuf, FalhaConfiguracaoLocal> {
         let texto = objeto
             .get(nome)
             .and_then(serde_json::Value::as_str)
-            .ok_or(F::CampoInvalido)?;
+            .ok_or(FalhaConfiguracaoLocal::CampoInvalido)?;
         let path = PathBuf::from(texto);
         if !path.is_absolute() {
-            return Err(F::CampoInvalido);
+            return Err(FalhaConfiguracaoLocal::CampoInvalido);
         }
         Ok(path)
     };
@@ -258,82 +287,52 @@ pub enum ArquivoPrivado {
     Cookie,
     Origem,
 }
-impl ArquivoPrivado {
-    pub fn rotulo(self) -> &'static str {
-        match self {
-            Self::UrlControle => "url_controle",
-            Self::Cookie => "cookie",
-            Self::Origem => "origem",
-        }
-    }
-}
 
-#[derive(Debug, Clone, Copy, PartialEq, Eq, crate::erro_publico::Causa)]
-pub enum ErroArquivoPrivado {
-    #[causa(nome = "caminho_privado_nao_absoluto")]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, thiserror::Error)]
+#[error("{self:?}")]
+pub enum ErroArquivoDeAcesso {
     CaminhoNaoAbsoluto(ArquivoPrivado),
-    #[causa(nome = "arquivo_privado_ausente")]
     Ausente(ArquivoPrivado),
-    #[causa(nome = "arquivo_privado_link_simbolico")]
     LinkSimbolico(ArquivoPrivado),
-    #[causa(nome = "arquivo_privado_nao_regular")]
     NaoRegular(ArquivoPrivado),
-    #[causa(nome = "arquivo_privado_vazio")]
     Vazio(ArquivoPrivado),
-    #[cfg_attr(not(unix), allow(dead_code))]
-    #[causa(nome = "arquivo_privado_permissoes_inseguras")]
+    #[cfg(unix)]
     PermissoesInseguras(ArquivoPrivado),
-    #[causa(nome = "metadados_arquivo_privado_nao_lidos")]
-    MetadadosNaoLidos(ArquivoPrivado),
-}
-impl ErroArquivoPrivado {
-    pub fn subcodigo(self) -> &'static str {
-        crate::erro_publico::folha(&self)
-    }
-    pub fn arquivo(self) -> ArquivoPrivado {
-        match self {
-            Self::CaminhoNaoAbsoluto(a)
-            | Self::Ausente(a)
-            | Self::LinkSimbolico(a)
-            | Self::NaoRegular(a)
-            | Self::Vazio(a)
-            | Self::PermissoesInseguras(a)
-            | Self::MetadadosNaoLidos(a) => a,
-        }
-    }
+    /// A consulta de metadados falhou; conserva papel e motivo do sistema.
+    MetadadosNaoLidos(ArquivoPrivado, std::io::ErrorKind),
 }
 
 /// Consulta apenas metadados: não lê conteúdo, credenciais nem acessa o SEI.
-pub fn verificar_arquivos_privados(arquivos: &ArquivosDeAcesso) -> Result<(), ErroArquivoPrivado> {
+pub fn verificar_arquivos_privados(arquivos: &ArquivosDeAcesso) -> Result<(), ErroArquivoDeAcesso> {
     for (tipo, caminho) in [
         (ArquivoPrivado::UrlControle, arquivos.url_controle.as_path()),
         (ArquivoPrivado::Cookie, arquivos.cookie.as_path()),
         (ArquivoPrivado::Origem, arquivos.origem.as_path()),
     ] {
         if !caminho.is_absolute() {
-            return Err(ErroArquivoPrivado::CaminhoNaoAbsoluto(tipo));
+            return Err(ErroArquivoDeAcesso::CaminhoNaoAbsoluto(tipo));
         }
         let info = std::fs::symlink_metadata(caminho).map_err(|erro| {
             if erro.kind() == std::io::ErrorKind::NotFound {
-                ErroArquivoPrivado::Ausente(tipo)
+                ErroArquivoDeAcesso::Ausente(tipo)
             } else {
-                ErroArquivoPrivado::MetadadosNaoLidos(tipo)
+                ErroArquivoDeAcesso::MetadadosNaoLidos(tipo, erro.kind())
             }
         })?;
         if info.file_type().is_symlink() {
-            return Err(ErroArquivoPrivado::LinkSimbolico(tipo));
+            return Err(ErroArquivoDeAcesso::LinkSimbolico(tipo));
         }
         if !info.is_file() {
-            return Err(ErroArquivoPrivado::NaoRegular(tipo));
+            return Err(ErroArquivoDeAcesso::NaoRegular(tipo));
         }
         if info.len() == 0 {
-            return Err(ErroArquivoPrivado::Vazio(tipo));
+            return Err(ErroArquivoDeAcesso::Vazio(tipo));
         }
         #[cfg(unix)]
         {
             use std::os::unix::fs::PermissionsExt;
             if info.permissions().mode() & 0o077 != 0 {
-                return Err(ErroArquivoPrivado::PermissoesInseguras(tipo));
+                return Err(ErroArquivoDeAcesso::PermissoesInseguras(tipo));
             }
         }
     }

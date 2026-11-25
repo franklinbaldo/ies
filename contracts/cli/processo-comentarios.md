@@ -8,10 +8,15 @@ description: Contrato da operação processo comentarios e processo comentar com
 
 # Comentários do processo (#257)
 
-Comandos pretendidos: `ies processo comentarios NUP [--json]` e
-`ies processo comentar NUP --texto T [--confirmar]`. A CLI Web ainda **não
-está conectada** nesta fatia; os leitores e a conferência da escrita
-são código Rust compilado e exercitado em testes sintéticos.
+`ies processo comentarios NUP --json` está conectado à leitura Web:
+abre a árvore pela identidade do processo, exige o link `comentario_listar`
+publicado na barra, faz um GET e só declara `lista_completa=true` quando a
+tabela e o total foram integralmente conferidos. A ausência de link não vira
+lista vazia. `ies processo comentar NUP --texto T` tem **prévia de leitura**
+para lista já publicada com comentários: abre o link `Novo` servido pela lista,
+confere o formulário `frmComentarioCadastro` e os controles de descrição e
+cadastro sem realizar POST. `--confirmar` envia um único POST em instalações públicas de treinamento,
+e exige uma releitura completa com o id aceito e o texto exato.
 
 ## Observação
 
@@ -30,63 +35,76 @@ própria linha.
 
 ## Leitura
 
-A leitura deverá abrir o processo por um caminho autorizado já observado,
-seguir exclusivamente o link publicado, conferir a identidade do processo,
-e projetar id, data/hora, unidade, usuário e texto; protocolo e tipo
-apenas se publicados. O leitor offline:
+A leitura abre o processo por um caminho autorizado já observado,
+segue exclusivamente o link publicado na árvore conferida, sem reconstruir
+assinaturas, e projeta id, data/hora, unidade, usuário e texto; protocolo
+e tipo apenas quando publicados. O leitor estrutural:
 - recusa lista sem tabela, cabeçalho, legenda ou visão identificável;
 - recusa ids duplicados, texto sem linha correspondente, divergências
   entre total da legenda e número de linhas (inclusive paginação);
 - distingue formulário de cadastro vazio de lista;
 - não transforma `null` ou tabela ausente em lista vazia.
 
-Orçamento esperado da leitura Web: abertura do processo
-(1 a 4 requisições segundo o caminho do índice) + um GET
-`comentario_listar` quando há lista. Desvios e eventual 302 ao cadastro
-exigem regra por operação antes da integração.
+Orçamento de leitura: abertura do processo pelo fluxo comum (a depender
+do índice) e **um GET** `comentario_listar` quando a barra publica o link.
+Lista truncada, ausência de ação, resposta 302 para cadastro e telas não
+reconhecidas são recusadas com erro tipado, **sem afirmar lista vazia**.
+A interpretação positiva do redirecionamento ao cadastro continua pendente.
 
 ## Escrita
 
-A prévia lê a tela de cadastro e o formulário sem enviar a gravação.
-`--confirmar` só pode fazer um único POST observado,
-sem retry. A resposta aceita é 302 para `comentario_listar` com
+A prévia implementada exige lista reconhecida, link único assinado de
+`comentario_cadastrar` com a mesma identidade do processo e formulário de
+cadastro publicado. O redirecionamento 302 para o cadastro quando a lista
+está vazia ainda não é aceito pela prévia e não é interpretado como ausência
+comprovada de comentários. O fluxo de confirmação é habilitado somente em treinamento, após a conferência da tela.
+O modo `--confirmar` faz no máximo um POST observado, sem retry. A resposta aceita é 302 para `comentario_listar` com
 `id_comentario`; isso sozinho **não comprova efeito**.
 A reconciliação exige nova leitura completa com uma única ocorrência
 do id aceito **e texto igual byte a byte ao pedido**.
 Resposta 5xx, falha de transporte após POST, ausência de id ou impossibilidade
-de releitura resultam em **efeito incerto (saída 3)**, sem repetir escrita.
-O fluxo Web ainda não está implementado: **não há POST habilitado**.
+de releitura resultam em **escrita não confirmada (saída 1)**, sem repetir escrita.
+**O POST está disponível exclusivamente em treinamento**; o CI exercita a
+hipótese sintética em HTTPS local, mas não a validação live.
 
 ## Subcódigos desta fatia
 
-| Subcódigo | Fato |
+| Erro (stderr) | Fato |
 | --- | --- |
-| `barra_dos_comentarios_fora_da_forma_observada` | barra do processo fora da forma observada |
-| `barras_dos_comentarios_repetidas_na_arvore` | mais de uma barra no nó PROCESSO |
-| `links_dos_comentarios_repetidos_na_barra` | links de comentários repetidos |
-| `endereco_dos_comentarios_nao_reconhecido` | link fora do formato assinado observado |
-| `endereco_dos_comentarios_de_outro_processo` | identidade do processo no link divergente |
-| `html_dos_comentarios_nao_interpretado` | HTML ou atributo inválido |
-| `tela_de_comentarios_nao_reconhecida` | nem lista nem cadastro publicado |
-| `formularios_de_comentarios_repetidos` | formulário repetido |
-| `visao_dos_comentarios_nao_publicada` | P/T ausente ou inválida |
-| `tabela_de_comentarios_ausente` | tabela não publicada |
-| `tabelas_de_comentarios_repetidas` | tabela duplicada |
-| `legenda_dos_comentarios_invalida` | total não legível |
-| `cabecalho_dos_comentarios_invalido` | colunas essenciais não identificadas |
-| `linha_do_comentario_invalida` | linha fora da estrutura |
-| `texto_do_comentario_nao_publicado` | falta a linha de texto 4.x |
-| `id_do_comentario_repetido` | ID repetido |
-| `lista_de_comentarios_incompleta` | total diferente do número de linhas |
-| `id_do_comentario_ausente_no_aceite` | id do 302 ausente |
-| `comentario_nao_visivel_na_releitura` | id aceito não visto |
-| `comentario_novo_repetido_na_releitura` | mais de uma ocorrência |
-| `texto_do_comentario_diferente_do_pedido` | texto não corresponde |
+| `ErroLinkDosComentarios::Barra(ErroBarraDoProcesso::BarraDoProcessoForaDaFormaObservada)` | barra do processo fora da forma observada |
+| `ErroLinkDosComentarios::Barra(ErroBarraDoProcesso::BarrasDoProcessoRepetidasNaArvore)` | mais de uma barra no nó PROCESSO |
+| `ErroLinkDosComentarios::LinksDosComentariosRepetidosNaBarra` | links de comentários repetidos |
+| `ErroLinkDosComentarios::EnderecoDosComentariosNaoReconhecido` | link fora do formato assinado observado |
+| `ErroLinkDosComentarios::EnderecoDeOutroProcesso` | identidade do processo no link divergente |
+| `ErroComentarios::HtmlDosComentariosNaoInterpretado` | HTML ou atributo inválido |
+| `ErroComentarios::TelaDeComentariosNaoReconhecida` | nem lista nem cadastro publicado |
+| `ErroComentarios::FormulariosDeComentariosRepetidos` | formulário repetido |
+| `ErroComentarios::VisaoNaoPublicada` | P/T ausente ou inválida |
+| `ErroComentarios::TabelaDeComentariosAusente` | tabela não publicada |
+| `ErroComentarios::TabelasDeComentariosRepetidas` | tabela duplicada |
+| `ErroComentarios::LegendaDosComentariosInvalida` | total não legível |
+| `ErroComentarios::CabecalhoDosComentariosInvalido` | colunas essenciais não identificadas |
+| `ErroComentarios::LinhaDoComentarioInvalida` | linha fora da estrutura |
+| `TextoDoComentarioNaoPublicado` | falta a linha de texto 4.x |
+| `ErroComentarios::IdDoComentarioRepetido` | ID repetido |
+| `ErroComentarios::ListaIncompleta` | total diferente do número de linhas |
+| `FalhaDaConferencia::IdDoAceiteAusente` | id do 302 ausente |
+| `ComentarioNaoVisivelNaReleitura` | id aceito não visto |
+| `FalhaDaConferencia::ComentarioNovoRepetido` | mais de uma ocorrência |
+| `FalhaDaConferencia::TextoDiferenteDoPedido` | texto não corresponde |
 
 ## Estado e gates
 
-**Fatia parcial offline**. Os módulos `src/processo_comentarios.rs` e
-`src/processo_comentar.rs` são componentes funcionais, mas
-nenhum comando do usuário é declarado implementado até a conexão com
-árvore, transporte, formulários e testes de orçamento. Replay e live
-seguem NOT_RUN. Não validar integração apenas pela compilação.
+**Leitura Web (BDD-257-01) e prévia/confirmação local (BDD-257-02 sintético)**. O leitor offline
+`src/processo_comentarios.rs` foi conectado em
+`src/processo_comentarios_web.rs` / `src/processo_comentarios_cli.rs`,
+com SQLite evolutivo v33 e projeção do anti-IES. Os testes de integração
+`tests/aies_comentarios_cli.rs` exercitam CLI real ↔ HTTPS local ↔
+anti-IES ↔ SQLite, incluindo recusa de foto desconhecida e página parcial.
+São hipóteses **sintéticas** e não demonstram paridade independente com
+respostas de cassette. A inspeção estrutural das cassettes UnB/GO soma 76
+interações, SHA-1/SHA-256 conferidos; confronto semântico independente e
+SEI live: **NOT_RUN**. O caso de lista vazia/redirecionamento permanece pendente. O BDD-257-03
+possui regressão sintética de 503 durante a releitura após o POST,
+com saída 1 e nenhuma repetição, e depende de gate verde no head final.
+Não foi realizado teste live.

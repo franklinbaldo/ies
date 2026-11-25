@@ -1,10 +1,11 @@
 //! RED/GREEN da prévia e das recusas antes da escrita de `processo enviar`:
 //! sequências exatas de requisições (orçamento do contrato).
-use super::erro::{ErroEnviar as R, ErroTelaDeEnvio, FalhaDaConsulta};
+use super::erro::{ErroEnviar, ErroTelaDeEnvio, FalhaDaConsulta};
 use super::tests_apoio::*;
+use crate::arvore_processo::tests_concluir::absoluta;
 use crate::arvore_processo::{ErroEnviarNaBarra, MotivoAbertoEm};
-use crate::erro_html::ErroHtml;
 use crate::processo_concluir::tests_apoio::*;
+use crate::propriedades_processo::tests_apoio::acao_da_barra;
 use crate::transporte::FalhaTransporte;
 
 fn previa_respostas(versao: Versao, aberto_em: &[&str], consulta: String) -> Vec<Resposta> {
@@ -37,52 +38,82 @@ fn previa_pede_a_tela_e_a_consulta_e_nao_escreve() {
     }
 }
 
+type Esperado = Box<dyn Fn(&ErroEnviar) -> bool>;
+
 #[test]
 fn recusas_pela_situacao_e_pela_barra_so_com_a_abertura() {
-    let casos: Vec<(Vec<&str>, Vec<String>, R)> = vec![
+    let casos: Vec<(Vec<&str>, Vec<String>, Esperado)> = vec![
         (
             vec!["OUTRA"],
             vazio().to_vec(),
-            R::ProcessoNaoAbertoNaUnidadeDaSessao {
-                aberto_em: siglas(&["OUTRA"]),
-            },
+            Box::new(
+                |e: &ErroEnviar| matches!(e, ErroEnviar::ProcessoNaoAbertoNaUnidadeDaSessao { aberto_em } if *aberto_em == siglas(&["OUTRA"])),
+            ),
         ),
         (
             vec!["OUTRA"],
             enviar(),
-            R::UnidadeDaSessaoAusenteDaSituacao {
-                aberto_em: siglas(&["OUTRA"]),
-            },
+            Box::new(
+                |e: &ErroEnviar| matches!(e, ErroEnviar::UnidadeDaSessaoAusenteDaSituacao { aberto_em } if *aberto_em == siglas(&["OUTRA"])),
+            ),
         ),
         (
             vec![UNIDADE],
             vazio().to_vec(),
-            R::EnvioNaoPublicadoNaBarra {
-                aberto_em: siglas(&[UNIDADE]),
-            },
+            Box::new(
+                |e: &ErroEnviar| matches!(e, ErroEnviar::EnvioNaoPublicadoNaBarra { aberto_em } if *aberto_em == siglas(&[UNIDADE])),
+            ),
+        ),
+        (
+            vec!["OUTRA"],
+            vec![pelo_envio(ID), pelo_envio(ID)],
+            Box::new(|e: &ErroEnviar| {
+                matches!(
+                    e,
+                    ErroEnviar::Barra(ErroEnviarNaBarra::LinksDeEnviarRepetidosNaBarra)
+                )
+            }),
+        ),
+        (
+            vec!["OUTRA"],
+            vec![pelo_envio("11")],
+            Box::new(|e: &ErroEnviar| {
+                matches!(
+                    e,
+                    ErroEnviar::Barra(ErroEnviarNaBarra::EnderecoDoEnvioDeOutroProcesso)
+                )
+            }),
         ),
         (
             vec![UNIDADE],
             vec![pelo_envio(ID), pelo_envio(ID)],
-            R::Barra(ErroEnviarNaBarra::Html(ErroHtml::repetido(
-                "links_de_enviar_repetidos_na_barra",
-            ))),
+            Box::new(|e: &ErroEnviar| {
+                matches!(
+                    e,
+                    ErroEnviar::Barra(ErroEnviarNaBarra::LinksDeEnviarRepetidosNaBarra)
+                )
+            }),
         ),
         (
             vec![UNIDADE],
             vec![pelo_envio("11")],
-            R::Barra(ErroEnviarNaBarra::EnderecoDoEnvioDeOutroProcesso),
+            Box::new(|e: &ErroEnviar| {
+                matches!(
+                    e,
+                    ErroEnviar::Barra(ErroEnviarNaBarra::EnderecoDoEnvioDeOutroProcesso)
+                )
+            }),
         ),
     ];
     for confirmar in [false, true] {
-        for (aberto_em, acoes, erro) in &casos {
+        for (aberto_em, acoes, esperado) in &casos {
             let (r, feitos) = rodar_envio(
                 DESTINO,
                 false,
                 confirmar,
                 abertura(arvore(aberto_em, acoes)),
             );
-            assert_eq!(r, Err(erro.clone()));
+            assert!(r.as_ref().err().is_some_and(esperado), "{r:?}");
             assert_eq!(feitos, pedidos_da_abertura());
         }
     }
@@ -96,7 +127,10 @@ fn situacao_nao_lida_recusa_antes_da_tela() {
     );
     let (r, feitos) = rodar_envio(DESTINO, false, true, abertura(sobrestado));
     assert!(
-        matches!(r, Err(R::SituacaoDoProcessoNaoLidaAntesDeEnviar { .. })),
+        matches!(
+            r,
+            Err(ErroEnviar::SituacaoDoProcessoNaoLidaAntesDeEnviar { .. })
+        ),
         "{r:?}"
     );
     assert_eq!(feitos, pedidos_da_abertura());
@@ -108,25 +142,38 @@ fn tela_recusada_custa_um_get_sem_consulta() {
     let mut pedidos = pedidos_da_abertura();
     pedidos.push(get(&url_da_tela()));
     let fora = tela_de_envio(Versao::V41, ID).replace("frmAtividadeListar", "frmOutro");
-    for (resposta, erro) in [
-        (
-            ok(fora),
-            R::TelaDeEnvio(ErroTelaDeEnvio::Html(ErroHtml::ausente(
-                "formulario_de_envio_ausente",
-            ))),
+    let (r, feitos) = rodar_envio(
+        DESTINO,
+        false,
+        true,
+        com(abertura(arvore(&[UNIDADE], &enviar())), vec![ok(fora)]),
+    );
+    assert!(
+        matches!(
+            r,
+            Err(ErroEnviar::TelaDeEnvio(
+                ErroTelaDeEnvio::FormularioDeEnvioAusente(_)
+            ))
         ),
+        "{r:?}"
+    );
+    assert_eq!(feitos, pedidos);
+    let casos: Vec<(_, Esperado)> = vec![
         (
             r302("controlador.php?acao=principal"),
-            R::TelaDaEscritaRedirecionada,
+            Box::new(|e: &ErroEnviar| matches!(e, ErroEnviar::TelaDaEscritaRedirecionada)),
         ),
         (
             Err(FalhaTransporte::Rede),
-            R::TelaDaEscrita(FalhaTransporte::Rede),
+            Box::new(|e: &ErroEnviar| {
+                matches!(e, ErroEnviar::TelaDaEscrita(FalhaTransporte::Rede))
+            }),
         ),
-    ] {
+    ];
+    for (resposta, esperado) in casos {
         let respostas = com(abertura(arvore(&[UNIDADE], &enviar())), vec![resposta]);
         let (r, feitos) = rodar_envio(DESTINO, false, true, respostas);
-        assert_eq!(r, Err(erro));
+        assert!(r.as_ref().err().is_some_and(esperado), "{r:?}");
         assert_eq!(feitos, pedidos);
     }
 }
@@ -135,33 +182,38 @@ fn tela_recusada_custa_um_get_sem_consulta() {
 fn consulta_ou_destino_recusados_nao_escrevem() {
     let outro = resposta_xml(&[("9", "OUTRA - Outra unidade")]);
     let dois = resposta_xml(&[("1", "TESTE_1_1 - Um"), ("2", "TESTE_1_1 - Dois")]);
-    let casos = [
+    let casos: [(String, Esperado); 3] = [
         (
             outro,
-            R::DestinoNaoOferecidoPeloSei {
-                oferecidos: vec!["OUTRA - Outra unidade".into()],
-            },
+            Box::new(
+                |e: &ErroEnviar| matches!(e, ErroEnviar::DestinoNaoOferecidoPeloSei { oferecidos } if *oferecidos == ["OUTRA - Outra unidade"]),
+            ),
         ),
         (
             dois,
-            R::VariosDestinosComASigla {
-                candidatos: vec!["TESTE_1_1 - Um".into(), "TESTE_1_1 - Dois".into()],
-            },
+            Box::new(
+                |e: &ErroEnviar| matches!(e, ErroEnviar::VariosDestinosComASigla { candidatos } if *candidatos == ["TESTE_1_1 - Um", "TESTE_1_1 - Dois"]),
+            ),
         ),
         (
             "<html><body>Sessão</body></html>".to_owned(),
-            R::Consulta(FalhaDaConsulta::RespostaDoAutocompletarNaoXml),
+            Box::new(|e: &ErroEnviar| {
+                matches!(
+                    e,
+                    ErroEnviar::Consulta(FalhaDaConsulta::RespostaDoAutocompletarNaoXml)
+                )
+            }),
         ),
     ];
     for confirmar in [false, true] {
-        for (consulta, erro) in &casos {
+        for (consulta, esperado) in &casos {
             let (r, feitos) = rodar_envio(
                 DESTINO,
                 false,
                 confirmar,
                 previa_respostas(Versao::V41, &[UNIDADE], consulta.clone()),
             );
-            assert_eq!(r, Err(erro.clone()));
+            assert!(r.as_ref().err().is_some_and(esperado), "{r:?}");
             assert_eq!(feitos, pedidos_da_previa(Versao::V41));
         }
     }
@@ -175,12 +227,11 @@ fn destino_ja_aberto_e_recusa_sem_escrita() {
         true,
         previa_respostas(Versao::V40, &[UNIDADE, DESTINO], um_destino()),
     );
-    assert_eq!(
+    assert!(matches!(
         r,
-        Err(R::ProcessoJaAbertoNoDestino {
-            aberto_em: siglas(&[UNIDADE, DESTINO])
-        })
-    );
+        Err(ErroEnviar::ProcessoJaAbertoNoDestino { aberto_em })
+            if aberto_em == siglas(&[UNIDADE, DESTINO])
+    ));
     assert_eq!(feitos, pedidos_da_previa(Versao::V40));
 }
 
@@ -190,23 +241,40 @@ fn bdd_previa_remover_anotacoes_exige_checkbox_e_nao_escreve() {
     // então a prévia apresenta a escolha com a mesma consulta de destino.
     for versao in [Versao::V40, Versao::V41] {
         let amb = ambiente();
-        let (resultado, pedidos) = rodar_com(
-            &amb,
-            previa_respostas(versao, &[UNIDADE], um_destino()),
-            |sessao, nup, indice, rede| {
-                let pedido = super::PedidoDoEnvio {
-                    nup,
-                    unidade: None,
-                    para: DESTINO,
-                    manter_aberto: false,
-                    remover_anotacoes: true,
-                    confirmar: false,
-                };
-                super::enviar_processo(sessao, &pedido, indice, rede)
-            },
+        let acoes = vec![
+            pelo_envio(ID),
+            acao_da_barra(&super::tests_anotacoes::link_anotacao()),
+        ];
+        let respostas = com(
+            abertura(arvore(&[UNIDADE], &acoes)),
+            vec![
+                ok(tela_de_envio(versao, ID)),
+                ok(super::tests_anotacoes::anotacao("", ID)),
+                ok(um_destino()),
+            ],
         );
-        assert!(resultado.unwrap().remover_anotacoes);
-        assert_eq!(pedidos, pedidos_da_previa(versao));
+        let (resultado, pedidos) = rodar_com(&amb, respostas, |sessao, nup, indice, rede| {
+            let pedido = super::PedidoDoEnvio {
+                nup,
+                unidade: None,
+                para: DESTINO,
+                manter_aberto: false,
+                remover_anotacoes: true,
+                confirmar: false,
+            };
+            super::enviar_processo(sessao, &pedido, indice, rede)
+        });
+        let feito = resultado.unwrap();
+        assert!(feito.remover_anotacoes());
+        assert_eq!(feito.anotacao_antes(), Some(false));
+        let mut esperado = pedidos_da_abertura();
+        esperado.push(get(&url_da_tela()));
+        esperado.push(get(&absoluta(&super::tests_anotacoes::link_anotacao())));
+        esperado.push(post(
+            &absoluta(&autocompletar()),
+            &corpo_da_consulta(versao),
+        ));
+        assert_eq!(pedidos, esperado);
     }
 }
 
@@ -232,7 +300,10 @@ fn bdd_sem_checkbox_recusa_antes_da_consulta_autocomplete() {
             super::enviar_processo(sessao, &pedido, indice, rede)
         },
     );
-    assert_eq!(resultado, Err(R::RemocaoDeAnotacoesNaoOferecida));
+    assert!(matches!(
+        resultado,
+        Err(ErroEnviar::RemocaoDeAnotacoesNaoOferecida)
+    ));
     let mut esperado = pedidos_da_abertura();
     esperado.push(get(&url_da_tela()));
     assert_eq!(feitos, esperado);

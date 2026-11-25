@@ -1,20 +1,35 @@
 //! Servidor experimental. Leitura de cassettes e hipótese de documento simulado.
 mod arvore_compartilhada;
+mod bloco_detalhe;
+mod bloco_escolher;
+mod blocos;
 mod controle_detalhado;
 mod controle_resumido;
 pub mod documento_arvore;
 pub mod documento_cancelar;
+mod documento_ciencia;
 pub mod documento_versoes;
 mod documentos;
 pub mod editor_documento;
+mod nivel_de_detalhe;
 pub mod pdf_externo;
 pub mod pesquisa_documento;
+mod prazo_processo;
+mod processo_acompanhar;
+mod processo_andamento;
+mod processo_anexacao;
+mod processo_atribuicao;
 mod processo_barra;
+mod processo_ciencia;
+mod processo_comentarios;
 mod processo_criacao;
 pub mod processo_envio;
+mod processo_marcadores;
 mod processo_relacionar;
+mod processo_sobrestamento;
 mod protocolo_sintetico;
 mod rotas;
+mod validacao_acesso;
 use iesei::banco_cassettes::ler;
 use iesei::instalacao::Instalacao;
 use iesei::retornos_cassettes::{Mes, PeriodoMensal, Situacao, ler as ler_retornos};
@@ -345,8 +360,28 @@ pub fn controlar(
         return Resposta::nova(Estado::DadosInsuficientes);
     };
     if let Some(observacao) = detalhe {
+        // A ação só é oferecida quando o estado da tela foi explicitamente
+        // informado no SQLite. Sem linha de configuração, não há link.
+        let Ok(configuracao) = iesei::colunas_detalhe::ler(banco, instalacao, cenario) else {
+            return Resposta::nova(Estado::DadosInsuficientes);
+        };
+        if configuracao
+            .as_ref()
+            .is_some_and(|c| c.unidade != observacao.unidade)
+        {
+            return Resposta::nova(Estado::DadosInsuficientes);
+        }
         return controle_detalhado::html(&observacao)
-            .map(|html| menu_com_retornos(html, banco, instalacao, cenario))
+            .map(|mut html| {
+                if configuracao.is_some() {
+                    let link = format!(
+                        "<a id='ancNivelDetalhe' onclick=\"acaoConfigurarDetalhe('controlador.php?acao=procedimento_configurar_detalhe&amp;infra_hash={}');\">Configurar detalhe</a>",
+                        protocolo_sintetico::INFRA_HASH
+                    );
+                    html = html.replacen("</body>", &format!("{link}</body>"), 1);
+                }
+                menu_com_retornos(html, banco, instalacao, cenario)
+            })
             .map_or_else(
                 || Resposta::nova(Estado::DadosInsuficientes),
                 Resposta::html,
@@ -355,11 +390,12 @@ pub fn controlar(
     let Ok(Some(snapshot)) = ler(banco, instalacao, cenario) else {
         return Resposta::nova(Estado::DadosInsuficientes);
     };
-    let Ok(snapshot) = iesei::processos::controle_da_unidade(banco, instalacao, cenario, snapshot)
+    let Ok(projetado) =
+        iesei::processos::controle_da_unidade(banco, instalacao, cenario, snapshot.clone())
     else {
         return Resposta::nova(Estado::DadosInsuficientes);
     };
-    let Some(corpo) = controle_resumido::controle_html(&snapshot) else {
+    let Some(corpo) = controle_resumido::controle_html(&projetado, &snapshot) else {
         return Resposta::nova(Estado::DadosInsuficientes);
     };
     Resposta::html(menu_com_retornos(corpo, banco, instalacao, cenario))
@@ -470,18 +506,25 @@ pub fn atender_http(
         .localizacao
         .as_ref()
         .map_or_else(String::new, |valor| format!("Location: {valor}\r\n"));
+    // Só o PDF do download é corpo binário; o SEI o serve como anexo.
+    let disposicao = if resposta.corpo_binario.is_some() {
+        "Content-Disposition: attachment; filename=\"anexo.pdf\"\r\n"
+    } else {
+        ""
+    };
     let bytes = resposta
         .corpo_binario
         .as_deref()
         .unwrap_or(resposta.corpo.as_bytes());
     write!(
         fluxo,
-        "HTTP/1.1 {} {}\r\nContent-Type: {}\r\nContent-Length: {}\r\n{}Connection: close\r\nCache-Control: no-store\r\nX-Content-Type-Options: nosniff\r\n\r\n",
+        "HTTP/1.1 {} {}\r\nContent-Type: {}\r\nContent-Length: {}\r\n{}{}Connection: close\r\nCache-Control: no-store\r\nX-Content-Type-Options: nosniff\r\n\r\n",
         resposta.estado.codigo_http(),
         resposta.estado.motivo_http(),
         resposta.tipo_conteudo,
         bytes.len(),
         location,
+        disposicao,
     )?;
     fluxo.write_all(bytes)?;
     fluxo.flush()

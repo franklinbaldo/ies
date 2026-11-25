@@ -1,0 +1,20 @@
+id: 31b-as-deref-de-emprestado
+language: rust
+message: 'as_deref() de Option<&str> é o próprio valor'
+severity: hint
+rule:
+  all:
+    - pattern: '$V.as_deref()'
+    - inside:
+        stopBy: end
+        follows:
+          stopBy: end
+          pattern: 'let $V = $T.atributo($K);'
+    - not:
+        inside:
+          stopBy: end
+          kind: mod_item
+          follows:
+            kind: attribute_item
+            regex: 'cfg\(test\)'
+fix: '$V'

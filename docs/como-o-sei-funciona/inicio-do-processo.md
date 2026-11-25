@@ -110,7 +110,7 @@ gravado quando a tela o permitir. Não inventar NUP com base no ID.
 
 Depois do POST criador, falha de transporte, redirect inesperado,
 ausência de identificador e leitura inconclusiva exigem
-`efeito_incerto` (saída 3), **sem retry**. A abertura do cadastro
+`nao_confirmado` (saída 1), **sem retry**. A abertura do cadastro
 e a prévia não podem enviar o POST criador.
 
 ## Lacunas

@@ -2,6 +2,7 @@
 //! Hipótese sintética; não valida equivalência ao SEI de treinamento.
 use anti_ies::atender_http;
 use iesei::banco_cassettes::{self, ControleResumido, Linha};
+use iesei::cancelamento_documento::{self, Aplicacao};
 use iesei::documento_versoes::{self, DocumentoSimulado, Revisao};
 use iesei::instalacao::Instalacao;
 use iesei::observacao::{TabelaObservada, UnidadeExibida};
@@ -131,114 +132,9 @@ fn aceitar_ate(escuta: &TcpListener, parar: &AtomicBool) -> Option<TcpStream> {
     }
 }
 
-fn semear_documento_sem_src(banco: &Connection, origem: &Instalacao) {
-    // Hipotese minima no SQLite: identidade publicada, mas sem link de conteudo.
-    use iesei::documentos_simulados::{self as internos, Processo, Tipo};
-    internos::registrar_processo(
-        banco,
-        origem,
-        CENARIO,
-        &Processo {
-            id: "7".into(),
-            nup: NUP_A.into(),
-            unidade: "TESTE".into(),
-        },
-    )
-    .unwrap();
-    internos::registrar_tipo(
-        banco,
-        origem,
-        CENARIO,
-        "7",
-        &Tipo {
-            id: "291".into(),
-            nome: "Despacho".into(),
-        },
-    )
-    .unwrap();
-    let sem_conteudo =
-        internos::criar(banco, origem, CENARIO, "7", "291", "Metadados sem conteudo").unwrap();
-    assert_eq!(sem_conteudo.numero_sei, "1000001");
-}
-
-fn estado(com_segundo: bool, sem_src: bool) -> (Connection, Instalacao) {
-    let mut banco = Connection::open_in_memory().unwrap();
-    banco_cassettes::iniciar(&banco).unwrap();
-    let origem = Instalacao::interpretar(ORIGEM).unwrap();
-    banco_cassettes::guardar(
-        &mut banco,
-        CENARIO,
-        &ControleResumido {
-            instalacao: origem.clone(),
-            unidade: UnidadeExibida::nova("TESTE").unwrap(),
-            recebidos: TabelaObservada::<Linha>::nova(Some(0), None, vec![]).unwrap(),
-            gerados: TabelaObservada::<Linha>::nova(Some(0), None, vec![]).unwrap(),
-        },
-    )
-    .unwrap();
-    // O NUP da recusa precisa ser navegável: sem processo cadastrado o
-    // anti-IES devolve 503 na pesquisa e testa apenas transporte, não
-    // o BDD-60-05. A árvore mantém somente DOC_A sob NUP_A.
-    processos::guardar(
-        &mut banco,
-        &origem,
-        CENARIO,
-        &ProcessoSimulado {
-            id: "7".into(),
-            numero: NUP_A.into(),
-            unidade_origem: "TESTE".into(),
-            aberto_em: vec!["TESTE".into()],
-            anotacao_origem: None,
-            destinos: vec![],
-        },
-    )
-    .unwrap();
-    for (id, processo, nup, numero, corpo) in [
-        (
-            "42",
-            "7",
-            NUP_A,
-            DOC_A,
-            "Conteudo exclusivo do primeiro processo",
-        ),
-        (
-            "43",
-            "8",
-            NUP_B,
-            DOC_B,
-            "Conteudo exclusivo do segundo processo",
-        ),
-    ]
-    .into_iter()
-    .take(if com_segundo { 2 } else { 1 })
-    {
-        documento_versoes::guardar(
-            &mut banco,
-            CENARIO,
-            &DocumentoSimulado {
-                instalacao: origem.clone(),
-                id_documento: id.into(),
-                id_procedimento: processo.into(),
-                numero_processo: nup.into(),
-                numero: numero.into(),
-                tipo: "Despacho".into(),
-                revisoes: vec![Revisao {
-                    versao: NonZeroU32::new(1).unwrap(),
-                    usuario: "TESTE".into(),
-                    unidade: "TESTE".into(),
-                    modificacao: "01/11/2026".into(),
-                    html_corpo: format!("<p>{corpo}</p>"),
-                }],
-            },
-        )
-        .unwrap();
-    }
-
-    if sem_src {
-        semear_documento_sem_src(&banco, &origem);
-    }
-    (banco, origem)
-}
+#[path = "documento_interprocessos_estado.rs"]
+mod estado_simulado;
+use estado_simulado::{EstadoExtra, estado};
 
 fn acao_do_pedido(cab: &[u8]) -> String {
     let primeira = std::str::from_utf8(cab).unwrap().lines().next().unwrap();
@@ -255,15 +151,121 @@ fn acao_do_pedido(cab: &[u8]) -> String {
 /// A saída do subprocesso encerra os dois ouvintes sem assumir número fixo
 /// de leituras: um segundo DOC pode ou não reutilizar ação de pesquisa.
 pub(super) fn executar(com_segundo: bool, args: &[&str]) -> (Output, Vec<String>) {
-    executar_com_estado(com_segundo, false, args)
+    executar_com_estado(com_segundo, EstadoExtra::Nenhum, args)
 }
 
 pub(super) fn executar_sem_src(args: &[&str]) -> (Output, Vec<String>) {
-    executar_com_estado(true, true, args)
+    executar_com_estado(true, EstadoExtra::SemSrc, args)
 }
 
-fn executar_com_estado(com_segundo: bool, sem_src: bool, args: &[&str]) -> (Output, Vec<String>) {
+pub(super) fn executar_cancelado(args: &[&str]) -> (Output, Vec<String>) {
+    executar_com_estado(true, EstadoExtra::Cancelado, args)
+}
+
+pub(super) fn executar_numero_repetido(args: &[&str]) -> (Output, Vec<String>) {
+    executar_com_estado(true, EstadoExtra::NumeroRepetido, args)
+}
+
+/// Mesmo número SEI em processos distintos: o NUP explícito delimita
+/// a identidade, sem recuperar o corpo pertencente ao outro processo.
+pub(super) fn executar_numero_igual_em_outro_processo(args: &[&str]) -> (Output, Vec<String>) {
+    executar_com_estado(true, EstadoExtra::NumeroIgualEmOutroProcesso, args)
+}
+
+/// Documento interno e PDF externo publicam o mesmo número SEI na árvore.
+/// O conflito não foi capturado na `UnB`: é uma hipótese testável no SQLite.
+pub(super) fn executar_pdf_numero_repetido(args: &[&str]) -> (Output, Vec<String>) {
+    executar_com_estado(true, EstadoExtra::PdfNumeroDuplicado, args)
+}
+
+/// Primeiro `ies processo` observa a lista parcial. No mesmo SQLite,
+/// `ies documento --processo` exige a identidade documental inequívoca.
+pub(super) fn executar_pasta_pendente(args: &[&str]) -> (Output, Vec<String>) {
+    executar_com_estado(true, EstadoExtra::PastaPendente, args)
+}
+
+/// A árvore oferece um href válido; a mesma identidade é revogada somente
+/// no GET de conteúdo, antes de o anti-IES consultar o SQLite.
+pub(super) fn executar_revogado_ao_visualizar(args: &[&str]) -> (Output, Vec<String>) {
+    executar_com_estado(true, EstadoExtra::RevogadoAoVisualizar, args)
+}
+
+/// A identidade no título do GET diverge da árvore previamente lida.
+pub(super) fn executar_titulo_trocado(args: &[&str]) -> (Output, Vec<String>) {
+    executar_com_estado(true, EstadoExtra::TituloTrocadoAoVisualizar, args)
+}
+
+/// A árvore era legível, mas a sessão é revogada antes do GET documental.
+pub(super) fn executar_sessao_revogada_ao_visualizar(args: &[&str]) -> (Output, Vec<String>) {
+    executar_com_estado(true, EstadoExtra::SessaoRevogadaAoVisualizar, args)
+}
+
+/// A árvore já ofereceu o histórico, mas a sessão expira antes do GET da lista.
+/// Esta corrida é sintética; não foi capturada na cassette `UnB`.
+pub(super) fn executar_sessao_revogada_antes_da_lista(args: &[&str]) -> (Output, Vec<String>) {
+    executar_com_estado(true, EstadoExtra::SessaoRevogadaAntesDaLista, args)
+}
+
+/// O processo existe e o documento continua legível, mas a unidade
+/// ativa não está no conjunto de unidades em que o processo está aberto.
+pub(super) fn executar_sem_lista_na_unidade(args: &[&str]) -> (Output, Vec<String>) {
+    executar_com_estado(true, EstadoExtra::SemListaNaUnidade, args)
+}
+
+/// A árvore já ofereceu a ação; antes do GET de histórico, DOC é cancelado.
+pub(super) fn executar_cancelado_antes_da_lista(args: &[&str]) -> (Output, Vec<String>) {
+    executar_com_estado(true, EstadoExtra::CanceladoAntesDaLista, args)
+}
+
+/// A lista já ofereceu a versão 1, mas o acesso muda antes do GET do corpo.
+pub(super) fn executar_versao_revogada_ao_visualizar(args: &[&str]) -> (Output, Vec<String>) {
+    executar_com_estado(true, EstadoExtra::VersaoRevogadaAoVisualizar, args)
+}
+
+#[path = "documento_interprocessos_transicoes.rs"]
+mod transicoes;
+use transicoes::{aplicar_transicao, conferir_estado_apos_cli};
+
+fn conferir_consulta_informativa(mut comando: Command) {
+    let primeira = comando
+        .args([
+            "--json",
+            "processo",
+            NUP_A,
+            "--sem-andamentos",
+            "--sem-propriedades",
+            "--sem-marcadores",
+        ])
+        .output()
+        .expect("consulta informativa anterior");
+    assert_eq!(
+        primeira.status.code(),
+        Some(0),
+        "processo com pasta pendente: {}",
+        String::from_utf8_lossy(&primeira.stderr)
+    );
+    let observado: Value = serde_json::from_slice(&primeira.stdout).unwrap();
+    assert_eq!(observado["numero"], NUP_A);
+    assert_eq!(observado["documentos_incluidos"], false);
+    assert_eq!(observado["documentos"], serde_json::json!([]));
+    assert!(
+        observado["aviso_leitura_parcial"]
+            .as_str()
+            .is_some_and(|aviso| aviso.contains("leitura parcial")),
+        "lista vazia não significa ausência: {observado}"
+    );
+}
+
+fn executar_com_estado(
+    com_segundo: bool,
+    modo: EstadoExtra,
+    args: &[&str],
+) -> (Output, Vec<String>) {
     let pasta = Pasta::nova();
+    // O índice operacional é privado e só funciona sob HOME 0700.
+    if matches!(modo, EstadoExtra::PastaPendente) {
+        fs::set_permissions(&pasta.0, fs::Permissions::from_mode(0o700)).unwrap();
+    }
     let (cert, identidade) = certificado(&pasta.0);
     let origem = pasta.privado("origem", ORIGEM);
     let nome_hash = ["infra", "hash"].join("_");
@@ -282,10 +284,15 @@ fn executar_com_estado(com_segundo: bool, sem_src: bool, args: &[&str]) -> (Outp
     let parar = Arc::new(AtomicBool::new(false));
     let parar_servidor = Arc::clone(&parar);
     let simulador = thread::spawn(move || {
-        let (db, instalacao) = estado(com_segundo, sem_src);
+        let (db, instalacao) = estado(com_segundo, modo);
+        let mut transicao = false;
         while let Some(mut tcp) = aceitar_ate(&servidor, &parar_servidor) {
+            if !transicao {
+                transicao = aplicar_transicao(modo, &tcp, &db, &instalacao);
+            }
             atender_http(&mut tcp, Some((&db, &instalacao, CENARIO))).unwrap();
         }
+        conferir_estado_apos_cli(modo, transicao, &db, &instalacao);
     });
     let pedidos = Arc::new(Mutex::new(Vec::<String>::new()));
     let pedidos_proxy = Arc::clone(&pedidos);
@@ -322,23 +329,27 @@ fn executar_com_estado(com_segundo: bool, sem_src: bool, args: &[&str]) -> (Outp
             canal.flush().unwrap();
         }
     });
-    let saida = Command::new(env!("CARGO_BIN_EXE_ies"))
-        .args(args)
-        .env("IES_URL_CONTROLE_FILE", url)
-        .env("IES_COOKIE_FILE", cookie)
-        .env("IES_ORIGEM_FILE", origem)
-        .env("SSL_CERT_FILE", cert)
-        .env("https_proxy", format!("http://127.0.0.1:{porta}"))
-        .env("HOME", &pasta.0)
-        .env_remove("HTTPS_PROXY")
-        .env_remove("all_proxy")
-        .env_remove("ALL_PROXY")
-        .env_remove("NO_PROXY")
-        .env_remove("no_proxy")
-        .env_remove("IES_CONFIG_FILE")
-        .env_remove("IES_CREDENCIAIS_FILE")
-        .output()
-        .expect("binário ies");
+    let comando = || {
+        let mut cli = Command::new(env!("CARGO_BIN_EXE_ies"));
+        cli.env("IES_URL_CONTROLE_FILE", &url)
+            .env("IES_COOKIE_FILE", &cookie)
+            .env("IES_ORIGEM_FILE", &origem)
+            .env("SSL_CERT_FILE", &cert)
+            .env("https_proxy", format!("http://127.0.0.1:{porta}"))
+            .env("HOME", &pasta.0)
+            .env_remove("HTTPS_PROXY")
+            .env_remove("all_proxy")
+            .env_remove("ALL_PROXY")
+            .env_remove("NO_PROXY")
+            .env_remove("no_proxy")
+            .env_remove("IES_CONFIG_FILE")
+            .env_remove("IES_CREDENCIAIS_FILE");
+        cli
+    };
+    if matches!(modo, EstadoExtra::PastaPendente) {
+        conferir_consulta_informativa(comando());
+    }
+    let saida = comando().args(args).output().expect("binário ies");
     parar.store(true, Ordering::Release);
     tunel.join().expect("proxy TLS");
     simulador.join().expect("anti-IES SQLite");

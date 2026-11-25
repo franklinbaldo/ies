@@ -50,7 +50,7 @@ nem consulta ao vivo nesta etapa.
    a confirmação deve comparar os documentos de antes/depois,
    exigir exatamente um novo nó do tipo solicitado e devolver o número
    SEI publicado pela árvore. Falha de envio ou releitura com efeito
-   não demonstrável deve resultar em saída 3, sem retry.
+   não demonstrável deve resultar em saída 1, sem retry.
 
 ## Orçamento da navegação 4.1/5.0
 

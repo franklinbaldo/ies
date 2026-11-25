@@ -23,8 +23,10 @@ Confere ação, IDs de documento e processo, lê `frmDocumentoCadastro`
 com um único GET adicional (sem POST) e publica `propriedades` com
 `fonte` igual à ação observada, `tipo`, `descricao`,
 `nome_na_arvore`, `observacoes` e `nivel_de_acesso`.
-Sem qualquer link de cadastro: `propriedades: null`,
-`propriedades_motivo: nao_publicadas_na_barra` e nenhum GET extra.
+Sem qualquer link de cadastro com `--com-propriedades`: falha tipada
+`PropriedadesNaoPublicadasNaBarra` (saída 1, nenhum GET extra, nada
+publicado). Sem a flag, a chave `propriedades` não sai.
+Com `--anexo` e sem o cadastro do anexo: `ConteudoNaoPublicadoNaArvore`.
 Formulário ilegível ou identidade divergente são recusas tipadas.
 Não fabricar link de consulta nem tratar ausência de link como ausência
 do documento.
@@ -87,8 +89,9 @@ aprendê-lo; falha do banco nunca derruba o comando.
 
 JSON `{"documentos": [...], "requisicoes": N}`; cada documento traz
 `numero`, `id_documento`, `rotulo` (a5), `tipo` (do título), `icone`,
-`cancelado`, `pasta`, `processo` (`nup`, `id`, `tipo`), `unidade` (da
-tela; `null` pelo link da árvore, que não a publica), `resolvido_por`
+`cancelado`, `pasta` (sem a chave quando não há), `processo` (`nup`, `id`,
+`tipo`), `unidade` (da tela; sem a chave pelo link da árvore, que não a
+publica), `resolvido_por`
 (`indice_link`, `indice_trabalhar`, `indice_entrada_documento`,
 `pesquisa_rapida` e, com `--processo`, também `indice_entrada` e
 `caixa`), `requisicoes` (inclusive as dos palpites desmentidos),
@@ -101,7 +104,8 @@ Com `--saida DIR` (diretório existente, conferido antes da rede), cada
 interno grava só a foto `DOC.vN.html`, o HTML servido da versão lida,
 0600, sem seguir symlink e de forma idempotente (mesmo SHA-256: nada
 gravado, saída 0), **depois** de todos lidos; o JSON troca `texto` pelo
-objeto `arquivo` (`nome`, `bytes`, `sha256`, `gravado`, `motivo`).
+objeto `arquivo` (`nome`, `bytes`, `sha256`, `gravado`; `motivo: "igual"`
+só quando a foto já existia igual).
 Nenhum `DOC.txt` nem `DOC.vN.txt` (substituídos em #207;
 [versões e foto](documento-obter-versoes.md)).
 
@@ -117,28 +121,29 @@ observada até cada omissão. Se todos forem omitidos, `documentos: []`.
 Cancelamento, sessão encerrada, falha HTTP/transporte e divergência
 de identidade continuam erros. Sem GET adicional ou retry.
 
-| Subcódigo | Fato |
+| Erro (stderr) | Fato |
 | --- | --- |
-| `numero_documento_repetido` (saída 2) | o mesmo número duas vezes no pedido |
-| `numero_processo_vazio` / `numero_processo_controle` / `referencia_processo_legada` (saída 2) | `--processo` inválido, como em `processo NUP` |
-| `numero_sei_ausente_da_arvore_do_processo` | `--processo`: a árvore do processo (pastas abertas) não tem o número |
-| `entrada_por_id_recusada_rode_ies_login` | a entrada com documento foi recusada ("Link sem assinatura"): a sessão morreu; a recusa fica no índice |
-| `id_documento_do_redirecionamento_diferente_do_pedido` | interno: a entrada com documento endereçou outro id; o palpite é esquecido e o comando segue pela pesquisa |
-| `pesquisa_rapida_nao_abriu_o_documento` | a pesquisa não respondeu o 302 (visto com número inexistente; o resultado não é lido) |
-| `endereco_da_arvore_de_outro_documento` | a tela não seleciona o documento pesquisado (o número era de um processo) |
-| `numero_sei_da_arvore_diferente_do_pedido` | o nó tem outro a15 (por exemplo `11505` pedido, `0011505` na árvore) |
-| `numero_sei_repetido_na_arvore` | dois `DOCUMENTO` com o número pedido |
-| `documento_ausente_da_arvore` | o id não está na árvore, nem com as pastas abertas |
-| `conteudo_nao_publicado_na_arvore` | `.src` vazio: a árvore não publica o conteúdo à sessão (visto com documento não assinado de outra unidade) |
-| `documento_cancelado_sem_conteudo_na_arvore` | `.src` vazio num nó cancelado |
-| `link_do_conteudo_*`, `endereco_do_conteudo_*` | `.src` ausente, repetido, fora da forma ou de outro documento |
-| `titulo_do_conteudo_de_outro_documento` | o HTML servido é de outro número SEI |
-| `diretorio_texto_documento_ausente` | `--saida`: o diretório falta (antes da rede, 0 requisições; link no caminho é aceito e o modo do `DIR` não é conferido) |
-| `foto_local_divergente`, `gravacao_foto_falhou` e os da foto | `--saida`: `DOC.vN.html` já existe com outro conteúdo, ou a gravação falhou ([versões e foto](documento-obter-versoes.md)) |
+| `UsoInvalido::NumeroSeiRepetido` (saída 2) | o mesmo número duas vezes no pedido |
+| `NumeroProcessoInvalido::Vazio` / `NumeroProcessoInvalido::Controle` / `NumeroProcessoInvalido::ReferenciaLegada` (saída 2) | `--processo` inválido, como em `processo NUP` |
+| `ErroDocumentoObter::NumeroSeiAusenteDaArvoreDoProcesso` | `--processo`: a árvore do processo (pastas abertas) não tem o número |
+| `ErroProcessoObter::EntradaPorIdRecusada` | a entrada com documento foi recusada ("Link sem assinatura"): a sessão morreu; a recusa fica no índice |
+| `IdDocumentoDoRedirecionamentoDiferenteDoPedido` | interno: a entrada com documento endereçou outro id; o palpite é esquecido e o comando segue pela pesquisa |
+| `PesquisaRapidaNaoAbriuODocumento` | a pesquisa não respondeu o 302 (visto com número inexistente; o resultado não é lido) |
+| `EnderecoDaArvoreDeOutroDocumento` | a tela não seleciona o documento pesquisado (o número era de um processo) |
+| `NumeroSeiDaArvoreDiferenteDoPedido` | o nó tem outro a15 (por exemplo `11505` pedido, `0011505` na árvore) |
+| `ErroDocumentoObter::NumeroSeiRepetidoNaArvore` | dois `DOCUMENTO` com o número pedido |
+| `ErroDocumentoObter::DocumentoAusenteDaArvore` | o id não está na árvore, nem com as pastas abertas |
+| `ConteudoNaoPublicadoNaArvore` | `.src` vazio: a árvore não publica o conteúdo à sessão (visto com documento não assinado de outra unidade) |
+| `PropriedadesNaoPublicadasNaBarra` | `--com-propriedades` e a barra do documento não publica o cadastro (sem GET) |
+| `ErroDocumentoObter::DocumentoCancelado` | `.src` vazio num nó cancelado |
+| `ErroDocumentoObter::Conteudo(ErroConteudoNaArvore::{LinkDoConteudoAusenteNaArvore, LinkDoConteudoRepetidoNaArvore, LinkDoConteudoForaDaFormaObservada, EnderecoDoConteudoNaoReconhecido, EnderecoDoConteudoDeOutroDocumento})` | `.src` ausente, repetido, fora da forma ou de outro documento |
+| `ErroDocumentoObter::TituloDeOutroDocumento` | o HTML servido é de outro número SEI |
+| `ErroArquivoTexto::DiretorioAusente` | `--saida`: o diretório falta (antes da rede, 0 requisições; link no caminho é aceito e o modo do `DIR` não é conferido) |
+| `ErroCopia::FotoDivergente`, `ErroCopia::GravacaoFalhou` e os da foto | `--saida`: `DOC.vN.html` já existe com outro conteúdo, ou a gravação falhou ([versões e foto](documento-obter-versoes.md)) |
 
 Sessão, Controle, formulário, 302, tela, árvore e pastas usam os
 subcódigos de [`processo NUP`](processo-obter-arvore.md), inclusive
-`sessao_encerrada_rode_ies_login`.
+`SessaoEncerrada`.
 
 ## Efeitos
 
@@ -165,16 +170,19 @@ já conferidos. A leitura não consulta lista apenas para nomear o cache.
 `--saida DIR` continua como cópia opcional. Ao copiar PDF do cache,
 a foto recebe inode próprio, sem hard link: uma edição local não altera
 o cache. Uma cópia já igual é no-op; uma divergente não é sobrescrita.
-O JSON acrescenta `cache: {caminho, versao, sha256}` ou `null` e
-`crc_rodape` do bloco assinado, quando observado, ou `null`.
+O JSON acrescenta `cache: {caminho, versao, sha256}` (`versao` só quando
+observada; sem o cache, a chave `cache` não sai) e `crc_rodape` do bloco
+assinado, só quando observado.
 CRC não é identidade ou validação criptográfica.
 
 As gravações do cache usam diretórios privados 0700, arquivo 0600
 e nome com SHA-256. Conteúdo com `infra_hash` é recusado; arquivos
 preexistentes têm seu conteúdo confrontado com hash completo.
 
-| Subcódigo | Fato |
+| Erro (stderr) | Fato |
 | --- | --- |
-| `diretorio_cache_documento_inseguro` | caminho ou identidade do cache inválido |
-| `gravacao_cache_documento_falhou` | não foi possível gravar ou publicar cache privado |
-| `cache_documento_local_divergente` | cópia existente diverge do conteúdo servido ou do SHA-256 integral |
+| `FalhaCache::Diretorio` | caminho ou identidade do cache inválido |
+| `FalhaCache::Gravacao` | falha genérica de gravação do cache sem motivo de E/S disponível |
+| `FalhaCache::ArquivoDoCacheInacessivel(ErrorKind)` | consulta, leitura ou publicação por `hard_link` recusada pelo sistema, com categoria de E/S preservada |
+| `FalhaCache::GravacaoPrivadaFalhou(FalhaDaGravacao)` | criação ou confirmação privada recusada, mantendo a causa tipada |
+| `FalhaCache::ArquivoDivergente` | cópia existente diverge do conteúdo servido ou do SHA-256 integral |

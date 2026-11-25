@@ -16,40 +16,42 @@ fn conferir_falha_do_aceite_sem_retry(resposta: Resposta, causa: FalhaEsperada) 
     respostas.extend([ok(tela()), resposta, ok(arvore_com_ciencias())]);
     let (resultado, pedidos) = rodar(true, respostas);
     let erro = resultado.unwrap_err();
-    assert_eq!(erro.saida(), 3);
     match causa {
         FalhaEsperada::Http403 => {
-            assert_eq!(erro.status_http().map(|s| s.status), Some(403));
             assert!(matches!(
                 erro,
-                E::EfeitoIncerto {
+                ErroCienciaProcesso::NaoConfirmado {
                     falha_do_aceite: Some(FalhaDoAceiteProcesso::Transporte(
-                        FalhaTransporte::AcessoNegado(_)
+                        FalhaTransporte::Status(crate::transporte::StatusHttpRecusado {
+                            status: 401 | 403,
+                            ..
+                        })
                     )),
                     ..
                 }
             ));
         }
         FalhaEsperada::Infra200 => {
-            assert_eq!(erro.status_http().map(|s| s.status), Some(200));
-            assert_eq!(
-                erro.status_http()
-                    .and_then(|s| s.mensagem_do_servidor.as_deref()),
-                Some("Solicitacao recusada")
-            );
+            let ErroCienciaProcesso::NaoConfirmado {
+                falha_do_aceite: Some(FalhaDoAceiteProcesso::ValidacaoDaInfra(recusa)),
+                ..
+            } = &erro
+            else {
+                panic!("{erro:?}");
+            };
+            assert_eq!(Some(recusa.as_str()), Some("Solicitacao recusada"));
             assert!(matches!(
                 erro,
-                E::EfeitoIncerto {
+                ErroCienciaProcesso::NaoConfirmado {
                     falha_do_aceite: Some(FalhaDoAceiteProcesso::ValidacaoDaInfra(_)),
                     ..
                 }
             ));
         }
         FalhaEsperada::Rede => {
-            assert!(erro.status_http().is_none());
             assert!(matches!(
                 erro,
-                E::EfeitoIncerto {
+                ErroCienciaProcesso::NaoConfirmado {
                     falha_do_aceite: Some(FalhaDoAceiteProcesso::Transporte(FalhaTransporte::Rede)),
                     ..
                 }
@@ -99,7 +101,7 @@ fn get_de_ciencia_falha_de_rede_preserva_o_erro_tipificado() {
 // RED #271: a recusa por validação Infra usa HTTP 200, mas a CLI precisa
 // publicar status_http=200 no JSON, sem confundir com aceite bem-sucedido.
 #[test]
-fn json_de_recusa_infra_200_publica_status_http_e_nao_autoriza_retry() {
+fn recusa_da_infra_carrega_a_mensagem_e_nao_repete_o_get() {
     let mut respostas = abertura(arvore(&[UNIDADE], &botao()));
     respostas.extend([
         ok(tela()),
@@ -111,12 +113,15 @@ fn json_de_recusa_infra_200_publica_status_http_e_nao_autoriza_retry() {
     ]);
     let (resultado, pedidos) = rodar(true, respostas);
     let erro = resultado.expect_err("recusa HTTP 200 nao equivale a ciencia");
-    let saida = crate::ciencia_cli::json_de_erro(&erro);
-    assert_eq!(saida["codigo"], "efeito_incerto");
-    assert_eq!(saida["status_http"], serde_json::json!(200));
-    assert_eq!(saida["mensagem_do_servidor"], "Solicitacao recusada");
-    assert_eq!(saida["requisicoes"], 6);
-    assert_eq!(saida["retentavel"], false);
+    let ErroCienciaProcesso::NaoConfirmado {
+        falha_do_aceite: Some(FalhaDoAceiteProcesso::ValidacaoDaInfra(recusa)),
+        requisicoes: 6,
+        ..
+    } = &erro
+    else {
+        panic!("{erro:?}");
+    };
+    assert_eq!(Some(recusa.as_str()), Some("Solicitacao recusada"));
     assert_eq!(pedidos.len(), 6);
     assert_eq!(
         pedidos

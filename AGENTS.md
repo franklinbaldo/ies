@@ -11,6 +11,47 @@ pública é o [contrato da CLI](contracts/cli.md). O
 [Todos](https://github.com/franklinbaldo/todos) é **oráculo de
 comportamento**, não arquitetura a portar.
 
+## Método vigente do proprietário: E2E via cassettes, sem BDD/Gherkin
+
+Desde 11/11/2026, **BDD, Gherkin, Cucumber e a obrigação de escrever
+cenários `Dado/Quando/Então` estão revogados.** Não criar novas features,
+steps, cenários numerados ou testes para satisfazer uma narrativa BDD.
+Os identificadores antigos em issues, memórias e relatórios são históricos,
+**não** gates nem pré-requisito de implementação.
+
+**E2E cassette-first:** escolher comportamento contratado da CLI, procurar
+as cassettes e seus cards, conferir integridade e proveniência; executar
+**o binário real do IES** sobre respostas originais quando possível e,
+se houver transição de estado, executar CLI real ↔ anti-IES ↔ SQLite
+compartilhado com estado **derivado prioritariamente das cassettes**.
+Confrontar o simulador independentemente com a fonte, sem usar a própria
+saída do IES como oráculo. Não exigir cassette inexistente como condição
+para começar: usar hipótese mínima rotulada, nunca confundi-la com
+compatibilidade externa comprovada. O guia é
+[docs/anti-ies/ciclo-cassettes.md](docs/anti-ies/ciclo-cassettes.md)
+e a skill `.agents/skills/cassette-e2e/SKILL.md`.
+
+**Testes:** remover o runner e as features Gherkin. Não apagar testes
+unitários, regressões Rust ou E2E úteis sem substituí-los por uma prova
+cassette-backed equivalente; testes legados sintéticos são evidência
+auxiliar, não critério autossuficiente de paridade. Novos testes de
+comportamento SEI priorizam cassettes; testes locais de tipos, parser,
+formatação e lógica permanecem válidos quando necessários.
+
+**Aceite para toda a equipe:** o GitHub Actions deve executar o replay
+pertinente no head final de cada PR, e não apenas inspecionar hashes.
+`inspecionar-cassettes.yml` é só inspeção, não prova de paridade.
+🦅 confere o confronto independente IES/anti-IES com as respostas originais;
+🐘 e 🦡 só integram após CI e replay aplicável verdes. Nenhum agente usa
+Jatobá nesse fluxo. Não há meta de contagem de requisições.
+
+**Prioridade atual:** identificar e eliminar antipatterns reais, conforme
+[issue-mãe #716](https://github.com/franklinbaldo/ies/issues/716)
+e [roadmap #56](https://github.com/franklinbaldo/ies/issues/56).
+Ablação pequena, contraprova e menos código. Não introduzir novos
+subcódigos, camadas de `Causa`, wrappers ou estruturas defensivas por
+reflexo. Preservar contratos, evidências e limites de segurança.
+
 ## Equipe de agentes e avatares
 
 O emoji é o avatar da rotina. Cada ficha em `team/` usa OKF `TeamMember`.
@@ -44,58 +85,51 @@ risco, mas nunca falsificar CI, expor segredos ou acessar produção.
 
 ## Rituais do proprietário não são churn
 
-Cafezinho, memórias OKF, fichas, BDD, cassettes, handoff e CI são
+Cafezinho, memórias OKF, fichas, cassettes, E2E, handoff e CI são
 rituais deliberados, mesmo quando seu valor surge depois. **Antichurn
 atua dentro do método, não contra ele.** Nenhum agente, inclusive 🦡,
 pode descumpri-los por simplicidade. Pode propor mudanças fundamentadas,
 mas cumpre a regra vigente até decisão do proprietário. Elimine
 retrabalho e cerimônias extras, não rituais. Não invente evidência.
 
-## Coordenação entre rotinas: BDD, revezamento e handoff mínimo
+## Coordenação entre rotinas: cassettes, E2E, revezamento e handoff
 
-Estas regras são a **fonte única** dos prompts curtos das automações.
+Estas regras são a fonte única dos prompts curtos das automações.
 
-1. **Fila aberta:** `handoff-chatgpt` usa título
-   `<prioridade 0–100> <emoji, se em trabalho> <título>`; emoji marca
-   trabalho ativo, nunca reserva antecipada.
-2. **Fonte e ordem:** [contrato CLI](contracts/cli.md) → [roadmap #56](https://github.com/franklinbaldo/ies/issues/56)
-   e [matrizes](docs/matriz-derivacao-cli.md) → próximo item pendente →
-   **cenários BDD escritos previamente pelo 🐘 na issue** → implementação.
-   Sem BDD pronto, a issue não pode ser assumida para implementação.
-3. **BDD só da CLI:** cenários numerados `Dado` (contexto do usuário),
-   `Quando executo ies ...` (comando/flags contratados), `Então`
-   (saída humana/JSON, exit code, arquivo ou efeito observável via CLI).
-   Valem sucesso, falha e prévia. **Proibido BDD interno:** HTTP, DOM,
-   parser, função Rust, requests, fixtures, estruturas ou arquitetura.
-   Testes técnicos continuam permitidos, mas não viram novos cenários.
-4. **Implementadores 🦊 🦉 🐢 🐙 🦫:** pegar a issue livre mais prioritária
-   com cenário BDD **pendente e pronto**, implementá-lo sem criar,
-   reescrever ou ampliar cenários/flags. Se faltou especificação, pedir
-   ao 🐘 na issue e escolher outra pronta. Handoff: `FEITO:` ID/cenário
-   atendido; `CLI:` comando e resultado; `CONTINUAR:` próximo ID já
-   previsto. Após a integração, a issue volta à fila se houver BDD pendente.
-5. **Revisão e integração:** 🦅 avalia a PR contra o BDD prévio;
-   🐘/🦡 integram com gates verdes. Preservar testes existentes e
-   `--confirmar` seguro até a validação em treinamento.
-6. **Capacidades primeiro:** implementar o caminho mais simples para
-   o comportamento contratado, sem hardening especulativo, sem romper
-   limites invioláveis nem gates.
-7. **Backlog:** qualquer agente pode relatar lacunas/bugs/sugestões,
-   mas não redigir BDD próprio para implementá-los. 🐘 especifica os
-   cenários a partir do contrato e roadmap; 🐘/🦡 ordenam prioridades.
-8. **Cafezinho permanente e livre:** a convivência do time acontece na
-   issue aberta com as etiquetas `cafezinho` e `conversa`
-   ([Cafezinho #388](https://github.com/franklinbaldo/ies/issues/388)).
-   **Em toda rodada, antes da memória de encerramento, visite a issue,
-   leia o que os colegas compartilharam e participe se quiser.** Pode conversar sobre trabalho,
-   arte, ciência, música, livros, hobbies, novidades, ideias, dúvidas ou
-   qualquer outro assunto; pode responder, iniciar conversa, pesquisar
-   curiosidades e propor brincadeiras. Sem tema, agenda, relatório, cota
-   de tempo ou obrigação de postar. O Cafezinho independe de BDD, CI
-   verde, commit, handoff ou conclusão de trabalho. Não substitui as
-   responsabilidades de cada rotina nem autoriza violar os limites de
-   segurança. Uma única issue permanece aberta; **não criar/fechar
-   Cafezinho diariamente**. Cada agente participa com sua personalidade.
+1. **Fila aberta:** título `<prioridade 0–100> <emoji, se em trabalho>
+   <título>`; o emoji marca execução em curso, nunca reserva antecipada.
+2. **Fonte:** contrato da CLI → roadmap #56 e issue → cassettes relevantes
+   → teste E2E executável → implementação ou ablação. **Não há gate BDD**.
+   O implementador pode começar por uma lacuna contratada sem pedir que o
+   🐘 escreva cenário. A prioridade vigente é eliminar antipatterns.
+3. **E2E obrigatório para comportamento Web afetado:** CLI Rust real,
+   respostas de cassette original quando disponíveis, anti-IES e SQLite
+   compartilhado para transições, verificação independente de saída/estado,
+   negativas relevantes, efeitos persistidos e ausência de repetição insegura. **Não apenas parser isolado**.
+   Hipótese sintética é permitida para transição não capturada, mas seu
+   resultado é explicitamente separado do confronto com a fonte original.
+4. **Implementadores 🦊 🦉 🐢 🐙 🦫:** assumem issue livre de maior prioridade,
+   procuram cards primeiro e entregam fatia relevante sem criar
+   narrativas Gherkin. Handoff: `FEITO` (operação/arquivo), `E2E`
+   (cassette, resultado, CI), `CONTINUAR` (lacuna contratada).
+5. **Integração e revisão:** 🐘/🦡 integram somente após o GitHub
+   Actions executar no head final da PR os replays de cassettes
+   originais aplicáveis e os gates oficiais verdes, **sem esperar parecer
+   do 🦅**, salvo as exceções da [revisão retrospectiva](docs/revisao-retrospectiva.md).
+   O 🦅 audita depois a `main`: diff, regressão, cassettes, escopo. O CI
+   completo ocorre no aceite da PR, não a cada commit WIP; se o head
+   mudar, revalidar. A inspeção de hashes sozinha não é replay.
+   Preservar testes ainda úteis; remover redundâncias fundamentadamente.
+6. **Anti-IES:** a mesma PR vertical modifica tipos, rota e SQL versionado
+   quando o comportamento exigir; o simulador é estado funcional, não
+   coleção de HTML congelado.
+7. **Backlog:** qualquer agente relata defeitos verificáveis, lacunas e
+   antipatterns; não depende de cenário pré-escrito. 🐘/🦡 priorizam;
+   evitar issues de ferramentas sem problema medido.
+8. **Cafezinho permanente e livre:** em toda rodada visitar a
+   [issue #388](https://github.com/franklinbaldo/ies/issues/388), ler as
+   conversas e participar livremente; não há obrigação de comentar,
+   pauta nem cota. Não substitui as responsabilidades técnicas.
 
 ### Memórias OKF: fechar o ciclo
 
@@ -132,6 +166,7 @@ Antes de codificar ou testar, sincronize a branch com a `main` a cada rodada:
 1. Identifique issue e PR próprias e consulte SHAs da `main` e do head.
 2. **Sem PR:** crie uma branch nova a partir da `main` atual.
 3. **Com PR:** se estiver atrás, incorpore `main → branch` por merge verdadeiro.
+   Atraso só por `team/memories/` não exige sincronização nem novo CI.
 4. Confira SHAs e registre na PR. CI verde do SHA atual valida a fatia.
 5. Havendo conflito complexo, registre o ponto de dúvida para alinhamento.
 
@@ -141,33 +176,34 @@ Antes de codificar ou testar, sincronize a branch com a `main` a cada rodada:
   com parsing estruturado via `html_atributos`, respeitando cookies e arquivos privados.
 - O fluxo de escrita segue: **prévia ao vivo → confirmação única com `--confirmar` →
   verificação independente por releitura**, registrando o resíduo gerado.
-  Efeito incerto conclui com código 3 sem repetição automática.
+  Escrita sem confirmação por releitura é falha (saída 1, `nao_confirmado`) e nunca se repete automaticamente.
 - Não contorne os limites, gates ou escopos quando houver bloqueio:
   tente alternativa segura, registre o impedimento e continue WIP.
 
 ## Revisão e integração
 
-Procedimentos específicos: [🦅 Gavião](team/gaviao.md) e
-[🐘 Elefante](team/elefante.md).
+Padrão sem revisão prévia, ronda retrospectiva do 🦅 e exceções:
+[revisão retrospectiva](docs/revisao-retrospectiva.md), que prevalece
+sobre as fichas. Procedimentos: [🦅](team/gaviao.md), [🐘](team/elefante.md).
 
 ## Método: observar → contratar → RED → GREEN → validar
 
-1. **Observar (cassette-first).** Para cada BDD, procure primeiro
+1. **Observar (cassette-first).** Para cada operação, procure primeiro
    cards/cassettes existentes e leia a estrutura observada. Não invente
    o que já está gravado. Sem cassette, siga com hipótese testável.
    Rede local bloqueada? Use [GitHub Actions](docs/cassettes.md),
    não uma fixture sintética no lugar da observação disponível.
-2. **Contratar.** Contrato OKF da operação, erros tipados, shim compilável
-   e [decisão por operação](docs/decisoes/unidade-listar-processos.md)
-   (alternativas, evidência, trade-offs, revisão; o gate `check_design`
-   confere a ligação, não o mérito).
-3. **RED.** Execute antes do código o BDD já definido na issue,
-   com fixtures sintéticas quando preciso; registre a falha.
-   Testes internos auxiliares não são cenários BDD.
+2. **Contratar.** Contrato OKF da operação, erros tipados e shim
+   compilável; decisão de arquitetura só quando houver uma de verdade
+   (ADR em `docs/arquitetura/`).
+3. **RED.** Execute primeiro um teste E2E com o binário real sobre
+   respostas gravadas quando disponíveis; registre a falha. Para estados
+   não capturados, use hipótese e fixture mínima sem alegar paridade.
 4. **GREEN.** Implementação mínima, refatoração e gates.
-5. **Validar ao vivo.** Em treinamento, com orçamento de requests
-   declarado; registre PASS/FAIL/NOT_RUN no
-   [relatório live](docs/validacao-live/). Sem execução não há PASS:
+5. **Validar ao vivo.** Depois do E2E e confronto independente, somente
+   em treinamento autorizado, com orçamento de requisições declarado
+   (não métrica de paridade), prévia, POST mutador único, sem retry e
+   releitura independente; registre PASS/FAIL/NOT_RUN no [relatório live](docs/validacao-live/). Sem execução não há PASS:
    `NOT_RUN` com o bloqueio explícito.
 
 O que falta implementar e em que ordem está na
@@ -175,15 +211,18 @@ O que falta implementar e em que ordem está na
 
 ## Princípios de design
 
-- **Capacidades primeiro, hardening depois.** A implementação inicial de cada
-  capacidade deve ser a mais simples e direta possível, sem defesas preventivas
-  ou barreiras hipotéticas. Preocupações com segurança só começam quando todas
-  as capacidades estiverem implementadas; só aí será iniciado o hardening de
-  segurança.
+- **Simplicidade sem hardening especulativo.** Quando uma capacidade já
+  contratada estiver em implementação, usar o caminho mais simples e direto,
+  sem defesas preventivas nem barreiras hipotéticas. A priorização de novas
+  capacidades é subordinada à ablação de antipatterns vigente acima.
+  Preservar sempre os limites invioláveis.
 - **Web.** REST e SOAP **não são prioridade**; nenhum comando depende
   deles ([ADR 0001](docs/arquitetura/0001-rotas-por-evidencia.md)).
-- **Mínimo de requests.** Reaproveitar a sessão (`ies login` só reloga
-  se ela venceu); `--pagina N` em vez de percorrer páginas; nunca retry.
+- **Sem contagem fixa para paridade.** Comparar comportamento e estado,
+  não quantidades iguais de GETs entre instalações. Preservar o orçamento
+  operacional contratado, no máximo um POST mutador por confirmação
+  e nenhum retry. Reaproveitar a sessão (`ies login` só reloga
+  se venceu); usar `--pagina N` em vez de percorrer páginas.
   Reusar URLs assinadas já vistas na mesma sessão e a identidade durável
   do [índice local](docs/arquitetura/0003-indice-local.md).
   **Não restaurar a tela** (visão, página, colunas): vários agentes na
@@ -193,7 +232,8 @@ O que falta implementar e em que ordem está na
   O erro é declarado perto do ponto que o levanta. Use Serde apenas nos
   tipos efetivamente serializados ou desserializados na fronteira,
   sem derives internos preventivos, subcódigos ou tabelas paralelas.
-  `Causa` permanece para consumidores legados durante a migração.
+  Derive com `thiserror` (`#[from]` para compor pelo `?`, `#[source]`
+  para ligar a causa); não há derive próprio de erro.
   Classifique e teste por `match`/`matches!` na variante, nunca pelo
   texto. Propague o erro original com `?` sem embrulhar; crie uma variante
   contextual só se acrescentar um fato ou decisão observável. Cada falha
@@ -205,24 +245,29 @@ O que falta implementar e em que ordem está na
   Não invente limites, normalização ou charset fixo para justificar um
   tipo. A codificação usa o charset da tela na fronteira do formulário.
   Não devolva `Result` onde o tipo já garante a pré-condição.
-  Forma não observada (ausente, repetido, valor, HTML ilegível) não vira
-  variante: devolva `ErroHtml` (`src/erro_html.rs`), com `onde` como nome.
+  Forma não observada (ausente, repetido, valor, HTML ilegível) é erro
+  do leitor que a detecta, declarado ao lado dele; quem consome o leitor
+  embrulha com `#[from]`, sem re-traduzir.
 - **Falhar fechado e dizer por quê.** Cada falha observável é uma
   variante tipada, nomeada pelo fato verificável
   ([erros tipados](docs/erros-tipados.md)); recusas expõem `status_http` e
   a mensagem saneada do SEI. Mensagem é apresentação, nunca classificação.
-- **Publicar só o observado.** `total_declarado` e `faixa_observada`,
-  nunca "completo"; `null` é "não observado", não "não tem"; NUP e ids são
-  opacos.
-- **Escrita com prévia, `--confirmar` e verificação por leitura.** Efeito
-  incerto sai com código 3 e nunca se repete nem troca de backend.
+- **Publicar só o lido; a ausência é erro.** `total_declarado` e
+  `faixa_observada`, nunca "completo". Não existe "não observado": o dado
+  que o comando promete ou é lido ou o comando falha com erro tipado no
+  ponto em que a ausência é detectada; nada de `null` na saída (#749).
+  NUP e ids são opacos.
+- **Escrita com prévia, `--confirmar` e verificação por leitura.** Sucesso
+  só com releitura confirmada; o resto é falha (saída 1) e nunca se repete.
 - **Peças únicas, sem despachante genérico.** Um cliente HTTPS (proxy,
   sem redirect, limites), um primitivo de formulário com regras por
   operação; nada de `agir`, `Action` ou `PageModel`.
 
 ## Limites invioláveis
 
-- Só instalações de **treinamento ou homologação**; nunca produção.
+- Agentes só operam **treinamento/homologação**; usuários gravam em
+  produção após ensaio aprovado em **todas** as instalações de treinamento
+  (bloqueio externo: `NOT_RUN` no relatório; [lista](src/origem_de_treinamento.rs)).
 - Cookies, URLs assinadas e `infra_hash` (credenciais de sessão) nunca
   vão para argumentos, logs, commits, fixtures ou saídas; senhas nunca
   vão para argumentos, logs ou saídas. Sessão e senha em uso só em
@@ -242,61 +287,16 @@ O que falta implementar e em que ordem está na
   com frontmatter OKF (`contracts/cli.md` → `contracts/cli/*.md`,
   `docs/erros-tipados.md` → `docs/erros-tipados/*.md`). Não encolha
   texto, tabela ou código para caber; não espere o gate falhar.
-- **Dupla implementação IES ↔ anti-IES:** a **mesma PR** pode alterar
-  `src/**`, `crates/iesei/**`, `crates/anti-ies/**` e seus testes,
-  inclusive criar tipos e evoluir o esquema SQLite, **sem exigir
-  cassette prévia: implementar e testar a capacidade já é progresso**.
-  É exceção à divisão rígida por prefixos, não licença para editar
-  branch ou arquivos com dono ativo sem coordenação. Fluxo, shape
-  versionado, SQLite efêmero e critérios: [ciclo anti-IES](docs/anti-ies/ciclo-cassettes.md).
-  BDD AIES da CLI já registrado na #355 pode ser mantido pelo 🦡
-  (autorização do proprietário); nos demais comandos, vale o 🐘.
-  **Anti-IES é trabalho de todos os oito agentes**, sem nona rotina.
-  **Cassette-first, não cassette-gated:** BDD → cards/ZIPs existentes →
-  SQLite → IES ↔ anti-IES ↔ CLI → confronto com a cassette. Sem rede
-  local, use o [workflow](.github/workflows/inspecionar-cassettes.yml)
-  via Actions/arquivo temporário na PR ([guia](docs/cassettes.md)).
-  Sem cassette aplicável, implemente hipótese/fixture mínima; não espere
-  REA/live. PASS sintético ≠ paridade cassette ≠ live. 🦅 não veta
-  por ausência; 🦡 evita churn; 🐘 coordena. Respeite BDD e ownership.
-  **REA / emulação seletiva:** efeitos no SQLite; HTML, URLs,
-  formulários e tokens são projeções sintéticas. Dispensar mecanismos
-  internos não observáveis; separar fatos, hipóteses e desconhecidos.
-  REA em HAR/artefato/runtime autorizado; não substitui Rust nem
-  cria gate ([guia](docs/anti-ies/rea-engenharia-reversa.md),
-  #495–#497).
+- **Partes extraídas**, normativas como esta seção:
+  [mecânica do repositório](docs/mecanica-do-repositorio.md) — dupla
+  implementação IES ↔ anti-IES, CI completo como compilador sob demanda
+  (RED, binário, sandbox sem rede) e integração de fatias WIP.
 - Nos demais trabalhos paralelos, edite só os arquivos do seu prefixo;
   os dos outros você lê. Peça compartilhada exige mudança mínima na
   sua PR e explicação, sem tocar em branch alheio.
 - `xtask` só tem verificadores de infraestrutura, sem dependências.
-- **Sem Rust no sandbox, o CI completo é o compilador sob demanda.**
-  O [CI rápido](.github/workflows/ci-rapido.yml) roda apenas
-  pre-commit em atualizações de PR; o [CI completo](.github/workflows/ci.yml)
-  roda ao passar a PR de Draft para Ready for review (ou manualmente
-  para diagnóstico). Não executar 7 jobs e 3 wheels a cada commit;
-  consulte a [política de CI](docs/ci.md).
-  - **RED:** faça push dos testes novos antes do código. Acione a
-    suíte completa por transição Draft → Ready (volte a Draft se
-    necessário); o hook "Suíte Rust" mostra os testes falhos.
-    Registre o run e a contagem. Não declare RED sem executá-lo.
-  - **Binário:** o job "binário ies" do CI completo publica o artifact
-    `ies-linux-x86_64-<sha>` (`ies` em release e `ies.sha256`,
-    7 dias), compilado no ubuntu-22.04 (glibc ≥ 2.35, libssl3).
-    Baixe-o pelo GitHub (API de artifacts do run ou
-    `gh run download`), confira SHA-256 e rode no sandbox:
-    comandos offline, replay e ensaio ao vivo em treinamento.
-  - **Sandbox sem rede:** cassettes pelo workflow reutilizável
-    [inspecionar](.github/workflows/inspecionar-cassettes.yml);
-    live em treinamento por workflow temporário, removido antes do Ready.
-- **Fatia WIP entra na `main`.** Ao fim da sessão, a fatia com gates
-  verdes é integrada e a PR fecha; a issue segue aberta, e a próxima
-  sessão abre PR nova a partir da `main`. Testes **novos** da fatia que
-  ainda não passam levam `#[ignore = "wip #<issue>: <o que falta>"]`; a
-  sessão seguinte começa tirando os da sua issue. O hook `wip-ignores`
-  recusa `#[ignore]` sem motivo, `wip` sem issue e teste que já passava
-  na base marcado como pendente. Rustfmt, Clippy, OKF e os demais gates
-  não têm pendência: passam sempre. Escrita incompleta fica fechada
-  (`--confirmar` recusa antes da rede).
+- PR integra na `main` **por squash**: um commit por PR, com a mensagem
+  do fato. RED, `style:` e pedidos de inspeção ficam na PR (#776).
 - Antes de qualquer PR:
   `uvx --from prek==0.5.7 prek run --hook-stage pre-push --all-files`
   (o [CI completo](.github/workflows/ci.yml) reproduz os mesmos gates
@@ -318,7 +318,7 @@ O `okf-parser` roda pelo `uvx`, sem instalação, na versão do `prek.toml`:
 OKF="uvx --from okf-parser==0.48.2 okf-parser"
 $OKF check . --require-spec .okf/specs/{slug}.md --normative-spec  # o gate
 $OKF inventory .                       # conceitos por tipo
-$OKF search . "efeito incerto" --type Contract --context 1
+$OKF search . "escrita não confirmada" --type Contract --context 1
 $OKF sql . "SELECT path FROM concepts WHERE concept_type = 'Guide'"
 ```
 

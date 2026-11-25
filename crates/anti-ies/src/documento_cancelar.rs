@@ -5,7 +5,6 @@ use crate::{
     parametro_unico,
 };
 use iesei::cancelamento_documento::{self, Aplicacao, Situacao};
-use iesei::documento_versoes::ler;
 use iesei::instalacao::Instalacao;
 use rusqlite::Connection;
 
@@ -51,21 +50,16 @@ pub fn responder(
     if !matches!(metodo, "GET" | "POST") {
         return Resposta::nova(Estado::MetodoNaoPermitido);
     }
-    let documento = match ler(banco, origem, cenario, id_doc) {
-        Ok(Some(documento)) if documento.id_procedimento == id_proc => documento,
-        Ok(_) => return Resposta::nova(Estado::NaoEncontrado),
-        Err(_) => return Resposta::nova(Estado::DadosInsuficientes),
-    };
     let situacao = match estado(banco, origem, cenario, id_doc, id_proc) {
         Ok(Some(situacao)) => situacao,
-        Ok(None) => return Resposta::nova(Estado::DadosInsuficientes),
+        Ok(None) => return Resposta::nova(Estado::NaoEncontrado),
         Err(estado) => return Resposta::nova(estado),
     };
     if matches!(situacao, Situacao::Cancelado { .. }) {
         return Resposta::nova(Estado::MetodoNaoPermitido);
     }
     if metodo == "GET" {
-        return formulario(&documento.id_documento, &documento.id_procedimento);
+        return formulario(id_doc, id_proc);
     }
     let (Some("2"), Some("Salvar"), Some(motivo)) = (
         campo_formulario_unico(corpo, "hdnInfraTipoPagina").as_deref(),

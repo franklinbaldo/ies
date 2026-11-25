@@ -2,18 +2,21 @@
 //! A confirmação deriva um único POST do cadastro e só reconhece o efeito
 //! depois de releitura da árvore. Não há retry.
 use crate::documento_criar::{
-    ErroPreviaCriacao, EstadoCriacao, PedidoCriacao, ResultadoCriacao, executar_criacao,
-    validar_nivel_de_confirmacao,
+    EstadoCriacao, PedidoCriacao, ResultadoCriacao, executar_criacao, validar_nivel_de_confirmacao,
 };
-use crate::processo::NumeroProcesso;
 use crate::processo_concluir::escrita::Contador;
 use crate::processo_concluir_cli::com_sessao;
 use crate::visao_do_controle::EnvioHttps;
-use crate::{Cli, Documento, DocumentoAcao, Domain, saida_erro};
+use crate::{Cli, Documento, DocumentoAcao, Domain};
 use serde_json::json;
-use std::process::ExitCode;
 
-pub(crate) fn tentar_criar(cli: &Cli) -> Option<ExitCode> {
+#[path = "documento_criar/copia_editavel.rs"]
+mod copia_editavel;
+use copia_editavel::CopiaEditavel;
+#[cfg(test)]
+pub(crate) use copia_editavel::contem_estilos;
+
+pub(crate) fn tentar_criar(cli: &Cli) -> Option<anyhow::Result<()>> {
     let Domain::Documento(Documento {
         acao:
             Some(DocumentoAcao::Criar {
@@ -28,52 +31,85 @@ pub(crate) fn tentar_criar(cli: &Cli) -> Option<ExitCode> {
     else {
         return None;
     };
-    let nup = match NumeroProcesso::novo(processo) {
-        Ok(nup) => nup,
-        Err(erro) => return Some(entrada_invalida(cli.json, erro.subcodigo())),
-    };
-    if tipo.trim().is_empty() {
-        return Some(entrada_invalida(cli.json, "tipo_de_documento_vazio"));
-    }
-    // O nivel de escrita ja e uma pre-condicao independente da sessao.
-    // A CLI deve informar essa causa antes de abrir arquivos privados.
-    if *confirmar && let Err(erro) = validar_nivel_de_confirmacao(nivel.as_deref()) {
-        return Some(publicar_erro(cli.json, &erro, 0, &nup));
+    // O nível de escrita é pré-condição independente da sessão: a recusa
+    // vem antes de abrir arquivos privados.
+    if *confirmar && let Err(erro) = validar_nivel_de_confirmacao(*nivel) {
+        return Some(Err(erro.into()));
     }
     Some(com_sessao(cli, |sessao, indice| {
+        let pasta = if *confirmar {
+            let pasta = std::env::current_dir()?;
+            crate::foto_documento::conferir_pasta(&pasta)?;
+            Some(pasta)
+        } else {
+            None
+        };
         let pedido = PedidoCriacao {
-            nup: &nup,
+            nup: processo,
             unidade: cli.unidade.as_deref(),
             tipo,
             descricao: descricao.as_deref(),
-            nivel: nivel.as_deref(),
+            nivel: *nivel,
         };
-        // A contagem externa sobrevive ao Result::Err, inclusive depois do POST.
+        // A contagem externa sobrevive ao erro, inclusive depois do POST.
         let mut envio = EnvioHttps;
         let mut contagem = Contador::novo(&mut envio);
-        match executar_criacao(sessao, &pedido, indice, &mut contagem, *confirmar) {
-            Ok(resultado) => publicar_resultado(cli.json, &resultado),
-            Err(erro) => publicar_erro(cli.json, &erro, contagem.feitas(), &nup),
-        }
+        let resultado = executar_criacao(sessao, &pedido, indice, &mut contagem, *confirmar);
+        let requisicoes = contagem.feitas();
+        let mut resultado = resultado.map_err(|erro| {
+            anyhow::Error::from(erro).context(TentativaDeCriacao { requisicoes })
+        })?;
+        let copia = match (&resultado.estado, pasta) {
+            (EstadoCriacao::Criado { numero_sei }, Some(pasta)) => {
+                copia_editavel::preparar(&pasta, numero_sei, &pedido, sessao, indice, &mut contagem)
+                    .map(Some)
+                    .map_err(|erro| {
+                        anyhow::Error::from(erro).context(CriadoSemCopia {
+                            numero_sei: numero_sei.clone(),
+                        })
+                    })
+            }
+            _ => Ok(None),
+        };
+        resultado.requisicoes = contagem.feitas();
+        publicar_resultado(
+            cli.json,
+            &resultado,
+            indice,
+            copia.as_ref().ok().and_then(Option::as_ref),
+        );
+        copia.map(|_| ())
     }))
 }
 
-fn entrada_invalida(json_mode: bool, subcodigo: &str) -> ExitCode {
-    if json_mode {
-        println!(
-            "{}",
-            json!({
-                "codigo": "entrada_invalida",
-                "subcodigo": subcodigo,
-                "erro": "parâmetro de criação de documento inválido",
-                "retentavel": false
-            })
-        );
-    } else {
-        eprintln!("IES: parâmetro de criação de documento inválido [{subcodigo}]");
-    }
-    ExitCode::from(2)
+#[derive(Debug, thiserror::Error)]
+#[error(
+    "Documento SEI {numero_sei} criado e confirmado. A cópia editável falhou; recupere o documento pelo número SEI."
+)]
+struct CriadoSemCopia {
+    numero_sei: String,
 }
+
+/// Requisições feitas até a falha: depois do POST, a criação pode ter
+/// ocorrido. Confira o processo antes de nova confirmação.
+#[derive(Debug, thiserror::Error)]
+#[error("{self:?}")]
+struct TentativaDeCriacao {
+    requisicoes: u8,
+}
+
+/// Tipo vazio é erro de uso (saída 2), antes de qualquer arquivo.
+pub(crate) fn tipo_de_documento(valor: &str) -> Result<String, TipoDeDocumentoVazio> {
+    if valor.trim().is_empty() {
+        Err(TipoDeDocumentoVazio)
+    } else {
+        Ok(valor.to_owned())
+    }
+}
+
+#[derive(Debug, thiserror::Error)]
+#[error("{self:?}")]
+pub(crate) struct TipoDeDocumentoVazio;
 
 fn resultado_json(resultado: &ResultadoCriacao) -> serde_json::Value {
     let numero_sei = match &resultado.estado {
@@ -94,153 +130,55 @@ fn resultado_json(resultado: &ResultadoCriacao) -> serde_json::Value {
     })
 }
 
-fn publicar_resultado(json_mode: bool, resultado: &ResultadoCriacao) -> ExitCode {
+fn publicar_resultado(
+    json_mode: bool,
+    resultado: &ResultadoCriacao,
+    indice: &crate::indice_local::IndiceLocal,
+    copia: Option<&CopiaEditavel>,
+) {
     let numero_sei = match &resultado.estado {
         EstadoCriacao::Previa => None,
         EstadoCriacao::Criado { numero_sei } => Some(numero_sei.as_str()),
     };
     if json_mode {
-        println!("{}", resultado_json(resultado));
+        let mut valor = resultado_json(resultado);
+        if let (Some(copia), Some(objeto)) = (copia, valor.as_object_mut()) {
+            objeto.insert("copia_editavel".to_owned(), json!(copia));
+        }
+        crate::indice_local::anexar_avisos(&mut valor, indice);
+        println!("{valor}");
+        return;
+    }
+    if let Some(numero_sei) = numero_sei {
+        println!(
+            "Documento {} criado no processo {} (unidade {}), número SEI {}.",
+            resultado.tipo, resultado.nup, resultado.unidade, numero_sei
+        );
     } else {
-        if let Some(numero_sei) = numero_sei {
-            println!(
-                "Documento {} criado no processo {} (unidade {}), número SEI {}.",
-                resultado.tipo, resultado.nup, resultado.unidade, numero_sei
-            );
-        } else {
-            println!(
-                "Prévia: criar documento {} no processo {} (unidade {}).",
-                resultado.tipo, resultado.nup, resultado.unidade
-            );
-            println!("Nenhum documento foi criado.");
-        }
-        if let Some(descricao) = &resultado.descricao {
-            println!("Descrição: {descricao}");
-        }
-        if let Some(nivel) = &resultado.nivel {
-            println!("Nível: {nivel}");
-        }
-        println!("Requisições: {}", resultado.requisicoes);
+        println!(
+            "Prévia: criar documento {} no processo {} (unidade {}).",
+            resultado.tipo, resultado.nup, resultado.unidade
+        );
+        println!("Nenhum documento foi criado.");
     }
-    ExitCode::SUCCESS
-}
-
-const MENSAGEM_INCERTEZA: &str = "Criação de documento não comprovada. Confira o processo antes de qualquer nova confirmação; não repita --confirmar sem verificar.";
-
-fn erro_incerto_json(
-    erro: &ErroPreviaCriacao,
-    requisicoes: u8,
-    nup: &NumeroProcesso,
-) -> serde_json::Value {
-    let mut saida = json!({
-        "codigo": "efeito_incerto",
-        "subcodigo": erro.subcodigo(),
-        "erro": MENSAGEM_INCERTEZA,
-        "verificar_com": format!("ies processo {}", nup.as_str()),
-        "retentavel": false,
-        "requisicoes": requisicoes
-    });
-    if let Some(causa) = erro.causa_envio() {
-        saida["causa_envio"] = json!(causa.subcodigo());
+    if let Some(descricao) = &resultado.descricao {
+        println!("Descrição: {descricao}");
     }
-    if let ErroPreviaCriacao::EfeitoIncertoNaReleitura(causa) = erro {
-        saida["causa_releitura"] = json!(causa.subcodigo());
+    if let Some(nivel) = resultado.nivel {
+        println!("Nível: {}", nivel.como_texto());
     }
-    if let Some(http) = erro.status_http() {
-        saida["status_http"] = json!(http.status);
-        if let Some(mensagem) = &http.mensagem_do_servidor {
-            saida["mensagem_do_servidor"] = json!(mensagem);
+    if let Some(copia) = copia {
+        println!("Cópia editável: {}", copia.arquivo);
+        if let Some(orientacao) = copia.orientacao {
+            println!("{orientacao}");
         }
     }
-    saida
-}
-
-/// Mensagem orientada à causa observada, sem classificar por texto.
-fn mensagem_da_recusa(erro: &ErroPreviaCriacao) -> &'static str {
-    use crate::documento_criar::ErroCriar;
-    match erro {
-        ErroPreviaCriacao::Tipo(ErroCriar::TipoAusente) => {
-            "tipo de documento não oferecido pelo SEI"
-        }
-        ErroPreviaCriacao::Tipo(ErroCriar::TipoAmbiguo) => {
-            "mais de um tipo de documento com o nome solicitado"
-        }
-        ErroPreviaCriacao::ProcessoNaoAbertoNaUnidade => {
-            "processo não está aberto na unidade da sessão"
-        }
-        ErroPreviaCriacao::NivelNaoInformado => "informe --nivel publico para confirmar a criação",
-        ErroPreviaCriacao::NivelRestritoSemHipotese => {
-            "nível não público exige hipótese legal não disponível nesta operação"
-        }
-        ErroPreviaCriacao::SubmissaoNaoComprovada => {
-            "o SEI não apresentou uma forma reconhecida de concluir a criação"
-        }
-        ErroPreviaCriacao::ArvoreIncompleta => {
-            "árvore do processo contém pastas não carregadas; criação não pode ser comprovada"
-        }
-        ErroPreviaCriacao::FotoInicialInconsistente => {
-            "árvore inicial não permite distinguir os documentos com segurança"
-        }
-        _ => "criação do documento não pôde ser conferida",
-    }
-}
-
-fn publicar_erro(
-    json_mode: bool,
-    erro: &ErroPreviaCriacao,
-    requisicoes: u8,
-    nup: &NumeroProcesso,
-) -> ExitCode {
-    if matches!(
-        erro,
-        ErroPreviaCriacao::EfeitoIncerto
-            | ErroPreviaCriacao::EfeitoIncertoNoEnvio(_)
-            | ErroPreviaCriacao::EfeitoIncertoNaReleitura(_)
-    ) {
-        if json_mode {
-            println!("{}", erro_incerto_json(erro, requisicoes, nup));
-        } else {
-            eprintln!("IES: {MENSAGEM_INCERTEZA}");
-            eprintln!("Verifique com: ies processo {}", nup.as_str());
-            eprintln!("Requisições: {requisicoes}");
-            if let Some(causa) = erro.causa_envio() {
-                eprintln!(
-                    "{}",
-                    saida_erro::linha_humana(
-                        causa.subcodigo(),
-                        "falha observada no envio do documento",
-                        causa.status_http(),
-                    )
-                );
-            }
-            if let ErroPreviaCriacao::EfeitoIncertoNaReleitura(causa) = erro {
-                eprintln!(
-                    "{}",
-                    saida_erro::linha_humana(
-                        causa.subcodigo(),
-                        "falha observada na releitura após envio",
-                        causa.status_http(),
-                    )
-                );
-            }
-        }
-        return ExitCode::from(3);
-    }
-    saida_erro::erro_fonte_http(
-        json_mode,
-        erro.subcodigo(),
-        mensagem_da_recusa(erro),
-        erro.status_http(),
-    )
+    println!("Requisições: {}", resultado.requisicoes);
 }
 
 #[cfg(test)]
 mod tests {
     use super::*;
-
-    fn nup_de_teste() -> NumeroProcesso {
-        NumeroProcesso::novo("00001.000001/2026-01").unwrap()
-    }
 
     #[test]
     fn dado_previa_quando_json_entao_expoe_descricao_nivel_e_nenhuma_escrita() {
@@ -251,7 +189,7 @@ mod tests {
             tipo: "Despacho".to_owned(),
             unidade: "UNIDADE TESTE".to_owned(),
             descricao: Some("Ensaio de despacho".to_owned()),
-            nivel: Some("publico".to_owned()),
+            nivel: Some(crate::dominio::NivelDeAcesso::Publico),
             requisicoes: 5,
             estado: EstadoCriacao::Previa,
         };
@@ -265,139 +203,8 @@ mod tests {
     }
 
     #[test]
-    fn efeito_incerto_preserva_status_200_da_validacao_infra() {
-        use crate::formulario_web::ErroSubmissaoFormulario;
-        use crate::transporte::StatusHttpRecusado;
-
-        // HTTP 200 de validação é uma recusa real, não ausência de status.
-        // Sem rede: a fronteira só apresenta a causa do único envio tentado.
-        let erro = ErroPreviaCriacao::EfeitoIncertoNoEnvio(
-            ErroSubmissaoFormulario::ValidacaoRecusadaPeloSei(StatusHttpRecusado {
-                status: 200,
-                mensagem_do_servidor: Some("Descrição obrigatória".to_owned()),
-            }),
-        );
-        let saida = erro_incerto_json(&erro, 6, &nup_de_teste());
-        assert_eq!(saida["codigo"], "efeito_incerto");
-        assert_eq!(saida["status_http"], 200);
-        assert_eq!(saida["mensagem_do_servidor"], "Descrição obrigatória");
-        assert_eq!(saida["requisicoes"], 6);
-        assert_eq!(saida["retentavel"], false);
-        assert_eq!(
-            publicar_erro(false, &erro, 6, &nup_de_teste()),
-            ExitCode::from(3)
-        );
-    }
-
-    #[test]
-    fn efeito_incerto_publica_requisicoes_realmente_tentadas() {
-        let saida = erro_incerto_json(&ErroPreviaCriacao::EfeitoIncerto, 7, &nup_de_teste());
-        assert_eq!(saida["codigo"], "efeito_incerto");
-        assert_eq!(
-            saida["requisicoes"], 7,
-            "null não informa a contagem já observada"
-        );
-        assert_eq!(saida["retentavel"], false);
-    }
-
-    #[test]
-    fn efeito_incerto_da_releitura_preserva_http_e_contagem_sem_retry() {
-        use crate::processo_obter::ErroProcessoObter;
-        use crate::transporte::{FalhaTransporte, StatusHttpRecusado};
-
-        let erro = ErroPreviaCriacao::EfeitoIncertoNaReleitura(ErroProcessoObter::Transporte(
-            FalhaTransporte::AcessoNegado(StatusHttpRecusado {
-                status: 403,
-                mensagem_do_servidor: Some("leitura recusada".to_owned()),
-            }),
-        ));
-        let saida = erro_incerto_json(&erro, 7, &nup_de_teste());
-        assert_eq!(erro.subcodigo(), "efeito_incerto_na_criacao_de_documento");
-        assert_eq!(saida["status_http"], 403);
-        assert_eq!(saida["mensagem_do_servidor"], "leitura recusada");
-        assert_eq!(saida["requisicoes"], 7);
-        assert!(saida["causa_releitura"].is_string());
-        assert_eq!(saida["retentavel"], false);
-        assert_eq!(
-            publicar_erro(false, &erro, 7, &nup_de_teste()),
-            ExitCode::from(3)
-        );
-    }
-    #[test]
-    fn efeito_incerto_orienta_a_conferir_o_processo_antes_de_outra_criacao() {
-        // Teste auxiliar do BDD-246-04: efeito incerto exige leitura independente.
-        let erro = ErroPreviaCriacao::EfeitoIncerto;
-        let saida = erro_incerto_json(&erro, 7, &nup_de_teste());
-        assert_eq!(saida["codigo"], "efeito_incerto");
-        assert_eq!(saida["verificar_com"], "ies processo 00001.000001/2026-01");
-        assert!(
-            saida["erro"]
-                .as_str()
-                .is_some_and(|mensagem| mensagem.contains("Confira o processo"))
-        );
-        assert_eq!(saida["retentavel"], false);
-        assert_eq!(
-            publicar_erro(false, &erro, 7, &nup_de_teste()),
-            ExitCode::from(3)
-        );
-    }
-
-    #[test]
-    fn bdd_246_04_efeito_incerto_indica_nup_real_na_releitura() {
-        // Dado um efeito incerto ao incluir documento em um processo conhecido;
-        // Quando a CLI apresenta o erro; Então oferece comando de leitura copiável.
-        let nup = NumeroProcesso::novo("00001.000001/2026-01").unwrap();
-        let erro = ErroPreviaCriacao::EfeitoIncerto;
-        let saida = erro_incerto_json(&erro, 7, &nup);
-        assert_eq!(saida["verificar_com"], "ies processo 00001.000001/2026-01");
-        assert_eq!(saida["retentavel"], false);
-        assert_eq!(saida["codigo"], "efeito_incerto");
-    }
-
-    #[test]
-    fn bdd_246_03_recusa_da_cli_explica_tipo_nao_oferecido_ou_ambiguo() {
-        // Dado um tipo ausente ou repetido na lista oferecida pelo SEI,
-        // Quando executo documento criar, Entao a recusa explica a causa.
-        use crate::documento_criar::ErroCriar;
-        assert_eq!(
-            mensagem_da_recusa(&ErroPreviaCriacao::Tipo(ErroCriar::TipoAusente)),
-            "tipo de documento não oferecido pelo SEI"
-        );
-        assert_eq!(
-            mensagem_da_recusa(&ErroPreviaCriacao::Tipo(ErroCriar::TipoAmbiguo)),
-            "mais de um tipo de documento com o nome solicitado"
-        );
-        assert_eq!(
-            mensagem_da_recusa(&ErroPreviaCriacao::ProcessoNaoAbertoNaUnidade),
-            "processo não está aberto na unidade da sessão"
-        );
-    }
-
-    #[test]
-    fn recusa_de_nivel_antes_da_sessao_explica_acao_necessaria() {
-        assert_eq!(
-            mensagem_da_recusa(&ErroPreviaCriacao::NivelNaoInformado),
-            "informe --nivel publico para confirmar a criação"
-        );
-        assert_eq!(
-            mensagem_da_recusa(&ErroPreviaCriacao::NivelRestritoSemHipotese),
-            "nível não público exige hipótese legal não disponível nesta operação"
-        );
-    }
-
-    #[test]
-    fn recusa_de_cadastro_ou_arvore_informa_o_impedimento_observado() {
-        assert_eq!(
-            mensagem_da_recusa(&ErroPreviaCriacao::SubmissaoNaoComprovada),
-            "o SEI não apresentou uma forma reconhecida de concluir a criação"
-        );
-        assert_eq!(
-            mensagem_da_recusa(&ErroPreviaCriacao::ArvoreIncompleta),
-            "árvore do processo contém pastas não carregadas; criação não pode ser comprovada"
-        );
-        assert_eq!(
-            mensagem_da_recusa(&ErroPreviaCriacao::FotoInicialInconsistente),
-            "árvore inicial não permite distinguir os documentos com segurança"
-        );
+    fn tipo_em_branco_e_erro_de_uso() {
+        assert!(tipo_de_documento("  ").is_err());
+        assert_eq!(tipo_de_documento("Despacho").unwrap(), "Despacho");
     }
 }

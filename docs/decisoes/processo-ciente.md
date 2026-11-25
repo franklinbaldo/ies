@@ -107,7 +107,7 @@ Um `<script>` aninhado em `<template>` não é prova de execução. A
 extração reaproveita o lexer conservador já usado para ciência de
 documento; sem `eval`, execução de JavaScript ou expressão regular.
 Se não há atividade comprovável, o GET mutador **não é repetido** e
-a releitura mantém o resultado como efeito incerto (saída 3).
+a releitura mantém o resultado coma escrita não confirmada (saída 1).
 
 O RED anterior ao código foi comprovado no
 [CI 42218975613](https://github.com/franklinbaldo/ies/actions/runs/42218975613):
@@ -132,8 +132,8 @@ principal do script ou no corpo direto da função `inicializar()`
 observada na resposta do SEI. Não avalia condições nem executa JS;
 quando o controle de fluxo não é comprovado, devolve
 `AceiteSemAtividade`. Mesmo que a releitura já contenha o id da
-atividade, não o usa para confirmar a escrita: **efeito incerto e
-saída 3, sem repetir o GET mutador**.
+atividade, não o usa para confirmar a escrita: **escrita não confirmada e
+saída 1, sem repetir o GET mutador**.
 
 Regressões sintéticas em `src/ciencia/tests.rs` e
 `src/ciencia/tests_fluxo.rs` cobrem `if(false)` com e sem chaves,
@@ -156,7 +156,7 @@ executável** do próprio script (chamada direta) ou do corpo direto
 da função `inicializar()`. Comentários e espaços são tolerados pelo
 leitor lexical, mas qualquer outra instrução anterior faz recusar o
 aceite, sem executar JavaScript ou inferir o fluxo de controle. Se uma
-instalação servir forma diferente, o fluxo falha fechado (saída 3),
+instalação servir forma diferente, o fluxo falha fechado (saída 1),
 até observação específica e novo contrato.
 
 **RED observado antes do código:** [CI 42231850140](https://github.com/franklinbaldo/ies/actions/runs/42231850140),
@@ -182,7 +182,7 @@ registrou **1 FAIL / 1.739 PASS / 22 ignored preexistentes**:
 `application/json` retornava falsamente `Ok("42457")`.
 O teste de fluxo exige uma releitura sem consultar Lista de Ciências
 quando o aceite não publicou atividade válida (**6 GET, 1 mutador,
-0 retry, saída 3**). GREEN e live dependem de validação posterior.
+0 retry, saída 1**). GREEN e live dependem de validação posterior.
 
 
 ## Argumento avaliado antes da recarga — regressão #271 (06/11/2026)
@@ -205,6 +205,6 @@ A correção restringe o literal à forma de um único argumento
 seguido de parêntese de fechamento; sem executar JavaScript.
 Na resposta de argumento adicional, há releitura independente
 da árvore, sem consulta de lista por id não comprovado, sem repetir
-o GET mutador; o fluxo responde efeito incerto (saída 3).
+o GET mutador; o fluxo responde escrita não confirmada (saída 1).
 O GREEN precisa ser comprovado no CI do novo head; replay específico
 e live em treinamento continuam NOT_RUN.

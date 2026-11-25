@@ -71,7 +71,7 @@ autorizada. Isso não é autorização para fallback automático.
 
 Para leituras, qualquer escolha alternativa precisa garantir a
 semântica de domínio (mesmos conjuntos, identificadores e completude).
-Para escritas, após timeout ou efeito incerto, **nunca** mudar backend
+Para escritas, após timeout ou escrita não confirmada, **nunca** mudar backend
 nem repetir a operação; primeiro reconciliar por leitura.
 
 As [decisões por operação](../decisoes/unidade-listar-processos.md)

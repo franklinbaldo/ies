@@ -4,7 +4,7 @@
 //! hashes inventados.
 use super::tests_colunas::{ler, rotulo, tabela};
 use super::*;
-use crate::erro_html::ErroHtml;
+use crate::tela_html::HtmlServido;
 use serde_json::json;
 
 const HASH: &str = "5555555555555555555555555555555555555555555555555555555555555555";
@@ -44,7 +44,7 @@ fn dois_marcadores_na_mesma_celula_saem_como_lista_de_dois() {
         marcadores(&conteudo),
         json!([
             {"nome": "Pendente", "cor": "amarelo", "texto": "Texto sintético", "id": "31", "rotulo": "31#Pendente"},
-            {"nome": "Revisão", "cor": "azul", "texto": null, "id": "32", "rotulo": "32#Revisão"}
+            {"nome": "Revisão", "cor": "azul", "id": "32", "rotulo": "32#Revisão"}
         ])
     );
 }
@@ -71,15 +71,15 @@ fn tooltip_le_o_literal_com_escapes_e_entidades() {
 }
 
 #[test]
-fn sem_tooltip_ou_sem_fragmento_publica_null() {
+fn sem_tooltip_ou_sem_fragmento_omite_as_chaves() {
     let sem_dica = ancora("7", "41", "verde", "x", "M1")
         .replace(" onmouseover=\"return infraTooltipMostrar('x');\"", "");
     let sem_id = ancora("7", "41", "verde", "", "M2").replace("#ID-41", "");
     assert_eq!(
         marcadores(&format!("{sem_dica}{sem_id}")),
         json!([
-            {"nome": "M1", "cor": "verde", "texto": null, "id": "41", "rotulo": "41#M1"},
-            {"nome": "M2", "cor": "verde", "texto": null, "id": null, "rotulo": null}
+            {"nome": "M1", "cor": "verde", "id": "41", "rotulo": "41#M1"},
+            {"nome": "M2", "cor": "verde"}
         ])
     );
 }
@@ -110,19 +110,10 @@ fn ancora_fora_da_forma_observada_e_recusa_tipada() {
     for ruim in ruins {
         assert_eq!(
             com_marcadores(&ruim),
-            Err(ErroDetalhada::Html(ErroHtml::valor(
-                "marcador_da_celula_detalhada_fora_da_forma_observada"
-            ))),
+            Err(ErroDetalhada::MarcadorDaCelulaDetalhadaForaDaFormaObservada),
             "{ruim}"
         );
     }
-    let erro = ErroDetalhada::Html(ErroHtml::valor(
-        "marcador_da_celula_detalhada_fora_da_forma_observada",
-    ));
-    assert_eq!(
-        crate::erro_publico::folha(&erro),
-        "marcador_da_celula_detalhada_fora_da_forma_observada"
-    );
 }
 
 #[test]
@@ -139,10 +130,6 @@ fn texto_fora_das_ancoras_e_recusa_e_nao_vira_marcador() {
             "{conteudo}"
         );
     }
-    assert_eq!(
-        crate::erro_publico::folha(&ErroDetalhada::TextoForaDosMarcadoresNaCelula),
-        "texto_fora_dos_marcadores_na_celula_detalhada"
-    );
 }
 
 #[test]
@@ -152,7 +139,7 @@ fn colheita_da_pagina_d_com_marcadores_continua_dando_o_link() {
         ancora("7", "31", "amarelo", "", "A"),
         ancora("7", "32", "azul", "", "B")
     );
-    let html = tabela(&[rotulo("Marcadores")], &[&celula(&conteudo)]);
+    let html = HtmlServido::de_teste(&tabela(&[rotulo("Marcadores")], &[&celula(&conteudo)]));
     let linhas = linhas_com_link(&html).unwrap();
     assert_eq!(linhas.len(), 1);
     assert_eq!(linhas[0].id, "7");
@@ -161,5 +148,32 @@ fn colheita_da_pagina_d_com_marcadores_continua_dando_o_link() {
             .href
             .as_deref()
             .is_some_and(|h| h.contains("acao=procedimento_trabalhar"))
+    );
+}
+
+#[test]
+fn link_do_marcador_com_par_sem_igual_e_recusado_com_a_causa() {
+    let boa = ancora("7", "31", "azul", "", "M");
+    let com_lixo = boa.replace("&infra_sistema", "&lixo&infra_sistema");
+    assert_eq!(
+        com_marcadores(&com_lixo).map(|_| ()),
+        Err(ErroDetalhada::ConsultaDoMarcadorIlegivel(
+            crate::consulta_do_controlador::ErroConsultaDoControlador::ParSemIgual
+        ))
+    );
+}
+
+#[test]
+fn link_do_marcador_com_acao_repetida_tem_a_causa() {
+    let boa = ancora("7", "31", "azul", "", "M");
+    let repetida = boa.replace(
+        "&infra_sistema",
+        "&acao=andamento_marcador_gerenciar&infra_sistema",
+    );
+    assert_eq!(
+        com_marcadores(&repetida).map(|_| ()),
+        Err(ErroDetalhada::AcaoDoMarcadorDetalhado(
+            crate::consulta_do_controlador::ErroAcaoDaUrl::AcaoRepetida
+        ))
     );
 }

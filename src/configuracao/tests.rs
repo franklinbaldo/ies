@@ -1,5 +1,5 @@
 //! Cenários sintéticos da #212; não há dados de sessão ou acesso à rede.
-use super::{ErroConfiguracao as Publico, FalhaConfiguracaoLocal as F, ler_configuracao_local};
+use super::{FalhaConfiguracaoLocal, ler_configuracao_local};
 use std::fs;
 use std::path::{Path, PathBuf};
 use std::sync::atomic::{AtomicUsize, Ordering};
@@ -49,24 +49,42 @@ fn configuracao_valida_devolve_so_os_caminhos() {
 }
 
 #[test]
-fn ausente_tem_causa_distinta_e_subcodigo_publico_legado() {
+fn ausente_tem_causa_distinta() {
     let pasta = Pasta::nova();
     let causa = ler_configuracao_local(&pasta.arquivo()).err().unwrap();
-    assert_eq!(causa, F::Ausente);
-    assert_eq!(
-        Publico::from(causa).subcodigo(),
-        "arquivo_configuracao_nao_pode_ser_lido"
-    );
+    assert_eq!(causa, FalhaConfiguracaoLocal::Ausente);
 }
 
 #[test]
 fn diretorio_e_excesso_sao_diagnosticos_internos_distintos() {
     let pasta = Pasta::nova();
-    assert_eq!(ler_configuracao_local(&pasta.0).err(), Some(F::NaoRegular));
+    assert_eq!(
+        ler_configuracao_local(&pasta.0).err(),
+        Some(FalhaConfiguracaoLocal::NaoRegular)
+    );
     gravar(&pasta.arquivo(), &"x".repeat(8_193));
     assert_eq!(
         ler_configuracao_local(&pasta.arquivo()).err(),
-        Some(F::AcimaDoLimite)
+        Some(FalhaConfiguracaoLocal::AcimaDoLimite)
+    );
+}
+
+#[cfg(unix)]
+#[test]
+fn ancestral_regular_preserva_causa_io_sem_alterar_bytes() {
+    let pasta = Pasta::nova();
+    let ancestral = pasta.0.join("ancestral-regular");
+    gravar(&ancestral, "sentinela-sintetica");
+    let destino = ancestral.join("config.json");
+    assert_eq!(
+        ler_configuracao_local(&destino).err(),
+        Some(FalhaConfiguracaoLocal::ErroDeIoNaLeitura(
+            std::io::ErrorKind::NotADirectory
+        ))
+    );
+    assert_eq!(
+        fs::read_to_string(ancestral).unwrap(),
+        "sentinela-sintetica"
     );
 }
 
@@ -74,22 +92,14 @@ fn diretorio_e_excesso_sao_diagnosticos_internos_distintos() {
 fn json_invalido_nao_e_campo_invalido() {
     let pasta = Pasta::nova();
     gravar(&pasta.arquivo(), "{");
-    assert_eq!(
+    assert!(matches!(
         ler_configuracao_local(&pasta.arquivo()).err(),
-        Some(F::JsonInvalido)
-    );
+        Some(FalhaConfiguracaoLocal::JsonInvalido(_))
+    ));
     gravar(&pasta.arquivo(), r#"{"url_controle":7}"#);
     assert_eq!(
         ler_configuracao_local(&pasta.arquivo()).err(),
-        Some(F::CampoInvalido)
-    );
-    assert_eq!(
-        Publico::from(F::JsonInvalido).subcodigo(),
-        "arquivo_configuracao_json_invalido"
-    );
-    assert_eq!(
-        Publico::from(F::CampoInvalido).subcodigo(),
-        "arquivo_configuracao_campo_invalido"
+        Some(FalhaConfiguracaoLocal::CampoInvalido)
     );
 }
 
@@ -104,7 +114,7 @@ fn caminhos_relativos_ou_vazios_nao_sao_aceitos() {
         gravar(&pasta.arquivo(), bruto);
         assert_eq!(
             ler_configuracao_local(&pasta.arquivo()).err(),
-            Some(F::CampoInvalido)
+            Some(FalhaConfiguracaoLocal::CampoInvalido)
         );
     }
 }
@@ -118,11 +128,7 @@ fn permissao_aberta_eh_recusada_antes_da_leitura() {
     fs::set_permissions(pasta.arquivo(), fs::Permissions::from_mode(0o644)).unwrap();
     assert_eq!(
         ler_configuracao_local(&pasta.arquivo()).err(),
-        Some(F::PermissoesAbertas)
-    );
-    assert_eq!(
-        Publico::from(F::PermissoesAbertas).subcodigo(),
-        "arquivo_configuracao_permissoes_inseguras"
+        Some(FalhaConfiguracaoLocal::PermissoesAbertas)
     );
 }
 
@@ -136,11 +142,7 @@ fn link_simbolico_nao_e_seguido() {
     symlink(&alvo, pasta.arquivo()).unwrap();
     assert_eq!(
         ler_configuracao_local(&pasta.arquivo()).err(),
-        Some(F::LinkSimbolico)
-    );
-    assert_eq!(
-        Publico::from(F::LinkSimbolico).subcodigo(),
-        "arquivo_configuracao_link_simbolico"
+        Some(FalhaConfiguracaoLocal::LinkSimbolico)
     );
 }
 
@@ -176,7 +178,7 @@ fn salvar_configuracao_aceita_dir_link_recusa_dir_aberto_e_nao_sobrescreve() {
         fs::set_permissions(&real, fs::Permissions::from_mode(bits)).unwrap();
         assert_eq!(
             salvar_arquivos_de_acesso(&pasta.0.join("atalho/outra.json"), &arquivos),
-            Err("configuracao_ja_existe_ou_sem_permissao")
+            Err(super::ErroGravacaoDaConfiguracao::ConfiguracaoJaExisteOuSemPermissao)
         );
     }
     assert_eq!(fs::read_dir(&real).unwrap().count(), 1);
@@ -190,10 +192,124 @@ fn salvar_configuracao_aceita_dir_link_recusa_dir_aberto_e_nao_sobrescreve() {
     assert_eq!(salvar_arquivos_de_acesso(&destino, &arquivos), Ok(()));
     assert_eq!(
         salvar_arquivos_de_acesso(&destino, &arquivos),
-        Err("configuracao_ja_existe_ou_sem_permissao")
+        Err(super::ErroGravacaoDaConfiguracao::ConfiguracaoJaExisteOuSemPermissao)
     );
     assert_eq!(
         fs::metadata(&destino).unwrap().permissions().mode() & 0o777,
         0o600
+    );
+}
+
+/// Qual arquivo privado falhou é campo do erro (o papel, nunca o caminho).
+#[test]
+fn arquivo_privado_que_falha_e_identificado_pelo_papel() {
+    use super::{
+        ArquivoPrivado, ArquivosDeAcesso, ErroArquivoDeAcesso, verificar_arquivos_privados,
+    };
+    let pasta = Pasta::nova();
+    let privado = |nome: &str| {
+        let caminho = pasta.0.join(nome);
+        fs::write(&caminho, "DADO FICTICIO").unwrap();
+        #[cfg(unix)]
+        {
+            use std::os::unix::fs::PermissionsExt;
+            fs::set_permissions(&caminho, fs::Permissions::from_mode(0o600)).unwrap();
+        }
+        caminho
+    };
+    let completos = ArquivosDeAcesso {
+        url_controle: privado("url"),
+        cookie: privado("cookie"),
+        origem: privado("origem"),
+    };
+    assert_eq!(verificar_arquivos_privados(&completos), Ok(()));
+    let sem_cookie = ArquivosDeAcesso {
+        cookie: pasta.0.join("ausente"),
+        ..completos.clone()
+    };
+    assert_eq!(
+        verificar_arquivos_privados(&sem_cookie),
+        Err(ErroArquivoDeAcesso::Ausente(ArquivoPrivado::Cookie))
+    );
+    let relativa = ArquivosDeAcesso {
+        url_controle: PathBuf::from("url"),
+        ..completos.clone()
+    };
+    assert_eq!(
+        verificar_arquivos_privados(&relativa),
+        Err(ErroArquivoDeAcesso::CaminhoNaoAbsoluto(
+            ArquivoPrivado::UrlControle
+        ))
+    );
+    fs::write(&completos.origem, "").unwrap();
+    assert_eq!(
+        verificar_arquivos_privados(&completos),
+        Err(ErroArquivoDeAcesso::Vazio(ArquivoPrivado::Origem))
+    );
+}
+
+#[cfg(unix)]
+#[test]
+fn metadados_de_arquivo_privado_preservam_causa_de_ancestral_regular() {
+    use super::{
+        ArquivoPrivado, ArquivosDeAcesso, ErroArquivoDeAcesso, verificar_arquivos_privados,
+    };
+    let pasta = Pasta::nova();
+    let url = pasta.0.join("url");
+    gravar(&url, "sentinela-sintetica");
+    let origem = pasta.0.join("origem");
+    gravar(&origem, "origem-ficticia");
+    let arquivos = ArquivosDeAcesso {
+        cookie: url.join("cookie"),
+        url_controle: url.clone(),
+        origem,
+    };
+    assert_eq!(
+        verificar_arquivos_privados(&arquivos),
+        Err(ErroArquivoDeAcesso::MetadadosNaoLidos(
+            ArquivoPrivado::Cookie,
+            std::io::ErrorKind::NotADirectory
+        ))
+    );
+    assert_eq!(fs::read_to_string(url).unwrap(), "sentinela-sintetica");
+}
+
+#[cfg(unix)]
+#[test]
+fn setup_preserva_not_a_directory_no_arquivo_de_acesso_sem_escrever_configuracao() {
+    use super::{ArquivosDeAcesso, ErroGravacaoDaConfiguracao, salvar_arquivos_de_acesso};
+
+    let pasta = Pasta::nova();
+    let ancestral = pasta.0.join("ancestral-regular");
+    gravar(&ancestral, "SENTINELA FICTICIA");
+    let url = pasta.0.join("url");
+    gravar(&url, "URL FICTICIA");
+    let origem = pasta.0.join("origem");
+    gravar(&origem, "ORIGEM FICTICIA");
+    let arquivos = ArquivosDeAcesso {
+        url_controle: url,
+        cookie: ancestral.join("cookie"),
+        origem,
+    };
+    let destino = pasta.arquivo();
+    assert_eq!(
+        salvar_arquivos_de_acesso(&destino, &arquivos),
+        Err(ErroGravacaoDaConfiguracao::ArquivoPrivadoNaoLido(
+            std::io::ErrorKind::NotADirectory
+        ))
+    );
+    assert!(!destino.exists());
+    assert_eq!(
+        fs::read_to_string(&ancestral).unwrap(),
+        "SENTINELA FICTICIA"
+    );
+
+    let arquivos_ausentes = ArquivosDeAcesso {
+        cookie: pasta.0.join("cookie-ausente"),
+        ..arquivos
+    };
+    assert_eq!(
+        salvar_arquivos_de_acesso(&destino, &arquivos_ausentes),
+        Err(ErroGravacaoDaConfiguracao::CaminhoPrivadoAusenteOuNaoAbsoluto)
     );
 }

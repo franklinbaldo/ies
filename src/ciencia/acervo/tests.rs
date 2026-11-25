@@ -83,7 +83,7 @@ fn aceite_invalido_de_outro_alvo_nao_reutiliza_atividade_anterior() {
     assert!(matches!(registros[1].resultado, Resultado::Recusado(_)));
     assert_eq!(
         registros[2].resultado,
-        Resultado::NaoAplicavel("aceite_sem_atividade_observada")
+        Resultado::NaoAplicavel("aceite_sem_atividade_observada".to_owned())
     );
 }
 
@@ -115,11 +115,11 @@ fn aceite_302_apos_aceite_valido_nao_autoriza_lista_anterior() {
     assert_eq!(registros[0].resultado, Resultado::Lido);
     assert_eq!(
         registros[1].resultado,
-        Resultado::NaoAplicavel("status_sem_prova_de_aceite")
+        Resultado::NaoAplicavel("status_sem_prova_de_aceite".to_owned())
     );
     assert_eq!(
         registros[2].resultado,
-        Resultado::NaoAplicavel("aceite_sem_atividade_observada")
+        Resultado::NaoAplicavel("aceite_sem_atividade_observada".to_owned())
     );
 }
 
@@ -145,7 +145,7 @@ fn lista_de_outro_processo_nao_comprova_aceite_valido() {
     assert_eq!(registros[0].resultado, Resultado::Lido);
     assert_eq!(
         registros[1].resultado,
-        Resultado::NaoAplicavel("lista_de_outro_processo")
+        Resultado::NaoAplicavel("lista_de_outro_processo".to_owned())
     );
 }
 
@@ -177,11 +177,11 @@ fn aceite_sem_id_na_url_nao_herda_processo_de_outra_resposta() {
     assert_eq!(registros[0].resultado, Resultado::Lido);
     assert_eq!(
         registros[1].resultado,
-        Resultado::NaoAplicavel("id_procedimento_nao_observado")
+        Resultado::NaoAplicavel("id_procedimento_nao_observado".to_owned())
     );
     assert_eq!(
         registros[2].resultado,
-        Resultado::NaoAplicavel("aceite_sem_atividade_observada")
+        Resultado::NaoAplicavel("aceite_sem_atividade_observada".to_owned())
     );
 }
 
@@ -195,7 +195,7 @@ fn resposta_302_nao_e_prova_de_aceite() {
     assert_eq!(registros.len(), 1);
     assert_eq!(
         registros[0].resultado,
-        Resultado::NaoAplicavel("status_sem_prova_de_aceite")
+        Resultado::NaoAplicavel("status_sem_prova_de_aceite".to_owned())
     );
 }
 
@@ -233,7 +233,7 @@ fn lista_de_outro_documento_nao_comprova_aceite_documental() {
     assert_eq!(registros[0].resultado, Resultado::Lido);
     assert_eq!(
         registros[1].resultado,
-        Resultado::NaoAplicavel("lista_de_outro_documento")
+        Resultado::NaoAplicavel("lista_de_outro_documento".to_owned())
     );
 }
 
@@ -260,7 +260,7 @@ fn lista_documental_nao_comprova_aceite_de_processo() {
     assert_eq!(registros[0].resultado, Resultado::Lido);
     assert_eq!(
         registros[1].resultado,
-        Resultado::NaoAplicavel("lista_documental_nao_prova_ciencia_do_processo")
+        Resultado::NaoAplicavel("lista_documental_nao_prova_ciencia_do_processo".to_owned())
     );
 }
 
@@ -286,7 +286,7 @@ fn lista_documental_sem_id_nao_prova_aceite_documental() {
     assert_eq!(registros[0].resultado, Resultado::Lido);
     assert_eq!(
         registros[1].resultado,
-        Resultado::NaoAplicavel("id_documento_da_lista_nao_observado")
+        Resultado::NaoAplicavel("id_documento_da_lista_nao_observado".to_owned())
     );
 }
 
@@ -314,11 +314,11 @@ fn rotulo_de_ciencia_com_url_de_visualizacao_nao_comprova_processo() {
     assert_eq!(registros.len(), 2);
     assert_eq!(
         registros[0].resultado,
-        Resultado::NaoAplicavel("acao_de_ciencia_nao_observada")
+        Resultado::NaoAplicavel("acao_de_ciencia_nao_observada".to_owned())
     );
     assert_eq!(
         registros[1].resultado,
-        Resultado::NaoAplicavel("aceite_sem_atividade_observada")
+        Resultado::NaoAplicavel("aceite_sem_atividade_observada".to_owned())
     );
 }
 
@@ -339,7 +339,7 @@ fn rotulo_documental_nao_substitui_acao_unica_da_url_servida() {
         assert_eq!(registros.len(), 1);
         assert_eq!(
             registros[0].resultado,
-            Resultado::NaoAplicavel("acao_de_ciencia_nao_observada"),
+            Resultado::NaoAplicavel("acao_de_ciencia_nao_observada".to_owned()),
             "{consulta}"
         );
     }

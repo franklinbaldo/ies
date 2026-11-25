@@ -2,136 +2,86 @@
 //! Nenhuma credencial nem URL assinada é publicada; efeito incerto sai 3.
 use crate::processo::NumeroProcesso;
 use crate::processo_concluir_cli::com_sessao;
-use crate::processo_sobrestar::{Acao, ErroSobrestamento, PedidoDaMudanca, executar};
+use crate::processo_sobrestar::{Acao, PedidoDaMudanca, executar};
 use crate::visao_do_controle::EnvioHttps;
-use crate::{Cli, Domain, Processo, ProcessoAcao, saida_erro};
+use crate::{Cli, Domain, Processo, ProcessoAcao};
 use serde_json::json;
-use std::process::ExitCode;
 
-pub(crate) fn tentar_operar(cli: &Cli) -> Option<ExitCode> {
-    match &cli.command {
-        Domain::Processo(Processo {
-            acao:
-                Some(ProcessoAcao::Sobrestar {
-                    numero,
-                    motivo,
-                    confirmar,
-                }),
-            ..
-        }) => Some(operar(
+pub(crate) fn tentar_operar(cli: &Cli) -> Option<anyhow::Result<()>> {
+    // Despacho: só as duas ações deste módulo; qualquer outro comando é de outro.
+    let Domain::Processo(Processo {
+        acao: Some(acao), ..
+    }) = &cli.command
+    else {
+        return None;
+    };
+    if let ProcessoAcao::Sobrestar {
+        numero,
+        motivo,
+        confirmar,
+    } = acao
+    {
+        return Some(operar(
             cli,
             numero,
             Some(motivo),
             *confirmar,
             Acao::Sobrestar,
-        )),
-        Domain::Processo(Processo {
-            acao: Some(ProcessoAcao::Retomar { numero, confirmar }),
-            ..
-        }) => Some(operar(cli, numero, None, *confirmar, Acao::Retomar)),
-        _ => None,
+        ));
     }
+    if let ProcessoAcao::Retomar { numero, confirmar } = acao {
+        return Some(operar(cli, numero, None, *confirmar, Acao::Retomar));
+    }
+    None
 }
 
-fn erro_de_uso(json_mode: bool, subcodigo: &str, mensagem: &str) -> ExitCode {
-    if json_mode {
-        println!(
-            "{}",
-            json!({
-                "codigo": "entrada_invalida",
-                "subcodigo": subcodigo,
-                "erro": mensagem,
-                "retentavel": false
-            })
-        );
-    } else {
-        eprintln!("IES: {mensagem} [{subcodigo}]");
-    }
-    ExitCode::from(2)
-}
-
-fn operar(cli: &Cli, numero: &str, motivo: Option<&str>, confirmar: bool, acao: Acao) -> ExitCode {
-    let nup = match NumeroProcesso::novo(numero) {
-        Ok(nup) => nup,
-        Err(erro) => return erro_de_uso(cli.json, erro.subcodigo(), "número de processo inválido"),
-    };
-    if matches!(acao, Acao::Sobrestar) && motivo.is_none_or(|t| t.trim().is_empty()) {
-        return erro_de_uso(
-            cli.json,
-            "motivo_do_sobrestamento_vazio",
-            "informe um motivo não vazio",
-        );
-    }
+fn operar(
+    cli: &Cli,
+    nup: &NumeroProcesso,
+    motivo: Option<&str>,
+    confirmar: bool,
+    acao: Acao,
+) -> anyhow::Result<()> {
     com_sessao(cli, |sessao, indice| {
         let pedido = PedidoDaMudanca {
-            nup: &nup,
+            nup,
             unidade: cli.unidade.as_deref(),
             acao,
             motivo,
             confirmar,
         };
-        match executar(sessao, &pedido, indice, &mut EnvioHttps) {
-            Ok(previa) => {
-                if cli.json {
-                    println!(
-                        "{}",
-                        json!({
-                            "nup": previa.nup,
-                            "id_procedimento": previa.id_procedimento,
-                            "unidade": previa.unidade,
-                            "acao": previa.acao.como_texto(),
-                            "motivo": motivo,
-                            "confirmado": previa.confirmado,
-                            "alterado": previa.alterado,
-                            "reconciliado_por_leitura": previa.reconciliado_por_leitura,
-                            "origem": "web",
-                            "requisicoes": previa.requisicoes
-                        })
-                    );
-                } else if previa.confirmado {
-                    println!(
-                        "Processo {}: {} aplicado e conferido por leitura. Requisições: {}.",
-                        previa.nup,
-                        previa.acao.como_texto(),
-                        previa.requisicoes
-                    );
-                } else {
-                    println!(
-                        "Prévia: {} o processo {} na unidade {}. Requisições: {}. Nenhuma escrita enviada.",
-                        previa.acao.como_texto(),
-                        previa.nup,
-                        previa.unidade,
-                        previa.requisicoes
-                    );
-                }
-                ExitCode::SUCCESS
-            }
-            Err(e) => {
-                if matches!(e, ErroSobrestamento::EfeitoIncerto) {
-                    if cli.json {
-                        println!(
-                            "{}",
-                            json!({
-                                "codigo": "efeito_incerto",
-                                "subcodigo": e.subcodigo(),
-                                "erro": e.mensagem(),
-                                "retentavel": false,
-                                "origem": "web"
-                            })
-                        );
-                    } else {
-                        eprintln!("IES: {} [{}]", e.mensagem(), e.subcodigo());
-                    }
-                    ExitCode::from(3)
-                } else {
-                    saida_erro::erro_fonte_http(
-                        cli.json,
-                        e.subcodigo(),
-                        e.mensagem(),
-                        e.status_http(),
-                    )
-                }
-            }
+        let previa = executar(sessao, &pedido, indice, &mut EnvioHttps)?;
+        if cli.json {
+            let mut valor = json!({
+                "nup": previa.nup,
+                "id_procedimento": previa.id_procedimento,
+                "unidade": previa.unidade,
+                "acao": previa.acao.como_texto(),
+                "motivo": motivo,
+                "confirmado": previa.estado.aplicada(),
+                "alterado": previa.estado.aplicada(),
+                "reconciliado_por_leitura": previa.estado.aplicada(),
+                "origem": "web",
+                "requisicoes": previa.requisicoes
+            });
+            crate::indice_local::anexar_avisos(&mut valor, indice);
+            println!("{valor}");
+        } else if previa.estado.aplicada() {
+            println!(
+                "Processo {}: {} aplicado e conferido por leitura. Requisições: {}.",
+                previa.nup,
+                previa.acao.como_texto(),
+                previa.requisicoes
+            );
+        } else {
+            println!(
+                "Prévia: {} o processo {} na unidade {}. Requisições: {}. Nenhuma escrita enviada.",
+                previa.acao.como_texto(),
+                previa.nup,
+                previa.unidade,
+                previa.requisicoes
+            );
         }
+        Ok(())
     })
 }

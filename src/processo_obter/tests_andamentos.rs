@@ -1,11 +1,10 @@
 //! RED/GREEN dos andamentos depois da árvore nos caminhos 2, 3 e 4: a
 //! sequência exata de requisições no padrão, com `--andamentos-completos`
 //! e com `--sem-andamentos`, e as falhas tipadas.
-use super::ErroProcessoObter as E;
 use super::tests_apoio::*;
 use super::*;
+use crate::acao_do_sei::AcaoDoSei;
 use crate::arvore_processo::tests::NUP;
-use crate::erro_html::ErroHtml;
 use crate::historico::ErroHistorico;
 use crate::historico_processo::{ErroAndamentos, ErroLinkDoHistorico, TipoDoHistorico};
 
@@ -49,7 +48,10 @@ fn padrao_le_a_visao_servida_com_mais_um_get() {
     let (inst, g) = (instalacao(), geracao());
     let guardado = amb
         .indice
-        .link(&inst, chave(&g, "procedimento_consultar_historico", ID))
+        .link(
+            &inst,
+            chave(&g, AcaoDoSei::ProcedimentoConsultarHistorico, ID),
+        )
         .map(|u| u.url().to_owned());
     assert_eq!(guardado, Some(url_historico(ID)));
     let debug = format!("{r:?}");
@@ -125,7 +127,7 @@ fn post_que_devolve_a_visao_r_e_recusa() {
     );
     assert_eq!(
         r.unwrap_err(),
-        E::Andamentos(ErroAndamentos::VisaoDoHistoricoDiferenteDaPedida)
+        super::ErroProcessoObter::Andamentos(ErroAndamentos::VisaoDoHistoricoDiferenteDaPedida)
     );
 }
 
@@ -141,7 +143,10 @@ fn post_que_redireciona_ao_login_e_sessao_encerrada() {
             vec![ok(historico('R', 2, 2)), r302(LOGIN)],
         ),
     );
-    assert_eq!(r.unwrap_err(), E::SessaoEncerrada);
+    assert_eq!(
+        r.unwrap_err(),
+        super::ErroProcessoObter::SessaoEncerrada(crate::erro_publico::SessaoEncerrada)
+    );
 }
 
 #[test]
@@ -173,7 +178,7 @@ fn sem_andamentos_aceita_arvore_sem_o_link() {
 }
 
 #[test]
-fn arvore_sem_o_link_publica_o_motivo_sem_falhar() {
+fn arvore_sem_o_link_recusa_com_erro_tipado() {
     let amb = ambiente();
     let (r, pedidos) = rodar_com(
         &amb,
@@ -181,13 +186,10 @@ fn arvore_sem_o_link_publica_o_motivo_sem_falhar() {
         PedidoDeAndamentos::Completos,
         caminho_4a(arvore_de(ID, NUP), vec![]),
     );
-    let r = r.unwrap();
-    assert_eq!(r.andamentos, Andamentos::LinkNaoPublicadoNaArvore);
     assert_eq!(
-        r.andamentos.motivo(),
-        Some("link_do_historico_nao_publicado_na_arvore")
+        r.unwrap_err(),
+        ErroProcessoObter::LinkDoHistorico(ErroLinkDoHistorico::LinkDoHistoricoAusenteNaArvore)
     );
-    assert_eq!(r.requisicoes, 3);
     assert_eq!(pedidos.len(), 3);
 }
 
@@ -205,9 +207,9 @@ fn link_presente_mas_repetido_continua_recusa() {
     );
     assert_eq!(
         r.unwrap_err(),
-        E::LinkDoHistorico(ErroLinkDoHistorico::Html(ErroHtml::repetido(
-            "links_do_historico_repetidos_na_arvore"
-        )))
+        super::ErroProcessoObter::LinkDoHistorico(
+            ErroLinkDoHistorico::LinksDoHistoricoRepetidosNaArvore
+        )
     );
 }
 
@@ -224,8 +226,14 @@ fn historico_que_responde_503_falha_com_o_erro_de_transporte_sem_retry() {
         ),
     );
     let erro = r.unwrap_err();
-    assert!(matches!(erro, E::Transporte(_)), "{erro:?}");
-    assert_eq!(erro.status_http().map(|s| s.status), Some(503));
+    assert!(
+        matches!(
+            &erro,
+            super::ErroProcessoObter::Transporte(transporte)
+                if transporte.status_http().map(|s| s.status) == Some(503)
+        ),
+        "{erro:?}"
+    );
     assert_eq!(pedidos.len(), 4);
 }
 
@@ -238,7 +246,10 @@ fn historico_que_responde_login_e_sessao_encerrada() {
         PedidoDeAndamentos::VisaoServida,
         caminho_4a(arvore_com_historico(ID, NUP), vec![r302(LOGIN)]),
     );
-    assert_eq!(r.unwrap_err(), E::SessaoEncerrada);
+    assert_eq!(
+        r.unwrap_err(),
+        super::ErroProcessoObter::SessaoEncerrada(crate::erro_publico::SessaoEncerrada)
+    );
 }
 
 #[test]
@@ -260,13 +271,9 @@ fn historico_de_outro_nup_pelo_link_da_arvore_e_recusa() {
     let erro = r.unwrap_err();
     assert_eq!(
         erro,
-        E::Andamentos(ErroAndamentos::Historico(
+        super::ErroProcessoObter::Andamentos(ErroAndamentos::Historico(
             ErroHistorico::NumeroDoHistoricoDiferenteDoSolicitado
         ))
-    );
-    assert_eq!(
-        erro.subcodigo(),
-        "numero_do_historico_diferente_do_solicitado"
     );
 }
 
@@ -274,7 +281,7 @@ fn historico_de_outro_nup_pelo_link_da_arvore_e_recusa() {
 fn caminhos_2_e_3_somam_um_get_do_historico() {
     let amb = ambiente();
     let inst = instalacao();
-    amb.indice.registrar_processo(&inst, NUP, ID).unwrap();
+    amb.indice.registrar_processo(&inst, NUP, ID);
     let (r, pedidos) = rodar_com(
         &amb,
         None,
@@ -294,7 +301,7 @@ fn caminhos_2_e_3_somam_um_get_do_historico() {
     amb.indice
         .registrar_link(
             &inst,
-            chave(&g, "protocolo_pesquisa_rapida", ""),
+            chave(&g, AcaoDoSei::ProtocoloPesquisaRapida, ""),
             &absoluta(&action_rapida()),
         )
         .unwrap();
@@ -312,16 +319,4 @@ fn caminhos_2_e_3_somam_um_get_do_historico() {
     assert_eq!(r.unwrap().requisicoes, 4);
     assert_eq!(pedidos[0], post(&absoluta(&action_rapida()), CORPO_RAPIDO));
     assert_eq!(pedidos.last(), Some(&get(&url_historico(ID))));
-}
-
-#[test]
-fn subcodigos_dos_novos_erros_do_fluxo() {
-    assert_eq!(
-        E::LinkDoHistorico(ErroLinkDoHistorico::LinkDoHistoricoAusenteNaArvore).subcodigo(),
-        "link_do_historico_ausente_na_arvore"
-    );
-    assert_eq!(
-        E::Andamentos(ErroAndamentos::CharsetDoHistoricoNaoSuportado).subcodigo(),
-        "charset_do_historico_nao_suportado"
-    );
 }

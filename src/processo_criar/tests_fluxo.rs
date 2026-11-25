@@ -1,7 +1,8 @@
 //! Casos sintéticos da issue #245: oráculo de cenário Todos
 //! `tests/test_processo_criar_escolher_tipo_010.py`, sem portar a arquitetura.
 use super::*;
-use crate::erro_html::ErroHtml;
+use crate::acao_do_sei::AcaoDoSei;
+use crate::consulta_do_controlador::ErroParametroDaUrl;
 use crate::processo_concluir::tests_apoio::NUP;
 use crate::processo_concluir::tests_apoio::{
     UNIDADE, ambiente, arvore, controle, ok, r302, rodar_com, trabalhar,
@@ -39,7 +40,7 @@ pub(super) fn lista(versao_41: bool) -> String {
 
 pub(super) fn cadastro() -> String {
     format!(
-        "<form id='frmProcedimentoCadastro' method='post' action='controlador.php?acao=procedimento_gerar&infra_hash={HASH}'>         <input type='hidden' name='hdnIdTipoProcedimento' value='12'>         <input type='hidden' name='hdnFlagProcedimentoCadastro' value='0'>         <input type='hidden' name='hdnAssuntos' value=''>         <input type='text' name='txtDescricao' value=''>         <input type='radio' name='rdoNivelAcesso' value='0' checked>         <input type='radio' name='rdoNivelAcesso' value='1'>         <select name='selAssuntos'><option value='21'>Assunto de Ensaio</option></select>         <select name='selHipoteseLegal'><option value='31'>Base Legal Teste</option></select>         </form>"
+        "<form id='frmProcedimentoCadastro' method='post' action='controlador.php?acao=procedimento_gerar&infra_hash={HASH}'>         <input type='hidden' name='hdnIdTipoProcedimento' value='12'>         <input type='hidden' name='hdnFlagProcedimentoCadastro' value='0'>         <input type='hidden' name='hdnAssuntos' value=''>         <input type='text' name='txtDescricao' maxlength='250' value=''>         <input type='radio' name='rdoNivelAcesso' value='0' checked>         <input type='radio' name='rdoNivelAcesso' value='1'>         <select name='selAssuntos'><option value='21'>Assunto de Ensaio</option></select>         <select name='selHipoteseLegal'><option value='31'>Base Legal Teste</option></select>         </form>"
     )
 }
 
@@ -48,24 +49,24 @@ pub(super) fn pedido(confirmar: bool) -> PedidoCriar<'static> {
         tipo: TIPO,
         especificacao: "Ensaio automatizado issue 245",
         interessados: &[],
-        nivel: "publico",
+        nivel: crate::dominio::NivelDeCriacao::Publico,
         unidade: None,
         hipotese_legal: None,
         confirmar,
     }
 }
 
-fn arvore_verificadora() -> String {
+pub(super) fn arvore_verificadora() -> String {
     arvore(
         &[UNIDADE],
         &[acao_da_barra(&link_das_propriedades(
-            "procedimento_alterar",
+            AcaoDoSei::ProcedimentoAlterar,
             "10",
         ))],
     )
 }
 
-fn propriedades_verificadoras() -> String {
+pub(super) fn propriedades_verificadoras() -> String {
     tela_das_propriedades(NUP, "10")
         .replace("Tipo Sintetico: Teste", TIPO)
         .replace(
@@ -184,10 +185,7 @@ fn falha_de_transporte_depois_do_post_eh_incerta_e_nao_repete() {
         )
     });
     let erro = resultado.unwrap_err();
-    assert_eq!(erro.saida(), 3);
     let diagnostico = erro.diagnostico_apos_post().unwrap();
-    assert_eq!(diagnostico.causa_post, "falha_de_rede");
-    assert_eq!(diagnostico.causa_releitura, None);
     assert_eq!(diagnostico.candidatos_observados, Some(Vec::new()));
     assert_eq!(requests.len(), 5);
     assert_eq!(
@@ -205,7 +203,7 @@ fn interessado_nao_resolvido_nao_cria() {
         tipo: TIPO,
         especificacao: "Ensaio automatizado issue 245",
         interessados: &interessados,
-        nivel: "publico",
+        nivel: crate::dominio::NivelDeCriacao::Publico,
         unidade: None,
         hipotese_legal: None,
         confirmar: true,
@@ -223,10 +221,7 @@ fn interessado_nao_resolvido_nao_cria() {
     assert!(matches!(
         resultado,
         Err(ErroCriar::Interessado(
-            crate::processo_criar_interessados::ErroInteressado::Html(ErroHtml {
-                onde: "interessado_controles_ausentes",
-                ..
-            })
+            crate::processo_criar_interessados::ErroInteressado::InteressadoControlesAusentes
         ))
     ));
     assert_eq!(requests.len(), 3);
@@ -243,7 +238,7 @@ fn previa_com_interessado_unico_conferido_por_ajax() {
         tipo: TIPO,
         especificacao: "Ensaio de interessado",
         interessados: &interessados,
-        nivel: "publico",
+        nivel: crate::dominio::NivelDeCriacao::Publico,
         unidade: None,
         hipotese_legal: None,
         confirmar: false,
@@ -287,13 +282,13 @@ fn previa_com_interessado_unico_conferido_por_ajax() {
     );
 }
 
-/// Revisão da #249: a recusa HTTP do GET preserva subcódigo e status do SEI.
+/// Revisão da #249: a recusa HTTP do GET preserva o erro e o status do SEI.
 #[test]
 fn recusa_http_do_get_preserva_status_e_nao_segue() {
     let amb = ambiente();
     let respostas = vec![
         ok(tela_controle()),
-        Err(FalhaTransporte::StatusHttpDeErroDoServidor(
+        Err(FalhaTransporte::Status(
             crate::transporte::StatusHttpRecusado::sem_mensagem(503),
         )),
     ];
@@ -307,14 +302,12 @@ fn recusa_http_do_get_preserva_status_e_nao_segue() {
         )
     });
     let erro = resultado.expect_err("recusa HTTP");
-    assert_eq!(erro.subcodigo(), "status_http_de_erro_do_servidor");
     assert_eq!(erro.status_http().map(|s| s.status), Some(503));
-    assert_eq!(erro.saida(), 1);
     assert_eq!(requests.len(), 2);
 }
 
 /// Caso de Todos `tests/test_processo_criar_escolher_tipo_010.py` @323eb01:
-/// a variante 4.1 exige um POST de seleção (só abre cadastro) e somente
+/// a versão 4.1 exige um POST de seleção (só abre cadastro) e somente
 /// um POST criador. Após esse segundo POST, há duas leituras de verificação.
 #[test]
 fn confirma_41_com_post_de_escolha_e_post_criador_unicos() {
@@ -375,7 +368,12 @@ fn lista_40_com_identidade_duplicada_recusa_sem_abrir_cadastro() {
             rede,
         )
     });
-    assert_eq!(resultado, Err(ErroCriar::TipoSemIdentificador));
+    assert!(matches!(
+        resultado,
+        Err(ErroCriar::Lista(ErroListaDeTipos::ChaveDoCadastroIlegivel(
+            ErroParametroDaUrl::ParametroRepetido("id_tipo_procedimento")
+        )))
+    ));
     assert_eq!(requests.len(), 2);
     assert!(requests.iter().all(|req| req.metodo == "GET"));
 }
@@ -399,23 +397,33 @@ fn lista_40_com_duas_acoes_recusa_sem_abrir_cadastro() {
             rede,
         )
     });
-    assert_eq!(resultado, Err(ErroCriar::Formulario));
+    assert!(matches!(
+        resultado,
+        Err(ErroCriar::Lista(ErroListaDeTipos::AcaoDoCadastroIlegivel(
+            crate::consulta_do_controlador::ErroAcaoDaUrl::AcaoRepetida
+        )))
+    ));
     assert_eq!(requests.len(), 2);
     assert!(requests.iter().all(|req| req.metodo == "GET"));
 }
 
-/// #245: a lista Gerados precisa ter cobertura provada ANTES de uma escrita.
-/// O controle inicial publica cinco registros e apenas a primeira linha;
-/// isso não permite reconciliar futuramente a criação.
+/// Gerados paginados (conta compartilhada do PEN1, 10/11/2026): sem
+/// fotografia completa a escrita segue, e uma resposta incerta ao POST sai
+/// com efeito incerto, sem reconciliar nem repetir.
 #[test]
-fn confirma_recusa_gerados_paginados_antes_de_post_criador() {
+fn gerados_paginados_nao_impedem_o_post_mas_tornam_a_resposta_incerta() {
     let amb = ambiente();
     let parcial = tela_controle().replace(
         "<caption>0 registros:</caption></table>",
-        "<caption>5 registros - 1 a 1):</caption>\
+        "<caption>Processos (5 registros - 1 a 1):</caption>\
          <tr id='P17'><td><a class='processoVisualizado'>00000.000017/2026-17</a></td></tr></table>",
     );
-    let respostas = vec![ok(parcial), ok(lista(false)), ok(cadastro())];
+    let respostas = vec![
+        ok(parcial),
+        ok(lista(false)),
+        ok(cadastro()),
+        ok("<html><body>resposta inesperada</body></html>".to_owned()),
+    ];
     let (resultado, requests) = rodar_com(&amb, respostas, |sessao, _, _, rede| {
         criar(
             sessao.origem,
@@ -425,12 +433,10 @@ fn confirma_recusa_gerados_paginados_antes_de_post_criador() {
             rede,
         )
     });
-    assert_eq!(
-        resultado.unwrap_err().subcodigo(),
-        "gerados_sem_cobertura_completa_para_reconciliacao"
-    );
-    assert_eq!(requests.len(), 3);
-    assert!(requests.iter().all(|req| req.metodo == "GET"));
+    let erro = resultado.unwrap_err();
+    let _diagnostico = erro.diagnostico_apos_post().expect("diagnóstico pós-POST");
+    assert_eq!(requests.len(), 4);
+    assert_eq!(requests.iter().filter(|r| r.metodo == "POST").count(), 1);
 }
 
 /// A restrição à escrita não transforma uma prévia legítima em erro.
@@ -440,7 +446,7 @@ fn previa_nao_exige_fotografia_completa_de_gerados() {
     let amb = ambiente();
     let parcial = tela_controle().replace(
         "<caption>0 registros:</caption></table>",
-        "<caption>5 registros - 1 a 1):</caption>\
+        "<caption>Processos (5 registros - 1 a 1):</caption>\
          <tr id='P17'><td><a class='processoVisualizado'>00000.000017/2026-17</a></td></tr></table>",
     );
     let respostas = vec![ok(parcial), ok(lista(false)), ok(cadastro())];
@@ -469,7 +475,7 @@ fn falha_do_post_dispara_uma_unica_leitura_nova_dos_gerados() {
         Err(FalhaTransporte::Rede),
         ok(tela_controle()),
     ];
-    let (resultado, requests) = rodar_com(&amb, respostas, |sessao, _, _, rede| {
+    let (_resultado, requests) = rodar_com(&amb, respostas, |sessao, _, _, rede| {
         criar(
             sessao.origem,
             sessao.url_do_controle,
@@ -478,7 +484,6 @@ fn falha_do_post_dispara_uma_unica_leitura_nova_dos_gerados() {
             rede,
         )
     });
-    assert_eq!(resultado.unwrap_err().saida(), 3);
     assert_eq!(requests.len(), 5);
     assert_eq!(requests.iter().filter(|r| r.metodo == "POST").count(), 1);
     assert_eq!(requests[4].metodo, "GET");
@@ -493,7 +498,7 @@ fn falha_do_post_e_da_releitura_permanece_incerta_sem_retry() {
         ok(lista(false)),
         ok(cadastro()),
         Err(FalhaTransporte::Rede),
-        Err(FalhaTransporte::StatusHttpDeErroDoServidor(
+        Err(FalhaTransporte::Status(
             crate::transporte::StatusHttpRecusado::sem_mensagem(503),
         )),
     ];
@@ -509,12 +514,6 @@ fn falha_do_post_e_da_releitura_permanece_incerta_sem_retry() {
     assert_eq!(requests.len(), 5);
     assert_eq!(requests.iter().filter(|r| r.metodo == "POST").count(), 1);
     let erro = resultado.unwrap_err();
-    assert_eq!(erro.saida(), 3);
     let diagnostico = erro.diagnostico_apos_post().unwrap();
-    assert_eq!(diagnostico.causa_post, "falha_de_rede");
-    assert_eq!(
-        diagnostico.causa_releitura,
-        Some("status_http_de_erro_do_servidor")
-    );
     assert_eq!(diagnostico.candidatos_observados, None);
 }

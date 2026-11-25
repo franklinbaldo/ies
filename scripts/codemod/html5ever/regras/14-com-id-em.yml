@@ -1,0 +1,16 @@
+id: 14-com-id-em
+language: rust
+message: 'Elementos com id entre os descendentes.'
+severity: hint
+rule:
+  any:
+    - pattern: nos_com_id_em($T, $P, $I).map_err($E)?
+    - pattern: nos_com_id_em($T, $P, $I)?
+  not:
+    inside:
+      stopBy: end
+      kind: mod_item
+      follows:
+        kind: attribute_item
+        regex: 'cfg\(test\)'
+fix: '$T.com_id($I).collect::<Vec<_>>()'

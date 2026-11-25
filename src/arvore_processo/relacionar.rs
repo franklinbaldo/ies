@@ -1,51 +1,44 @@
 //! Link assinado de `procedimento_relacionar` na barra do processo.
-use super::barra_do_processo::{FalhaDaBarra, acao_do_href, ancoras_da_barra};
+use super::barra_do_processo::ancoras_da_barra;
 use super::concluir::EnderecoDeEscrita;
 use super::endereco::{EnderecoRecusado, conferir_endereco_relativo};
-use crate::erro_html::ErroHtml;
+use crate::acao_do_sei::AcaoDoSei;
+use crate::consulta_do_controlador::menciona_acao;
 use crate::instalacao::Instalacao;
 
-pub(crate) const ACAO_DE_RELACIONAR: &str = "procedimento_relacionar";
-
-#[derive(Clone, Copy, Debug, PartialEq, Eq, crate::erro_publico::Causa)]
+#[derive(Clone, Debug, PartialEq, Eq, thiserror::Error)]
+#[error("{self:?}")]
 pub(crate) enum ErroRelacionarNaBarra {
-    #[causa(nome = "endereco_de_relacionar_de_outro_processo")]
+    Barra(#[from] crate::arvore_processo::ErroBarraDoProcesso),
     EnderecoDeOutroProcesso,
-    #[causa(transparente)]
-    Html(ErroHtml),
-}
-impl ErroRelacionarNaBarra {
-    pub(crate) fn subcodigo(self) -> &'static str {
-        crate::erro_publico::folha(&self)
-    }
+    EnderecoDeRelacionarNaoReconhecido,
+    LinksDeRelacionarRepetidosNaBarra,
 }
 pub(crate) fn ler_relacionar_da_barra(
     instalacao: &Instalacao,
     html: &str,
     id: &str,
 ) -> Result<Option<EnderecoDeEscrita>, ErroRelacionarNaBarra> {
-    use ErroRelacionarNaBarra as E;
-    let ancoras = ancoras_da_barra(html).map_err(|erro| match erro {
-        FalhaDaBarra::Fora => E::Html(ErroHtml::valor("barra_do_processo_fora_da_forma_observada")),
-        FalhaDaBarra::Repetidas => {
-            E::Html(ErroHtml::repetido("barras_do_processo_repetidas_na_arvore"))
-        }
-    })?;
+    let ancoras = ancoras_da_barra(html)?;
     let links: Vec<_> = ancoras
         .iter()
         .filter_map(|a| a.href.as_deref())
-        .filter(|href| acao_do_href(href) == Some(ACAO_DE_RELACIONAR))
+        .filter(|href| menciona_acao(href, AcaoDoSei::ProcedimentoRelacionar))
         .collect();
     match links.as_slice() {
         [] => Ok(None),
-        [href] => conferir_endereco_relativo(instalacao, href, ACAO_DE_RELACIONAR, id)
-            .map(|url| Some(EnderecoDeEscrita::novo(url)))
-            .map_err(|recusa| match recusa {
-                EnderecoRecusado::NaoReconhecido => {
-                    E::Html(ErroHtml::valor("endereco_de_relacionar_nao_reconhecido"))
-                }
-                EnderecoRecusado::DeOutroProcesso => E::EnderecoDeOutroProcesso,
-            }),
-        _ => Err(ErroHtml::repetido("links_de_relacionar_repetidos_na_barra").into()),
+        [href] => {
+            conferir_endereco_relativo(instalacao, href, AcaoDoSei::ProcedimentoRelacionar, id)
+                .map(|url| Some(EnderecoDeEscrita::novo(url)))
+                .map_err(|recusa| match recusa {
+                    EnderecoRecusado::NaoReconhecido => {
+                        ErroRelacionarNaBarra::EnderecoDeRelacionarNaoReconhecido
+                    }
+                    EnderecoRecusado::DeOutroProcesso => {
+                        ErroRelacionarNaBarra::EnderecoDeOutroProcesso
+                    }
+                })
+        }
+        _ => Err(ErroRelacionarNaBarra::LinksDeRelacionarRepetidosNaBarra),
     }
 }

@@ -93,3 +93,67 @@ fn pesquisa_do_nup_serve_a_tela_e_a_arvore_sem_criar_documentos() {
     assert!(repetida.starts_with("HTTP/1.1 400 Bad Request"));
     servidor.join().unwrap();
 }
+
+/// A entrada por id sem assinatura é navegação do processo persistido,
+/// não da representação separada usada para criar documentos.
+#[test]
+fn entrada_por_id_sem_assinatura_redireciona_sem_mutar_processo() {
+    use iesei::processos::{self, ProcessoSimulado};
+
+    let escuta = TcpListener::bind(("127.0.0.1", 0)).unwrap();
+    let endereco = escuta.local_addr().unwrap();
+    let servidor = std::thread::spawn(move || {
+        let mut banco = Connection::open_in_memory().unwrap();
+        iniciar(&banco).unwrap();
+        let origem = Instalacao::interpretar("https://simulado.invalid/sei").unwrap();
+        processos::guardar(
+            &mut banco,
+            &origem,
+            "entrada-id",
+            &ProcessoSimulado {
+                id: "10".into(),
+                numero: "00001.000001/2026-01".into(),
+                unidade_origem: "TESTE".into(),
+                aberto_em: vec!["TESTE".into()],
+                anotacao_origem: None,
+                destinos: vec![],
+            },
+        )
+        .unwrap();
+        for _ in 0..3 {
+            let (mut fluxo, _) = escuta.accept().unwrap();
+            atender_http(&mut fluxo, Some((&banco, &origem, "entrada-id"))).unwrap();
+        }
+        assert_eq!(
+            processos::ler(&banco, &origem, "entrada-id", "10")
+                .unwrap()
+                .unwrap()
+                .numero,
+            "00001.000001/2026-01"
+        );
+    });
+
+    let entrada = "/sei/controlador.php?acao=procedimento_trabalhar&id_procedimento=10";
+    let sem_hash = requisitar(endereco, "GET", entrada, "");
+    assert!(
+        sem_hash.starts_with("HTTP/1.1 302 Found"),
+        "entrada por id: {sem_hash}"
+    );
+    let assinado = format!(
+        "/sei/controlador.php?acao=procedimento_trabalhar&id_procedimento=10&infra_sistema=100000100&infra_unidade_atual=110000001&infra_hash={}",
+        "4".repeat(64)
+    );
+    assert!(
+        sem_hash.contains(&format!("Location: {}\r\n", &assinado[5..])),
+        "a entrada conserva o id no destino assinado: {sem_hash}"
+    );
+    let tela = requisitar(endereco, "GET", &assinado, "");
+    assert!(tela.starts_with("HTTP/1.1 200 OK"), "{tela}");
+    assert!(tela.contains("id='ifrArvore'"));
+    let recusado = requisitar(endereco, "POST", entrada, "");
+    assert!(
+        recusado.starts_with("HTTP/1.1 405 Method Not Allowed"),
+        "{recusado}"
+    );
+    servidor.join().unwrap();
+}

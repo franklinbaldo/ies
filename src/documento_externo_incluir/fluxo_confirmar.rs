@@ -2,108 +2,78 @@
 //! Transporte de upload é injetado; o comando público não autoriza escrita
 //! até a validação em treinamento e a confirmação segura do fluxo completo.
 use super::{
-    FalhaPdf, PdfLocal,
-    confirmacao::{FalhaConfirmacao, FotoProcesso, confirmar_sequencia},
-    fluxo::{ErroPreviaExterna, preparar_previa},
+    PdfLocal,
+    confirmacao::{FotoProcesso, confirmar_sequencia},
+    fluxo::{ErroIncluirExterno, preparar_previa},
     recibo::{FalhaUpload, ReciboUpload},
 };
+use crate::acao_do_sei::AcaoDoSei;
+use crate::consulta_do_controlador::ConsultaDoControlador;
 use crate::formulario_web::{CodificacaoDaTela, TelaServida, enviar_submissao_via};
 use crate::indice_local::IndiceLocal;
 use crate::instalacao::Instalacao;
 use crate::processo::NumeroProcesso;
 use crate::processo_concluir::escrita::leitura;
 use crate::processo_obter::{EnvioDoProcesso, SessaoDoProcesso, obter_processo};
-use crate::transporte::{conferir_chave_de_consulta, conferir_valor_de_consulta};
 
 pub(crate) struct InclusaoComprovada {
     pub(crate) numero_sei: String,
     pub(crate) unidade: String,
 }
 
-#[derive(Debug)]
-pub(crate) enum ErroConfirmacaoExterna {
-    Previa(ErroPreviaExterna),
-    Pdf(FalhaPdf),
-    EnderecoDeUploadNaoObservado,
-    CampoCadastroNaoOferecido(&'static str),
-    Sequencia(FalhaConfirmacao),
+/// Campo que a submissão definitiva exige e o cadastro precisa oferecer
+/// antes de qualquer upload.
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+pub(crate) enum CampoExigidoDoCadastro {
+    DataElaboracao,
+    Formato,
+    NivelAcesso,
 }
-impl ErroConfirmacaoExterna {
-    pub(crate) fn codigo_saida(&self) -> u8 {
+
+impl CampoExigidoDoCadastro {
+    const TODOS: [Self; 3] = [Self::DataElaboracao, Self::Formato, Self::NivelAcesso];
+
+    /// O `name` do controle no `frmDocumentoCadastro`.
+    fn nome_do_controle(self) -> &'static str {
         match self {
-            Self::Pdf(_) => 2,
-            Self::Previa(_)
-            | Self::EnderecoDeUploadNaoObservado
-            | Self::CampoCadastroNaoOferecido(_) => 1,
-            Self::Sequencia(e) => e.codigo_saida(),
+            Self::DataElaboracao => "txtDataElaboracao",
+            Self::Formato => "rdoFormato",
+            Self::NivelAcesso => "rdoNivelAcesso",
         }
-    }
-
-    pub(crate) fn etapa(&self) -> &'static str {
-        match self {
-            Self::Pdf(_) => "arquivo_local",
-            Self::Previa(_)
-            | Self::EnderecoDeUploadNaoObservado
-            | Self::CampoCadastroNaoOferecido(_) => "previa",
-            Self::Sequencia(
-                FalhaConfirmacao::FotoInicialIncompleta
-                | FalhaConfirmacao::FotoInicialInconsistente,
-            ) => "fotografia_inicial",
-            Self::Sequencia(
-                FalhaConfirmacao::UploadRecusado(_) | FalhaConfirmacao::UploadIncerto(_),
-            ) => "upload_temporario",
-            Self::Sequencia(FalhaConfirmacao::TemporarioSemCadastro(_)) => "preparo_do_cadastro",
-            Self::Sequencia(FalhaConfirmacao::CadastroIncerto(_)) => "cadastro_definitivo",
-            Self::Sequencia(
-                FalhaConfirmacao::ReleituraIncerta(_) | FalhaConfirmacao::EfeitoIncerto,
-            ) => "releitura_independente",
-        }
-    }
-
-    pub(crate) fn temporario_possivel(&self) -> bool {
-        matches!(self, Self::Sequencia(e) if e.temporario_possivel())
-    }
-
-    pub(crate) fn cadastro_tentado(&self) -> bool {
-        matches!(
-            self,
-            Self::Sequencia(
-                FalhaConfirmacao::CadastroIncerto(_)
-                    | FalhaConfirmacao::ReleituraIncerta(_)
-                    | FalhaConfirmacao::EfeitoIncerto
-            )
-        )
     }
 }
 
 /// A URL provém exclusivamente do script servido e fica privada.
 /// Aceita a ausência observada de `id_procedimento` no endpoint de upload.
-fn conferir_upload(
+pub(crate) fn conferir_upload(
     instalacao: &Instalacao,
     relativo: &str,
-) -> Result<String, ErroConfirmacaoExterna> {
-    let erro = || ErroConfirmacaoExterna::EnderecoDeUploadNaoObservado;
-    let consulta = relativo.strip_prefix("controlador.php?").ok_or_else(erro)?;
+    processo: &str,
+) -> Result<String, ErroIncluirExterno> {
+    let consulta = relativo
+        .strip_prefix("controlador.php?")
+        .ok_or(ErroIncluirExterno::EnderecoDeUploadRecusado)?;
     if relativo.len() > 8_192 || !relativo.bytes().all(|b| (33..=126).contains(&b)) {
-        return Err(erro());
+        return Err(ErroIncluirExterno::EnderecoDeUploadRecusado);
     }
-    let mut acao = 0;
-    let mut hash = 0;
-    for par in consulta.split('&') {
-        let (chave, valor) = par.split_once('=').ok_or_else(erro)?;
-        conferir_chave_de_consulta(chave).map_err(|_| erro())?;
-        conferir_valor_de_consulta(valor).map_err(|_| erro())?;
-        match chave {
-            "acao" if valor == "documento_upload_anexo" => acao += 1,
-            "infra_hash" if valor.len() == 64 && valor.bytes().all(|b| b.is_ascii_hexdigit()) => {
-                hash += 1;
-            }
-            "acao" | "infra_hash" | "acao_ajax" => return Err(erro()),
-            _ => {}
-        }
+    let consulta = ConsultaDoControlador::ler(consulta)
+        .map_err(ErroIncluirExterno::ConsultaDoUploadForaDaForma)?;
+    match consulta
+        .valores("id_procedimento")
+        .collect::<Vec<_>>()
+        .as_slice()
+    {
+        [] => {}
+        [informado] if *informado == processo => {}
+        _ => return Err(ErroIncluirExterno::UploadParaOutroProcesso),
     }
-    if acao != 1 || hash != 1 {
-        return Err(erro());
+    if consulta.acao() != Ok(AcaoDoSei::DocumentoUploadAnexo.como_na_url())
+        || consulta.valores("acao_ajax").next().is_some()
+        || !consulta
+            .unico("infra_hash")
+            .is_ok_and(|hash| hash.len() == 64 && hash.bytes().all(|b| b.is_ascii_hexdigit()))
+    {
+        return Err(ErroIncluirExterno::EnderecoDeUploadRecusado);
     }
     Ok(format!("{}/{relativo}", instalacao.url_base()))
 }
@@ -111,6 +81,7 @@ fn conferir_upload(
 /// Navega até o cadastro atual, tenta um upload, depois um cadastro e uma
 /// releitura. A closure de upload representa UMA tentativa, nunca um retry.
 /// O chamador só deve oferecer a rota de escrita quando validada em TREINAMENTO.
+#[cfg(test)]
 #[allow(clippy::too_many_arguments)]
 pub(crate) fn executar_confirmacao_via<V, U>(
     sessao: &SessaoDoProcesso<'_>,
@@ -121,7 +92,7 @@ pub(crate) fn executar_confirmacao_via<V, U>(
     indice: &IndiceLocal,
     envio: &mut V,
     upload: U,
-) -> Result<InclusaoComprovada, ErroConfirmacaoExterna>
+) -> Result<InclusaoComprovada, ErroIncluirExterno>
 where
     V: EnvioDoProcesso,
     U: FnOnce(
@@ -155,7 +126,7 @@ pub(crate) fn executar_confirmacao_via_prevalidada<V, U>(
     indice: &IndiceLocal,
     envio: &mut V,
     upload: U,
-) -> Result<InclusaoComprovada, ErroConfirmacaoExterna>
+) -> Result<InclusaoComprovada, ErroIncluirExterno>
 where
     V: EnvioDoProcesso,
     U: FnOnce(
@@ -190,7 +161,7 @@ fn executar_confirmacao_via_impl<V, U>(
     envio: &mut V,
     upload: U,
     prevalidar: bool,
-) -> Result<InclusaoComprovada, ErroConfirmacaoExterna>
+) -> Result<InclusaoComprovada, ErroIncluirExterno>
 where
     V: EnvioDoProcesso,
     U: FnOnce(
@@ -201,25 +172,28 @@ where
         &PdfLocal,
     ) -> Result<ReciboUpload, FalhaUpload>,
 {
-    let preparado = preparar_previa(sessao, nup, unidade_pedida, tipo, pdf, indice, envio)
-        .map_err(ErroConfirmacaoExterna::Previa)?;
+    let preparado = preparar_previa(sessao, nup, unidade_pedida, tipo, pdf, indice, envio)?;
     // O recibo do upload nao deve ser criado se o cadastro ja mostrou
     // faltar um dos campos que a submissao definitiva exigira.
     if prevalidar {
-        for campo in ["txtDataElaboracao", "rdoFormato", "rdoNivelAcesso"] {
+        for campo in CampoExigidoDoCadastro::TODOS {
             if !preparado
                 .previa
                 .campos_oferecidos
                 .iter()
-                .any(|nome| nome == campo)
+                .any(|nome| nome == campo.nome_do_controle())
             {
-                return Err(ErroConfirmacaoExterna::CampoCadastroNaoOferecido(campo));
+                return Err(ErroIncluirExterno::CampoDoCadastroNaoOferecido(campo));
             }
         }
     }
     let instalacao = Instalacao::interpretar(sessao.origem)
-        .ok_or(ErroConfirmacaoExterna::EnderecoDeUploadNaoObservado)?;
-    let destino = conferir_upload(&instalacao, preparado.cadastro.plano.url_upload())?;
+        .ok_or(ErroIncluirExterno::OrigemDaSessaoNaoInterpretada)?;
+    let destino = conferir_upload(
+        &instalacao,
+        preparado.cadastro.plano.url_upload(),
+        &preparado.foto_antes.id,
+    )?;
     let tela = TelaServida {
         url: &preparado.url_cadastro,
         html: &preparado.html_cadastro,
@@ -248,8 +222,7 @@ where
             obter_processo(sessao, &leitura(nup, unidade_pedida, false), indice, rede)
                 .map(|depois| FotoProcesso::da_arvore(&depois.arvore))
         },
-    )
-    .map_err(ErroConfirmacaoExterna::Sequencia)?;
+    )?;
     Ok(InclusaoComprovada {
         numero_sei,
         unidade,
@@ -270,15 +243,11 @@ pub(crate) fn executar_confirmacao_https<V: EnvioDoProcesso>(
     indice: &IndiceLocal,
     envio: &mut V,
     upload_tentado: &mut bool,
-) -> Result<InclusaoComprovada, ErroConfirmacaoExterna> {
+) -> Result<InclusaoComprovada, ErroIncluirExterno> {
     // Validar antes de abrir sessão/rede. É o mesmo descritor que será
     // transmitido, não uma segunda abertura suscetível a substituição.
-    let arquivo =
-        super::abrir_pdf_para_envio(caminho_pdf, pdf).map_err(ErroConfirmacaoExterna::Pdf)?;
-    let cookie = sessao
-        .cookie
-        .valor()
-        .map_err(|e| ErroConfirmacaoExterna::Previa(ErroPreviaExterna::Transporte(e)))?;
+    let arquivo = super::abrir_pdf_para_envio(caminho_pdf, pdf)?;
+    let cookie = sessao.cookie.valor()?;
     // A origem já foi validada quando a sessão foi aberta.
     let origem = sessao
         .origem

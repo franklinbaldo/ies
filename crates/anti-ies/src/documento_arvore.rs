@@ -2,6 +2,7 @@
 //! Hipótese de integração sintética para #88; não realiza requisições ao SEI.
 use crate::{Estado, Resposta, despachar};
 use iesei::cancelamento_documento::Situacao;
+use iesei::ciencia_documental::Estado as Ciencia;
 use iesei::documento_versoes::{self as versoes, DocumentoSimulado, ler};
 use iesei::documentos_simulados;
 use iesei::instalacao::Instalacao;
@@ -21,7 +22,35 @@ fn js(s: &str) -> String {
         .replace('<', "\\u003c")
 }
 
-fn arvore(d: &DocumentoSimulado, situacao: &Situacao) -> String {
+/// A barra documental só oferece a lista quando a unidade da sessão tem
+/// o processo aberto. Sem estado explícito de tramitação, preservar a
+/// oferta anterior, sem inferir fechamento de um snapshot ausente.
+fn lista_visivel(
+    banco: &Connection,
+    instalacao: &Instalacao,
+    cenario: &str,
+    id_procedimento: &str,
+) -> Result<bool, Estado> {
+    let Some(processo) = iesei::processos::ler(banco, instalacao, cenario, id_procedimento)
+        .map_err(|_| Estado::DadosInsuficientes)?
+    else {
+        return Ok(true);
+    };
+    let unidade = iesei::banco_cassettes::ler(banco, instalacao, cenario)
+        .map_err(|_| Estado::DadosInsuficientes)?
+        .map_or_else(
+            || processo.unidade_origem.clone(),
+            |controle| controle.unidade.as_str().to_owned(),
+        );
+    Ok(processo.aberto_em.contains(&unidade))
+}
+
+fn arvore(
+    d: &DocumentoSimulado,
+    situacao: &Situacao,
+    ciencia: &Ciencia,
+    lista_visivel: bool,
+) -> String {
     let p = &d.id_procedimento;
     let id = &d.id_documento;
     let nup = js(&d.numero_processo);
@@ -45,18 +74,47 @@ fn arvore(d: &DocumentoSimulado, situacao: &Situacao) -> String {
         ),
     };
     let dica = js(&dica);
+    let ciencia_acao = crate::documento_ciencia::barra(ciencia);
+    let lista_ciencia = crate::documento_ciencia::acao_da_lista(9, id, p, ciencia);
+    let link_lista = if lista_visivel && matches!(situacao, Situacao::Disponivel) {
+        format!(
+            "<a href=\"controlador.php?acao=documento_versao_listar&acao_origem=arvore_visualizar&acao_retorno=arvore_visualizar&id_procedimento={p}&id_documento={id}&arvore=1&infra_sistema=100000100&infra_unidade_atual=110000001&infra_hash={hash}\" tabindex=\"455\"><img title=\"Versões do Documento\"/></a>"
+        )
+    } else {
+        String::new()
+    };
+    // "Incluir em Bloco de Assinatura" (#381), na forma do card UnB.
+    let incluir_em_bloco = if matches!(situacao, Situacao::Disponivel) {
+        format!(
+            "<a href=\"controlador.php?acao=bloco_escolher&acao_origem=arvore_visualizar&acao_retorno=arvore_visualizar&id_procedimento={p}&id_documento={id}&arvore=1&infra_sistema=100000100&infra_unidade_atual=110000001&infra_hash={hash}\" tabindex=\"453\"><img title=\"Incluir em Bloco de Assinatura\"/></a>"
+        )
+    } else {
+        String::new()
+    };
+    let tela = format!(
+        "controlador.php?acao=arvore_visualizar&id_procedimento={p}&id_documento={id}&infra_hash={}",
+        crate::protocolo_sintetico::INFRA_HASH
+    );
+    // Um documento cancelado segue identificável, mas não publica conteúdo.
+    let src = match situacao {
+        Situacao::Disponivel => format!(
+            "controlador.php?acao=documento_visualizar&acao_origem=procedimento_visualizar&id_documento={id}&arvore=1&infra_sistema=100000100&infra_unidade_atual=110000001&infra_hash={hash_corpo}"
+        ),
+        Situacao::Cancelado { .. } => String::new(),
+    };
     format!(
         r#"<html><head><script>
 var Nos = new Array();
+var NosAcoes = new Array();
 Nos[0] = new infraArvoreNo("PROCESSO","{p}",null,"controlador.php?acao=arvore_visualizar&id_procedimento={p}","ifrVisualizacao","{nup}","Processo simulado","svg/processo.svg","svg/processo.svg","svg/processo.svg",true,true,"noVisitado",null,"noVisitado","{nup}");
 Nos[0].acoes = '';
 Nos[0].src = '';
 Nos[0].html = '';
-Nos[1] = new infraArvoreNo("DOCUMENTO","{id}","{p}","about:blank","ifrVisualizacao","{rotulo}","{dica}","svg/{icone}.svg","svg/{icone}.svg","svg/{icone}.svg",true,false,null,null,"noVisitado","{numero}");
-Nos[1].acoes = '<a href="controlador.php?acao=documento_versao_listar&acao_origem=arvore_visualizar&acao_retorno=arvore_visualizar&id_procedimento={p}&id_documento={id}&arvore=1&infra_sistema=100000100&infra_unidade_atual=110000001&infra_hash={hash}" tabindex="455"><img title="Versões do Documento"/></a>{cancelar}';
-Nos[1].src = 'controlador.php?acao=documento_visualizar&acao_origem=procedimento_visualizar&id_documento={id}&arvore=1&infra_sistema=100000100&infra_unidade_atual=110000001&infra_hash={hash_corpo}';
+Nos[1] = new infraArvoreNo("DOCUMENTO","{id}","{p}","{tela}","ifrVisualizacao","{rotulo}","{dica}","svg/{icone}.svg","svg/{icone}.svg","svg/{icone}.svg",true,false,null,null,"noVisitado","{numero}");
+Nos[1].acoes = '{link_lista}{incluir_em_bloco}{cancelar}{ciencia_acao}';
+Nos[1].src = '{src}';
 Nos[1].html = '';
-</script></head><body><div id="divArvore"></div><form id="frmArvore"></form></body></html>"#
+{lista_ciencia}</script></head><body><div id="divArvore"></div><form id="frmArvore"></form></body></html>"#
     )
 }
 
@@ -90,6 +148,11 @@ pub(crate) fn identidade_documental(
     let Some((_, consulta)) = alvo.split_once('?') else {
         return Ok(None);
     };
+    // A chave sem '=' e malformada, nao ausente. Ignora-la permitiria
+    // selecionar id_protocolo como fallback e devolver o DOC alheio.
+    if consulta.split('&').any(|campo| campo == "id_documento") {
+        return Err(Estado::RequisicaoInvalida);
+    }
     let mut valores = consulta
         .split('&')
         .filter_map(|campo| campo.split_once('='))
@@ -131,7 +194,16 @@ pub fn responder(
         Ok(documento) => documento,
         Err(estado) => return Resposta::nova(estado),
     };
-    let id = documento.or_else(|| super::parametro_unico(alvo, "id_protocolo"));
+    // id_protocolo e id_documento podem selecionar o mesmo documento,
+    // mas valores divergentes nao autorizam escolher um deles como fallback.
+    let protocolo = match super::documento_versoes::parametro(alvo, "id_protocolo") {
+        Ok(protocolo) => protocolo,
+        Err(estado) => return Resposta::nova(estado),
+    };
+    if documento.is_some() && protocolo.is_some() && documento != protocolo {
+        return Resposta::nova(Estado::RequisicaoInvalida);
+    }
+    let id = documento.or(protocolo);
     let Some(id) = id.filter(|s| s.bytes().all(|b| b.is_ascii_digit())) else {
         return Resposta::nova(Estado::RequisicaoInvalida);
     };
@@ -160,7 +232,25 @@ pub fn responder(
                 Ok(None) => return Resposta::nova(Estado::DadosInsuficientes),
                 Err(estado) => return Resposta::nova(estado),
             };
-            html(arvore(&documento, &situacao))
+            let ciencia = match crate::documento_ciencia::estado(
+                banco,
+                instalacao,
+                cenario,
+                &documento.id_documento,
+                &documento.id_procedimento,
+            ) {
+                Ok(Some(ciencia)) => ciencia,
+                Ok(None) => return Resposta::nova(Estado::DadosInsuficientes),
+                Err(estado) => return Resposta::nova(estado),
+            };
+            let lista = match lista_visivel(banco, instalacao, cenario, &documento.id_procedimento)
+            {
+                Ok(lista) => lista,
+                Err(estado) => return Resposta::nova(estado),
+            };
+            // A presença do documento em A não retira a ação de incluí-lo
+            // em B. Pertencimento é por bloco, não um veto global de barra.
+            html(arvore(&documento, &situacao, &ciencia, lista))
         }
         Some("procedimento_trabalhar") => html(trabalhar(&documento)),
         _ => unreachable!("ação validada"),
@@ -175,6 +265,18 @@ pub(crate) fn nos_do_processo(
     cenario: &str,
     processo: &str,
 ) -> Result<String, Estado> {
+    nos_com_proximo_indice(banco, instalacao, cenario, processo).map(|(nos, _)| nos)
+}
+
+/// Projeta a lista documental e entrega o próximo índice livre para nós de
+/// pastas, sem interpretar ou reescrever o JavaScript que acabou de gerar.
+pub(crate) fn nos_com_proximo_indice(
+    banco: &Connection,
+    instalacao: &Instalacao,
+    cenario: &str,
+    processo: &str,
+) -> Result<(String, usize), Estado> {
+    let lista = lista_visivel(banco, instalacao, cenario, processo)?;
     let ids = versoes::ids_do_processo(banco, instalacao, cenario, processo)
         .map_err(|_| Estado::DadosInsuficientes)?;
     let internos = documentos_simulados::documentos(banco, instalacao, cenario, processo)
@@ -189,14 +291,16 @@ pub(crate) fn nos_do_processo(
         let situacao =
             crate::documento_cancelar::estado(banco, instalacao, cenario, &id, processo)?
                 .ok_or(Estado::DadosInsuficientes)?;
+        let ciencia = crate::documento_ciencia::estado(banco, instalacao, cenario, &id, processo)?
+            .ok_or(Estado::DadosInsuficientes)?;
         nos.push_str(&no_de_documento(
             indice,
             processo,
             &id,
             &documento.numero,
             &documento.tipo,
-            true,
-            &situacao,
+            (true, lista),
+            (&situacao, &ciencia),
         ));
         indice += 1;
         vistos.push(id);
@@ -206,18 +310,23 @@ pub(crate) fn nos_do_processo(
         if vistos.contains(&id) {
             continue;
         }
+        let situacao =
+            crate::documento_cancelar::estado(banco, instalacao, cenario, &id, processo)?
+                .ok_or(Estado::DadosInsuficientes)?;
+        let ciencia = crate::documento_ciencia::estado(banco, instalacao, cenario, &id, processo)?
+            .ok_or(Estado::DadosInsuficientes)?;
         nos.push_str(&no_de_documento(
             indice,
             processo,
             &id,
             &documento.numero_sei,
             &documento.tipo,
-            false,
-            &Situacao::Disponivel,
+            (false, lista),
+            (&situacao, &ciencia),
         ));
         indice += 1;
     }
-    Ok(nos)
+    Ok((nos, indice))
 }
 
 fn no_de_documento(
@@ -226,8 +335,8 @@ fn no_de_documento(
     id: &str,
     numero: &str,
     tipo: &str,
-    versoes: bool,
-    situacao: &Situacao,
+    (versoes, lista_visivel): (bool, bool),
+    (situacao, ciencia): (&Situacao, &Ciencia),
 ) -> String {
     let (icone, dica) = match situacao {
         Situacao::Disponivel => ("documento_interno", "Documento interno".to_owned()),
@@ -241,93 +350,58 @@ fn no_de_documento(
     let processo = js(processo);
     let numero = js(numero);
     let rotulo = js(&format!("{tipo} {numero}"));
+    let ciencia_acao = crate::documento_ciencia::barra(ciencia);
+    let lista_ciencia =
+        crate::documento_ciencia::acao_da_lista(indice + 9, &id, &processo, ciencia);
+    let tela = format!(
+        "controlador.php?acao=arvore_visualizar&id_procedimento={processo}&id_documento={id}&infra_hash={}",
+        crate::protocolo_sintetico::INFRA_HASH
+    );
+    let cancelar = if matches!(situacao, Situacao::Disponivel) {
+        format!(
+            "<a href=\"controlador.php?acao=documento_cancelar&acao_origem=arvore_visualizar&id_procedimento={processo}&id_documento={id}&infra_hash={}\">Cancelar Documento</a>",
+            crate::protocolo_sintetico::INFRA_HASH
+        )
+    } else {
+        String::new()
+    };
     let mut no = format!(
-        r#"Nos[{indice}] = new infraArvoreNo("DOCUMENTO","{id}","{processo}","about:blank","ifrVisualizacao","{rotulo}","{dica}","svg/{icone}.svg","svg/{icone}.svg","svg/{icone}.svg",true,false,null,null,"noVisitado","{numero}");
+        r#"Nos[{indice}] = new infraArvoreNo("DOCUMENTO","{id}","{processo}","{tela}","ifrVisualizacao","{rotulo}","{dica}","svg/{icone}.svg","svg/{icone}.svg","svg/{icone}.svg",true,false,null,null,"noVisitado","{numero}");
 "#
     );
     if versoes {
         let hash = "e".repeat(64);
+        let link_lista = if lista_visivel && matches!(situacao, Situacao::Disponivel) {
+            format!(
+                "<a href=\"controlador.php?acao=documento_versao_listar&id_procedimento={processo}&id_documento={id}&infra_hash={hash}\">Versões</a>"
+            )
+        } else {
+            String::new()
+        };
         let hash_corpo = "f".repeat(64);
+        let src = match situacao {
+            Situacao::Disponivel => format!(
+                "controlador.php?acao=documento_visualizar&id_documento={id}&infra_hash={hash_corpo}"
+            ),
+            Situacao::Cancelado { .. } => String::new(),
+        };
         write!(
             no,
-            r#"Nos[{indice}].acoes = '<a href="controlador.php?acao=documento_versao_listar&id_procedimento={processo}&id_documento={id}&infra_hash={hash}">Versões</a>';
-Nos[{indice}].src = 'controlador.php?acao=documento_visualizar&id_documento={id}&infra_hash={hash_corpo}';
-"#
+            "Nos[{indice}].acoes = '{link_lista}{cancelar}{ciencia_acao}';\nNos[{indice}].src = '{src}';\n"
         )
         .expect("formatação de String");
     } else {
-        write!(no, "Nos[{indice}].acoes = '';\nNos[{indice}].src = '';\n")
-            .expect("formatação de String");
+        write!(
+            no,
+            "Nos[{indice}].acoes = '{cancelar}{ciencia_acao}';\nNos[{indice}].src = '';\n"
+        )
+        .expect("formatação de String");
     }
     writeln!(no, "Nos[{indice}].html = '';").expect("formatação de String");
+    no.push_str(&lista_ciencia);
     no
 }
 
 #[cfg(test)]
-mod testes_cancelamento_arvore_mista {
-    use super::*;
-    use iesei::banco_cassettes::iniciar;
-    use iesei::cancelamento_documento::{Aplicacao, aplicar};
-    use iesei::documento_versoes::Revisao;
-    use std::num::NonZeroU32;
-
-    /// Regressao tecnica do BDD-273-02: as duas arvores leem o mesmo
-    /// cancelamento persistido, sem perder os outros documentos.
-    #[test]
-    fn cancelamento_altera_icone_na_arvore_mista_sem_apagar_outros_documentos() {
-        let mut banco = Connection::open_in_memory().unwrap();
-        iniciar(&banco).unwrap();
-        let origem = Instalacao::interpretar("https://sei.exemplo/sei").unwrap();
-        let cenario = "bdd-273";
-        for (id, numero) in [("42", "0011519"), ("43", "0011520")] {
-            versoes::guardar(
-                &mut banco,
-                cenario,
-                &DocumentoSimulado {
-                    instalacao: origem.clone(),
-                    id_documento: id.into(),
-                    id_procedimento: "10".into(),
-                    numero_processo: "00001.000001/2026-01".into(),
-                    numero: numero.into(),
-                    tipo: "Despacho".into(),
-                    revisoes: vec![Revisao {
-                        versao: NonZeroU32::new(1).unwrap(),
-                        usuario: "Teste".into(),
-                        unidade: "ORIGEM".into(),
-                        modificacao: "08/11/2026".into(),
-                        html_corpo: "<p>Original</p>".into(),
-                    }],
-                },
-            )
-            .unwrap();
-        }
-        let antes = nos_do_processo(&banco, &origem, cenario, "10").unwrap();
-        assert_eq!(antes.matches("documento_cancelado.svg").count(), 0);
-        assert_eq!(
-            aplicar(
-                &banco,
-                &origem,
-                cenario,
-                "42",
-                "10",
-                "Motivo do cancelamento"
-            )
-            .unwrap(),
-            Aplicacao::Aplicada
-        );
-        let depois = nos_do_processo(&banco, &origem, cenario, "10").unwrap();
-        assert_eq!(depois.matches("documento_cancelado.svg").count(), 3);
-        assert_eq!(depois.matches("documento_interno.svg").count(), 3);
-        assert!(depois.contains("Motivo do cancelamento"));
-        assert!(depois.contains("0011519"));
-        assert!(depois.contains("0011520"));
-        let individual = responder(
-            "GET",
-            "/sei/controlador.php?acao=procedimento_visualizar&id_procedimento=10&id_documento=42",
-            &banco,
-            &origem,
-            cenario,
-        );
-        assert!(individual.corpo.contains("documento_cancelado.svg"));
-    }
-}
+#[path = "documento_arvore/testes_cancelamento_arvore_mista.rs"]
+mod testes_cancelamento_arvore_mista;

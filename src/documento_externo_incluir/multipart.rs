@@ -3,11 +3,14 @@
 use crate::formulario_web::CodificacaoDaTela;
 use std::io::{Cursor, Read};
 
-#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+#[derive(Clone, Copy, Debug, PartialEq, Eq, thiserror::Error)]
+#[error("{self:?}")]
 pub(crate) enum FalhaMultipart {
     NomeIncompativelComCharset,
     FronteiraInvalida,
     TamanhoInvalido,
+    /// O nome do arquivo tem um caractere que o ISO-8859-1 da tela não representa.
+    CaractereDoNomeForaDoIso88591(char),
 }
 
 /// Peças de um único POST de upload. O PDF fica no leitor, não em memória.
@@ -66,8 +69,8 @@ pub(crate) fn preparar_pdf(
         match codificacao {
             CodificacaoDaTela::Iso88591 => {
                 let codigo = u32::from(caractere);
-                let byte =
-                    u8::try_from(codigo).map_err(|_| FalhaMultipart::NomeIncompativelComCharset)?;
+                let byte = u8::try_from(codigo)
+                    .map_err(|_| FalhaMultipart::CaractereDoNomeForaDoIso88591(caractere))?;
                 nome_codificado.push(byte);
             }
             CodificacaoDaTela::Utf8 => {
@@ -168,7 +171,7 @@ mod tests {
                 "----ies332",
                 CodificacaoDaTela::Iso88591
             ),
-            Err(FalhaMultipart::NomeIncompativelComCharset)
+            Err(FalhaMultipart::CaractereDoNomeForaDoIso88591('📄'))
         ));
     }
 

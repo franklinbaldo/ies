@@ -12,8 +12,21 @@ use crate::processo_concluir::escrita::leitura;
 use crate::processo_obter::{
     EnvioDoProcesso, ErroProcessoObter, SessaoDoProcesso, abrir_para_escrever,
 };
-use crate::transporte::StatusHttpRecusado;
 pub(crate) use fluxo::executar;
+
+/// `--motivo` vazio ou só com espaços.
+#[derive(Debug, thiserror::Error)]
+#[error("{self:?}")]
+pub(crate) struct MotivoDoSobrestamentoVazio;
+
+/// `--motivo`: o clap recusa o vazio (saída 2) antes da sessão.
+pub(crate) fn motivo_do_sobrestamento(motivo: &str) -> Result<String, MotivoDoSobrestamentoVazio> {
+    if motivo.trim().is_empty() {
+        Err(MotivoDoSobrestamentoVazio)
+    } else {
+        Ok(motivo.to_owned())
+    }
+}
 
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub(crate) enum Acao {
@@ -48,97 +61,45 @@ pub(crate) struct Previa {
     pub(crate) unidade: String,
     pub(crate) acao: Acao,
     pub(crate) requisicoes: u8,
-    pub(crate) confirmado: bool,
-    pub(crate) alterado: bool,
-    pub(crate) reconciliado_por_leitura: bool,
+    pub(crate) estado: EstadoDaMudanca,
 }
 
-#[derive(Clone, Debug, PartialEq, Eq, crate::erro_publico::Causa)]
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+pub(crate) enum EstadoDaMudanca {
+    Previa,
+    Aplicada,
+}
+
+impl EstadoDaMudanca {
+    pub(crate) fn aplicada(self) -> bool {
+        matches!(self, Self::Aplicada)
+    }
+}
+
+#[derive(Clone, Debug, PartialEq, Eq, thiserror::Error)]
+#[error("{self:?}")]
 pub(crate) enum ErroSobrestamento {
-    #[causa(interna)]
-    Abertura(ErroProcessoObter),
-    #[causa(nome = "unidade_do_sobrestamento_nao_publicada")]
+    Abertura(#[from] ErroProcessoObter),
     UnidadeNaoPublicada,
-    #[causa(nome = "situacao_antes_do_sobrestamento_nao_lida")]
     SituacaoNaoLida(MotivoAbertoEm),
-    #[causa(interna)]
-    Barra(ErroAcaoSobrestar),
-    #[causa(nome = "processo_ja_sobrestado")]
+    Barra(#[from] ErroAcaoSobrestar),
     JaSobrestado,
-    #[causa(nome = "processo_nao_sobrestado")]
     NaoSobrestado,
-    #[causa(nome = "processo_nao_aberto_na_unidade_para_sobrestar")]
     ForaDaUnidade,
-    #[causa(nome = "processo_sobrestado_em_outra_unidade")]
     SobrestadoEmOutraUnidade,
-    #[causa(nome = "acao_de_sobrestamento_nao_oferecida")]
     AcaoNaoOferecida,
-    #[causa(nome = "motivo_do_sobrestamento_vazio")]
     MotivoVazio,
-    #[causa(interna)]
-    TelaDaEscrita(FalhaTransporte),
-    #[causa(nome = "tela_de_sobrestamento_redirecionada")]
+    TelaDaEscrita(#[from] FalhaTransporte),
     TelaRedirecionada,
-    #[causa(nome = "sessao_encerrada_rode_ies_login")]
-    SessaoEncerrada,
-    #[causa(nome = "charset_da_tela_de_sobrestar_nao_suportado")]
+    SessaoEncerrada(#[source] crate::erro_publico::SessaoEncerrada),
     CharsetNaoSuportado,
-    #[causa(interna)]
-    TelaSobrestar(tela::ErroTela),
-    #[causa(interna)]
-    Formulario(ErroSubmissaoFormulario),
-    #[causa(interna)]
-    EnderecoDeRetomar(ErroEnderecoDeRetomar),
-    #[causa(nome = "sobrestamento_ou_retomada_nao_aplicados")]
+    TelaSobrestar(#[from] tela::ErroTela),
+    Formulario(#[from] ErroSubmissaoFormulario),
+    EnderecoDeRetomar(#[from] ErroEnderecoDeRetomar),
     EscritaNaoAplicada,
-    #[causa(nome = "efeito_incerto_no_sobrestamento")]
-    EfeitoIncerto,
-}
-
-impl ErroSobrestamento {
-    pub(crate) fn subcodigo(&self) -> &'static str {
-        crate::erro_publico::folha(self)
-    }
-
-    pub(crate) fn mensagem(&self) -> &'static str {
-        match self {
-            Self::Abertura(e) => e.mensagem(),
-            Self::UnidadeNaoPublicada => "o SEI não publicou a unidade da sessão",
-            Self::SituacaoNaoLida(_) => "a situação do processo não foi observada com segurança",
-            Self::Barra(_) => "a ação da barra não está na forma observada",
-            Self::JaSobrestado => "o processo já está sobrestado; nenhuma escrita enviada",
-            Self::NaoSobrestado => "o processo não está sobrestado; nenhuma escrita enviada",
-            Self::ForaDaUnidade => "o processo não está aberto na unidade ativa",
-            Self::SobrestadoEmOutraUnidade => "o sobrestamento está em outra unidade",
-            Self::AcaoNaoOferecida => "a barra do SEI não oferece esta ação",
-            Self::MotivoVazio => "motivo obrigatório para sobrestar",
-            Self::TelaDaEscrita(_) | Self::TelaRedirecionada => {
-                "a tela da escrita não foi servida; nenhuma escrita enviada"
-            }
-            Self::SessaoEncerrada => "sessão encerrada; rode ies login; nada enviado",
-            Self::CharsetNaoSuportado => "charset da tela não suportado; nada enviado",
-            Self::TelaSobrestar(_) => {
-                "formulário de sobrestamento fora da forma observada; nada enviado"
-            }
-            Self::Formulario(_) => "formulário de sobrestamento não pôde ser enviado",
-            Self::EnderecoDeRetomar(_) => {
-                "endereço de retomar fora da forma observada; nada enviado"
-            }
-            Self::EscritaNaoAplicada => "releitura confirmou que a ação não foi aplicada",
-            Self::EfeitoIncerto => {
-                "efeito incerto após escrita; consulte processo antes de repetir"
-            }
-        }
-    }
-
-    pub(crate) fn status_http(&self) -> Option<&StatusHttpRecusado> {
-        match self {
-            Self::Abertura(e) => e.status_http(),
-            Self::TelaDaEscrita(e) => e.status_http(),
-            Self::Formulario(e) => e.status_http(),
-            _ => None,
-        }
-    }
+    NaoConfirmado,
+    /// A releitura após a escrita falhou; a escrita pode ter ocorrido.
+    NaoConfirmadoNaReleitura(#[source] ErroProcessoObter),
 }
 
 /// Prévia sem escrita. A URL assinada só vive dentro do fluxo de confirmação.
@@ -151,7 +112,7 @@ pub(crate) fn preparar<V: EnvioDoProcesso>(
     indice: &IndiceLocal,
     envio: &mut V,
 ) -> Result<Previa, ErroSobrestamento> {
-    preparar_com_acao(sessao, nup, unidade, acao, indice, envio).map(|(previa, _)| previa)
+    preparar_com_acao(sessao, nup, unidade, acao, indice, envio).map(|(previa, _, _)| previa)
 }
 
 pub(super) fn preparar_com_acao<V: EnvioDoProcesso>(
@@ -161,7 +122,14 @@ pub(super) fn preparar_com_acao<V: EnvioDoProcesso>(
     acao: Acao,
     indice: &IndiceLocal,
     envio: &mut V,
-) -> Result<(Previa, EnderecoDeEscrita), ErroSobrestamento> {
+) -> Result<
+    (
+        Previa,
+        EnderecoDeEscrita,
+        crate::transporte::sessao::CookieLido,
+    ),
+    ErroSobrestamento,
+> {
     let pedido = leitura(nup, unidade, true);
     let (aberto, acoes) = abrir_para_escrever(sessao, &pedido, indice, envio)?;
     let atual = aberto
@@ -191,8 +159,7 @@ pub(super) fn preparar_com_acao<V: EnvioDoProcesso>(
     let oferecida = match acao {
         Acao::Sobrestar => acoes.sobrestar,
         Acao::Retomar => acoes.retomar,
-    }
-    .map_err(ErroSobrestamento::Barra)?;
+    }?;
     let endereco = oferecida.ok_or(ErroSobrestamento::AcaoNaoOferecida)?;
     Ok((
         Previa {
@@ -201,15 +168,18 @@ pub(super) fn preparar_com_acao<V: EnvioDoProcesso>(
             unidade: atual,
             acao,
             requisicoes: aberto.requisicoes,
-            confirmado: false,
-            alterado: false,
-            reconciliado_por_leitura: false,
+            estado: EstadoDaMudanca::Previa,
         },
         endereco,
+        acoes.cookie,
     ))
 }
 
+#[cfg(test)]
+mod acervo;
 mod tela;
+#[cfg(test)]
+pub(crate) use tela::redirecionamento_esperado as aceite_302;
 #[cfg(test)]
 mod tests;
 #[cfg(test)]

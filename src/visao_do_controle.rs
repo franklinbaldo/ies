@@ -19,8 +19,8 @@ mod passos;
 mod plano;
 mod resumida;
 
+use crate::acao_do_sei::AcaoDoSei;
 use crate::caixa_detalhada::ErroDetalhada;
-use crate::erro_html::ErroHtml;
 use crate::erro_web::ErroCaixa;
 use crate::formulario_web::{
     ConferenciaDaUnidade, EfeitoAvaliado, EnvioDoFormulario, ErroSubmissaoFormulario,
@@ -28,11 +28,13 @@ use crate::formulario_web::{
 };
 use crate::nivel_de_detalhe::ErroNivelDeDetalhe;
 use crate::pagina_do_controle::{ErroControleDoFormulario, ErroPaginaDoControle};
-use crate::transporte::{FalhaTransporte, StatusHttpRecusado};
+use crate::transporte::FalhaTransporte;
 
 pub(crate) use definir::definir_colunas;
+pub(crate) use definir_erro::ColunasDefinidas;
+#[cfg(test)]
 pub(crate) use definir_erro::{
-    ColunasDefinidas, ErroDefinirColunas, FalhaDoSalvar, VerificacaoDasColunas,
+    ErroDefinirColunas, EstadoDasColunas, FalhaDoSalvar, VerificacaoDasColunas,
 };
 pub(crate) use envio::{EnvioContado, EnvioDoControle, EnvioHttps, TelaAtual};
 pub(crate) use fluxo::listar_na_visao_detalhada;
@@ -53,7 +55,7 @@ const CAMPOS_USUARIO: &[&str] = &[
 
 /// `trocarVisualizacao(v)`: só `hdnTipoVisualizacao` muda.
 pub(crate) const TROCAR_VISAO_DO_CONTROLE: OperacaoDeFormulario = OperacaoDeFormulario {
-    acao: "procedimento_controlar",
+    acao: AcaoDoSei::ProcedimentoControlar,
     formulario: "frmProcedimentoControlar",
     envio: EnvioDoFormulario::SubmitPorScript,
     campos_ocultos_exigidos: &["hdnTipoVisualizacao"],
@@ -71,7 +73,7 @@ pub(crate) const TROCAR_VISAO_DO_CONTROLE: OperacaoDeFormulario = OperacaoDeForm
 
 /// `infraAcaoPaginar('=', i, 'Detalhado')` a partir de uma tela D.
 pub(crate) const PAGINAR_VISAO_DETALHADA: OperacaoDeFormulario = OperacaoDeFormulario {
-    acao: "procedimento_controlar",
+    acao: AcaoDoSei::ProcedimentoControlar,
     formulario: "frmProcedimentoControlar",
     envio: EnvioDoFormulario::SubmitPorScript,
     campos_ocultos_exigidos: &["hdnTipoVisualizacao", "hdnDetalhadoPaginaAtual"],
@@ -104,23 +106,18 @@ impl Visao {
 }
 
 /// Uma variante por fato verificável; nenhum valor servido é guardado.
-#[derive(Clone, Debug, PartialEq, Eq, crate::erro_publico::Causa)]
+#[derive(Clone, Debug, PartialEq, Eq, thiserror::Error)]
+#[error("{self:?}")]
 pub(crate) enum ErroVisaoDoControle {
-    #[causa(nome = "charset_da_tela_do_controle_nao_suportado")]
     CharsetDaTelaNaoSuportado,
-    #[causa(nome = "unidade_da_tela_diferente_da_solicitada")]
     UnidadeDiferenteDaSolicitada,
-    #[causa(nome = "redirecionamento_ao_trocar_visao_do_controle")]
     RedirecionamentoAoTrocarVisao,
-    #[causa(nome = "visao_do_controle_nao_trocada_apos_envio")]
     VisaoNaoTrocadaAposEnvio {
         esperada: Visao,
     },
-    #[causa(nome = "unidade_alterada_ao_trocar_visao_do_controle")]
     UnidadeAlteradaAoTrocarVisao,
     PaginaAtualDaVisaoDetalhadaIlegivel,
     PaginaAtualDaVisaoDetalhadaIncompativelComAFaixa,
-    #[causa(nome = "pagina_da_caixa_fora_do_intervalo")]
     PaginaForaDoIntervalo {
         solicitada: usize,
     },
@@ -128,48 +125,62 @@ pub(crate) enum ErroVisaoDoControle {
     CriteriosDaVisaoDetalhadaAlteradosAposPaginar,
     TotalDeclaradoAlteradoAposPaginar,
     FaixaDaRespostaDiferenteDaPaginaSolicitada,
-    #[causa(nome = "redirecionamento_apos_paginar_controle")]
     RedirecionamentoAposPaginar,
-    #[causa(interna)]
-    Caixa(ErroCaixa),
-    #[causa(interna)]
-    Detalhada(ErroDetalhada),
-    #[causa(interna)]
-    NivelDeDetalhe(ErroNivelDeDetalhe),
-    #[causa(interna)]
-    Formulario(ErroControleDoFormulario),
-    #[causa(interna)]
-    Submissao(ErroSubmissaoFormulario),
-    #[causa(interna)]
-    Pagina(ErroPaginaDoControle),
-    #[causa(interna)]
-    Transporte(FalhaTransporte),
-    #[causa(transparente)]
-    Html(ErroHtml),
+    Caixa(#[from] ErroCaixa),
+    Detalhada(#[from] ErroDetalhada),
+    NivelDeDetalhe(#[from] ErroNivelDeDetalhe),
+    Formulario(#[from] ErroControleDoFormulario),
+    Submissao(#[from] ErroSubmissaoFormulario),
+    Pagina(#[from] ErroPaginaDoControle),
+    Transporte(#[from] FalhaTransporte),
+    IdentificacaoDaUnidadeAusenteNoControle,
+    LinkDoNivelDeDetalheAusente,
+    LinkDoNivelDeDetalheNaoReconhecido,
+    LinksDoNivelDeDetalheRepetidos,
+    VisaoDoControleNaoReconhecida,
+    /// O valor da página atual não cabe no tipo do paginador.
+    PaginaAtualDaVisaoDetalhadaNaoCabeNoTipo(#[source] std::num::ParseIntError),
+    /// A consulta do link do nível não se lê em pares `chave=valor`.
+    ConsultaDoNivelIlegivel(#[source] crate::consulta_do_controlador::ErroConsultaDoControlador),
+    /// `infra_hash` do link do nível ausente ou repetido.
+    ChaveDoNivelIlegivel(#[source] crate::consulta_do_controlador::ErroParametroDaUrl),
+    AcaoDoNivelIlegivel(#[source] crate::consulta_do_controlador::ErroAcaoDaUrl),
 }
 
 impl ErroVisaoDoControle {
-    pub(crate) fn subcodigo(&self) -> &'static str {
-        crate::erro_publico::folha(self)
-    }
-
-    pub(crate) fn mensagem(&self) -> &'static str {
+    /// A sessão do SEI acabou (decide o relogin único): por variante, sem
+    /// percorrer a cadeia `source()`.
+    pub(crate) fn sessao_encerrada(&self) -> bool {
         match self {
-            Self::Html(e) => e.mensagem,
-            Self::PaginaForaDoIntervalo { .. } => "a página pedida não existe na lista",
-            Self::Pagina(_) => ErroPaginaDoControle::MENSAGEM,
-            Self::Transporte(erro) => erro.mensagem(),
-            _ => "a visão do Controle de Processos não foi obtida como esperado",
-        }
-    }
-
-    /// Status e mensagem do SEI, da requisição recusada.
-    pub(crate) fn status_http(&self) -> Option<&StatusHttpRecusado> {
-        match self {
-            Self::Submissao(erro) => erro.status_http(),
-            Self::Pagina(erro) => erro.status_http(),
-            Self::Transporte(erro) => erro.status_http(),
-            _ => None,
+            Self::Submissao(erro) => erro.sessao_encerrada(),
+            Self::Pagina(erro) => erro.sessao_encerrada(),
+            Self::Transporte(erro) => erro.sessao_encerrada(),
+            Self::CharsetDaTelaNaoSuportado
+            | Self::UnidadeDiferenteDaSolicitada
+            | Self::RedirecionamentoAoTrocarVisao
+            | Self::VisaoNaoTrocadaAposEnvio { .. }
+            | Self::UnidadeAlteradaAoTrocarVisao
+            | Self::PaginaAtualDaVisaoDetalhadaIlegivel
+            | Self::PaginaAtualDaVisaoDetalhadaNaoCabeNoTipo(_)
+            | Self::ConsultaDoNivelIlegivel(_)
+            | Self::ChaveDoNivelIlegivel(_)
+            | Self::AcaoDoNivelIlegivel(_)
+            | Self::PaginaAtualDaVisaoDetalhadaIncompativelComAFaixa
+            | Self::PaginaForaDoIntervalo { .. }
+            | Self::PaginadorDaVisaoDetalhadaNaoPublicado
+            | Self::CriteriosDaVisaoDetalhadaAlteradosAposPaginar
+            | Self::TotalDeclaradoAlteradoAposPaginar
+            | Self::FaixaDaRespostaDiferenteDaPaginaSolicitada
+            | Self::RedirecionamentoAposPaginar
+            | Self::Caixa(_)
+            | Self::Detalhada(_)
+            | Self::NivelDeDetalhe(_)
+            | Self::Formulario(_)
+            | Self::IdentificacaoDaUnidadeAusenteNoControle
+            | Self::LinkDoNivelDeDetalheAusente
+            | Self::LinkDoNivelDeDetalheNaoReconhecido
+            | Self::LinksDoNivelDeDetalheRepetidos
+            | Self::VisaoDoControleNaoReconhecida => false,
         }
     }
 }

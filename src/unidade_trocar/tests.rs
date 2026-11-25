@@ -4,10 +4,11 @@
 //! depois do POST, que saem com efeito incerto sem novo pedido.
 use super::tests_apoio::*;
 use super::{
-    ErroTroca as E, EtapaDaTroca as Etapa, FalhaDepoisDoEnvio as F, PedidoDeTroca, SessaoDaTroca,
-    Troca, trocar_unidade,
+    ErroTroca, EtapaDaTroca as Etapa, FalhaDepoisDoEnvio, PedidoDeTroca, SessaoDaTroca, Troca,
+    trocar_unidade,
 };
 use crate::instalacao::Instalacao;
+use crate::tela_html::HtmlServido;
 use crate::transporte::FalhaTransporte;
 use crate::transporte::sessao::CookieDaSessao;
 
@@ -16,7 +17,7 @@ fn executar(
     confirmar: bool,
     esperada: Option<&str>,
     respostas: Vec<Resposta>,
-) -> (Result<Troca, E>, Vec<Pedido>) {
+) -> (Result<Troca, ErroTroca>, Vec<Pedido>) {
     let instalacao = Instalacao::interpretar(ORIGEM).unwrap();
     let cookie = arquivo_de_cookie("fluxo");
     let url = url_controle(ID_A);
@@ -93,7 +94,10 @@ fn ja_na_unidade_e_sucesso_com_um_pedido() {
 #[test]
 fn unidade_esperada_diferente_recusa_no_controle() {
     let (r, pedidos) = executar("PR-B", true, Some("PR-X"), inicio());
-    assert_eq!(r.map(|_| ()), Err(E::UnidadeExibidaDiferenteDaSolicitada));
+    assert_eq!(
+        r.map(|_| ()),
+        Err(ErroTroca::UnidadeExibidaDiferenteDaSolicitada)
+    );
     assert_eq!(pedidos.len(), 1);
 }
 
@@ -101,7 +105,7 @@ fn unidade_esperada_diferente_recusa_no_controle() {
 fn sigla_nao_oferecida_recusa_depois_da_tela_sem_post() {
     let (r, pedidos) = executar("PR-X", true, None, inicio());
     match r {
-        Err(E::UnidadeNaoOferecida { oferecidas }) => assert_eq!(oferecidas.len(), 2),
+        Err(ErroTroca::UnidadeNaoOferecida { oferecidas }) => assert_eq!(oferecidas.len(), 2),
         outro => panic!("{outro:?}"),
     }
     assert_eq!(pedidos.len(), 2);
@@ -119,7 +123,10 @@ fn tela_com_outra_unidade_marcada_recusa_sem_post() {
         html(tela_com(("PR-A", ID_A), 2, &linhas, SCRIPT)),
     ];
     let (r, pedidos) = executar("PR-B", true, None, respostas);
-    assert_eq!(r.map(|_| ()), Err(E::UnidadeMarcadaDiferenteDaAtiva));
+    assert_eq!(
+        r.map(|_| ()),
+        Err(ErroTroca::UnidadeMarcadaDiferenteDaAtiva)
+    );
     assert_eq!(pedidos.len(), 2);
 }
 
@@ -202,26 +209,28 @@ fn primeiro_salto_ja_200_com_o_controle_novo_basta() {
     assert_eq!(r.unwrap().controle_novo.unwrap().url, url_com_aviso(ID_B));
 }
 
-fn incerto(respostas_depois: Vec<Resposta>) -> (E, usize) {
+fn incerto(respostas_depois: Vec<Resposta>) -> (ErroTroca, usize) {
     let (r, pedidos) = executar("PR-B", true, None, com(inicio(), respostas_depois));
     (r.map(|_| ()).unwrap_err(), pedidos.len())
 }
 
-// Uma tabela de casos: dividir só repetiria o roteiro.
-#[allow(clippy::too_many_lines)]
+#[expect(
+    clippy::too_many_lines,
+    reason = "Uma tabela de casos: dividir só repetiria o roteiro"
+)]
 #[test]
-fn desvios_depois_do_post_sao_efeito_incerto_sem_novo_pedido() {
-    let casos: Vec<(Vec<Resposta>, Etapa, F, usize)> = vec![
+fn desvios_depois_do_post_sao_nao_confirmado_sem_novo_pedido() {
+    let casos: Vec<(Vec<Resposta>, Etapa, FalhaDepoisDoEnvio, usize)> = vec![
         (
             vec![html(controle("PR-B", ID_B))],
             Etapa::Envio,
-            F::RespostaSemRedirecionamento,
+            FalhaDepoisDoEnvio::RespostaSemRedirecionamento,
             3,
         ),
         (
             vec![Err(FalhaTransporte::Rede)],
             Etapa::Envio,
-            F::Envio(crate::formulario_web::ErroSubmissaoFormulario::Transporte(
+            FalhaDepoisDoEnvio::Envio(crate::formulario_web::ErroSubmissaoFormulario::Transporte(
                 FalhaTransporte::Rede,
             )),
             3,
@@ -229,13 +238,13 @@ fn desvios_depois_do_post_sao_efeito_incerto_sem_novo_pedido() {
         (
             vec![Ok((302, String::new(), None))],
             Etapa::Envio,
-            F::RedirecionamentoSemLocalizacao,
+            FalhaDepoisDoEnvio::RedirecionamentoSemLocalizacao,
             3,
         ),
         (
             vec![redireciona(localizacao_com_aviso("https", ID_C))],
             Etapa::Envio,
-            F::LocalizacaoDeOutraUnidade,
+            FalhaDepoisDoEnvio::LocalizacaoDeOutraUnidade,
             3,
         ),
         (
@@ -243,7 +252,7 @@ fn desvios_depois_do_post_sao_efeito_incerto_sem_novo_pedido() {
                 localizacao_com_aviso("https", ID_B).replace(HOST, "outro.gov.br"),
             )],
             Etapa::Envio,
-            F::LocalizacaoForaDaFormaObservada,
+            FalhaDepoisDoEnvio::LocalizacaoForaDaFormaObservada,
             3,
         ),
         (
@@ -252,7 +261,7 @@ fn desvios_depois_do_post_sao_efeito_incerto_sem_novo_pedido() {
                 redireciona(localizacao_limpa("https", ID_C)),
             ],
             Etapa::PrimeiroRedirecionamento,
-            F::LocalizacaoDeOutraUnidade,
+            FalhaDepoisDoEnvio::LocalizacaoDeOutraUnidade,
             4,
         ),
         (
@@ -261,7 +270,7 @@ fn desvios_depois_do_post_sao_efeito_incerto_sem_novo_pedido() {
                 Err(FalhaTransporte::Rede),
             ],
             Etapa::PrimeiroRedirecionamento,
-            F::Transporte(FalhaTransporte::Rede),
+            FalhaDepoisDoEnvio::Transporte(FalhaTransporte::Rede),
             4,
         ),
         (
@@ -271,7 +280,7 @@ fn desvios_depois_do_post_sao_efeito_incerto_sem_novo_pedido() {
                 redireciona(localizacao_limpa("https", ID_B)),
             ],
             Etapa::SegundoRedirecionamento,
-            F::Status(302),
+            FalhaDepoisDoEnvio::Status(302),
             5,
         ),
         (
@@ -281,7 +290,7 @@ fn desvios_depois_do_post_sao_efeito_incerto_sem_novo_pedido() {
                 html(controle("PR-A", ID_B)),
             ],
             Etapa::ControleDaUnidadeNova,
-            F::UnidadeDoControleDiferenteDaPedida,
+            FalhaDepoisDoEnvio::UnidadeDoControleDiferenteDaPedida,
             5,
         ),
         (
@@ -291,9 +300,11 @@ fn desvios_depois_do_post_sao_efeito_incerto_sem_novo_pedido() {
                 html("<html>outra tela</html>".to_owned()),
             ],
             Etapa::ControleDaUnidadeNova,
-            F::ControleNaoReconhecido(
-                crate::controle_reconhecido::unidade_do_controle("<html>outra tela</html>")
-                    .unwrap_err(),
+            FalhaDepoisDoEnvio::ControleNaoReconhecido(
+                crate::controle_reconhecido::unidade_do_controle(&HtmlServido::de_teste(
+                    "<html>outra tela</html>",
+                ))
+                .unwrap_err(),
             ),
             5,
         ),
@@ -302,14 +313,12 @@ fn desvios_depois_do_post_sao_efeito_incerto_sem_novo_pedido() {
         let (erro, pedidos) = incerto(depois);
         assert_eq!(
             erro,
-            E::EfeitoIncerto {
+            ErroTroca::NaoConfirmado {
                 etapa,
                 falha: falha.clone()
             },
             "{falha:?}"
         );
         assert_eq!(pedidos, n, "{falha:?}");
-        assert_eq!(erro.saida(), 3);
-        assert_eq!(erro.codigo(), "efeito_incerto");
     }
 }

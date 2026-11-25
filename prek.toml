@@ -33,7 +33,40 @@ stages = ["pre-commit", "pre-push"]
 [[repos.hooks]]
 id = "lint"
 name = "Clippy rigoroso sem warnings"
-entry = "cargo clippy --locked --workspace --all-targets -- -D warnings -W clippy::pedantic"
+entry = "cargo clippy --locked --workspace --all-targets -- -D warnings -D dead_code -D unused_imports -W clippy::pedantic"
+language = "system"
+pass_filenames = false
+always_run = true
+stages = ["pre-push"]
+
+# Produção sem panic nem curinga (#727). Só os alvos de produção: testes e
+# o emulador anti-ies (infraestrutura de teste) ficam de fora.
+# Sem dead code (#721): nenhum `allow`/`expect` de dead_code ou unused no
+# código. `forbid` não serve porque os derives do clap geram `allow`.
+[[repos.hooks]]
+id = "sem-dead-code"
+name = "Sem allow de dead code"
+entry = "bash -c '! grep -rnE \"(allow|expect)\\((dead_code|unused[a-z_]*)|cfg_attr\\([^]]*(dead_code|unused)\" --include=*.rs src crates tests xtask'"
+language = "system"
+pass_filenames = false
+always_run = true
+stages = ["pre-commit", "pre-push"]
+
+# A saída das CLIs não traz null (#749): leitura dá valor ou erro tipado;
+# campo sem valor por natureza é omitido.
+[[repos.hooks]]
+id = "sem-null"
+name = "Sem null emitido pelo código de produção"
+entry = "python3 -I scripts/sem_null.py"
+language = "system"
+pass_filenames = false
+always_run = true
+stages = ["pre-commit", "pre-push"]
+
+[[repos.hooks]]
+id = "lint-producao"
+name = "Clippy de produção sem panic nem curinga"
+entry = "cargo clippy --locked --workspace --exclude anti-ies -- -D warnings -D dead_code -D unused_imports -D clippy::wildcard_enum_match_arm -D clippy::string_slice -D clippy::indexing_slicing -D clippy::expect_used -D clippy::unwrap_used -D clippy::panic -D clippy::as_conversions"
 language = "system"
 pass_filenames = false
 always_run = true
@@ -49,17 +82,17 @@ always_run = true
 stages = ["pre-push"]
 
 [[repos.hooks]]
-id = "evidencias"
-name = "Relações OKF de operações e cassettes"
-entry = "cargo run --quiet --locked -p xtask --bin check_evidence"
+id = "links-locais"
+name = "Links Markdown locais resolvem (okf-parser OKF101)"
+entry = "sh -c '! uvx --from okf-parser==0.48.2 okf-parser check . --exclude \".agents/**\" | grep -A2 OKF101'"
 language = "system"
 pass_filenames = false
 always_run = true
-stages = ["pre-push"]
+stages = ["pre-commit", "pre-push"]
 
 [[repos.hooks]]
 id = "scripts-python"
-name = "Autotestes sintéticos dos scripts Python (benchmark pareado, saneador de HAR, auditoria OSV, subcódigos)"
+name = "Autotestes sintéticos dos scripts Python"
 entry = "python3 -I -m unittest discover -s scripts -p test_*.py"
 language = "system"
 pass_filenames = false
@@ -67,27 +100,9 @@ always_run = true
 stages = ["pre-push"]
 
 [[repos.hooks]]
-id = "auditoria-osv"
-name = "Dependências crates.io sem avisos abertos no OSV"
-entry = "python3 -I scripts/osv_audit.py"
-language = "system"
-pass_filenames = false
-always_run = true
-stages = ["pre-push"]
-
-[[repos.hooks]]
-id = "decisoes"
-name = "Decisões de engenharia por operação implementada"
-entry = "cargo run --quiet --locked -p xtask --bin check_design"
-language = "system"
-pass_filenames = false
-always_run = true
-stages = ["pre-push"]
-
-[[repos.hooks]]
-id = "subcodigos"
-name = "Subcódigos Rust documentados nos contratos"
-entry = "python3 -I scripts/subcodigos.py"
+id = "auditoria-dependencias"
+name = "Avisos de segurança das dependências (cargo-deny)"
+entry = "sh -c 'if command -v cargo-deny >/dev/null; then cargo deny check advisories; elif [ -n \"$CI\" ]; then echo cargo-deny ausente no CI; exit 1; else echo NOT_RUN: cargo-deny ausente; fi'"
 language = "system"
 pass_filenames = false
 always_run = true

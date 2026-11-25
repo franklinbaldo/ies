@@ -1,33 +1,37 @@
 //! Persistência privada de texto de documento já verificado offline.
 //! Nunca sobrescreve destino existente, não publica conteúdo em diagnóstico.
+use crate::arquivo_privado::FalhaDaGravacao;
 use std::path::Path;
 
-#[derive(Debug, Clone, Copy, PartialEq, Eq, crate::erro_publico::Causa)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, thiserror::Error)]
+#[error("{self:?}")]
 pub enum ErroArquivoTexto {
-    #[causa(nome = "destino_texto_documento_sem_nome")]
     NomeAusente,
-    #[causa(nome = "diretorio_texto_documento_ausente")]
     DiretorioAusente,
-    #[causa(nome = "arquivo_texto_documento_ja_existe")]
     DestinoJaExiste,
-    #[causa(nome = "escrita_texto_documento_falhou")]
     EscritaFalhou,
 }
-impl ErroArquivoTexto {}
-/// A falha da gravação privada única nos subcódigos do texto.
+/// A falha da gravação privada única nos erros do texto.
 fn traduzir(falha: crate::arquivo_privado::FalhaDaGravacao) -> ErroArquivoTexto {
-    use crate::arquivo_privado::FalhaDaGravacao as F;
     match falha {
-        F::SemNomeDeArquivo => ErroArquivoTexto::NomeAusente,
-        F::DiretorioAusente => ErroArquivoTexto::DiretorioAusente,
-        F::DestinoJaExiste => ErroArquivoTexto::DestinoJaExiste,
+        FalhaDaGravacao::SemNomeDeArquivo => ErroArquivoTexto::NomeAusente,
+        FalhaDaGravacao::DiretorioAusente
+        | FalhaDaGravacao::DiretorioNaoConsultado(_)
+        | FalhaDaGravacao::NivelDoCaminhoNaoEhDiretorio
+        | FalhaDaGravacao::NivelDoCaminhoIlegivel(_) => ErroArquivoTexto::DiretorioAusente,
+        FalhaDaGravacao::DestinoJaExiste => ErroArquivoTexto::DestinoJaExiste,
         // Diretório do usuário: a peça não confere o modo.
-        F::DiretorioGravavelPorOutros
-        | F::DestinoNaoEhArquivoRegular
-        | F::AcimaDoLimite
-        | F::CriacaoFalhou
-        | F::EscritaFalhou
-        | F::ConfirmacaoFalhou => ErroArquivoTexto::EscritaFalhou,
+        #[cfg(unix)]
+        FalhaDaGravacao::DiretorioGravavelPorOutros => ErroArquivoTexto::EscritaFalhou,
+        FalhaDaGravacao::DestinoNaoEhArquivoRegular
+        | FalhaDaGravacao::AcimaDoLimite
+        | FalhaDaGravacao::CriacaoFalhou(_)
+        | FalhaDaGravacao::CriacaoDoDiretorioFalhou(_)
+        | FalhaDaGravacao::CriacaoDoTemporarioFalhou(_)
+        | FalhaDaGravacao::NomesDeTemporarioEsgotados
+        | FalhaDaGravacao::EscritaFalhou
+        | FalhaDaGravacao::ErroDeIoNaEscrita(_)
+        | FalhaDaGravacao::ConfirmacaoFalhou(_) => ErroArquivoTexto::EscritaFalhou,
     }
 }
 

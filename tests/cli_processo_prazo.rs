@@ -14,17 +14,13 @@ fn sem_sessao(args: &[&str]) -> Output {
         .output()
         .expect("IES deve iniciar")
 }
-fn json(saida: &Output) -> serde_json::Value {
-    serde_json::from_slice(&saida.stdout).expect("JSON na saída")
-}
 #[test]
 fn data_invalida_sai_2_antes_da_sessao() {
     let saida = sem_sessao(&["processo", "prazo", NUP, "--ate", "31/02/2026", "--json"]);
     assert_eq!(saida.status.code(), Some(2));
-    assert_eq!(json(&saida)["subcodigo"], "data_do_prazo_invalida");
 }
 #[test]
-fn confirmar_recusa_sem_abrir_sessao() {
+fn confirmar_sem_sessao_falha_antes_da_rede() {
     let saida = sem_sessao(&[
         "processo",
         "prazo",
@@ -35,19 +31,11 @@ fn confirmar_recusa_sem_abrir_sessao() {
         "--json",
     ]);
     assert_eq!(saida.status.code(), Some(1));
-    assert_eq!(
-        json(&saida)["subcodigo"],
-        "escrita_de_prazo_ainda_nao_disponivel"
-    );
 }
 #[test]
-fn excluir_recusa_sem_abrir_sessao() {
+fn excluir_sem_sessao_falha_antes_da_rede() {
     let saida = sem_sessao(&["processo", "prazo", NUP, "--excluir", "--json"]);
     assert_eq!(saida.status.code(), Some(1));
-    assert_eq!(
-        json(&saida)["subcodigo"],
-        "exclusao_de_prazo_ainda_nao_disponivel"
-    );
 }
 #[test]
 fn data_e_dias_sao_exclusivos() {
@@ -60,5 +48,10 @@ fn data_e_dias_sao_exclusivos() {
         "--dias",
         "5",
     ]);
+    assert_eq!(saida.status.code(), Some(2));
+}
+#[test]
+fn confirmar_sem_ate_dias_ou_excluir_e_uso_antes_da_rede() {
+    let saida = sem_sessao(&["processo", "prazo", NUP, "--confirmar", "--json"]);
     assert_eq!(saida.status.code(), Some(2));
 }

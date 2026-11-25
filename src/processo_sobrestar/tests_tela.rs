@@ -1,6 +1,8 @@
 //! Molde sintético da `UnB`, sem URLs assinadas de contas reais.
 //! Caso: `todos tests/test_ciclo_sobrestar_010.py` @323eb01.
-use super::tela::{ErroTela as E, conferir_formulario};
+use super::tela::{ErroTela, conferir_formulario};
+use crate::consulta_do_controlador::{ErroConsultaDoControlador, ErroParametroDaUrl};
+use crate::tela_html::HtmlServido;
 const ID: &str = "10";
 pub(super) fn formulario() -> String {
     format!(
@@ -23,52 +25,85 @@ pub(super) fn formulario() -> String {
 }
 #[test]
 fn formulario_observado_com_radio_desmarcado_e_motivo_aceito() {
-    assert_eq!(conferir_formulario(&formulario(), ID), Ok(()));
+    assert_eq!(
+        conferir_formulario(&HtmlServido::de_teste(&formulario()), ID),
+        Ok(())
+    );
 }
 #[test]
 fn formulario_de_outro_processo_ou_id_repetido_recusado() {
     let origem = formulario();
     assert_eq!(
         conferir_formulario(
-            &origem.replace(
+            &HtmlServido::de_teste(&origem.replace(
                 "name=\"hdnIdProtocolos\" value=\"10\"",
                 "name=\"hdnIdProtocolos\" value=\"999\""
+            )),
+            ID
+        ),
+        Err(ErroTela::OutroProcesso)
+    );
+    let outro = HtmlServido::de_teste(&origem.replace("<input type=\"hidden\" name=\"hdnIdProtocolos\" value=\"10\" />", "<input type=\"hidden\" name=\"hdnIdProtocolos\" value=\"10\" /><input type=\"hidden\" name=\"hdnIdProtocolos\" value=\"10\" />"));
+    assert_eq!(
+        conferir_formulario(&outro, ID),
+        Err(ErroTela::CampoInesperado)
+    );
+}
+#[test]
+fn action_com_par_sem_igual_ou_id_repetido_recusa_com_a_causa() {
+    let origem = formulario();
+    assert_eq!(
+        conferir_formulario(
+            &HtmlServido::de_teste(&origem.replace("&infra_hash=", "&lixo&infra_hash=")),
+            ID
+        ),
+        Err(ErroTela::ConsultaDaActionIlegivel(
+            ErroConsultaDoControlador::ParSemIgual
+        ))
+    );
+    assert_eq!(
+        conferir_formulario(
+            &HtmlServido::de_teste(
+                &origem.replace("&infra_hash=", "&id_procedimento=10&infra_hash=")
             ),
             ID
         ),
-        Err(E::OutroProcesso)
+        Err(ErroTela::ChaveDaActionIlegivel(
+            ErroParametroDaUrl::ParametroRepetido("id_procedimento")
+        ))
     );
-    let outro = origem.replace("<input type=\"hidden\" name=\"hdnIdProtocolos\" value=\"10\" />", "<input type=\"hidden\" name=\"hdnIdProtocolos\" value=\"10\" /><input type=\"hidden\" name=\"hdnIdProtocolos\" value=\"10\" />");
-    assert_eq!(conferir_formulario(&outro, ID), Err(E::CampoInesperado));
 }
+
 #[test]
 fn opcao_de_sobrestar_desconhecida_recusada() {
     assert_eq!(
         conferir_formulario(
-            &formulario().replace("value=\"S\" />", "value=\"X\" />"),
+            &HtmlServido::de_teste(&formulario().replace("value=\"S\" />", "value=\"X\" />")),
             ID
         ),
-        Err(E::OpcaoNaoOferecida)
+        Err(ErroTela::OpcaoNaoOferecida)
     );
 }
 #[test]
 fn vinculo_preenchido_ou_campo_extra_falha_fechado() {
     assert_eq!(
         conferir_formulario(
-            &formulario().replace(
+            &HtmlServido::de_teste(&formulario().replace(
                 "name=\"hdnIdProcedimentoDestino\" value=\"\"",
                 "name=\"hdnIdProcedimentoDestino\" value=\"99\""
-            ),
+            )),
             ID
         ),
-        Err(E::DestinoPreenchido)
+        Err(ErroTela::DestinoPreenchido)
     );
     assert_eq!(
         conferir_formulario(
-            &formulario().replace("</form>", "<input name=\"campoNovo\" value=\"1\" /></form>"),
+            &HtmlServido::de_teste(
+                &formulario().replace("</form>", "<input name=\"campoNovo\" value=\"1\" /></form>")
+            ),
             ID
         ),
-        Err(E::CampoInesperado)
+        Err(ErroTela::CampoInesperado)
     );
 }
 
@@ -97,9 +132,33 @@ fn formulario_com_submissao_diferente_do_navegador_recusa() {
     ];
     for formulario_alterado in casos {
         assert_eq!(
-            conferir_formulario(&formulario_alterado, ID),
-            Err(E::CampoInesperado),
+            conferir_formulario(&HtmlServido::de_teste(&formulario_alterado), ID),
+            Err(ErroTela::CampoInesperado),
             "envio que o navegador faria de outro modo precisa ser recusado",
         );
     }
+}
+
+#[test]
+fn botao_pesquisar_do_destino_nao_e_campo_enviado() {
+    // UnB 4.0.9 ao vivo (10/11/2026): o form traz o botão btnPesquisar
+    // (type="button") ao lado do processo de destino; ele não vai no POST.
+    let tela = HtmlServido::de_teste(&formulario().replace(
+        "</form>",
+        "<button type=\"button\" name=\"btnPesquisar\" id=\"btnPesquisar\" value=\"Pesquisar\">Pesquisar</button></form>",
+    ));
+    assert_eq!(conferir_formulario(&tela, ID), Ok(()));
+}
+
+#[test]
+fn somente_sobrestar_ja_marcado_e_a_opcao_enviada() {
+    // UFRJ e GO ao vivo (10/11/2026): optSomenteSobrestar vem checked.
+    let marcado = HtmlServido::de_teste(
+        &formulario().replace("value=\"S\" />", "value=\"S\" checked=\"checked\" />"),
+    );
+    assert_eq!(conferir_formulario(&marcado, ID), Ok(()));
+    let vincular = HtmlServido::de_teste(
+        &formulario().replace("value=\"V\" />", "value=\"V\" checked=\"checked\" />"),
+    );
+    assert!(conferir_formulario(&vincular, ID).is_err());
 }

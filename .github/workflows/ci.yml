@@ -42,6 +42,9 @@ jobs:
         with:
           cache-workspace-crates: true
 
+      - name: Install cargo-deny
+        run: cargo install --locked cargo-deny@0.20.2
+
       - name: Run canonical prek pre-push gates
         run: uvx --from prek==0.5.7 prek run --hook-stage pre-push --all-files
 
@@ -85,7 +88,7 @@ jobs:
     # As sete capturas públicas cobrem retornos #253 e atribuição #264.
     name: replay unidade.retornos (7 instalações, offline)
     runs-on: ubuntu-24.04
-    timeout-minutes: 25
+    timeout-minutes: 70
     env:
       IES_ACERVO_CACHE: .cache/ies-retornos
     steps:
@@ -130,11 +133,22 @@ jobs:
           path: ${{ env.IES_ACERVO_CACHE }}
           key: ${{ steps.retornos-cache.outputs.cache-primary-key }}
 
+      - name: Replay de cassettes originais para aceite de PR
+        shell: bash
+        run: |
+          set -euo pipefail
+          python3 scripts/baixar_acervo_todos.py
+          RUSTUP_TOOLCHAIN=1.99.1 scripts/replay acervo
+          cargo +1.99.1 test --locked --bin ies cassette_ -- --ignored --nocapture --test-threads=1
+
       - name: Replay verified monthly returns with production parser
         run: cargo test --locked --bin ies unidade_retornos::acervo::replay_retornos_no_acervo -- --ignored --exact --nocapture --test-threads=1
 
       - name: Replay obrigatório do processo atribuir (#264, offline)
         run: cargo +1.99.1 test --locked --bin ies processo_atribuir::acervo::replay_de_processo_atribuir_no_acervo -- --ignored --exact --nocapture --test-threads=1
+
+      - name: Exercitar ensaio único de atribuição sem acessar o SEI
+        run: PYTHONPATH=scripts python3 -m unittest scripts.test_ensaio_processo_atribuir scripts.test_ensaio_processo_atribuir_persistencia -v
 
       - name: Cassette UnB -> SQLite efêmero -> anti-IES -> leitor da CLI
         shell: bash
@@ -149,6 +163,56 @@ jobs:
           set -euo pipefail
           cargo +1.99.1 test --locked --bin ies -- --list --ignored | grep -F 'cassette::anti_ies_retornos::cassette_unb_retornos_mensais_fecha_ciclo_http_e_leitor: test'
           cargo +1.99.1 test --locked --bin ies cassette_unb_retornos_mensais_fecha_ciclo_http_e_leitor -- --ignored --nocapture --test-threads=1
+
+      - name: Cassette UnB documento -> SQLite -> HTTP -> leitor real
+        shell: bash
+        run: |
+          set -euo pipefail
+          cargo +1.99.1 test --locked --bin ies -- --list --ignored | grep -F 'cassette::anti_ies_documento::cassette_unb_conteudo_documento_compara_leitores_por_http: test'
+          cargo +1.99.1 test --locked --bin ies cassette_unb_conteudo_documento_compara_leitores_por_http -- --ignored --nocapture --test-threads=1
+          cargo +1.99.1 test --locked --bin ies -- --list --ignored | grep -F 'cassette::anti_ies_documento::cassette_unb_tela_do_documento_preserva_selecao_ate_arvore_http: test'
+          cargo +1.99.1 test --locked --bin ies cassette_unb_tela_do_documento_preserva_selecao_ate_arvore_http -- --ignored --nocapture --test-threads=1
+          cargo +1.99.1 test --locked --bin ies -- --list --ignored | grep -F 'cassette::anti_ies_documento::cassette_go_tela_do_documento_preserva_selecao_ate_arvore_http: test'
+          cargo +1.99.1 test --locked --bin ies cassette_go_tela_do_documento_preserva_selecao_ate_arvore_http -- --ignored --nocapture --test-threads=1
+          cargo +1.99.1 test --locked --bin ies -- --list --ignored | grep -F 'cassette::anti_ies_documento::cassette_ufrj_tela_do_documento_preserva_selecao_ate_arvore_http: test'
+          cargo +1.99.1 test --locked --bin ies cassette_ufrj_tela_do_documento_preserva_selecao_ate_arvore_http -- --ignored --nocapture --test-threads=1
+          for instalacao in pen1 pen2 pen3 pen4; do
+            nome="cassette_${instalacao}_tela_do_documento_preserva_selecao_ate_arvore_http"
+            cargo +1.99.1 test --locked --bin ies -- --list --ignored | grep -F "cassette::anti_ies_documento::${nome}: test"
+            cargo +1.99.1 test --locked --bin ies "${nome}" -- --ignored --nocapture --test-threads=1
+          done
+
+      - name: Confrontar a barra UnB antes/depois da conclusão com HTTP anti-IES
+        shell: bash
+        run: |
+          set -euo pipefail
+          cargo +1.99.1 test --locked --bin ies -- --list --ignored | grep -F 'cassette::anti_ies_documento_lista::cassette_unb_arvore_concluida_retira_link_de_versoes_no_http: test'
+          cargo +1.99.1 test --locked --bin ies cassette_unb_arvore_concluida_retira_link_de_versoes_no_http -- --ignored --nocapture --test-threads=1
+
+      - name: Cassette UnB histórico -> SQLite -> HTTP -> leitor real
+        shell: bash
+        run: |
+          set -euo pipefail
+          cargo +1.99.1 test --locked --bin ies -- --list --ignored | grep -F 'cassette::anti_ies_documento::cassette_unb_historico_preserva_versoes_e_metadados_por_http: test'
+          cargo +1.99.1 test --locked --bin ies cassette_unb_historico_preserva_versoes_e_metadados_por_http -- --ignored --nocapture --test-threads=1
+
+
+      - name: Cassette GO histórico -> SQLite -> HTTP -> leitor real
+        shell: bash
+        run: |
+          set -euo pipefail
+          cargo +1.99.1 test --locked --bin ies -- --list --ignored | grep -F 'cassette::anti_ies_documento_lista::cassette_go_historico_preserva_metadados_e_identidade_por_http: test'
+          cargo +1.99.1 test --locked --bin ies cassette_go_historico_preserva_metadados_e_identidade_por_http -- --ignored --nocapture --test-threads=1
+          cargo +1.99.1 test --locked --bin ies -- --list --ignored | grep -F 'cassette::anti_ies_documento_lista::cassette_ufrj_historico_preserva_metadados_e_identidade_por_http: test'
+          cargo +1.99.1 test --locked --bin ies cassette_ufrj_historico_preserva_metadados_e_identidade_por_http -- --ignored --nocapture --test-threads=1
+          cargo +1.99.1 test --locked --bin ies -- --list --ignored | grep -F 'cassette::anti_ies_documento_lista::cassette_pen1_historico_e_conteudo_preservam_identidade_por_http: test'
+          cargo +1.99.1 test --locked --bin ies cassette_pen1_historico_e_conteudo_preservam_identidade_por_http -- --ignored --nocapture --test-threads=1
+          cargo +1.99.1 test --locked --bin ies -- --list --ignored | grep -F 'cassette::anti_ies_documento_lista::cassette_pen2_historico_e_conteudo_preservam_identidade_por_http: test'
+          cargo +1.99.1 test --locked --bin ies cassette_pen2_historico_e_conteudo_preservam_identidade_por_http -- --ignored --nocapture --test-threads=1
+          cargo +1.99.1 test --locked --bin ies -- --list --ignored | grep -F 'cassette::anti_ies_documento_lista::cassette_pen3_historico_e_conteudo_preservam_identidade_por_http: test'
+          cargo +1.99.1 test --locked --bin ies cassette_pen3_historico_e_conteudo_preservam_identidade_por_http -- --ignored --nocapture --test-threads=1
+          cargo +1.99.1 test --locked --bin ies -- --list --ignored | grep -F 'cassette::anti_ies_documento_lista::cassette_pen4_historico_e_conteudo_preservam_identidade_por_http: test'
+          cargo +1.99.1 test --locked --bin ies cassette_pen4_historico_e_conteudo_preservam_identidade_por_http -- --ignored --nocapture --test-threads=1
 
   replay-lupa-go:
     # Regressão permanente da #244. ZIP público, hash conferido e apenas

@@ -1,16 +1,15 @@
 //! RED/GREEN das pastas no fluxo: sequência exata de requisições (frio com
 //! e sem pastas fechadas, quente pelo link de "Abrir todas as Pastas"),
 //! aprendizado no índice e recusas tipadas. Árvores sintéticas.
-use super::ErroProcessoObter as E;
 use super::tests_apoio::*;
 use super::*;
+use crate::acao_do_sei::AcaoDoSei;
 use crate::arvore_processo::ErroArvore;
 use crate::arvore_processo::tests::NUP;
 use crate::arvore_processo::tests_pastas::{
     No, PASTA1, PASTA2, acoes_das_pastas, arvore_aberta, arvore_aberta_com, arvore_em_pastas,
     arvore_fechada, declaracoes, url_abrir,
 };
-use crate::erro_html::ErroHtml;
 
 const OBJETO_ABRIR: &str = "10:abrir_pastas";
 
@@ -21,15 +20,22 @@ fn url_abrir_absoluta() -> String {
 fn link(amb: &Ambiente, objeto: &str) -> Option<String> {
     let g = geracao();
     amb.indice
-        .link(&instalacao(), chave(&g, "procedimento_visualizar", objeto))
+        .link(
+            &instalacao(),
+            chave(&g, AcaoDoSei::ProcedimentoVisualizar, objeto),
+        )
         .map(|u| u.url().to_owned())
 }
 
 fn guardar(amb: &Ambiente, objeto: &str, url: &str) {
     let (inst, g) = (instalacao(), geracao());
-    amb.indice.registrar_processo(&inst, NUP, ID).unwrap();
+    amb.indice.registrar_processo(&inst, NUP, ID);
     amb.indice
-        .registrar_link(&inst, chave(&g, "procedimento_visualizar", objeto), url)
+        .registrar_link(
+            &inst,
+            chave(&g, AcaoDoSei::ProcedimentoVisualizar, objeto),
+            url,
+        )
         .unwrap();
 }
 
@@ -154,7 +160,7 @@ fn pasta_fechada_sem_a_acao_de_abrir_e_recusa_sem_requisicao_a_mais() {
     let (r, pedidos) = rodar(&amb, None, pelo_controle(vec![ok(sem_acao)]));
     assert_eq!(
         r.unwrap_err(),
-        E::Arvore(ErroArvore::PastasNaoCarregadasSemAcaoDeAbrir)
+        super::ErroProcessoObter::Arvore(ErroArvore::PastasNaoCarregadasSemAcaoDeAbrir)
     );
     assert_eq!(pedidos.len(), 3);
 }
@@ -169,7 +175,7 @@ fn arvore_ainda_fechada_depois_de_abrir_e_recusa() {
     );
     assert_eq!(
         r.unwrap_err(),
-        E::Arvore(ErroArvore::PastasNaoCarregadasAposAbrirPastas)
+        super::ErroProcessoObter::Arvore(ErroArvore::PastasNaoCarregadasAposAbrirPastas)
     );
     assert_eq!(link(&amb, OBJETO_ABRIR), None);
 }
@@ -189,9 +195,7 @@ fn arvore_aberta_que_nao_confere_nao_publica_lista_parcial() {
     );
     assert_eq!(
         r.unwrap_err(),
-        E::Arvore(ErroArvore::Html(ErroHtml::ausente(
-            "protocolo_declarado_ausente_da_pasta"
-        )))
+        super::ErroProcessoObter::Arvore(ErroArvore::ProtocoloDeclaradoAusenteDaPasta)
     );
     assert_eq!(link(&amb, OBJETO_ABRIR), None);
 }
@@ -204,7 +208,10 @@ fn abrir_pastas_que_responde_login_ou_outro_processo_e_erro() {
         None,
         pelo_controle(vec![ok(arvore_fechada()), r302(LOGIN)]),
     );
-    assert_eq!(r.unwrap_err(), E::SessaoEncerrada);
+    assert_eq!(
+        r.unwrap_err(),
+        super::ErroProcessoObter::SessaoEncerrada(crate::erro_publico::SessaoEncerrada)
+    );
     let amb = ambiente();
     let outra = arvore_aberta().replace(NUP, "00002.000002/2026-02");
     let (r, _) = rodar(
@@ -214,7 +221,7 @@ fn abrir_pastas_que_responde_login_ou_outro_processo_e_erro() {
     );
     assert_eq!(
         r.unwrap_err(),
-        E::Arvore(ErroArvore::IdentidadeDoProcessoDiferenteDaPedida)
+        super::ErroProcessoObter::Arvore(ErroArvore::IdentidadeDoProcessoDiferenteDaPedida)
     );
 }
 

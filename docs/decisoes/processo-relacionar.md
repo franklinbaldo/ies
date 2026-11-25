@@ -29,7 +29,7 @@ A remoção confirmada deriva a action do handler `acaoRemover` e exige POST
 botão `sbmAdicionar` com os três campos publicados, preenchidos pelo
 complementar XML, e só confirma diante de 302 de aceite e releitura
 independente contendo id e NUP do destino. Qualquer falha no POST
-ou evidência inconclusiva dá saída 3 sem retry. Esta evidência PEN1
+ou evidência inconclusiva dá saída 1 sem retry. Esta evidência PEN1
 não presume paridade nas demais instalações. Live NOT_RUN.
 
 ## Alternativas consideradas

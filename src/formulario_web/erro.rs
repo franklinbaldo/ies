@@ -1,12 +1,14 @@
 //! Recusas tipadas da derivação e do envio de formulário (uma por fato).
-use crate::erro_html::ErroHtml;
-use crate::html_atributos::ErroAtributoHtml;
-use crate::transporte::{FalhaTransporte, StatusHttpRecusado};
+use crate::consulta_do_controlador::ErroConsultaDoControlador;
+use crate::transporte::{FalhaTransporte, FatoDaResposta, StatusHttpRecusado};
 
-#[derive(Clone, Debug, PartialEq, Eq, crate::erro_publico::Causa)]
+#[derive(Clone, Debug, PartialEq, Eq, thiserror::Error)]
+#[error("{self:?}")]
 pub(crate) enum ErroSubmissaoFormulario {
     EfeitoDaOperacaoNaoAvaliado,
     UnidadeDaTelaDiferenteDaSolicitada,
+    /// A tela exige conferir a unidade e nenhuma foi informada.
+    UnidadeNaoInformada,
     FormulariosComMesmoIdentificadorNaTela,
     MetodoDoFormularioDiferenteDePost,
     EnctypeDoFormularioNaoUrlencoded,
@@ -15,9 +17,7 @@ pub(crate) enum ErroSubmissaoFormulario {
     AcaoDoFormularioForaDaInstalacao,
     AcaoDoFormularioDiferenteDaOperacao,
     AcaoDoFormularioSemInfraHashUnico,
-    EntidadeHtmlDesconhecidaNoAtributo {
-        campo: String,
-    },
+    ConsultaDaAcaoIlegivel(#[from] ErroConsultaDoControlador),
     CampoOcultoAusenteNoFormulario {
         campo: String,
     },
@@ -45,28 +45,103 @@ pub(crate) enum ErroSubmissaoFormulario {
     MarcadorDeResultadoAusenteNaResposta,
     /// HTTP 200 com `#txaInfraValidacao` não vazio: o SEI recusou o envio
     /// pela validação da Infra. Status 200 e a mensagem saneada.
-    ValidacaoRecusadaPeloSei(StatusHttpRecusado),
-    /// Tag de abertura servida que o tokenizador de atributos recusou.
-    #[causa(interna)]
-    AtributoHtml(ErroAtributoHtml),
-    #[causa(interna)]
-    Transporte(FalhaTransporte),
-    #[causa(transparente)]
-    Html(ErroHtml),
+    ValidacaoRecusadaPeloSei(String),
+    Transporte(#[from] FalhaTransporte),
+    AcaoDoFormularioAusente,
+    BotaoDeEnvioAusenteNoFormulario,
+    BotoesDeEnvioRepetidosNoFormulario,
+    FormularioAusenteNaTela,
+    IdentificacaoDaUnidadeAusenteNaTela,
+    /// A identificação da unidade publicada na tela repetiu: a causa é a do controle.
+    IdentificacoesDaUnidadeRepetidasNaTela(#[source] crate::erro_web::ErroCaixa),
 }
 
 impl ErroSubmissaoFormulario {
-    pub(crate) fn subcodigo(&self) -> &'static str {
-        crate::erro_publico::folha(self)
+    /// A sessão do SEI acabou (decide o relogin único): por `match` no tipo, sem
+    /// percorrer a cadeia `source()`.
+    pub(crate) fn sessao_encerrada(&self) -> bool {
+        match self {
+            Self::Transporte(erro) => erro.sessao_encerrada(),
+            Self::EfeitoDaOperacaoNaoAvaliado
+            | Self::UnidadeDaTelaDiferenteDaSolicitada
+            | Self::UnidadeNaoInformada
+            | Self::FormulariosComMesmoIdentificadorNaTela
+            | Self::MetodoDoFormularioDiferenteDePost
+            | Self::EnctypeDoFormularioNaoUrlencoded
+            | Self::AcceptCharsetPublicadoNoFormulario
+            | Self::AcaoDoFormularioNaoEhUrlHttps
+            | Self::AcaoDoFormularioForaDaInstalacao
+            | Self::AcaoDoFormularioDiferenteDaOperacao
+            | Self::AcaoDoFormularioSemInfraHashUnico
+            | Self::ConsultaDaAcaoIlegivel(_)
+            | Self::CampoOcultoAusenteNoFormulario { .. }
+            | Self::CampoOcultoRepetidoNoFormulario { .. }
+            | Self::HdnAcaoPublicadoSemRegraDaOperacao
+            | Self::CampoForaDaListaDaOperacao { .. }
+            | Self::CampoNaoPublicadoPeloFormulario { .. }
+            | Self::CampoInformadoMaisDeUmaVez { .. }
+            | Self::CampoCriadoPeloScriptJaPublicado { .. }
+            | Self::ValorNaoRepresentavelNaCodificacao { .. }
+            | Self::TelaDeLoginRecebidaAposEnvio
+            | Self::MarcadorDeResultadoAusenteNaResposta
+            | Self::ValidacaoRecusadaPeloSei(_)
+            | Self::AcaoDoFormularioAusente
+            | Self::BotaoDeEnvioAusenteNoFormulario
+            | Self::BotoesDeEnvioRepetidosNoFormulario
+            | Self::FormularioAusenteNaTela
+            | Self::IdentificacaoDaUnidadeAusenteNaTela
+            | Self::IdentificacoesDaUnidadeRepetidasNaTela(_) => false,
+        }
     }
+}
 
+impl ErroSubmissaoFormulario {
     /// Status e mensagem do SEI quando a recusa veio do status HTTP.
-    /// Na validação da Infra, status 200 e a mensagem do SEI.
     pub(crate) fn status_http(&self) -> Option<&StatusHttpRecusado> {
         match self {
             Self::Transporte(falha) => falha.status_http(),
-            Self::ValidacaoRecusadaPeloSei(recusa) => Some(recusa),
-            _ => None,
+            Self::EfeitoDaOperacaoNaoAvaliado
+            | Self::UnidadeDaTelaDiferenteDaSolicitada
+            | Self::UnidadeNaoInformada
+            | Self::FormulariosComMesmoIdentificadorNaTela
+            | Self::MetodoDoFormularioDiferenteDePost
+            | Self::EnctypeDoFormularioNaoUrlencoded
+            | Self::AcceptCharsetPublicadoNoFormulario
+            | Self::AcaoDoFormularioNaoEhUrlHttps
+            | Self::AcaoDoFormularioForaDaInstalacao
+            | Self::AcaoDoFormularioDiferenteDaOperacao
+            | Self::AcaoDoFormularioSemInfraHashUnico
+            | Self::ConsultaDaAcaoIlegivel(_)
+            | Self::CampoOcultoAusenteNoFormulario { .. }
+            | Self::CampoOcultoRepetidoNoFormulario { .. }
+            | Self::HdnAcaoPublicadoSemRegraDaOperacao
+            | Self::CampoForaDaListaDaOperacao { .. }
+            | Self::CampoNaoPublicadoPeloFormulario { .. }
+            | Self::CampoInformadoMaisDeUmaVez { .. }
+            | Self::CampoCriadoPeloScriptJaPublicado { .. }
+            | Self::ValorNaoRepresentavelNaCodificacao { .. }
+            | Self::TelaDeLoginRecebidaAposEnvio
+            | Self::MarcadorDeResultadoAusenteNaResposta
+            | Self::ValidacaoRecusadaPeloSei(_)
+            | Self::AcaoDoFormularioAusente
+            | Self::BotaoDeEnvioAusenteNoFormulario
+            | Self::BotoesDeEnvioRepetidosNoFormulario
+            | Self::FormularioAusenteNaTela
+            | Self::IdentificacaoDaUnidadeAusenteNaTela
+            | Self::IdentificacoesDaUnidadeRepetidasNaTela(_) => None,
+        }
+    }
+}
+
+impl ErroSubmissaoFormulario {
+    /// A resposta do envio não pôde ser lida: a tela de login no lugar da
+    /// resposta é sessão perdida no envio; as demais seguem como transporte.
+    pub(crate) fn da_resposta(falha: FalhaTransporte) -> Self {
+        match falha.fato_da_resposta() {
+            FatoDaResposta::TelaDeLoginNoLugarDaResposta => Self::TelaDeLoginRecebidaAposEnvio,
+            FatoDaResposta::CorpoAcimaDoLimite | FatoDaResposta::NenhumAlemDoTransporte => {
+                Self::Transporte(falha)
+            }
         }
     }
 }

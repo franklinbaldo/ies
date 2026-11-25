@@ -4,7 +4,7 @@
 use super::{conferir_cadastro, tipos_oferecidos};
 use crate::cassette::acervo::gravacao;
 use crate::cassette::{ZipDoAcervo, conferir_cassette_ate, html_da_resposta};
-use crate::html_atributos::nos_com_id;
+use crate::tela_html::HtmlServido;
 use std::path::Path;
 
 const CARDS: [&str; 2] = [
@@ -13,17 +13,17 @@ const CARDS: [&str; 2] = [
 ];
 
 fn tipo_do_cadastro(html: &str) -> Option<String> {
-    let dom = tl::parse(html, tl::ParserOptions::default()).ok()?;
-    let rotulos = nos_com_id(&dom, "lblSerieTitulo").ok()?;
+    let servido = HtmlServido::de_teste(html);
+    let dom = crate::tela_html::arvore(&servido);
+    let rotulos = dom.com_id("lblSerieTitulo").collect::<Vec<_>>();
     let [rotulo] = rotulos.as_slice() else {
         return None;
     };
-    let tag = rotulo.get(dom.parser())?.as_tag()?;
-    if !tag.name().as_utf8_str().eq_ignore_ascii_case("label") {
+    if !rotulo.nome().eq_ignore_ascii_case("label") {
         return None;
     }
-    let tipo = tag
-        .inner_text(dom.parser())
+    let tipo = rotulo
+        .texto()
         .split_whitespace()
         .collect::<Vec<_>>()
         .join(" ");
@@ -64,14 +64,17 @@ fn replay_documento_criar_go() {
                 nao_aplicaveis += 1;
                 continue;
             }
-            let Ok(html) = html_da_resposta(resposta.item) else {
+            let Ok(html) = html_da_resposta(resposta.interacao) else {
                 nao_aplicaveis += 1;
                 continue;
             };
             let resultado = match resposta.operacao {
-                "documento_escolher_tipo" => tipos_oferecidos(&html).is_ok(),
-                "documento_gerar" => tipo_do_cadastro(&html)
-                    .is_some_and(|tipo| conferir_cadastro(&html, &tipo, None, None).is_ok()),
+                "documento_escolher_tipo" => {
+                    tipos_oferecidos(&HtmlServido::de_teste(&html)).is_ok()
+                }
+                "documento_gerar" => tipo_do_cadastro(&html).is_some_and(|tipo| {
+                    conferir_cadastro(&HtmlServido::de_teste(&html), &tipo, None, None).is_ok()
+                }),
                 _ => unreachable!(),
             };
             if resultado {
@@ -89,11 +92,33 @@ fn replay_documento_criar_go() {
     assert_eq!(respostas_alvo, lidas + recusadas + nao_aplicaveis);
     // Referência observada no replay GO imutável (run 42118476321):
     // sem estes números um leitor quebrado poderia recusar tudo e passar.
+    // As 5 recusas antigas eram listas de tipos com "Nome&nbsp;(Formulário)",
+    // lidas desde a correção do ensaio live de 10/11/2026 (PR #635).
     assert_eq!(respostas_alvo, 15, "mudou o conjunto de respostas-alvo");
-    assert_eq!(lidas, 3, "regressão na leitura de inclusão/cadastro");
-    assert_eq!(recusadas, 5, "mudou a classificação de recusas");
+    assert_eq!(lidas, 8, "regressão na leitura de inclusão/cadastro");
+    assert_eq!(recusadas, 0, "mudou a classificação de recusas");
     assert_eq!(nao_aplicaveis, 7, "mudou a classe não aplicável");
     println!(
         "documento.criar GO: {respostas_alvo} respostas; {lidas} lidas, {recusadas} recusadas, {nao_aplicaveis} não aplicáveis"
     );
+    conferir_css_no_documento_gerado(raiz, &zip);
+}
+
+/// Exercita apenas a detecção de CSS no HTML original de impressão. A
+/// captura tem a impressão depois de salvar, não a foto da minuta inicial.
+fn conferir_css_no_documento_gerado(raiz: &Path, zip: &ZipDoAcervo) {
+    let card = raiz.join("cassettes/go/documento-criar-texto-go--5621c99af5dc.md");
+    let cassette =
+        conferir_cassette_ate(&card, zip, 120_000_000).expect("card GO da criação com texto");
+    let mut impressoes = 0;
+    for resposta in gravacao::respostas(&cassette.json) {
+        if resposta.operacao == "documento_imprimir_web" && resposta.status == 200 {
+            let html = html_da_resposta(resposta.interacao).expect("HTML de impressão GO");
+            assert!(crate::documento_criar_cli::contem_estilos(
+                &HtmlServido::de_teste(&html)
+            ));
+            impressoes += 1;
+        }
+    }
+    assert_eq!(impressoes, 2);
 }

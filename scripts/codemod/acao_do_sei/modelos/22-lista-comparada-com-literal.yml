@@ -1,0 +1,39 @@
+id: 22-lista-comparada-com-literal-VALOR
+language: rust
+message: 'A lista das ações lidas tem só a variante.'
+severity: hint
+rule:
+  pattern: $L == ["VALOR"]
+  not:
+    inside:
+      stopBy: end
+      kind: mod_item
+      follows:
+        kind: attribute_item
+        regex: 'cfg\((all\()?test\b'
+constraints:
+  L:
+    regex: 'acao|acoes'
+    not:
+      regex: 'operacao'
+fix: '$L.into_iter().map(crate::acao_do_sei::AcaoDoSei::ler).eq([Some(crate::acao_do_sei::AcaoDoSei::VARIANTE)])'
+---
+id: 22b-lista-diferente-do-literal-VALOR
+language: rust
+message: 'A lista das ações lidas tem só a variante.'
+severity: hint
+rule:
+  pattern: $L != ["VALOR"]
+  not:
+    inside:
+      stopBy: end
+      kind: mod_item
+      follows:
+        kind: attribute_item
+        regex: 'cfg\((all\()?test\b'
+constraints:
+  L:
+    regex: 'acao|acoes'
+    not:
+      regex: 'operacao'
+fix: '$L.into_iter().map(crate::acao_do_sei::AcaoDoSei::ler).ne([Some(crate::acao_do_sei::AcaoDoSei::VARIANTE)])'

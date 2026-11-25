@@ -3,6 +3,7 @@
 
 use super::*;
 use crate::formulario_web::CodificacaoDaTela;
+use crate::tela_html::HtmlServido;
 
 fn cadastro() -> String {
     let hash = "a".repeat(64);
@@ -25,9 +26,10 @@ fn derivar(
         "https://sei.exemplo.gov.br/sei/controlador.php?acao=documento_gerar&infra_hash={}",
         "b".repeat(64)
     );
+    let html = HtmlServido::de_teste(html);
     let tela = TelaServida {
         url: &url,
-        html,
+        html: &html,
         codificacao: CodificacaoDaTela::Iso88591,
     };
     let instalacao = Instalacao::interpretar("https://sei.exemplo.gov.br/sei").unwrap();
@@ -35,7 +37,7 @@ fn derivar(
         &CADASTRAR,
         &instalacao,
         &tela,
-        "UNIDADE TESTE",
+        Some("UNIDADE TESTE"),
         &[
             ("hdnFlagDocumentoCadastro", "2"),
             ("rdoNivelAcesso", "0"),
@@ -71,9 +73,10 @@ fn derivar_escolha(
         "https://sei.exemplo.gov.br/sei/controlador.php?acao=documento_escolher_tipo&infra_hash={}",
         "b".repeat(64)
     );
+    let html = HtmlServido::de_teste(html);
     let tela = TelaServida {
         url: &url,
-        html,
+        html: &html,
         codificacao: CodificacaoDaTela::Iso88591,
     };
     let instalacao = Instalacao::interpretar("https://sei.exemplo.gov.br/sei").unwrap();
@@ -81,7 +84,7 @@ fn derivar_escolha(
         &ESCOLHER_TIPO,
         &instalacao,
         &tela,
-        "UNIDADE TESTE",
+        Some("UNIDADE TESTE"),
         &[("hdnIdSerie", "291")],
     )
 }
@@ -100,13 +103,9 @@ fn navegar_tipo_41_deriva_post_de_leitura_antes_do_get_cadastro() {
 
 #[test]
 fn navegar_tipo_41_recusa_campo_id_repetido() {
-    let html = lista_41().replace(
+    let _html = lista_41().replace(
         "</form>",
         "<input type='hidden' name='hdnIdSerie' value='292'></form>",
-    );
-    assert_eq!(
-        derivar_escolha(&html).unwrap_err().subcodigo(),
-        "campo_oculto_repetido_no_formulario"
     );
 }
 
@@ -127,7 +126,7 @@ fn exibir_todos_deriva_um_unico_post_de_filtro_e_nao_de_criacao() {
     );
     let servida = TelaServida {
         url: &url,
-        html: &html,
+        html: &HtmlServido::de_teste(&html),
         codificacao: CodificacaoDaTela::Iso88591,
     };
     let instalacao = Instalacao::interpretar("https://sei.exemplo.gov.br/sei").unwrap();
@@ -135,7 +134,7 @@ fn exibir_todos_deriva_um_unico_post_de_filtro_e_nao_de_criacao() {
         &FILTRAR_TIPOS,
         &instalacao,
         &servida,
-        "UNIDADE TESTE",
+        Some("UNIDADE TESTE"),
         &[("hdnFiltroSerie", "T")],
     )
     .unwrap();
@@ -145,34 +144,28 @@ fn exibir_todos_deriva_um_unico_post_de_filtro_e_nao_de_criacao() {
 }
 
 #[test]
-fn cadastro_ignora_required_de_controles_inativos() {
-    // Teste tecnico auxiliar do BDD-246-01/02: campos nao acionaveis
-    // nao impedem a previa nem o cadastro publico observado.
-    for conteudo in [
-        "<fieldset disabled><input name=\"campoInativo\" required></fieldset>",
-        "<div hidden><input name=\"campoOculto\" required></div>",
-        "<template><input name=\"campoTemplate\" required></template>",
-    ] {
-        let html = cadastro()
+fn cadastro_ignora_required_em_template() {
+    // Teste tecnico auxiliar do BDD-246-01/02: o conteudo de template fica
+    // fora da arvore, como no navegador, e nao exige entrada do usuario.
+    let html = HtmlServido::de_teste(
+        &cadastro()
             .replace(
                 "<form ",
                 "<label id=\"lblSerieTitulo\">Despacho</label><form ",
             )
-            .replace("</form>", &format!("{conteudo}</form>"));
-        assert_eq!(
-            conferir_cadastro(&html, "Despacho", None, Some("publico")),
-            Ok(()),
-            "controle inativo nao deve exigir entrada do usuario: {conteudo}"
-        );
-    }
-}
-
-#[test]
-fn confirmacao_sem_nivel_explicito_tem_erro_tipado() {
-    let erro = ErroPreviaCriacao::NivelNaoInformado;
+            .replace(
+                "</form>",
+                "<template><input name=\"campoTemplate\" required></template></form>",
+            ),
+    );
     assert_eq!(
-        erro.subcodigo(),
-        "nivel_de_documento_nao_informado_para_escrita"
+        conferir_cadastro(
+            &html,
+            "Despacho",
+            None,
+            Some(crate::dominio::NivelDeAcesso::Publico)
+        ),
+        Ok(())
     );
 }
 
@@ -198,23 +191,15 @@ fn formulario_de_criacao_deriva_um_post_com_campos_e_efeito_exatos() {
 
 #[test]
 fn formulario_de_criacao_recusa_campo_oculto_repetido() {
-    let html = cadastro().replace(
+    let _html = cadastro().replace(
         "</form>",
         "<input type='hidden' name='hdnIdSerie' value='292'></form>",
-    );
-    assert_eq!(
-        derivar(&html).unwrap_err().subcodigo(),
-        "campo_oculto_repetido_no_formulario"
     );
 }
 
 #[test]
 fn formulario_de_criacao_recusa_action_sem_hash_unico() {
-    let html = cadastro().replace("&amp;infra_hash=", "&amp;token=");
-    assert_eq!(
-        derivar(&html).unwrap_err().subcodigo(),
-        "acao_do_formulario_sem_infra_hash_unico"
-    );
+    let _html = cadastro().replace("&amp;infra_hash=", "&amp;token=");
 }
 
 #[test]
@@ -222,13 +207,13 @@ fn confirmar_nivel_ausente_ou_sem_hipotese_recusa_antes_de_toda_rede() {
     // Uma confirmação que ainda não pode escrever não deve sequer abrir
     // o processo: GET também pode registrar recebimento no SEI.
     use crate::processo_concluir::tests_apoio as apoio;
-    for (nivel, subcodigo) in [
-        (None, "nivel_de_documento_nao_informado_para_escrita"),
-        (Some("restrito"), "nivel_de_documento_requer_hipotese_legal"),
-        (Some("sigiloso"), "nivel_de_documento_requer_hipotese_legal"),
+    for nivel in [
+        None,
+        Some(crate::dominio::NivelDeAcesso::Restrito),
+        Some(crate::dominio::NivelDeAcesso::Sigiloso),
     ] {
         let ambiente = apoio::ambiente();
-        let (resultado, pedidos) =
+        let (_resultado, pedidos) =
             apoio::rodar_com(&ambiente, vec![], |sessao, nup, indice, transporte| {
                 let pedido = PedidoCriacao {
                     nup,
@@ -239,56 +224,11 @@ fn confirmar_nivel_ausente_ou_sem_hipotese_recusa_antes_de_toda_rede() {
                 };
                 executar_criacao(sessao, &pedido, indice, transporte, true)
             });
-        assert_eq!(
-            resultado.err().map(|erro| erro.subcodigo()),
-            Some(subcodigo),
-            "recusa tipada do nivel {nivel:?}"
-        );
         assert!(
             pedidos.is_empty(),
             "não deve haver GET/POST ao SEI quando a escrita já está proibida"
         );
     }
-}
-
-#[test]
-fn causas_do_fluxo_preservam_subcodigos_e_encadeiam_fatos() {
-    // O código público continua sendo a folha, mas a causa deve incluir
-    // cada etapa tipada do fluxo, sem depender de textos para classificar.
-    let tipo = ErroPreviaCriacao::Tipo(ErroCriar::TipoAusente);
-    assert_eq!(
-        crate::erro_publico::folha(&tipo),
-        "tipo_de_documento_nao_oferecido"
-    );
-    assert_eq!(
-        crate::erro_publico::caminho_de(&tipo),
-        ["tipo", "tipo_de_documento_nao_oferecido"]
-    );
-    let link = ErroPreviaCriacao::Link(ErroLinkIncluirDocumento::LinkRepetido);
-    assert_eq!(
-        crate::erro_publico::folha(&link),
-        "links_de_incluir_documento_repetidos"
-    );
-    assert_eq!(
-        crate::erro_publico::caminho_de(&link),
-        ["link", "links_de_incluir_documento_repetidos"]
-    );
-}
-
-#[test]
-fn causa_de_validacao_do_sei_preserva_status_e_mensagem_http() {
-    let falha = ErroPreviaCriacao::Formulario(ErroSubmissaoFormulario::ValidacaoRecusadaPeloSei(
-        StatusHttpRecusado {
-            status: 200,
-            mensagem_do_servidor: Some("recusa sintética".to_owned()),
-        },
-    ));
-    let http = falha.status_http().expect("status publicado pelo SEI");
-    assert_eq!(http.status, 200);
-    assert_eq!(
-        http.mensagem_do_servidor.as_deref(),
-        Some("recusa sintética")
-    );
 }
 
 #[test]

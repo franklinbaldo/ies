@@ -13,8 +13,15 @@ fn sem_sessao(args: &[&str]) -> Output {
         .output()
         .expect("IES deve iniciar")
 }
-fn json(saida: &Output) -> serde_json::Value {
-    serde_json::from_slice(&saida.stdout).expect("JSON na saída")
+/// Falha fechada (#695): saída 1, stdout vazio, stderr `Error: <Erro>`.
+fn sem_arquivos_de_sessao(saida: &Output) {
+    assert_eq!(saida.status.code(), Some(1));
+    assert!(saida.stdout.is_empty(), "falha não publica stdout");
+    let erro = String::from_utf8_lossy(&saida.stderr);
+    assert!(
+        erro.starts_with("Error: UrlDoControleIlegivel(Ausente)"),
+        "{erro}"
+    );
 }
 const NUP: &str = "00001.000001/2026-01";
 
@@ -22,13 +29,11 @@ const NUP: &str = "00001.000001/2026-01";
 fn motivo_em_branco_e_erro_de_uso_sem_rede() {
     let saida = sem_sessao(&["processo", "sobrestar", NUP, "--motivo", " \t ", "--json"]);
     assert_eq!(saida.status.code(), Some(2));
-    assert_eq!(json(&saida)["subcodigo"], "motivo_do_sobrestamento_vazio");
 }
 #[test]
 fn nup_invalido_prioritario_antes_da_sessao() {
     let saida = sem_sessao(&["processo", "sobrestar", " ", "--motivo", "teste", "--json"]);
     assert_eq!(saida.status.code(), Some(2));
-    assert_eq!(json(&saida)["subcodigo"], "numero_processo_vazio");
 }
 #[test]
 fn motivo_obrigatorio_no_clap() {
@@ -52,11 +57,6 @@ fn confirmar_exige_sessao_valida_e_nao_produz_sucesso_sem_configuracao() {
     ] {
         let saida = sem_sessao(&argumentos);
         assert_eq!(saida.status.code(), Some(1), "{argumentos:?}");
-        let valor = json(&saida);
-        assert_eq!(valor["retentavel"], false);
-        assert_ne!(
-            valor["subcodigo"],
-            "confirmacao_de_sobrestamento_nao_implementada"
-        );
+        sem_arquivos_de_sessao(&saida);
     }
 }

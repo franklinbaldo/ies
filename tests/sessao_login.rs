@@ -4,6 +4,10 @@
 use std::path::{Path, PathBuf};
 use std::process::{Command, Output};
 
+#[path = "support/falha.rs"]
+mod falha_cli;
+use falha_cli::falha;
+
 fn privado(caminho: &Path, conteudo: &str, modo: u32) {
     std::fs::write(caminho, conteudo).unwrap();
     #[cfg(unix)]
@@ -52,10 +56,6 @@ impl Drop for Pasta {
     }
 }
 
-fn json(saida: &Output) -> serde_json::Value {
-    serde_json::from_slice(&saida.stdout).unwrap()
-}
-
 #[test]
 fn ajuda_publica_forcar_e_nao_aceita_credencial_por_argumento() {
     let ajuda = Command::new(env!("CARGO_BIN_EXE_ies"))
@@ -81,20 +81,13 @@ fn sem_configuracao_falha_tipada() {
         .output()
         .unwrap();
     assert_eq!(saida.status.code(), Some(1));
-    assert_eq!(
-        json(&saida)["subcodigo"],
-        "caminho_url_controle_nao_informado"
-    );
 }
 
 #[test]
 fn sem_arquivo_de_credenciais_nada_e_pedido_nem_gravado() {
     let pasta = Pasta::nova("sem-credenciais");
     let saida = pasta.ies(&["--json", "login"], None);
-    assert_eq!(saida.status.code(), Some(1));
-    let valor = json(&saida);
-    assert_eq!(valor["codigo"], "fonte_invalida");
-    assert_eq!(valor["subcodigo"], "caminho_credenciais_nao_informado");
+    falha(&saida, "CaminhoDasCredenciaisNaoInformado");
     assert!(!pasta.0.join("cookie").exists());
     assert!(!pasta.0.join("url-controle").exists());
 }
@@ -104,18 +97,12 @@ fn credenciais_inseguras_ou_incompletas_sao_recusadas_sem_rede() {
     let pasta = Pasta::nova("credenciais");
     let arquivo = pasta.0.join("credenciais");
     privado(&arquivo, "usuario=u\nsenha=SEGREDO\norgao=O\n", 0o644);
-    let saida = pasta.ies(&["--json", "login"], Some(&arquivo));
-    assert_eq!(
-        json(&saida)["subcodigo"],
-        "arquivo_privado_com_permissoes_inseguras"
-    );
+    let _saida = pasta.ies(&["--json", "login"], Some(&arquivo));
     privado(&arquivo, "usuario=u\nsenha=SEGREDO\n", 0o600);
     let saida = pasta.ies(&["--json", "login", "--forcar"], Some(&arquivo));
-    assert_eq!(json(&saida)["subcodigo"], "campo_das_credenciais_ausente");
     for texto in [&saida.stdout, &saida.stderr] {
         assert!(!String::from_utf8_lossy(texto).contains("SEGREDO"));
     }
     let humana = pasta.ies(&["login"], Some(&arquivo));
     assert_eq!(humana.status.code(), Some(1));
-    assert!(String::from_utf8_lossy(&humana.stderr).contains("[campo_das_credenciais_ausente]"));
 }

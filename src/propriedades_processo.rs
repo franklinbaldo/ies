@@ -5,12 +5,13 @@
 //! enviado. Estrutura em docs/como-o-sei-funciona/propriedades-do-processo.md.
 mod tela;
 
+use crate::acao_do_sei::AcaoDoSei;
+
 #[cfg(test)]
 pub(crate) mod tests_apoio;
 #[cfg(test)]
 mod tests_tela;
 
-use crate::erro_html::ErroHtml;
 pub(crate) use tela::ler_propriedades;
 
 /// Qual tela a barra publicou (e o `acao` do link guardado no índice).
@@ -23,10 +24,10 @@ pub(crate) enum FonteDasPropriedades {
 }
 
 impl FonteDasPropriedades {
-    pub(crate) fn acao(self) -> &'static str {
+    pub(crate) const fn acao(self) -> AcaoDoSei {
         match self {
-            Self::Alterar => "procedimento_alterar",
-            Self::Consultar => "procedimento_consultar",
+            Self::Alterar => AcaoDoSei::ProcedimentoAlterar,
+            Self::Consultar => AcaoDoSei::ProcedimentoConsultar,
         }
     }
 }
@@ -54,50 +55,35 @@ impl std::fmt::Debug for EnderecoDasPropriedades {
     }
 }
 
-/// `rdoNivelAcesso` marcado.
-#[derive(Clone, Copy, Debug, PartialEq, Eq)]
-pub(crate) enum NivelDeAcesso {
-    Publico,
-    Restrito,
-    Sigiloso,
-}
-
-impl NivelDeAcesso {
-    pub(crate) fn como_texto(self) -> &'static str {
-        match self {
-            Self::Publico => "publico",
-            Self::Restrito => "restrito",
-            Self::Sigiloso => "sigiloso",
-        }
-    }
-}
+pub(crate) use crate::dominio::NivelDeAcesso;
 
 /// Uma `option` de `selAssuntos`: `<código> - <descrição>`.
 #[derive(Clone, Debug, PartialEq, Eq)]
 pub(crate) struct Assunto {
-    pub(crate) codigo: Option<String>,
+    pub(crate) codigo: String,
     pub(crate) descricao: String,
 }
 
-/// O que o formulário publicou; `None` é "não observado".
+/// O que o formulário publicou. `hipotese_legal` é `None` quando nenhuma
+/// hipótese está marcada, o único campo cuja ausência é o domínio.
 #[derive(Clone, Debug, PartialEq, Eq)]
 pub(crate) struct PropriedadesLidas {
-    pub(crate) tipo: Option<String>,
+    pub(crate) tipo: String,
     pub(crate) especificacao: String,
     pub(crate) interessados: Vec<String>,
     pub(crate) assuntos: Vec<Assunto>,
     pub(crate) observacoes: String,
     pub(crate) nivel_de_acesso: NivelDeAcesso,
     pub(crate) hipotese_legal: Option<String>,
-    pub(crate) data_de_geracao: Option<String>,
+    pub(crate) data_de_geracao: String,
     pub(crate) fonte: FonteDasPropriedades,
 }
 
-/// Falhas do link na barra e da tela: uma variante por fato.
-#[derive(Clone, Copy, Debug, PartialEq, Eq, crate::erro_publico::Causa)]
+/// Falhas do link na barra e da tela: um erro por fato.
+#[derive(Clone, Debug, PartialEq, Eq, thiserror::Error)]
+#[error("{self:?}")]
 pub(crate) enum ErroPropriedades {
-    BarraDoProcessoForaDaFormaObservada,
-    BarrasDoProcessoRepetidasNaArvore,
+    Barra(#[from] crate::arvore_processo::ErroBarraDoProcesso),
     LinksDasPropriedadesRepetidosNaBarra,
     EnderecoDasPropriedadesNaoReconhecido,
     EnderecoDasPropriedadesDeOutroProcesso,
@@ -105,28 +91,26 @@ pub(crate) enum ErroPropriedades {
     NumeroDasPropriedadesDiferenteDoSolicitado,
     IdDasPropriedadesDiferenteDoAberto,
     TipoDoProcessoInconsistente,
-    ListaOcultaDasPropriedadesNaoObservada,
+    /// `hdnAssuntos` ou `hdnInteressadosProcedimento` com conteúdo: a lista
+    /// visível pode estar incompleta, então nada se afirma.
+    ListaOcultaDasPropriedadesPreenchida,
+    TipoDoProcessoNaoMarcado,
+    CodigoDoAssuntoNaoInterpretado,
+    DataDeGeracaoAusente,
     NivelDeAcessoNaoMarcado,
-    TextoDasPropriedadesNaoDecodificado,
-    #[causa(transparente)]
-    Html(ErroHtml),
+    AssuntoForaDaFormaObservada,
+    CampoDasPropriedadesAusente,
+    CampoDasPropriedadesRepetido,
+    DataDeGeracaoForaDaFormaObservada,
+    FormulariosDasPropriedadesRepetidos,
+    InteressadoForaDaFormaObservada,
+    NivelDeAcessoForaDaFormaObservada,
+    OpcoesMarcadasRepetidas,
 }
 
 impl ErroPropriedades {
-    /// Recusas do link na barra (o resto é da tela).
-    pub(crate) fn do_link(self) -> bool {
-        matches!(
-            self,
-            Self::BarraDoProcessoForaDaFormaObservada
-                | Self::BarrasDoProcessoRepetidasNaArvore
-                | Self::LinksDasPropriedadesRepetidosNaBarra
-                | Self::EnderecoDasPropriedadesNaoReconhecido
-                | Self::EnderecoDasPropriedadesDeOutroProcesso
-        )
-    }
-
     /// A página não é o formulário deste processo: um link guardado errou.
-    pub(crate) fn link_envelhecido(self) -> bool {
+    pub(crate) fn link_envelhecido(&self) -> bool {
         matches!(
             self,
             Self::FormularioDasPropriedadesAusente

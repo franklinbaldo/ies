@@ -45,47 +45,49 @@ Uma escrita comprovada exige **exatamente um novo documento** (id
 único, número SEI publicado, tipo igual ao solicitado) e a preservação
 dos documentos anteriores. O `id_documento` da resposta não substitui
 o número SEI da árvore. Se o POST puder ter sido enviado e a verificação
-falhar, ou se a mudança for ambígua, saída 3 (`efeito_incerto`).
+falhar, ou se a mudança for ambígua, saída 1
+(`ErroConfirmacaoDaCriacao::NaoConfirmadoNoEnvio`/`NaoConfirmadoNaReleitura`,
+com o contexto `TentativaDeCriacao { requisicoes }`).
 
 ## Recusas tipadas
 
-| Subcódigo | Critério |
+| Erro (stderr) | Critério |
 | --- | --- |
-| `processo_nao_aberto_na_unidade_da_sessao` | A situação conferida não inclui a unidade ativa |
-| `tipo_de_documento_nao_oferecido` | Não há opção exata na lista completa |
-| `tipo_de_documento_ambiguo` | Mais de uma opção com o mesmo nome |
-| `lista_de_tipos_fora_da_forma_observada` | `tblSeries` ou links não interpretáveis |
-| `cadastro_de_documento_fora_da_forma_observada` | Cadastro ou tipo aberto inconsistente |
-| `documento_criado_nao_comprovado` | Verificação concluiu que não surgiu documento |
-| `efeito_incerto_na_criacao_de_documento` | Resposta ou árvore não permite conferir unicidade e identidade |
-| `barra_do_incluir_documento_fora_da_forma` | A barra da raiz não tem estrutura interpretável |
-| `barra_do_incluir_documento_repetida` | A barra da raiz aparece duas vezes |
-| `links_de_incluir_documento_repetidos` | A barra publica mais de uma ação de incluir |
-| `endereco_de_incluir_documento_nao_reconhecido` | O link de inclusão não é a URL relativa assinada esperada |
-| `endereco_de_incluir_documento_de_outro_processo` | O link de inclusão aponta para outra identidade |
-| `incluir_documento_nao_publicado_na_barra` | A unidade não publicou a opção de incluir |
-| `unidade_da_sessao_nao_publicada` | A tela não identifica a unidade de trabalho |
-| `situacao_do_processo_nao_lida_antes_de_criar_documento` | A árvore não publicou a situação segura para gravação |
-| `link_do_tipo_de_documento_nao_navegavel` | O onclick/script não comprova exatamente a navegação segura por formulário |
-| `endereco_do_tipo_de_documento_nao_reconhecido` | URL do tipo ausente, inválida ou vinculada a outro processo |
-| `tipo_do_cadastro_diferente_do_solicitado` | A tela aberta não identifica o tipo pedido |
-| `descricao_nao_oferecida_no_cadastro` | A descrição solicitada não tem controle utilizável |
-| `nivel_nao_oferecido_no_cadastro` | O nível solicitado não aparece habilitado |
-| `campo_obrigatorio_do_cadastro_nao_atendido` | O cadastro publica controle HTML obrigatório que a CLI não consegue preencher com valor observado |
-| `tela_de_criacao_redirecionada` | A tela de leitura devolveu 302 não seguido |
-| `nivel_de_documento_nao_informado_para_escrita` | Confirmação exige --nivel publico explícito; não presumir nível |
-| `nivel_de_documento_requer_hipotese_legal` | Nível não público exige resolver a hipótese legal antes da escrita |
-| `submissao_do_documento_nao_observada` | Cadastro não contém a regra observada de submissão |
-| `arvore_de_documentos_incompleta` | Pasta fechada impede comparação de documentos |
-| `foto_inicial_de_documentos_inconsistente` | Antes do POST, a árvore contém IDs de documento repetidos/vazios ou ID de processo ausente; nenhuma escrita é enviada |
-| `criacao_de_documento_ainda_nao_validada` | Subcódigo histórico da etapa anterior, não emitido pelo novo fluxo |
-| `tipo_de_documento_vazio` | O tipo informado está vazio |
-| `parametro_de_criacao_invalido` | Falha de validação de entrada |
+| `ErroDocumentoCriar::ProcessoNaoAbertoNaUnidade` | A situação conferida não inclui a unidade ativa |
+| `ErroListaDeTiposDocumento::TipoAusente` | Não há opção exata na lista completa |
+| `ErroListaDeTiposDocumento::TipoAmbiguo` | Mais de uma opção com o mesmo nome |
+| `ErroListaDeTiposDocumento::ListaForaDaForma` | `tblSeries` ou links não interpretáveis |
+| `ErroCadastroDoDocumento::CadastroForaDaForma` | Cadastro ou tipo aberto inconsistente |
+| `ErroConferenciaDeCriacao::NaoAplicado` | Verificação concluiu que não surgiu documento |
+| `ErroDocumentoCriar::Confirmacao(ErroConfirmacaoDaCriacao::NaoConfirmadoNoEnvio)`, `ErroDocumentoCriar::Confirmacao(ErroConfirmacaoDaCriacao::NaoConfirmadoNaReleitura)` | Resposta ou árvore não permite conferir unicidade e identidade |
+| `ErroLinkIncluirDocumento::Barra(ErroBarraDoProcesso::BarraDoProcessoForaDaFormaObservada)` | A barra da raiz não tem estrutura interpretável |
+| `ErroLinkIncluirDocumento::Barra(ErroBarraDoProcesso::BarrasDoProcessoRepetidasNaArvore)` | A barra da raiz aparece duas vezes |
+| `ErroLinkIncluirDocumento::LinkRepetido` | A barra publica mais de uma ação de incluir |
+| `ErroLinkIncluirDocumento::EnderecoNaoReconhecido` | O link de inclusão não é a URL relativa assinada esperada |
+| `ErroLinkIncluirDocumento::EnderecoDeOutroProcesso` | O link de inclusão aponta para outra identidade |
+| `ErroDocumentoCriar::LinkNaoPublicado` | A unidade não publicou a opção de incluir |
+| `ErroDocumentoCriar::UnidadeNaoPublicada` | A tela não identifica a unidade de trabalho |
+| `ErroDocumentoCriar::SituacaoNaoLida` | A árvore não publicou a situação segura para gravação |
+| `ErroListaDeTiposDocumento::LinkDoTipoNaoNavegavel` | O `href`/`onclick` do tipo não é a navegação literal observada |
+| `ErroListaDeTiposDocumento::NavegacaoNaoComprovadaPorScript(ErroGuardaDeNavegacao::…)` | O `onclick` é literal, mas a função que ele chama não foi comprovada em script ativo (ausente, repetida, fora do nível superior ou com corpo diferente) |
+| `ErroListaDeTiposDocumento::EnderecoDoTipoNaoReconhecido` | URL do tipo ausente, inválida ou vinculada a outro processo |
+| `ErroCadastroDoDocumento::TipoDoCadastroDiferente` | A tela aberta não identifica o tipo pedido |
+| `ErroCadastroDoDocumento::DescricaoNaoOferecida` | A descrição solicitada não tem controle utilizável |
+| `ErroCadastroDoDocumento::NivelNaoOferecido` | O nível solicitado não aparece habilitado |
+| `ErroCadastroDoDocumento::CampoObrigatorioNaoAtendido` | O cadastro publica controle HTML obrigatório que a CLI não consegue preencher com valor observado |
+| `ErroDocumentoCriar::TelaRedirecionada` | A tela de leitura devolveu 302 não seguido |
+| `ErroNivelDeConfirmacao::NivelNaoInformado` | Confirmação exige --nivel publico explícito; não presumir nível |
+| `ErroNivelDeConfirmacao::NivelRestritoSemHipotese` | Nível não público exige resolver a hipótese legal antes da escrita |
+| `ErroDocumentoCriar::SubmissaoNaoComprovada` | Cadastro não contém a regra observada de submissão |
+| `ErroDocumentoCriar::ArvoreIncompleta` | Pasta fechada impede comparação de documentos |
+| `ErroDocumentoCriar::Confirmacao(ErroConfirmacaoDaCriacao::FotoInicialInconsistente)` | Antes do POST, a árvore contém IDs de documento repetidos/vazios ou ID de processo ausente; nenhuma escrita é enviada |
+| `TipoDeDocumentoVazio` | O tipo informado está vazio |
+| erro do clap (saída 2) | Falha de validação de entrada |
 
 
-Erros de abertura, atributos, transporte e formulário preservam seus
-subcódigos próprios. Entrada inválida sai 2; recusa antes do POST sai 1;
-sucesso demonstrado sai 0; efeito incerto após o POST sai 3.
+Erros de abertura, atributos, transporte e formulário sobem como causa
+tipada. Entrada inválida sai 2 (clap); recusa antes do POST sai 1;
+sucesso demonstrado sai 0; escrita não confirmada após o POST sai 1.
 
 ## Saída projetada
 
@@ -99,14 +101,40 @@ Prévia: `{"nup":"…","tipo":"Despacho","confirmado":false,
 "alterado":false,"requisicoes":N}`.
 Após escrita comprovada: `{"nup":"…","tipo":"Despacho",
 "confirmado":true,"alterado":true,"numero_sei":"…",
-"requisicoes":N}`. Na saída 3 de efeito incerto, `requisicoes`
+"requisicoes":N}`. Na saída 1 de escrita não confirmada, `requisicoes`
 informa as tentativas realmente contadas (inclusive POST e releitura);
 não se interpreta a contagem como prova de aceite. Após a escrita, uma
-falha da leitura verificadora mantém saída 3, preserva a causa tipada
+falha da leitura verificadora mantém saída 1, preserva a causa tipada
 em `causa_releitura` e publica `status_http` e
 `mensagem_do_servidor` quando observados. O POST não é repetido;
 `causa_envio` permanece reservado às falhas do próprio envio.
 Nenhum segredo ou URL assinada na saída.
+
+### Cópia editável após a criação
+
+Quando `ies documento criar --confirmar` preparar a cópia de
+trabalho, o próprio comando devolve o caminho do arquivo a editar.
+Se a cópia já trouxer o CSS ou os estilos do modelo, a saída humana
+inclui a orientação logo abaixo do caminho:
+
+> Edite o arquivo e, de preferência, siga os estilos que ele já contém.
+
+Com `--json`, o mesmo retorno traz o caminho e a orientação:
+
+```json
+{
+  "copia_editavel": {
+    "arquivo": "0012608.v2.html",
+    "orientacao": "Edite o arquivo e, de preferência, siga os estilos que ele já contém."
+  }
+}
+```
+
+O caminho só é publicado depois de a cópia estar pronta. A orientação
+sobre estilos só é publicada quando eles constarem do arquivo.
+
+Os estilos são uma orientação de edição. O agente pode usar CSS
+próprio, e o salvamento envia o HTML da seção como ficou no arquivo.
 
 ## Evidências e validação
 
@@ -117,7 +145,7 @@ Oráculo: Todos `src/todos/documentos.py` (`criar`,
 Cassettes Goiás `documento-incluir` e `documento-escritas`.
 O replay GO das duas cassettes é **obrigatório no CI**: ZIP e membros conferidos por hash; 15 respostas-alvo (3 lidas, 5 recusadas e 7 não aplicáveis). [CI 42127145672](https://github.com/franklinbaldo/ies/actions/runs/42127145672): PASS em prek, Release e replay (head `6603a36`).
 
-Os testes sintéticos verificam prévia de 5 GET/0 POST e confirmação de 6 GET/1 POST, com releitura e efeito incerto sem retry. [RED 42120924295](https://github.com/franklinbaldo/ies/actions/runs/42120924295): 1 teste falhou antes da guarda de nível pré-rede. Um teste de 302 sem Location apresentou [RED 42131591459](https://github.com/franklinbaldo/ies/actions/runs/42131591459) (1 falha, 1.610 aprovados); a correção exige Location não vazia para reconhecer o 302 como resposta conferível. O head corrigido requer CI próprio. RED e compilação Rust **locais: NOT_RUN** (cargo/rustc e DNS indisponíveis).
+Os testes sintéticos verificam prévia de 5 GET/0 POST e confirmação de 6 GET/1 POST, com releitura e escrita não confirmada sem retry. [RED 42120924295](https://github.com/franklinbaldo/ies/actions/runs/42120924295): 1 teste falhou antes da guarda de nível pré-rede. Um teste de 302 sem Location apresentou [RED 42131591459](https://github.com/franklinbaldo/ies/actions/runs/42131591459) (1 falha, 1.610 aprovados); a correção exige Location não vazia para reconhecer o 302 como resposta conferível. O head corrigido requer CI próprio. RED e compilação Rust **locais: NOT_RUN** (cargo/rustc e DNS indisponíveis).
 
 **Live:** login, prévia, escrita e releitura em treinamento **NOT_RUN**, 0 requisições, 0 POSTs e nenhum resíduo nesta sessão. A escrita está autorizada só em treinamento; falta a sequência prévia observada → uma única confirmação → leitura independente, com número SEI e resíduo registrados.
 
@@ -130,13 +158,13 @@ observada de `hdnFlagDocumentoCadastro` em `script` ativo;
 e script duplicado não autorizam a escrita. Os quatro casos são
 testados com transporte injetável e exatamente 5 GET / 0 POST.
 Formas não reconhecidas recusam com
-`submissao_do_documento_nao_observada` antes do POST.
+`ErroDocumentoCriar::SubmissaoNaoComprovada` antes do POST.
 
 As causas da prévia, escolha e barra de inclusão são compostas por
-`#[derive(Causa)]`, sem mapeamento manual de subcódigos. A saída
+`thiserror` (`#[from]`), sem mapeamento manual de subcódigos. A saída
 legada mantém as folhas de erro publicadas, com caminho tipado
 interno e preservação da mensagem/status HTTP quando observados.
-A escrita incerta continua saída 3.
+A escrita incerta continua saída 1.
 
 
 A guarda de confirmação também recusa `script[src]`, cujo corpo inline
@@ -150,7 +178,7 @@ O retorno 302 somente pode contribuir para uma confirmação se a
 `Location` publicada permanecer no controlador HTTPS da mesma instalação,
 com uma ação explícita e única. Um 302 sem Location, com host externo,
 com caminho alheio ou sem ação não comprova atribuição causal da mudança
-na árvore: efeito incerto (saída 3), mesmo quando se observa um novo
+na árvore: escrita não confirmada (saída 1), mesmo quando se observa um novo
 documento. A leitura de reconciliação ocorre uma vez após o POST;
 não seguir Location e não repetir a escrita.
 
@@ -166,7 +194,7 @@ isolada, inclusive em um script sintético mínimo, não comprova a
 submissão e é recusada antes da escrita. Também recusa `if(false)`,
 funções não relacionadas, aninhamentos, strings, templates, comentários,
 `script[src]` e redefinições ambíguas. Forma não observada:
-`submissao_do_documento_nao_observada`, **antes do POST**.
+`ErroDocumentoCriar::SubmissaoNaoComprovada`, **antes do POST**.
 
 RED observado no [CI 42158719053](https://github.com/franklinbaldo/ies/actions/runs/42158719053):
 1 teste novo falhou, 1.659 passaram, 18 ignorados; orçamento adversarial
@@ -184,7 +212,7 @@ cadastro ofereceu uma ação de criação. A captura SEI 4.0.9 do Todos
 conferida **antes do POST** juntamente com a função `submeter()` completa.
 Sem botão, com tipo/callback divergente, desabilitado ou com outro botão
 `btnSalvar` contraditório, a confirmação recusa com
-`submissao_do_documento_nao_observada`, após os **5 GET de prévia e
+`ErroDocumentoCriar::SubmissaoNaoComprovada`, após os **5 GET de prévia e
 sem POST criador**, nos testes sintéticos. A função JS não é executada;
 atributos são lidos por `html_atributos`. Testes positivos aceitam dois
 botões iguais, como na captura. Além do atributo `disabled` direto,
@@ -204,7 +232,7 @@ O botão `btnSalvar` e uma função `submeter()` separadamente não
 autorizam a escrita. A guarda exige uma única `confirmarDados()`
 com chamada `submeter()` dentro de `if (OnSubmitForm())`,
 além de `submeter()` completo. Recusas por cadeia ausente, alterada
-ou duplicada geram `submissao_do_documento_nao_observada` antes do
+ou duplicada geram `ErroDocumentoCriar::SubmissaoNaoComprovada` antes do
 POST. Testes adversariais: 5 GET/0 POST; confirmação positiva: 6 GET,
 1 POST e verificação por leitura. Não se executa JS.
 
@@ -218,7 +246,7 @@ com ação `documento_visualizar` ou `arvore_visualizar` e `id_documento`
 oráculo Todos `tests/test_escritas_diretas_010.py @323eb01`, não constitui
 comprovação de escrita ao vivo no IES. O redirecionamento jamais é seguido.
 Mesmo após recusa HTTP 403/503 ou validação Infra, sempre se realiza
-a releitura independente uma vez; o efeito segue incerto (saída 3),
+a releitura independente uma vez; o efeito segue incerto (saída 1),
 com `causa_envio` tipada, `status_http` e mensagem saneada quando observados.
 Nenhum segundo POST é autorizado, inclusive quando a árvore mudou.
 A forma efetiva do retorno do SEI em treinamento permanece a validar.
@@ -230,7 +258,7 @@ A seleção do tipo por `escolher(id)` e a troca do filtro por
 um único `script` clássico inline ativo. Texto idêntico em
 `template`, comentário HTML ou `script type=application/json` não
 autoriza o POST de navegação; não se executa JavaScript nem se inventa
-endpoint. A recusa conserva `link_do_tipo_de_documento_nao_navegavel`
+endpoint. A recusa é `ErroListaDeTiposDocumento::NavegacaoNaoComprovadaPorScript`
 e acontece antes do envio daquele formulário. Testes adversariais
 sintéticos cobrem os três conteúdos inertes em ambos os caminhos e
 controles positivos com código ativo. Não extrapolar para outras
@@ -264,7 +292,7 @@ Por decisão motivada do 🦡 Texugo na PR #248, a guarda valida o botão
 Salvar ativo e o formulário servido (ação e campos), sem simular callbacks
 JavaScript. O servidor decide aceitar ou recusar a submissão HTTP; a CLI
 preserva prévia, exatamente um POST, 302 causal, releitura independente,
-número SEI e saída 3 para efeito incerto. Aceita-se o risco residual de
+número SEI e saída 1 para escrita não confirmada. Aceita-se o risco residual de
 divergência entre interação no navegador e POST da CLI. Testes de equivalência
 hipotética de JS foram removidos em ablação explícita e documentada.
 Isso não constitui validação live da criação de documento.

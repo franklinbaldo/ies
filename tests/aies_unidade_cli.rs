@@ -19,6 +19,10 @@ use std::process::{Command, Output, Stdio};
 use std::thread;
 use std::time::{Duration, Instant, SystemTime, UNIX_EPOCH};
 
+#[path = "support/falha.rs"]
+mod falha_cli;
+use falha_cli::falha;
+
 const ORIGEM: &str = "https://sei.test/sei";
 const CENARIO: &str = "aies-unidade-cli";
 
@@ -39,6 +43,11 @@ impl Pasta {
         ));
         fs::create_dir(&pasta).unwrap();
         Self(pasta)
+    }
+    fn com_modo(modo: u32) -> Self {
+        let pasta = Self::nova();
+        fs::set_permissions(&pasta.0, fs::Permissions::from_mode(modo)).unwrap();
+        pasta
     }
     fn privado(&self, nome: &str, texto: &str) -> PathBuf {
         let arquivo = self.0.join(nome);
@@ -141,11 +150,15 @@ fn executar(snapshot: bool, esperada: Option<&str>) -> Output {
             VisaoFixture::Ausente
         },
         esperada,
+        true,
     )
 }
 
-fn executar_visao(visao: VisaoFixture, esperada: Option<&str>) -> Output {
-    let pasta = Pasta::nova();
+/// `indice_privado`: a pasta da sessão, onde nasce o índice, é `0700`; senão
+/// `0755`, que o índice recusa (aviso `diretorio_nao_privado` na saída). A
+/// URL do Controle traz `infra_unidade_atual`: a colheita usa o índice.
+fn executar_visao(visao: VisaoFixture, esperada: Option<&str>, indice_privado: bool) -> Output {
+    let pasta = Pasta::com_modo(if indice_privado { 0o700 } else { 0o755 });
     let (cert, identidade) = certificado(&pasta.0);
     let origem = pasta.privado("origem", ORIGEM);
     // Assinatura sintética, montada apenas em arquivo temporário 0600.
@@ -153,7 +166,7 @@ fn executar_visao(visao: VisaoFixture, esperada: Option<&str>) -> Output {
     let url = pasta.privado(
         "url",
         &format!(
-            "{ORIGEM}/controlador.php?acao=procedimento_controlar&{nome_hash}={}",
+            "{ORIGEM}/controlador.php?acao=procedimento_controlar&infra_unidade_atual=110000001&{nome_hash}={}",
             "a".repeat(64)
         ),
     );
@@ -270,37 +283,47 @@ fn aies_01_cli_real_ler_unidade_observada() {
     let valor = json(&saida);
     assert_eq!(valor["unidade_exibida"], "TESTE");
     assert_eq!(valor["origem"], "controle_de_processos");
+    // Índice sem falha: a chave `avisos` não existe (nunca `null` nem `[]`).
+    assert_eq!(valor.get("avisos"), None, "{valor}");
+}
+
+/// #786: a falha do índice não derruba o comando e sai tipada em `avisos`,
+/// sem o caminho do banco.
+#[test]
+fn aies_05_cli_real_publica_a_falha_do_indice_em_avisos() {
+    let saida = executar_visao(VisaoFixture::Resumida, None, false);
+    assert_eq!(saida.status.code(), Some(0));
+    let valor = json(&saida);
+    assert_eq!(valor["unidade_exibida"], "TESTE");
+    assert_eq!(
+        valor["avisos"],
+        serde_json::json!([{"falha": "banco", "causa": {"erro": "diretorio_nao_privado"}}])
+    );
+    let texto = String::from_utf8_lossy(&saida.stdout);
+    assert!(!texto.contains("aies-unidade-"), "{texto}");
 }
 
 #[test]
 fn aies_03_cli_real_recusa_controle_ausente() {
     let saida = executar(false, None);
-    assert_ne!(saida.status.code(), Some(0));
-    let valor = json(&saida);
-    assert_eq!(valor["codigo"], "fonte_invalida");
-    assert_eq!(valor["status_http"], 503);
-    assert!(valor.get("unidade_exibida").is_none());
+    falha(&saida, "Status");
 }
 
 #[test]
 fn aies_04_cli_real_recusa_unidade_divergente() {
     let saida = executar(true, Some("OUTRA"));
-    assert_ne!(saida.status.code(), Some(0));
-    let valor = json(&saida);
-    assert_eq!(valor["codigo"], "fonte_invalida");
-    assert_eq!(
-        valor["subcodigo"],
-        "unidade_exibida_diferente_da_solicitada"
-    );
-    assert!(valor.get("unidade_exibida").is_none());
+    falha(&saida, "UnidadeExibidaDiferenteDaSolicitada");
 }
 
 // AIES-02: a sessão já lembrava uma página posterior da visão D.
 #[test]
 fn aies_02_cli_real_unidade_na_detalhada_pagina_posterior() {
-    let saida = executar_visao(VisaoFixture::Detalhada, None);
+    let saida = executar_visao(VisaoFixture::Detalhada, None, true);
     assert_eq!(saida.status.code(), Some(0));
     let valor = json(&saida);
     assert_eq!(valor["unidade_exibida"], "TESTE");
     assert_eq!(valor["origem"], "controle_de_processos");
 }
+
+#[path = "aies_unidade_cli/colunas.rs"]
+mod colunas;

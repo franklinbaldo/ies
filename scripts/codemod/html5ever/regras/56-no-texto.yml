@@ -1,0 +1,18 @@
+id: 56-no-texto
+language: rust
+message: "tl::Node::Raw(b) vira No::Texto(b), texto já decodificado"
+severity: hint
+rule:
+  all:
+    - any:
+        - pattern:
+            context: "match x { tl::Node::Raw($$$B) => 1 }"
+            selector: tuple_struct_pattern
+    - not:
+        inside:
+          stopBy: end
+          kind: mod_item
+          follows:
+            kind: attribute_item
+            regex: 'cfg\(test\)'
+fix: "crate::tela_html::No::Texto($$$B)"

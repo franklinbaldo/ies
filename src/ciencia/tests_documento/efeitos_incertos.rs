@@ -23,8 +23,10 @@ fn lista_em_noscript_nao_prova_ciencia_documental() {
     ]);
     let (resultado, pedidos) = rodar(true, respostas);
     let erro = resultado.unwrap_err();
-    assert_eq!(erro.saida(), 3);
-    assert!(matches!(erro, E::EfeitoIncerto { requisicoes: 7, .. }));
+    assert!(matches!(
+        erro,
+        ErroCienciaDocumento::NaoConfirmado { requisicoes: 7, .. }
+    ));
     assert_eq!(pedidos.len(), 7);
     assert_eq!(
         pedidos
@@ -54,16 +56,20 @@ fn segunda_ciencia_documental_e_validacao_sem_retry() {
     ]);
     let (resultado, pedidos) = rodar(true, respostas);
     let erro = resultado.unwrap_err();
-    assert_eq!(erro.saida(), 3);
-    assert_eq!(erro.status_http().map(|s| s.status), Some(200));
+    let ErroCienciaDocumento::NaoConfirmado {
+        falha_do_aceite: Some(super::super::documento::FalhaDoAceite::ValidacaoDaInfra(recusa)),
+        ..
+    } = &erro
+    else {
+        panic!("{erro:?}");
+    };
     assert_eq!(
-        erro.status_http()
-            .and_then(|s| s.mensagem_do_servidor.as_deref()),
+        Some(recusa.as_str()),
         Some("Usuário já deu ciência neste documento.")
     );
     assert!(matches!(
         erro,
-        E::EfeitoIncerto {
+        ErroCienciaDocumento::NaoConfirmado {
             falha_do_aceite: Some(super::super::documento::FalhaDoAceite::ValidacaoDaInfra(_)),
             requisicoes: 6,
             ..

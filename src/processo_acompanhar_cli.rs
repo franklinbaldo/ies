@@ -1,13 +1,12 @@
 //! CLI de acompanhamento: prévia e inclusão com POST único e releitura.
-use crate::processo::NumeroProcesso;
-use crate::processo_acompanhar::{ErroPrevia, Pedido, Previa, previa};
-use crate::processo_concluir_cli::{com_sessao, erro_de_uso, publicar_valor_da_falha};
+use crate::indice_local::{self, IndiceLocal};
+use crate::processo_acompanhar::{Pedido, Previa, previa};
+use crate::processo_concluir_cli::com_sessao;
 use crate::visao_do_controle::EnvioHttps;
 use crate::{Cli, Domain, Processo, ProcessoAcao};
 use serde_json::json;
-use std::process::ExitCode;
 
-pub(crate) fn tentar_acompanhar(cli: &Cli) -> Option<ExitCode> {
+pub(crate) fn tentar_acompanhar(cli: &Cli) -> Option<anyhow::Result<()>> {
     let Domain::Processo(Processo {
         acao:
             Some(ProcessoAcao::Acompanhar {
@@ -22,57 +21,54 @@ pub(crate) fn tentar_acompanhar(cli: &Cli) -> Option<ExitCode> {
     else {
         return None;
     };
-    Some(match NumeroProcesso::novo(numero) {
-        Ok(nup) => {
-            // A exclusão ainda não possui formulário de envio validado.
-            // Bloqueá-la antes de ler credenciais ou abrir conexão.
-            if *confirmar && *deixar {
-                return Some(publicar_erro(
-                    cli.json,
-                    &ErroPrevia::ConfirmacaoNaoImplementada,
-                ));
+    let nup = numero.clone();
+    Some({
+        let pedido = Pedido {
+            nup: &nup,
+            unidade: cli.unidade.as_deref(),
+            grupo: grupo.as_deref(),
+            observacao: observacao.as_deref(),
+            deixar: *deixar,
+            confirmar: *confirmar,
+        };
+        com_sessao(cli, |sessao, indice| {
+            if *deixar
+                && *confirmar
+                && let Err(causa) = crate::origem_de_treinamento::exigir(
+                    crate::origem_de_treinamento::Escrita::ProcessoAcompanharDeixar,
+                    sessao.origem,
+                )
+            {
+                return Err(causa.into());
             }
-            let pedido = Pedido {
-                nup: &nup,
-                unidade: cli.unidade.as_deref(),
-                grupo: grupo.as_deref(),
-                observacao: observacao.as_deref(),
-                deixar: *deixar,
-                confirmar: *confirmar,
-            };
-            com_sessao(cli, |sessao, indice| {
-                match previa(sessao, &pedido, indice, &mut EnvioHttps) {
-                    Ok(plano) => publicar_previa(cli.json, &plano),
-                    Err(erro) => publicar_erro(cli.json, &erro),
-                }
-            })
-        }
-        Err(erro) => erro_de_uso(cli.json, erro.subcodigo()),
+            let plano = previa(sessao, &pedido, indice, &mut EnvioHttps)?;
+            publicar_previa(cli.json, &plano, indice);
+            Ok(())
+        })
     })
 }
 
-fn publicar_previa(json_mode: bool, plano: &Previa) -> ExitCode {
+fn publicar_previa(json_mode: bool, plano: &Previa, indice: &IndiceLocal) {
     if json_mode {
-        println!(
-            "{}",
-            json!({
+        let mut valor = json!({
                 "numero": plano.numero,
                 "unidade": plano.unidade,
                 "operacao": plano.operacao,
                 "grupo": plano.grupo,
                 "observacao": plano.observacao,
                 "id_acompanhamento": plano.id_de_remocao,
-                "ja_estava": plano.ja_estava,
-                "confirmado": plano.confirmado,
-                "alterado": plano.alterado,
+                "ja_estava": plano.estado.ja_estava(),
+                "confirmado": plano.estado.confirmado(),
+                "alterado": plano.estado.alterado(),
                 "origem": "web",
                 "requisicoes": plano.requisicoes,
-            })
-        );
+        });
+        indice_local::anexar_avisos(&mut valor, indice);
+        println!("{valor}");
     } else {
         println!(
             "{} — processo {} (unidade {})",
-            if plano.confirmado {
+            if plano.estado.confirmado() {
                 "Confirmação"
             } else {
                 "Prévia"
@@ -80,41 +76,36 @@ fn publicar_previa(json_mode: bool, plano: &Previa) -> ExitCode {
             plano.numero,
             plano.unidade
         );
-        if plano.ja_estava {
+        if plano.estado.ja_estava() {
             println!("Nada a fazer: o acompanhamento solicitado já está no estado pedido.");
+        } else if plano.estado.alterado() {
+            if plano.operacao == "deixar" {
+                println!("Retirado acompanhamento do grupo: {}", plano.grupo);
+            } else {
+                println!("Incluído acompanhamento no grupo: {}", plano.grupo);
+                println!("Observação: {}", plano.observacao);
+            }
         } else if plano.operacao == "deixar" {
             println!("Retiraria o acompanhamento do grupo: {}", plano.grupo);
-        } else if plano.alterado {
-            println!("Incluído acompanhamento no grupo: {}", plano.grupo);
-            println!("Observação: {}", plano.observacao);
         } else {
             println!("Incluiria acompanhamento no grupo: {}", plano.grupo);
             println!("Observação: {}", plano.observacao);
         }
-        if plano.alterado {
+        if plano.estado.alterado() {
             if let Some(id) = &plano.id_de_remocao {
                 println!("ID observado na releitura: {id}");
             }
-            println!("Acompanhamento incluído e confirmado por leitura.");
+            println!(
+                "Acompanhamento {} e confirmado por leitura.",
+                if plano.operacao == "deixar" {
+                    "retirado"
+                } else {
+                    "incluído"
+                }
+            );
         } else {
             println!("Nenhuma escrita executada.");
         }
         println!("Requisições: {}", plano.requisicoes);
     }
-    ExitCode::SUCCESS
-}
-
-fn publicar_erro(json_mode: bool, erro: &ErroPrevia) -> ExitCode {
-    let incerto = matches!(erro, ErroPrevia::EfeitoIncerto);
-    let valor = json!({
-        "codigo": if incerto { "efeito_incerto" } else { "operacao_recusada" },
-        "subcodigo": erro.subcodigo(),
-        "erro": if incerto {
-            "A inclusão pode ter ocorrido, mas a releitura não comprovou o efeito. Não repita a escrita."
-        } else {
-            "Não foi possível conferir o Acompanhamento Especial; nenhuma escrita foi enviada."
-        },
-        "retentavel": false
-    });
-    publicar_valor_da_falha(json_mode, &valor, if incerto { 3 } else { 1 })
 }

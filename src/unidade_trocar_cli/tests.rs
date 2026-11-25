@@ -3,8 +3,10 @@
 //! link da unidade anterior volta do índice; o Controle novo é colhido com
 //! a chave da unidade nova. Arquivos e hashes sintéticos.
 use super::*;
+use crate::acao_do_sei::AcaoDoSei;
 use crate::indice_local::{ChaveDoLink, NOME_DO_ARQUIVO, unidade_dos_links};
 use crate::sessao_login::geracao_da_sessao;
+use crate::tela_html::HtmlServido;
 use crate::unidade_trocar::tests_apoio::{
     COOKIE, ID_A, ID_B, ORIGEM, controle, url_controle, url_limpa,
 };
@@ -48,28 +50,18 @@ fn falhas_da_aplicacao_preservam_a_causa_tipificada() {
     let instalacao = Instalacao::interpretar(ORIGEM).unwrap();
     let novo = ControleLido {
         url: url_limpa(ID_B),
-        html: controle("PR-B", ID_B),
+        html: HtmlServido::de_teste(&controle("PR-B", ID_B)),
         mime: "text/html; charset=iso-8859-1".into(),
     };
 
-    let cookie_ausente = CookieDaSessao::ler(&dir.join("cookie-inexistente"));
-    assert!(matches!(
-        aplicar_troca(&arquivos, &indice, &instalacao, &cookie_ausente, &novo),
-        Err(FalhaAplicarTroca::Cookie(
-            FalhaTransporte::ArquivoPrivadoAusenteOuInacessivel
-        ))
-    ));
-
     std::fs::create_dir(&arquivos.url_controle).unwrap();
     assert!(matches!(
-        aplicar_troca(
-            &arquivos,
-            &indice,
-            &instalacao,
-            &CookieDaSessao::sintetico(COOKIE),
-            &novo
-        ),
-        Err(FalhaAplicarTroca::Gravacao(_))
+        aplicar_troca(&arquivos, &indice, &instalacao, COOKIE, &novo),
+        Err(
+            crate::sessao_login::ErroLogin::DestinoDaSessaoNaoEhArquivoRegular(
+                crate::configuracao::ArquivoPrivado::UrlControle
+            )
+        )
     ));
     std::fs::remove_dir_all(dir).unwrap();
 }
@@ -102,8 +94,8 @@ fn troca_regrava_sessao_e_nada_da_unidade_anterior_e_reaproveitado() {
     let chave = |unidade| ChaveDoLink {
         geracao_sessao: &geracao,
         unidade,
-        acao: "procedimento_trabalhar",
-        objeto: "7",
+        acao: AcaoDoSei::ProcedimentoTrabalhar,
+        alvo: "7",
     };
     indice
         .registrar_link(&instalacao, chave(ID_A), &link_de_trabalho(ID_A))
@@ -115,22 +107,16 @@ fn troca_regrava_sessao_e_nada_da_unidade_anterior_e_reaproveitado() {
     assert!(indice.link(&instalacao, chave(ID_A)).is_some());
     let novo = ControleLido {
         url: url_limpa(ID_B),
-        html: controle("PR-B", ID_B),
+        html: HtmlServido::de_teste(&controle("PR-B", ID_B)),
         mime: "text/html; charset=iso-8859-1".into(),
     };
     assert_eq!(
-        aplicar_troca(
-            &arquivos,
-            &indice,
-            &instalacao,
-            &CookieDaSessao::sintetico(COOKIE),
-            &novo,
-        ),
+        aplicar_troca(&arquivos, &indice, &instalacao, COOKIE, &novo,),
         Ok(Some(2))
     );
     let gravada = std::fs::read_to_string(&arquivos.url_controle).unwrap();
     assert_eq!(gravada.trim(), url_limpa(ID_B));
-    assert_eq!(unidade_dos_links(gravada.trim()).as_deref(), Some(ID_B));
+    assert_eq!(unidade_dos_links(gravada.trim()).as_deref(), Ok(ID_B));
     assert!(crate::sessao_login::mesma_geracao(
         &arquivos,
         &url_limpa(ID_B),
@@ -161,7 +147,7 @@ fn sucesso_publica_escopo_da_sessao_e_so_nomes_dos_campos() {
     };
     let lido = |url: String| ControleLido {
         url,
-        html: String::new(),
+        html: HtmlServido::de_teste(""),
         mime: String::new(),
     };
     let mut troca = Troca {
@@ -173,6 +159,7 @@ fn sucesso_publica_escopo_da_sessao_e_so_nomes_dos_campos() {
         confirmado: true,
         controle_inicial: lido(url_controle(ID_A)),
         controle_novo: Some(lido(url_limpa(ID_B))),
+        cookie: crate::transporte::sessao::CookieLido::sintetico(COOKIE),
     };
     let valor = json_de_sucesso(&troca, Some(4), 5);
     assert_eq!(valor["depois"], "PR-B");
@@ -191,51 +178,14 @@ fn sucesso_publica_escopo_da_sessao_e_so_nomes_dos_campos() {
     assert!(!texto.contains("infra_hash") && !texto.contains("https://"));
     assert!(humano(&troca, 5).contains("toda a sessão da conta"));
 
-    // Já na unidade: oferecidas e envio devem continuar null, não [].
+    // Já na unidade: oferecidas e envio saem da saída (não viram [] nem null).
     troca.escolhida = None;
     troca.campos_do_envio = None;
     troca.controle_novo = None;
     let legado = json_de_sucesso(&troca, None, 2);
     let direto = serde_json::to_value(resultado_troca(&troca, None, 2)).unwrap();
     assert_eq!(direto, legado);
-    assert!(direto["oferecidas"].is_null());
-    assert!(direto["envio"].is_null());
+    assert!(direto.get("oferecidas").is_none());
+    assert!(direto.get("envio").is_none());
     assert_eq!(direto["depois"], "PR-B");
-}
-
-#[test]
-fn falhas_de_troca_sao_apresentadas_direto_do_tipo_sem_json() {
-    let u = |sigla: &str| UnidadeOferecida {
-        sigla: sigla.to_owned(),
-        descricao: format!("Unidade {sigla}"),
-        id_unidade: "7".into(),
-    };
-    let nao_oferecida = ErroTroca::UnidadeNaoOferecida {
-        oferecidas: vec![u("PR-A"), u("PR-B")],
-    };
-    let linhas = linhas_da_falha(&nao_oferecida, 2);
-    assert_eq!(linhas[1], "IES: oferecidas: PR-A, PR-B");
-    assert_eq!(linhas[2], "IES: 2 requisições.");
-    assert!(linhas[0].contains(nao_oferecida.subcodigo()));
-
-    let ambigua = ErroTroca::SiglaDeUnidadeAmbigua {
-        candidatas: vec![u("PR-A"), u("PR-A")],
-    };
-    let linhas = linhas_da_falha(&ambigua, 1);
-    assert_eq!(linhas[1], "IES: candidatas: PR-A, PR-A");
-    assert_eq!(linhas[2], "IES: 1 requisições.");
-
-    let incerta = ErroTroca::EfeitoIncerto {
-        etapa: crate::unidade_trocar::EtapaDaTroca::SegundoRedirecionamento,
-        falha: crate::unidade_trocar::FalhaDepoisDoEnvio::RedirecionamentoSemLocalizacao,
-    };
-    let linhas = linhas_da_falha(&incerta, 3);
-    assert_eq!(
-        linhas[1],
-        format!(
-            "IES: etapa segundo_redirecionamento: redirecionamento_da_troca_sem_localizacao; {AVISO_DE_ESCOPO}"
-        )
-    );
-    assert_eq!(linhas[2], "IES: 3 requisições.");
-    assert_eq!(incerta.saida(), 3);
 }

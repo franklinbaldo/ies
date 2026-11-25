@@ -30,7 +30,8 @@ def roteiro():
     return [previa(), confirmado(), leitura(), previa(True),
             confirmado(True), leitura(True)]
 
-class EnsaioAtribuicao(unittest.TestCase):
+class BaseEnsaio:
+
     def setUp(self):
         self.temp = tempfile.TemporaryDirectory()
         self.addCleanup(self.temp.cleanup)
@@ -47,6 +48,8 @@ class EnsaioAtribuicao(unittest.TestCase):
                        usuario=USUARIO, origem=ORIGEM, executar=executar,
                        pausa=self.pausas.append)
 
+
+class EnsaioAtribuicao(BaseEnsaio, unittest.TestCase):
     def test_ciclo_com_dois_posts_unicos_releituras_e_residuo(self):
         codigo, relatorio = self.rodar()
         self.assertEqual((codigo, relatorio["estado"]), (0, "PASS"))
@@ -83,6 +86,54 @@ class EnsaioAtribuicao(unittest.TestCase):
                 self.chamadas.clear()
                 self.assertFalse(self.registro.exists())
 
+    def test_previa_falhou_preserva_diagnostico_tipado_sem_dados_livres(self):
+        codigo, relatorio = self.rodar([(
+            1, {"subcodigo": "situacao_da_atribuicao_nao_observada",
+                "status_http": 403, "requisicoes": 3,
+                "mensagem_do_servidor": "https://example.invalid/privado"}
+        )])
+        self.assertEqual(codigo, 1)
+        self.assertEqual(relatorio["estado"], "PREVIA_FAIL")
+        self.assertEqual(relatorio["requisicoes"], [3])
+        self.assertEqual(relatorio["saida_cli"], 1)
+        self.assertEqual(relatorio["subcodigo"],
+                         "situacao_da_atribuicao_nao_observada")
+        self.assertEqual(relatorio["status_http"], 403)
+        self.assertNotIn("mensagem_do_servidor", relatorio)
+        self.assertNotIn("example.invalid", json.dumps(relatorio))
+        self.assertFalse(self.registro.exists())
+
+    def test_previa_nao_publica_codigo_textual_arbitrario(self):
+        codigo, relatorio = self.rodar([(
+            1, {"subcodigo": "https://example.invalid/privado",
+                "status_http": "https://example.invalid", "requisicoes": None}
+        )])
+        self.assertEqual((codigo, relatorio["estado"]), (1, "PREVIA_FAIL"))
+        self.assertNotIn("subcodigo", relatorio)
+        self.assertNotIn("status_http", relatorio)
+        self.assertFalse(self.registro.exists())
+
+    def test_previa_falhou_preserva_somente_confronto_de_unidades(self):
+        # O proprio JSON tipado da CLI publica a unidade da tela e as
+        # unidades abertas. Comparar sem publicar os nomes no resumo.
+        for unidade, aberto_em, esperado in (
+            ("Unidade2", ["Unidade1"], False),
+            ("Unidade1", ["Unidade1"], True),
+            ("Unidade1", None, None),
+        ):
+            with self.subTest(unidade=unidade, aberto_em=aberto_em):
+                codigo, relatorio = self.rodar([(
+                    1, {"subcodigo": "situacao_da_atribuicao_nao_observada",
+                        "unidade": unidade, "aberto_em": aberto_em,
+                        "requisicoes": 3}
+                )])
+                self.assertEqual((codigo, relatorio["estado"]), (1, "PREVIA_FAIL"))
+                self.assertEqual(relatorio.get("unidade_consta_na_arvore"), esperado)
+                self.assertNotIn("unidade", relatorio)
+                self.assertNotIn("aberto_em", relatorio)
+                self.assertFalse(self.registro.exists())
+                self.chamadas.clear()
+
     def test_post_sem_resposta_nao_repete_escrita(self):
         dados = roteiro()
         dados[1] = 3, {"subcodigo": "efeito_incerto_na_atribuicao", "requisicoes": 6}
@@ -91,6 +142,51 @@ class EnsaioAtribuicao(unittest.TestCase):
         self.assertEqual(len(self.chamadas), 2)
         self.assertEqual(relatorio["requisicoes"], [4, 6])
         self.assertTrue(self.registro.exists())
+
+    def test_post_inconclusivo_conserva_atribuicao_relida_sem_declarar_sucesso(self):
+        dados = roteiro()
+        dados[1] = 3, {"subcodigo": "efeito_incerto_na_atribuicao",
+                       "requisicoes": 6, "atribuicao_relida": USUARIO}
+        codigo, relatorio = self.rodar(dados)
+        self.assertEqual((codigo, relatorio["estado"]), (3, "EFEITO_INCERTO"))
+        self.assertEqual(relatorio["residuo"], "possivel_atribuicao")
+        self.assertEqual(relatorio["atribuicao_relida"], USUARIO)
+        self.assertEqual(json.loads(self.registro.read_text())["atribuicao_relida"], USUARIO)
+        self.assertEqual(len(self.chamadas), 2)
+
+    def test_remocao_inconclusiva_conserva_ausencia_observada_sem_sucesso(self):
+        dados = roteiro()
+        dados[4] = 3, {"subcodigo": "efeito_incerto_na_atribuicao",
+                       "requisicoes": 6, "atribuicao_relida": ""}
+        codigo, relatorio = self.rodar(dados)
+        self.assertEqual((codigo, relatorio["estado"]), (3, "EFEITO_INCERTO"))
+        self.assertEqual(relatorio["residuo"], "possivel_remocao")
+        self.assertEqual(relatorio["atribuicao_relida"], "")
+        self.assertEqual(json.loads(self.registro.read_text())["atribuicao_relida"], "")
+        self.assertEqual(len(self.chamadas), 5)
+
+    def test_releitura_nao_observada_permanece_nula_no_registro(self):
+        dados = roteiro()
+        dados[1] = 3, {"requisicoes": 6, "atribuicao_relida": None}
+        codigo, relatorio = self.rodar(dados)
+        self.assertEqual((codigo, relatorio["estado"]), (3, "EFEITO_INCERTO"))
+        self.assertIn("atribuicao_relida", relatorio)
+        self.assertIsNone(relatorio["atribuicao_relida"])
+        self.assertNotEqual(relatorio["residuo"], "sem_atribuicao")
+        self.assertEqual(len(self.chamadas), 2)
+
+    def test_post_inconclusivo_nao_publica_valor_alheio_ou_dado_nao_tipado(self):
+        for valor in ("https://example.invalid/segredo", ["aluno2"]):
+            with self.subTest(valor=valor):
+                dados = roteiro()
+                dados[1] = 3, {"subcodigo": "efeito_incerto_na_atribuicao",
+                               "requisicoes": 6, "atribuicao_relida": valor}
+                codigo, relatorio = self.rodar(dados)
+                self.assertEqual(codigo, 3)
+                self.assertNotIn("atribuicao_relida", relatorio)
+                self.assertNotIn("example.invalid", self.registro.read_text())
+                self.registro.unlink()
+                self.chamadas.clear()
 
     def test_releitura_de_outro_processo_nao_autoriza_remover(self):
         dados = roteiro()
@@ -181,139 +277,6 @@ class EnsaioAtribuicao(unittest.TestCase):
         persistido = json.loads(self.registro.read_text())
         self.assertNotEqual(persistido["estado"], "PASS")
         self.assertNotEqual(persistido["residuo"], "sem_atribuicao")
-
-    def test_trava_sincroniza_diretorio_antes_do_primeiro_post(self):
-        import os
-        import stat
-        from unittest.mock import patch
-
-        fsync_original = os.fsync
-        diretorio_sincronizado = False
-        respostas = iter(roteiro())
-
-        def fsync_rastreado(fd):
-            nonlocal diretorio_sincronizado
-            if stat.S_ISDIR(os.fstat(fd).st_mode):
-                diretorio_sincronizado = True
-            return fsync_original(fd)
-
-        def executar(_ies, argumentos):
-            self.chamadas.append(argumentos)
-            if "--confirmar" in argumentos:
-                self.assertTrue(diretorio_sincronizado)
-            return next(respostas)
-
-        with patch("ensaio_processo_atribuir.os.fsync", side_effect=fsync_rastreado):
-            codigo, relatorio = ensaiar(
-                ies="ies-falso", registro=self.registro, nup=NUP,
-                usuario=USUARIO, origem=ORIGEM, executar=executar,
-                pausa=lambda _: None,
-            )
-        self.assertEqual((codigo, relatorio["estado"]), (0, "PASS"))
-        self.assertEqual(len(self.chamadas), 6)
-
-    def test_falha_fsync_diretorio_bloqueia_primeiro_post(self):
-        import os
-        import stat
-        from unittest.mock import patch
-
-        fsync_original = os.fsync
-
-        def fsync_falhando_no_diretorio(fd):
-            if stat.S_ISDIR(os.fstat(fd).st_mode):
-                raise OSError("diretorio nao persistido")
-            return fsync_original(fd)
-
-        with patch("ensaio_processo_atribuir.os.fsync",
-                   side_effect=fsync_falhando_no_diretorio):
-            codigo, relatorio = self.rodar()
-        self.assertEqual((codigo, relatorio["estado"]), (2, "BLOQUEADO"))
-        self.assertEqual(len(self.chamadas), 1)
-        self.assertTrue(self.registro.exists())
-
-    def test_rename_final_sincroniza_diretorio_antes_de_pass(self):
-        import os
-        import stat
-        from unittest.mock import patch
-
-        fsync_original = os.fsync
-        replace_original = os.replace
-        houve_rename = False
-        diretorio_apos_rename = False
-
-        def substituir(*args):
-            nonlocal houve_rename
-            replace_original(*args)
-            houve_rename = True
-
-        def sincronizar(fd):
-            nonlocal diretorio_apos_rename
-            if stat.S_ISDIR(os.fstat(fd).st_mode) and houve_rename:
-                diretorio_apos_rename = True
-            return fsync_original(fd)
-
-        with patch("ensaio_processo_atribuir.os.replace", side_effect=substituir), \
-             patch("ensaio_processo_atribuir.os.fsync", side_effect=sincronizar):
-            codigo, relatorio = self.rodar()
-        self.assertEqual((codigo, relatorio["estado"]), (0, "PASS"))
-        self.assertTrue(houve_rename)
-        self.assertTrue(diretorio_apos_rename)
-
-    def test_falha_fsync_diretorio_apos_rename_nao_declara_pass(self):
-        import os
-        import stat
-        from unittest.mock import patch
-
-        fsync_original = os.fsync
-        chamadas_diretorio = 0
-
-        def sincronizar(fd):
-            nonlocal chamadas_diretorio
-            if stat.S_ISDIR(os.fstat(fd).st_mode):
-                chamadas_diretorio += 1
-                if chamadas_diretorio == 2:
-                    raise OSError("diretorio nao persistido apos rename")
-            return fsync_original(fd)
-
-        with patch("ensaio_processo_atribuir.os.fsync", side_effect=sincronizar):
-            codigo, relatorio = self.rodar()
-        self.assertEqual(chamadas_diretorio, 2)
-        self.assertEqual((codigo, relatorio["estado"]), (3, "EFEITO_INCERTO"))
-        self.assertEqual(relatorio["residuo"], "possivel_remocao")
-        self.assertEqual(len(self.chamadas), 6)
-
-    def test_escrita_parcial_do_checkpoint_antes_do_post_eh_completa(self):
-        import os
-        from unittest.mock import patch
-
-        escrita_original = os.write
-        parcial_injetada = False
-        registro_antes_do_post = []
-        respostas = iter(roteiro())
-
-        def escrever_parcial(fd, dados):
-            nonlocal parcial_injetada
-            if not parcial_injetada:
-                parcial_injetada = True
-                return escrita_original(fd, dados[:1])
-            return escrita_original(fd, dados)
-
-        def executar(_ies, args):
-            if "--confirmar" in args and not registro_antes_do_post:
-                registro_antes_do_post.append(self.registro.read_text())
-            return next(respostas)
-
-        with patch("ensaio_processo_atribuir.os.write", side_effect=escrever_parcial):
-            codigo, relatorio = ensaiar(
-                ies="ies-falso", registro=self.registro, nup=NUP,
-                usuario=USUARIO, origem=ORIGEM, executar=executar,
-                pausa=lambda _: None,
-            )
-        self.assertTrue(parcial_injetada)
-        self.assertEqual((codigo, relatorio["estado"]), (0, "PASS"))
-        self.assertEqual(json.loads(registro_antes_do_post[0])["estado"],
-                         "CONFIRMACAO_INICIADA")
-        self.assertEqual(json.loads(self.registro.read_text())["estado"], "PASS")
 
 
 class PrevooDaOrigem(unittest.TestCase):

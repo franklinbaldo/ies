@@ -3,6 +3,7 @@
 //! documentos e ensina ao índice o par NUP ↔ id e o link
 //! `procedimento_trabalhar` assinado do destino, sem requisição a mais.
 use super::tests_apoio::*;
+use crate::acao_do_sei::AcaoDoSei;
 use crate::arvore_processo::tests::NUP;
 use crate::arvore_processo::tests_movidos::{
     ID_DESTINO, NUP_DESTINO, arvore_com_movido, href_do_destino, html_do_movido,
@@ -42,7 +43,10 @@ fn abrir_processo_com_movido_aprende_o_destino_sem_requisicao() {
     );
     assert_eq!(
         amb.indice
-            .link(&inst, chave(&g, "procedimento_trabalhar", ID_DESTINO))
+            .link(
+                &inst,
+                chave(&g, AcaoDoSei::ProcedimentoTrabalhar, ID_DESTINO)
+            )
             .map(|u| u.url().to_owned()),
         Some(absoluta(&href_do_destino(ID_DESTINO, "31")))
     );

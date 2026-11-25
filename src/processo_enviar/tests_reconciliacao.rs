@@ -1,11 +1,10 @@
 //! RED/GREEN do `--confirmar` de `processo enviar`: um POST, a leitura de
 //! verificação e a tabela de reconciliação do contrato.
-use super::ProcessoEnviado;
-use super::erro::ErroEnviar as R;
 use super::tests_apoio::*;
+use super::{DesfechoDoEnvio, ProcessoEnviado};
 use crate::formulario_web::ErroSubmissaoFormulario;
 use crate::processo_concluir::tests_apoio::*;
-use crate::processo_concluir::{FalhaDoEnvio, VerificacaoPorLeitura as V};
+use crate::processo_concluir::{FalhaDoEnvio, VerificacaoPorLeitura};
 use crate::transporte::FalhaTransporte;
 
 /// Abertura, tela, consulta, resposta do POST e a árvore relida.
@@ -23,9 +22,10 @@ fn respostas(versao: Versao, resposta: Resposta, relida: Resposta) -> Vec<Respos
 
 fn enviado(manter: bool, depois: &[&str]) -> ProcessoEnviado {
     ProcessoEnviado {
-        confirmado: true,
-        alterado: true,
-        depois: Some(siglas(depois)),
+        desfecho: DesfechoDoEnvio::Enviado {
+            depois: siglas(depois),
+            reconciliado_por: None,
+        },
         requisicoes: 7,
         ..previa(&[UNIDADE], manter)
     }
@@ -55,7 +55,7 @@ fn confirmar_envia_uma_vez_e_verifica() {
 fn indice_aquecido_nao_autoriza_envio_sem_situacao_remota() {
     let amb = ambiente();
     let inst = crate::instalacao::Instalacao::interpretar(ORIGEM).unwrap();
-    amb.indice.registrar_processo(&inst, NUP, ID).unwrap();
+    amb.indice.registrar_processo(&inst, NUP, ID);
     amb.indice.registrar_entrada_por_id(&inst, false);
     let roteiro = respostas(
         Versao::V41,
@@ -125,7 +125,10 @@ fn resposta_nao_esperada_e_reconciliada_pela_leitura() {
         assert_eq!(
             r.unwrap(),
             ProcessoEnviado {
-                reconciliado_por: Some(falha),
+                desfecho: DesfechoDoEnvio::Enviado {
+                    depois: siglas(&[DESTINO]),
+                    reconciliado_por: Some(falha),
+                },
                 ..enviado(false, &[DESTINO])
             }
         );
@@ -146,15 +149,15 @@ fn leitura_sem_o_destino_e_escrita_nao_aplicada() {
         ),
     );
     let erro = r.unwrap_err();
-    assert_eq!(
+    assert!(matches!(
         erro,
-        R::EnvioNaoAplicado {
-            aberto_em: siglas(&[UNIDADE]),
-            depois: siglas(&[UNIDADE]),
+        super::erro::ErroEnviar::EnvioNaoAplicado {
+            aberto_em,
+            depois,
+            anotacao_depois: None,
             falha_do_envio: None,
-        }
-    );
-    assert_eq!((erro.codigo(), erro.saida()), ("escrita_nao_aplicada", 1));
+        } if aberto_em == siglas(&[UNIDADE]) && depois == siglas(&[UNIDADE])
+    ));
     assert_eq!(feitos, pedidos_da_escrita(Versao::V41, false));
 }
 
@@ -172,23 +175,20 @@ fn origem_diferente_do_pedido_e_escrita_diferente() {
             ),
         );
         let erro = r.unwrap_err();
-        assert_eq!(
+        assert!(matches!(
             erro,
-            R::SituacaoDaOrigemDiferenteDaPedidaAposEnvio {
-                aberto_em: siglas(&[UNIDADE]),
-                depois: siglas(depois),
+            super::erro::ErroEnviar::SituacaoDaOrigemDiferenteDaPedidaAposEnvio {
+                aberto_em,
+                depois: depois_do_envio,
+                anotacao_depois: None,
                 falha_do_envio: None,
-            }
-        );
-        assert_eq!(
-            (erro.codigo(), erro.saida()),
-            ("escrita_diferente_da_solicitada", 1)
-        );
+            } if aberto_em == siglas(&[UNIDADE]) && depois_do_envio == siglas(depois)
+        ));
     }
 }
 
 #[test]
-fn leitura_que_falha_e_efeito_incerto_sem_retry() {
+fn leitura_que_falha_e_nao_confirmado_sem_retry() {
     let (r, feitos) = rodar_envio(
         DESTINO,
         false,
@@ -203,11 +203,10 @@ fn leitura_que_falha_e_efeito_incerto_sem_retry() {
     assert!(
         matches!(
             &erro,
-            R::EfeitoIncertoNoEnvio { verificacao, falha_do_envio: Some(_), .. }
-                if matches!(**verificacao, V::LeituraFalhou(_))
+            super::erro::ErroEnviar::NaoConfirmadoNoEnvio { verificacao, falha_do_envio: Some(_), .. }
+                if matches!(**verificacao, VerificacaoPorLeitura::LeituraFalhou(_))
         ),
         "{erro:?}"
     );
-    assert_eq!((erro.codigo(), erro.saida()), ("efeito_incerto", 3));
     assert_eq!(feitos, pedidos_da_escrita(Versao::V41, false));
 }

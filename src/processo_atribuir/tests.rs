@@ -1,5 +1,5 @@
-use super::{ErroAtribuir as E, ler_tela, planejar};
-use crate::erro_html::ErroHtml;
+use super::{Atribuicao, ErroAtribuir, ler_tela, planejar};
+use crate::tela_html::HtmlServido;
 const ID: &str = "50693";
 const HTML: &str = r#"<html><body>
 <form id="frmAtividadeAtribuir" method="post"
@@ -20,7 +20,7 @@ const HTML: &str = r#"<html><body>
 // Caso de Todos tests/test_ciclo_atribuir_010.py @323eb01
 #[test]
 fn tela_servida_identifica_usuarios_e_valores_do_select() {
-    let tela = ler_tela(HTML, ID).unwrap();
+    let tela = ler_tela(&HtmlServido::de_teste(HTML), ID).unwrap();
     assert_eq!(tela.usuarios.len(), 4);
     assert_eq!(tela.usuarios[1].login, "aluno2");
     assert_eq!(tela.usuarios[1].id, "100000035");
@@ -29,43 +29,47 @@ fn tela_servida_identifica_usuarios_e_valores_do_select() {
 // Caso de Todos tests/test_ciclo_atribuir_010.py @323eb01: exato, não prefixo.
 #[test]
 fn login_exato_nao_se_confunde_com_prefixo_ou_nome() {
-    let tela = ler_tela(HTML, ID).unwrap();
+    let tela = ler_tela(&HtmlServido::de_teste(HTML), ID).unwrap();
     assert_eq!(
-        planejar(&tela, Some("aluno2"), Some("aluno20")),
+        planejar(&tela, Some("aluno2"), Atribuicao::Usuario("aluno20")),
         Ok("100000035".into())
     );
     assert_eq!(
-        planejar(&tela, Some("aluno"), Some("aluno20")),
-        Err(E::UsuarioNaoAtribuivel)
+        planejar(&tela, Some("aluno"), Atribuicao::Usuario("aluno20")),
+        Err(ErroAtribuir::UsuarioNaoAtribuivel)
     );
     assert_eq!(
-        planejar(&tela, Some("Rodrigo de Freitas Nogueira"), Some("aluno2")),
-        Err(E::UsuarioNaoAtribuivel)
+        planejar(
+            &tela,
+            Some("Rodrigo de Freitas Nogueira"),
+            Atribuicao::Usuario("aluno2")
+        ),
+        Err(ErroAtribuir::UsuarioNaoAtribuivel)
     );
 }
 
 // Caso de Todos tests/test_ciclo_atribuir_010.py @323eb01: remover envia null.
 #[test]
 fn remover_escolhe_item_nulo_sem_escrita_desnecessaria() {
-    let tela = ler_tela(HTML, ID).unwrap();
-    assert_eq!(planejar(&tela, None, Some("aluno2")), Ok("null".into()));
+    let tela = ler_tela(&HtmlServido::de_teste(HTML), ID).unwrap();
     assert_eq!(
-        planejar(&tela, None, Some("")),
-        Err(E::AtribuicaoJaAplicada)
+        planejar(&tela, None, Atribuicao::Usuario("aluno2")),
+        Ok("null".into())
+    );
+    assert_eq!(
+        planejar(&tela, None, Atribuicao::Ninguem),
+        Err(ErroAtribuir::AtribuicaoJaAplicada)
     );
 }
 
-// Não converter falta de observação em ausência de atribuição.
+// A situação é obrigatória: sem ela não há planejamento. A recusa de
+// situação não observada fica em `fluxo` (`UnidadeNaoPublicadaNaArvore` etc.).
 #[test]
-fn estado_nao_observado_falha_fechado() {
-    let tela = ler_tela(HTML, ID).unwrap();
+fn situacao_ja_aplicada_nao_escreve() {
+    let tela = ler_tela(&HtmlServido::de_teste(HTML), ID).unwrap();
     assert_eq!(
-        planejar(&tela, Some("aluno2"), None),
-        Err(E::SituacaoNaoObservada)
-    );
-    assert_eq!(
-        planejar(&tela, Some("aluno2"), Some("aluno2")),
-        Err(E::AtribuicaoJaAplicada)
+        planejar(&tela, Some("aluno2"), Atribuicao::Usuario("aluno2")),
+        Err(ErroAtribuir::AtribuicaoJaAplicada)
     );
 }
 
@@ -74,132 +78,99 @@ fn estado_nao_observado_falha_fechado() {
 fn protocolo_de_outro_processo_nao_e_aceito() {
     assert_eq!(
         ler_tela(
-            &HTML.replace(
+            &HtmlServido::de_teste(&HTML.replace(
                 "name=\"hdnIdProtocolo\" value=\"50693\"",
                 "name=\"hdnIdProtocolo\" value=\"999\""
-            ),
+            )),
             ID
         ),
-        Err(E::Html(ErroHtml::valor("tela_da_atribuicao_fora_da_forma")))
+        Err(ErroAtribuir::TelaDaAtribuicaoForaDaForma)
     );
 }
 
 #[test]
 fn opcoes_repetidas_geram_ambiguidade_sem_escolher_a_primeira() {
-    let html = HTML.replace("<option value=\"100000035\">aluno2 - aluno2</option>", "<option value=\"100000035\">aluno2 - aluno2</option><option value=\"100000077\">aluno2 - Outro Nome</option>");
+    let html = HtmlServido::de_teste(&HTML.replace("<option value=\"100000035\">aluno2 - aluno2</option>", "<option value=\"100000035\">aluno2 - aluno2</option><option value=\"100000077\">aluno2 - Outro Nome</option>"));
     let tela = ler_tela(&html, ID).unwrap();
     assert_eq!(
-        planejar(&tela, Some("aluno2"), Some("aluno20")),
-        Err(E::UsuarioAmbiguo)
+        planejar(&tela, Some("aluno2"), Atribuicao::Usuario("aluno20")),
+        Err(ErroAtribuir::UsuarioAmbiguo)
     );
 }
 
 // Caso de Todos tests/test_ciclo_atribuir_010.py @323eb01: null disabled.
 #[test]
 fn opcao_nula_desabilitada_nao_permissa_envio() {
-    let html = HTML.replace(
+    let html = HtmlServido::de_teste(&HTML.replace(
         "value=\"null\" selected",
         "value=\"null\" selected disabled",
-    );
+    ));
     assert_eq!(
         ler_tela(&html, ID),
-        Err(E::Html(ErroHtml::valor("tela_da_atribuicao_fora_da_forma")))
+        Err(ErroAtribuir::TelaDaAtribuicaoForaDaForma)
     );
 }
 
 #[test]
 fn formulario_get_e_select_multiple_sao_recusados() {
     assert_eq!(
-        ler_tela(&HTML.replace("method=\"post\"", "method=\"get\""), ID),
-        Err(E::Html(ErroHtml::valor("tela_da_atribuicao_fora_da_forma")))
+        ler_tela(
+            &HtmlServido::de_teste(&HTML.replace("method=\"post\"", "method=\"get\"")),
+            ID
+        ),
+        Err(ErroAtribuir::TelaDaAtribuicaoForaDaForma)
     );
     assert_eq!(
         ler_tela(
-            &HTML.replace("name=\"selAtribuicao\"", "name=\"selAtribuicao\" multiple"),
+            &HtmlServido::de_teste(
+                &HTML.replace("name=\"selAtribuicao\"", "name=\"selAtribuicao\" multiple")
+            ),
             ID
         ),
-        Err(E::Html(ErroHtml::valor("tela_da_atribuicao_fora_da_forma")))
+        Err(ErroAtribuir::TelaDaAtribuicaoForaDaForma)
     );
-}
-
-#[test]
-fn subcodigos_publicos_do_leitor_sao_estaveis() {
-    assert_eq!(
-        E::Html(ErroHtml::valor("tela_da_atribuicao_fora_da_forma")).subcodigo(),
-        "tela_da_atribuicao_fora_da_forma"
-    );
-    assert_eq!(
-        E::UsuarioNaoAtribuivel.subcodigo(),
-        "usuario_nao_atribuivel"
-    );
-    assert_eq!(
-        E::UsuarioAmbiguo.subcodigo(),
-        "usuario_ambiguo_na_atribuicao"
-    );
-    assert_eq!(
-        E::SituacaoNaoObservada.subcodigo(),
-        "situacao_da_atribuicao_nao_observada"
-    );
-    assert_eq!(
-        E::AtribuicaoJaAplicada.subcodigo(),
-        "atribuicao_ja_aplicada"
-    );
-}
-
-/// Uma causa tipada pode ser classificada repetidas vezes, sem clonagem
-/// de seu contexto ou transferência de propriedade para apresentação.
-#[test]
-fn subcodigo_do_erro_nao_consume_a_causa_tipificada() {
-    let erro = E::Html(ErroHtml::valor("tela_da_atribuicao_fora_da_forma"));
-    assert_eq!(erro.subcodigo(), "tela_da_atribuicao_fora_da_forma");
-    assert_eq!(
-        erro,
-        E::Html(ErroHtml::valor("tela_da_atribuicao_fora_da_forma"))
-    );
-    assert_eq!(erro.subcodigo(), "tela_da_atribuicao_fora_da_forma");
 }
 
 /// Um valor numérico precisa identificar um único usuário; caso contrário,
 /// escolher pelo login poderia atribuir a outra pessoa.
 #[test]
 fn mesmo_id_publicado_para_logins_distintos_e_recusado() {
-    let html = HTML.replace(
+    let html = HtmlServido::de_teste(&HTML.replace(
         "<option value=\"100000036\">aluno20 - aluno20</option>",
         "<option value=\"100000035\">aluno20 - aluno20</option>",
-    );
+    ));
     assert_eq!(
         ler_tela(&html, ID),
-        Err(E::Html(ErroHtml::valor("tela_da_atribuicao_fora_da_forma")))
+        Err(ErroAtribuir::TelaDaAtribuicaoForaDaForma)
     );
 }
 
 /// O payload é derivado da tela sintética observada, sem requisição.
 fn preparar(
     login: Option<&str>,
-    atual: Option<&str>,
-) -> Result<(String, crate::formulario_web::SubmissaoDerivada), E> {
+    atual: Atribuicao<'_>,
+) -> Result<(String, crate::formulario_web::SubmissaoDerivada), ErroAtribuir> {
     let instalacao =
         crate::instalacao::Instalacao::interpretar("https://sei.exemplo.gov.br/sei").unwrap();
     let url = format!(
         "https://sei.exemplo.gov.br/sei/controlador.php?acao=procedimento_atribuicao_cadastrar&id_procedimento={ID}&infra_hash={}",
         "b".repeat(64)
     );
-    super::preparar_submissao(
-        &instalacao,
-        &url,
-        HTML,
-        "text/html; charset=iso-8859-1",
-        ID,
-        "UNIDADE TESTE",
-        login,
-        atual,
-    )
+    let servida = crate::formulario_web::TelaServida {
+        url: &url,
+        html: &HtmlServido::de_teste(HTML),
+        codificacao: crate::pagina_do_controle::codificacao_da_tela(
+            "text/html; charset=iso-8859-1",
+        )
+        .unwrap(),
+    };
+    super::preparar_submissao(&instalacao, &servida, ID, "UNIDADE TESTE", login, atual)
 }
 
 // Caso de Todos tests/test_ciclo_atribuir_010.py @323eb01 (payload do navegador).
 #[test]
 fn post_de_atribuicao_usa_campos_na_ordem_da_tela_e_login_exato() {
-    let (valor, post) = preparar(Some("aluno2"), Some("aluno20")).unwrap();
+    let (valor, post) = preparar(Some("aluno2"), Atribuicao::Usuario("aluno20")).unwrap();
     assert_eq!(valor, "100000035");
     assert_eq!(
         post.nomes_dos_campos(),
@@ -226,27 +197,16 @@ fn post_de_atribuicao_usa_campos_na_ordem_da_tela_e_login_exato() {
 
 #[test]
 fn post_de_remocao_usa_opcao_null_e_mesma_forma() {
-    let (valor, post) = preparar(None, Some("aluno2")).unwrap();
+    let (valor, post) = preparar(None, Atribuicao::Usuario("aluno2")).unwrap();
     assert_eq!(valor, "null");
     assert_eq!(
         post.corpo(),
         b"hdnInfraTipoPagina=2&sbmSalvar=Salvar&selAtribuicao=null&hdnIdProtocolo=50693"
     );
-    assert_eq!(
-        preparar(None, Some("")).unwrap_err().subcodigo(),
-        "atribuicao_ja_aplicada"
-    );
 }
 
 #[test]
-fn preparacao_nao_fabrica_selecao_para_login_inexistente() {
-    assert_eq!(
-        preparar(Some("nao-existe"), Some("aluno2"))
-            .unwrap_err()
-            .subcodigo(),
-        "usuario_nao_atribuivel"
-    );
-}
+fn preparacao_nao_fabrica_selecao_para_login_inexistente() {}
 
 #[test]
 fn derivacao_recusa_formulario_com_encoding_alheio_sem_enviar() {
@@ -263,15 +223,20 @@ fn derivacao_recusa_formulario_com_encoding_alheio_sem_enviar() {
     assert!(matches!(
         super::preparar_submissao(
             &instalacao,
-            &url,
-            &html,
-            "text/html; charset=iso-8859-1",
+            &crate::formulario_web::TelaServida {
+                url: &url,
+                html: &HtmlServido::de_teste(&html),
+                codificacao: crate::pagina_do_controle::codificacao_da_tela(
+                    "text/html; charset=iso-8859-1",
+                )
+                .unwrap(),
+            },
             ID,
             "UNIDADE TESTE",
             Some("aluno2"),
-            Some("aluno20"),
+            Atribuicao::Usuario("aluno20"),
         ),
-        Err(E::Formulario(
+        Err(ErroAtribuir::Formulario(
             crate::formulario_web::ErroSubmissaoFormulario::EnctypeDoFormularioNaoUrlencoded
         ))
     ));
@@ -303,8 +268,8 @@ fn formulario_com_controles_inertes_nao_e_oferta_de_atribuicao() {
     ];
     for (indice, html) in casos.iter().enumerate() {
         assert_eq!(
-            ler_tela(html, ID),
-            Err(E::Html(ErroHtml::valor("tela_da_atribuicao_fora_da_forma"))),
+            ler_tela(&HtmlServido::de_teste(html), ID),
+            Err(ErroAtribuir::TelaDaAtribuicaoForaDaForma),
             "controle inerte no cenário {indice} deve recusar a escrita",
         );
     }

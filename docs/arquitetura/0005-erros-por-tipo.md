@@ -12,15 +12,15 @@ decision: typed-errors single-origin direct-propagation serde-at-boundary
 
 Cada `enum` de erro mantinha uma `fn subcodigo()` manual: 966 braços de
 `match` que copiavam a classificação tipada para texto. O compilador
-garante que o `match` cobre as variantes, mas não que o texto corresponda
-à variante. Por isso existiam tabelas de subcódigos longe do código e um
+garante que o `match` cobre os erros, mas não que o texto corresponda
+ao erro. Por isso existiam tabelas de subcódigos longe do código e um
 hook só para mantê-las em sincronia. Nenhum consumidor programático decide
 pelo `subcodigo`: os únicos usos eram testes e o próprio verificador.
 
 ## Decisão
 
 - **O tipo é a verdade.** Declare o erro perto do ponto que detecta a
-  falha. Em regra, cada variante tem um único ponto de construção em
+  falha. Em regra, cada erro tem um único ponto de construção em
   produção. Propagação, assinaturas, testes e padrões de `match` não são
   novas emissões. Um validador compartilhado pode atender vários fluxos.
 - **Propagar sem embrulhar.** Use `?` ou retorne o `Result` original.
@@ -34,7 +34,7 @@ pelo `subcodigo`: os únicos usos eram testes e o próprio verificador.
 - **Decisão separada de diagnóstico.** `Acao` (corrigir argumentos,
   relogar, trocar de instalação, conferir a escrita, reportar) é o
   contrato de decisão; a causa é diagnóstico.
-- **Sem "efeito incerto".** Uma escrita é descrita por fatos (`enviada`,
+- **Sem "escrita não confirmada".** Uma escrita é descrita por fatos (`enviada`,
   `aplicada`) e pela causa exata; depois de uma falha, a operação lê de
   novo para reconciliar, sem repetir a escrita.
 - **Serde sob demanda.** O domínio propaga `Result`, `Option` e `enum` sem
@@ -45,21 +45,21 @@ pelo `subcodigo`: os únicos usos eram testes e o próprio verificador.
   `Result<T, E>` automaticamente nem criar DTOs só para justificar derives.
 - **Apresentação na fronteira.** A CLI serializa apenas o dado público
   necessário com Serde ou apresenta a mensagem do tipo. Classificação e
-  testes de identidade usam variantes. Strings fixas de JSON ficam nos
+  testes de identidade comparam o erro. Strings fixas de JSON ficam nos
   testes da fronteira, para conferir o formato emitido.
 
 ## Propagação e origem única
 
 - **Propagar antes de converter.** Se o erro já é o tipo aceito pelo
-  consumidor, devolver `Err` com `?` diretamente. Não criar uma variante
+  consumidor, devolver `Err` com `?` diretamente. Não criar um erro
   de passagem só para registrar o módulo ou a função intermediária.
-- **Erro específico perto de quem decide.** Uma nova variante é justificada
+- **Erro específico perto de quem decide.** Um novo erro é justificado
   por um fato distinto e observável ou por uma decisão diferente; não por
   mera mudança de camada. Rust não tem subclasses de erros: preferir
   composição explícita apenas quando necessária, sem perda da causa.
 - **Um lugar para levantar cada falha, quando viável.** Centralizar a
   validação que origina o fato e deixar as chamadas propagarem seu
-  `Result`, em vez de construir a mesma variante em vários consumidores.
+  `Result`, em vez de construir o mesmo erro em vários consumidores.
   Não remover validações nas fronteiras de segurança para obter esse
   objetivo artificialmente.
 - **Falha da resposta não é falha do DOM.** URL assinada inválida, cookie
@@ -86,59 +86,73 @@ trocou 152 `.map_err(Enum::Caso)?` por `?`. Só troca quando a função
 envolvente devolve o próprio `Enum` e o `?` não está numa closure.
 
 Restam à mão:
-- **Variantes com `&'static str`** (o leitor devolve o subcódigo como
-  texto): `FalhaAnexar::Estrutura`, `FalhaRelacionar::Estrutura`,
-  `ErroCriar::Transporte`, e o padrão aninhado de
-  `processo_andamento_registrar::Erro`.
-- **Etapas achatadas** (tipo interno repetido): `ErroLogin` e
-  `ErroReabrir` (`FalhaTransporte`), `ErroProcessoObter`
-  (`ErroSubmissaoFormulario`).
+- **Erros com `&'static str`** (o leitor devolve o subcódigo como
+  texto): `FalhaAnexar::Estrutura`, `FalhaRelacionar::Estrutura` e o
+  padrão aninhado de `processo_andamento_registrar::Erro`.
+  `ErroCriar::Transporte` já guarda a causa (`FalhaTransporte`,
+  `ErroSubmissaoFormulario`); os motivos da releitura da ciência são
+  `VerificacaoDaCiencia` e `VerificacaoDaCienciaDoDocumento`.
+- **Etapas achatadas** (tipo interno repetido): resolvidas com um tipo
+  próprio por etapa, declarado junto de quem levanta o erro e composto por
+  `From` (`HistoricoNaoPedido`, `ErroDasAnotacoes`).
+  O erro `transparente` mantém o motivo concreto como nome público.
+- **Arquivo privado fora do transporte** (12/11/2026): `CookieIlegivel`,
+  `CredenciaisIlegiveis`, `OrigemIlegivel` e `SessaoGravadaInvalida`
+  tinham uma variante só, que embrulhava a `FalhaTransporte` de uma
+  leitura de arquivo. A leitura (`arquivo_privado::ler`) devolve
+  `ErroArquivoPrivado`, um fato por variante, e quem lê embrulha uma vez
+  com o nome do arquivo: `FalhaTransporte::CookieDaSessaoIlegivel`,
+  `ErroLogin::ArquivoDeCredenciais`. Os comandos recebem o cookie que a
+  abertura leu e conferiu (`CookieLido`, em `AcoesDeEstado`,
+  `DocumentoNaArvoreAberto`, `DocumentoObtido` e `Troca`): a variante
+  `Cookie` dos comandos, que nenhum caminho produzia, saiu. Só `processo
+  criar` lê o cookie primeiro, e cada fato do retrato é variante de
+  `ErroCriar` (`CookieDaSessaoIlegivel`, `CookieForaDoFormato`,
+  `ControleForaDaOrigem`).
+
+Terceira passada (10/11/2026): o derive deixou de aceitar
+`#[causa(nome = "...")]`. Os 272 atributos saíram; o nome público é o
+`snake_case` do erro, e para mudá-lo renomeia-se o erro. O relogin
+das leituras passou a decidir por `#[causa(sessao_encerrada)]` em vez de
+comparar o texto do subcódigo.
 
 ## Forma não observada
 
 Um elemento ausente, repetido, com valor fora da forma ou um HTML
-ilegível não sustenta decisão: só diz onde a leitura da tela falhou.
-Por isso é um tipo só, `ErroHtml { onde, problema, mensagem }`
-(`src/erro_html.rs`), e não uma variante por leitor.
+ilegível é um erro do leitor que o detecta, declarado ao lado dele e
+nomeado pelo fato: `FormularioAusenteNaTela`,
+`BarrasDoProcessoRepetidasNaArvore`, `LinhaDoControleIlegivel`. Quem
+consome o leitor embrulha o erro dele com `#[from]` e não o
+re-traduz.
 
-- `onde` é o diagnóstico e a folha pública: o `subcodigo` legado não
-  muda. `problema` (`ausente`, `repetido`, `valor`, `html`, ou
-  `atributo` com o `ErroAtributoHtml` que subiu) vai no caminho, depois
-  de `html`.
-- A mensagem é a genérica do problema (`ErroHtml::ausente("onde")`);
-  `.com_mensagem("...")` só onde o ponto tem texto próprio. A igualdade
-  compara `onde` e `problema`, não a mensagem.
-- Um `enum` com outras causas compõe com `#[causa(transparente)]
-  Html(ErroHtml)`: o `From` derivado deixa `?` e `.into()` converterem, e
-  o caminho não repete `html`. Um leitor que só falha por forma devolve
-  `ErroHtml`.
-- A variante de forma que algum código casa fora de teste (`match` em
-  fluxo, `matches!`, `==`, conversão entre tipos) sustenta uma decisão e
-  continua sendo variante.
-- **Só nasce de DOM; URL, cabeçalho, arquivo, configuração, entrada e
-  domínio têm variante própria.** `ErroHtml` é só o que nasce lendo a
-  tela servida (`tl::`, `html_atributos`, leitores de tela, árvore e
-  barra). URL e `Location`, cabeçalho HTTP, arquivo local, configuração,
+- O erro nasce onde é detectado. A barra do nó `PROCESSO` é lida num
+  lugar (`ancoras_da_barra`) e falha com `ErroBarraDoProcesso`; as
+  ações que leem links dessa barra (`ErroConcluirNaBarra`,
+  `ErroEnviarNaBarra`, …) carregam `Barra(#[from] ErroBarraDoProcesso)`
+  em vez de cada uma repetir as duas variantes.
+- Não há tipo genérico de forma nem campo que diga o lugar por texto.
+  `ErroHtml { onde, problema, mensagem }` existiu até 10/11/2026 e foi
+  removido por ablação: apagado o tipo, o compilador apontou cada uso,
+  e cada um virou a variante do leitor que detecta a falha.
+- A causa do tokenizador (`ErroAtributoHtml`) sobe como `#[source]`
+  onde o leitor a recebe.
+- Os mesmos limites de antes valem: só é forma o que nasce lendo a tela
+  servida. URL e `Location`, cabeçalho HTTP, arquivo local, configuração,
   validação de entrada e fato do domínio ficam no `enum` do módulo onde
-  nascem, ainda que o nome diga `Ausente` ou `Invalido`. Redirecionamento
-  ou `action` fora da instalação é recusa de segurança, não forma.
-- **Leitor novo não declara `enum` de forma: devolve `ErroHtml`.**
-
-`scripts/migrar_erro_html.py` (tree-sitter, com o compilador como
-oráculo) migrou 350 variantes de 68 tipos e eliminou 4 tipos inteiros. Os
-77 `map_err(|_| ...)` cuja origem era `ErroAtributoHtml` passaram a
-carregar a causa. As 21 variantes casadas fora de teste ficaram. A
-migração escolheu pelo nome, não pela origem; as variantes de proxy,
-`Location`, cabeçalho do anexo, diretório local, id de entrada e fato do
-domínio voltaram à forma de antes. O script agora só toma a variante cujo
-todo ponto de construção fora de teste está numa `fn` que lê DOM ou num
-módulo de leitura de tela (`MODULOS_DE_TELA`).
+  nascem. Redirecionamento ou `action` fora da instalação é recusa de
+  segurança, não forma.
 
 ## Consequências
 
 - Erro novo: tipo perto da detecção, uma origem em regra, propagação
   direta e serialização na fronteira. Não introduzir subcódigos.
-- Tabelas `subcodigos-*.md` deixam de ser a fonte; caem quando os
-  contratos migrarem.
+- Tabelas `subcodigos-*.md`, o gate `subcodigos` e o trait `Causa`
+  com caminho/folha/ação foram removidos (10/11/2026). A saída pública
+  é `codigo` + `erro` (mensagem) + HTTP.
+- O derive próprio (`ies-derive`) saiu (#674): os erros usam `thiserror`.
+  `#[from]` gera o `From`; `#[source]` liga a causa. `status_http()` e
+  `sessao_encerrada()` percorrem a cadeia `source()`, achando
+  `StatusHttpRecusado` ou `erro_publico::SessaoEncerrada` por `downcast`.
+  Não usar `#[error(transparent)]`: ele esconde o nó interno da cadeia.
 - `?` em vez de `map_err` para compor causas; um `From` manual só onde
   a origem não é um erro do projeto (`io`, `rusqlite`).

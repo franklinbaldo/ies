@@ -80,4 +80,4 @@ e [contrato provisório](../cli.md).
   [testes da CLI](../../tests/cli_processo_relacionar.rs).
 - RED local NOT_RUN; replay NOT_RUN; live PEN1 e UnB NOT_RUN,
   zero requisições, nenhum resíduo SEI.
-- **Separação entre CLI e motor WIP**: os flags `--confirmar` e `--remover --confirmar` são aceitos pelo parser da CLI, mas produzem `confirmacao_de_relacionamento_nao_validada` (saída 1) sem requisição ao SEI. Em testes sintéticos internos, a escrita usa um único POST mutador, exige aceite e releitura independente; esse caminho **não está acessível pela CLI**. Execuções reais em treinamento permanecem NOT_RUN; produção jamais acessada.
+- **Separação entre CLI e motor WIP**: os flags `--confirmar` e `--remover --confirmar` são aceitos pelo parser da CLI, mas, até 09/11/2026, produziam `confirmacao_de_relacionamento_nao_validada` (saída 1) sem requisição ao SEI. Em testes sintéticos internos, a escrita usa um único POST mutador, exige aceite e releitura independente; esse caminho **não está acessível pela CLI**. Execuções reais em treinamento permanecem NOT_RUN; produção jamais acessada.

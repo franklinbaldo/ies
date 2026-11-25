@@ -12,6 +12,11 @@ use iesei::observacao::{TabelaObservada, UnidadeExibida};
 use native_tls::{Identity, TlsAcceptor};
 use rusqlite::Connection;
 use serde_json::Value;
+#[path = "support/falha.rs"]
+mod falha_cli;
+#[path = "support/falha_por.rs"]
+mod falha_por_cli;
+use falha_cli::falha;
 use std::fs;
 use std::io::{Read, Write};
 use std::net::{Shutdown, TcpListener, TcpStream};
@@ -438,7 +443,6 @@ fn bdd_88_01_02_cli_binario_versao_historica_e_foto_idempotente() {
         .output()
         .unwrap();
     assert_eq!(terceira.status.code(), Some(1));
-    assert_eq!(json(&terceira)["subcodigo"], "foto_local_divergente");
     assert_eq!(
         fs::read_to_string(&foto).unwrap(),
         "<html><body>Edição local</body></html>"
@@ -456,3 +460,15 @@ mod positivos;
 
 #[path = "aies_documento_cli/testes_cancelamento.rs"]
 mod testes_cancelamento;
+
+#[path = "aies_documento_cli/testes_ciencia.rs"]
+mod testes_ciencia;
+
+#[path = "aies_documento_cli/testes_ciencia_processo.rs"]
+mod testes_ciencia_processo;
+
+#[path = "aies_documento_cli/testes_bloco_incluir.rs"]
+mod testes_bloco_incluir;
+
+#[path = "aies_documento_cli/testes_bloco_incluir_processo.rs"]
+mod testes_bloco_incluir_processo;

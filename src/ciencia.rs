@@ -6,16 +6,18 @@
 //! referenciam capturas `UnB` (4.0), UFRJ (4.1) e PEN3 (5.0).
 //! O GET de ciência é ESCRITA e não pode ser feito durante a prévia.
 //! Nenhum JavaScript é executado, e nenhuma URL assinada é publicada.
+use crate::acao_do_sei::AcaoDoSei;
+use crate::consulta_do_controlador::ConsultaDoControlador;
 
-use crate::html_atributos::{nos_com_id, valor_do_atributo};
 mod documento;
 mod fluxo;
-pub(crate) use documento::{
-    CienciaDoDocumento, ErroCienciaDocumento, PedidoDaCienciaDocumento, ciencia_no_documento,
-};
-pub(crate) use fluxo::{
-    CienciaDoProcesso, ErroCienciaProcesso, PedidoDaCiencia, ciencia_no_processo,
-};
+mod lista;
+mod lista_autoria;
+pub(crate) use documento::{CienciaDoDocumento, PedidoDaCienciaDocumento, ciencia_no_documento};
+#[cfg(test)]
+pub(crate) use fluxo::ErroCienciaProcesso;
+pub(crate) use fluxo::{CienciaDoProcesso, PedidoDaCiencia, ciencia_no_processo};
+pub(crate) use lista::atividade_na_lista;
 
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub(crate) enum AlvoDaCiencia<'a> {
@@ -28,39 +30,14 @@ pub(crate) enum AlvoDaCiencia<'a> {
     },
 }
 
-#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+#[derive(Clone, Debug, PartialEq, Eq, thiserror::Error)]
+#[error("{self:?}")]
 pub(crate) enum ErroCiencia {
+    Legenda(#[from] crate::legenda::ErroLegenda),
     AceiteSemAtividade,
     AtividadesAmbiguas,
     ListaDeCienciasForaDaFormaObservada,
     AtividadesRepetidasNaLista,
-}
-
-impl ErroCiencia {
-    pub(crate) const fn subcodigo(self) -> &'static str {
-        match self {
-            Self::AceiteSemAtividade => "aceite_da_ciencia_sem_atividade",
-            Self::AtividadesAmbiguas => "atividades_da_ciencia_ambiguas",
-            Self::ListaDeCienciasForaDaFormaObservada => {
-                "lista_de_ciencias_fora_da_forma_observada"
-            }
-            Self::AtividadesRepetidasNaLista => "atividades_repetidas_na_lista_de_ciencias",
-        }
-    }
-}
-
-/// Só admite o valor da chave com uma única ocorrência. Uma chave duplicada
-/// não permite escolher o primeiro nem o último valor.
-fn parametro_unico<'a>(consulta: &'a str, chave: &str) -> Option<&'a str> {
-    let mut valores = consulta
-        .split('&')
-        .filter_map(|parte| parte.split_once('='))
-        .filter(|(nome, _)| *nome == chave)
-        .map(|(_, valor)| valor);
-    match (valores.next(), valores.next()) {
-        (Some(valor), None) => Some(valor),
-        _ => None,
-    }
 }
 
 fn identificador(valor: &str) -> bool {
@@ -77,6 +54,11 @@ fn separador_vazio(byte: u8) -> bool {
 
 fn chamada_na_forma_do_aceite(script: &str, niveis: &[Option<usize>], posicao: usize) -> bool {
     let bytes = script.as_bytes();
+    // O byte e a profundidade do lexer na posição `i`; fora do script, nada.
+    let em = |i: usize| bytes.get(i).copied().zip(niveis.get(i).copied());
+    let ativo_e = |i: usize, teste: fn(u8) -> bool| {
+        em(i).is_some_and(|(byte, nivel)| nivel.is_some() && teste(byte))
+    };
     let Some(nivel) = niveis.get(posicao).copied().flatten() else {
         return false;
     };
@@ -86,40 +68,77 @@ fn chamada_na_forma_do_aceite(script: &str, niveis: &[Option<usize>], posicao: u
     // O texto imediatamente anterior não pode ser uma condição, atribuição,
     // retorno ou outra expressão que contenha a chamada. Comentários e
     // literais são ignorados pelo lexer; não se interpreta JavaScript.
+    let fim_de_comando = |byte: u8| matches!(byte, b';' | b'{' | b'}');
+    let visivel = |byte: u8| !byte.is_ascii_whitespace();
     let inicio_comando = (0..posicao)
         .rev()
-        .find(|&i| niveis[i].is_some() && matches!(bytes[i], b';' | b'{' | b'}'))
+        .find(|&i| ativo_e(i, fim_de_comando))
         .map_or(0, |i| i + 1);
-    if (inicio_comando..posicao).any(|i| niveis[i].is_some() && !bytes[i].is_ascii_whitespace()) {
+    if (inicio_comando..posicao).any(|i| ativo_e(i, visivel)) {
         return false;
     }
     if nivel == 0 {
         // Chamada direta só prova recarga quando é a primeira instrução
         // executável do script: um throw anterior pode torná-la inalcançável.
-        return (0..posicao).all(|i| niveis[i] != Some(0) || separador_vazio(bytes[i]));
+        return (0..posicao)
+            .all(|i| em(i).is_some_and(|(byte, nivel)| nivel != Some(0) || separador_vazio(byte)));
     }
 
     // Profundidade 1 só é aceita no corpo direto da função de inicialização
     // publicada pelo SEI, e nunca em um if, callback ou função arbitrária.
-    let Some(abertura) = (0..posicao)
-        .rev()
-        .find(|&i| bytes[i] == b'{' && niveis[i] == Some(0))
-    else {
+    let Some(abertura) = (0..posicao).rev().find(|&i| em(i) == Some((b'{', Some(0)))) else {
         return false;
     };
     let inicio_declaracao = (0..abertura)
         .rev()
-        .find(|&i| niveis[i].is_some() && matches!(bytes[i], b';' | b'{' | b'}'))
+        .find(|&i| ativo_e(i, fim_de_comando))
         .map_or(0, |i| i + 1);
     let assinatura: Vec<u8> = (inicio_declaracao..abertura)
-        .filter(|&i| niveis[i].is_some() && !bytes[i].is_ascii_whitespace())
-        .map(|i| bytes[i])
+        .filter_map(em)
+        .filter(|&(byte, nivel)| nivel.is_some() && visivel(byte))
+        .map(|(byte, _)| byte)
         .collect();
     // O corpo observado começa com a recarga. Não interpretar fluxo JS:
     // return, throw, condicionais ou qualquer outra instrução anterior
     // tornam o alcance da chamada incerto, mesmo após um ponto e vírgula.
-    assinatura == b"functioninicializar()"
-        && (abertura + 1..posicao).all(|i| niveis[i] != Some(1) || separador_vazio(bytes[i]))
+    assinatura == b"functioninicializar()" && so_chamadas_simples(script, abertura + 1, posicao)
+}
+
+/// Antes da recarga, o corpo de `inicializar()` só pode ter instruções
+/// sem desvio de fluxo (`UnB` 4.0.9: `exibirLinkVoltarArvoreVisualizar();`;
+/// SEI 5: `HTML = "";` e `exibirVoltarAcoes(true);`). Retorno, exceção,
+/// condição, laço ou bloco tornam o alcance da recarga incerto.
+fn so_chamadas_simples(script: &str, inicio: usize, fim: usize) -> bool {
+    const DESVIOS: [&str; 12] = [
+        "return", "throw", "if", "else", "for", "while", "do", "switch", "try", "catch", "break",
+        "continue",
+    ];
+    // Sem comentários; literais ficam, mas não decidem o fluxo.
+    let mut ativo = String::new();
+    let Some(mut resto) = script.get(inicio..fim) else {
+        return false;
+    };
+    while !resto.is_empty() {
+        if let Some(depois) = resto.strip_prefix("//") {
+            resto = depois.split_once('\n').map_or("", |(_, r)| r);
+        } else if let Some(depois) = resto.strip_prefix("/*") {
+            let Some((_, r)) = depois.split_once("*/") else {
+                return false;
+            };
+            resto = r;
+        } else {
+            let mut letras = resto.chars();
+            ativo.extend(letras.next());
+            resto = letras.as_str();
+        }
+    }
+    !ativo.contains(['{', '}'])
+        && ativo.split(';').map(str::trim).all(|instrucao| {
+            let palavra = instrucao
+                .split_once(|c: char| !(c.is_ascii_alphanumeric() || c == '_'))
+                .map_or(instrucao, |(antes, _)| antes);
+            !DESVIOS.contains(&palavra)
+        })
 }
 
 /// Literais como primeiro argumento de `atualizarArvore('...')`. Chamadas com
@@ -133,25 +152,24 @@ fn literais_de_atualizar_arvore(script: &str) -> Vec<&str> {
         return Vec::new();
     };
     let mut achados = Vec::new();
-    let mut cursor = 0;
-    while let Some(indice) = script[cursor..].find(CHAMADA) {
-        let posicao = cursor + indice;
-        cursor = posicao + CHAMADA.len();
+    for (posicao, _) in script.match_indices(CHAMADA) {
         if !chamada_na_forma_do_aceite(script, &niveis, posicao) {
             continue;
         }
-        let argumento = script[cursor..].trim_start();
-        let aspas = match argumento.as_bytes().first() {
-            Some(b'\'') => '\'',
-            Some(b'"') => '"',
-            _ => continue,
-        };
-        let resto = &argumento[1..];
-        let Some(fim) = resto.find(aspas) else {
+        let (_, depois) = script.split_at(posicao);
+        let Some(argumento) = depois.strip_prefix(CHAMADA).map(str::trim_start) else {
             continue;
         };
-        let literal = &resto[..fim];
-        let depois_do_literal = resto[fim + 1..].trim_start();
+        let Some((aspas, resto)) = ['\'', '"']
+            .into_iter()
+            .find_map(|aspas| argumento.strip_prefix(aspas).map(|resto| (aspas, resto)))
+        else {
+            continue;
+        };
+        let Some((literal, depois_do_literal)) = resto.split_once(aspas) else {
+            continue;
+        };
+        let depois_do_literal = depois_do_literal.trim_start();
         // Só a chamada literal com um argumento foi observada no aceite.
         // Um segundo argumento pode lançar erro ANTES de executar a função.
         if !literal.contains('\\') && depois_do_literal.starts_with(')') {
@@ -166,7 +184,13 @@ fn atividade_do_endereco(url: &str, alvo: AlvoDaCiencia<'_>) -> Option<String> {
     if caminho != "controlador.php" {
         return None;
     }
-    let consulta = restante.split('#').next()?;
+    let Ok(consulta) = ConsultaDoControlador::ler(
+        restante
+            .split_once('#')
+            .map_or(restante, |(antes, _)| antes),
+    ) else {
+        return None;
+    };
     let (id_procedimento, marca, id_documento) = match alvo {
         AlvoDaCiencia::Processo { id_procedimento } => {
             (id_procedimento, "procedimento_visualizar_ciencias", None)
@@ -180,15 +204,17 @@ fn atividade_do_endereco(url: &str, alvo: AlvoDaCiencia<'_>) -> Option<String> {
             Some(id_documento),
         ),
     };
-    if parametro_unico(consulta, "acao") != Some("procedimento_visualizar")
-        || parametro_unico(consulta, "id_procedimento") != Some(id_procedimento)
-        || parametro_unico(consulta, marca) != Some("1")
-        || id_documento.is_some_and(|doc| parametro_unico(consulta, "id_documento") != Some(doc))
-        || (id_documento.is_none() && parametro_unico(consulta, "id_documento").is_some())
+    if consulta.acao() != Ok(AcaoDoSei::ProcedimentoVisualizar.como_na_url())
+        || consulta.unico("id_procedimento") != Ok(id_procedimento)
+        || consulta.unico(marca) != Ok("1")
+        || id_documento.is_some_and(|doc| consulta.unico("id_documento") != Ok(doc))
+        || (id_documento.is_none() && consulta.valores("id_documento").next().is_some())
     {
         return None;
     }
-    let atividade = parametro_unico(consulta, "id_atividade")?;
+    let Ok(atividade) = consulta.unico("id_atividade") else {
+        return None;
+    };
     identificador(atividade).then(|| atividade.to_owned())
 }
 
@@ -198,41 +224,19 @@ fn atividade_do_endereco(url: &str, alvo: AlvoDaCiencia<'_>) -> Option<String> {
 /// processo/documento coerente contam. Duas atividades distintas recusam;
 /// a ausência não é confundida com sucesso ou ciência inexistente.
 pub(crate) fn atividade_do_aceite(
-    html: &str,
+    html: &crate::tela_html::HtmlServido,
     alvo: AlvoDaCiencia<'_>,
 ) -> Result<String, ErroCiencia> {
-    use ErroCiencia as E;
-    let dom = tl::parse(html, tl::ParserOptions::default()).map_err(|_| E::AceiteSemAtividade)?;
-    let parser = dom.parser();
-    // Com JavaScript ativo, scripts aninhados em <template> ou <noscript>
-    // não rodam. Ignore somente esses nós, em vez de recusar a resposta
-    // inteira quando há também um script ativo: marcação dentro de um literal
-    // JavaScript nem sequer cria um contêiner HTML.
-    let mut scripts_inertes = Vec::new();
-    for seletor in ["template", "noscript"] {
-        for no in dom.query_selector(seletor).into_iter().flatten() {
-            if let Some(tag) = no.get(parser).and_then(tl::Node::as_tag) {
-                scripts_inertes.extend(tag.query_selector(parser, "script").into_iter().flatten());
-            }
-        }
-    }
+    let dom = crate::tela_html::arvore(html);
+    // Com JavaScript ativo, scripts em <template> ou <noscript> não rodam;
+    // como no navegador, o conteúdo de <template> fica fora da árvore e o de
+    // <noscript> é texto, então esses scripts nem aparecem aqui.
     let mut atividades = Vec::new();
-    for script in dom.query_selector("script").into_iter().flatten() {
-        if scripts_inertes.contains(&script) {
-            continue;
-        }
-        let Some(tag) = script.get(parser).and_then(tl::Node::as_tag) else {
-            continue;
-        };
+    for script in dom.elementos("script") {
         // Scripts de dados (application/json, text/plain) e scripts com src
         // não executam seu conteúdo inline. Jamais publicar um id_atividade
         // apenas porque o HTML contém texto JavaScript inerte.
-        let Ok(atributos) = crate::html_atributos::atributos(tag) else {
-            continue;
-        };
-        let Ok(tipo) = atributos.valor("type") else {
-            continue;
-        };
+        let tipo = script.atributo("type");
         // O tipo de script clássico segue a semântica HTML: ausente,
         // vazio ou MIME JavaScript (sem parâmetros, independente de caixa).
         // Um tipo de dados ou um script externo não prova a atividade.
@@ -242,10 +246,14 @@ pub(crate) fn atividade_do_aceite(
                 || t.eq_ignore_ascii_case("text/javascript")
                 || t.eq_ignore_ascii_case("application/javascript")
         });
-        if atributos.presente("src") || !script_classico {
+        if script.presente("src") || !script_classico {
             continue;
         }
-        for url in literais_de_atualizar_arvore(&tag.inner_text(parser)) {
+        // O conteúdo inteiro do script, como o navegador o guarda: inclusive o
+        // invólucro `<!--//--><![CDATA[//><!--` que a `UnB` 4.0.9 publica
+        // (live 10/11/2026).
+        let texto = script.texto();
+        for url in literais_de_atualizar_arvore(&texto) {
             let Some(atividade) = atividade_do_endereco(url, alvo) else {
                 continue;
             };
@@ -255,98 +263,9 @@ pub(crate) fn atividade_do_aceite(
         }
     }
     match atividades.as_slice() {
-        [] => Err(E::AceiteSemAtividade),
+        [] => Err(ErroCiencia::AceiteSemAtividade),
         [atividade] => Ok(atividade.clone()),
-        _ => Err(E::AtividadesAmbiguas),
-    }
-}
-
-/// Verifica a atividade no único `table#tblAndamentos` da Lista de Ciências
-/// que o processo/documento publicou na **releitura**. O chamador deve antes
-/// conferir a URL da lista contra o alvo e a sessão: o HTML isolado não prova
-/// qual processo serviu a tabela. Não deduz usuário nem data não observados.
-pub(crate) fn atividade_na_lista(html: &str, atividade: &str) -> Result<bool, ErroCiencia> {
-    use ErroCiencia as E;
-    if !identificador(atividade) {
-        return Err(E::ListaDeCienciasForaDaFormaObservada);
-    }
-    let fora = E::ListaDeCienciasForaDaFormaObservada;
-    let dom = tl::parse(html, tl::ParserOptions::default()).map_err(|_| fora)?;
-    let parser = dom.parser();
-    let tabelas = nos_com_id(&dom, "tblAndamentos").map_err(|_| fora)?;
-    let [unica] = tabelas.as_slice() else {
-        return Err(fora);
-    };
-    let tabela = unica.get(parser).and_then(tl::Node::as_tag).ok_or(fora)?;
-    if tabela.name().as_utf8_str() != "table" {
-        return Err(fora);
-    }
-    // O SEI depende de JavaScript ativo. Mesmo que o parser HTML indexe
-    // a tabela ou o checkbox dentro de <template> ou <noscript>, o navegador
-    // não os usa como a Lista de Ciências publicada quando JS está ativo.
-    // Recusar tanto os ancestrais da tabela como os fragmentos descendentes:
-    // uma atividade antiga num nó inerte não prova o efeito do GET atual.
-    for seletor in ["template", "noscript"] {
-        let ancestral_inerte = dom
-            .query_selector(seletor)
-            .into_iter()
-            .flatten()
-            .filter_map(|no| no.get(parser).and_then(tl::Node::as_tag))
-            .any(|inerte| {
-                inerte
-                    .query_selector(parser, "table")
-                    .into_iter()
-                    .flatten()
-                    .any(|no| no == *unica)
-            });
-        let descendente_inerte = tabela
-            .query_selector(parser, seletor)
-            .into_iter()
-            .flatten()
-            .next()
-            .is_some();
-        if ancestral_inerte || descendente_inerte {
-            return Err(fora);
-        }
-    }
-    let legendas: Vec<String> = tabela
-        .query_selector(parser, "caption")
-        .into_iter()
-        .flatten()
-        .filter_map(|no| no.get(parser))
-        .map(|no| no.inner_text(parser).into_owned())
-        .collect();
-    if legendas.as_slice() != ["Lista de Ciências:"] {
-        return Err(fora);
-    }
-    let mut ocorrencias = 0;
-    for no in tabela.query_selector(parser, "input").into_iter().flatten() {
-        let Some(tag) = no.get(parser).and_then(tl::Node::as_tag) else {
-            return Err(fora);
-        };
-        let tipo = valor_do_atributo(tag, "type").map_err(|_| fora)?;
-        if tipo.as_deref() != Some("checkbox") {
-            continue;
-        }
-        let nome = valor_do_atributo(tag, "name").map_err(|_| fora)?;
-        let valor = valor_do_atributo(tag, "value").map_err(|_| fora)?;
-        let Some(nome) = nome else {
-            return Err(fora);
-        };
-        let Some(resto) = nome.strip_prefix("chkInfraItem") else {
-            continue;
-        };
-        if !resto.bytes().all(|c| c.is_ascii_digit()) {
-            return Err(fora);
-        }
-        if valor.as_deref() == Some(atividade) {
-            ocorrencias += 1;
-        }
-    }
-    match ocorrencias {
-        0 => Ok(false),
-        1 => Ok(true),
-        _ => Err(E::AtividadesRepetidasNaLista),
+        _ => Err(ErroCiencia::AtividadesAmbiguas),
     }
 }
 
@@ -354,6 +273,8 @@ pub(crate) fn atividade_na_lista(html: &str, atividade: &str) -> Result<bool, Er
 mod acervo;
 #[cfg(test)]
 mod tests;
+#[cfg(test)]
+mod tests_aceite_unb;
 #[cfg(test)]
 mod tests_documento;
 #[cfg(test)]

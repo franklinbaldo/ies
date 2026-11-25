@@ -33,19 +33,20 @@ Nao ha POST nem restauracao da tela.
 
 As duas tabelas, quando presentes, distinguem a situacao pelo
 `summary`: `aguardando` (outras unidades devem devolver) e
-`devolver` (a unidade atual deve devolver). Le a coluna Processo,
-Unidade, Data Programada, e opcionalmente Data de Retorno Efetiva e
-Prazo Restante. A contagem de cada tabela deve conferir sua legenda. Quando so
+`devolver` (a unidade atual deve devolver). Le as colunas Processo,
+Unidade, Data Programada, Data de Retorno Efetiva e Prazo Restante. Sem
+qualquer uma delas a tabela falha: `ColunaDataDeRetornoAusente` ou
+`ColunaPrazoRestanteAusente`. A contagem de cada tabela deve conferir sua legenda. Quando so
 `aguardando` aparece, a captura do mes inteiro pode omitir a tabela
 `devolver`: esta forma so e aceita com uma unica
 `divAguardandoAreaTabela` envolvendo a tabela reconhecida.
 Essa moldura foi observada nas sete cassettes originais; uma tabela
-solta, sem essa prova, e `lista_de_retornos_incompleta`.
+solta, sem essa prova, e `ListaDeRetornosIncompleta`.
 A ausencia tambem pode ser demonstrada por uma area que publique
 literalmente `Nenhum registro encontrado.`; nunca se inventam linhas.
 Mes sem retornos so devolve zero se a area da tabela publicar
 `Nenhum registro encontrado.` Uma tabela paginada nao suportada
-e recusada com `paginacao_dos_retornos_nao_observada`, nunca
+e recusada com `ListaDeRetornosComMaisDeUmaPagina`, nunca
 publicada como lista completa. Nada e inferido sobre dados nao
 presentes.
 
@@ -53,10 +54,12 @@ presentes.
 
 JSON: `unidade`, `mes` no formato `AAAA-MM`,
 `origem: "web"`, `total_declarado`, `faixa_observada`
-(`null` se vazio, senao `inicio` e `fim`), `retornos`
-(array) e `requisicoes`. Cada retorno publica `situacao`,
-`numero`, `unidade`, `data_programada`, `data_retorno`
-e `prazo_restante`; os campos nao observados sao `null`.
+(`{"inicio": 1, "fim": n}`; a chave é omitida se vazio), `retornos` (array) e
+`requisicoes`. Cada retorno publica `situacao`, `numero`, `unidade`,
+`data_programada`, `data_retorno` e `prazo_restante`. Celula vazia e
+fato lido, nunca `null`: `data_retorno` vira `"pendente"` (ainda nao
+devolvido) e `prazo_restante` vira `"sem_prazo"`; celula preenchida
+publica o texto da celula.
 
 Sem relogin, a consulta do mes mostrado custa **3 GET**:
 Controle, menu e Ver todo o mes. Cada passo pelo calendario acrescenta
@@ -67,16 +70,16 @@ Recusas de link ou calendario deixam de pedir a proxima tela. O relogin opcional
 requisicoes observadas no total; nao e segunda tentativa do GET de
 retornos contra uma mesma resposta de erro.
 
-Erros tipados: `mes_dos_retornos_invalido`,
-`link_de_retornos_ausente`, `link_de_retornos_ambiguo`,
-`link_de_retornos_fora_da_instalacao`,
-`calendario_dos_retornos_desconhecido`,
-`mes_dos_retornos_inacessivel`,
-`tela_de_retornos_desconhecida`,
-`lista_de_retornos_incompleta`,
-`paginacao_dos_retornos_nao_observada`,
-`unidade_diferente_da_solicitada`. Falhas de transporte preservam
-o subcodigo e o status HTTP, sem exibir cookie nem URL assinada.
+Erros tipados: `ErroLeituraRetornos::MesDaCliInvalido`,
+`LinkDeRetornosAusente`, `LinkDeRetornosAmbiguo`,
+`LinkDeRetornosForaDaInstalacao`,
+`CalendarioDosRetornosDesconhecido`,
+`MesDosRetornosInacessivel`,
+`TelaDeRetornosDesconhecida`,
+`ListaDeRetornosIncompleta`,
+`ListaDeRetornosComMaisDeUmaPagina`,
+`UnidadeDiferenteDaSolicitada`. Falhas de transporte preservam
+a mensagem e o status HTTP, sem exibir cookie nem URL assinada.
 
 ## Evidencia e limites
 
@@ -92,15 +95,17 @@ isso nao equivale a validacao live de GO/PEN3.
 
 ## Falhas tipadas
 
-| Subcódigo | Fato verificável |
+| Erro (stderr) | Fato verificável |
 | --- | --- |
-| `mes_dos_retornos_invalido` | Argumento AAAA-MM ausente de formato válido |
-| `link_de_retornos_ausente` | Nenhum link da operação no Controle |
-| `link_de_retornos_ambiguo` | Mais de um link da operação no mesmo Controle |
-| `link_de_retornos_fora_da_instalacao` | Link de retorno não passa nas regras de origem e assinatura |
-| `calendario_dos_retornos_desconhecido` | Calendário não publicou mês ou marcador inequívoco |
-| `mes_dos_retornos_inacessivel` | Mês não alcançável em até 24 passos publicados |
-| `tela_de_retornos_desconhecida` | Tabelas, cabeçalhos ou mês vazio sem forma reconhecida |
-| `lista_de_retornos_incompleta` | Total declarado em legenda não corresponde às linhas |
-| `paginacao_dos_retornos_nao_observada` | Paginador independente sem derivação segura |
-| `unidade_diferente_da_solicitada` | Controle comprovou unidade diferente de --unidade |
+| `ErroLeituraRetornos::MesDaCliInvalido` | Argumento AAAA-MM ausente de formato válido |
+| `LinkDeRetornosAusente` | Nenhum link da operação no Controle |
+| `LinkDeRetornosAmbiguo` | Mais de um link da operação no mesmo Controle |
+| `LinkDeRetornosForaDaInstalacao` | Link de retorno não passa nas regras de origem e assinatura |
+| `CalendarioDosRetornosDesconhecido` | Calendário não publicou mês ou marcador inequívoco |
+| `MesDosRetornosInacessivel` | Mês não alcançável em até 24 passos publicados |
+| `TelaDeRetornosDesconhecida` | Tabelas, cabeçalhos ou mês vazio sem forma reconhecida |
+| `ListaDeRetornosIncompleta` | Total declarado em legenda não corresponde às linhas |
+| `ListaDeRetornosComMaisDeUmaPagina` | Paginador visível na tela: a lista tem mais páginas que as lidas, sem derivação segura |
+| `UnidadeDiferenteDaSolicitada` | Controle comprovou unidade diferente de --unidade |
+| `ColunaDataDeRetornoAusente` | A tabela nao tem a coluna "Data de Retorno Efetiva" |
+| `ColunaPrazoRestanteAusente` | A tabela nao tem a coluna "Prazo Restante" |

@@ -1,9 +1,9 @@
 //! Tela de Anexação de Processos do SEI, sem rede nem escrita.
 //! Oráculo: Todos src/todos/anexacao.py @323eb01 (`UnB` 4.0.9).
-//! Nenhum JavaScript executado, atributos só via `html_atributos`.
-use crate::formulario_web::{decodificar_atributo, localizar_formulario};
-use crate::html_atributos::valor_do_atributo;
-use crate::transporte::texto_de_recusa::decodificar_entidades;
+//! Nenhum JavaScript executado, atributos só pela árvore `tela_html`.
+use crate::formulario_web::ErroSubmissaoFormulario;
+use crate::formulario_web::localizar_formulario;
+use crate::resposta_ajax::{ErroXml, RespostaAjax};
 use std::collections::HashSet;
 
 pub(crate) mod fluxo;
@@ -18,19 +18,48 @@ pub(crate) struct Destino {
     pub(crate) nup: String,
     pub(crate) tipo: String,
 }
-fn atributo(tag: &tl::HTMLTag<'_>, nome: &'static str) -> Result<Option<String>, &'static str> {
-    valor_do_atributo(tag, nome)
-        .map_err(|_| "atributos_ambiguos_na_anexacao")?
-        .map(|v| decodificar_atributo(&v).ok_or("entidade_html_nao_interpretada_na_anexacao"))
-        .transpose()
+/// Um atributo da tela ou da resposta da anexação que não pôde ser lido.
+#[derive(Clone, Copy, Debug, PartialEq, Eq, thiserror::Error)]
+#[error("{self:?}")]
+pub(crate) enum ErroAtributoDaAnexacao {}
+
+/// A tela `frmProcedimentoAnexar` fora da forma observada.
+#[derive(Clone, Debug, PartialEq, Eq, thiserror::Error)]
+#[error("{self:?}")]
+pub(crate) enum ErroTelaDeAnexacao {
+    Atributo(#[from] ErroAtributoDaAnexacao),
+    FormularioDeAnexacaoNaoLocalizado(#[source] ErroSubmissaoFormulario),
+    ControlesDaAnexacaoAusentesOuRepetidos,
+    ListasDeAnexadosRepetidas,
+    IdDoAnexadoAusenteOuInvalido,
+    IdsDeAnexadosRepetidos,
 }
+
+/// O XML das consultas `protocolo_RI1023` e `procedimento_anexacao_verificar`.
+#[derive(Clone, Debug, thiserror::Error)]
+#[error("{self:?}")]
+pub(crate) enum ErroComplementosDaAnexacao {
+    Xml(#[from] ErroXml),
+    ProcessoAAnexarNaoIdentificado,
+    IdentidadeDeAnexadoAmbigua,
+    AnexacaoNaoVerificada,
+}
+
+/// A anexação pedida que o SEI aceitaria, mas que o IES recusa antes de gravar.
+#[derive(Clone, Copy, Debug, PartialEq, Eq, thiserror::Error)]
+#[error("{self:?}")]
+pub(crate) enum ErroAnexacaoRecusada {
+    AnexacaoAoMesmoProcesso,
+    ProcessoJaAnexado,
+}
+
 /// Exige controles únicos dentro do formulário real.
-pub(crate) fn ler_tela(html: &str) -> Result<TelaDeAnexacao, &'static str> {
-    let dom = tl::parse(html, tl::ParserOptions::default())
-        .map_err(|_| "html_de_anexacao_nao_interpretado")?;
-    let parser = dom.parser();
+pub(crate) fn ler_tela(
+    html: &crate::tela_html::HtmlServido,
+) -> Result<TelaDeAnexacao, ErroTelaDeAnexacao> {
+    let dom = crate::tela_html::arvore(html);
     let form = localizar_formulario(&dom, "frmProcedimentoAnexar")
-        .map_err(|_| "formulario_de_anexacao_ausente_ou_repetido")?;
+        .map_err(ErroTelaDeAnexacao::FormularioDeAnexacaoNaoLocalizado)?;
     let esperados = [
         "txtProtocolo",
         "txtIdentificacaoProtocolo",
@@ -40,43 +69,32 @@ pub(crate) fn ler_tela(html: &str) -> Result<TelaDeAnexacao, &'static str> {
     ];
     let mut vistos = [0usize; 5];
     let mut tabelas = Vec::new();
-    for tag in form
-        .children()
-        .all(parser)
-        .iter()
-        .filter_map(tl::Node::as_tag)
-    {
-        if tag.name().as_utf8_str().eq_ignore_ascii_case("input")
-            && let Some(nome) = atributo(tag, "name")?
+    for tag in form.descendentes() {
+        let elemento = tag.nome();
+        // `UnB` 4.0.9 publica o envio como <button type="submit">.
+        if (elemento.eq_ignore_ascii_case("input") || elemento.eq_ignore_ascii_case("button"))
+            && let Some(nome) = tag.atributo("name")
             && let Some(pos) = esperados.iter().position(|c| *c == nome)
+            && let Some(visto) = vistos.get_mut(pos)
         {
-            vistos[pos] += 1;
-            let tipo = atributo(tag, "type")?;
+            *visto += 1;
+            let tipo = tag.atributo("type");
             let valido = match pos {
-                0 | 1 => tipo
-                    .as_deref()
-                    .is_none_or(|v| v.eq_ignore_ascii_case("text")),
-                2 | 3 => tipo
-                    .as_deref()
-                    .is_some_and(|v| v.eq_ignore_ascii_case("hidden")),
-                _ => tipo
-                    .as_deref()
-                    .is_some_and(|v| v.eq_ignore_ascii_case("submit")),
+                0 | 1 => tipo.is_none_or(|v| v.eq_ignore_ascii_case("text")),
+                2 | 3 => tipo.is_some_and(|v| v.eq_ignore_ascii_case("hidden")),
+                _ => tipo.is_some_and(|v| v.eq_ignore_ascii_case("submit")),
             };
             if !valido {
-                return Err("controles_da_anexacao_ausentes_ou_repetidos");
+                return Err(ErroTelaDeAnexacao::ControlesDaAnexacaoAusentesOuRepetidos);
             }
         }
     }
     if vistos != [1; 5] {
-        return Err("controles_da_anexacao_ausentes_ou_repetidos");
+        return Err(ErroTelaDeAnexacao::ControlesDaAnexacaoAusentesOuRepetidos);
     }
-    for table in dom.query_selector("table").into_iter().flatten() {
-        let Some(tag) = table.get(parser).and_then(tl::Node::as_tag) else {
-            continue;
-        };
-        if atributo(tag, "summary")?.as_deref() == Some("Lista de Processos Anexados") {
-            tabelas.push(tag);
+    for table in dom.elementos("table") {
+        if table.atributo("summary") == Some("Lista de Processos Anexados") {
+            tabelas.push(table);
         }
     }
     let tabela = match tabelas.as_slice() {
@@ -86,33 +104,35 @@ pub(crate) fn ler_tela(html: &str) -> Result<TelaDeAnexacao, &'static str> {
             });
         }
         [unica] => unica,
-        _ => return Err("listas_de_anexados_repetidas"),
+        _ => return Err(ErroTelaDeAnexacao::ListasDeAnexadosRepetidas),
     };
     let mut anexados = Vec::new();
     let mut ids = HashSet::new();
-    for tag in tabela
-        .children()
-        .all(parser)
-        .iter()
-        .filter_map(tl::Node::as_tag)
-    {
-        if !tag.name().as_utf8_str().eq_ignore_ascii_case("input")
-            || !atributo(tag, "type")?.is_some_and(|v| v.eq_ignore_ascii_case("checkbox"))
+    for tag in tabela.descendentes() {
+        if !tag.nome().eq_ignore_ascii_case("input")
+            || !tag
+                .atributo("type")
+                .map(str::to_owned)
+                .is_some_and(|v| v.eq_ignore_ascii_case("checkbox"))
         {
             continue;
         }
-        let id = atributo(tag, "value")?
+        let id = tag
+            .atributo("value")
+            .map(str::to_owned)
             .filter(|id| !id.is_empty() && id.bytes().all(|b| b.is_ascii_digit()))
-            .ok_or("id_do_anexado_ausente_ou_invalido")?;
+            .ok_or(ErroTelaDeAnexacao::IdDoAnexadoAusenteOuInvalido)?;
         if !ids.insert(id.clone()) {
-            return Err("ids_de_anexados_repetidos");
+            return Err(ErroTelaDeAnexacao::IdsDeAnexadosRepetidos);
         }
         anexados.push(id);
     }
     Ok(TelaDeAnexacao { anexados })
 }
 /// Consulta `protocolo_RI1023`: ID, NUP e tipo únicos.
-pub(crate) fn ler_destino(xml: &str) -> Result<Destino, &'static str> {
+pub(crate) fn ler_destino(
+    xml: &crate::tela_html::HtmlServido,
+) -> Result<Destino, ErroComplementosDaAnexacao> {
     let valores = ler_complementos(xml)?;
     let ids: Vec<_> = valores
         .iter()
@@ -127,15 +147,14 @@ pub(crate) fn ler_destino(xml: &str) -> Result<Destino, &'static str> {
         .filter(|(n, _)| n == "NomeTipoProcedimento")
         .collect();
     if ids.is_empty() || nups.is_empty() {
-        return Err("processo_a_anexar_nao_identificado");
+        return Err(ErroComplementosDaAnexacao::ProcessoAAnexarNaoIdentificado);
     }
-    if ids.len() != 1 || nups.len() != 1 || tipos.len() > 1 {
-        return Err("identidade_de_anexado_ambigua");
-    }
-    let id = ids[0].1.as_str();
-    let nup = nups[0].1.as_str();
+    let ([(_, id)], [(_, nup)], false) = (ids.as_slice(), nups.as_slice(), tipos.len() > 1) else {
+        return Err(ErroComplementosDaAnexacao::IdentidadeDeAnexadoAmbigua);
+    };
+    let (id, nup) = (id.as_str(), nup.as_str());
     if id.is_empty() || !id.bytes().all(|b| b.is_ascii_digit()) || nup.is_empty() {
-        return Err("processo_a_anexar_nao_identificado");
+        return Err(ErroComplementosDaAnexacao::ProcessoAAnexarNaoIdentificado);
     }
     Ok(Destino {
         id: id.to_owned(),
@@ -144,38 +163,32 @@ pub(crate) fn ler_destino(xml: &str) -> Result<Destino, &'static str> {
     })
 }
 /// Consulta `procedimento_anexacao_verificar`: S=tudo assinado, N=há pendência.
-pub(crate) fn ler_confirmacao(xml: &str) -> Result<bool, &'static str> {
+pub(crate) fn ler_confirmacao(
+    xml: &crate::tela_html::HtmlServido,
+) -> Result<bool, ErroComplementosDaAnexacao> {
     let valores = ler_complementos(xml)?;
     let encontrados: Vec<_> = valores.iter().filter(|(n, _)| n == "Anexacao").collect();
     match encontrados.as_slice() {
         [(_, valor)] if valor == "S" => Ok(true),
         [(_, valor)] if valor == "N" => Ok(false),
-        _ => Err("anexacao_nao_verificada"),
+        _ => Err(ErroComplementosDaAnexacao::AnexacaoNaoVerificada),
     }
 }
-fn ler_complementos(xml: &str) -> Result<Vec<(String, String)>, &'static str> {
-    let dom = tl::parse(xml, tl::ParserOptions::default())
-        .map_err(|_| "complementos_da_anexacao_nao_interpretados")?;
-    let parser = dom.parser();
-    if dom
-        .query_selector("erros")
+fn ler_complementos(
+    xml: &crate::tela_html::HtmlServido,
+) -> Result<Vec<(String, String)>, ErroComplementosDaAnexacao> {
+    let resposta = RespostaAjax::ler(xml)?;
+    if !resposta.elementos("erros").is_empty() {
+        return Err(ErroComplementosDaAnexacao::ProcessoAAnexarNaoIdentificado);
+    }
+    Ok(resposta
+        .elementos("complemento")
         .into_iter()
-        .flatten()
-        .next()
-        .is_some()
-    {
-        return Err("processo_a_anexar_nao_identificado");
-    }
-    let mut valores = Vec::new();
-    for no in dom.query_selector("complemento").into_iter().flatten() {
-        let Some(tag) = no.get(parser).and_then(tl::Node::as_tag) else {
-            continue;
-        };
-        if let Some(nome) = atributo(tag, "nome")? {
-            valores.push((nome, decodificar_entidades(&tag.inner_text(parser))));
-        }
-    }
-    Ok(valores)
+        .filter_map(|complemento| {
+            let nome = complemento.atributo("nome")?;
+            Some((nome.to_owned(), complemento.texto().to_owned()))
+        })
+        .collect())
 }
 /// Recusa identidade igual ou já anexada antes da operação irreversível.
 pub(crate) fn decidir(
@@ -183,15 +196,20 @@ pub(crate) fn decidir(
     id_principal: &str,
     anexar: &Destino,
     existentes: &[String],
-) -> Result<bool, &'static str> {
+) -> Result<bool, ErroAnexacaoRecusada> {
     if principal == anexar.nup || id_principal == anexar.id {
-        return Err("anexacao_ao_mesmo_processo");
+        return Err(ErroAnexacaoRecusada::AnexacaoAoMesmoProcesso);
     }
     if existentes.contains(&anexar.id) {
-        return Err("processo_ja_anexado");
+        return Err(ErroAnexacaoRecusada::ProcessoJaAnexado);
     }
     Ok(true)
 }
+#[cfg(test)]
+#[path = "processo_anexar/acervo.rs"]
+mod acervo;
+#[cfg(test)]
+mod acervo_leitores;
 #[cfg(test)]
 #[path = "processo_anexar/tests.rs"]
 mod tests;

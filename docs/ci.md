@@ -42,26 +42,18 @@ antigos que o runner do gate) e publica o artifact
 Serve aos agentes sem Rust no sandbox: eles observam o RED no log do
 gate e testam esse binário no sandbox ou num workflow temporário.
 
-## Auditoria de dependências (OSV)
+## Auditoria de dependências (cargo-deny)
 
-O hook `auditoria-osv` roda `scripts/osv_audit.py` (só biblioteca padrão).
-Ele lê o `Cargo.lock`, pega todo pacote cuja `source` é o registro
-crates.io e faz **uma** consulta em lote a `https://api.osv.dev/v1/querybatch`
-(páginas extras só para pacote com mais de 1.000 avisos). Falha listando
-pacote, versão e ids dos avisos (RUSTSEC e GHSA, como o OSV os relata).
+O hook `auditoria-dependencias` roda `cargo deny check advisories`
+(`cargo-deny` 0.20.2, instalado no CI com `cargo install --locked`). Ele
+confere o `Cargo.lock` contra a base RustSec e falha listando o aviso.
 
-Avisos aceitos ficam em `scripts/osv_allowlist.json`: cada entrada exige
-`id`, `package` e `justification` escrita (por que não se aplica ao IES e
-quando revisar); entrada sem justificativa derruba o hook. A lista começa
-vazia. Entrada que o OSV deixou de relatar gera aviso, não falha.
+Avisos aceitos ficam em `deny.toml`, `[advisories].ignore`, cada um com
+`id` e `reason` (por que não se aplica ao IES e quando revisar).
 
-Sem rede (ou resposta irreconhecível), o comportamento depende de `CI`:
-com a variável definida e não vazia (o GitHub Actions define `CI=true`),
-o hook **falha**; sem ela, imprime `NOT_RUN` e passa. O trade-off é
-deliberado: o pré-push local não fica refém da rede, ao custo de um push
-offline não ser auditado; o CI remoto, que roda o mesmo comando, é a
-barreira que não pode ser pulada em silêncio. O resultado depende da base
-do OSV no momento: um aviso novo pode derrubar um commit que ontem passava.
+Sem `cargo-deny` instalado, o hook falha no CI (`CI` definido) e imprime
+`NOT_RUN` localmente, para o pré-push não depender da ferramenta; o CI é
+a barreira que não pode ser pulada.
 
 ## GitHub Actions: rápido por commit, completo antes do merge
 
@@ -104,22 +96,17 @@ regra de proteção seja habilitada.
 Os workflows usam `contents: read`, salvo permissões específicas
 de publicação. Sem acesso ao SEI.
 
-## Decisões de engenharia
+## Links locais
 
-O `prek` executa `cargo run --quiet --locked -p xtask --bin check_design`.
-Para cada `CommandContract` com `implementation: partial` ou `complete`,
-o gate exige um `ImplementationDecision` em `docs/decisoes/`, com
-alternativas distintas, recorte implementado, estratégia selecionada,
-estado de evidência e links válidos para contrato, matriz e testes Rust.
-
-O gate impede documentação órfã e omissões estruturais. Ele **não
-transforma uma justificativa em demonstração de equivalência**.
-Stubs são dispensados, sem gerar documentos vazios.
+O hook `links-locais` roda o `okf-parser` (o mesmo do hook `okf`) e falha
+se algum link Markdown local não resolver (OKF101), fora de `.agents/`,
+que guarda skills de terceiros. Frontmatter e tipos OKF ficam com o hook
+`okf` (`--require-spec`). Os antigos `check_design` e `check_evidence`
+saíram (#679).
 
 ## Ferramentas de verificação
 
-`check_size`, `check_evidence` e `check_design` pertencem ao membro Rust
-`xtask`, sem dependências. O check de tamanho não deve compilar `ies`
+`check_size` pertence ao membro Rust `xtask`, sem dependências. O check de tamanho não deve compilar `ies`
 (`openssl`, `zip` ou `clap`) apenas para verificar os arquivos. Todos
 os caminhos OKF e de contratos são resolvidos na raiz do workspace.
 
@@ -166,35 +153,16 @@ automáticas para gerados.
 Arquivos que precisem superar o limite exigem reconsideração explícita da
 política — nunca truncamento ou minificação para contornar o check.
 
-## Cobertura documental dos subcódigos
 
-O hook `subcodigos` executa `python3 -I scripts/subcodigos.py`, só stdlib,
-sem rede, sobre os arquivos atuais de `src` e `crates`. Não mantém lista
-fixa de emissores. Tokeniza comentários simples/aninhados, strings normais
-e raw, escapes, caracteres, lifetimes e delimitadores equilibrados;
-lê literais dentro de funções `subcodigo` e `subcodigo_*`, além de valores
-literais de chaves JSON `subcodigo`. Comentários, funções de mensagem,
-arquivos de testes/acervo e itens inline `#[cfg(test)]` são excluídos.
-Funções delegadas contribuem por suas próprias definições, sem exigir
-repetição do literal no chamador. Declarações de trait sem corpo não
-consomem a função seguinte. Fonte malformada ou literal não classificável
-em função de subcódigo faz o hook falhar para revisão.
+## E2E cassette-first sem runner Gherkin (11/11/2026)
 
-A documentação vem da coluna `Subcódigo`/`Subcódigos` das tabelas de
-`docs/erros-tipados.md` e `contracts/cli/*.md`, inclusive os complementos
-“Falhas tipadas”. Curingas, prosa, campos de apresentação e exemplos em
-blocos de código não dão cobertura. Um literal emitido sem tabela falha;
-um documentado sem literal detectado apenas avisa. Aviso não demonstra
-aposentadoria: há chamadas que passam literais por parâmetros de helpers.
+O teste Cucumber/Gherkin e o arquivo `.feature` foram excluídos, assim
+como suas dependências de desenvolvimento. A suíte Rust existente continua
+executada por `cargo test --locked --workspace --all-targets`; E2Es de
+integração devem exercitar o binário real e usar cassettes originais, com
+confronto separado do anti-IES com a fonte. Testes unitários não são
+excluídos automaticamente. Não criar um gate especial de BDD nem
+aceitar somente resultados sintéticos como fidelidade às cassettes.
 
-`scripts/subcodigos_permitidos.json` é uma lista inicialmente vazia.
-Cada exceção exige `subcodigo` e `justificativa` não vazia, sem duplicatas;
-a justificativa deve explicar por que dispensar documentação e quando
-revisar. As exceções são mostradas no diagnóstico. Não usar para mascarar
-um contrato que falta escrever.
-
-É análise léxica conservadora, não AST nem prova de fluxo: não expande
-macros, não resolve tipos/delegações, chamadas indiretas ou strings
-construídas; não interpreta `cfg` arbitrário nem comprova alcance pela
-CLI. Os testes sintéticos entram no hook `scripts-python` já existente.
-Não há workflow ou conjunto alternativo de checks.
+Consultar skill `.agents/skills/cassette-e2e/SKILL.md` e
+[ciclo](anti-ies/ciclo-cassettes.md).

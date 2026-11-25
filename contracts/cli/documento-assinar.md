@@ -17,15 +17,15 @@ vez e por pedido explícito, pela tela "Assinatura de Documento" que a
 o contrato exige o cargo escrito por extenso para confirmar.
 
 Segue as invariantes de escrita do [contrato da CLI](../cli.md): prévia,
-confirmação e verificação; efeito incerto nunca se repete; saídas 0
-sucesso, 1 falha, 2 uso inválido, 3 efeito incerto. Só a Web e a mesma
+confirmação e verificação; escrita não confirmada nunca se repete; saídas 0
+sucesso, 1 falha, 2 uso inválido, 3 escrita não confirmada. Só a Web e a mesma
 sessão; nenhuma URL montada (só as publicadas pela árvore e pela tela do
 documento).
 
 ## Entrada
 
 - `DOC`: número SEI, como em [`ies documento DOC`](documento-obter-web.md);
-  inválido sai com 2 (`entrada_invalida`) antes de qualquer arquivo.
+  inválido sai com 2 (erro do clap) antes de qualquer arquivo.
 - `--processo NUP` (do substantivo, `ies documento --processo NUP assinar
   DOC`): o caminho de abertura de `documento DOC --processo NUP`.
 - `--cargo TEXTO`: o cargo/função **exatamente** como uma opção de
@@ -33,8 +33,10 @@ documento).
   prévia; **obrigatório** com `--confirmar` (sem ele, saída 2 do clap,
   antes de qualquer arquivo).
 - `--confirmar`: assina. Sem ele, só prévia.
-- **Senha**: só a linha `senha=` do arquivo privado `0600` de
-  `IES_CREDENCIAIS_FILE` ([formato](sessao-login.md)), a mesma do login.
+- **Senha**: a linha `senha=` do arquivo privado `0600` de
+  `IES_CREDENCIAIS_FILE` ([formato](sessao-login.md)), a mesma do login;
+  sem essa linha, a do [cofre](credenciais.md) para a instalação da
+  sessão e o `usuario=` do arquivo.
   Lida **só** com `--confirmar`, antes da primeira requisição; nunca vem de
   argumento, nunca sai em log, saída, erro ou `Debug`. O cargo não vai ao
   arquivo: o formato das credenciais é fechado (três chaves) e o cargo é
@@ -64,13 +66,13 @@ documento).
 
 | Fato lido | Saída | Resultado |
 | --- | --- | --- |
-| Barra sem `assinarDocumento()` | 1 | `assinatura_nao_publicada_na_barra` |
+| Barra sem `assinarDocumento()` | 1 | `AssinaturaNaoPublicadaNaBarra` |
 | Assinaturas da árvore fora da forma observada | 1 | `assinaturas_do_documento_fora_da_forma_observada` |
 | Tela do documento ou link de assinar ausente/recusado | 1 | subcódigo do leitor |
 | Tela de assinatura fora da forma | 1 | subcódigo da tela |
 | O assinante da tela (`txtUsuario`) já assina o documento | 0 | `alterado: false`, `ja_assinado_pela_sessao: true`, sem escrita |
-| `--cargo` fora das opções | 1 | `cargo_nao_oferecido_pela_tela` (`cargos`) |
-| A caneta já mostra outro assinante (dica de dois não observada) | 1 | `documento_assinado_por_outro_usuario` (`assinaturas`) |
+| `--cargo` fora das opções | 1 | `CargoNaoOferecidoPelaTela` (`cargos`) |
+| A caneta já mostra outro assinante (dica de dois não observada) | 1 | `DocumentoAssinadoPorOutroUsuario` (`assinaturas`) |
 | Tudo conferido | 0 | prévia, ou a escrita |
 
 6. **Sem `--confirmar`**: publica o assinante, o cargo pedido (ou `null`),
@@ -91,15 +93,15 @@ lista, senão `campo_nao_previsto_na_tela_de_assinatura`: ocultos
 Botões `type=button` (`btnAssinar`, `btnCopiarCodigo`) não viajam: o
 `assinarSenha()` põe `hdnFormaAutenticacao='S'` e chama `submit()`.
 
-| Fato | Subcódigo |
+| Fato | Erro (stderr) |
 | --- | --- |
-| HTML não interpretado | `tela_de_assinatura_nao_interpretada` |
-| Sem o formulário | `formulario_de_assinatura_ausente` |
-| Controle fora da lista | `campo_nao_previsto_na_tela_de_assinatura` |
-| `hdnIdDocumentos` diferente do id aberto | `tela_de_assinatura_de_outro_documento` |
-| `hdnIdUsuario` ou `txtUsuario` vazio | `assinante_nao_publicado_na_tela` |
-| `selOrgao` sem uma opção `selected` | `orgao_do_assinante_nao_selecionado` |
-| Sem `pwdSenha` de senha | `campo_de_senha_ausente_na_tela` |
+| HTML não interpretado | `ErroTelaDeAssinatura::TelaDeAssinaturaNaoInterpretada` |
+| Sem o formulário | `ErroTelaDeAssinatura::FormularioDeAssinaturaAusente` |
+| Controle fora da lista | `ErroTelaDeAssinatura::CampoNaoPrevistoNaTelaDeAssinatura` |
+| `hdnIdDocumentos` diferente do id aberto | `TelaDeAssinaturaDeOutroDocumento` |
+| `hdnIdUsuario` ou `txtUsuario` vazio | `AssinanteNaoPublicadoNaTela` |
+| `selOrgao` sem uma opção `selected` | `OrgaoDoAssinanteNaoSelecionado` |
+| Sem `pwdSenha` de senha | `ErroTelaDeAssinatura::CampoDeSenhaAusenteNaTela` |
 
 O POST leva, na ordem do documento, os ocultos como servidos (exceto
 `hdnFormaAutenticacao=S`), `selOrgao` com a opção `selected`, `txtUsuario`
@@ -107,7 +109,7 @@ como servido, `selCargoFuncao=<--cargo>` e `pwdSenha=<senha>`, no charset
 da tela. A janela não publica `lnkInfraUnidade`
 (`ConferenciaDaUnidade::NaTelaDeOrigemDoLink`).
 
-## Resposta e efeito incerto
+## Resposta e escrita não confirmada
 
 **Esperada**: HTML 200 da própria tela cujo `inicializar()` começa com
 `//se realizou assinatura` seguido de `finalizar();` (sete instalações).
@@ -119,8 +121,8 @@ verificação reconcilia, uma vez.
 | --- | --- | --- | --- |
 | Esperada | as de antes + uma com o assinante e o cargo | 0 | `alterado: true` |
 | Não esperada | idem | 0 | `alterado: true`, `reconciliado_por_leitura: true`, `falha_do_envio` |
-| Qualquer | iguais às de antes | 1 | `escrita_nao_aplicada` / `assinatura_nao_aplicada` |
-| Qualquer | outra mudança, fora da forma, ou leitura falhou | 3 | `efeito_incerto` / `efeito_incerto_na_assinatura` (`verificacao`) |
+| Qualquer | iguais às de antes | 1 | `AssinaturaNaoAplicada` |
+| Qualquer | outra mudança, fora da forma, ou leitura falhou | 1 | `NaoConfirmadoNaAssinatura` (`verificacao`) |
 
 Falha **antes** do POST (abertura, árvore, telas, credenciais, derivação)
 não é escrita: saída 1. Antes de repetir à mão, conferir com
@@ -147,9 +149,10 @@ conteúdo depois invalida a assinatura). Não há comando que desfaça.
 
 `assinaturas`: `{"nome", "cargo", "unidade"}` da árvore. `edicao`:
 `nao_assinado`, `assinado`, `nao_publicada` ou `fora_da_forma`. Nunca URL,
-`infra_hash`, cookie ou senha. Falhas: `{"codigo", "subcodigo", "erro",
-"retentavel": false}` mais `cargos`, `assinaturas_depois`,
-`falha_do_envio`, `verificacao` e `status_http` quando houver. A prévia
+`infra_hash`, cookie ou senha. Falhas: saída 1, stdout vazio e
+`Error: <ErroAssinar::…>` em stderr; `cargos`,
+`assinaturas_depois`, `falha_do_envio` e `verificacao` são campos dos
+erros que os observaram. A prévia
 humana termina com "Para assinar, repita com --cargo e --confirmar".
 
 ## Sequência e orçamento

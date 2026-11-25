@@ -14,6 +14,7 @@ mod assinatura;
 mod atribuir;
 mod barra_do_documento;
 mod barra_do_processo;
+mod bloco_escolher;
 mod ciencia;
 mod concluir;
 mod conferencia_parcial;
@@ -73,53 +74,53 @@ mod tests_sobrestar;
 #[cfg(test)]
 pub(crate) mod tests_tela;
 
-use crate::erro_html::ErroHtml;
 pub(crate) use acompanhar::{ErroAcompanharNaBarra, ler_acompanhar_da_barra};
 pub(crate) use andamento::{ErroAndamentoNaBarra, ler_andamento_da_barra};
 use anexados::{AnexadoLido, conferir_anexados, ler_anexado};
 pub(crate) use anexar::{ErroAnexarNaBarra, ler_anexar_da_barra};
 pub(crate) use assinatura::{
-    ACAO_DE_ASSINAR, Assinante, ErroLinkDeAssinar, ler_assinatura_na_arvore, ler_link_de_assinar,
-    tela_do_documento,
+    Assinante, ErroAssinaturaNaArvore, ErroLinkDeAssinar, ler_assinatura_na_arvore,
+    ler_link_de_assinar, tela_do_documento,
 };
 pub(crate) use atribuir::{ErroAtribuirNaBarra, ler_atribuir_da_barra};
 pub(crate) use barra_do_documento::barra_do_no;
 pub(crate) use barra_do_documento::{
     BarraDoDocumento, EdicaoNaBarra, ErroBarraDoDocumento, ler_barra_do_documento,
 };
-pub(crate) use barra_do_processo::ler_link_das_anotacoes;
-#[allow(unused_imports)] // leitor da barra pronto; fluxo Web de comentários pendente (#257)
+pub(crate) use barra_do_processo::ErroBarraDoProcesso;
 pub(crate) use barra_do_processo::ler_link_dos_comentarios;
 pub(crate) use barra_do_processo::{
     EnderecoDoIncluirDocumento, ErroLinkIncluirDocumento, ler_link_de_incluir_documento,
 };
+pub(crate) use barra_do_processo::{ErroLinkDasAnotacoes, ler_link_das_anotacoes};
 pub(crate) use barra_do_processo::{
     ErroLinkPrazo, ler_link_das_propriedades, ler_link_do_prazo, ler_link_dos_marcadores,
 };
+pub(crate) use bloco_escolher::{ErroBlocoNaBarra, ler_bloco_escolher_da_barra};
 pub(crate) use ciencia::niveis_js;
 pub(crate) use ciencia::{
     ErroCienciaNaArvore, ciencia_da_barra, ciencia_do_documento_na_barra, lista_do_documento,
     lista_do_processo, url_da_ciencia, url_da_ciencia_do_documento,
 };
 pub(crate) use concluir::{
-    ACAO_DE_CONCLUIR, ConcluirNaBarra, EnderecoDeEscrita, ErroConcluirNaBarra,
-    ErroFuncaoDeConcluir, ler_concluir_da_barra, ler_funcao_de_concluir,
+    ConcluirNaBarra, EnderecoDeEscrita, ErroConcluirNaBarra, ErroFuncaoDeConcluir,
+    ler_concluir_da_barra, ler_funcao_de_concluir,
 };
 pub(crate) use conteudo::{
     ConteudoNaArvore, EnderecoDoConteudo, ErroConteudoNaArvore, ler_conteudo_na_arvore,
 };
 pub(crate) use endereco::conferir_endereco_relativo;
-pub(crate) use enviar::{ACAO_DE_ENVIAR, ErroEnviarNaBarra, ler_enviar_da_barra};
+pub(crate) use enviar::{ErroEnviarNaBarra, ler_enviar_da_barra};
 pub(crate) use erro::ErroArvore;
 use literais::{Literal, ler_barra, ler_declaracao, ler_protocolos};
 pub(crate) use movidos::ler_destinos_dos_movidos;
 use movidos::{MovidoLido, conferir_movidos, ler_movido};
-pub(crate) use natureza::NaturezaDoDocumento;
+pub(crate) use natureza::{Cancelamento, NaturezaDoDocumento};
 pub(crate) use pastas::ler_acao_de_abrir_pastas;
 use pastas::{NoDePasta, Pai};
 pub(crate) use reabrir::{
-    ErroEnderecoDeReabrir, FormaDaReabertura, ReabrirNaBarra, ler_endereco_de_reabrir,
-    ler_reabrir_da_barra,
+    ErroEnderecoDeReabrir, ErroReabrirNaBarra, FormaDaReabertura, ReabrirNaBarra,
+    ler_endereco_de_reabrir, ler_reabrir_da_barra,
 };
 pub(crate) use relacionar::{ErroRelacionarNaBarra, ler_relacionar_da_barra};
 pub(crate) use situacao::{AbertoEm, MotivoAbertoEm};
@@ -292,6 +293,43 @@ pub(crate) fn ler_arvore_parcial(
     ler_arvore_com_modo(html, nup_pedido, id_aberto, true)
 }
 
+/// Um documento movido pertence à lista documental, que pode ser não confiável.
+fn filtrar_movidos(incluidos: bool, movidos: Vec<DocumentoMovido>) -> Vec<DocumentoMovido> {
+    if incluidos { movidos } else { Vec::new() }
+}
+
+/// A barra de um documento de pasta (`Nos[i].acoes = ...`). `true` se a
+/// linha era essa barra e já foi aplicada ao documento.
+fn aplicar_barra_de_pasta(
+    linha: &str,
+    de_pasta: &std::collections::HashMap<usize, usize>,
+    documentos: &mut [DocumentoLido],
+) -> Result<bool, ErroArvore> {
+    // A concatenação vazia não muda a barra já lida do documento.
+    if let Some(i) = literais::concatenacao_vazia_da_barra(linha) {
+        if let Some(&posicao) = de_pasta.get(&i)
+            && documentos
+                .get(posicao)
+                .is_none_or(|documento| documento.barra == Barra::NaoLida)
+        {
+            return Err(ErroArvore::BarraDeNoForaDaFormaObservada);
+        }
+        return Ok(true);
+    }
+    let Some(posicao) = literais::indice_da_barra(linha).and_then(|i| de_pasta.get(&i)) else {
+        return Ok(false);
+    };
+    let Some((_, barra)) = ler_barra(linha)? else {
+        return Err(ErroArvore::BarraDeNoForaDaFormaObservada);
+    };
+    let documento = documentos
+        .get_mut(*posicao)
+        .ok_or(ErroArvore::BarraDeNoForaDaFormaObservada)?;
+    documento.barra =
+        pastas::identidade_da_barra(&barra)?.map_or(Barra::SemIdentidade, Barra::Identidade);
+    Ok(true)
+}
+
 pub(crate) fn ler_arvore_com_modo(
     html: &str,
     nup_pedido: &str,
@@ -312,39 +350,21 @@ pub(crate) fn ler_arvore_com_modo(
             protocolos.push(declarados);
             continue;
         }
-        // A concatenação vazia não muda a barra já lida do documento.
-        if let Some(i) = literais::concatenacao_vazia_da_barra(linha) {
-            if let Some(&posicao) = de_pasta.get(&i)
-                && documentos[posicao].barra == Barra::NaoLida
-            {
-                return Err(ErroHtml::valor("barra_de_no_fora_da_forma_observada").into());
-            }
-            continue;
-        }
-        if let Some(i) = literais::indice_da_barra(linha)
-            && let Some(&posicao) = de_pasta.get(&i)
-        {
-            let Some((_, barra)) = ler_barra(linha)? else {
-                return Err(ErroHtml::valor("barra_de_no_fora_da_forma_observada").into());
-            };
-            documentos[posicao].barra = pastas::identidade_da_barra(&barra)?
-                .map_or(Barra::SemIdentidade, Barra::Identidade);
+        if aplicar_barra_de_pasta(linha, &de_pasta, &mut documentos)? {
             continue;
         }
         let Some((indice, argumentos)) = ler_declaracao(linha)? else {
             continue;
         };
         if indice != proximo {
-            return Err(ErroHtml::valor("indice_de_no_fora_da_sequencia").into());
+            return Err(ErroArvore::IndiceDeNoForaDaSequencia);
         }
         proximo += 1;
-        let tipo = argumentos
-            .first()
-            .ok_or(ErroArvore::QuantidadeDeArgumentosDoNoDiferenteDaObservada)?;
+        let tipo = argumentos.first().ok_or(ErroArvore::NoSemArgumentos)?;
         match texto(tipo)? {
             "PROCESSO" => {
                 if processo.is_some() {
-                    return Err(ErroHtml::repetido("nos_do_processo_repetidos_na_arvore").into());
+                    return Err(ErroArvore::NosDoProcessoRepetidosNaArvore);
                 }
                 processo = Some(ler_processo(&com_aridade(argumentos)?)?);
             }
@@ -356,7 +376,7 @@ pub(crate) fn ler_arvore_com_modo(
                     .iter()
                     .any(|d| d.documento.id == lido.documento.id)
                 {
-                    return Err(ErroHtml::repetido("documento_repetido_na_arvore").into());
+                    return Err(ErroArvore::DocumentoRepetidoNaArvore);
                 }
                 if matches!(lido.pai, Pai::Pasta(_)) {
                     de_pasta.insert(indice, documentos.len());
@@ -364,9 +384,7 @@ pub(crate) fn ler_arvore_com_modo(
                 documentos.push(lido);
             }
             "PASTA" | "AGUARDE" => {
-                let argumentos: [Literal; ARGUMENTOS_DA_PASTA] = argumentos
-                    .try_into()
-                    .map_err(|_| ErroArvore::QuantidadeDeArgumentosDoNoDiferenteDaObservada)?;
+                let argumentos: [Literal; ARGUMENTOS_DA_PASTA] = com_aridade(argumentos)?;
                 nos_de_pasta.push(pastas::ler_no_de_pasta(&argumentos)?);
             }
             _ => return Err(ErroArvore::TipoDeNoDaArvoreNaoSuportado),
@@ -396,29 +414,38 @@ pub(crate) fn ler_arvore_com_modo(
         documentos_incluidos: conferencia.documentos_incluidos,
         aviso_leitura_parcial: conferencia.aviso_leitura_parcial,
         anexados,
-        documentos_movidos,
+        documentos_movidos: filtrar_movidos(conferencia.documentos_incluidos, documentos_movidos),
         anexado_a: None,
         aberto_em: situacao::ler_aberto_em(html),
     })
 }
 
-fn com_aridade(argumentos: Vec<Literal>) -> Result<[Literal; ARGUMENTOS], ErroArvore> {
-    argumentos
-        .try_into()
-        .map_err(|_| ErroArvore::QuantidadeDeArgumentosDoNoDiferenteDaObservada)
+/// Os `N` argumentos do nó; a recusa guarda só as contagens, nunca os
+/// valores servidos.
+fn com_aridade<const N: usize>(argumentos: Vec<Literal>) -> Result<[Literal; N], ErroArvore> {
+    argumentos.try_into().map_err(|recusados: Vec<Literal>| {
+        ErroArvore::QuantidadeDeArgumentosDoNoDiferenteDaObservada {
+            esperada: N,
+            observada: recusados.len(),
+        }
+    })
 }
 
 fn texto(literal: &Literal) -> Result<&str, ErroArvore> {
     match literal {
         Literal::Texto(texto) => Ok(texto),
-        _ => Err(ErroArvore::ArgumentoDeNoComTipoDiferenteDoObservado),
+        Literal::Nulo | Literal::Booleano(_) | Literal::Inteiro(_) => {
+            Err(ErroArvore::ArgumentoDeNoComTipoDiferenteDoObservado)
+        }
     }
 }
 
 fn texto_ou_nulo(literal: &Literal) -> Result<Option<&str>, ErroArvore> {
     match literal {
         Literal::Nulo => Ok(None),
-        outro => texto(outro).map(Some),
+        outro @ (Literal::Texto(_) | Literal::Booleano(_) | Literal::Inteiro(_)) => {
+            texto(outro).map(Some)
+        }
     }
 }
 
@@ -466,7 +493,7 @@ fn ler_documento(a: &[Literal; ARGUMENTOS]) -> Result<DocumentoLido, ErroArvore>
             rotulo: texto(&a[5])?.to_owned(),
             numero_sei: texto_ou_nulo(&a[15])?.map(str::to_owned),
             pasta,
-            natureza: natureza::ler_natureza(a),
+            natureza: natureza::ler_natureza(a)?,
         },
         barra: Barra::NaoLida,
     })

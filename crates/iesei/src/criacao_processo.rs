@@ -11,15 +11,11 @@ pub struct TipoDeProcesso {
     pub assunto: String,
 }
 
-#[derive(Debug)]
-pub enum Falha {
-    Sqlite(rusqlite::Error),
+#[derive(Debug, thiserror::Error)]
+#[error("{self:?}")]
+pub enum ErroCriacaoProcesso {
+    Sqlite(#[from] rusqlite::Error),
     DadoInvalido,
-}
-impl From<rusqlite::Error> for Falha {
-    fn from(erro: rusqlite::Error) -> Self {
-        Self::Sqlite(erro)
-    }
 }
 
 fn validar(tipo: &TipoDeProcesso) -> bool {
@@ -40,9 +36,9 @@ pub fn registrar(
     instalacao: &Instalacao,
     cenario: &str,
     tipo: &TipoDeProcesso,
-) -> Result<(), Falha> {
+) -> Result<(), ErroCriacaoProcesso> {
     if cenario.is_empty() || !validar(tipo) {
-        return Err(Falha::DadoInvalido);
+        return Err(ErroCriacaoProcesso::DadoInvalido);
     }
     banco.execute(
         "INSERT INTO tipo_processo_simulado
@@ -139,16 +135,17 @@ pub fn criar(
     id_tipo: &str,
     especificacao: &str,
     unidade: &str,
-) -> Result<Criado, Falha> {
+) -> Result<Criado, ErroCriacaoProcesso> {
     if cenario.is_empty()
         || unidade.trim().is_empty()
         || especificacao.trim().is_empty()
         || especificacao.chars().any(char::is_control)
+        || especificacao.encode_utf16().count() > 250
     {
-        return Err(Falha::DadoInvalido);
+        return Err(ErroCriacaoProcesso::DadoInvalido);
     }
     let tx = banco.unchecked_transaction()?;
-    let tipo = consultar(&tx, instalacao, cenario, id_tipo)?.ok_or(Falha::DadoInvalido)?;
+    let tipo = consultar(&tx, instalacao, cenario, id_tipo)?.ok_or(ErroCriacaoProcesso::DadoInvalido)?;
     let origem = instalacao.url_base();
     tx.execute(
         "INSERT INTO processo_criado
@@ -264,7 +261,7 @@ mod tests {
         assert_eq!(processo.aberto_em, ["U1"]);
         assert!(matches!(
             criar(&banco, &origem, "cenario", "999", "Invalido", "U1"),
-            Err(Falha::DadoInvalido)
+            Err(ErroCriacaoProcesso::DadoInvalido)
         ));
         assert_eq!(
             banco

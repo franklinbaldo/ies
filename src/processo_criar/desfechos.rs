@@ -7,10 +7,10 @@ use super::CandidatoGerado;
 pub(crate) struct ProcessoConferido {
     pub(crate) id: String,
     pub(crate) nup: String,
-    pub(crate) tipo: Option<String>,
-    pub(crate) especificacao: Option<String>,
-    /// O nível lido integra a identidade do pedido; ausência não prova sucesso.
-    pub(crate) nivel: Option<String>,
+    pub(crate) tipo: String,
+    pub(crate) especificacao: String,
+    /// O nível lido integra a identidade do pedido.
+    pub(crate) nivel: crate::dominio::NivelDeAcesso,
     /// Interessados publicados na tela de propriedades.
     pub(crate) interessados: Vec<String>,
 }
@@ -27,16 +27,12 @@ pub(crate) enum Desfecho {
     SemCorrespondenciaObservada,
 }
 
-#[derive(Debug, Clone, PartialEq, Eq, crate::erro_publico::Causa)]
+#[derive(Debug, Clone, PartialEq, Eq, thiserror::Error)]
+#[error("{self:?}")]
 pub(crate) enum ErroConferencia {
-    #[causa(nome = "candidato_sem_leitura_verificadora")]
     LeituraAusente,
-    #[causa(nome = "leitura_verificadora_repetida")]
     LeituraRepetida,
-    #[causa(nome = "leitura_verificadora_de_outro_processo")]
     IdentidadeDivergente,
-    #[causa(nome = "propriedades_do_candidato_nao_observadas")]
-    PropriedadesNaoObservadas,
 }
 
 /// Quando há interessados explícitos, exigimos o mesmo multiconjunto
@@ -63,7 +59,7 @@ pub(crate) fn classificar(
     conferidos: &[ProcessoConferido],
     tipo: &str,
     especificacao: &str,
-    nivel: &str,
+    nivel: crate::dominio::NivelDeCriacao,
     interessados_solicitados: &[String],
 ) -> Result<Desfecho, ErroConferencia> {
     use std::collections::BTreeMap;
@@ -88,14 +84,9 @@ pub(crate) fn classificar(
         let lido = por_id
             .get(candidato.id.as_str())
             .ok_or(ErroConferencia::LeituraAusente)?;
-        let (Some(tipo_lido), Some(especificacao_lida), Some(nivel_lido)) =
-            (&lido.tipo, &lido.especificacao, &lido.nivel)
-        else {
-            return Err(ErroConferencia::PropriedadesNaoObservadas);
-        };
-        if tipo_lido == tipo
-            && especificacao_lida == especificacao
-            && nivel_lido == nivel
+        if lido.tipo == tipo
+            && lido.especificacao == especificacao
+            && lido.nivel == nivel.como_acesso()
             && interessados_conferem(interessados_solicitados, &lido.interessados)
         {
             correspondentes.push(candidato.nup.clone());
@@ -124,13 +115,13 @@ mod tests {
         }
     }
 
-    fn prova(id: &str, nup: &str, tipo: Option<&str>, esp: Option<&str>) -> ProcessoConferido {
+    fn prova(id: &str, nup: &str, tipo: &str, esp: &str) -> ProcessoConferido {
         ProcessoConferido {
             id: id.into(),
             nup: nup.into(),
-            tipo: tipo.map(str::to_owned),
-            especificacao: esp.map(str::to_owned),
-            nivel: Some("publico".into()),
+            tipo: tipo.into(),
+            especificacao: esp.into(),
+            nivel: crate::dominio::NivelDeAcesso::Publico,
             interessados: vec!["Pessoa Sintetica A".into()],
         }
     }
@@ -142,7 +133,7 @@ mod tests {
         conferidos: &[ProcessoConferido],
         tipo: &str,
         especificacao: &str,
-        nivel: &str,
+        nivel: crate::dominio::NivelDeCriacao,
     ) -> Result<Desfecho, ErroConferencia> {
         super::classificar(candidatos, conferidos, tipo, especificacao, nivel, &[])
     }
@@ -150,7 +141,7 @@ mod tests {
     #[test]
     fn interessado_explicito_divergente_nao_comprova_aplicacao_concorrente() {
         let candidatos = vec![candidato("17", "NUP-17")];
-        let lido = prova("17", "NUP-17", Some(TIPO), Some(ESPECIFICACAO));
+        let lido = prova("17", "NUP-17", TIPO, ESPECIFICACAO);
         // O processo concorrente tem o mesmo tipo, especificacao e nivel,
         // mas outro interessado. O POST original pode ter falhado.
         let desejado = vec!["Pessoa Sintetica B".to_owned()];
@@ -160,7 +151,7 @@ mod tests {
                 &[lido],
                 TIPO,
                 ESPECIFICACAO,
-                "publico",
+                crate::dominio::NivelDeCriacao::Publico,
                 &desejado
             ),
             Ok(Desfecho::SemCorrespondenciaObservada)
@@ -182,14 +173,15 @@ mod tests {
     #[test]
     fn unica_prova_com_tipo_e_especificacao_exatos_conclui_aplicada() {
         let candidatos = vec![candidato("17", "00000.000017/2026-17")];
-        let conferidos = vec![prova(
-            "17",
-            "00000.000017/2026-17",
-            Some(TIPO),
-            Some(ESPECIFICACAO),
-        )];
+        let conferidos = vec![prova("17", "00000.000017/2026-17", TIPO, ESPECIFICACAO)];
         assert_eq!(
-            classificar(&candidatos, &conferidos, TIPO, ESPECIFICACAO, "publico"),
+            classificar(
+                &candidatos,
+                &conferidos,
+                TIPO,
+                ESPECIFICACAO,
+                crate::dominio::NivelDeCriacao::Publico
+            ),
             Ok(Desfecho::CoincidenciaUnica {
                 nup: "00000.000017/2026-17".into()
             })
@@ -200,11 +192,17 @@ mod tests {
     fn dois_processos_conferidos_com_mesmo_tipo_e_especificacao_sao_ambiguos() {
         let candidatos = vec![candidato("17", "NUP-17"), candidato("18", "NUP-18")];
         let conferidos = vec![
-            prova("18", "NUP-18", Some(TIPO), Some(ESPECIFICACAO)),
-            prova("17", "NUP-17", Some(TIPO), Some(ESPECIFICACAO)),
+            prova("18", "NUP-18", TIPO, ESPECIFICACAO),
+            prova("17", "NUP-17", TIPO, ESPECIFICACAO),
         ];
         assert_eq!(
-            classificar(&candidatos, &conferidos, TIPO, ESPECIFICACAO, "publico"),
+            classificar(
+                &candidatos,
+                &conferidos,
+                TIPO,
+                ESPECIFICACAO,
+                crate::dominio::NivelDeCriacao::Publico
+            ),
             Ok(Desfecho::CandidatosAmbiguos {
                 nups: vec!["NUP-17".into(), "NUP-18".into()]
             })
@@ -215,11 +213,17 @@ mod tests {
     fn tipo_ou_especificacao_divergentes_nao_sao_aplicacao() {
         let candidatos = vec![candidato("17", "NUP-17"), candidato("18", "NUP-18")];
         let conferidos = vec![
-            prova("17", "NUP-17", Some("Outro tipo"), Some(ESPECIFICACAO)),
-            prova("18", "NUP-18", Some(TIPO), Some("Outra especificacao")),
+            prova("17", "NUP-17", "Outro tipo", ESPECIFICACAO),
+            prova("18", "NUP-18", TIPO, "Outra especificacao"),
         ];
         assert_eq!(
-            classificar(&candidatos, &conferidos, TIPO, ESPECIFICACAO, "publico"),
+            classificar(
+                &candidatos,
+                &conferidos,
+                TIPO,
+                ESPECIFICACAO,
+                crate::dominio::NivelDeCriacao::Publico
+            ),
             Ok(Desfecho::SemCorrespondenciaObservada)
         );
     }
@@ -227,7 +231,13 @@ mod tests {
     #[test]
     fn nenhum_candidato_na_fotografia_nao_prova_nao_aplicacao() {
         assert_eq!(
-            classificar(&[], &[], TIPO, ESPECIFICACAO, "publico"),
+            classificar(
+                &[],
+                &[],
+                TIPO,
+                ESPECIFICACAO,
+                crate::dominio::NivelDeCriacao::Publico
+            ),
             Ok(Desfecho::SemCorrespondenciaObservada)
         );
     }
@@ -236,7 +246,13 @@ mod tests {
     fn candidato_sem_leitura_nao_pode_ser_ignorado() {
         let candidatos = vec![candidato("17", "NUP-17")];
         assert_eq!(
-            classificar(&candidatos, &[], TIPO, ESPECIFICACAO, "publico"),
+            classificar(
+                &candidatos,
+                &[],
+                TIPO,
+                ESPECIFICACAO,
+                crate::dominio::NivelDeCriacao::Publico
+            ),
             Err(ErroConferencia::LeituraAusente)
         );
     }
@@ -245,11 +261,17 @@ mod tests {
     fn prova_duplicada_nao_atesta_unicidade() {
         let candidatos = vec![candidato("17", "NUP-17")];
         let conferidos = vec![
-            prova("17", "NUP-17", Some(TIPO), Some(ESPECIFICACAO)),
-            prova("17", "NUP-17", Some(TIPO), Some(ESPECIFICACAO)),
+            prova("17", "NUP-17", TIPO, ESPECIFICACAO),
+            prova("17", "NUP-17", TIPO, ESPECIFICACAO),
         ];
         assert_eq!(
-            classificar(&candidatos, &conferidos, TIPO, ESPECIFICACAO, "publico"),
+            classificar(
+                &candidatos,
+                &conferidos,
+                TIPO,
+                ESPECIFICACAO,
+                crate::dominio::NivelDeCriacao::Publico
+            ),
             Err(ErroConferencia::LeituraRepetida)
         );
     }
@@ -258,61 +280,36 @@ mod tests {
     fn prova_com_id_ou_nup_divergente_nao_identifica_candidato() {
         let candidatos = vec![candidato("17", "NUP-17")];
         for prova_errada in [
-            prova("18", "NUP-17", Some(TIPO), Some(ESPECIFICACAO)),
-            prova("17", "NUP-18", Some(TIPO), Some(ESPECIFICACAO)),
+            prova("18", "NUP-17", TIPO, ESPECIFICACAO),
+            prova("17", "NUP-18", TIPO, ESPECIFICACAO),
         ] {
             assert_eq!(
-                classificar(&candidatos, &[prova_errada], TIPO, ESPECIFICACAO, "publico"),
+                classificar(
+                    &candidatos,
+                    &[prova_errada],
+                    TIPO,
+                    ESPECIFICACAO,
+                    crate::dominio::NivelDeCriacao::Publico
+                ),
                 Err(ErroConferencia::IdentidadeDivergente)
             );
         }
     }
 
     #[test]
-    fn nivel_divergente_ou_nao_observado_nao_comprova_criacao() {
+    fn nivel_divergente_nao_comprova_criacao() {
         let candidatos = vec![candidato("17", "NUP-17")];
-        let mut prova_restrita = prova("17", "NUP-17", Some(TIPO), Some(ESPECIFICACAO));
-        prova_restrita.nivel = Some("restrito".into());
-        assert_eq!(
-            classificar(
-                &candidatos,
-                &[prova_restrita.clone()],
-                TIPO,
-                ESPECIFICACAO,
-                "publico"
-            ),
-            Ok(Desfecho::SemCorrespondenciaObservada)
-        );
-        prova_restrita.nivel = None;
+        let mut prova_restrita = prova("17", "NUP-17", TIPO, ESPECIFICACAO);
+        prova_restrita.nivel = crate::dominio::NivelDeAcesso::Restrito;
         assert_eq!(
             classificar(
                 &candidatos,
                 &[prova_restrita],
                 TIPO,
                 ESPECIFICACAO,
-                "publico"
+                crate::dominio::NivelDeCriacao::Publico
             ),
-            Err(ErroConferencia::PropriedadesNaoObservadas)
+            Ok(Desfecho::SemCorrespondenciaObservada)
         );
-    }
-
-    #[test]
-    fn campo_nao_observado_impede_conclusao_positiva_ou_negativa() {
-        let candidatos = vec![candidato("17", "NUP-17")];
-        for prova_incompleta in [
-            prova("17", "NUP-17", None, Some(ESPECIFICACAO)),
-            prova("17", "NUP-17", Some(TIPO), None),
-        ] {
-            assert_eq!(
-                classificar(
-                    &candidatos,
-                    &[prova_incompleta],
-                    TIPO,
-                    ESPECIFICACAO,
-                    "publico"
-                ),
-                Err(ErroConferencia::PropriedadesNaoObservadas)
-            );
-        }
     }
 }

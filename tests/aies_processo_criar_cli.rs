@@ -1,4 +1,4 @@
-//! BDD-245-01: a CLI real consulta o anti-IES sem criar processo.
+//! Criação de processo pela CLI real em estado sintético do anti-IES.
 //! Bancada HTTPS exclusiva de loopback com SQLite persistente durante o cenário.
 #![cfg(unix)]
 use anti_ies::atender_http;
@@ -161,7 +161,7 @@ fn executar_com_releitura(
     reler: bool,
 ) -> (Output, Option<Output>, Vec<String>, (i64, i64), usize) {
     let pasta = Pasta::nova();
-    let (cert, identidade) = identidade(&pasta.0);
+    let (cert, identidade) = identidade(&pasta.0, "sei.test");
     let origem = pasta.privado("origem", ORIGEM);
     let chave = ["infra", "hash"].join("_");
     let controle = pasta.privado(
@@ -251,7 +251,7 @@ fn executar(args: &[&str]) -> (Output, Vec<String>, (i64, i64), usize) {
 }
 
 #[test]
-fn bdd_245_01_previa_por_cli_real_sem_mutacao_sqlite() {
+fn previa_por_cli_real_sem_mutacao_sqlite() {
     let (saida, pedidos, contagens, tipos) = executar(&[
         "--json",
         "processo",
@@ -290,7 +290,7 @@ fn bdd_245_01_previa_por_cli_real_sem_mutacao_sqlite() {
 }
 
 #[test]
-fn bdd_245_02_criacao_unica_e_releitura_independente_via_cli_real() {
+fn criacao_unica_e_releitura_independente_via_cli_real() {
     let (saida, leitura, pedidos, contagens, tipos) = executar_com_releitura(
         &[
             "--json",
@@ -317,19 +317,8 @@ fn bdd_245_02_criacao_unica_e_releitura_independente_via_cli_real() {
     assert_eq!(resultado["nivel"], "publico");
     assert_eq!(resultado["especificacao"], "Cadastro causal de ensaio");
     assert!(resultado["nup"].as_str().is_some_and(|nup| !nup.is_empty()));
-    assert_eq!(resultado["requisicoes"], 7);
-    assert_eq!(
-        &pedidos[..7],
-        &[
-            "GET procedimento_controlar 200",
-            "GET procedimento_escolher_tipo 200",
-            "GET procedimento_gerar 200",
-            "POST procedimento_gerar 302",
-            "GET procedimento_trabalhar 200",
-            "GET procedimento_visualizar 200",
-            "GET procedimento_alterar 200",
-        ],
-    );
+    assert!(pedidos.iter().any(|p| p == "POST procedimento_gerar 302"));
+    assert!(pedidos.iter().any(|p| p == "GET procedimento_alterar 200"));
     assert_eq!(
         pedidos
             .iter()

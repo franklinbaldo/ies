@@ -3,12 +3,11 @@
 //! 4.1.5 e GO/PEN 5.0 para o link; `UnB` 4.0.9 e PEN1 4.0.12 para a
 //! função). Hosts, hashes e ids inventados.
 use super::concluir::{
-    ConcluirNaBarra, ErroConcluirNaBarra as B, ErroFuncaoDeConcluir as F, ler_concluir_da_barra,
-    ler_funcao_de_concluir,
+    ConcluirNaBarra, ErroConcluirNaBarra, ErroFuncaoDeConcluir, FuncaoForaDaForma,
+    ler_concluir_da_barra, ler_funcao_de_concluir,
 };
 use super::tests::{NUP, arvore, no_documento, no_processo};
 use super::tests_tela::instalacao;
-use crate::erro_html::ErroHtml;
 use crate::propriedades_processo::tests_apoio::{acao_da_barra, com_barra};
 
 pub(crate) const HASH_CONCLUIR: &str =
@@ -143,30 +142,24 @@ fn formas_repetidas_e_enderecos_recusados() {
             "10",
         )
     };
-    let erro = Err(B::Html(ErroHtml::repetido(
-        "formas_de_concluir_repetidas_na_barra",
-    )));
+    let erro = Err(ErroConcluirNaBarra::FormasDeConcluirRepetidasNaBarra);
     assert_eq!(ler(&[pela_tela("10"), ACAO_FUNCAO.to_owned()]), erro);
     assert_eq!(ler(&[pela_tela("10"), pela_tela("10")]), erro);
     assert_eq!(ler(&[ACAO_FUNCAO.to_owned(), ACAO_FUNCAO.to_owned()]), erro);
     assert_eq!(
         ler(&[pela_tela("11")]),
-        Err(B::EnderecoDaConclusaoDeOutroProcesso)
+        Err(ErroConcluirNaBarra::EnderecoDaConclusaoDeOutroProcesso)
     );
     let sem_hash = acao_da_barra(&link_de_concluir("10").replace(HASH_CONCLUIR, "abc"));
     assert_eq!(
         ler(&[sem_hash]),
-        Err(B::Html(ErroHtml::valor(
-            "endereco_da_conclusao_nao_reconhecido"
-        )))
+        Err(ErroConcluirNaBarra::EnderecoDaConclusaoNaoReconhecido)
     );
     // Forma 4.0 com a raiz sem `href` assinado (a forma da fixture comum).
     let raiz_crua = com_barra(&arvore(&[no_processo(0, "10", NUP)]), 0, ACAO_FUNCAO);
     assert_eq!(
         ler_concluir_da_barra(&instalacao(), &raiz_crua, "10"),
-        Err(B::Html(ErroHtml::valor(
-            "endereco_da_tela_do_no_nao_reconhecido"
-        )))
+        Err(ErroConcluirNaBarra::EnderecoDaTelaDoNoNaoReconhecido)
     );
 }
 
@@ -197,42 +190,48 @@ fn funcao_ausente_fora_da_forma_ou_repetida() {
     let sem = tela.replace("function concluirProcesso(){", "function outraCoisa(){");
     assert_eq!(
         ler(&sem),
-        Err(F::Html(ErroHtml::ausente(
-            "funcao_de_concluir_ausente_na_tela_do_no"
-        )))
+        Err(ErroFuncaoDeConcluir::FuncaoDeConcluirAusenteNaTelaDoNo)
     );
-    // `confirm` descomentado: forma não observada.
     let ativo = tela.replace(
         "//if (confirm('Confirma conclusão",
         "if (confirm('Confirma conclusão",
     );
-    assert_eq!(
-        ler(&ativo),
-        Err(F::Html(ErroHtml::valor(
-            "funcao_de_concluir_fora_da_forma_observada"
-        )))
-    );
+    // O `confirm` ativo foi observado na `UnB` 4.0.9 (retirada do
+    // sobrestamento, live de 10/11/2026): a mesma forma, aceita.
+    assert!(ler(&ativo).is_ok());
     let duas = tela.replace("</script>", &format!("{}</script>", funcao_extra()));
     assert_eq!(
         ler(&duas),
-        Err(F::Html(ErroHtml::repetido(
-            "funcoes_de_concluir_repetidas_na_tela_do_no"
-        )))
+        Err(ErroFuncaoDeConcluir::FuncoesDeConcluirRepetidasNaTelaDoNo)
+    );
+    let fora = tela.replace(
+        "//if (confirm('Confirma conclusão",
+        "//if (window.confirm('Confirma conclusão",
+    );
+    let erro = ler(&fora).unwrap_err();
+    assert_eq!(
+        erro,
+        ErroFuncaoDeConcluir::FuncaoDeConcluirForaDaFormaObservada(FuncaoForaDaForma)
+    );
+    assert_eq!(
+        std::error::Error::source(&erro).and_then(|c| c.downcast_ref::<FuncaoForaDaForma>()),
+        Some(&FuncaoForaDaForma)
     );
     let outro = tela.replace(
         &format!("id_procedimento=10&atualizar_arvore=1&{CONTEXTO}&infra_hash={HASH_FUNCAO}"),
         &format!("id_procedimento=11&atualizar_arvore=1&{CONTEXTO}&infra_hash={HASH_FUNCAO}"),
     );
-    assert_eq!(ler(&outro), Err(F::EnderecoDaConclusaoDeOutroProcesso));
+    assert_eq!(
+        ler(&outro),
+        Err(ErroFuncaoDeConcluir::EnderecoDaConclusaoDeOutroProcesso)
+    );
     let reabrir = tela.replace(
         &link_da_funcao("10"),
         &link_da_funcao("10").replace("procedimento_concluir", "procedimento_reabrir"),
     );
     assert_eq!(
         ler(&reabrir),
-        Err(F::Html(ErroHtml::valor(
-            "endereco_da_conclusao_nao_reconhecido"
-        )))
+        Err(ErroFuncaoDeConcluir::EnderecoDaConclusaoNaoReconhecido)
     );
 }
 

@@ -58,8 +58,8 @@ fn acervo(nome: &str, sei_root: &str) -> Acervo {
         &card,
         format!(
             "---\ntype: Cassette\ninstallation: unb\nsource_zip: https://archive.org/download/todos-sei-cassettes-2026/todos-sei-cassettes-unb.zip\narchive_member: {membro}\narchive_sha1: {}\ncassette_sha256_lf: {}\n---\n",
-            crate::hex::hex_minusculo(&Sha1::digest(std::fs::read(&zip).unwrap())),
-            crate::hex::hex_minusculo(&Sha256::digest(json.as_bytes())),
+            hex::encode(Sha1::digest(std::fs::read(&zip).unwrap())),
+            hex::encode(Sha256::digest(json.as_bytes())),
         ),
     )
     .unwrap();

@@ -1,0 +1,18 @@
+id: 44b-funcao-direta
+language: rust
+message: "x.map(|t| f(t)) com f da regra 40 vira x.map(f)"
+severity: hint
+rule:
+  all:
+    - pattern: $X.map(|$T| $F($T))
+    - not:
+        inside:
+          stopBy: end
+          kind: mod_item
+          follows:
+            kind: attribute_item
+            regex: 'cfg\(test\)'
+constraints:
+  F:
+    regex: "^(FUNCOES)$"
+fix: "$X.map($F)"

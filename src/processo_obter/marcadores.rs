@@ -6,21 +6,26 @@
 //! retry. Um GET; a escrita da tela (adicionar, remover, alterar) nunca é
 //! tocada.
 use super::abertura::{ArvoreAberta, Contexto, Lida, Rede, fora_de_palpite};
-use super::{EnvioDoProcesso, ErroProcessoObter as E, Marcadores};
+use super::{EnvioDoProcesso, ErroProcessoObter, Marcadores};
+use crate::acao_do_sei::AcaoDoSei;
 use crate::arvore_processo::endereco::conferir_endereco_relativo;
-use crate::marcadores_processo::{ACAO, MarcadoresLidos, TelaDosMarcadores, ler_marcadores};
-
-/// O formulário de adicionar marcador, destino do 302 da tela de marcadores
-/// quando o processo não tem nenhum (`UnB` 4.0.9, 04/11/2026).
-const ACAO_ADICIONAR: &str = "andamento_marcador_cadastrar";
+use crate::instalacao::Instalacao;
+use crate::marcadores_processo::{MarcadoresLidos, TelaDosMarcadores, ler_marcadores};
 
 /// 302 para `andamento_marcador_cadastrar` assinado do mesmo processo:
-/// a tela não tem o que listar. Nunca é seguido.
-fn sem_marcadores(contexto: &Contexto<'_>, local: Option<&str>, id: &str) -> bool {
+/// a tela não tem o que listar. Nunca é seguido. Também usado pelo replay
+/// do acervo, sem cópia desta regra.
+pub(crate) fn sem_marcadores(instalacao: &Instalacao, local: Option<&str>, id: &str) -> bool {
     let Some(local) = local else { return false };
-    let base = format!("{}/", contexto.instalacao.url_base());
+    let base = format!("{}/", instalacao.url_base());
     let relativo = local.strip_prefix(base.as_str()).unwrap_or(local);
-    conferir_endereco_relativo(&contexto.instalacao, relativo, ACAO_ADICIONAR, id).is_ok()
+    conferir_endereco_relativo(
+        instalacao,
+        relativo,
+        AcaoDoSei::AndamentoMarcadorCadastrar,
+        id,
+    )
+    .is_ok()
 }
 
 fn vazia() -> TelaDosMarcadores {
@@ -36,14 +41,14 @@ pub(super) fn ler<V: EnvioDoProcesso>(
     aberta: &ArvoreAberta,
     pedidos: bool,
     guardado_primeiro: bool,
-) -> Result<Marcadores, E> {
+) -> Result<Marcadores, ErroProcessoObter> {
     if !pedidos {
         return Ok(Marcadores::Omitidos);
     }
     let endereco = match &aberta.marcadores {
         Ok(Some(endereco)) => endereco,
-        Ok(None) => return Ok(Marcadores::NaoPublicadosNaBarra),
-        Err(erro) => return Err(E::Marcadores(*erro)),
+        Ok(None) => return Err(ErroProcessoObter::MarcadoresNaoPublicadosNaBarra),
+        Err(erro) => return Err(ErroProcessoObter::Marcadores(erro.clone())),
     };
     let id = aberta.arvore.processo.id.as_str();
     let guardada = if guardado_primeiro {
@@ -57,11 +62,13 @@ pub(super) fn ler<V: EnvioDoProcesso>(
         let url = endereco.as_str();
         (url.to_owned(), pelo_link_da_barra(contexto, rede, url, id)?)
     };
-    contexto.aprender_link(ACAO, id, &url);
-    Ok(match tela {
-        TelaDosMarcadores::Lidos(lidos) => Marcadores::Lidos(lidos),
-        TelaDosMarcadores::SemTabela => Marcadores::TabelaNaoPublicada,
-    })
+    contexto.aprender_link(AcaoDoSei::AndamentoMarcadorGerenciar, id, &url);
+    match tela {
+        TelaDosMarcadores::Lidos(lidos) => Ok(Marcadores::Lidos(lidos)),
+        TelaDosMarcadores::SemTabela => {
+            Err(ErroProcessoObter::TabelaDeMarcadoresNaoPublicadaNaTela)
+        }
+    }
 }
 
 /// Link guardado nesta geração e unidade. `Ok(None)`: não havia, ou o
@@ -70,9 +77,9 @@ fn pelo_guardado<V: EnvioDoProcesso>(
     contexto: &Contexto<'_>,
     rede: &mut Rede<'_, V>,
     id: &str,
-) -> Result<Option<(String, TelaDosMarcadores)>, E> {
+) -> Result<Option<(String, TelaDosMarcadores)>, ErroProcessoObter> {
     let Some(link) = contexto
-        .chave(ACAO, id)
+        .chave(AcaoDoSei::AndamentoMarcadorGerenciar, id)
         .and_then(|chave| contexto.indice.link(&contexto.instalacao, chave))
     else {
         return Ok(None);
@@ -82,19 +89,21 @@ fn pelo_guardado<V: EnvioDoProcesso>(
         Lida::Html { html, .. } => match ler_marcadores(&html, contexto.nup, id) {
             Ok(tela) => Ok(Some((url, tela))),
             Err(erro) if erro.link_envelhecido() => {
-                contexto.esquecer_link(ACAO, id);
+                contexto.esquecer_link(AcaoDoSei::AndamentoMarcadorGerenciar, id);
                 Ok(None)
             }
-            Err(erro) => Err(E::Marcadores(erro)),
+            Err(erro) => Err(ErroProcessoObter::Marcadores(erro)),
         },
-        Lida::Redirecionamento(local) if sem_marcadores(contexto, local.as_deref(), id) => {
+        Lida::Redirecionamento(local)
+            if sem_marcadores(&contexto.instalacao, local.as_deref(), id) =>
+        {
             Ok(Some((url, vazia())))
         }
         Lida::Login | Lida::Redirecionamento(_) => {
-            contexto.esquecer_link(ACAO, id);
+            contexto.esquecer_link(AcaoDoSei::AndamentoMarcadorGerenciar, id);
             Ok(None)
         }
-        Lida::Falha(falha) => Err(E::Transporte(falha)),
+        Lida::Falha(falha) => Err(ErroProcessoObter::Transporte(falha)),
     }
 }
 
@@ -103,14 +112,20 @@ fn pelo_link_da_barra<V: EnvioDoProcesso>(
     rede: &mut Rede<'_, V>,
     url: &str,
     id: &str,
-) -> Result<TelaDosMarcadores, E> {
+) -> Result<TelaDosMarcadores, ErroProcessoObter> {
     match rede.get(url)? {
-        Lida::Html { html, .. } => ler_marcadores(&html, contexto.nup, id).map_err(E::Marcadores),
-        Lida::Redirecionamento(local) if sem_marcadores(contexto, local.as_deref(), id) => {
+        Lida::Html { html, .. } => {
+            ler_marcadores(&html, contexto.nup, id).map_err(ErroProcessoObter::Marcadores)
+        }
+        Lida::Redirecionamento(local)
+            if sem_marcadores(&contexto.instalacao, local.as_deref(), id) =>
+        {
             Ok(vazia())
         }
         Lida::Redirecionamento(local) => Err(fora_de_palpite(local.as_deref())),
-        Lida::Login => Err(E::SessaoEncerrada),
-        Lida::Falha(falha) => Err(E::Transporte(falha)),
+        Lida::Login => Err(ErroProcessoObter::SessaoEncerrada(
+            crate::erro_publico::SessaoEncerrada,
+        )),
+        Lida::Falha(falha) => Err(ErroProcessoObter::Transporte(falha)),
     }
 }

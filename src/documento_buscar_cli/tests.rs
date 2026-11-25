@@ -55,8 +55,8 @@ fn lista_publica_total_faixa_e_documentos_observados() {
             numero_sei: "0001018".to_owned(),
             rotulo: "Despacho".to_owned(),
             processo: NumeroProcesso::novo("00001.000011/2026-00").unwrap(),
-            unidade: Some("TESTE".to_owned()),
-            inclusao: None,
+            unidade: "TESTE".to_owned(),
+            inclusao: "12/10/2026".to_owned(),
             anexo: true,
         }],
         total_declarado: 16,
@@ -82,7 +82,7 @@ fn lista_publica_total_faixa_e_documentos_observados() {
                     "rotulo": "Despacho",
                     "processo": "00001.000011/2026-00",
                     "unidade": "TESTE",
-                    "inclusao": null,
+                    "inclusao": "12/10/2026",
                     "anexo": true
                 }]
             })
@@ -96,7 +96,7 @@ fn sem_resultado_publica_total_zero_sem_faixa() {
         json_da_busca("0001", &busca(RespostaDeDocumentos::SemResultado, 3)),
         com(
             base("sem_resultado", 3),
-            &json!({"total_declarado": 0, "faixa_observada": null, "documentos": []})
+            &json!({"total_declarado": 0, "documentos": []})
         )
     );
 }

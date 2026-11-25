@@ -1,0 +1,17 @@
+id: 18g-atributos-map-err-resto
+language: rust
+message: 'atributos(t).map_err(e)? que sobrou: o próprio elemento'
+severity: hint
+rule:
+  all:
+    - any:
+        - pattern: 'atributos($T).map_err($E)?'
+        - pattern: 'crate::html_atributos::atributos($T).map_err($E)?'
+    - not:
+        inside:
+          stopBy: end
+          kind: mod_item
+          follows:
+            kind: attribute_item
+            regex: 'cfg\(test\)'
+fix: '$T'

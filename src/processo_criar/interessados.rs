@@ -1,71 +1,68 @@
 //! Interessados do cadastro de processo: autocomplete que a tela publicou.
 //! Cada pedido faz uma consulta sem efeito de escrita, por URL assinada
 //! observada, e exige identidade unívoca; nenhum nome vira ID inventado.
-use crate::erro_html::ErroHtml;
 use crate::formulario_web::{
-    ConsultaAjax, EfeitoAvaliado, TelaServida, decodificar_atributo, derivar_consulta_ajax,
-    localizar_formulario,
+    ConsultaAjax, EfeitoAvaliado, TelaServida, derivar_consulta_ajax, localizar_formulario,
 };
-use crate::html_atributos::{atributo_presente, valor_do_atributo};
 use crate::instalacao::Instalacao;
-use crate::transporte::{corpo::decode_http_body, ler_limitado};
+use crate::resposta_ajax::{Elemento, ErroXml, RespostaAjax};
+use crate::transporte::ler_limitado;
 use crate::visao_do_controle::EnvioDoControle;
 
 const PREFIXO: &str = "objAutoCompletarInteressadoRI1225 = new infraAjaxAutoCompletar('hdnIdInteressadoProcedimento','txtInteressadoProcedimento','";
 const AUTOCOMPLETAR: ConsultaAjax = ConsultaAjax {
-    acao_ajax: "contato_auto_completar_contexto_RI1225",
+    acao_ajax: crate::acao_do_sei::AcaoAjaxDoSei::ContatoAutoCompletarContextoRi1225,
     campos: &["palavras_pesquisa"],
     efeito: EfeitoAvaliado::ConsultaSemEfeitoObservado {
         evidencia: "docs/como-o-sei-funciona/inicio-do-processo.md: autocomplete do contato",
     },
 };
 
-#[derive(Debug, Clone, PartialEq, Eq, crate::erro_publico::Causa)]
+#[derive(Debug, Clone, thiserror::Error)]
+#[error("{self:?}")]
 pub(crate) enum ErroInteressado {
-    #[causa(nome = "interessado_autocompletar_nao_declarado")]
     AutocompletarNaoDeclarado,
-    #[causa(nome = "interessado_consulta_nao_derivada")]
-    DerivacaoRecusada,
-    #[causa(nome = "interessado_de_processo_nao_oferecido")]
+    DerivacaoRecusada(#[source] crate::formulario_web::ErroSubmissaoFormulario),
     NaoOferecido,
-    #[causa(nome = "interessado_de_processo_ambiguo")]
     Ambiguo,
-    #[causa(transparente)]
-    Html(ErroHtml),
+    InteressadoControlesAusentes,
+    FormularioDosControlesRecusado(#[source] crate::formulario_web::ErroSubmissaoFormulario),
+    InteressadoRespostaNaoReconhecida,
+    Xml(#[from] ErroXml),
+    CorpoDaRespostaIlegivel(#[source] crate::transporte::corpo::ErroCorpoHttp),
     /// Falha observada no transporte do AJAX consultivo, antes da escrita.
-    #[causa(interna)]
-    Transporte(crate::transporte::FalhaTransporte),
+    Transporte(#[from] crate::transporte::FalhaTransporte),
 }
 
 impl ErroInteressado {
-    pub(crate) fn subcodigo(&self) -> &'static str {
-        crate::erro_publico::folha(self)
-    }
-
+    #[cfg(test)]
     pub(crate) fn status_http(&self) -> Option<&crate::transporte::StatusHttpRecusado> {
-        crate::erro_publico::Causa::status_http(self)
+        match self {
+            Self::Transporte(falha) => falha.status_http(),
+            Self::AutocompletarNaoDeclarado
+            | Self::DerivacaoRecusada(_)
+            | Self::NaoOferecido
+            | Self::Ambiguo
+            | Self::InteressadoControlesAusentes
+            | Self::FormularioDosControlesRecusado(_)
+            | Self::InteressadoRespostaNaoReconhecida
+            | Self::Xml(_)
+            | Self::CorpoDaRespostaIlegivel(_) => None,
+        }
     }
 }
 
 fn campo_unico(
-    form: &tl::HTMLTag<'_>,
-    parser: &tl::Parser<'_>,
+    form: crate::tela_html::Elemento<'_>,
     elemento: &str,
     nome: &str,
 ) -> Result<(), ErroInteressado> {
     let mut achados = 0;
-    for handle in form.query_selector(parser, elemento).into_iter().flatten() {
-        let tag = handle
-            .get(parser)
-            .and_then(tl::Node::as_tag)
-            .ok_or(ErroHtml::ausente("interessado_controles_ausentes"))?;
-        let lido = valor_do_atributo(tag, "name")
-            .map_err(|e| ErroHtml::atributo("interessado_controles_ausentes", e))?;
-        if lido.as_deref() == Some(nome) {
-            if atributo_presente(tag, "disabled")
-                .map_err(|e| ErroHtml::atributo("interessado_controles_ausentes", e))?
-            {
-                return Err(ErroHtml::ausente("interessado_controles_ausentes").into());
+    for handle in form.elementos(elemento) {
+        let lido = handle.atributo("name");
+        if lido == Some(nome) {
+            if handle.presente("disabled") {
+                return Err(ErroInteressado::InteressadoControlesAusentes);
             }
             achados += 1;
         }
@@ -73,21 +70,19 @@ fn campo_unico(
     if achados == 1 {
         Ok(())
     } else {
-        Err(ErroHtml::ausente("interessado_controles_ausentes").into())
+        Err(ErroInteressado::InteressadoControlesAusentes)
     }
 }
 
 /// URL declarada na inicialização do autocomplete, sem executar o script.
 /// Também confere os campos reais do formulário que receberá os IDs.
-fn url_publicada(html: &str) -> Result<String, ErroInteressado> {
-    use ErroInteressado as E;
-    let dom = tl::parse(html, tl::ParserOptions::default())
-        .map_err(|_| ErroHtml::ausente("interessado_controles_ausentes"))?;
+fn url_publicada(html: &crate::tela_html::HtmlServido) -> Result<String, ErroInteressado> {
+    let dom = crate::tela_html::arvore(html);
     let form = localizar_formulario(&dom, "frmProcedimentoCadastro")
-        .map_err(|_| ErroHtml::ausente("interessado_controles_ausentes"))?;
-    campo_unico(form, dom.parser(), "input", "hdnInteressadosProcedimento")?;
-    campo_unico(form, dom.parser(), "input", "txtInteressadoProcedimento")?;
-    campo_unico(form, dom.parser(), "select", "selInteressadosProcedimento")?;
+        .map_err(ErroInteressado::FormularioDosControlesRecusado)?;
+    campo_unico(form, "input", "hdnInteressadosProcedimento")?;
+    campo_unico(form, "input", "txtInteressadoProcedimento")?;
+    campo_unico(form, "select", "selInteressadosProcedimento")?;
     let urls: Vec<&str> = html
         .lines()
         .filter_map(|linha| linha.strip_prefix(PREFIXO))
@@ -95,52 +90,31 @@ fn url_publicada(html: &str) -> Result<String, ErroInteressado> {
         .collect();
     match urls.as_slice() {
         [url] if url.starts_with("controlador_ajax.php?") => Ok((*url).to_owned()),
-        _ => Err(E::AutocompletarNaoDeclarado),
+        _ => Err(ErroInteressado::AutocompletarNaoDeclarado),
     }
 }
 
 fn itens_da_resposta(xml: &str) -> Result<Vec<(String, String)>, ErroInteressado> {
-    use ErroInteressado as E;
-    let dom = tl::parse(xml, tl::ParserOptions::default())
-        .map_err(|_| ErroHtml::valor("interessado_resposta_nao_reconhecida"))?;
-    let parser = dom.parser();
-    let roots: Vec<_> = dom.query_selector("itens").into_iter().flatten().collect();
-    let [root] = roots.as_slice() else {
-        return Err(ErroHtml::valor("interessado_resposta_nao_reconhecida").into());
+    let resposta = RespostaAjax::ler(xml)?;
+    let raizes = resposta.elementos("itens");
+    let [raiz] = raizes.as_slice() else {
+        return Err(ErroInteressado::InteressadoRespostaNaoReconhecida);
     };
-    let root = root
-        .get(parser)
-        .and_then(tl::Node::as_tag)
-        .ok_or(ErroHtml::valor("interessado_resposta_nao_reconhecida"))?;
-    let mut itens = Vec::new();
     // Só itens subordinados à raiz oferecida no XML são selecionáveis;
     // outros elementos do documento não são candidatos de interessado.
-    for handle in root.query_selector(parser, "item").into_iter().flatten() {
-        let tag = handle
-            .get(parser)
-            .and_then(tl::Node::as_tag)
-            .ok_or(ErroHtml::valor("interessado_resposta_nao_reconhecida"))?;
-        let ler = |nome| -> Result<String, E> {
-            valor_do_atributo(tag, nome)
-                .map_err(|e| {
-                    E::Html(ErroHtml::atributo(
-                        "interessado_resposta_nao_reconhecida",
-                        e,
-                    ))
-                })?
-                .and_then(|s| decodificar_atributo(&s))
-                .filter(|s| !s.is_empty())
-                .ok_or(E::Html(ErroHtml::valor(
-                    "interessado_resposta_nao_reconhecida",
-                )))
-        };
-        itens.push((ler("id")?, ler("descricao")?));
-    }
-    Ok(itens)
+    let ler = |item: &Elemento, nome: &str| {
+        item.atributo(nome)
+            .filter(|valor| !valor.is_empty())
+            .map(str::to_owned)
+            .ok_or(ErroInteressado::InteressadoRespostaNaoReconhecida)
+    };
+    raiz.descendentes("item")
+        .into_iter()
+        .map(|item| Ok((ler(item, "id")?, ler(item, "descricao")?)))
+        .collect()
 }
 
 fn escolher(pedido: &str, itens: &[(String, String)]) -> Result<(String, String), ErroInteressado> {
-    use ErroInteressado as E;
     let normalizar = |texto: &str| {
         texto
             .split_whitespace()
@@ -155,8 +129,8 @@ fn escolher(pedido: &str, itens: &[(String, String)]) -> Result<(String, String)
         .collect();
     match encontrados.as_slice() {
         [(id, nome)] => Ok((id.clone(), nome.clone())),
-        [] => Err(E::NaoOferecido),
-        _ => Err(E::Ambiguo),
+        [] => Err(ErroInteressado::NaoOferecido),
+        _ => Err(ErroInteressado::Ambiguo),
     }
 }
 
@@ -170,7 +144,6 @@ pub(crate) fn resolver<V: EnvioDoControle>(
     pedidos: &[String],
     requisicoes: &mut u32,
 ) -> Result<Vec<(String, String)>, ErroInteressado> {
-    use ErroInteressado as E;
     if pedidos.is_empty() {
         return Ok(Vec::new());
     }
@@ -184,13 +157,13 @@ pub(crate) fn resolver<V: EnvioDoControle>(
             &url,
             &[("palavras_pesquisa", pedido)],
         )
-        .map_err(|_| E::DerivacaoRecusada)?;
+        .map_err(ErroInteressado::DerivacaoRecusada)?;
         *requisicoes += 1;
-        let resposta = envio.post(consulta, cookie).map_err(E::Transporte)?;
+        let resposta = envio.post(consulta, cookie)?;
         if resposta.resposta.status_code != 200 {
-            return Err(E::Transporte(crate::transporte::recusar_status(
-                resposta.resposta,
-            )));
+            return Err(ErroInteressado::Transporte(
+                crate::transporte::recusar_status(resposta.resposta),
+            ));
         }
         if !matches!(
             resposta
@@ -202,13 +175,12 @@ pub(crate) fn resolver<V: EnvioDoControle>(
                 .trim(),
             "application/xml" | "text/xml"
         ) {
-            return Err(ErroHtml::valor("interessado_resposta_nao_reconhecida").into());
+            return Err(ErroInteressado::InteressadoRespostaNaoReconhecida);
         }
         let mime = resposta.resposta.mime.clone();
-        let bytes =
-            ler_limitado(resposta.resposta.corpo, crate::MAX_HTML_BYTES).map_err(E::Transporte)?;
-        let xml = decode_http_body(&bytes, &mime)
-            .map_err(|_| ErroHtml::valor("interessado_resposta_nao_reconhecida"))?;
+        let bytes = ler_limitado(resposta.resposta.corpo, crate::MAX_HTML_BYTES)?;
+        let xml = crate::tela_html::HtmlServido::do_corpo(&bytes, &mime)
+            .map_err(ErroInteressado::CorpoDaRespostaIlegivel)?;
         let escolhido = escolher(pedido, &itens_da_resposta(&xml)?)?;
         if !resultados
             .iter()
@@ -236,23 +208,23 @@ mod tests {
         let xml =
             "<itens><item id='1' descricao='Pessoa A'/><item id='2' descricao='Pessoa B'/></itens>";
         let itens = itens_da_resposta(xml).unwrap();
-        assert_eq!(
+        assert!(matches!(
             escolher("Pessoa C", &itens),
             Err(ErroInteressado::NaoOferecido)
-        );
+        ));
         assert_eq!(
-            escolher("Pessoa A", &itens),
-            Ok(("1".into(), "Pessoa A".into()))
+            escolher("Pessoa A", &itens).ok(),
+            Some(("1".into(), "Pessoa A".into()))
         );
     }
     #[test]
     fn duplicados_com_nome_igual_sao_ambiguos() {
         let xml =
             "<itens><item id='1' descricao='Pessoa A'/><item id='2' descricao='Pessoa A'/></itens>";
-        assert_eq!(
+        assert!(matches!(
             escolher("Pessoa A", &itens_da_resposta(xml).unwrap()),
             Err(ErroInteressado::Ambiguo)
-        );
+        ));
     }
     /// Resposta AJAX sintética adversarial: somente `item` sob a única
     /// raiz `itens` representa interessado oferecido pelo SEI. Um item
@@ -262,12 +234,19 @@ mod tests {
         // Estrutura dos itens: autocomplete de interessado publicado no
         // cadastro; o segundo `item` é uma mutação sintética negativa.
         let xml = "<itens><item id='1' descricao='Pessoa A'></item></itens><item id='2' descricao='Pessoa B'></item>";
-        let itens = itens_da_resposta(xml).unwrap();
-        assert_eq!(itens, vec![("1".into(), "Pessoa A".into())]);
-        assert_eq!(
+        // Dois elementos raiz não são XML bem formado: recusado, não filtrado.
+        assert!(matches!(
+            itens_da_resposta(xml),
+            Err(ErroInteressado::Xml(
+                crate::resposta_ajax::ErroXml::VariosElementosRaiz
+            ))
+        ));
+        let itens =
+            itens_da_resposta("<itens><item id='1' descricao='Pessoa A'></item></itens>").unwrap();
+        assert!(matches!(
             escolher("Pessoa B", &itens),
             Err(ErroInteressado::NaoOferecido)
-        );
+        ));
     }
 
     #[test]

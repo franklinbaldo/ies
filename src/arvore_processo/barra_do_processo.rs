@@ -7,14 +7,13 @@
 //! classificam nada.
 use super::endereco::{EnderecoRecusado, conferir_endereco_relativo};
 use super::literais::{Literal, indice_da_barra, ler_barra, ler_declaracao};
-use crate::erro_html::ErroHtml;
-use crate::formulario_web::decodificar_atributo;
-use crate::html_atributos::atributos;
+use crate::acao_do_sei::AcaoDoSei;
+use crate::consulta_do_controlador::menciona_acao;
 use crate::instalacao::Instalacao;
-use crate::marcadores_processo::{self, EnderecoDosMarcadores, ErroMarcadores};
+use crate::marcadores_processo::{EnderecoDosMarcadores, ErroMarcadores};
 use crate::processo_comentarios::{EnderecoDosComentarios, ErroLinkDosComentarios};
 use crate::propriedades_processo::{
-    EnderecoDasPropriedades, ErroPropriedades as E, FonteDasPropriedades,
+    EnderecoDasPropriedades, ErroPropriedades, FonteDasPropriedades,
 };
 
 /// O link da tela de propriedades publicado na barra do processo `id`;
@@ -24,17 +23,13 @@ pub(crate) fn ler_link_das_propriedades(
     instalacao: &Instalacao,
     html: &str,
     id: &str,
-) -> Result<Option<EnderecoDasPropriedades>, E> {
-    let falha = |f: FalhaDaBarra| match f {
-        FalhaDaBarra::Fora => E::BarraDoProcessoForaDaFormaObservada,
-        FalhaDaBarra::Repetidas => E::BarrasDoProcessoRepetidasNaArvore,
-    };
+) -> Result<Option<EnderecoDasPropriedades>, ErroPropriedades> {
     let (mut alterar, mut consultar) = (Vec::new(), Vec::new());
-    for href in hrefs_da_barra(html).map_err(falha)? {
-        match acao_do_href(&href) {
-            Some(acao) if acao == FonteDasPropriedades::Alterar.acao() => alterar.push(href),
-            Some(acao) if acao == FonteDasPropriedades::Consultar.acao() => consultar.push(href),
-            _ => {}
+    for href in hrefs_da_barra(html)? {
+        if menciona_acao(&href, FonteDasPropriedades::Alterar.acao()) {
+            alterar.push(href);
+        } else if menciona_acao(&href, FonteDasPropriedades::Consultar.acao()) {
+            consultar.push(href);
         }
     }
     let (fonte, achados) = if alterar.is_empty() {
@@ -45,14 +40,27 @@ pub(crate) fn ler_link_das_propriedades(
     let href = match achados.as_slice() {
         [] => return Ok(None),
         [href] => href,
-        _ => return Err(E::LinksDasPropriedadesRepetidosNaBarra),
+        _ => return Err(ErroPropriedades::LinksDasPropriedadesRepetidosNaBarra),
     };
     conferir_endereco_relativo(instalacao, href, fonte.acao(), id)
         .map(|url| Some(EnderecoDasPropriedades::novo(fonte, url)))
         .map_err(|recusa| match recusa {
-            EnderecoRecusado::NaoReconhecido => E::EnderecoDasPropriedadesNaoReconhecido,
-            EnderecoRecusado::DeOutroProcesso => E::EnderecoDasPropriedadesDeOutroProcesso,
+            EnderecoRecusado::NaoReconhecido => {
+                ErroPropriedades::EnderecoDasPropriedadesNaoReconhecido
+            }
+            EnderecoRecusado::DeOutroProcesso => {
+                ErroPropriedades::EnderecoDasPropriedadesDeOutroProcesso
+            }
         })
+}
+
+/// Recusas da leitura do link de anotações na barra do processo.
+#[derive(Clone, Debug, PartialEq, Eq, thiserror::Error)]
+#[error("{self:?}")]
+pub(crate) enum ErroLinkDasAnotacoes {
+    BarraDeAnotacoesIlegivel(#[source] super::ErroBarraDoProcesso),
+    EnderecoDeAnotacoesRecusado(#[source] crate::arvore_processo::endereco::EnderecoRecusado),
+    LinksDeAnotacoesRepetidos,
 }
 
 /// Anotações na origem: somente o link servido no nó PROCESSO.
@@ -61,40 +69,29 @@ pub(crate) fn ler_link_das_anotacoes(
     instalacao: &Instalacao,
     html: &str,
     id: &str,
-) -> Result<Option<String>, ErroHtml> {
-    let hrefs =
-        hrefs_da_barra(html).map_err(|_| ErroHtml::html("barra_de_anotacoes_nao_interpretada"))?;
+) -> Result<Option<String>, ErroLinkDasAnotacoes> {
+    let hrefs = hrefs_da_barra(html).map_err(ErroLinkDasAnotacoes::BarraDeAnotacoesIlegivel)?;
     let candidatos: Vec<_> = hrefs
         .iter()
-        .filter(|href| acao_do_href(href) == Some("anotacao_registrar"))
+        .filter(|href| menciona_acao(href, AcaoDoSei::AnotacaoRegistrar))
         .collect();
     match candidatos.as_slice() {
         [] => Ok(None),
-        [href] => conferir_endereco_relativo(instalacao, href, "anotacao_registrar", id)
+        [href] => conferir_endereco_relativo(instalacao, href, AcaoDoSei::AnotacaoRegistrar, id)
             .map(Some)
-            .map_err(|_| ErroHtml::valor("endereco_de_anotacoes_nao_reconhecido")),
-        _ => Err(ErroHtml::repetido("links_de_anotacoes_repetidos")),
+            .map_err(ErroLinkDasAnotacoes::EnderecoDeAnotacoesRecusado),
+        _ => Err(ErroLinkDasAnotacoes::LinksDeAnotacoesRepetidos),
     }
 }
 
 /// Recusas do link de controle de prazo; URLs assinadas nunca aparecem no erro.
-#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+#[derive(Clone, Debug, PartialEq, Eq, thiserror::Error)]
+#[error("{self:?}")]
 pub(crate) enum ErroLinkPrazo {
-    BarraNaoInterpretada,
+    BarraDoPrazoIlegivel(#[source] super::ErroBarraDoProcesso),
     LinksRepetidos,
     EnderecoNaoReconhecido,
     EnderecoDeOutroProcesso,
-}
-
-impl ErroLinkPrazo {
-    pub(crate) fn subcodigo(self) -> &'static str {
-        match self {
-            Self::BarraNaoInterpretada => "barra_de_prazo_nao_interpretada",
-            Self::LinksRepetidos => "links_de_prazo_repetidos",
-            Self::EnderecoNaoReconhecido => "endereco_de_prazo_nao_reconhecido",
-            Self::EnderecoDeOutroProcesso => "endereco_de_prazo_de_outro_processo",
-        }
-    }
 }
 
 /// Ação de prazo servida na barra do próprio processo, nunca fabricada.
@@ -103,22 +100,21 @@ pub(crate) fn ler_link_do_prazo(
     html: &str,
     id: &str,
 ) -> Result<Option<String>, ErroLinkPrazo> {
-    use ErroLinkPrazo as E;
-    let hrefs = hrefs_da_barra(html).map_err(|_| E::BarraNaoInterpretada)?;
+    let hrefs = hrefs_da_barra(html).map_err(ErroLinkPrazo::BarraDoPrazoIlegivel)?;
     let candidatos: Vec<_> = hrefs
         .iter()
-        .filter(|href| acao_do_href(href) == Some("controle_prazo_definir"))
+        .filter(|href| menciona_acao(href, AcaoDoSei::ControlePrazoDefinir))
         .collect();
     let href = match candidatos.as_slice() {
         [] => return Ok(None),
         [unico] => *unico,
-        _ => return Err(E::LinksRepetidos),
+        _ => return Err(ErroLinkPrazo::LinksRepetidos),
     };
-    conferir_endereco_relativo(instalacao, href, "controle_prazo_definir", id)
+    conferir_endereco_relativo(instalacao, href, AcaoDoSei::ControlePrazoDefinir, id)
         .map(Some)
         .map_err(|falha| match falha {
-            EnderecoRecusado::NaoReconhecido => E::EnderecoNaoReconhecido,
-            EnderecoRecusado::DeOutroProcesso => E::EnderecoDeOutroProcesso,
+            EnderecoRecusado::NaoReconhecido => ErroLinkPrazo::EnderecoNaoReconhecido,
+            EnderecoRecusado::DeOutroProcesso => ErroLinkPrazo::EnderecoDeOutroProcesso,
         })
 }
 
@@ -130,20 +126,17 @@ pub(crate) fn ler_link_dos_marcadores(
     html: &str,
     id: &str,
 ) -> Result<Option<EnderecoDosMarcadores>, ErroMarcadores> {
-    let hrefs = hrefs_da_barra(html).map_err(|f| match f {
-        FalhaDaBarra::Fora => ErroMarcadores::BarraDoProcessoForaDaFormaObservada,
-        FalhaDaBarra::Repetidas => ErroMarcadores::BarrasDoProcessoRepetidasNaArvore,
-    })?;
+    let hrefs = hrefs_da_barra(html)?;
     let achados: Vec<_> = hrefs
         .iter()
-        .filter(|href| acao_do_href(href) == Some(marcadores_processo::ACAO))
+        .filter(|href| menciona_acao(href, AcaoDoSei::AndamentoMarcadorGerenciar))
         .collect();
     let href = match achados.as_slice() {
         [] => return Ok(None),
         [href] => href,
         _ => return Err(ErroMarcadores::LinksDosMarcadoresRepetidosNaBarra),
     };
-    conferir_endereco_relativo(instalacao, href, marcadores_processo::ACAO, id)
+    conferir_endereco_relativo(instalacao, href, AcaoDoSei::AndamentoMarcadorGerenciar, id)
         .map(|url| Some(EnderecoDosMarcadores::novo(url)))
         .map_err(|recusa| match recusa {
             EnderecoRecusado::NaoReconhecido => ErroMarcadores::EnderecoDosMarcadoresNaoReconhecido,
@@ -155,49 +148,44 @@ pub(crate) fn ler_link_dos_marcadores(
 
 /// Link assinado de `comentario_listar` da própria barra do processo.
 /// Não forma URL, não executa JS e não segue links de documentos.
-#[allow(dead_code)] // ligado ao fluxo Web de comentários na próxima fatia (#257)
 pub(crate) fn ler_link_dos_comentarios(
     instalacao: &Instalacao,
     html: &str,
     id: &str,
 ) -> Result<Option<EnderecoDosComentarios>, ErroLinkDosComentarios> {
-    use ErroLinkDosComentarios as E;
-    let hrefs = hrefs_da_barra(html).map_err(|falha| match falha {
-        FalhaDaBarra::Fora => E::Html(ErroHtml::valor(
-            "barra_dos_comentarios_fora_da_forma_observada",
-        )),
-        FalhaDaBarra::Repetidas => E::Html(ErroHtml::repetido(
-            "barras_dos_comentarios_repetidas_na_arvore",
-        )),
-    })?;
+    let hrefs = hrefs_da_barra(html)?;
     let achados: Vec<_> = hrefs
         .iter()
-        .filter(|href| acao_do_href(href) == Some("comentario_listar"))
+        .filter(|href| menciona_acao(href, AcaoDoSei::ComentarioListar))
         .collect();
     let href = match achados.as_slice() {
         [] => return Ok(None),
         [unico] => unico,
-        _ => return Err(ErroHtml::repetido("links_dos_comentarios_repetidos_na_barra").into()),
+        _ => return Err(ErroLinkDosComentarios::LinksDosComentariosRepetidosNaBarra),
     };
-    conferir_endereco_relativo(instalacao, href, "comentario_listar", id)
+    conferir_endereco_relativo(instalacao, href, AcaoDoSei::ComentarioListar, id)
         .map(|url| Some(EnderecoDosComentarios::novo(url)))
         .map_err(|falha| match falha {
             EnderecoRecusado::NaoReconhecido => {
-                E::Html(ErroHtml::valor("endereco_dos_comentarios_nao_reconhecido"))
+                ErroLinkDosComentarios::EnderecoDosComentariosNaoReconhecido
             }
-            EnderecoRecusado::DeOutroProcesso => E::EnderecoDeOutroProcesso,
+            EnderecoRecusado::DeOutroProcesso => ErroLinkDosComentarios::EnderecoDeOutroProcesso,
         })
 }
 
-/// Barra fora da forma observada, ou duas barras para o nó `PROCESSO`.
-pub(super) enum FalhaDaBarra {
-    Fora,
-    Repetidas,
+/// A barra do nó `PROCESSO` (`Nos[0].acoes`) como o leitor a encontrou.
+#[derive(Clone, Debug, PartialEq, Eq, thiserror::Error)]
+#[error("{self:?}")]
+pub(crate) enum ErroBarraDoProcesso {
+    DeclaracaoDaBarraIlegivel(#[source] super::ErroArvore),
+    LinhaDaBarraIlegivel(#[source] super::ErroArvore),
+    BarraDoProcessoForaDaFormaObservada,
+    BarrasDoProcessoRepetidasNaArvore,
 }
 
 /// Os `href` (entidades decodificadas) das tags `<a>` da barra do nó
 /// `PROCESSO`, na ordem servida; sem barra, nenhum.
-fn hrefs_da_barra(html: &str) -> Result<Vec<String>, FalhaDaBarra> {
+fn hrefs_da_barra(html: &str) -> Result<Vec<String>, ErroBarraDoProcesso> {
     Ok(ancoras_da_barra(html)?
         .into_iter()
         .filter_map(|a| a.href)
@@ -212,46 +200,27 @@ pub(super) struct AncoraDaBarra {
 
 /// As tags `<a>` da barra do nó `PROCESSO`, na ordem servida; sem barra,
 /// nenhuma.
-pub(super) fn ancoras_da_barra(html: &str) -> Result<Vec<AncoraDaBarra>, FalhaDaBarra> {
+pub(super) fn ancoras_da_barra(html: &str) -> Result<Vec<AncoraDaBarra>, ErroBarraDoProcesso> {
     let Some(texto) = barra_da_raiz(html)? else {
         return Ok(Vec::new());
     };
-    let dom = tl::parse(&texto, tl::ParserOptions::default()).map_err(|_| FalhaDaBarra::Fora)?;
-    let parser = dom.parser();
+    let dom = crate::tela_html::arvore(&texto);
     let mut ancoras = Vec::new();
-    for no in dom.query_selector("a").into_iter().flatten() {
-        let Some(tag) = no.get(parser).and_then(tl::Node::as_tag) else {
-            continue;
-        };
-        let lidos = atributos(tag).map_err(|_| FalhaDaBarra::Fora)?;
-        let decodificado = |nome: &'static str| -> Result<Option<String>, FalhaDaBarra> {
-            match lidos.valor(nome).map_err(|_| FalhaDaBarra::Fora)? {
-                None => Ok(None),
-                Some(bruto) => decodificar_atributo(bruto)
-                    .map(Some)
-                    .ok_or(FalhaDaBarra::Fora),
-            }
-        };
+    for no in dom.elementos("a") {
         ancoras.push(AncoraDaBarra {
-            href: decodificado("href")?,
-            onclick: decodificado("onclick")?,
+            href: no.atributo("href").map(str::to_owned),
+            onclick: no.atributo("onclick").map(str::to_owned),
         });
     }
     Ok(ancoras)
 }
-/// O primeiro `acao=` da consulta do `href` (a conferência recusa dois).
-pub(super) fn acao_do_href(href: &str) -> Option<&str> {
-    let (_, consulta) = href.split_once('?')?;
-    consulta
-        .split('&')
-        .find_map(|par| par.strip_prefix("acao="))
-}
 
 /// O texto da barra do nó `PROCESSO`; duas barras para ele são recusa.
-fn barra_da_raiz(html: &str) -> Result<Option<String>, FalhaDaBarra> {
+fn barra_da_raiz(html: &str) -> Result<Option<crate::tela_html::HtmlServido>, ErroBarraDoProcesso> {
     let mut raiz = None;
     for linha in html.split('\n') {
-        if let Some((i, argumentos)) = ler_declaracao(linha).map_err(|_| FalhaDaBarra::Fora)?
+        if let Some((i, argumentos)) =
+            ler_declaracao(linha).map_err(ErroBarraDoProcesso::DeclaracaoDaBarraIlegivel)?
             && argumentos.first() == Some(&Literal::Texto("PROCESSO".into()))
         {
             raiz = Some(i);
@@ -266,11 +235,13 @@ fn barra_da_raiz(html: &str) -> Result<Option<String>, FalhaDaBarra> {
         if indice_da_barra(linha) != Some(raiz) {
             continue;
         }
-        let Some((_, lido)) = ler_barra(linha).map_err(|_| FalhaDaBarra::Fora)? else {
-            return Err(FalhaDaBarra::Fora);
+        let Some((_, lido)) =
+            ler_barra(linha).map_err(ErroBarraDoProcesso::LinhaDaBarraIlegivel)?
+        else {
+            return Err(ErroBarraDoProcesso::BarraDoProcessoForaDaFormaObservada);
         };
         if texto.is_some() {
-            return Err(FalhaDaBarra::Repetidas);
+            return Err(ErroBarraDoProcesso::BarrasDoProcessoRepetidasNaArvore);
         }
         texto = Some(lido);
     }
@@ -291,17 +262,12 @@ impl std::fmt::Debug for EnderecoDoIncluirDocumento {
     }
 }
 
-#[derive(Clone, Copy, Debug, PartialEq, Eq, crate::erro_publico::Causa)]
+#[derive(Clone, Debug, PartialEq, Eq, thiserror::Error)]
+#[error("{self:?}")]
 pub(crate) enum ErroLinkIncluirDocumento {
-    #[causa(nome = "barra_do_incluir_documento_fora_da_forma")]
-    BarraForaDaForma,
-    #[causa(nome = "barra_do_incluir_documento_repetida")]
-    BarraRepetida,
-    #[causa(nome = "links_de_incluir_documento_repetidos")]
+    Barra(#[from] crate::arvore_processo::ErroBarraDoProcesso),
     LinkRepetido,
-    #[causa(nome = "endereco_de_incluir_documento_nao_reconhecido")]
     EnderecoNaoReconhecido,
-    #[causa(nome = "endereco_de_incluir_documento_de_outro_processo")]
     EnderecoDeOutroProcesso,
 }
 
@@ -312,24 +278,20 @@ pub(crate) fn ler_link_de_incluir_documento(
     html: &str,
     id: &str,
 ) -> Result<Option<EnderecoDoIncluirDocumento>, ErroLinkIncluirDocumento> {
-    use ErroLinkIncluirDocumento as E;
-    let hrefs = hrefs_da_barra(html).map_err(|erro| match erro {
-        FalhaDaBarra::Fora => E::BarraForaDaForma,
-        FalhaDaBarra::Repetidas => E::BarraRepetida,
-    })?;
+    let hrefs = hrefs_da_barra(html)?;
     let mut links = hrefs
         .iter()
-        .filter(|href| acao_do_href(href) == Some("documento_escolher_tipo"));
+        .filter(|href| menciona_acao(href, AcaoDoSei::DocumentoEscolherTipo));
     let Some(href) = links.next() else {
         return Ok(None);
     };
     if links.next().is_some() {
-        return Err(E::LinkRepetido);
+        return Err(ErroLinkIncluirDocumento::LinkRepetido);
     }
-    conferir_endereco_relativo(instalacao, href, "documento_escolher_tipo", id)
+    conferir_endereco_relativo(instalacao, href, AcaoDoSei::DocumentoEscolherTipo, id)
         .map(|url| Some(EnderecoDoIncluirDocumento(url)))
         .map_err(|erro| match erro {
-            EnderecoRecusado::NaoReconhecido => E::EnderecoNaoReconhecido,
-            EnderecoRecusado::DeOutroProcesso => E::EnderecoDeOutroProcesso,
+            EnderecoRecusado::NaoReconhecido => ErroLinkIncluirDocumento::EnderecoNaoReconhecido,
+            EnderecoRecusado::DeOutroProcesso => ErroLinkIncluirDocumento::EnderecoDeOutroProcesso,
         })
 }

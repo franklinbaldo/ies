@@ -6,6 +6,7 @@ use super::{
     recibo::{FalhaUpload, ReciboUpload},
 };
 use crate::arvore_processo::{ArvoreLida, DocumentoNaArvore};
+use crate::documento_criar::ErroConferenciaDeCriacao;
 use crate::formulario_web::{
     ErroSubmissaoFormulario, RespostaDoEnvio, SubmissaoDerivada, TelaServida,
 };
@@ -26,26 +27,22 @@ impl FotoProcesso {
         }
     }
 }
-#[derive(Debug)]
+#[derive(Debug, thiserror::Error)]
+#[error("{self:?}")]
 pub(crate) enum FalhaConfirmacao {
     FotoInicialIncompleta,
     FotoInicialInconsistente,
-    UploadRecusado(FalhaUpload),
-    UploadIncerto(FalhaUpload),
-    TemporarioSemCadastro(FalhaCadastroEnvio),
-    CadastroIncerto(ErroSubmissaoFormulario),
-    ReleituraIncerta(ErroProcessoObter),
-    EfeitoIncerto,
+    UploadRecusado(#[source] FalhaUpload),
+    UploadIncerto(#[source] FalhaUpload),
+    TemporarioSemCadastro(#[source] FalhaCadastroEnvio),
+    CadastroIncerto(#[source] ErroSubmissaoFormulario),
+    ReleituraIncerta(#[source] ErroProcessoObter),
+    /// A árvore lida depois do cadastro não prova o documento criado.
+    CriacaoNaoConferida(#[source] ErroConferenciaDeCriacao),
+    NaoConfirmado,
 }
+#[cfg(test)]
 impl FalhaConfirmacao {
-    pub(crate) fn codigo_saida(&self) -> u8 {
-        match self {
-            Self::FotoInicialIncompleta
-            | Self::FotoInicialInconsistente
-            | Self::UploadRecusado(_) => 1,
-            _ => 3,
-        }
-    }
     pub(crate) fn temporario_possivel(&self) -> bool {
         !matches!(
             self,
@@ -74,9 +71,8 @@ where
     C: FnOnce(&mut T, SubmissaoDerivada) -> Result<RespostaDoEnvio, ErroSubmissaoFormulario>,
     L: FnOnce(&mut T) -> Result<FotoProcesso, ErroProcessoObter>,
 {
-    use FalhaConfirmacao as E;
     if antes.pastas_nao_carregadas {
-        return Err(E::FotoInicialIncompleta);
+        return Err(FalhaConfirmacao::FotoInicialIncompleta);
     }
     let mut ids = std::collections::HashSet::new();
     if antes.id.is_empty()
@@ -85,45 +81,52 @@ where
             .iter()
             .any(|doc| doc.id.is_empty() || !ids.insert(doc.id.as_str()))
     {
-        return Err(E::FotoInicialInconsistente);
+        return Err(FalhaConfirmacao::FotoInicialInconsistente);
     }
 
     let recibo = enviar_upload(transporte).map_err(|erro| match erro {
         FalhaUpload::Recusado { .. } | FalhaUpload::PreparacaoMultipart(_) => {
-            E::UploadRecusado(erro)
+            FalhaConfirmacao::UploadRecusado(erro)
         }
-        FalhaUpload::EfeitoIncerto { .. } => E::UploadIncerto(erro),
+        FalhaUpload::NaoConfirmado { .. }
+        | FalhaUpload::EnvioSemResposta(_)
+        | FalhaUpload::CorpoNaoLido(_)
+        | FalhaUpload::CorpoIlegivel(_)
+        | FalhaUpload::TamanhoDoReciboIlegivel(_) => FalhaConfirmacao::UploadIncerto(erro),
     })?;
     let submissao = preparar_cadastro_definitivo(instalacao, tela, unidade, cadastro, &recibo)
-        .map_err(E::TemporarioSemCadastro)?;
+        .map_err(FalhaConfirmacao::TemporarioSemCadastro)?;
     // Mesmo após um erro de envio a releitura pode mostrar o efeito: nunca
     // transformar uma falha de resposta em permissão para repetir o POST.
     let envio = enviar_cadastro(transporte, submissao);
     let leitura = reler(transporte);
-    let resposta = envio.map_err(E::CadastroIncerto)?;
-    let depois = leitura.map_err(E::ReleituraIncerta)?;
+    let resposta = envio.map_err(FalhaConfirmacao::CadastroIncerto)?;
+    let depois = leitura.map_err(FalhaConfirmacao::ReleituraIncerta)?;
 
     if depois.id != antes.id || depois.pastas_nao_carregadas {
-        return Err(E::EfeitoIncerto);
+        return Err(FalhaConfirmacao::NaoConfirmado);
     }
-    let numero =
-        crate::documento_criar::conferir_criacao(&antes.documentos, &depois.documentos, tipo)
-            .map_err(|_| E::EfeitoIncerto)?;
+    // A árvore rotula o externo com o número entre parênteses (UnB, live
+    // 09/11/2026 e cassette documento-mover-cancelar-unb): `Anexo (0012272)`.
+    let numero = crate::documento_criar::conferir_criacao_com_rotulo(
+        &antes.documentos,
+        &depois.documentos,
+        |rotulo, numero| rotulo == format!("{tipo} ({numero})"),
+    )
+    .map_err(FalhaConfirmacao::CriacaoNaoConferida)?;
     let novo = depois
         .documentos
         .iter()
         .find(|doc| doc.numero_sei.as_deref() == Some(numero.as_str()))
-        .ok_or(E::EfeitoIncerto)?;
+        .ok_or(FalhaConfirmacao::NaoConfirmado)?;
     // A árvore publica "documento_pdf" para PDFs externos (UnB/GO).
     // Número, rótulo e redirect não bastam para confirmar a inclusão externa:
     // documento interno concorrente ou natureza não observada são incertos.
-    if novo.natureza.icone.as_deref() != Some("documento_pdf")
-        || novo.natureza.cancelado != Some(false)
-    {
-        return Err(E::EfeitoIncerto);
+    if novo.natureza.icone != "documento_pdf" || novo.natureza.cancelamento.cancelado() {
+        return Err(FalhaConfirmacao::NaoConfirmado);
     }
     let RespostaDoEnvio::Redirecionamento(redir) = resposta else {
-        return Err(E::EfeitoIncerto);
+        return Err(FalhaConfirmacao::NaoConfirmado);
     };
     if !redir.localizacao().is_some_and(|location| {
         crate::documento_criar::redirecionamento_do_mesmo_controlador(
@@ -132,7 +135,7 @@ where
             &novo.id,
         )
     }) {
-        return Err(E::EfeitoIncerto);
+        return Err(FalhaConfirmacao::NaoConfirmado);
     }
     Ok(numero)
 }

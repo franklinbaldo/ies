@@ -1,6 +1,5 @@
 //! RED/GREEN da conferência da tela "Enviar Processo", da consulta que o
 //! script declara e dos pares do POST, nas duas famílias observadas.
-use super::erro::ErroTelaDeEnvio as E;
 use super::tela::{
     ENVIAR_PROCESSO, TelaDeEnvio, campos_da_consulta, campos_do_envio, conferir_tela_de_envio,
     redirecionamento_esperado,
@@ -8,12 +7,12 @@ use super::tela::{
 use super::tests_apoio::*;
 use crate::arvore_processo::tests_concluir::absoluta;
 use crate::arvore_processo::tests_tela::instalacao;
-use crate::erro_html::ErroHtml;
 use crate::formulario_web::{CodificacaoDaTela, TelaServida, derivar_submissao};
 use crate::processo_concluir::tests_apoio::{ID, NUP};
+use crate::tela_html::HtmlServido;
 
 fn conferida(versao: Versao) -> TelaDeEnvio {
-    conferir_tela_de_envio(&tela_de_envio(versao, ID), ID).unwrap()
+    conferir_tela_de_envio(&HtmlServido::de_teste(&tela_de_envio(versao, ID)), ID).unwrap()
 }
 
 #[test]
@@ -59,17 +58,17 @@ fn post_derivado_pelo_primitivo_na_ordem_do_documento() {
     for versao in [Versao::V40, Versao::V41] {
         for manter in [false, true] {
             let html = tela_de_envio(versao, ID);
-            let tela = conferir_tela_de_envio(&html, ID).unwrap();
+            let tela = conferir_tela_de_envio(&HtmlServido::de_teste(&html), ID).unwrap();
             let campos = campos_do_envio(&tela, &destino(), manter, false);
             let pares: Vec<(&str, &str)> = campos.iter().map(|(n, v)| (*n, v.as_str())).collect();
             let url = url_da_tela();
             let servida = TelaServida {
                 url: &url,
-                html: &html,
+                html: &HtmlServido::de_teste(&html),
                 codificacao: CodificacaoDaTela::Iso88591,
             };
             let s =
-                derivar_submissao(&ENVIAR_PROCESSO, &instalacao(), &servida, "", &pares).unwrap();
+                derivar_submissao(&ENVIAR_PROCESSO, &instalacao(), &servida, None, &pares).unwrap();
             assert_eq!(
                 String::from_utf8(s.corpo().to_vec()).unwrap(),
                 corpo_do_envio(versao, manter)
@@ -78,115 +77,129 @@ fn post_derivado_pelo_primitivo_na_ordem_do_documento() {
     }
 }
 
-#[test]
-#[allow(clippy::too_many_lines)] // Uma tabela de casos.
-fn recusas_da_tela_antes_de_qualquer_post() {
-    let base = tela_de_envio(Versao::V41, ID);
-    let trocar = |de: &str, para: &str| {
-        assert!(base.contains(de), "{de}");
-        base.replacen(de, para, 1)
-    };
-    let casos = [
-        (
-            trocar("frmAtividadeListar", "frmOutro"),
-            E::Html(ErroHtml::ausente("formulario_de_envio_ausente")),
-        ),
+/// Alterações sintéticas da tela, separadas da verificação de recusa.
+fn casos_de_recusa(
+    trocar: impl Fn(&str, &str) -> String,
+) -> [(String, super::erro::ErroTelaDeEnvio); 12] {
+    [
         (
             trocar(
                 "name=\"hdnIdProtocolos\" value=\"10\"",
                 "name=\"hdnIdProtocolos\" value=\"11\"",
             ),
-            E::TelaDeEnvioDeOutroProcesso,
+            super::erro::ErroTelaDeEnvio::TelaDeEnvioDeOutroProcesso,
         ),
         (
             trocar(
                 "<input type=\"hidden\" id=\"hdnUnidades\"",
                 "<input type=\"text\" name=\"txtNovo\" value=\"\" /><input type=\"hidden\" id=\"hdnUnidades\"",
             ),
-            E::Html(ErroHtml::valor("campo_nao_previsto_na_tela_de_envio")),
+            super::erro::ErroTelaDeEnvio::CampoNaoPrevistoNaTelaDeEnvio,
         ),
         (
             trocar(
                 "name=\"chkSinManterAberto\" class",
                 "name=\"chkSinManterAberto\" checked=\"checked\" class",
             ),
-            E::TelaDeEnvioComOpcoesPreenchidas,
+            super::erro::ErroTelaDeEnvio::TelaDeEnvioComOpcoesPreenchidas,
         ),
         (
             trocar(
                 "name=\"chkSinEnviarEmailNotificacao\" class",
                 "name=\"chkSinEnviarEmailNotificacao\" checked class",
             ),
-            E::TelaDeEnvioComOpcoesPreenchidas,
+            super::erro::ErroTelaDeEnvio::TelaDeEnvioComOpcoesPreenchidas,
         ),
         (
             trocar(
                 "id=\"optDiasRetornoProgramado\" value=\"2\"",
                 "id=\"optDiasRetornoProgramado\" value=\"2\" checked=\"checked\"",
             ),
-            E::TelaDeEnvioComOpcoesPreenchidas,
+            super::erro::ErroTelaDeEnvio::TelaDeEnvioComOpcoesPreenchidas,
         ),
         (
             trocar(
                 "name=\"txtDiasRetornoProgramado\" class=\"infraText\" value=\"\"",
                 "name=\"txtDiasRetornoProgramado\" class=\"infraText\" value=\"5\"",
             ),
-            E::TelaDeEnvioComOpcoesPreenchidas,
+            super::erro::ErroTelaDeEnvio::TelaDeEnvioComOpcoesPreenchidas,
         ),
         (
             trocar(
                 "name=\"hdnUnidades\" value=\"\"",
                 "name=\"hdnUnidades\" value=\"1±X\"",
             ),
-            E::TelaDeEnvioComOpcoesPreenchidas,
+            super::erro::ErroTelaDeEnvio::TelaDeEnvioComOpcoesPreenchidas,
         ),
         (
             trocar(
                 "multiple=\"multiple\" class=\"infraSelect\" tabindex=\"504\">\n",
                 "multiple=\"multiple\" class=\"infraSelect\" tabindex=\"504\">\n<option value=\"9\">X - Y</option>\n",
             ),
-            E::TelaDeEnvioComOpcoesPreenchidas,
+            super::erro::ErroTelaDeEnvio::TelaDeEnvioComOpcoesPreenchidas,
         ),
         (
             trocar(
                 &format!("<option value=\"{ID}\">"),
                 &format!("<option value=\"{ID}\" selected=\"selected\">"),
             ),
-            E::TelaDeEnvioComOpcoesPreenchidas,
+            super::erro::ErroTelaDeEnvio::TelaDeEnvioComOpcoesPreenchidas,
         ),
         (
             trocar(
                 "<option value=\"\" selected=\"selected\">Todos</option>",
                 "<option value=\"\">Todos</option>",
             ),
-            E::OrgaoDaTelaDeEnvioNaoSelecionado,
+            super::erro::ErroTelaDeEnvio::OrgaoDaTelaDeEnvioNaoSelecionado,
         ),
         (
             trocar(
                 "objAutoCompletarUnidade = new infraAjaxAutoCompletar('hdnIdUnidade','txtUnidade','",
                 "objAutoCompletarUnidade = new infraAjaxAutoCompletar('hdnIdOutro','txtUnidade','",
             ),
-            E::AutocompletarDeUnidadeNaoDeclarado,
+            super::erro::ErroTelaDeEnvio::AutocompletarDeUnidadeNaoDeclarado,
         ),
         (
             trocar("+'&unidade_atual=0';", "+'&unidade_atual=1';"),
-            E::Html(ErroHtml::valor(
-                "consulta_do_autocompletar_fora_da_forma_observada",
-            )),
+            super::erro::ErroTelaDeEnvio::ConsultaDoAutocompletarForaDaFormaObservada,
         ),
-    ];
-    for (html, erro) in casos {
-        assert_eq!(conferir_tela_de_envio(&html, ID), Err(erro), "{erro:?}");
+    ]
+}
+
+#[test]
+fn recusas_da_tela_antes_de_qualquer_post() {
+    let base = tela_de_envio(Versao::V41, ID);
+    let trocar = |de: &str, para: &str| {
+        assert!(base.contains(de), "{de}");
+        base.replacen(de, para, 1)
+    };
+    let ausente = conferir_tela_de_envio(
+        &HtmlServido::de_teste(&trocar("frmAtividadeListar", "frmOutro")),
+        ID,
+    );
+    assert!(
+        matches!(
+            ausente,
+            Err(super::erro::ErroTelaDeEnvio::FormularioDeEnvioAusente(_))
+        ),
+        "{ausente:?}"
+    );
+    for (html, erro) in casos_de_recusa(trocar) {
+        assert_eq!(
+            conferir_tela_de_envio(&HtmlServido::de_teste(&html), ID),
+            Err(erro.clone()),
+            "{erro:?}"
+        );
     }
     // Duas declarações do autocomplete: nenhuma é escolhida.
     let linha = format!(
         "objAutoCompletarUnidade = new infraAjaxAutoCompletar('hdnIdUnidade','txtUnidade','{}');",
         autocompletar()
     );
-    let repetida = base.replacen(&linha, &format!("{linha}\n{linha}"), 1);
+    let repetida = HtmlServido::de_teste(&base.replacen(&linha, &format!("{linha}\n{linha}"), 1));
     assert_eq!(
         conferir_tela_de_envio(&repetida, ID),
-        Err(E::AutocompletarDeUnidadeNaoDeclarado)
+        Err(super::erro::ErroTelaDeEnvio::AutocompletarDeUnidadeNaoDeclarado)
     );
     let _ = NUP;
 }
@@ -223,10 +236,11 @@ fn bdd_checkbox_de_remocao_e_oferta_observada_da_tela() {
     // Dado um controle habilitado nas famílias 4.0 e 4.1/5.0.
     for versao in [Versao::V40, Versao::V41] {
         let html = tela_de_envio(versao, ID);
-        let tela = conferir_tela_de_envio(&html, ID).unwrap();
+        let tela = conferir_tela_de_envio(&HtmlServido::de_teste(&html), ID).unwrap();
         assert!(tela.remover_anotacoes_oferecida);
         // A ausência de name significa que não há controle enviável.
-        let sem_opcao = html.replace(r#"name="chkSinRemoverAnotacoes""#, r#"name="""#);
+        let sem_opcao =
+            HtmlServido::de_teste(&html.replace(r#"name="chkSinRemoverAnotacoes""#, r#"name="""#));
         assert!(
             !conferir_tela_de_envio(&sem_opcao, ID)
                 .unwrap()
@@ -243,17 +257,17 @@ fn bdd_remover_anotacoes_deriva_checkbox_do_formulario_servido() {
     for versao in [Versao::V40, Versao::V41] {
         for manter_aberto in [false, true] {
             let html = tela_de_envio(versao, ID);
-            let tela = conferir_tela_de_envio(&html, ID).unwrap();
+            let tela = conferir_tela_de_envio(&HtmlServido::de_teste(&html), ID).unwrap();
             let campos = campos_do_envio(&tela, &destino(), manter_aberto, true);
             let pares: Vec<(&str, &str)> = campos.iter().map(|(n, v)| (*n, v.as_str())).collect();
             let url = url_da_tela();
             let servida = TelaServida {
                 url: &url,
-                html: &html,
+                html: &HtmlServido::de_teste(&html),
                 codificacao: CodificacaoDaTela::Iso88591,
             };
             let envio =
-                derivar_submissao(&ENVIAR_PROCESSO, &instalacao(), &servida, "", &pares).unwrap();
+                derivar_submissao(&ENVIAR_PROCESSO, &instalacao(), &servida, None, &pares).unwrap();
             let esperado = corpo_do_envio(versao, manter_aberto).replacen(
                 "txtPrazo",
                 "chkSinRemoverAnotacoes=on&txtPrazo",
@@ -303,7 +317,7 @@ fn anti_ies_gera_formulario_que_o_leitor_ies_compreende() {
         "teste-leitor",
     );
     assert_eq!(resposta.estado, anti_ies::Estado::Ok);
-    let tela = conferir_tela_de_envio(&resposta.corpo, "10").unwrap();
+    let tela = conferir_tela_de_envio(&HtmlServido::de_teste(&resposta.corpo), "10").unwrap();
     assert_eq!(tela.orgao, "");
     assert!(tela.remover_anotacoes_oferecida);
     assert_eq!(tela.textos, ["txtPrazo", "txtDias"]);
@@ -346,7 +360,8 @@ fn anti_ies_autocomplete_e_lido_pelo_parser_real_do_ies() {
         "teste-autocomplete",
     );
     assert_eq!(resposta.estado, anti_ies::Estado::Ok);
-    let itens = super::destino::itens_do_autocompletar(&resposta.corpo).unwrap();
+    let itens =
+        super::destino::itens_do_autocompletar(&HtmlServido::de_teste(&resposta.corpo)).unwrap();
     let escolhido = super::destino::escolher_destino("DESTINO", &itens).unwrap();
     assert_eq!(escolhido.id_unidade, "2");
     assert_eq!(escolhido.sigla, "DESTINO");

@@ -1,10 +1,11 @@
 //! Fronteira de escrita única e releitura para documento criar (#246).
 //! O transporte é injetável; a confirmação nunca repete a submissão.
+use crate::acao_do_sei::AcaoDoSei;
 use crate::arvore_processo::{ArvoreLida, DocumentoNaArvore};
+use crate::consulta_do_controlador::ConsultaDoControlador;
 use crate::documento_criar::conferir_criacao;
-use crate::documento_criar::fluxo::ErroPreviaCriacao;
+use crate::formulario_web::{ErroSubmissaoFormulario, RespostaDoPost, SubmissaoDerivada};
 use crate::formulario_web::{RespostaDoEnvio, enviar_submissao_via};
-use crate::formulario_web::{RespostaDoPost, SubmissaoDerivada};
 use crate::processo_obter::ErroProcessoObter;
 use crate::transporte::FalhaTransporte;
 use crate::transporte::sessao::CookieDaSessao;
@@ -63,19 +64,37 @@ pub(crate) fn redirecionamento_do_mesmo_controlador(
         // explicitamente o documento, sem perder a exigência de identidade.
         // A resposta precisa identificar o próprio documento observado na
         // árvore, não apenas navegar para qualquer ação do controlador.
-        let mut acoes = consulta
-            .split('&')
-            .filter_map(|campo| campo.strip_prefix("acao="));
-        let mut ids = consulta
-            .split('&')
-            .filter_map(|campo| campo.strip_prefix("id_documento="));
-        matches!(
-            acoes.next(),
-            Some("documento_visualizar" | "arvore_visualizar" | "procedimento_visualizar")
-        ) && acoes.next().is_none()
-            && ids.next() == Some(id_novo)
-            && ids.next().is_none()
+        ConsultaDoControlador::ler(consulta).is_ok_and(|consulta| {
+            matches!(
+                consulta.acao().map(AcaoDoSei::ler),
+                Ok(Some(
+                    AcaoDoSei::DocumentoVisualizar
+                        | AcaoDoSei::ArvoreVisualizar
+                        | AcaoDoSei::ProcedimentoVisualizar
+                ))
+            ) && consulta.unico("id_documento") == Ok(id_novo)
+        })
     })
+}
+
+/// O único POST de criação e a releitura que o comprova.
+#[derive(Debug, PartialEq, Eq, thiserror::Error)]
+#[error("{self:?}")]
+pub(crate) enum ErroConfirmacaoDaCriacao {
+    /// Pasta fechada na foto inicial: nenhuma escrita é enviada.
+    ArvoreIncompleta,
+    /// IDs de documento repetidos/vazios ou processo sem ID antes do POST.
+    FotoInicialInconsistente,
+    /// A releitura não demonstra um documento novo único do tipo pedido.
+    NaoConfirmado,
+    /// A releitura não traz um documento novo do tipo pedido; guarda o motivo.
+    NaoDemonstradoNaArvore(#[source] crate::documento_criar::ErroConferenciaDeCriacao),
+    /// O POST pode ter produzido efeito mesmo com falha HTTP ou de rede;
+    /// preservar sua causa sem autorizar uma segunda tentativa.
+    NaoConfirmadoNoEnvio(#[source] ErroSubmissaoFormulario),
+    /// O GET de reconciliação falhou após o POST; preservar a causa
+    /// observada, sem inferir que o documento deixou de ser criado.
+    NaoConfirmadoNaReleitura(#[source] ErroProcessoObter),
 }
 
 pub(super) fn postar_e_verificar<T, R, P, L>(
@@ -86,7 +105,7 @@ pub(super) fn postar_e_verificar<T, R, P, L>(
     tipo: &str,
     enviar: P,
     reler: L,
-) -> Result<String, ErroPreviaCriacao>
+) -> Result<String, ErroConfirmacaoDaCriacao>
 where
     R: Read,
     P: FnOnce(&mut T, SubmissaoDerivada, &str) -> Result<RespostaDoPost<R>, FalhaTransporte>,
@@ -95,7 +114,7 @@ where
     // Nunca emitir uma escrita quando a própria foto inicial já impede
     // demonstrar seu efeito. Validação anterior à primeira requisição.
     if antes.pastas_nao_carregadas {
-        return Err(ErroPreviaCriacao::ArvoreIncompleta);
+        return Err(ErroConfirmacaoDaCriacao::ArvoreIncompleta);
     }
     let mut ids = std::collections::HashSet::new();
     if antes.id.is_empty()
@@ -104,7 +123,7 @@ where
             .iter()
             .any(|documento| documento.id.is_empty() || !ids.insert(documento.id.as_str()))
     {
-        return Err(ErroPreviaCriacao::FotoInicialInconsistente);
+        return Err(ErroConfirmacaoDaCriacao::FotoInicialInconsistente);
     }
     let resposta = enviar_submissao_via(submissao, cookie, |post, cookie| {
         enviar(transporte, post, cookie)
@@ -115,20 +134,20 @@ where
     let depois = reler(transporte);
     let resposta = match resposta {
         Ok(resposta) => resposta,
-        Err(causa) => return Err(ErroPreviaCriacao::EfeitoIncertoNoEnvio(causa)),
+        Err(causa) => return Err(ErroConfirmacaoDaCriacao::NaoConfirmadoNoEnvio(causa)),
     };
-    let depois = depois.map_err(ErroPreviaCriacao::EfeitoIncertoNaReleitura)?;
+    let depois = depois.map_err(ErroConfirmacaoDaCriacao::NaoConfirmadoNaReleitura)?;
     if depois.pastas_nao_carregadas || antes.id != depois.id {
-        return Err(ErroPreviaCriacao::EfeitoIncerto);
+        return Err(ErroConfirmacaoDaCriacao::NaoConfirmado);
     }
     let numero = conferir_criacao(&antes.documentos, &depois.documentos, tipo)
-        .map_err(|_| ErroPreviaCriacao::EfeitoIncerto)?;
+        .map_err(ErroConfirmacaoDaCriacao::NaoDemonstradoNaArvore)?;
     let id_novo = depois
         .documentos
         .iter()
         .find(|doc| doc.numero_sei.as_deref() == Some(numero.as_str()))
         .map(|doc| doc.id.as_str())
-        .ok_or(ErroPreviaCriacao::EfeitoIncerto)?;
+        .ok_or(ErroConfirmacaoDaCriacao::NaoConfirmado)?;
     // HTML 200 genérico não confirma que o servidor aceitou a gravação.
     // Em conta compartilhada, a mudança da árvore pode ser concorrente.
     // Só o redirecionamento observado para o ID do documento novo serve
@@ -142,7 +161,36 @@ where
         }
     };
     if !resposta_conferivel {
-        return Err(ErroPreviaCriacao::EfeitoIncerto);
+        return Err(ErroConfirmacaoDaCriacao::NaoConfirmado);
     }
     Ok(numero)
+}
+
+#[cfg(test)]
+mod testes_causas {
+    use super::*;
+    use std::error::Error as _;
+
+    #[test]
+    fn falhas_pos_escrita_preservam_causa_no_error_source() {
+        let envio = ErroConfirmacaoDaCriacao::NaoConfirmadoNoEnvio(
+            ErroSubmissaoFormulario::Transporte(FalhaTransporte::Rede),
+        );
+        assert!(matches!(
+            envio
+                .source()
+                .and_then(|fonte| fonte.downcast_ref::<ErroSubmissaoFormulario>()),
+            Some(ErroSubmissaoFormulario::Transporte(FalhaTransporte::Rede))
+        ));
+
+        let releitura = ErroConfirmacaoDaCriacao::NaoConfirmadoNaReleitura(
+            ErroProcessoObter::Transporte(FalhaTransporte::Rede),
+        );
+        assert!(matches!(
+            releitura
+                .source()
+                .and_then(|fonte| fonte.downcast_ref::<ErroProcessoObter>()),
+            Some(ErroProcessoObter::Transporte(FalhaTransporte::Rede))
+        ));
+    }
 }

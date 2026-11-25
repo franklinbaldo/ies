@@ -7,14 +7,13 @@
 //! `value`); a resposta é 200 sem redirect, uma página que fecha o modal,
 //! e a mudança vale na leitura seguinte. Não há marcador de resultado
 //! observado: o efeito é conferido por um GET da mesma tela.
-use super::tela::{ACAO_DO_NIVEL_DE_DETALHE, ErroNivelDeDetalhe, FORMULARIO_DO_NIVEL_DE_DETALHE};
+use super::tela::{ErroNivelDeDetalhe, FORMULARIO_DO_NIVEL_DE_DETALHE};
 use super::{ColunaDoDetalhe, PlanoDasColunas};
-use crate::erro_html::ErroHtml;
+use crate::acao_do_sei::AcaoDoSei;
 use crate::formulario_web::{
     ConferenciaDaUnidade, EfeitoAvaliado, EnvioDoFormulario, OperacaoDeFormulario,
     PreferenciaDoUsuario, ResultadoDoEnvio, localizar_formulario,
 };
-use crate::html_atributos::{atributo_presente, valor_do_atributo};
 
 /// `name` das 12 caixas, na ordem de [`ColunaDoDetalhe::TODAS`].
 pub(crate) const CAMPOS_DAS_OPCOES: [&str; 12] = [
@@ -39,7 +38,7 @@ pub(crate) const BOTAO_SALVAR: &str = "sbmSalvar";
 /// Salvar a tela `procedimento_configurar_detalhe`. A tela é uma janela
 /// sem barra da unidade, aberta pelo link da D já conferida.
 pub(crate) const SALVAR_NIVEL_DE_DETALHE: OperacaoDeFormulario = OperacaoDeFormulario {
-    acao: ACAO_DO_NIVEL_DE_DETALHE,
+    acao: AcaoDoSei::ProcedimentoConfigurarDetalhe,
     formulario: FORMULARIO_DO_NIVEL_DE_DETALHE,
     envio: EnvioDoFormulario::BotaoDeEnvio(BOTAO_SALVAR),
     campos_ocultos_exigidos: &[OCULTO_DO_NIVEL_DE_DETALHE],
@@ -67,27 +66,26 @@ pub(crate) fn campos_do_envio(plano: &PlanoDasColunas) -> Vec<(&'static str, &'s
 /// Recusa, antes de qualquer POST, controle enviável que o formulário
 /// observado não tem: só `hdnInfraTipoPagina`, `sbmSalvar` e as caixas do
 /// catálogo. Botões `button`/`reset` e controles `disabled` não são enviados.
-pub(crate) fn conferir_controles_do_formulario(html: &str) -> Result<(), ErroNivelDeDetalhe> {
-    let dom = tl::parse(html, tl::ParserOptions::default())
-        .map_err(|_| ErroHtml::html("html_do_nivel_de_detalhe_nao_interpretado"))?;
-    let parser = dom.parser();
+pub(crate) fn conferir_controles_do_formulario(
+    html: &crate::tela_html::HtmlServido,
+) -> Result<(), ErroNivelDeDetalhe> {
+    let dom = crate::tela_html::arvore(html);
     let form = localizar_formulario(&dom, FORMULARIO_DO_NIVEL_DE_DETALHE)
-        .map_err(|_| ErroHtml::ausente("formulario_do_nivel_de_detalhe_ausente"))?;
-    for tag in form
-        .children()
-        .all(parser)
-        .iter()
-        .filter_map(tl::Node::as_tag)
-    {
-        let elemento = tag.name().as_utf8_str().to_ascii_lowercase();
+        .map_err(ErroNivelDeDetalhe::FormularioDoNivelDeDetalheAusente)?;
+    for tag in form.descendentes() {
+        let elemento = tag.nome().to_ascii_lowercase();
         if !matches!(
             elemento.as_str(),
             "input" | "button" | "select" | "textarea"
-        ) || atributo_presente(tag, "disabled")?
+        ) || tag.presente("disabled")
         {
             continue;
         }
-        let Some(nome) = valor_do_atributo(tag, "name")?.filter(|n| !n.is_empty()) else {
+        let Some(nome) = tag
+            .atributo("name")
+            .map(str::to_owned)
+            .filter(|n| !n.is_empty())
+        else {
             continue;
         };
         let padrao = if elemento == "button" {
@@ -95,7 +93,9 @@ pub(crate) fn conferir_controles_do_formulario(html: &str) -> Result<(), ErroNiv
         } else {
             "text"
         };
-        let tipo = valor_do_atributo(tag, "type")?
+        let tipo = tag
+            .atributo("type")
+            .map(str::to_owned)
             .map_or_else(|| padrao.to_owned(), |t| t.to_ascii_lowercase());
         let previsto = match (elemento.as_str(), tipo.as_str()) {
             // Não participam do envio.
@@ -106,9 +106,7 @@ pub(crate) fn conferir_controles_do_formulario(html: &str) -> Result<(), ErroNiv
             _ => false,
         };
         if !previsto {
-            return Err(
-                ErroHtml::valor("campo_nao_previsto_no_formulario_do_nivel_de_detalhe").into(),
-            );
+            return Err(ErroNivelDeDetalhe::CampoNaoPrevistoNoFormularioDoNivelDeDetalhe);
         }
     }
     Ok(())
@@ -137,9 +135,12 @@ pub(crate) fn sinal_do_salvar(html: &str) -> SinalDoSalvar {
     let (Some((inicio, _)), None) = (ocorrencias.next(), ocorrencias.next()) else {
         return SinalDoSalvar::NaoReconhecido;
     };
-    let Some((valor, resto)) = html[inicio + FUNCAO.len()..]
-        .trim_start()
-        .strip_prefix("if ('")
+    let Some((valor, resto)) = html
+        .split_at(inicio)
+        .1
+        .strip_prefix(FUNCAO)
+        .map(str::trim_start)
+        .and_then(|resto| resto.strip_prefix("if ('"))
         .and_then(|resto| resto.split_once('\''))
     else {
         return SinalDoSalvar::NaoReconhecido;

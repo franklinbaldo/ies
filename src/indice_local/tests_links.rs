@@ -2,6 +2,7 @@
 //! da URL e redação. Hashes sintéticos.
 use super::tests::{instalacao, pasta};
 use super::*;
+use crate::acao_do_sei::AcaoDoSei;
 use crate::instalacao::Instalacao;
 
 const HASH_A: &str = "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa";
@@ -13,8 +14,8 @@ fn chave(geracao: &str) -> ChaveDoLink<'_> {
     ChaveDoLink {
         geracao_sessao: geracao,
         unidade: "110",
-        acao: "procedimento_trabalhar",
-        objeto: "7",
+        acao: AcaoDoSei::ProcedimentoTrabalhar,
+        alvo: "7",
     }
 }
 
@@ -46,7 +47,7 @@ fn link_volta_literal_so_na_mesma_geracao() {
     };
     assert_eq!(indice.link(&sei, outra_unidade), None);
     let outro_objeto = ChaveDoLink {
-        objeto: "8",
+        alvo: "8",
         ..chave(G1)
     };
     assert_eq!(indice.link(&sei, outro_objeto), None);
@@ -95,7 +96,7 @@ fn esquecer_link_apaga_so_a_chave() {
     let indice = indice("link-esquecer");
     let sei = instalacao();
     let outra_acao = ChaveDoLink {
-        acao: "arvore_visualizar",
+        acao: AcaoDoSei::ArvoreVisualizar,
         ..chave(G1)
     };
     let url_arvore = url(HASH_A).replace("procedimento_trabalhar", "arvore_visualizar");
@@ -110,84 +111,105 @@ fn esquecer_link_apaga_so_a_chave() {
     assert_eq!(indice.link(&sei, outra_acao).unwrap().url(), url_arvore);
 }
 
-#[test]
-fn urls_recusadas_por_fato_verificavel() {
-    use RegistroRecusado as R;
-    let indice = indice("link-recusas");
-    let sei = instalacao();
-    let boa = url(HASH_A);
-    let casos = [
-        (boa.replace("https://", "http://"), R::LinkNaoHttps),
-        (boa.replace("https://", "HTTPS://"), R::LinkNaoHttps),
+/// Cada URL recusada e o fato verificável que a recusa.
+fn urls_recusadas(boa: &str) -> Vec<(String, RegistroRecusado)> {
+    vec![
+        (
+            boa.replace("https://", "http://"),
+            RegistroRecusado::LinkNaoHttps,
+        ),
+        (
+            boa.replace("https://", "HTTPS://"),
+            RegistroRecusado::LinkNaoHttps,
+        ),
         (
             boa.replace("controlador.php?", "controlador.php?a=b c&"),
-            R::LinkComCaractereProibido,
+            RegistroRecusado::LinkComCaractereProibido,
         ),
-        (format!("{boa}#ancora"), R::LinkComCaractereProibido),
+        (
+            format!("{boa}#ancora"),
+            RegistroRecusado::LinkComCaractereProibido,
+        ),
         (
             boa.replace("sei/controlador", "sei\\controlador"),
-            R::LinkComCaractereProibido,
+            RegistroRecusado::LinkComCaractereProibido,
         ),
         (
             boa.replace("sei.exemplo", "outro.exemplo"),
-            R::LinkForaDaInstalacao,
+            RegistroRecusado::LinkForaDaInstalacao,
         ),
-        (boa.replace("/sei/", "/outro/"), R::LinkForaDaInstalacao),
+        (
+            boa.replace("/sei/", "/outro/"),
+            RegistroRecusado::LinkForaDaInstalacao,
+        ),
         (
             boa.replace("controlador.php", "controlador_externo.php"),
-            R::LinkForaDaInstalacao,
+            RegistroRecusado::LinkForaDaInstalacao,
         ),
         (
             boa.replace("https://sei.exemplo", "https://u@sei.exemplo"),
-            R::LinkForaDaInstalacao,
+            RegistroRecusado::LinkForaDaInstalacao,
         ),
         (
             boa.replace("controlador.php?", "controlador.php"),
-            R::LinkForaDaInstalacao,
+            RegistroRecusado::LinkForaDaInstalacao,
         ),
         (
             boa.replace("acao_origem", "Acao_origem"),
-            R::LinkComConsultaNaoCanonica,
+            RegistroRecusado::LinkComConsultaNaoCanonica,
         ),
         (
             boa.replace("infra_sistema=100000100", "infra_sistema=1;2"),
-            R::LinkComConsultaNaoCanonica,
+            RegistroRecusado::LinkComConsultaNaoCanonica,
         ),
         (
             boa.replace("&id_procedimento=7", "&id_procedimento"),
-            R::LinkComConsultaNaoCanonica,
+            RegistroRecusado::LinkComConsultaNaoCanonica,
         ),
         (
             boa.replace("&id_procedimento=7", "&&id_procedimento=7"),
-            R::LinkComConsultaNaoCanonica,
+            RegistroRecusado::LinkComConsultaNaoCanonica,
         ),
         (
             boa.replace("acao=procedimento_trabalhar", "acao=arvore_visualizar"),
-            R::LinkSemAcaoUnicaIgual,
+            RegistroRecusado::LinkSemAcaoUnicaIgual,
         ),
         (
             format!("{boa}&acao=procedimento_trabalhar"),
-            R::LinkSemAcaoUnicaIgual,
+            RegistroRecusado::LinkSemAcaoUnicaIgual,
         ),
         (
             boa.replace("&infra_hash", "&outro"),
-            R::LinkSemInfraHashUnico,
+            RegistroRecusado::LinkSemInfraHashUnico,
         ),
         (
             format!("{boa}&infra_hash={HASH_B}"),
-            R::LinkSemInfraHashUnico,
+            RegistroRecusado::LinkSemInfraHashUnico,
         ),
-        (boa.replace(HASH_A, &HASH_A[1..]), R::LinkSemInfraHashUnico),
+        (
+            boa.replace(HASH_A, &HASH_A[1..]),
+            RegistroRecusado::LinkSemInfraHashUnico,
+        ),
         (
             boa.replace(HASH_A, &HASH_A.replace('a', "g")),
-            R::LinkSemInfraHashUnico,
+            RegistroRecusado::LinkSemInfraHashUnico,
         ),
-        (format!("{boa}&acao_ajax=x"), R::LinkComAcaoAjax),
+        (
+            format!("{boa}&acao_ajax=x"),
+            RegistroRecusado::LinkComAcaoAjax,
+        ),
         (
             boa.replace("infra_unidade_atual=110", "infra_unidade_atual=111"),
-            R::LinkDeOutraUnidade,
+            RegistroRecusado::LinkDeOutraUnidade,
         ),
-    ];
+    ]
+}
+
+#[test]
+fn urls_recusadas_por_fato_verificavel() {
+    let indice = indice("link-recusas");
+    let sei = instalacao();
+    let casos = urls_recusadas(&url(HASH_A));
     for (texto, esperado) in casos {
         assert_eq!(
             indice.registrar_link(&sei, chave(G1), &texto),
@@ -201,7 +223,6 @@ fn urls_recusadas_por_fato_verificavel() {
 
 #[test]
 fn chaves_invalidas_recusadas() {
-    use RegistroRecusado as R;
     let indice = indice("link-chaves");
     let sei = instalacao();
     let casos = [
@@ -210,49 +231,35 @@ fn chaves_invalidas_recusadas() {
                 geracao_sessao: "",
                 ..chave(G1)
             },
-            R::GeracaoInvalida,
+            RegistroRecusado::GeracaoInvalida,
         ),
         (
             ChaveDoLink {
                 geracao_sessao: "a b",
                 ..chave(G1)
             },
-            R::GeracaoInvalida,
+            RegistroRecusado::GeracaoInvalida,
         ),
         (
             ChaveDoLink {
                 unidade: "",
                 ..chave(G1)
             },
-            R::UnidadeInvalida,
+            RegistroRecusado::UnidadeInvalida,
         ),
         (
             ChaveDoLink {
                 unidade: "1\n",
                 ..chave(G1)
             },
-            R::UnidadeInvalida,
+            RegistroRecusado::UnidadeInvalida,
         ),
         (
             ChaveDoLink {
-                acao: "Procedimento",
+                alvo: "a\tb",
                 ..chave(G1)
             },
-            R::AcaoInvalida,
-        ),
-        (
-            ChaveDoLink {
-                acao: "",
-                ..chave(G1)
-            },
-            R::AcaoInvalida,
-        ),
-        (
-            ChaveDoLink {
-                objeto: "a\tb",
-                ..chave(G1)
-            },
-            R::ObjetoInvalido,
+            RegistroRecusado::ObjetoInvalido,
         ),
     ];
     for (chave, esperado) in casos {
@@ -269,8 +276,8 @@ fn objeto_vazio_e_sem_unidade_na_url_sao_aceitos() {
     let indice = indice("link-sem-objeto");
     let sei = instalacao();
     let pesquisa = ChaveDoLink {
-        acao: "protocolo_pesquisar",
-        objeto: "",
+        acao: AcaoDoSei::ProtocoloPesquisar,
+        alvo: "",
         ..chave(G1)
     };
     let texto = format!(

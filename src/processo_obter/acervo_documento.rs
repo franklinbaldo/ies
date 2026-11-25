@@ -13,6 +13,7 @@ use crate::arvore_processo::{
 use crate::cassette::acervo::{INSTALACOES, gravacao, percorrer, publicar};
 use crate::cassette::html_da_resposta;
 use crate::documento_web::{identidade_do_titulo, texto_do_corpo};
+use crate::tela_html::HtmlServido;
 use std::collections::BTreeMap;
 use std::fmt::Write as _;
 
@@ -26,18 +27,20 @@ fn somar(contagem: &mut Contagem, leitor: &'static str, classe: String, instalac
         .or_default() += 1;
 }
 
-fn tela(html: &str, item: &serde_json::Value, json: &serde_json::Value) -> Option<String> {
-    let id = gravacao::id_da_pesquisa_rapida(item)?;
+fn tela(html: &str, interacao: &serde_json::Value, json: &serde_json::Value) -> Option<String> {
+    let id = gravacao::id_da_pesquisa_rapida(interacao)?;
     let instalacao = gravacao::instalacao(json)?;
-    Some(match ler_tela_do_documento(&instalacao, html, &id, None) {
-        Ok(_) => "documento selecionado na árvore".to_owned(),
-        Err(erro) => format!("`{}`", crate::erro_publico::folha(&erro)),
-    })
+    Some(
+        match ler_tela_do_documento(&instalacao, &HtmlServido::de_teste(html), &id, None) {
+            Ok(_) => "documento selecionado na árvore".to_owned(),
+            Err(erro) => format!("`{erro:?}`"),
+        },
+    )
 }
 
-fn arvore(html: &str, item: &serde_json::Value, json: &serde_json::Value) -> Vec<String> {
+fn arvore(html: &str, interacao: &serde_json::Value, json: &serde_json::Value) -> Vec<String> {
     let (Some(id), Some(nup), Some(instalacao)) = (
-        gravacao::id_procedimento(item),
+        gravacao::id_procedimento(interacao),
         nup_declarado_na_arvore(html),
         gravacao::instalacao(json),
     ) else {
@@ -49,12 +52,12 @@ fn arvore(html: &str, item: &serde_json::Value, json: &serde_json::Value) -> Vec
     lida.documentos
         .iter()
         .map(|d| {
-            let icone = d.natureza.icone.as_deref().unwrap_or("?");
+            let icone = d.natureza.icone.as_str();
             let forma = match ler_conteudo_na_arvore(&instalacao, html, &d.id) {
-                Ok(ConteudoNaArvore::Visualizar(_)) => "documento_visualizar",
-                Ok(ConteudoNaArvore::DownloadDeAnexo(_)) => "documento_download_anexo",
-                Ok(ConteudoNaArvore::Vazio) => "vazio",
-                Err(erro) => crate::erro_publico::folha(&erro),
+                Ok(ConteudoNaArvore::Visualizar(_)) => "documento_visualizar".to_owned(),
+                Ok(ConteudoNaArvore::DownloadDeAnexo(_)) => "documento_download_anexo".to_owned(),
+                Ok(ConteudoNaArvore::Vazio) => "vazio".to_owned(),
+                Err(erro) => format!("{erro:?}"),
             };
             format!("`{icone}` → `{forma}`")
         })
@@ -62,10 +65,10 @@ fn arvore(html: &str, item: &serde_json::Value, json: &serde_json::Value) -> Vec
 }
 
 /// A resposta gravada do anexo pelo leitor do comando, sem `--saida`.
-fn anexo(item: &serde_json::Value) -> String {
+fn anexo(interacao: &serde_json::Value) -> String {
     use crate::anexo_documento::{DestinoDoAnexo, LimiteDoAnexo, ler_anexo};
     use crate::transporte::resposta_binaria::RespostaBinaria;
-    let cabecalhos = item["response"]["headers"]
+    let cabecalhos = interacao["response"]["headers"]
         .as_object()
         .map(|mapa| {
             mapa.iter()
@@ -74,9 +77,10 @@ fn anexo(item: &serde_json::Value) -> String {
         })
         .unwrap_or_default();
     let resposta = RespostaBinaria {
-        status: u16::try_from(item["response"]["status_code"].as_u64().unwrap_or(0)).unwrap_or(0),
+        status: u16::try_from(interacao["response"]["status_code"].as_u64().unwrap_or(0))
+            .unwrap_or(0),
         cabecalhos,
-        corpo: std::io::Cursor::new(gravacao::corpo(item)),
+        corpo: std::io::Cursor::new(gravacao::corpo(interacao)),
     };
     match ler_anexo(
         resposta,
@@ -87,22 +91,22 @@ fn anexo(item: &serde_json::Value) -> String {
         Ok(lido) => format!(
             "`{}` lido, {}",
             lido.mime,
-            if lido.texto.is_some() {
+            if lido.texto().is_some() {
                 "com texto"
             } else {
                 "sem texto"
             }
         ),
-        Err(erro) => format!("`{}`", erro.subcodigo()),
+        Err(erro) => format!("`{erro:?}`"),
     }
 }
 
 fn conteudo(html: &str) -> String {
-    match identidade_do_titulo(html) {
-        Err(erro) => format!("`{}`", crate::erro_publico::folha(&erro)),
-        Ok(_) => match texto_do_corpo(html) {
+    match identidade_do_titulo(&HtmlServido::de_teste(html)) {
+        Err(erro) => format!("`{erro:?}`"),
+        Ok(_) => match texto_do_corpo(&HtmlServido::de_teste(html)) {
             Ok(_) => "título e texto lidos".to_owned(),
-            Err(erro) => format!("`{}`", crate::erro_publico::folha(&erro)),
+            Err(erro) => format!("`{erro:?}`"),
         },
     }
 }
@@ -120,23 +124,23 @@ fn replay_de_documento_no_acervo() {
     let lidos = percorrer(&operacoes, |_, instalacao, json| {
         for r in gravacao::respostas(json) {
             if r.operacao == "documento_download_anexo" {
-                somar(&mut contagem, "anexo", anexo(r.item), instalacao);
+                somar(&mut contagem, "anexo", anexo(r.interacao), instalacao);
                 continue;
             }
             if r.status != 200 {
                 continue;
             }
-            let Ok(html) = html_da_resposta(r.item) else {
+            let Ok(html) = html_da_resposta(r.interacao) else {
                 continue;
             };
             match r.operacao {
                 "procedimento_trabalhar" => {
-                    if let Some(classe) = tela(&html, r.item, json) {
+                    if let Some(classe) = tela(&html, r.interacao, json) {
                         somar(&mut contagem, "tela da pesquisa rápida", classe, instalacao);
                     }
                 }
                 "procedimento_visualizar" => {
-                    for classe in arvore(&html, r.item, json) {
+                    for classe in arvore(&html, r.interacao, json) {
                         somar(&mut contagem, "link do conteúdo", classe, instalacao);
                     }
                 }

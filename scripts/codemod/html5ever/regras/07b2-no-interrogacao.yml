@@ -1,0 +1,18 @@
+id: 07b2-no-interrogacao
+language: rust
+message: 'h.get(parser)?: o nó sempre existe'
+severity: hint
+rule:
+  all:
+    - pattern: '$H.get($P)?'
+    - not:
+        inside:
+          stopBy: end
+          kind: mod_item
+          follows:
+            kind: attribute_item
+            regex: 'cfg\(test\)'
+constraints:
+  P:
+    regex: '^(parser|.*\.parser\(\))$'
+fix: '$H'

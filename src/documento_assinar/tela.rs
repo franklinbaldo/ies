@@ -9,14 +9,12 @@
 //! `txtUsuario`, `selCargoFuncao`, `pwdSenha`; botões `type=button`. O
 //! `assinarSenha()` põe `hdnFormaAutenticacao='S'` e chama `submit()`. A
 //! resposta aceita é a mesma tela com `inicializar()` chamando `finalizar()`.
-use super::erro::ErroTelaDeAssinatura as E;
-use crate::arvore_processo::ACAO_DE_ASSINAR;
-use crate::erro_html::ErroHtml;
+use super::erro::ErroTelaDeAssinatura;
+use crate::acao_do_sei::AcaoDoSei;
 use crate::formulario_web::{
     ConferenciaDaUnidade, EfeitoAvaliado, EnvioDoFormulario, EstadoDoProcesso,
-    OperacaoDeFormulario, ResultadoDoEnvio, decodificar_atributo, localizar_formulario,
+    OperacaoDeFormulario, ResultadoDoEnvio, localizar_formulario,
 };
-use crate::html_atributos::{atributo_presente, valor_do_atributo};
 
 pub(crate) const FORMULARIO_DE_ASSINATURA: &str = "frmAssinaturas";
 pub(crate) const FORMA_DE_AUTENTICACAO: &str = "hdnFormaAutenticacao";
@@ -43,7 +41,7 @@ const VAZIA: &str = "null";
 /// Assinar com a senha: janela sem barra da unidade, aberta pelo link da
 /// tela do documento conferido na árvore.
 pub(crate) const ASSINAR_DOCUMENTO: OperacaoDeFormulario = OperacaoDeFormulario {
-    acao: ACAO_DE_ASSINAR,
+    acao: AcaoDoSei::DocumentoAssinar,
     formulario: FORMULARIO_DE_ASSINATURA,
     envio: EnvioDoFormulario::SubmitPorScript,
     campos_ocultos_exigidos: &[
@@ -78,31 +76,28 @@ pub(crate) struct TelaDeAssinatura {
 /// Confere a tela servida antes de qualquer POST: lista fechada de
 /// controles enviáveis, o documento, o assinante, o órgão e a senha.
 pub(crate) fn conferir_tela_de_assinatura(
-    html: &str,
+    html: &crate::tela_html::HtmlServido,
     id_documento: &str,
-) -> Result<TelaDeAssinatura, E> {
-    let dom = tl::parse(html, tl::ParserOptions::default())
-        .map_err(|_| ErroHtml::html("tela_de_assinatura_nao_interpretada"))?;
-    let parser = dom.parser();
+) -> Result<TelaDeAssinatura, ErroTelaDeAssinatura> {
+    let dom = crate::tela_html::arvore(html);
     let form = localizar_formulario(&dom, FORMULARIO_DE_ASSINATURA)
-        .map_err(|_| ErroHtml::ausente("formulario_de_assinatura_ausente"))?;
+        .map_err(ErroTelaDeAssinatura::FormularioDeAssinaturaAusente)?;
     let (mut documentos, mut id_usuario, mut assinante) = (None, None, None);
     let (mut orgao, mut cargos, mut senha) = (None, None, false);
-    for tag in form
-        .children()
-        .all(parser)
-        .iter()
-        .filter_map(tl::Node::as_tag)
-    {
-        let elemento = tag.name().as_utf8_str().to_ascii_lowercase();
+    for tag in form.descendentes() {
+        let elemento = tag.nome().to_ascii_lowercase();
         if !matches!(
             elemento.as_str(),
             "input" | "button" | "select" | "textarea"
-        ) || presente(tag, "disabled")?
+        ) || tag.presente("disabled")
         {
             continue;
         }
-        let Some(nome) = valor(tag, "name")?.filter(|n| !n.is_empty()) else {
+        let Some(nome) = tag
+            .atributo("name")
+            .map(str::to_owned)
+            .filter(|n| !n.is_empty())
+        else {
             continue;
         };
         let padrao = if elemento == "button" {
@@ -110,28 +105,31 @@ pub(crate) fn conferir_tela_de_assinatura(
         } else {
             "text"
         };
-        let tipo =
-            valor(tag, "type")?.map_or_else(|| padrao.to_owned(), |t| t.to_ascii_lowercase());
-        let servido = valor(tag, "value")?.unwrap_or_default();
+        let tipo = tag
+            .atributo("type")
+            .map_or_else(|| padrao.to_owned(), str::to_ascii_lowercase);
+        let servido = tag.atributo("value").unwrap_or_default();
         match (elemento.as_str(), tipo.as_str(), nome.as_str()) {
-            ("input", "hidden", DOCUMENTOS) => documentos = Some(servido),
-            ("input", "hidden", ID_USUARIO) => id_usuario = Some(servido),
+            ("input", "hidden", DOCUMENTOS) => documentos = Some(servido.to_owned()),
+            ("input", "hidden", ID_USUARIO) => id_usuario = Some(servido.to_owned()),
             ("input", "hidden", n) if OCULTOS.contains(&n) => {}
             // `button`/`reset` não participam do envio (`submit()` por script).
             ("input" | "button", "button" | "reset", _) => {}
-            ("input", "text", USUARIO) if assinante.is_none() => assinante = Some(servido),
+            ("input", "text", USUARIO) if assinante.is_none() => {
+                assinante = Some(servido.to_owned());
+            }
             ("input", "password", SENHA) if !senha => senha = true,
-            ("select", _, ORGAO) if orgao.is_none() => orgao = Some(opcoes(tag, parser)?),
-            ("select", _, CARGO) if cargos.is_none() => cargos = Some(opcoes(tag, parser)?),
-            _ => return Err(ErroHtml::valor("campo_nao_previsto_na_tela_de_assinatura").into()),
+            ("select", _, ORGAO) if orgao.is_none() => orgao = Some(opcoes(tag)?),
+            ("select", _, CARGO) if cargos.is_none() => cargos = Some(opcoes(tag)?),
+            _ => return Err(ErroTelaDeAssinatura::CampoNaoPrevistoNaTelaDeAssinatura),
         }
     }
     if documentos.as_deref() != Some(id_documento) {
-        return Err(E::TelaDeAssinaturaDeOutroDocumento);
+        return Err(ErroTelaDeAssinatura::TelaDeAssinaturaDeOutroDocumento);
     }
     let assinante = assinante.unwrap_or_default();
     if assinante.trim().is_empty() || id_usuario.is_none_or(|id| id.trim().is_empty()) {
-        return Err(E::AssinanteNaoPublicadoNaTela);
+        return Err(ErroTelaDeAssinatura::AssinanteNaoPublicadoNaTela);
     }
     let orgao = match orgao.unwrap_or_default().as_slice() {
         [] => None,
@@ -143,11 +141,11 @@ pub(crate) fn conferir_tela_de_assinatura(
             }
         }
     }
-    .ok_or(E::OrgaoDoAssinanteNaoSelecionado)?;
+    .ok_or(ErroTelaDeAssinatura::OrgaoDoAssinanteNaoSelecionado)?;
     if !senha {
-        return Err(ErroHtml::ausente("campo_de_senha_ausente_na_tela").into());
+        return Err(ErroTelaDeAssinatura::CampoDeSenhaAusenteNaTela);
     }
-    let opcoes = cargos.ok_or(ErroHtml::valor("campo_nao_previsto_na_tela_de_assinatura"))?;
+    let opcoes = cargos.ok_or(ErroTelaDeAssinatura::CampoNaoPrevistoNaTelaDeAssinatura)?;
     let validas: Vec<&(String, bool)> = opcoes
         .iter()
         .filter(|(v, _)| v != VAZIA && !v.is_empty())
@@ -167,39 +165,21 @@ pub(crate) fn conferir_tela_de_assinatura(
 }
 
 /// As opções do `select`: `value` (decodificado) e `selected`.
-fn opcoes(select: &tl::HTMLTag<'_>, parser: &tl::Parser<'_>) -> Result<Vec<(String, bool)>, E> {
+fn opcoes(
+    select: crate::tela_html::Elemento<'_>,
+) -> Result<Vec<(String, bool)>, ErroTelaDeAssinatura> {
     let mut lidas = Vec::new();
     for tag in select
-        .children()
-        .all(parser)
-        .iter()
-        .filter_map(tl::Node::as_tag)
-        .filter(|t| t.name().as_utf8_str().eq_ignore_ascii_case("option"))
+        .descendentes()
+        .filter(|t| t.nome().eq_ignore_ascii_case("option"))
     {
-        let valor =
-            valor(tag, "value")?.ok_or(ErroHtml::html("tela_de_assinatura_nao_interpretada"))?;
-        lidas.push((valor, presente(tag, "selected")?));
+        let valor = tag
+            .atributo("value")
+            .map(str::to_owned)
+            .ok_or(ErroTelaDeAssinatura::TelaDeAssinaturaNaoInterpretada)?;
+        lidas.push((valor, tag.presente("selected")));
     }
     Ok(lidas)
-}
-
-fn presente(tag: &tl::HTMLTag<'_>, nome: &str) -> Result<bool, E> {
-    atributo_presente(tag, nome)
-        .map_err(|e| E::Html(ErroHtml::atributo("tela_de_assinatura_nao_interpretada", e)))
-}
-
-/// Valor do atributo com as entidades decodificadas.
-fn valor(tag: &tl::HTMLTag<'_>, nome: &'static str) -> Result<Option<String>, E> {
-    match valor_do_atributo(tag, nome)
-        .map_err(|e| ErroHtml::atributo("tela_de_assinatura_nao_interpretada", e))?
-    {
-        Some(bruto) => decodificar_atributo(&bruto)
-            .map(Some)
-            .ok_or(E::Html(ErroHtml::html(
-                "tela_de_assinatura_nao_interpretada",
-            ))),
-        None => Ok(None),
-    }
 }
 
 /// A resposta aceita: `inicializar()` começa com `//se realizou

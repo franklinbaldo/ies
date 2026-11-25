@@ -39,7 +39,9 @@ espalhadas e divergentes.
 - **(c) `src/arquivo_privado.rs`** (escolhida): o módulo
   `crate::arquivo_privado` é o par de escrita da leitura
   `transporte::arquivo_privado` e não conhece nenhum formato, nome ou
-  subcódigo. Os módulos continuam donos da serialização, dos nomes e dos
+  subcódigo. Desde 12/11/2026 a leitura mora no mesmo módulo
+  (`arquivo_privado::ler`, com `ErroArquivoPrivado`). Os módulos
+  continuam donos da serialização, dos nomes e dos
   erros públicos.
 - **(d) arquivo temporário anônimo** (`O_TMPFILE` + `linkat`): nenhum
   parcial apareceria nem depois de um `kill -9`. Exige `libc` (a `std` não
@@ -117,7 +119,7 @@ Ancestrais não são ameaça nesse modelo: quem pode trocar um ancestral
 por link já pode escrever no diretório que o contém, e o diretório real
 é conferido depois de resolvido. Os arquivos da sessão (cookie, URL,
 origem e o marcador `.geracao`) continuam lidos por
-`transporte::arquivo_privado`, que recusa link no nome final; as outras
+`arquivo_privado::ler`, que recusa link no nome final; as outras
 leituras não mudaram.
 
 ### Alternativa rejeitada: conferir o modo de todo diretório de destino

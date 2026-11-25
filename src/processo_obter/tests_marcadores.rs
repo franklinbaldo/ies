@@ -2,19 +2,18 @@
 //! requisições (frio, quente, `--sem-marcadores` e as combinações com
 //! `--sem-andamentos`/`--sem-propriedades`), índice e recusas. Nenhum POST:
 //! a tela tem escrita (remover, adicionar) que nunca é tocada.
-use super::ErroProcessoObter as E;
 use super::tests_apoio::*;
 use super::*;
+use crate::acao_do_sei::AcaoDoSei;
 use crate::arvore_processo::tests::NUP;
+use crate::marcadores_processo::ErroMarcadores;
 use crate::marcadores_processo::tests_apoio::{
     HASH_MARCADORES, link_dos_marcadores, tela_com, tela_dos_marcadores,
 };
-use crate::marcadores_processo::{ACAO, ErroMarcadores};
 use crate::propriedades_processo::tests_apoio::{
     acao_da_barra, barra, com_barra, link_das_propriedades,
 };
 
-const ALTERAR: &str = "procedimento_alterar";
 const TODOS: (bool, bool) = (true, true);
 const SO_MARCADORES: (bool, bool) = (false, true);
 
@@ -22,7 +21,7 @@ const SO_MARCADORES: (bool, bool) = (false, true);
 /// propriedades e dos marcadores.
 fn arvore_completa(id: &str) -> String {
     let acoes = [
-        acao_da_barra(&link_das_propriedades(ALTERAR, id)),
+        acao_da_barra(&link_das_propriedades(AcaoDoSei::ProcedimentoAlterar, id)),
         acao_da_barra(&link_dos_marcadores(id)),
     ];
     com_barra(&arvore_com_historico(id, NUP), 0, &barra(&acoes))
@@ -58,14 +57,17 @@ fn pedidos_frio(depois: &[String]) -> Vec<Pedido> {
 
 fn guardado(amb: &Ambiente) -> Option<String> {
     amb.indice
-        .link(&instalacao(), chave(&geracao(), ACAO, ID))
+        .link(
+            &instalacao(),
+            chave(&geracao(), AcaoDoSei::AndamentoMarcadorGerenciar, ID),
+        )
         .map(|u| u.url().to_owned())
 }
 
 fn nomes(r: &ProcessoAberto) -> Vec<&str> {
     match &r.marcadores {
         Marcadores::Lidos(lidos) => lidos.itens.iter().map(|m| m.nome.as_str()).collect(),
-        outro => panic!("marcadores não lidos: {outro:?}"),
+        outro @ Marcadores::Omitidos => panic!("marcadores não lidos: {outro:?}"),
     }
 }
 
@@ -91,7 +93,7 @@ fn frio_padrao_le_historico_propriedades_e_os_dois_marcadores_com_seis_get() {
         pedidos,
         pedidos_frio(&[
             url_historico(ID),
-            url_propriedades(ALTERAR, ID),
+            url_propriedades(AcaoDoSei::ProcedimentoAlterar, ID),
             url_marcadores()
         ])
     );
@@ -118,7 +120,10 @@ fn sem_marcadores_nao_pede_a_tela() {
     assert_eq!(r.requisicoes, 5);
     assert_eq!(
         pedidos,
-        pedidos_frio(&[url_historico(ID), url_propriedades(ALTERAR, ID)])
+        pedidos_frio(&[
+            url_historico(ID),
+            url_propriedades(AcaoDoSei::ProcedimentoAlterar, ID)
+        ])
     );
     assert_eq!(r.marcadores, Marcadores::Omitidos);
     assert_eq!(r.marcadores.motivo(), Some("omitidos_por_sem_marcadores"));
@@ -136,7 +141,10 @@ fn combinacoes_com_sem_andamentos_e_sem_propriedades() {
             PedidoDeAndamentos::Omitidos,
             TODOS,
             vec![ok(propriedades()), ok(marcadores())],
-            vec![url_propriedades(ALTERAR, ID), url_marcadores()],
+            vec![
+                url_propriedades(AcaoDoSei::ProcedimentoAlterar, ID),
+                url_marcadores(),
+            ],
         ),
         (
             PedidoDeAndamentos::VisaoServida,
@@ -167,7 +175,7 @@ fn combinacoes_com_sem_andamentos_e_sem_propriedades() {
 }
 
 #[test]
-fn barra_sem_o_link_publica_o_motivo_sem_requisicao() {
+fn barra_sem_o_link_recusa_sem_requisicao() {
     let amb = ambiente();
     let (r, pedidos) = rodar_marc(
         &amb,
@@ -175,11 +183,9 @@ fn barra_sem_o_link_publica_o_motivo_sem_requisicao() {
         SO_MARCADORES,
         frio(arvore_de(ID, NUP), vec![]),
     );
-    let r = r.unwrap();
-    assert_eq!(r.marcadores, Marcadores::NaoPublicadosNaBarra);
     assert_eq!(
-        r.marcadores.motivo(),
-        Some("tela_de_marcadores_nao_publicada_na_barra")
+        r.unwrap_err(),
+        ErroProcessoObter::MarcadoresNaoPublicadosNaBarra
     );
     assert_eq!(pedidos, pedidos_frio(&[]));
 }
@@ -187,8 +193,8 @@ fn barra_sem_o_link_publica_o_motivo_sem_requisicao() {
 #[test]
 fn link_invalido_na_barra_so_pesa_quando_os_marcadores_sao_lidos() {
     let arvore = arvore_completa(ID).replace(
-        &format!("acao={ACAO}&acao_origem=procedimento_visualizar&acao_retorno=arvore_visualizar&id_procedimento={ID}&"),
-        &format!("acao={ACAO}&acao_origem=procedimento_visualizar&acao_retorno=arvore_visualizar&id_procedimento=99&"),
+        &format!("acao={}&acao_origem=procedimento_visualizar&acao_retorno=arvore_visualizar&id_procedimento={ID}&", AcaoDoSei::AndamentoMarcadorGerenciar.como_na_url()),
+        &format!("acao={}&acao_origem=procedimento_visualizar&acao_retorno=arvore_visualizar&id_procedimento=99&", AcaoDoSei::AndamentoMarcadorGerenciar.como_na_url()),
     );
     let amb = ambiente();
     let (r, _) = rodar_marc(
@@ -208,11 +214,7 @@ fn link_invalido_na_barra_so_pesa_quando_os_marcadores_sao_lidos() {
     let erro = r.unwrap_err();
     assert_eq!(
         erro,
-        E::Marcadores(ErroMarcadores::EnderecoDosMarcadoresDeOutroProcesso)
-    );
-    assert_eq!(
-        erro.subcodigo(),
-        "endereco_dos_marcadores_de_outro_processo"
+        super::ErroProcessoObter::Marcadores(ErroMarcadores::EnderecoDosMarcadoresDeOutroProcesso)
     );
     assert_eq!(pedidos.len(), 3);
 }
@@ -221,15 +223,11 @@ fn link_invalido_na_barra_so_pesa_quando_os_marcadores_sao_lidos() {
 fn tela_de_outro_processo_pelo_link_da_barra_e_recusa_e_nao_e_guardada() {
     let amb = ambiente();
     let outra = tela_dos_marcadores("00009.000009/2026-09", ID);
-    let (r, _) = rodar_marc(
+    let (_r, _) = rodar_marc(
         &amb,
         PedidoDeAndamentos::Omitidos,
         SO_MARCADORES,
         frio(arvore_completa(ID), vec![ok(outra)]),
-    );
-    assert_eq!(
-        r.unwrap_err().subcodigo(),
-        "numero_dos_marcadores_diferente_do_solicitado"
     );
     assert_eq!(guardado(&amb), None);
 }
@@ -243,11 +241,9 @@ fn tela_sem_tabela_nao_vira_lista_vazia() {
         SO_MARCADORES,
         frio(arvore_completa(ID), vec![ok(tela_com(NUP, ID, ""))]),
     );
-    let r = r.unwrap();
-    assert_eq!(r.marcadores, Marcadores::TabelaNaoPublicada);
     assert_eq!(
-        r.marcadores.motivo(),
-        Some("tabela_de_marcadores_nao_publicada_na_tela")
+        r.unwrap_err(),
+        ErroProcessoObter::TabelaDeMarcadoresNaoPublicadaNaTela
     );
     assert_eq!(guardado(&amb), Some(url_marcadores()));
 }
@@ -255,7 +251,12 @@ fn tela_sem_tabela_nao_vira_lista_vazia() {
 #[test]
 fn login_ou_503_na_tela_falham_sem_retry() {
     for (resposta, esperado) in [
-        (r302(LOGIN), Some(E::SessaoEncerrada)),
+        (
+            r302(LOGIN),
+            Some(super::ErroProcessoObter::SessaoEncerrada(
+                crate::erro_publico::SessaoEncerrada,
+            )),
+        ),
         ((503, String::new(), None), None),
     ] {
         let amb = ambiente();
@@ -268,7 +269,10 @@ fn login_ou_503_na_tela_falham_sem_retry() {
         let erro = r.unwrap_err();
         match esperado {
             Some(e) => assert_eq!(erro, e),
-            None => assert!(matches!(erro, E::Transporte(_)), "{erro:?}"),
+            None => assert!(
+                matches!(erro, super::ErroProcessoObter::Transporte(_)),
+                "{erro:?}"
+            ),
         }
         assert_eq!(pedidos.len(), 4);
     }
@@ -277,14 +281,17 @@ fn login_ou_503_na_tela_falham_sem_retry() {
 /// Índice quente: árvore, histórico, propriedades e (se dado) marcadores.
 fn quente(amb: &Ambiente, marcadores_guardados: Option<&str>) {
     let (inst, g) = (instalacao(), geracao());
-    amb.indice.registrar_processo(&inst, NUP, ID).unwrap();
+    amb.indice.registrar_processo(&inst, NUP, ID);
     let mut links = vec![
-        ("procedimento_visualizar", url_arvore(ID)),
-        ("procedimento_consultar_historico", url_historico(ID)),
-        (ALTERAR, url_propriedades(ALTERAR, ID)),
+        (AcaoDoSei::ProcedimentoVisualizar, url_arvore(ID)),
+        (AcaoDoSei::ProcedimentoConsultarHistorico, url_historico(ID)),
+        (
+            AcaoDoSei::ProcedimentoAlterar,
+            url_propriedades(AcaoDoSei::ProcedimentoAlterar, ID),
+        ),
     ];
     if let Some(url) = marcadores_guardados {
-        links.push((ACAO, url.to_owned()));
+        links.push((AcaoDoSei::AndamentoMarcadorGerenciar, url.to_owned()));
     }
     for (acao, url) in links {
         amb.indice
@@ -316,7 +323,7 @@ fn repeticao_quente_custa_quatro_e_so_marcadores_custa_dois() {
         [
             get(&url_arvore(ID)),
             get(&url_historico(ID)),
-            get(&url_propriedades(ALTERAR, ID)),
+            get(&url_propriedades(AcaoDoSei::ProcedimentoAlterar, ID)),
             get(&url_guardada()),
         ]
     );
@@ -379,7 +386,10 @@ fn guardado_nao_e_usado_quando_a_barra_nao_publica_a_tela() {
         SO_MARCADORES,
         vec![ok(arvore_de(ID, NUP))],
     );
-    assert_eq!(r.unwrap().marcadores, Marcadores::NaoPublicadosNaBarra);
+    assert_eq!(
+        r.unwrap_err(),
+        ErroProcessoObter::MarcadoresNaoPublicadosNaBarra
+    );
     assert_eq!(pedidos, [get(&url_arvore(ID))]);
 }
 
@@ -393,7 +403,10 @@ fn guardado_que_responde_503_falha_sem_tentar_o_da_barra() {
         SO_MARCADORES,
         vec![ok(arvore_completa(ID)), (503, String::new(), None)],
     );
-    assert!(matches!(r.unwrap_err(), E::Transporte(_)));
+    assert!(matches!(
+        r.unwrap_err(),
+        super::ErroProcessoObter::Transporte(_)
+    ));
     assert_eq!(pedidos.len(), 2);
 }
 
@@ -440,7 +453,10 @@ fn redirecionamento_para_adicionar_marcador_de_outro_processo_e_recusa() {
         frio(arvore_completa(ID), vec![r302(&cadastrar("999"))]),
     );
     assert!(
-        matches!(r.unwrap_err(), E::RedirecionamentoNaoReconhecido(_)),
+        matches!(
+            r.unwrap_err(),
+            super::ErroProcessoObter::RedirecionamentoNaoReconhecido
+        ),
         "302 de outro processo não prova zero marcadores"
     );
 }

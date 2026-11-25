@@ -78,6 +78,26 @@ validação nas instalações de treinamento.
   45 interações, das quais 39 GET e 6 POST; o índice não prova os corpos.
 - [Relatório live](../validacao-live/2026-11-05-processo-acompanhar.md).
 
+## Bancada de prévia de retirada com estado explícito (#348)
+
+A migração SQLite v35 registra a fotografia de acompanhamentos por
+instalação, cenário, processo e unidade. Uma linha de observação com zero
+itens é lista comprovada vazia; ausência dessa linha continua sendo dado
+desconhecido e não autoriza publicar link ou inferir ausência de grupo.
+
+O anti-IES publica `acompanhamento_gerenciar` na árvore somente quando
+existe observação da unidade aberta. Seu GET oferece tabela estrutural
+com seis colunas e IDs de linha preservados. A CLI Rust percorre a
+mesma navegação e identifica G sem selecionar H, ou informa no-op
+quando só H está presente. Não se fabrica formulário de exclusão nem
+se oferece `--deixar --confirmar` na bancada.
+
+A inspeção das cassettes de acompanhamento UnB orienta os nomes de ações
+e a estrutura, mas não demonstra a transição G/H. Essa transição é
+hipótese sintética testada em TLS loopback com o mesmo SQLite, não replay
+semântico nem validação live. A exclusão confirmada BDD-348-02 permanece
+pendente de derivação de URL e campos da página publicada.
+
 ## Limitações e revisão
 
 RED local NOT_RUN (sem toolchain e DNS no sandbox); CI só comprova

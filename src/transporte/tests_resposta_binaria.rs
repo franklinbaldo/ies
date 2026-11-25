@@ -3,37 +3,39 @@
 //! arquivo em ISO-8859-1 no cabeçalho não derruba a resposta; só os
 //! cabeçalhos conferidos ficam (nunca `Set-Cookie`). Respostas sintéticas.
 use super::*;
-use crate::transporte::resposta_http::Resposta;
+use crate::transporte::resposta_http::sintetica;
 use std::io::{Cursor, Read};
 
-fn ler(bruto: Vec<u8>, limite: usize) -> RespostaBinaria<Corpo<Cursor<Vec<u8>>>> {
-    binaria(Resposta::ler(Cursor::new(bruto)).unwrap(), limite)
+fn ler(
+    cabecalhos: &[(&str, &str)],
+    corpo: &[u8],
+    limite: usize,
+) -> RespostaBinaria<Corpo<Cursor<Vec<u8>>>> {
+    binaria(sintetica(200, cabecalhos, corpo), limite)
 }
 
-/// Corpo `chunked` com um pedaço de `n` bytes.
+/// Corpo sem `Content-Length` com `n` bytes.
 fn em_pedacos(n: usize) -> Vec<u8> {
-    let mut bruto = format!(
-        "HTTP/1.1 200 OK\r\nContent-Type: application/pdf\r\nTransfer-Encoding: chunked\r\n\r\n{n:x}\r\n"
-    )
-    .into_bytes();
-    bruto.extend(std::iter::repeat_n(b'x', n));
-    bruto.extend_from_slice(b"\r\n0\r\n\r\n");
-    bruto
+    vec![b'x'; n]
 }
 
 #[test]
 fn chunked_acima_de_8_mb_vale_ate_o_limite_do_anexo() {
     let n = crate::MAX_HTML_BYTES + 10;
     let mut lido = Vec::new();
-    ler(em_pedacos(n), n)
+    ler(&[("Content-Type", "application/pdf")], &em_pedacos(n), n)
         .corpo
         .read_to_end(&mut lido)
         .expect("dentro do limite do anexo");
     assert_eq!(lido.len(), n);
-    let erro = ler(em_pedacos(n), n - 1)
-        .corpo
-        .read_to_end(&mut Vec::new())
-        .unwrap_err();
+    let erro = ler(
+        &[("Content-Type", "application/pdf")],
+        &em_pedacos(n),
+        n - 1,
+    )
+    .corpo
+    .read_to_end(&mut Vec::new())
+    .unwrap_err();
     assert_eq!(
         crate::transporte::resposta_http::falha_de_leitura(&erro),
         FalhaTransporte::RespostaExcessiva
@@ -42,12 +44,20 @@ fn chunked_acima_de_8_mb_vale_ate_o_limite_do_anexo() {
 
 #[test]
 fn nome_em_iso_8859_1_no_cabecalho_e_lido_e_set_cookie_e_descartado() {
-    let mut bruto = b"HTTP/1.1 200 OK\r\nContent-Type: application/pdf\r\n\
-        Set-Cookie: PHPSESSID=SEGREDO\r\nContent-Disposition: inline; filename=\"Of"
-        .to_vec();
-    bruto.push(0xED); // í em ISO-8859-1
-    bruto.extend_from_slice(b"cio.pdf\"\r\nContent-Length: 4\r\n\r\n%PDF");
-    let r = ler(bruto, 100);
+    let mut nome = b"inline; filename=\"Of".to_vec();
+    nome.push(0xED); // í em ISO-8859-1
+    nome.extend_from_slice(b"cio.pdf\"");
+    let disposicao = crate::transporte::resposta_http::texto_do_cabecalho(&nome);
+    let r = ler(
+        &[
+            ("Content-Type", "application/pdf"),
+            ("Set-Cookie", "PHPSESSID=SEGREDO"),
+            ("Content-Disposition", &disposicao),
+            ("Content-Length", "4"),
+        ],
+        b"%PDF",
+        100,
+    );
     assert_eq!(r.status, 200);
     assert_eq!(
         r.valores("Content-Disposition"),
@@ -64,11 +74,17 @@ fn nome_em_iso_8859_1_no_cabecalho_e_lido_e_set_cookie_e_descartado() {
 
 #[test]
 fn cabecalho_repetido_fica_com_todas_as_ocorrencias() {
-    let bruto = b"HTTP/1.1 200 OK\r\nContent-Type: application/pdf\r\n\
-        content-type: text/html\r\nContent-Length: 0\r\n\r\n"
-        .to_vec();
     assert_eq!(
-        ler(bruto, 100).valores("content-type"),
+        ler(
+            &[
+                ("Content-Type", "application/pdf"),
+                ("content-type", "text/html"),
+                ("Content-Length", "0")
+            ],
+            b"",
+            100
+        )
+        .valores("content-type"),
         ["application/pdf", "text/html"]
     );
 }

@@ -89,9 +89,7 @@ fn dado_nup_em_duas_linhas_quando_previa_entao_recusa_sem_ajax() {
     let (resultado, pedidos) = executar(respostas);
     assert!(matches!(
         resultado,
-        Err(FalhaRelacionar::Estrutura(
-            "relacionamentos_repetidos_na_tela"
-        ))
+        Err(FalhaRelacionar::RelacionamentosRepetidosNaTela)
     ));
     assert_eq!(pedidos.len(), 4);
     assert!(pedidos.iter().all(|p| p.metodo == "GET"));
@@ -213,9 +211,7 @@ fn dado_duas_pontuacoes_equivalentes_quando_remover_entao_ambiguo() {
     let (resultado, pedidos) = executar_com(respostas, "ABC", true);
     assert!(matches!(
         resultado,
-        Err(FalhaRelacionar::Estrutura(
-            "relacionamentos_repetidos_na_tela"
-        ))
+        Err(FalhaRelacionar::RelacionamentosRepetidosNaTela)
     ));
     assert_eq!(pedidos.len(), 4);
     assert!(pedidos.iter().all(|p| p.metodo == "GET"));
@@ -320,4 +316,26 @@ fn dado_formulario_sem_tabela_quando_previa_entao_consulta_destino_sem_escrever(
     assert!(!previa.sem_efeito());
     assert_eq!(pedidos.len(), 5);
     assert_eq!(pedidos[4].metodo, "POST"); // Consulta, não escrita.
+}
+
+/// Regressão técnica do BDD-258-01: a consulta AJAX não pode transformar
+/// o id já atribuído a outro NUP na prova de vínculo do destino pedido.
+/// Esta é uma hipótese de respostas inconsistentes, não observação PEN1.
+#[test]
+fn consulta_ajax_com_id_publicado_para_outro_nup_recusa_sem_escrita() {
+    let mut respostas = abertura(arvore(&[UNIDADE], &[acao_da_arvore()]));
+    respostas.push(ok(formulario_com_relacionados(&[(
+        "22",
+        "99999.000099/2026-01",
+    )])));
+    respostas.push(ok(format!(
+        "<?xml version=\"1.0\"?><complementos><complemento nome=\"IdProcedimento\">22</complemento><complemento nome=\"ProtocoloProcedimentoFormatado\">{DESTINO}</complemento></complementos>"
+    )));
+    let (resultado, pedidos) = executar(respostas);
+    assert!(
+        matches!(resultado, Err(FalhaRelacionar::DestinoDaConsultaDivergente)),
+        "id 22 já pertence a outro NUP na tabela; resultado: {resultado:?}"
+    );
+    assert_eq!(pedidos.len(), 5);
+    assert_eq!(pedidos[4].metodo, "POST"); // AJAX somente de consulta
 }

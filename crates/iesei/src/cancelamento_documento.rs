@@ -27,28 +27,23 @@ pub fn consultar(
     id_documento: &str,
     id_procedimento: &str,
 ) -> rusqlite::Result<Option<Situacao>> {
-    let existe: bool = banco.query_row(
-        "SELECT EXISTS(
-            SELECT 1 FROM documento_simulado
-            WHERE origem=?1 AND cenario=?2 AND id_documento=?3 AND id_procedimento=?4
-        )",
-        params![origem.url_base(), cenario, id_documento, id_procedimento],
-        |linha| linha.get(0),
-    )?;
-    if !existe {
-        return Ok(None);
-    }
-    let motivo: Option<String> = banco
+    banco
         .query_row(
-            "SELECT motivo FROM documento_cancelamento
-             WHERE origem=?1 AND cenario=?2 AND id_documento=?3 AND id_procedimento=?4",
+            "SELECT c.motivo FROM documento_simulado AS d
+             LEFT JOIN documento_cancelamento AS c
+               USING (origem, cenario, id_documento, id_procedimento)
+             WHERE d.origem=?1 AND d.cenario=?2 AND d.id_documento=?3 AND d.id_procedimento=?4",
             params![origem.url_base(), cenario, id_documento, id_procedimento],
-            |linha| linha.get(0),
+            |linha| {
+                let motivo: Option<String> = linha.get(0)?;
+                Ok(
+                    motivo.map_or(Situacao::Disponivel, |motivo| Situacao::Cancelado {
+                        motivo,
+                    }),
+                )
+            },
         )
-        .optional()?;
-    Ok(Some(motivo.map_or(Situacao::Disponivel, |motivo| {
-        Situacao::Cancelado { motivo }
-    })))
+        .optional()
 }
 
 /// Aplica a escrita uma única vez no cenário; concorrência jamais troca o motivo.

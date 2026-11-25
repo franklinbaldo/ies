@@ -1,6 +1,5 @@
 [
   {
-    "categoria": null,
     "colunas_ausentes": [
       "anotacao",
       "especificacao",
@@ -17,7 +16,6 @@
         "categoria": "recebidos",
         "colunas": {
           "atribuicao": "pessoa1",
-          "controle_de_prazo": null,
           "interessados": [
             "Interessado A",
             "Interessado B"
@@ -34,8 +32,7 @@
               "cor": "azul",
               "id": "32",
               "nome": "Marcador B",
-              "rotulo": "32#Marcador B",
-              "texto": null
+              "rotulo": "32#Marcador B"
             }
           ],
           "tipo": "Tipo sintético",
@@ -47,10 +44,8 @@
         "visualizado": true
       },
       {
-        "categoria": null,
         "colunas": {
           "atribuicao": "pessoa9",
-          "controle_de_prazo": null,
           "interessados": [
             "Interessado A",
             "Interessado B"

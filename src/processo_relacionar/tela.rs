@@ -1,8 +1,9 @@
 //! Tela de relacionamentos do SEI 4.0 (PEN1): leitura estrutural, sem JS
-//! executado e sem regex; todos os atributos passam por `html_atributos`.
-use crate::formulario_web::{decodificar_atributo, localizar_formulario};
-use crate::html_atributos::valor_do_atributo;
-use crate::transporte::texto_de_recusa::decodificar_entidades;
+//! executado e sem regex; atributos lidos da árvore `tela_html`.
+use crate::acao_do_sei::AcaoDoSei;
+use crate::consulta_do_controlador::ConsultaDoControlador;
+use crate::formulario_web::{ErroSubmissaoFormulario, localizar_formulario};
+use crate::resposta_ajax::{ErroXml, RespostaAjax};
 use std::collections::HashSet;
 
 #[derive(Debug, PartialEq, Eq)]
@@ -16,50 +17,58 @@ pub(super) struct DestinoConsultado {
     pub(super) nup: String,
     pub(super) tipo: Option<String>,
 }
-fn atributo(tag: &tl::HTMLTag<'_>, nome: &'static str) -> Result<Option<String>, &'static str> {
-    valor_do_atributo(tag, nome)
-        .map_err(|_| "atributo_da_tela_ambiguo")?
-        .map(|raw| decodificar_atributo(&raw).ok_or("entidade_html_nao_interpretada"))
-        .transpose()
+/// Um atributo da tela ou da resposta de relacionamento que não pôde ser lido.
+#[derive(Clone, Copy, Debug, PartialEq, Eq, thiserror::Error)]
+#[error("{self:?}")]
+pub(crate) enum ErroAtributoDeRelacionamento {}
+
+/// A lista `frmProcedimentoListarRelacionamentos` fora da forma observada.
+#[derive(Clone, Debug, PartialEq, Eq, thiserror::Error)]
+#[error("{self:?}")]
+pub(crate) enum ErroTelaDeRelacionamentos {
+    Atributo(#[from] ErroAtributoDeRelacionamento),
+    FormularioDeRelacionamentosNaoLocalizado(#[source] ErroSubmissaoFormulario),
+    TabelaDeRelacionamentosAusenteOuRepetida,
+    NumeroDoRelacionadoAusente,
+    RelacionamentosRepetidosNaTela,
+    MaisDeUmProcessoNaLinhaDeRelacionamento,
 }
+
+/// A resposta XML da consulta `protocolo_RI1023` do destino.
+#[derive(Clone, Debug, thiserror::Error)]
+#[error("{self:?}")]
+pub(crate) enum ErroDestinoDaConsulta {
+    Xml(#[from] ErroXml),
+    ProcessoDeDestinoNaoEncontrado,
+    DestinoDaConsultaAmbiguo,
+    DestinoARelacionarNaoIdentificado,
+}
+
 fn id_do_processo(href: &str) -> Option<&str> {
     let query = href.strip_prefix("controlador.php?")?;
-    let mut acao = 0;
-    let mut ids = Vec::new();
-    for parte in query.split('&') {
-        let (nome, valor) = parte.split_once('=')?;
-        match nome {
-            "acao" if valor == "procedimento_trabalhar" => acao += 1,
-            "id_procedimento" if !valor.is_empty() && valor.bytes().all(|c| c.is_ascii_digit()) => {
-                ids.push(valor);
-            }
-            "acao" | "id_procedimento" => return None,
-            _ => (),
-        }
-    }
-    if acao == 1 && ids.len() == 1 {
-        Some(ids[0])
-    } else {
-        None
-    }
+    let Ok(query) = ConsultaDoControlador::ler(query) else {
+        return None;
+    };
+    let Ok(id) = query.unico("id_procedimento") else {
+        return None;
+    };
+    (query.acao() == Ok(AcaoDoSei::ProcedimentoTrabalhar.como_na_url())
+        && !id.is_empty()
+        && id.bytes().all(|c| c.is_ascii_digit()))
+    .then_some(id)
 }
 
 /// Só a linha da tabela própria do formulário é evidência da relação.
-pub(super) fn ler_linhas(html: &str) -> Result<Vec<Relacionamento>, &'static str> {
-    let dom = tl::parse(html, tl::ParserOptions::default())
-        .map_err(|_| "html_de_relacionamentos_nao_interpretado")?;
-    let parser = dom.parser();
+pub(super) fn ler_linhas(
+    html: &crate::tela_html::HtmlServido,
+) -> Result<Vec<Relacionamento>, ErroTelaDeRelacionamentos> {
+    let dom = crate::tela_html::arvore(html);
     let form = localizar_formulario(&dom, "frmProcedimentoListarRelacionamentos")
-        .map_err(|_| "formulario_de_relacionamentos_ausente_ou_repetido")?;
+        .map_err(ErroTelaDeRelacionamentos::FormularioDeRelacionamentosNaoLocalizado)?;
     let mut tabelas = Vec::new();
-    for tag in form
-        .children()
-        .all(parser)
-        .iter()
-        .filter_map(tl::Node::as_tag)
-    {
-        if tag.name().as_utf8_str().eq_ignore_ascii_case("table")
-            && atributo(tag, "summary")?.as_deref() == Some("Lista de Processos Relacionados")
+    for tag in form.descendentes() {
+        if tag.nome().eq_ignore_ascii_case("table")
+            && tag.atributo("summary") == Some("Lista de Processos Relacionados")
         {
             tabelas.push(tag);
         }
@@ -72,16 +81,11 @@ pub(super) fn ler_linhas(html: &str) -> Result<Vec<Relacionamento>, &'static str
             // Não aceitar uma tela genérica apenas por não conter tabela.
             let mut protocolo = 0;
             let mut id_protocolo = 0;
-            for campo in form
-                .children()
-                .all(parser)
-                .iter()
-                .filter_map(tl::Node::as_tag)
-            {
-                if !campo.name().as_utf8_str().eq_ignore_ascii_case("input") {
+            for campo in form.descendentes() {
+                if !campo.nome().eq_ignore_ascii_case("input") {
                     continue;
                 }
-                match atributo(campo, "id")?.as_deref() {
+                match campo.atributo("id") {
                     Some("txtProtocolo") => protocolo += 1,
                     Some("hdnIdProtocolo") => id_protocolo += 1,
                     _ => {}
@@ -90,63 +94,56 @@ pub(super) fn ler_linhas(html: &str) -> Result<Vec<Relacionamento>, &'static str
             if protocolo == 1 && id_protocolo == 1 {
                 return Ok(Vec::new());
             }
-            return Err("tabela_de_relacionamentos_ausente_ou_repetida");
+            return Err(ErroTelaDeRelacionamentos::TabelaDeRelacionamentosAusenteOuRepetida);
         }
-        _ => return Err("tabela_de_relacionamentos_ausente_ou_repetida"),
+        _ => return Err(ErroTelaDeRelacionamentos::TabelaDeRelacionamentosAusenteOuRepetida),
     };
     let mut lista = Vec::new();
     let mut ids = HashSet::new();
     for linha in tabela
-        .children()
-        .all(parser)
-        .iter()
-        .filter_map(tl::Node::as_tag)
-        .filter(|tag| tag.name().as_utf8_str().eq_ignore_ascii_case("tr"))
+        .descendentes()
+        .filter(|tag| tag.nome().eq_ignore_ascii_case("tr"))
     {
         let mut processos = Vec::new();
         let mut remocoes = Vec::new();
         for ancora in linha
-            .children()
-            .all(parser)
-            .iter()
-            .filter_map(tl::Node::as_tag)
-            .filter(|tag| tag.name().as_utf8_str().eq_ignore_ascii_case("a"))
+            .descendentes()
+            .filter(|tag| tag.nome().eq_ignore_ascii_case("a"))
         {
-            if let Some(href) = atributo(ancora, "href")?
-                && let Some(id) = id_do_processo(&href)
+            if let Some(href) = ancora.atributo("href")
+                && let Some(id) = id_do_processo(href)
             {
-                let nup = decodificar_entidades(&ancora.inner_text(parser));
+                let nup = ancora.texto();
                 if nup.trim().is_empty() {
-                    return Err("numero_do_relacionado_ausente");
+                    return Err(ErroTelaDeRelacionamentos::NumeroDoRelacionadoAusente);
                 }
                 processos.push((id.to_owned(), nup.trim().to_owned()));
             }
-            if let Some(acao) = atributo(ancora, "onclick")? {
-                remocoes.push(acao);
-            }
+            remocoes.extend(ancora.atributo("onclick"));
         }
         match processos.as_slice() {
             [] => {}
             [(id, nup)] => {
                 if !ids.insert(id.clone()) {
-                    return Err("relacionamentos_repetidos_na_tela");
+                    return Err(ErroTelaDeRelacionamentos::RelacionamentosRepetidosNaTela);
                 }
                 let chamada = format!("acaoRemover('{id}');");
-                let pode_remover = remocoes.iter().any(|acao| acao == &chamada);
+                let pode_remover = remocoes.iter().any(|acao| *acao == chamada);
                 lista.push(Relacionamento {
                     id: id.clone(),
                     nup: nup.clone(),
                     pode_remover,
                 });
             }
-            _ => return Err("mais_de_um_processo_na_linha_de_relacionamento"),
+            _ => return Err(ErroTelaDeRelacionamentos::MaisDeUmProcessoNaLinhaDeRelacionamento),
         }
     }
     Ok(lista)
 }
 
-/// Lê a chamada literal que a tela serviu, sem avaliar JavaScript.
-pub(super) fn url_complementar(html: &str) -> Result<String, &'static str> {
+/// Lê a chamada literal que a tela serviu, sem avaliar JavaScript; `None`
+/// se a tela não declara exatamente uma consulta relativa.
+pub(super) fn url_complementar(html: &str) -> Option<String> {
     const INICIO: &str = "new infraAjaxComplementar('txtProtocolo','";
     let urls: Vec<_> = html
         .lines()
@@ -157,40 +154,27 @@ pub(super) fn url_complementar(html: &str) -> Result<String, &'static str> {
         })
         .collect();
     match urls.as_slice() {
-        [url] if url.starts_with("controlador_ajax.php?") => Ok(url.clone()),
-        _ => Err("consulta_complementar_de_relacionamento_nao_declarada"),
+        [url] if url.starts_with("controlador_ajax.php?") => Some(url.clone()),
+        _ => None,
     }
 }
 
 /// Só devolve identidade observada nos complementos únicos da resposta.
-pub(super) fn ler_destino(xml: &str) -> Result<DestinoConsultado, &'static str> {
-    let dom = tl::parse(xml, tl::ParserOptions::default())
-        .map_err(|_| "resposta_da_consulta_nao_interpretada")?;
-    let parser = dom.parser();
-    if dom
-        .query_selector("erros")
-        .into_iter()
-        .flatten()
-        .next()
-        .is_some()
-    {
-        return Err("processo_de_destino_nao_encontrado");
+pub(super) fn ler_destino(xml: &str) -> Result<DestinoConsultado, ErroDestinoDaConsulta> {
+    let resposta = RespostaAjax::ler(xml)?;
+    if !resposta.elementos("erros").is_empty() {
+        return Err(ErroDestinoDaConsulta::ProcessoDeDestinoNaoEncontrado);
     }
     let mut id = Vec::new();
     let mut numero = Vec::new();
     let mut tipos = Vec::new();
-    for no in dom.query_selector("complemento").into_iter().flatten() {
-        let Some(tag) = no.get(parser).and_then(tl::Node::as_tag) else {
-            continue;
-        };
-        let valor = decodificar_entidades(&tag.inner_text(parser))
-            .trim()
-            .to_owned();
-        match atributo(tag, "nome")?.as_deref() {
+    for complemento in resposta.elementos("complemento") {
+        let valor = complemento.texto().trim().to_owned();
+        match complemento.atributo("nome") {
             Some("IdProcedimento") => id.push(valor),
             Some("ProtocoloProcedimentoFormatado") => numero.push(valor),
             Some("NomeTipoProcedimento") => tipos.push(valor),
-            _ => (),
+            Some(_) | None => (),
         }
     }
     match (id.as_slice(), numero.as_slice()) {
@@ -201,7 +185,7 @@ pub(super) fn ler_destino(xml: &str) -> Result<DestinoConsultado, &'static str> 
                 [] => None,
                 [nome] if nome.is_empty() => None,
                 [nome] => Some(nome.clone()),
-                _ => return Err("destino_da_consulta_ambiguo"),
+                _ => return Err(ErroDestinoDaConsulta::DestinoDaConsultaAmbiguo),
             };
             Ok(DestinoConsultado {
                 id: id.clone(),
@@ -209,45 +193,30 @@ pub(super) fn ler_destino(xml: &str) -> Result<DestinoConsultado, &'static str> 
                 tipo,
             })
         }
-        ([], _) | (_, []) => Err("destino_a_relacionar_nao_identificado"),
-        _ => Err("destino_da_consulta_ambiguo"),
+        ([], _) | (_, []) => Err(ErroDestinoDaConsulta::DestinoARelacionarNaoIdentificado),
+        _ => Err(ErroDestinoDaConsulta::DestinoDaConsultaAmbiguo),
     }
 }
 
 /// Deriva a action do handler literal acaoRemover, nunca de texto solto.
 /// Não interpreta JavaScript. A submissão ainda precisa ser validada
-/// pela fronteira de formulários antes de iniciar um único POST.
-pub(super) fn url_exclusao(html: &str) -> Result<String, &'static str> {
-    const ERRO: &str = "acao_excluir_relacionamento_nao_declarada";
+/// pela fronteira de formulários antes de iniciar um único POST. `None`
+/// se a tela não declara exatamente um `acaoRemover` na forma observada.
+pub(super) fn url_exclusao(html: &crate::tela_html::HtmlServido) -> Option<String> {
     const FUNCAO: &str = "function acaoRemover(id){";
     const ID: &str = "document.getElementById('hdnInfraItemId').value=id;";
     const ACTION: &str = "document.getElementById('frmProcedimentoListarRelacionamentos').action='";
     const ENVIAR: &str =
         "document.getElementById('frmProcedimentoListarRelacionamentos').submit();";
 
-    let dom = tl::parse(html, tl::ParserOptions::default()).map_err(|_| ERRO)?;
-    let parser = dom.parser();
-    // Um script dentro de template não oferece evento acionável.
-    let inertes: Vec<_> = dom
-        .query_selector("template")
-        .into_iter()
-        .flatten()
-        .filter_map(|n| n.get(parser).and_then(tl::Node::as_tag))
-        .flat_map(|t| t.children().all(parser))
-        .filter_map(tl::Node::as_tag)
-        .filter(|t| t.name().as_utf8_str().eq_ignore_ascii_case("script"))
-        .map(|t| t.inner_text(parser).to_string())
-        .collect();
-
+    let dom = crate::tela_html::arvore(html);
+    // Um script dentro de template não oferece evento acionável; como no
+    // navegador, ele nem está na árvore.
     let mut urls = Vec::new();
-    for no in dom.query_selector("script").into_iter().flatten() {
-        let Some(script) = no.get(parser).and_then(tl::Node::as_tag) else {
-            continue;
-        };
-        let texto = script.inner_text(parser).to_string();
-        if inertes.contains(&texto) {
-            continue;
-        }
+    for no in dom.elementos("script") {
+        // O conteúdo inteiro do script, inclusive o invólucro
+        // `<!--//--><![CDATA[//><!--` do SEI 4 da `UnB` (live de 10/11/2026).
+        let texto = no.texto();
         let linhas: Vec<_> = texto.lines().map(str::trim).collect();
         let candidatos: Vec<_> = linhas
             .iter()
@@ -256,29 +225,29 @@ pub(super) fn url_exclusao(html: &str) -> Result<String, &'static str> {
             .collect();
         let [inicio] = candidatos.as_slice() else {
             if !candidatos.is_empty() {
-                return Err(ERRO);
+                return None;
             }
             continue;
         };
-        if linhas[*inicio] != FUNCAO {
-            return Err(ERRO);
+        let (antes, a_partir) = linhas.split_at(*inicio);
+        let [funcao, depois @ ..] = a_partir else {
+            return None;
+        };
+        if *funcao != FUNCAO {
+            return None;
         }
         // Uma declaração dentro de comentário de bloco não é executável.
-        let prefixo = linhas[..*inicio].join("\n");
+        let prefixo = antes.join("\n");
         let ultimo_abre = prefixo.rfind("/*");
         let ultimo_fecha = prefixo.rfind("*/");
         if ultimo_abre.is_some_and(|p| ultimo_fecha.is_none_or(|f| f < p)) {
             continue;
         }
         // O primeiro fechamento pertence à guarda confirm da função observada.
-        let Some(fim) = linhas[*inicio + 1..]
-            .iter()
-            .position(|linha| *linha == "}")
-            .map(|i| i + *inicio + 1)
-        else {
+        let Some(fim) = depois.iter().position(|linha| *linha == "}") else {
             continue;
         };
-        let corpo = &linhas[*inicio + 1..fim];
+        let (corpo, _) = depois.split_at(fim);
         let pos_id = corpo.iter().position(|l| *l == ID);
         let pos_action = corpo.iter().position(|l| l.starts_with(ACTION));
         let pos_enviar = corpo.iter().position(|l| *l == ENVIAR);
@@ -288,8 +257,9 @@ pub(super) fn url_exclusao(html: &str) -> Result<String, &'static str> {
         if !(i < a && a < s) {
             continue;
         }
-        let Some(url) = corpo[a]
-            .strip_prefix(ACTION)
+        let Some(url) = corpo
+            .get(a)
+            .and_then(|linha| linha.strip_prefix(ACTION))
             .and_then(|l| l.strip_suffix("';"))
         else {
             continue;
@@ -299,7 +269,7 @@ pub(super) fn url_exclusao(html: &str) -> Result<String, &'static str> {
         }
     }
     match urls.as_slice() {
-        [unica] => Ok(unica.clone()),
-        _ => Err(ERRO),
+        [unica] => Some(unica.clone()),
+        _ => None,
     }
 }

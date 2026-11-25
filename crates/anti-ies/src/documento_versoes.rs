@@ -1,6 +1,7 @@
 //! Histórico e visualização de versões gerados pelo mesmo estado SQLite.
 use crate::{Estado, Resposta, despachar};
 use iesei::acesso_versao::{self, AcessoVersao};
+use iesei::cancelamento_documento::Situacao;
 use iesei::documento_versoes::{DocumentoSimulado, Revisao, ler};
 use iesei::instalacao::Instalacao;
 use rusqlite::Connection;
@@ -103,6 +104,15 @@ pub fn responder(
         Ok(Some(id)) if id.bytes().all(|b| b.is_ascii_digit()) => id,
         _ => return Resposta::nova(Estado::RequisicaoInvalida),
     };
+    // id_protocolo pode estar ausente no link publicado; se presente,
+    // nao pode contradizer o id_documento explicitamente selecionado.
+    match parametro(alvo, "id_protocolo") {
+        Ok(Some(protocolo)) if protocolo != id => {
+            return Resposta::nova(Estado::RequisicaoInvalida);
+        }
+        Err(estado) => return Resposta::nova(estado),
+        _ => {}
+    }
     let versao_pedida = if acao == "documento_visualizar" {
         match parametro(alvo, "versao") {
             Ok(None) => None,
@@ -126,6 +136,23 @@ pub fn responder(
         }
         Err(estado) => return Resposta::nova(estado),
         _ => {}
+    }
+    // URLs de conteudo e de historico podem ter sido publicadas antes do
+    // cancelamento. Consultar o mesmo SQLite antes de servir versoes ou
+    // oferecer links de visualizacao que ja nao estao acessiveis.
+    match crate::documento_cancelar::estado(
+        banco,
+        instalacao,
+        cenario,
+        &documento.id_documento,
+        &documento.id_procedimento,
+    ) {
+        Ok(Some(Situacao::Disponivel)) => {}
+        Ok(Some(Situacao::Cancelado { .. })) => {
+            return Resposta::nova(Estado::AcessoNegado);
+        }
+        Ok(None) => return Resposta::nova(Estado::DadosInsuficientes),
+        Err(estado) => return Resposta::nova(estado),
     }
     if acao == "documento_versao_listar" {
         return resposta_html(historico(&documento));

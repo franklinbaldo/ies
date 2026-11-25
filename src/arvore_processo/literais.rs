@@ -2,7 +2,7 @@
 //! aspas duplas ou simples com escapes, `null`, `true`, `false`, inteiros).
 //! Nada é avaliado; qualquer outra forma é recusa.
 use super::ErroArvore;
-use crate::erro_html::ErroHtml;
+use crate::tela_html::HtmlServido;
 
 #[derive(Clone, Debug, PartialEq, Eq)]
 pub(super) enum Literal {
@@ -30,16 +30,16 @@ pub(super) fn ler_declaracao(linha: &str) -> Result<Option<(usize, Vec<Literal>)
     if !linha.contains(CONSTRUTOR) {
         return Ok(None);
     }
-    let fora = ErroArvore::Html(ErroHtml::valor("declaracao_de_no_fora_da_forma_observada"));
-    let (indice, resto) = indice_entre(linha, "Nos[").ok_or(fora)?;
+    let fora = || ErroArvore::DeclaracaoDeNoForaDaFormaObservada;
+    let (indice, resto) = indice_entre(linha, "Nos[").ok_or_else(fora)?;
     if let Some(resto) = resto.strip_prefix(HTML_ANTES) {
         let (Literal::Texto(_), depois) = ler_literal(resto)? else {
-            return Err(fora);
+            return Err(fora());
         };
-        let declaracao = depois.strip_prefix(';').ok_or(fora)?;
+        let declaracao = depois.strip_prefix(';').ok_or_else(fora)?;
         let (seguinte, argumentos) = ler_no(declaracao)?;
         if seguinte != indice + 1 {
-            return Err(fora);
+            return Err(fora());
         }
         return Ok(Some((seguinte, argumentos)));
     }
@@ -48,12 +48,12 @@ pub(super) fn ler_declaracao(linha: &str) -> Result<Option<(usize, Vec<Literal>)
 
 /// `Nos[i] = new infraArvoreNo(…);` exata, sem nada antes nem depois.
 fn ler_no(linha: &str) -> Result<(usize, Vec<Literal>), ErroArvore> {
-    let fora = ErroArvore::Html(ErroHtml::valor("declaracao_de_no_fora_da_forma_observada"));
-    let (indice, resto) = indice_entre(linha, "Nos[").ok_or(fora)?;
-    let resto = resto.strip_prefix(ABERTURA).ok_or(fora)?;
+    let fora = || ErroArvore::DeclaracaoDeNoForaDaFormaObservada;
+    let (indice, resto) = indice_entre(linha, "Nos[").ok_or_else(fora)?;
+    let resto = resto.strip_prefix(ABERTURA).ok_or_else(fora)?;
     let (argumentos, depois) = ler_argumentos(resto)?;
     if depois != ";" {
-        return Err(fora);
+        return Err(fora());
     }
     Ok((indice, argumentos))
 }
@@ -68,10 +68,33 @@ fn indice_entre<'a>(linha: &'a str, variavel: &str) -> Option<(usize, &'a str)> 
     Some((indice.parse().ok()?, resto))
 }
 
+fn indice_de_atributo(linha: &str, atributo: &str) -> Option<usize> {
+    let (indice, resto) = indice_entre(linha, "Nos[")?;
+    resto.starts_with(atributo).then_some(indice)
+}
+
+fn ler_atributo(
+    linha: &str,
+    atributo: &str,
+    erro: fn(Box<ErroArvore>) -> ErroArvore,
+    fora: ErroArvore,
+) -> Result<Option<(usize, String)>, ErroArvore> {
+    let linha = linha.strip_suffix('\r').unwrap_or(linha);
+    let Some((indice, resto)) = indice_entre(linha, "Nos[") else {
+        return Ok(None);
+    };
+    let Some(resto) = resto.strip_prefix(atributo) else {
+        return Ok(None);
+    };
+    match ler_literal(resto).map_err(|e| erro(Box::new(e)))? {
+        (Literal::Texto(texto), ";") => Ok(Some((indice, texto))),
+        _ => Err(fora),
+    }
+}
+
 /// O `i` de uma linha `Nos[i].acoes = …`, sem ler o resto.
 pub(super) fn indice_da_barra(linha: &str) -> Option<usize> {
-    let (indice, resto) = indice_entre(linha, "Nos[")?;
-    resto.starts_with(BARRA).then_some(indice)
+    indice_de_atributo(linha, BARRA)
 }
 
 /// O `i` da linha inteira `Nos[i].acoes = Nos[i].acoes.concat('');`, servida
@@ -87,56 +110,45 @@ pub(super) fn concatenacao_vazia_da_barra(linha: &str) -> Option<usize> {
 
 /// `Ok(Some((i, texto)))` para a linha inteira `Nos[i].acoes = '<texto>';`;
 /// `Ok(None)` se a linha não atribui `.acoes` a um nó.
-pub(super) fn ler_barra(linha: &str) -> Result<Option<(usize, String)>, ErroArvore> {
-    let linha = linha.strip_suffix('\r').unwrap_or(linha);
-    let Some((indice, resto)) = indice_entre(linha, "Nos[") else {
-        return Ok(None);
-    };
-    let Some(resto) = resto.strip_prefix(BARRA) else {
-        return Ok(None);
-    };
-    let fora = ErroArvore::Html(ErroHtml::valor("barra_de_no_fora_da_forma_observada"));
-    match ler_literal(resto).map_err(|_| fora)? {
-        (Literal::Texto(texto), ";") => Ok(Some((indice, texto))),
-        _ => Err(fora),
+pub(super) fn ler_barra(linha: &str) -> Result<Option<(usize, HtmlServido)>, ErroArvore> {
+    match ler_atributo(
+        linha,
+        BARRA,
+        ErroArvore::BarraDeNoIlegivel,
+        ErroArvore::BarraDeNoForaDaFormaObservada,
+    )? {
+        Some((indice, texto)) => Ok(Some((indice, HtmlServido::novo(texto)?))),
+        None => Ok(None),
     }
 }
 
 /// O `i` de uma linha `Nos[i].src = …`, sem ler o resto.
 pub(super) fn indice_do_src(linha: &str) -> Option<usize> {
-    let (indice, resto) = indice_entre(linha, "Nos[")?;
-    resto.starts_with(SRC).then_some(indice)
+    indice_de_atributo(linha, SRC)
 }
 
 /// `Ok(Some((i, texto)))` para a linha inteira `Nos[i].src = '<texto>';`
 /// (o link do conteúdo do nó, Refs #60); `Ok(None)` se a linha não atribui
 /// `.src` a um nó.
 pub(super) fn ler_src(linha: &str) -> Result<Option<(usize, String)>, ErroArvore> {
-    let linha = linha.strip_suffix('\r').unwrap_or(linha);
-    let Some((indice, resto)) = indice_entre(linha, "Nos[") else {
-        return Ok(None);
-    };
-    let Some(resto) = resto.strip_prefix(SRC) else {
-        return Ok(None);
-    };
-    let fora = ErroArvore::Html(ErroHtml::valor("src_de_no_fora_da_forma_observada"));
-    match ler_literal(resto).map_err(|_| fora)? {
-        (Literal::Texto(texto), ";") => Ok(Some((indice, texto))),
-        _ => Err(fora),
-    }
+    ler_atributo(
+        linha,
+        SRC,
+        ErroArvore::SrcDeNoIlegivel,
+        ErroArvore::SrcDeNoForaDaFormaObservada,
+    )
 }
 
 /// O `i` de uma linha `Nos[i].html = …`, sem ler o resto.
 pub(super) fn indice_do_html(linha: &str) -> Option<usize> {
-    let (indice, resto) = indice_entre(linha, "Nos[")?;
-    resto.starts_with(HTML_ANTES).then_some(indice)
+    indice_de_atributo(linha, HTML_ANTES)
 }
 
 /// `Ok(Some((i, texto)))` para `Nos[i].html = '<texto>';`, sozinha ou
 /// seguida da declaração seguinte (`';Nos[i+1] = new infraArvoreNo(…`, já
 /// conferida por [`ler_declaracao`]); `Ok(None)` se a linha não atribui
 /// `.html` a um nó.
-pub(super) fn ler_html(linha: &str) -> Result<Option<(usize, String)>, ErroArvore> {
+pub(super) fn ler_html(linha: &str) -> Result<Option<(usize, HtmlServido)>, ErroArvore> {
     let linha = linha.strip_suffix('\r').unwrap_or(linha);
     let Some((indice, resto)) = indice_entre(linha, "Nos[") else {
         return Ok(None);
@@ -144,14 +156,12 @@ pub(super) fn ler_html(linha: &str) -> Result<Option<(usize, String)>, ErroArvor
     let Some(resto) = resto.strip_prefix(HTML_ANTES) else {
         return Ok(None);
     };
-    let fora = ErroArvore::Html(ErroHtml::html(
-        "html_do_no_do_processo_fora_da_forma_observada",
-    ));
-    match ler_literal(resto).map_err(|_| fora)? {
+    let fora = || ErroArvore::HtmlDoNoDoProcessoForaDaFormaObservada;
+    match ler_literal(resto).map_err(|e| ErroArvore::HtmlDoNoDoProcessoIlegivel(Box::new(e)))? {
         (Literal::Texto(texto), depois) if depois == ";" || depois.starts_with(";Nos[") => {
-            Ok(Some((indice, texto)))
+            Ok(Some((indice, HtmlServido::novo(texto)?)))
         }
-        _ => Err(fora),
+        _ => Err(fora()),
     }
 }
 
@@ -163,14 +173,12 @@ pub(super) fn ler_protocolos(linha: &str) -> Result<Option<(usize, String)>, Err
     if !linha.starts_with("Pastas[") || !linha.contains(PROTOCOLOS) {
         return Ok(None);
     }
-    let fora = ErroArvore::Html(ErroHtml::valor(
-        "protocolos_da_pasta_fora_da_forma_observada",
-    ));
-    let (indice, resto) = indice_entre(linha, "Pastas[").ok_or(fora)?;
-    let resto = resto.strip_prefix(PROTOCOLOS).ok_or(fora)?;
-    match ler_literal(resto).map_err(|_| fora)? {
+    let fora = || ErroArvore::ProtocolosDaPastaForaDaFormaObservada;
+    let (indice, resto) = indice_entre(linha, "Pastas[").ok_or_else(fora)?;
+    let resto = resto.strip_prefix(PROTOCOLOS).ok_or_else(fora)?;
+    match ler_literal(resto).map_err(|e| ErroArvore::ProtocolosDaPastaIlegiveis(Box::new(e)))? {
         (Literal::Texto(texto), ";") => Ok(Some((indice, texto))),
-        _ => Err(fora),
+        _ => Err(fora()),
     }
 }
 
@@ -197,18 +205,23 @@ fn ler_argumentos(mut resto: &str) -> Result<(Vec<Literal>, &str), ErroArvore> {
     loop {
         let (literal, depois) = ler_literal(resto)?;
         argumentos.push(literal);
-        match depois.as_bytes().first() {
-            Some(b',') => resto = &depois[1..],
-            Some(b')') => return Ok((argumentos, &depois[1..])),
-            None => return Err(ErroHtml::valor("declaracao_de_no_fora_da_forma_observada").into()),
-            Some(_) => return Err(ErroArvore::ArgumentoDeNoNaoLiteral),
+        if let Some(seguinte) = depois.strip_prefix(',') {
+            resto = seguinte;
+        } else if let Some(seguinte) = depois.strip_prefix(')') {
+            return Ok((argumentos, seguinte));
+        } else if depois.is_empty() {
+            return Err(ErroArvore::DeclaracaoDeNoForaDaFormaObservada);
+        } else {
+            return Err(ErroArvore::ArgumentoDeNoNaoLiteral);
         }
     }
 }
 
 fn ler_literal(resto: &str) -> Result<(Literal, &str), ErroArvore> {
-    if let Some(&aspa @ (b'"' | b'\'')) = resto.as_bytes().first() {
-        return ler_texto(&resto[1..], char::from(aspa));
+    for aspa in ['"', '\''] {
+        if let Some(texto) = resto.strip_prefix(aspa) {
+            return ler_texto(texto, aspa);
+        }
     }
     let fim = resto.find([',', ')', ';']).unwrap_or(resto.len());
     let (palavra, depois) = resto.split_at(fim);
@@ -232,9 +245,9 @@ fn inteiro(palavra: &str) -> bool {
 fn ler_texto(resto: &str, aspa: char) -> Result<(Literal, &str), ErroArvore> {
     let mut texto = String::new();
     let mut caracteres = resto.char_indices();
-    while let Some((posicao, caractere)) = caracteres.next() {
+    while let Some((_, caractere)) = caracteres.next() {
         if caractere == aspa {
-            return Ok((Literal::Texto(texto), &resto[posicao + 1..]));
+            return Ok((Literal::Texto(texto), caracteres.as_str()));
         }
         if caractere != '\\' {
             texto.push(caractere);
@@ -246,7 +259,7 @@ fn ler_texto(resto: &str, aspa: char) -> Result<(Literal, &str), ErroArvore> {
             Some((_, 'n')) => '\n',
             Some((_, 'r')) => '\r',
             Some((_, 't')) => '\t',
-            Some(_) => return Err(ErroHtml::valor("escape_de_no_nao_reconhecido").into()),
+            Some(_) => return Err(ErroArvore::EscapeDeNoNaoReconhecido),
         };
         texto.push(escapado);
     }

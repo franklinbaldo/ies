@@ -9,13 +9,17 @@ implementation: partial
 
 # Relacionar processos (#258)
 
-**Prévia disponível; escrita implementada apenas no motor de testes sintéticos.**
-Na CLI, `--confirmar` para adição e remoção ainda é recusado após a leitura
-local da sessão e **antes de qualquer requisição**, até ensaio autorizado
-em treinamento. A prévia sem `--confirmar` permanece disponível.
+**Prévia disponível; confirmação E2E somente em TLS local sintético.**
+Na CLI de distribuição, `--confirmar` para adição e remoção continua recusado
+após a leitura local da sessão e **antes de qualquer requisição**.
+Para provar BDD-258-02/03/04 sem escrita externa, somente a compilação
+**debug** com origem exata `https://sei.test/sei` (domínio reservado)
+exercita a confirmação contra anti-IES/SQLite via proxy TLS loopback.
+Essa exceção de teste não libera produção ou treinamento. A prévia sem
+`--confirmar` permanece disponível.
 Uma relação já existente é `sem_efeito` sem escrita. O aceite do POST
 mutador deve ser explícito e a leitura independente precisa comprovar
-o estado pretendido; caso contrário, saída 3, sem repetição.
+o estado pretendido; caso contrário, saída 1, sem repetição.
 
 Abertura com a unidade da sessão exigida: a barra do nó PROCESSO fornece
 procedimento_relacionar como URL assinada. GET da tela de relacionamentos,
@@ -57,19 +61,19 @@ relacionamento.
 acaoRemover('id'); na mesma linha. Sem relacionamento, sem_efeito true.
 Orçamento: abertura + 1 GET da tela, sem POST.
 
-**Adição (fluxo interno WIP, bloqueado na CLI):** o IES submete o formulário observado via botão
+**Adição (motor WIP, E2E somente em debug com origem .test):** o IES submete o formulário observado via botão
 `sbmAdicionar`, com `txtProtocolo`, `txtIdentificacaoProtocolo` e
 `hdnIdProtocolo` obtidos do XML de consulta. Um único POST mutador
 é seguido de uma GET independente, que deve localizar exatamente o id
 e o NUP de destino na tabela. Aceita somente 302 de retorno à ação
 `procedimento_relacionar`, com `resultado=1`; um HTTP 200 genérico,
 403, transporte falho, 302 divergente ou vínculo ausente na releitura
-resulta em `efeito_incerto`, saída 3. Orçamento sintético a frio:
+resulta em `FalhaRelacionar::NaoConfirmado`, saída 1. Orçamento sintético a frio:
 **4 GET + 1 POST de consulta + 1 POST modificador + 1 GET**.
 O sinal 302 e os campos usados provêm da tela PEN1 e do oráculo Todos,
 sem alegação de validação ao vivo nas demais instalações.
 
-**Remoção (fluxo interno WIP, bloqueado na CLI):** um único POST com `hdnInfraItemId` do vínculo
+**Remoção (motor WIP, E2E somente em debug com origem .test):** um único POST com `hdnInfraItemId` do vínculo
 identificado, action `procedimento_excluir_relacionamento` extraída do
 `acaoRemover(id)` ativo e conferida pelo primitivo de formulário. O POST
 precisa devolver 302 sem seguir o redirecionamento, para a própria tela
@@ -77,7 +81,7 @@ precisa devolver 302 sem seguir o redirecionamento, para a própria tela
 deve constatar a ausência do vínculo. Orçamento sintético a frio:
 **4 GET + 1 POST mutador + 1 GET de verificação**. Se o envio falhar,
 retornar 200 genérico, 302 inválido ou a releitura não comprovar a remoção,
-o efeito é **incerto, saída 3, sem retry**, preservando o status HTTP quando
+o efeito é **incerto, saída 1, sem retry**, preservando o status HTTP quando
 conhecido. Mesmo a ausência da linha depois de falha do POST não comprova
 o nosso envio (possível alteração concorrente).
 
@@ -87,7 +91,7 @@ Campos de sucesso JSON: `nup`, `id_procedimento`, `destino`, `id_destino`
 `requisicoes`. Os três indicadores decorrem de um único estado de domínio:
 prévia, sem efeito ou confirmação conferida. Nunca expor URL, `infra_hash`,
 cookie, senha ou argumento secreto. Saídas: 0 prévia/sem efeito/confirmado,
-1 recusa pré-envio, 2 uso inválido, 3 efeito incerto após envio.
+1 recusa pré-envio, 2 uso inválido, 3 escrita não confirmada após envio.
 
 ## Evidência
 
@@ -110,22 +114,21 @@ cookie, senha ou argumento secreto. Saídas: 0 prévia/sem efeito/confirmado,
 
 ## Subcódigos tipados da fatia
 
-| Subcódigo | Condição observável ou regra |
+| Erro (stderr) | Condição observável ou regra |
 | --- | --- |
-| `relacionar_nao_publicado_na_barra` | A barra do processo não publica `procedimento_relacionar` |
-| `links_de_relacionar_repetidos_na_barra` | Mais de um link de relacionar na barra do nó PROCESSO |
-| `endereco_de_relacionar_nao_reconhecido` | O link da barra não tem a forma observada de `procedimento_relacionar` |
-| `endereco_de_relacionar_de_outro_processo` | O link da barra aponta para outro `id_procedimento` |
-| `tela_de_relacionamentos_redirecionada` | O GET da tela de relacionamentos respondeu com redirecionamento |
-| `relacionamento_consigo_mesmo` | O destino informado é o próprio processo |
-| `remocao_de_relacionamento_nao_oferecida` | A linha do relacionamento existe, mas não traz `acaoRemover('id')` |
-| `destino_da_consulta_diverge_do_pedido` | O XML identificou protocolo que não equivale ao pedido completo (letras e números) |
-| `resposta_da_consulta_nao_xml` | A consulta retornou resposta HTTP 200 com mídia diferente de XML |
-| `acao_excluir_relacionamento_nao_declarada` | Handler `acaoRemover` não prova action única com campo e submit |
-| `id_da_origem_na_action_ausente` | Link de origem não oferece id para conferir a action |
-| `action_de_remocao_de_outro_processo` | Script de remoção aponta para outro processo |
-| `confirmacao_de_relacionamento_nao_validada` | `--confirmar` recusado na CLI antes da rede até ensaio de treinamento; prévia segue disponível |
-| `efeito_incerto` | POST mutador feito ou aceito, mas não comprovou causalmente o efeito; saída 3 |
+| `FalhaRelacionar::LinkNaoPublicado` | A barra do processo não publica `procedimento_relacionar` |
+| `ErroRelacionarNaBarra::LinksDeRelacionarRepetidosNaBarra` | Mais de um link de relacionar na barra do nó PROCESSO |
+| `ErroRelacionarNaBarra::EnderecoDeRelacionarNaoReconhecido` | O link da barra não tem a forma observada de `procedimento_relacionar` |
+| `ErroRelacionarNaBarra::EnderecoDeOutroProcesso` | O link da barra aponta para outro `id_procedimento` |
+| `FalhaRelacionar::TelaRedirecionada` | O GET da tela de relacionamentos respondeu com redirecionamento |
+| `RelacionamentoConsigoMesmo` | O destino informado é o próprio processo |
+| `FalhaRelacionar::RemocaoNaoOferecida` | A linha do relacionamento existe, mas não traz `acaoRemover('id')` |
+| `FalhaRelacionar::DestinoDaConsultaDivergente` | O XML identificou protocolo que não equivale ao pedido completo (letras e números) |
+| `FalhaRelacionar::ConsultaNaoXml` | A consulta retornou resposta HTTP 200 com mídia diferente de XML |
+| `FalhaRelacionar::AcaoExcluirRelacionamentoNaoDeclarada` | Handler `acaoRemover` não prova action única com campo e submit |
+| `FalhaRelacionar::IdDaOrigemNaActionAusente` | Link de origem não oferece id para conferir a action |
+| `FalhaRelacionar::ActionDeRemocaoDeOutroProcesso` | Script de remoção aponta para outro processo |
+| `NaoConfirmado` | POST mutador feito ou aceito, mas não comprovou causalmente o efeito; saída 1 |
 
 Outros subcódigos já definidos pelo transporte, abertura e primitivo de
 formulário conservam sua identidade. Recusas não autorizam retry.

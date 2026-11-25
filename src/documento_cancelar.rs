@@ -1,35 +1,34 @@
 //! Cancelamento Web de documento (#273): link do nó DOCUMENTO e motivo.
 //! Deriva endereços somente de âncoras servidas; nunca executa JavaScript.
+use crate::acao_do_sei::AcaoDoSei;
 use crate::arvore_processo::barra_do_no;
 use crate::arvore_processo::endereco::{EnderecoRecusado, conferir_endereco_relativo_por};
-use crate::formulario_web::decodificar_atributo;
-use crate::html_atributos::atributos;
+use crate::consulta_do_controlador::menciona_acao;
 use crate::instalacao::Instalacao;
 
+#[cfg(test)]
+mod acervo;
 mod erro;
 mod fluxo;
 #[cfg(test)]
+pub(crate) use fluxo::localizacao_aceita as aceite_302;
+#[cfg(test)]
 mod tests_fluxo;
 
+#[cfg(test)]
 pub(crate) use erro::{ErroCancelar, FalhaDoCancelamento};
+#[cfg(test)]
+pub(crate) use fluxo::ResultadoDaVerificacao;
 pub(crate) use fluxo::{DocumentoCancelado, PedidoDoCancelamento, cancelar_documento};
 
-#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+#[derive(Clone, Debug, PartialEq, Eq, thiserror::Error)]
+#[error("{self:?}")]
 pub(crate) enum ErroLinkCancelar {
-    BarraForaDaForma,
+    /// A barra do documento não pôde ser lida do HTML da tela.
+    BarraDoDocumentoIlegivel(#[source] crate::arvore_processo::ErroBarraDoDocumento),
     LinksRepetidos,
     EnderecoNaoReconhecido,
     EnderecoDeOutroDocumento,
-}
-impl ErroLinkCancelar {
-    pub(crate) fn subcodigo(self) -> &'static str {
-        match self {
-            Self::BarraForaDaForma => "barra_do_cancelamento_fora_da_forma",
-            Self::LinksRepetidos => "links_de_cancelamento_repetidos",
-            Self::EnderecoNaoReconhecido => "endereco_de_cancelamento_nao_reconhecido",
-            Self::EnderecoDeOutroDocumento => "endereco_de_cancelamento_de_outro_documento",
-        }
-    }
 }
 
 /// Um link assinado validado; Debug nunca revela a URL.
@@ -53,42 +52,35 @@ pub(crate) fn ler_link_cancelar(
     documento: &str,
     processo: &str,
 ) -> Result<Option<LinkDeCancelamento>, ErroLinkCancelar> {
-    use ErroLinkCancelar as E;
-    let Some(barra) = barra_do_no(html, documento).map_err(|_| E::BarraForaDaForma)? else {
+    let Some(barra) =
+        barra_do_no(html, documento).map_err(ErroLinkCancelar::BarraDoDocumentoIlegivel)?
+    else {
         return Ok(None);
     };
-    let dom = tl::parse(&barra, tl::ParserOptions::default()).map_err(|_| E::BarraForaDaForma)?;
-    let parser = dom.parser();
+    let dom = crate::tela_html::arvore(&barra);
     let mut links = Vec::new();
-    for no in dom.query_selector("a").into_iter().flatten() {
-        let Some(tag) = no.get(parser).and_then(tl::Node::as_tag) else {
+    for no in dom.elementos("a") {
+        let Some(bruto) = no.atributo("href") else {
             continue;
         };
-        let attrs = atributos(tag).map_err(|_| E::BarraForaDaForma)?;
-        let Some(bruto) = attrs.valor("href").map_err(|_| E::BarraForaDaForma)? else {
-            continue;
-        };
-        let href = decodificar_atributo(bruto).ok_or(E::BarraForaDaForma)?;
-        let acao = href
-            .split_once('?')
-            .and_then(|(_, query)| query.split('&').find_map(|p| p.strip_prefix("acao=")));
-        if acao == Some("documento_cancelar") {
+        let href = bruto.to_owned();
+        if menciona_acao(&href, AcaoDoSei::DocumentoCancelar) {
             links.push(href);
         }
     }
     let href = match links.as_slice() {
         [] => return Ok(None),
         [unico] => unico,
-        _ => return Err(E::LinksRepetidos),
+        _ => return Err(ErroLinkCancelar::LinksRepetidos),
     };
     let mapear = |r| match r {
-        EnderecoRecusado::NaoReconhecido => E::EnderecoNaoReconhecido,
-        EnderecoRecusado::DeOutroProcesso => E::EnderecoDeOutroDocumento,
+        EnderecoRecusado::NaoReconhecido => ErroLinkCancelar::EnderecoNaoReconhecido,
+        EnderecoRecusado::DeOutroProcesso => ErroLinkCancelar::EnderecoDeOutroDocumento,
     };
     conferir_endereco_relativo_por(
         instalacao,
         href,
-        "documento_cancelar",
+        AcaoDoSei::DocumentoCancelar,
         "id_procedimento",
         processo,
     )
@@ -96,7 +88,7 @@ pub(crate) fn ler_link_cancelar(
     let url = conferir_endereco_relativo_por(
         instalacao,
         href,
-        "documento_cancelar",
+        AcaoDoSei::DocumentoCancelar,
         "id_documento",
         documento,
     )

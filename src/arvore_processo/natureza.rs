@@ -1,55 +1,83 @@
 //! Natureza de um `DOCUMENTO`: o ícone (a7 a a9) e o cancelamento (ícone
 //! `documento_cancelado` e dica a6 `Documento Cancelado: <motivo>`), Refs
 //! #59, contracts/cli/processo-obter-situacao.md. A dica sai quando difere
-//! do rótulo (em e-mails, data, remetente, destinatários e assunto).
-use super::Literal;
+//! do rótulo (em e-mails, data, remetente, destinatários e assunto). Ícone
+//! fora da forma e cancelamento com uma só marca são erros tipados da
+//! leitura (Refs #749): a árvore não é publicada com estado presumido.
+use super::{ErroArvore, Literal};
 
 const ICONE_CANCELADO: &str = "documento_cancelado";
 const DICA_CANCELADO: &str = "Documento Cancelado:";
 
-/// `icone`: radical opaco de `svg/<radical>.svg`; `cancelado`: `None` com
-/// só uma das duas marcas ou sem ícone lido.
+/// `icone`: radical opaco de `svg/<radical>.svg`; `cancelamento`: o estado
+/// lido, em que o motivo só existe com o documento cancelado.
 #[derive(Clone, Debug, PartialEq, Eq)]
 pub(crate) struct NaturezaDoDocumento {
-    pub(crate) icone: Option<String>,
-    pub(crate) cancelado: Option<bool>,
-    pub(crate) motivo_do_cancelamento: Option<String>,
+    pub(crate) icone: String,
+    pub(crate) cancelamento: Cancelamento,
     /// a6 decodificada quando difere do rótulo (a5); `None` quando igual.
     pub(crate) dica: Option<String>,
 }
 
-/// Lê a6 a a9 de um `DOCUMENTO` já com a aridade conferida; forma
-/// desconhecida é `None`, nunca recusa.
-pub(super) fn ler_natureza(a: &[Literal; super::ARGUMENTOS]) -> NaturezaDoDocumento {
+/// Cancelamento lido: as duas marcas (ícone e dica) ou nenhuma.
+#[derive(Clone, Debug, PartialEq, Eq)]
+pub(crate) enum Cancelamento {
+    Ativo,
+    /// As duas marcas lidas: o ícone e a dica com o motivo.
+    Cancelado {
+        motivo: String,
+    },
+}
+
+impl Cancelamento {
+    pub(crate) fn cancelado(&self) -> bool {
+        matches!(self, Self::Cancelado { .. })
+    }
+
+    pub(crate) fn motivo(&self) -> Option<&str> {
+        match self {
+            Self::Cancelado { motivo } => Some(motivo),
+            Self::Ativo => None,
+        }
+    }
+}
+
+/// Lê a6 a a9 de um `DOCUMENTO` já com a aridade conferida. Ícone fora da
+/// forma observada ou cancelamento com uma só marca é recusa tipada.
+pub(super) fn ler_natureza(
+    a: &[Literal; super::ARGUMENTOS],
+) -> Result<NaturezaDoDocumento, ErroArvore> {
     let icone = match (&a[7], &a[8], &a[9]) {
         (Literal::Texto(a7), Literal::Texto(a8), Literal::Texto(a9)) if a7 == a8 && a8 == a9 => {
             radical(a7)
         }
         _ => None,
-    };
+    }
+    .ok_or(ErroArvore::IconeDoDocumentoForaDaFormaObservada)?;
     let motivo = match &a[6] {
         // Retire apenas o separador visual depois de ':'; o motivo é opaco.
         // `trim()` perderia espaços do usuário e tornaria a releitura incerta.
         Literal::Texto(dica) => dica
             .strip_prefix(DICA_CANCELADO)
             .map(|resto| resto.strip_prefix(' ').unwrap_or(resto)),
-        _ => None,
+        Literal::Nulo | Literal::Booleano(_) | Literal::Inteiro(_) => None,
     };
-    let (cancelado, motivo_do_cancelamento) = match (icone.as_deref(), motivo) {
-        (Some(ICONE_CANCELADO), Some(motivo)) => (Some(true), Some(motivo.to_owned())),
-        (Some(_), None) if icone.as_deref() != Some(ICONE_CANCELADO) => (Some(false), None),
-        // Sem ícone lido, ou só uma das duas marcas: não observado.
-        _ => (None, None),
+    let cancelamento = match (icone.as_str(), motivo) {
+        (ICONE_CANCELADO, Some(motivo)) => Cancelamento::Cancelado {
+            motivo: motivo.to_owned(),
+        },
+        (ICONE_CANCELADO, None) => return Err(ErroArvore::IconeDeCancelamentoSemMotivoNaDica),
+        (_, Some(_)) => return Err(ErroArvore::DicaDeCancelamentoSemIconeDeCancelado),
+        (_, None) => Cancelamento::Ativo,
     };
-    NaturezaDoDocumento {
+    Ok(NaturezaDoDocumento {
         icone,
-        cancelado,
-        motivo_do_cancelamento,
+        cancelamento,
         dica: match (&a[5], &a[6]) {
             (Literal::Texto(rotulo), Literal::Texto(dica)) if dica != rotulo => Some(dica.clone()),
             _ => None,
         },
-    }
+    })
 }
 
 /// `svg/<radical>.svg`, com ou sem `?<decimal>`; radical de minúsculas

@@ -4,6 +4,10 @@ use std::path::Path;
 use std::process::Command;
 use std::time::{SystemTime, UNIX_EPOCH};
 
+#[path = "support/falha.rs"]
+mod falha_cli;
+use falha_cli::falha;
+
 fn arquivo_html_privado(destino: &Path) {
     let html = "<html><head><title>SEI/UnB - 0007 - Ofício</title></head>\
                 <body><svg><title>Ícone do SEI</title></svg>\
@@ -49,7 +53,7 @@ fn cli_exporta_privado_sem_vazar_texto_e_recusa_sobrescrita_ou_outro_numero() {
     assert_eq!(resposta["documento"]["numero"], "0007");
     assert_eq!(resposta["escopo"], "html_privado_texto_exportado_offline");
     assert_eq!(resposta["autenticacao_remota"], false);
-    assert!(resposta["versao_atual"].is_null());
+    assert!(resposta.get("versao_atual").is_none());
     assert!(resposta.get("texto").is_none());
     assert!(!String::from_utf8_lossy(&primeiro.stdout).contains("Texto privado"));
     assert_eq!(primeiro.stderr, Vec::<u8>::new());
@@ -73,15 +77,13 @@ fn cli_exporta_privado_sem_vazar_texto_e_recusa_sobrescrita_ou_outro_numero() {
     }
 
     let repetido = executar("0007", &fonte, &pasta);
-    assert_eq!(repetido.status.code(), Some(1));
-    let erro: serde_json::Value = serde_json::from_slice(&repetido.stdout).unwrap();
-    assert_eq!(erro["subcodigo"], "arquivo_texto_documento_ja_existe");
+    falha(&repetido, "Exportacao");
+    assert!(!String::from_utf8_lossy(&repetido.stderr).contains("Texto privado"));
     assert_eq!(fs::read_to_string(pasta.join("0007.txt")).unwrap(), texto);
 
     let outro = executar("7", &fonte, &pasta);
-    assert_eq!(outro.status.code(), Some(1));
-    let erro: serde_json::Value = serde_json::from_slice(&outro.stdout).unwrap();
-    assert_eq!(erro["subcodigo"], "numero_do_html_diferente_do_solicitado");
+    falha(&outro, "NumeroDiferenteDoSolicitado");
+    assert!(!String::from_utf8_lossy(&outro.stderr).contains("Texto privado"));
     assert!(!pasta.join("7.txt").exists());
     fs::remove_dir_all(raiz).unwrap();
 }

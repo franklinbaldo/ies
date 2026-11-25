@@ -1,0 +1,14 @@
+id: 07-tag-opcao
+language: rust
+message: 'Resto: o handle resolvido vira Some do elemento.'
+severity: hint
+rule:
+  pattern: $H.get($P).and_then(tl::Node::as_tag)
+  not:
+    inside:
+      stopBy: end
+      kind: mod_item
+      follows:
+        kind: attribute_item
+        regex: 'cfg\(test\)'
+fix: 'Some($H)'

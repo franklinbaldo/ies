@@ -17,6 +17,7 @@ use crate::formulario_web::RespostaDoPost;
 use crate::instalacao::Instalacao;
 use crate::processo_concluir::FalhaDoEnvio;
 use crate::processo_concluir::escrita::resposta_da_funcao;
+use crate::tela_html::HtmlServido;
 use crate::transporte::RespostaWeb;
 use std::collections::BTreeMap;
 use std::fmt::Write as _;
@@ -49,7 +50,7 @@ fn barra(
 ) -> String {
     let oferece = match ler_reabrir_da_barra(inst, html, id) {
         Ok(oferece) => oferece.is_some(),
-        Err(erro) => return format!("`{}`", crate::erro_publico::folha(&erro)),
+        Err(erro) => return format!("`{erro:?}`"),
     };
     let (Some(u), Some(l)) = (unidade, lida) else {
         let barra = if oferece { "oferece" } else { "não oferece" };
@@ -64,21 +65,21 @@ fn barra(
     }
 }
 
-fn resposta(item: &serde_json::Value, status: u64) -> String {
-    let corpo = gravacao::corpo(item);
+fn resposta(interacao: &serde_json::Value, status: u64) -> String {
+    let corpo = gravacao::corpo(interacao);
     let resposta = RespostaDoPost {
         resposta: RespostaWeb {
             status_code: i32::try_from(status).unwrap_or(0),
-            mime: gravacao::mime(item),
+            mime: gravacao::mime(interacao),
             content_length: Some(corpo.len()),
             localizacao: None,
             corpo: Cursor::new(corpo),
         },
-        localizacao: gravacao::localizacao(item).map(str::to_owned),
+        localizacao: gravacao::localizacao(interacao).map(str::to_owned),
     };
     match resposta_da_funcao(resposta, FalhaDoEnvio::RedirecionamentoNaReabertura) {
         None => "HTML 200 esperado".into(),
-        Some(falha) => format!("`{}`", falha.subcodigo()),
+        Some(falha) => format!("`{falha:?}`"),
     }
 }
 
@@ -99,15 +100,15 @@ fn replay_de_processo_reabrir_no_acervo() {
         let mut aberto_em: BTreeMap<String, Option<Vec<String>>> = BTreeMap::new();
         let mut escrita: Option<Escrita> = None;
         for r in gravacao::respostas(json) {
-            let id = gravacao::id_procedimento(r.item)
-                .or_else(|| gravacao::id_da_pesquisa_rapida(r.item))
+            let id = gravacao::id_procedimento(r.interacao)
+                .or_else(|| gravacao::id_da_pesquisa_rapida(r.interacao))
                 .unwrap_or_default();
-            let html = || html_da_resposta(r.item).ok();
+            let html = || html_da_resposta(r.interacao).ok();
             match (r.operacao, r.metodo, r.status) {
                 ("procedimento_trabalhar", "GET", 200) => {
-                    if let Some(tela) =
-                        html().and_then(|h| ler_tela_do_processo(&inst, &h, &id, None).ok())
-                    {
+                    if let Some(tela) = html().and_then(|h| {
+                        ler_tela_do_processo(&inst, &HtmlServido::de_teste(&h), &id, None).ok()
+                    }) {
                         unidade = Some(tela.unidade);
                     }
                 }
@@ -137,7 +138,7 @@ fn replay_de_processo_reabrir_no_acervo() {
                     let Some(h) = html() else { continue };
                     let classe = match ler_endereco_de_reabrir(&inst, &h, &id) {
                         Ok((_, forma)) => format!("`{}`", forma.como_texto()),
-                        Err(erro) => format!("`{}`", crate::erro_publico::folha(&erro)),
+                        Err(erro) => format!("`{erro:?}`"),
                     };
                     somar(&mut contagem, "URL na tela do nó", classe, nome);
                 }
@@ -145,7 +146,7 @@ fn replay_de_processo_reabrir_no_acervo() {
                     somar(
                         &mut contagem,
                         "resposta da escrita",
-                        resposta(r.item, status),
+                        resposta(r.interacao, status),
                         nome,
                     );
                     let antes = aberto_em.get(&id).cloned().flatten();

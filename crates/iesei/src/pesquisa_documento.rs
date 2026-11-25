@@ -9,15 +9,11 @@ pub enum Resultado {
     SemResultado,
 }
 
-#[derive(Debug)]
-pub enum Falha {
-    Sqlite(rusqlite::Error),
+#[derive(Debug, thiserror::Error)]
+#[error("{self:?}")]
+pub enum ErroPesquisaDocumento {
+    Sqlite(#[from] rusqlite::Error),
     EntradaInvalida,
-}
-impl From<rusqlite::Error> for Falha {
-    fn from(erro: rusqlite::Error) -> Self {
-        Self::Sqlite(erro)
-    }
 }
 
 fn valido(cenario: &str, termo: &str) -> bool {
@@ -34,9 +30,9 @@ pub fn registrar_sem_resultado(
     cenario: &str,
     unidade: &UnidadeExibida,
     termo: &str,
-) -> Result<(), Falha> {
+) -> Result<(), ErroPesquisaDocumento> {
     if !valido(cenario, termo) {
-        return Err(Falha::EntradaInvalida);
+        return Err(ErroPesquisaDocumento::EntradaInvalida);
     }
     banco.execute(
         "INSERT INTO pesquisa_documento_sem_resultado
@@ -57,9 +53,9 @@ pub fn consultar(
     cenario: &str,
     unidade: &UnidadeExibida,
     termo: &str,
-) -> Result<Option<Resultado>, Falha> {
+) -> Result<Option<Resultado>, ErroPesquisaDocumento> {
     if !valido(cenario, termo) {
-        return Err(Falha::EntradaInvalida);
+        return Err(ErroPesquisaDocumento::EntradaInvalida);
     }
     let achado: Option<i64> = banco
         .query_row(
@@ -154,8 +150,8 @@ fn validar_pagina(pagina: &PaginaObservada) -> bool {
         })
 }
 
-fn inteiro(numero: u64) -> Result<i64, Falha> {
-    i64::try_from(numero).map_err(|_| Falha::EntradaInvalida)
+fn inteiro(numero: u64) -> Result<i64, ErroPesquisaDocumento> {
+    i64::try_from(numero).map_err(|_| ErroPesquisaDocumento::EntradaInvalida)
 }
 
 /// Persiste a página e suas linhas como uma observação substituível, atômica
@@ -170,9 +166,9 @@ pub fn registrar_pagina(
     unidade: &UnidadeExibida,
     termo: &str,
     pagina: &PaginaObservada,
-) -> Result<(), Falha> {
+) -> Result<(), ErroPesquisaDocumento> {
     if !valido(cenario, termo) || !validar_pagina(pagina) {
-        return Err(Falha::EntradaInvalida);
+        return Err(ErroPesquisaDocumento::EntradaInvalida);
     }
     let origem = instalacao.url_base();
     let numero = i64::from(pagina.pagina);
@@ -214,7 +210,7 @@ pub fn registrar_pagina(
                 unidade.as_str(),
                 termo,
                 numero,
-                i64::try_from(indice).map_err(|_| Falha::EntradaInvalida)?,
+                i64::try_from(indice).map_err(|_| ErroPesquisaDocumento::EntradaInvalida)?,
                 linha.id_documento,
                 linha.rotulo,
                 linha.unidade,
@@ -238,9 +234,9 @@ pub fn consultar_pagina(
     unidade: &UnidadeExibida,
     termo: &str,
     numero: u32,
-) -> Result<Option<PaginaObservada>, Falha> {
+) -> Result<Option<PaginaObservada>, ErroPesquisaDocumento> {
     if !valido(cenario, termo) || numero == 0 {
-        return Err(Falha::EntradaInvalida);
+        return Err(ErroPesquisaDocumento::EntradaInvalida);
     }
     let origem = instalacao.url_base();
     let dados: Option<(i64, i64, i64)> = banco
@@ -275,13 +271,14 @@ pub fn consultar_pagina(
     let linhas = registros.collect::<rusqlite::Result<Vec<_>>>()?;
     let pagina = PaginaObservada {
         pagina: numero,
-        inicio: u64::try_from(inicio).map_err(|_| Falha::EntradaInvalida)?,
-        fim: u64::try_from(fim).map_err(|_| Falha::EntradaInvalida)?,
-        total_declarado: u64::try_from(total).map_err(|_| Falha::EntradaInvalida)?,
+        inicio: u64::try_from(inicio).map_err(|_| ErroPesquisaDocumento::EntradaInvalida)?,
+        fim: u64::try_from(fim).map_err(|_| ErroPesquisaDocumento::EntradaInvalida)?,
+        total_declarado: u64::try_from(total)
+            .map_err(|_| ErroPesquisaDocumento::EntradaInvalida)?,
         linhas,
     };
     if !validar_pagina(&pagina) {
-        return Err(Falha::EntradaInvalida);
+        return Err(ErroPesquisaDocumento::EntradaInvalida);
     }
     Ok(Some(pagina))
 }
@@ -298,8 +295,12 @@ pub fn consultar_por_inicio(
     unidade: &UnidadeExibida,
     termo: &str,
     deslocamento: u64,
-) -> Result<Option<PaginaObservada>, Falha> {
-    let inicio = inteiro(deslocamento.checked_add(1).ok_or(Falha::EntradaInvalida)?)?;
+) -> Result<Option<PaginaObservada>, ErroPesquisaDocumento> {
+    let inicio = inteiro(
+        deslocamento
+            .checked_add(1)
+            .ok_or(ErroPesquisaDocumento::EntradaInvalida)?,
+    )?;
     let numero: Option<i64> = banco
         .query_row(
             "SELECT pagina FROM pesquisa_documento_pagina
@@ -316,9 +317,9 @@ pub fn consultar_por_inicio(
         .optional()?;
     numero
         .map(|n| {
-            let n = u32::try_from(n).map_err(|_| Falha::EntradaInvalida)?;
+            let n = u32::try_from(n).map_err(|_| ErroPesquisaDocumento::EntradaInvalida)?;
             consultar_pagina(banco, instalacao, cenario, unidade, termo, n)?
-                .ok_or(Falha::EntradaInvalida)
+                .ok_or(ErroPesquisaDocumento::EntradaInvalida)
         })
         .transpose()
 }

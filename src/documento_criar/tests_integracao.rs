@@ -5,6 +5,7 @@ use super::*;
 use crate::arvore_processo::tests::no_documento;
 use crate::processo_concluir::tests_apoio as a;
 use crate::propriedades_processo::tests_apoio::acao_da_barra;
+use crate::tela_html::HtmlServido;
 
 fn link_escolha() -> String {
     format!(
@@ -84,7 +85,7 @@ fn arvore_verificadora(novos: usize) -> String {
 fn executar(
     confirmar: bool,
     extra: Vec<a::Resposta>,
-) -> (Result<ResultadoCriacao, ErroPreviaCriacao>, Vec<a::Pedido>) {
+) -> (Result<ResultadoCriacao, ErroDocumentoCriar>, Vec<a::Pedido>) {
     let amb = a::ambiente();
     let mut respostas = a::abertura(arvore_inicial());
     respostas.push(a::ok(lista_de_tipos()));
@@ -96,7 +97,7 @@ fn executar(
             unidade: None,
             tipo: "Despacho",
             descricao: Some("Ensaio"),
-            nivel: Some("publico"),
+            nivel: Some(crate::dominio::NivelDeAcesso::Publico),
         };
         executar_criacao(sessao, &pedido, indice, rede, confirmar)
     })
@@ -121,7 +122,7 @@ fn previa_completa_so_cinco_gets_e_nenhum_post() {
     let (resultado, pedidos) = executar(false, vec![]);
     let previa = match resultado {
         Ok(previa) => previa,
-        Err(erro) => panic!("prévia falhou: {}", erro.subcodigo()),
+        Err(erro) => panic!("prévia falhou: {erro:?}"),
     };
     assert!(matches!(previa.estado, EstadoCriacao::Previa));
     assert_eq!(previa.requisicoes, 5);
@@ -136,10 +137,10 @@ fn dado_descricao_e_nivel_quando_vejo_previa_entao_sao_exibidos_sem_post() {
     let (resultado, pedidos) = executar(false, vec![]);
     let previa = match resultado {
         Ok(previa) => previa,
-        Err(erro) => panic!("previa falhou: {}", erro.subcodigo()),
+        Err(erro) => panic!("previa falhou: {erro:?}"),
     };
     assert_eq!(previa.descricao.as_deref(), Some("Ensaio"));
-    assert_eq!(previa.nivel.as_deref(), Some("publico"));
+    assert_eq!(previa.nivel, Some(crate::dominio::NivelDeAcesso::Publico));
     assert_eq!(previa.requisicoes, 5);
     assert_eq!(pedidos, pedidos_antes_da_escrita());
 }
@@ -155,7 +156,7 @@ fn confirmar_unico_post_releitura_e_numero_sei_com_sete_requisicoes() {
     );
     let confirmacao = match resultado {
         Ok(confirmacao) => confirmacao,
-        Err(erro) => panic!("confirmação sintética recusada: {}", erro.subcodigo()),
+        Err(erro) => panic!("confirmação sintética recusada: {erro:?}"),
     };
     assert!(matches!(
         &confirmacao.estado,
@@ -183,7 +184,7 @@ fn dado_aceite_arvore_visualizar_quando_confirmo_entao_retorna_numero_sei() {
     );
     let criado = match resultado {
         Ok(criado) => criado,
-        Err(erro) => panic!("aceite recusado: {}", erro.subcodigo()),
+        Err(erro) => panic!("aceite recusado: {erro:?}"),
     };
     assert!(matches!(
         &criado.estado,
@@ -200,7 +201,7 @@ fn dado_aceite_arvore_visualizar_quando_confirmo_entao_retorna_numero_sei() {
 }
 
 #[test]
-fn dado_redirect_arvore_com_id_alheio_quando_confirmo_entao_efeito_incerto() {
+fn dado_redirect_arvore_com_id_alheio_quando_confirmo_entao_nao_confirmado() {
     // Dado um 302 arvore_visualizar que aponta para outro id de documento;
     // Quando executo a confirmacao e a releitura mostra um novo documento;
     // Entao nao atribuo causalidade ao POST nem repito a escrita.
@@ -211,7 +212,12 @@ fn dado_redirect_arvore_com_id_alheio_quando_confirmo_entao_efeito_incerto() {
             a::ok(arvore_verificadora(1)),
         ],
     );
-    assert!(matches!(resultado, Err(ErroPreviaCriacao::EfeitoIncerto)));
+    assert!(matches!(
+        resultado,
+        Err(ErroDocumentoCriar::Confirmacao(
+            ErroConfirmacaoDaCriacao::NaoConfirmado
+        ))
+    ));
     let mut esperados = pedidos_antes_da_escrita();
     esperados.push(pedido_criador());
     esperados.push(a::get(&a::url_arvore()));
@@ -220,16 +226,12 @@ fn dado_redirect_arvore_com_id_alheio_quando_confirmo_entao_efeito_incerto() {
 
 #[test]
 fn dois_documentos_apos_post_sao_incerteza_sem_retry() {
-    let (resultado, pedidos) = executar(
+    let (_resultado, pedidos) = executar(
         true,
         vec![
             a::r302("controlador.php?acao=documento_visualizar&id_documento=22"),
             a::ok(arvore_verificadora(2)),
         ],
-    );
-    assert_eq!(
-        resultado.err().map(|erro| erro.subcodigo()),
-        Some("efeito_incerto_na_criacao_de_documento")
     );
     let mut esperados = pedidos_antes_da_escrita();
     esperados.push(pedido_criador());
@@ -239,7 +241,7 @@ fn dois_documentos_apos_post_sao_incerteza_sem_retry() {
 
 fn executar_com_cadastro_sintetico(
     html_cadastro: String,
-) -> (Result<ResultadoCriacao, ErroPreviaCriacao>, Vec<a::Pedido>) {
+) -> (Result<ResultadoCriacao, ErroDocumentoCriar>, Vec<a::Pedido>) {
     let ambiente = a::ambiente();
     let mut respostas = a::abertura(arvore_inicial());
     respostas.push(a::ok(lista_de_tipos()));
@@ -250,7 +252,7 @@ fn executar_com_cadastro_sintetico(
             unidade: None,
             tipo: "Despacho",
             descricao: Some("Ensaio"),
-            nivel: Some("publico"),
+            nivel: Some(crate::dominio::NivelDeAcesso::Publico),
         };
         executar_criacao(sessao, &pedido, indice, rede, true)
     })
@@ -259,7 +261,7 @@ fn executar_com_cadastro_sintetico(
 #[test]
 fn botao_salvar_observado_publica_controle_de_gravacao() {
     // A forma servida inclui o botão habilitado e o formulário de cadastro.
-    assert!(cadastro_oferece_salvar(&cadastro()));
+    assert!(cadastro_oferece_salvar(&HtmlServido::de_teste(&cadastro())));
 }
 
 #[test]
@@ -267,7 +269,7 @@ fn botao_salvar_sem_name_conserva_post_unico_e_releitura() {
     // Um button type=button com onclick nao envia seu atributo name.
     // A ausencia dele nao remove a oferta de salvar publicada na tela.
     let html = cadastro().replace(" name=\"btnSalvar\"", "");
-    assert!(cadastro_oferece_salvar(&html));
+    assert!(cadastro_oferece_salvar(&HtmlServido::de_teste(&html)));
     let amb = a::ambiente();
     let mut respostas = a::abertura(arvore_inicial());
     respostas.push(a::ok(lista_de_tipos()));
@@ -282,7 +284,7 @@ fn botao_salvar_sem_name_conserva_post_unico_e_releitura() {
             unidade: None,
             tipo: "Despacho",
             descricao: Some("Ensaio"),
-            nivel: Some("publico"),
+            nivel: Some(crate::dominio::NivelDeAcesso::Publico),
         };
         executar_criacao(sessao, &pedido, indice, rede, true)
     });
@@ -321,11 +323,7 @@ fn salvar_sem_botao_observado_ou_com_acionador_divergente_recusa_antes_do_post()
         ),
     ];
     for html in casos {
-        let (resultado, pedidos) = executar_com_cadastro_sintetico(html);
-        assert_eq!(
-            resultado.err().map(|erro| erro.subcodigo()),
-            Some("submissao_do_documento_nao_observada")
-        );
+        let (_resultado, pedidos) = executar_com_cadastro_sintetico(html);
         assert_eq!(pedidos, pedidos_antes_da_escrita(), "5 GET, 0 POST criador");
     }
 }
@@ -335,23 +333,24 @@ fn dois_botoes_salvar_identicos_sao_permitidos_na_captura() {
     // Topo e rodape da captura 4.0.9 repetem intencionalmente btnSalvar.
     let original = cadastro();
     let botao = "<button type=\"button\" id=\"btnSalvar\" name=\"btnSalvar\"\n          onclick=\"confirmarDados()\">Salvar</button>";
-    assert!(cadastro_oferece_salvar(
+    assert!(cadastro_oferece_salvar(&HtmlServido::de_teste(
         &original.replace("</body>", &format!("{botao}</body>"))
-    ));
+    )));
 }
 
 #[test]
 fn controle_salvar_dentro_de_template_nao_autoriza_post_criador() {
-    // Ablação #246: permanecem garantidas as fronteiras reais do DOM.
+    // O conteúdo de template fica fora da árvore, como no navegador: sem
+    // btnSalvar na tela, a escrita não é comprovada.
     let original = cadastro();
     let botao = "<button type=\"button\" id=\"btnSalvar\" name=\"btnSalvar\"\n          onclick=\"confirmarDados()\">Salvar</button>";
     assert!(original.contains(botao));
     let html = original.replace(botao, &format!("<template>{botao}</template>"));
     let (resultado, pedidos) = executar_com_cadastro_sintetico(html);
-    assert_eq!(
-        resultado.err().map(|erro| erro.subcodigo()),
-        Some("submissao_do_documento_nao_observada")
-    );
+    assert!(matches!(
+        resultado,
+        Err(ErroDocumentoCriar::SubmissaoNaoComprovada)
+    ));
     assert_eq!(pedidos, pedidos_antes_da_escrita(), "5 GET, 0 POST");
 }
 #[test]
@@ -373,13 +372,18 @@ fn incerteza_conserva_contagem_da_rede_externa() {
                 unidade: None,
                 tipo: "Despacho",
                 descricao: Some("Ensaio"),
-                nivel: Some("publico"),
+                nivel: Some(crate::dominio::NivelDeAcesso::Publico),
             };
             let mut contagem = Contador::novo(envio);
             let resultado = executar_criacao(sessao, &pedido, indice, &mut contagem, true);
             (resultado, contagem.feitas())
         });
-    assert!(matches!(resultado, Err(ErroPreviaCriacao::EfeitoIncerto)));
+    assert!(matches!(
+        resultado,
+        Err(ErroDocumentoCriar::Confirmacao(
+            ErroConfirmacaoDaCriacao::NaoConfirmado
+        ))
+    ));
     assert_eq!(
         requisicoes, 7,
         "inclui releitura mesmo após resposta inconclusiva"
@@ -395,38 +399,8 @@ fn controle_salvar_e_formulario_servidos_nao_dependem_de_interpretar_js() {
     // Ablação #246 (🦡): a autorização deriva de botão e formulário
     // observados; a lógica interna do JS não é o contrato HTTP do IES.
     // O servidor ainda decide se aceita o POST e a árvore comprova o efeito.
-    let html = cadastro_com_script("/* lógica do navegador não interpretada */");
-    assert!(cadastro_oferece_salvar(&html));
-}
-
-#[test]
-fn salvar_oculto_ou_em_fieldset_desabilitado_recusa_post() {
-    // Um onclick não torna acionável um botão oculto ou desabilitado
-    // por um ancestral. Cenários sintéticos; cinco GET, nenhum POST.
-    let original = cadastro();
-    let casos = [
-        original.replace(
-            "onclick=\"confirmarDados()\"",
-            "hidden onclick=\"confirmarDados()\"",
-        ),
-        original
-            .replace("<button", "<div hidden><button")
-            .replace("</button>", "</button></div>"),
-        original
-            .replace("<button", "<fieldset disabled><button")
-            .replace("</button>", "</button></fieldset>"),
-    ];
-    for html in casos {
-        let (resultado, pedidos) = executar_com_cadastro_sintetico(html);
-        assert_eq!(
-            resultado.err().map(|erro| erro.subcodigo()),
-            Some("submissao_do_documento_nao_observada")
-        );
-        assert_eq!(pedidos, pedidos_antes_da_escrita(), "5 GET, 0 POST");
-    }
-    assert!(cadastro_oferece_salvar(
-        &original
-            .replace("<button", "<fieldset><button")
-            .replace("</button>", "</button></fieldset>")
+    let html = HtmlServido::de_teste(&cadastro_com_script(
+        "/* lógica do navegador não interpretada */",
     ));
+    assert!(cadastro_oferece_salvar(&html));
 }

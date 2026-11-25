@@ -1,31 +1,32 @@
 //! Erros tipados do fluxo de criação; o envio e a releitura preservam as causas.
 use super::reconciliacao;
-use crate::erro_html::ErroHtml;
+use crate::arquivo_privado::ErroArquivoPrivado;
 use crate::formulario_web::ErroSubmissaoFormulario;
 use crate::processo_criar_cadastro::ErroCadastro;
 use crate::processo_criar_hipotese::ErroHipotese;
 use crate::processo_criar_interessados::ErroInteressado;
 use crate::processo_criar_lista::ErroListaDeTipos;
-use crate::transporte::{FalhaTransporte, StatusHttpRecusado};
+use crate::transporte::FalhaTransporte;
+#[cfg(test)]
+use crate::transporte::StatusHttpRecusado;
 
-#[derive(Debug, Clone, Copy, PartialEq, Eq, crate::erro_publico::Causa)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, thiserror::Error)]
+#[error("{self:?}")]
 pub(crate) enum CausaRespostaCriadora {
-    #[causa(nome = "resposta_inesperada_apos_post_criador")]
     RespostaInesperada,
-    #[causa(nome = "localizacao_invalida_apos_post_criador")]
     LocalizacaoInvalida,
 }
 
 /// Fato observado na verificação independente após Location legítimo.
-#[derive(Debug, Clone, Copy, PartialEq, Eq, crate::erro_publico::Causa)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, thiserror::Error)]
+#[error("{self:?}")]
 pub(crate) enum ProvaDaCriacao {
-    #[causa(nome = "propriedades_divergentes_apos_post_criador")]
     PropriedadesDivergentes,
-    #[causa(nome = "id_preexistente_no_retorno_criador")]
     IdentidadePreexistente,
 }
 
-/// Classificacao por fatos tipados, sem interpretar textos de subcodigos.
+/// Classificacao por fatos tipados, sem interpretar textos.
+#[cfg(test)]
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub(crate) enum EvidenciaDeCoincidencia {
     UnicaSemProvaCausal,
@@ -33,33 +34,72 @@ pub(crate) enum EvidenciaDeCoincidencia {
     Parcial,
 }
 
+/// Projeção do erro pós-escrita para os testes de reconciliação; a CLI
+/// publica o próprio erro tipado.
+#[cfg(test)]
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub(crate) struct DiagnosticoPosEscrita {
-    pub(crate) evidencia: Option<EvidenciaDeCoincidencia>,
-    pub(crate) causa_post: &'static str,
-    pub(crate) causa_releitura: Option<&'static str>,
-    /// Falha HTTP da leitura de reconciliação, distinta da resposta do POST.
-    pub(crate) http_releitura: Option<StatusHttpRecusado>,
+    pub(crate) causa_post: String,
+    /// Só existe quando a releitura de reconciliação falhou.
+    pub(crate) releitura_falhou: Option<FalhaDaReleitura>,
     pub(crate) candidatos_observados: Option<Vec<String>>,
     /// NUPs com identidade, tipo e especificação lidos e coincidentes.
     /// Quando a releitura falhou, são provas parciais, não resultado final.
     pub(crate) candidatos_compativeis: Option<Vec<String>>,
 }
 
+/// A releitura que falhou: a causa, e o HTTP dela quando houve status.
+#[cfg(test)]
 #[derive(Debug, Clone, PartialEq, Eq)]
+pub(crate) struct FalhaDaReleitura {
+    pub(crate) causa: String,
+    /// Falha HTTP da leitura de reconciliação, distinta da resposta do POST.
+    pub(crate) http: Option<StatusHttpRecusado>,
+}
+
+#[cfg(test)]
+impl DiagnosticoPosEscrita {
+    /// Os candidatos compatíveis, com a releitura falha como prova parcial.
+    pub(crate) fn evidencia(&self) -> Option<EvidenciaDeCoincidencia> {
+        self.candidatos_compativeis.as_ref().map(|nups| {
+            if self.releitura_falhou.is_some() {
+                EvidenciaDeCoincidencia::Parcial
+            } else if nups.len() == 1 {
+                EvidenciaDeCoincidencia::UnicaSemProvaCausal
+            } else {
+                EvidenciaDeCoincidencia::Multiplas
+            }
+        })
+    }
+}
+
+#[derive(Debug, Clone, thiserror::Error)]
+#[error("{self:?}")]
 pub(crate) enum ErroCriar {
-    /// Falha antes da escrita; guarda o subcódigo do transporte e, quando
-    /// houve, o status e a mensagem saneada do SEI.
-    Transporte {
-        subcodigo: &'static str,
-        http: Option<StatusHttpRecusado>,
-    },
+    /// Falha de transporte antes da escrita, com a causa original.
+    Transporte(FalhaTransporte),
+    /// O envio do formulário falhou antes de qualquer POST tentado.
+    Submissao(ErroSubmissaoFormulario),
+    /// Origem ou cookie da sessão local ilegíveis, antes da rede.
+    SessaoLocalIlegivel,
+    /// O arquivo do cookie da sessão não foi lido, antes da rede.
+    CookieDaSessaoIlegivel(#[source] ErroArquivoPrivado),
+    /// O cookie da sessão está fora do formato do cabeçalho `Cookie`.
+    CookieForaDoFormato,
+    /// A URL do Controle não é da origem autorizada: o cookie não foi aberto.
+    ControleForaDaOrigem(#[source] FalhaTransporte),
     UnidadeDiferente,
-    Menu(ErroHtml),
+    /// O Controle foi lido, mas a unidade publicada não pôde ser extraída.
+    UnidadeDoControleIlegivel(#[source] crate::erro_web::ErroCaixa),
+    Menu(crate::processo_criar_menu::ErroMenu),
     Lista(ErroListaDeTipos),
     Cadastro(ErroCadastro),
     Formulario,
-    TipoSemIdentificador,
+    /// A URL do retorno da criação não se lê em pares `chave=valor`.
+    ConsultaDoRetornoIlegivel(#[source] crate::consulta_do_controlador::ErroConsultaDoControlador),
+    /// O retorno da criação não tem exatamente um `id_procedimento`.
+    IdDoRetornoIlegivel(#[source] crate::consulta_do_controlador::ErroParametroDaUrl),
+    TipoSemIdentificador(#[source] crate::consulta_do_controlador::ErroIdDaUrl),
     EscolhaInesperada,
     Interessado(ErroInteressado),
     Hipotese(ErroHipotese),
@@ -95,68 +135,12 @@ pub(crate) enum ErroCriar {
         correspondentes: Option<Vec<String>>,
         observados_antes_da_falha: Option<Box<[reconciliacao::CandidatoGerado]>>,
     },
-    EfeitoIncerto,
+    NaoConfirmado,
 }
 
+/// Consultas dos testes sobre o erro tipado; a CLI publica o próprio erro.
+#[cfg(test)]
 impl ErroCriar {
-    pub(crate) fn subcodigo(&self) -> &'static str {
-        match self {
-            Self::Transporte { subcodigo, .. } => subcodigo,
-            Self::UnidadeDiferente => "unidade_da_criacao_divergente",
-            Self::Menu(erro) => erro.onde,
-            Self::Lista(erro) => erro.subcodigo(),
-            Self::Cadastro(erro) => erro.subcodigo(),
-            Self::Formulario => "formulario_de_criacao_nao_reconhecido",
-            Self::TipoSemIdentificador => "tipo_de_processo_sem_identificador",
-            Self::EscolhaInesperada => "cadastro_nao_devolvido_apos_escolha",
-            Self::Interessado(erro) => erro.subcodigo(),
-            Self::Hipotese(erro) => erro.subcodigo(),
-            Self::Fotografia(erro) => crate::erro_publico::folha(erro),
-            Self::Conferencia(erro) => crate::erro_publico::folha(erro),
-            Self::Tela(erro) => crate::erro_publico::folha(erro),
-            Self::Arvore(erro) => crate::erro_publico::folha(erro),
-            Self::Propriedades(erro) => crate::erro_publico::folha(erro),
-            Self::PropriedadesNaoOferecidas => "propriedades_nao_oferecidas_ao_candidato",
-            Self::ProvaDaCriacao(erro) => crate::erro_publico::folha(erro),
-            Self::VerificacaoAposPost(erro) => erro.subcodigo(),
-            Self::RecusaDoPost(erro) | Self::RespostaHttpSemProva(erro) => erro.subcodigo(),
-            Self::PosEscrita {
-                correspondentes: Some(nups),
-                posterior: Ok(_),
-                ..
-            }
-            | Self::PosRespostaInesperada {
-                correspondentes: Some(nups),
-                posterior: Ok(_),
-                ..
-            } if nups.len() == 1 => "candidato_unico_sem_prova_causal",
-            Self::PosEscrita {
-                correspondentes: Some(_),
-                posterior: Ok(_),
-                ..
-            }
-            | Self::PosRespostaInesperada {
-                correspondentes: Some(_),
-                posterior: Ok(_),
-                ..
-            } => "candidatos_ambiguos_na_criacao",
-            Self::PosEscrita { .. } | Self::PosRespostaInesperada { .. } | Self::EfeitoIncerto => {
-                "efeito_incerto_na_criacao"
-            }
-        }
-    }
-
-    /// Somente valores numéricos do atributo maxlength observado na tela;
-    /// não publica a descrição nem pressupõe limite global.
-    pub(crate) fn limite_da_especificacao(&self) -> Option<(usize, usize)> {
-        match self {
-            Self::Cadastro(ErroCadastro::EspecificacaoAcimaDoLimite { limite, tamanho }) => {
-                Some((*limite, *tamanho))
-            }
-            _ => None,
-        }
-    }
-
     pub(crate) fn opcoes_para_escolha(&self) -> Option<&[(String, String)]> {
         match self {
             Self::Hipotese(erro) => erro.opcoes_para_escolha(),
@@ -166,7 +150,7 @@ impl ErroCriar {
 
     pub(crate) fn status_http(&self) -> Option<&StatusHttpRecusado> {
         match self {
-            Self::Transporte { http, .. } => http.as_ref(),
+            Self::Transporte(falha) => falha.status_http(),
             Self::VerificacaoAposPost(erro) => erro.status_http(),
             Self::Hipotese(erro) => erro.status_http(),
             Self::Interessado(erro) => erro.status_http(),
@@ -180,22 +164,10 @@ impl ErroCriar {
             Self::PosRespostaInesperada { posterior, .. } => {
                 posterior.as_ref().err().and_then(|erro| erro.status_http())
             }
-            Self::RecusaDoPost(erro) | Self::RespostaHttpSemProva(erro) => erro.status_http(),
+            Self::Submissao(erro) | Self::RecusaDoPost(erro) | Self::RespostaHttpSemProva(erro) => {
+                erro.status_http()
+            }
             _ => None,
-        }
-    }
-
-    pub(super) fn de_transporte(falha: &FalhaTransporte) -> Self {
-        Self::Transporte {
-            subcodigo: falha.subcodigo(),
-            http: falha.status_http().cloned(),
-        }
-    }
-
-    pub(super) fn local() -> Self {
-        Self::Transporte {
-            subcodigo: "falha_de_transporte_na_criacao",
-            http: None,
         }
     }
 
@@ -209,23 +181,8 @@ impl ErroCriar {
         )
     }
 
-    pub(crate) fn saida(&self) -> u8 {
-        if matches!(
-            self,
-            Self::EfeitoIncerto
-                | Self::VerificacaoAposPost(_)
-                | Self::RespostaHttpSemProva(_)
-                | Self::PosEscrita { .. }
-                | Self::PosRespostaInesperada { .. }
-        ) {
-            3
-        } else {
-            1
-        }
-    }
-
     /// O retorno não infere ausência quando não houve candidato novo.
-    /// Só expõe subcódigos tipados e NUPs opacos, nunca URLs ou cookies.
+    /// Só expõe erros tipados e NUPs opacos, nunca URLs ou cookies.
     pub(crate) fn diagnostico_apos_post(&self) -> Option<DiagnosticoPosEscrita> {
         let (causa_post, posterior, correspondentes, observados) = match self {
             Self::PosEscrita {
@@ -234,7 +191,7 @@ impl ErroCriar {
                 correspondentes,
                 observados_antes_da_falha,
             } => (
-                causa_post.subcodigo(),
+                format!("{causa_post:?}"),
                 posterior,
                 correspondentes,
                 observados_antes_da_falha,
@@ -245,31 +202,19 @@ impl ErroCriar {
                 correspondentes,
                 observados_antes_da_falha,
             } => (
-                crate::erro_publico::folha(causa),
+                format!("{causa:?}"),
                 posterior,
                 correspondentes,
                 observados_antes_da_falha,
             ),
             _ => return None,
         };
-        let evidencia = correspondentes.as_ref().map(|nups| {
-            if posterior.is_err() {
-                EvidenciaDeCoincidencia::Parcial
-            } else if nups.len() == 1 {
-                EvidenciaDeCoincidencia::UnicaSemProvaCausal
-            } else {
-                EvidenciaDeCoincidencia::Multiplas
-            }
-        });
         Some(DiagnosticoPosEscrita {
-            evidencia,
             causa_post,
-            causa_releitura: posterior.as_ref().err().map(|erro| erro.subcodigo()),
-            http_releitura: posterior
-                .as_ref()
-                .err()
-                .and_then(|erro| erro.status_http())
-                .cloned(),
+            releitura_falhou: posterior.as_ref().err().map(|erro| FalhaDaReleitura {
+                causa: format!("{erro:?}"),
+                http: erro.status_http().cloned(),
+            }),
             candidatos_observados: posterior
                 .as_ref()
                 .ok()

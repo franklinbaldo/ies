@@ -31,13 +31,13 @@ No GO SEI 5.0, `documento_cancelar` apareceu na barra de um documento assinado d
 | Endereço e campos assinados | Da resposta do SEI | Não verificado | Construídos pelo cliente |
 | Prévia a frio com --processo | 4 GET | Indeterminado | 3 GET |
 | Confirmação + verificação | 5 GET + 1 POST | Indeterminado | 4 GET + 1 POST, não seguro |
-| Efeito incerto sem retry | Sim | Indeterminado | Indeterminado |
+| Escrita não confirmada sem retry | Sim | Indeterminado | Indeterminado |
 
 ## Decisão
 
 A alternativa escolhida **não presume disponibilidade da ação**: exige âncora única na barra do documento identificado. Não monta URLs assinadas, não usa REST e não executa JavaScript. O formulário é derivado pelo `formulario_web`, com efeito classificado como mudança do estado do processo. Nenhuma escrita acontece durante a prévia.
 
-O POST único é consumido, sem retries. O 302 é analisado como dado (nunca seguido); o cancelamento só é provado pela árvore relida, conferida quanto ao número/id, ícone e motivo. Se a leitura não decide, saída 3: não repetir. Com `--processo` a frio, prévia custa 4 GET e confirmação 5 GET + 1 POST.
+O POST único é consumido, sem retries. O 302 é analisado como dado (nunca seguido); o cancelamento só é provado pela árvore relida, conferida quanto ao número/id, ícone e motivo. Se a leitura não decide, saída 1: não repetir. Com `--processo` a frio, prévia custa 4 GET e confirmação 5 GET + 1 POST.
 
 ## Evidências verificáveis
 

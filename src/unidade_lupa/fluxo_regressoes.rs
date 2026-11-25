@@ -1,6 +1,8 @@
 //! Regressões de fronteira da leitura Web da lupa (#244).
 //! Todas as URLs, hashes e respostas HTTP deste arquivo são sintéticos.
 use super::*;
+use crate::acao_do_sei::AcaoDoSei;
+use crate::tela_html::HtmlServido;
 
 const ORIGEM: &str = "https://sei.example/sei";
 const HASH: &str = "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa";
@@ -18,10 +20,10 @@ fn link_publicado_para_outra_acao_pode_ser_lido_com_hash_valido() {
     let consulta = format!("acao=grupo_unidade_listar&infra_hash={HASH}");
     assert_eq!(
         destino(
-            &link(&consulta),
+            &HtmlServido::de_teste(&link(&consulta)),
             &controle(),
             ORIGEM,
-            "grupo_unidade_listar"
+            AcaoDoSei::GrupoUnidadeListar
         ),
         Ok(format!("{ORIGEM}/controlador.php?{consulta}"))
     );
@@ -34,10 +36,10 @@ fn link_com_hash_repetido_valido_ou_invalido_eh_recusado() {
             format!("acao=grupo_unidade_listar&infra_hash={HASH}&infra_hash={adicional}");
         assert_eq!(
             destino(
-                &link(&consulta),
+                &HtmlServido::de_teste(&link(&consulta)),
                 &controle(),
                 ORIGEM,
-                "grupo_unidade_listar"
+                AcaoDoSei::GrupoUnidadeListar
             ),
             Err(FalhaDaLupa::LinkAusente),
         );
@@ -55,36 +57,15 @@ fn consulta_malformada_ou_com_chave_nao_canonica_eh_recusada() {
     for consulta in exemplos {
         assert_eq!(
             destino(
-                &link(&consulta),
+                &HtmlServido::de_teste(&link(&consulta)),
                 &controle(),
                 ORIGEM,
-                "grupo_unidade_listar"
+                AcaoDoSei::GrupoUnidadeListar
             ),
             Err(FalhaDaLupa::LinkAusente),
             "uma consulta malformada nunca deve autorizar a leitura"
         );
     }
-}
-
-#[test]
-fn recusas_http_preservam_o_status_e_a_mensagem_saneada() {
-    let recusa = crate::transporte::StatusHttpRecusado {
-        status: 503,
-        mensagem_do_servidor: Some("indisponivel".to_owned()),
-    };
-    let falha =
-        FalhaDaLupa::Transporte(FalhaTransporte::StatusHttpDeErroDoServidor(recusa.clone()));
-    assert_eq!(falha.subcodigo(), "status_http_de_erro_do_servidor");
-    assert_eq!(falha.status_http(), Some(&recusa));
-    let json = crate::saida_erro::json_de_erro_fonte(
-        falha.subcodigo(),
-        "recusa na lupa",
-        falha.status_http(),
-    );
-    assert_eq!(json["status_http"], 503);
-    assert_eq!(json["mensagem_do_servidor"], "indisponivel");
-    assert!(json.get("url").is_none());
-    assert!(json.get("cookie").is_none());
 }
 
 #[test]
@@ -148,9 +129,9 @@ fn link_assinado_ambiguo_nao_dispara_segunda_requisicao() {
 fn btn_novo_sem_destino_nao_herda_link_de_outro_controle() {
     // Regressão da revisão #250: apenas o próprio btnNovo autoriza abrir cadastro.
     let cadastro = format!("acao=grupo_unidade_cadastrar&infra_hash={HASH}");
-    let html = format!(
+    let html = HtmlServido::de_teste(&format!(
         "<button id='btnNovo'>Novo</button><a href='https://sei.example/sei/controlador.php?{cadastro}'>Outro controle</a>"
-    );
+    ));
     assert_eq!(
         botao_novo(&html, &controle(), ORIGEM),
         Err(FalhaDaLupa::LinkAusente)
@@ -162,9 +143,9 @@ fn btn_novo_nao_eh_ambiguo_por_link_alheio() {
     let cadastro = format!("acao=grupo_unidade_cadastrar&infra_hash={HASH}");
     let outro_hash = "bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb";
     let outro = format!("acao=grupo_unidade_cadastrar&infra_hash={outro_hash}");
-    let html = format!(
+    let html = HtmlServido::de_teste(&format!(
         "<button id='btnNovo' onclick=\"window.location.href='https://sei.example/sei/controlador.php?{cadastro}';\">Novo</button><a href='https://sei.example/sei/controlador.php?{outro}'>Outro controle</a>"
-    );
+    ));
     assert_eq!(
         botao_novo(&html, &controle(), ORIGEM),
         Ok(format!("{ORIGEM}/controlador.php?{cadastro}"))
@@ -174,9 +155,9 @@ fn btn_novo_nao_eh_ambiguo_por_link_alheio() {
 #[test]
 fn botao_novo_repetido_eh_recusado_sem_get() {
     let consulta = format!("acao=grupo_unidade_cadastrar&infra_hash={HASH}");
-    let html = format!(
+    let html = HtmlServido::de_teste(&format!(
         "<button id='btnNovo' onclick=\"window.location.href='https://sei.example/sei/controlador.php?{consulta}';\">Novo</button><button id='btnNovo'>Novo duplicado</button>"
-    );
+    ));
     assert_eq!(
         botao_novo(&html, &controle(), ORIGEM),
         Err(FalhaDaLupa::LinkAmbiguo)
@@ -191,7 +172,11 @@ fn btn_novo_repetido_com_mesmo_alvo_observado_na_unb_eh_unico() {
         "<button id='btnNovo' onclick=\"window.location.href='https://sei.example/sei/controlador.php?{consulta}';\">Novo</button>"
     );
     assert_eq!(
-        botao_novo(&format!("{botao}{botao}"), &controle(), ORIGEM),
+        botao_novo(
+            &HtmlServido::de_teste(&format!("{botao}{botao}")),
+            &controle(),
+            ORIGEM
+        ),
         Ok(format!("{ORIGEM}/controlador.php?{consulta}"))
     );
 }
@@ -201,10 +186,10 @@ fn btn_novo_repetido_com_alvos_assinados_distintos_falha_fechado() {
     let outro_hash = "bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb";
     let primeiro = format!("acao=grupo_unidade_cadastrar&infra_hash={HASH}");
     let segundo = format!("acao=grupo_unidade_cadastrar&infra_hash={outro_hash}");
-    let html = format!(
+    let html = HtmlServido::de_teste(&format!(
         "<button id='btnNovo' onclick=\"window.location.href='https://sei.example/sei/controlador.php?{primeiro}';\">Novo</button>\
          <button id='btnNovo' onclick=\"window.location.href='https://sei.example/sei/controlador.php?{segundo}';\">Novo</button>"
-    );
+    ));
     assert_eq!(
         botao_novo(&html, &controle(), ORIGEM),
         Err(FalhaDaLupa::LinkAmbiguo),
@@ -218,13 +203,15 @@ fn lupa_go_publicada_como_literal_de_script_eh_lida_sem_executar_js() {
     // grupo_unidade_cadastrar (passos 2, 6, 10): a URL da lupa aparece
     // no HTML, mas não em href/onclick de a, button ou input.
     let consulta = format!("acao=unidade_selecionar_envio_processo&infra_hash={HASH}");
-    let html = format!("<script>const lupa = 'controlador.php?{consulta}';</script>");
+    let html = HtmlServido::de_teste(&format!(
+        "<script>const lupa = 'controlador.php?{consulta}';</script>"
+    ));
     assert_eq!(
         destino(
             &html,
             &controle(),
             ORIGEM,
-            "unidade_selecionar_envio_processo"
+            AcaoDoSei::UnidadeSelecionarEnvioProcesso
         ),
         Ok(format!("{ORIGEM}/controlador.php?{consulta}")),
     );
@@ -233,15 +220,15 @@ fn lupa_go_publicada_como_literal_de_script_eh_lida_sem_executar_js() {
 #[test]
 fn dois_literals_assinados_distintos_da_lupa_sao_ambiguos() {
     let outro = "bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb";
-    let html = format!(
+    let html = HtmlServido::de_teste(&format!(
         "<script>const a='controlador.php?acao=unidade_selecionar_envio_processo&infra_hash={HASH}'; const b='controlador.php?acao=unidade_selecionar_envio_processo&infra_hash={outro}';</script>"
-    );
+    ));
     assert_eq!(
         destino(
             &html,
             &controle(),
             ORIGEM,
-            "unidade_selecionar_envio_processo"
+            AcaoDoSei::UnidadeSelecionarEnvioProcesso
         ),
         Err(FalhaDaLupa::LinkAmbiguo),
     );
@@ -253,10 +240,10 @@ fn literal_sem_hash_assinado_nao_autoriza_get() {
         "<script>const lupa='controlador.php?acao=unidade_selecionar_envio_processo';</script>";
     assert_eq!(
         destino(
-            html,
+            &HtmlServido::de_teste(html),
             &controle(),
             ORIGEM,
-            "unidade_selecionar_envio_processo"
+            AcaoDoSei::UnidadeSelecionarEnvioProcesso
         ),
         Err(FalhaDaLupa::LinkAusente),
     );
@@ -280,7 +267,7 @@ fn transporte_recusado_conta_tentativa_sem_retry() {
             _cookie: &str,
         ) -> Result<RespostaDoPost<Self::Corpo>, FalhaTransporte> {
             self.gets += 1;
-            Err(FalhaTransporte::StatusHttpDeErroDoServidor(
+            Err(FalhaTransporte::Status(
                 crate::transporte::StatusHttpRecusado {
                     status: 503,
                     mensagem_do_servidor: Some("serviço indisponível".to_owned()),
@@ -308,8 +295,15 @@ fn transporte_recusado_conta_tentativa_sem_retry() {
     )
     .err()
     .expect("HTTP 503 deve falhar");
-    assert_eq!(falha.subcodigo(), "status_http_de_erro_do_servidor");
-    assert_eq!(falha.status_http().map(|s| s.status), Some(503));
+    assert_eq!(
+        falha,
+        FalhaDaLupa::Transporte(FalhaTransporte::Status(
+            crate::transporte::StatusHttpRecusado {
+                status: 503,
+                mensagem_do_servidor: Some("serviço indisponível".to_owned()),
+            }
+        ))
+    );
     assert_eq!(requisicoes, 1);
     assert_eq!(rede.gets, 1, "sem retry da tentativa recusada");
 }

@@ -1,6 +1,7 @@
 //! #245 — cenários sintéticos derivados do cadastro do Todos @323eb01.
 //! O AJAX apenas consulta hipóteses. Nunca cria processo.
 use super::*;
+use crate::acao_do_sei::AcaoDoSei;
 use crate::processo_concluir::tests_apoio::{
     UNIDADE, ambiente, arvore, controle, ok, r302, rodar_com, trabalhar,
 };
@@ -14,7 +15,7 @@ fn arvore_verificadora() -> String {
     arvore(
         &[UNIDADE],
         &[acao_da_barra(&link_das_propriedades(
-            "procedimento_alterar",
+            AcaoDoSei::ProcedimentoAlterar,
             "10",
         ))],
     )
@@ -63,7 +64,7 @@ fn cadastro(com_ajax: bool) -> String {
         <input type='hidden' name='hdnIdTipoProcedimento' value='12'>\
         <input type='hidden' name='hdnFlagProcedimentoCadastro' value='0'>\
         <input type='hidden' name='hdnAssuntos' value=''>\
-        <input name='txtDescricao'>\
+        <input name='txtDescricao' maxlength='250'>\
         <input type='radio' name='rdoNivelAcesso' value='0'>\
         <input type='radio' name='rdoNivelAcesso' value='1'>\
         <select name='selAssuntos'><option value='21'>Assunto Teste</option></select>\
@@ -77,7 +78,7 @@ fn restrito(confirmar: bool) -> PedidoCriar<'static> {
         tipo: TIPO,
         especificacao: "Ensaio restrito",
         interessados: &[],
-        nivel: "restrito",
+        nivel: crate::dominio::NivelDeCriacao::Restrito,
         unidade: None,
         hipotese_legal: None,
         confirmar,
@@ -106,7 +107,7 @@ fn previa_restrita_liga_ajax_publicado_e_nao_cria() {
         )
     });
     let feito = resultado.expect("a unica opcao AJAX deve ser observada");
-    assert_eq!(feito.nivel, "restrito");
+    assert_eq!(feito.nivel, crate::dominio::NivelDeCriacao::Restrito);
     assert!(!feito.confirmado);
     assert_eq!(feito.requisicoes, 4);
     assert_eq!(pedidos.len(), 4);
@@ -191,8 +192,7 @@ fn ajax_com_duas_hipoteses_recusa_antes_do_post_criador() {
             rede,
         )
     });
-    let erro = resultado.expect_err("duas hipoteses devem ser recusadas");
-    assert_eq!(erro.subcodigo(), "hipotese_legal_ajax_nao_unica");
+    let _erro = resultado.expect_err("duas hipoteses devem ser recusadas");
     assert_eq!(pedidos.len(), 4);
     assert_eq!(pedidos.iter().filter(|r| r.metodo == "POST").count(), 1);
     assert!(
@@ -265,11 +265,7 @@ fn red_valor_ajax_com_url_recusa_sem_post_criador() {
             rede,
         )
     });
-    let erro = resultado.expect_err("identificador nao publicavel nao pode ser enviado");
-    assert_eq!(
-        erro.subcodigo(),
-        "hipotese_legal_ajax_resposta_nao_reconhecida"
-    );
+    let _erro = resultado.expect_err("identificador nao publicavel nao pode ser enviado");
     assert_eq!(pedidos.len(), 4);
     assert_eq!(pedidos.iter().filter(|p| p.metodo == "GET").count(), 3);
     assert_eq!(pedidos.iter().filter(|p| p.metodo == "POST").count(), 1);
@@ -294,8 +290,7 @@ fn ajax_nao_declarado_na_tela_recusa_sem_post() {
             rede,
         )
     });
-    let erro = resultado.expect_err("consulta nao publicada na tela");
-    assert_eq!(erro.subcodigo(), "hipotese_legal_ajax_nao_declarada");
+    let _erro = resultado.expect_err("consulta nao publicada na tela");
     assert_eq!(pedidos.len(), 3);
     assert!(pedidos.iter().all(|r| r.metodo == "GET"));
 }
@@ -391,7 +386,7 @@ fn nome_incorreto_da_hipotese_nao_cria_processo() {
         ok(cadastro(true)),
         ok(XML_DUPLO.to_owned()),
     ];
-    let (resultado, pedidos) = rodar_com(&amb, respostas, |sessao, _, _, rede| {
+    let (_resultado, pedidos) = rodar_com(&amb, respostas, |sessao, _, _, rede| {
         criar(
             sessao.origem,
             sessao.url_do_controle,
@@ -400,12 +395,6 @@ fn nome_incorreto_da_hipotese_nao_cria_processo() {
             rede,
         )
     });
-    assert_eq!(
-        resultado
-            .expect_err("nome não publicado deve ser recusado")
-            .subcodigo(),
-        "hipotese_legal_escolha_nao_oferecida"
-    );
     assert_eq!(pedidos.len(), 4);
     assert_eq!(pedidos.iter().filter(|p| p.metodo == "POST").count(), 1);
 }

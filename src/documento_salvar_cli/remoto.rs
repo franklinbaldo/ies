@@ -1,32 +1,36 @@
 //! BDD-89-02/03/04: editor SEI 4 projetado a partir de observações, releitura.
 //! A escrita externa permanece bloqueada até validação da instalação.
+use super::html_para_envio;
+use crate::Cli;
+use crate::acao_do_sei::AcaoDoSei;
 use crate::arquivo_copia::ler_regular;
 use crate::copia_documento::{self, ErroCopia, PreviaCopia};
 use crate::documento::NumeroDocumento;
-use crate::documento_versoes::VersaoDocumento;
-use crate::erro_html::ErroHtml;
+use crate::documento_versoes::{ErroVersao, VersaoDocumento};
 use crate::formulario_web::{
     CodificacaoDaTela, ConferenciaDaUnidade, EfeitoAvaliado, EnvioDoFormulario, EstadoDoProcesso,
     OperacaoDeFormulario, RespostaDoEnvio, ResultadoDoEnvio, TelaServida, derivar_submissao,
     enviar_submissao_via,
 };
 use crate::instalacao::Instalacao;
+use crate::origem_de_treinamento::{self, Escrita};
 use crate::processo_concluir_cli::com_sessao;
 use crate::processo_obter::{
-    PedidoDeVersoes, PedidoDoAnexo, PedidoDoDocumento, SessaoDoProcesso,
+    ErroDocumentoObter, PedidoDeVersoes, PedidoDoAnexo, PedidoDoDocumento, SessaoDoProcesso,
     obter_documento_com_propriedades,
 };
 use crate::transporte::decodificar_resposta;
 use crate::visao_do_controle::{EnvioDoControle as _, EnvioHttps};
-use crate::{Cli, erro_fonte};
 use serde_json::json;
 use std::path::Path;
-use std::process::ExitCode;
+
+#[path = "nativo.rs"]
+mod nativo;
 
 /// Fluxo SEI 4 observado no catálogo (UnB/PEN1/UFRJ), ainda sem replay
 /// dos corpos originais de POST. Só usado na instalação sintética sei.test.
 const EDITAR: OperacaoDeFormulario = OperacaoDeFormulario {
-    acao: "editor_salvar",
+    acao: AcaoDoSei::EditorSalvar,
     formulario: "frmEditor",
     envio: EnvioDoFormulario::SubmitPorScript,
     campos_ocultos_exigidos: &["hdnVersao", "hdnIgnorarNovaVersao"],
@@ -50,55 +54,61 @@ fn corpo_sintetico(html: &str) -> Option<&str> {
     partes_da_foto(html).map(|(_, corpo, _)| corpo)
 }
 
-enum Falha {
-    Local(ErroCopia),
-    Leitura,
+/// Um fato por erro, com a causa; nada foi gravado, salvo em
+/// `EdicaoNaoComprovada`.
+#[derive(Debug, thiserror::Error)]
+#[error("{self:?}")]
+enum ErroSalvarNoSei {
+    EditorNativo(#[from] nativo::ErroEditorNativo),
+    Local(#[source] ErroCopia),
+    PastaAtualIlegivel(#[source] std::io::Error),
+    OrigemForaDoTreinamento(#[source] origem_de_treinamento::CausaDaOrigem),
+    /// Instalação fora do escopo de treinamento desta operação.
+    InstalacaoSemEditorObservado,
+    LeituraDoDocumento(#[source] ErroDocumentoObter),
     VersaoAlterada,
     BaseAlterada,
-    EditorIndisponivel,
-    Formulario,
+    /// A base não é UTF-8; guarda a causa da conversão.
+    BaseNaoUtf8(#[source] std::str::Utf8Error),
+    /// O número da versão seguinte não é válido; guarda a causa.
+    ProximaVersaoInvalida(#[source] ErroVersao),
+    /// O número da versão base não é válido; guarda a causa.
+    VersaoBaseInvalida(#[source] ErroVersao),
+    FotoLocalForaDaForma,
+    EditorNaoServido(#[source] crate::transporte::FalhaTransporte),
+    EditorForaDaForma,
+    Formulario(#[source] crate::formulario_web::ErroSubmissaoFormulario),
     RegiaoNaoEditavelAlterada,
-}
-
-impl Falha {
-    fn mensagem(&self) -> &'static str {
-        match self {
-            Self::Local(_) => "arquivos locais não puderam ser relidos com segurança",
-            Self::Leitura => "versão remota não pôde ser conferida",
-            Self::VersaoAlterada => "a versão remota atual diverge da base local",
-            Self::BaseAlterada => "a base local não corresponde ao HTML remoto da versão",
-            Self::EditorIndisponivel => "a instalação sintética não ofereceu editor verificável",
-            Self::Formulario => "o formulário publicado não corresponde ao editor simulado",
-            Self::RegiaoNaoEditavelAlterada => {
-                "a edição alterou uma região não editável da foto local"
-            }
-        }
-    }
+    /// O POST saiu e a releitura não comprovou a edição: não repita
+    /// `--confirmar` sem releitura independente.
+    EdicaoNaoComprovada,
 }
 
 fn ler_par(
     pasta: &Path,
     numero: &NumeroDocumento,
     n: VersaoDocumento,
-) -> Result<(String, String), Falha> {
-    copia_documento::pasta_segura(pasta).map_err(Falha::Local)?;
-    let seguinte = VersaoDocumento::nova(n.numero() + 1).map_err(|_| Falha::VersaoAlterada)?;
+) -> Result<(String, String), ErroSalvarNoSei> {
+    copia_documento::pasta_segura(pasta).map_err(ErroSalvarNoSei::Local)?;
+    let seguinte = n.seguinte().ok_or(ErroSalvarNoSei::ProximaVersaoInvalida(
+        ErroVersao::VersaoDocumentoInvalida,
+    ))?;
     let ler = |v, ausente| {
-        ler_regular(
+        let bytes = ler_regular(
             &pasta.join(crate::foto_documento::nome(numero.as_str(), v)),
-            ErroCopia::Html(ErroHtml::ausente(ausente)),
+            ausente,
         )
-        .map_err(Falha::Local)
-        .and_then(|bytes| String::from_utf8(bytes).map_err(|_| Falha::BaseAlterada))
+        .map_err(ErroSalvarNoSei::Local)?;
+        String::from_utf8(bytes).map_err(|erro| ErroSalvarNoSei::BaseNaoUtf8(erro.utf8_error()))
     };
     Ok((
-        ler(n, "base_versao_ausente")?,
-        ler(seguinte, "versao_editada_ausente")?,
+        ler(n, ErroCopia::BaseVersaoAusente)?,
+        ler(seguinte, ErroCopia::VersaoEditadaAusente)?,
     ))
 }
 
 enum Resultado {
-    Recusado(Falha),
+    Recusado(ErroSalvarNoSei),
     Incerto,
     Confirmado(u32),
 }
@@ -107,25 +117,21 @@ enum Resultado {
 /// além da resposta ao único POST. Sem essa prova, o efeito é incerto.
 /// A contagem é informação explícita no editor sintético, não heurística
 /// sobre a presença de blocos de assinatura no HTML da versão.
-fn assinaturas_no_editor(html: &str) -> Option<u32> {
-    let dom = tl::parse(html, tl::ParserOptions::default()).ok()?;
-    let parser = dom.parser();
+fn assinaturas_no_editor(html: &crate::tela_html::HtmlServido) -> Option<u32> {
+    let dom = crate::tela_html::arvore(html);
     let mut contagem = None;
-    for handle in dom.query_selector("output")? {
-        let node = handle.get(parser)?;
-        let tag = node.as_tag()?;
-        let attrs = crate::html_atributos::atributos(tag).ok()?;
-        if attrs.valor("id").ok()? == Some("assinaturasAtuais") {
+    for handle in dom.elementos("output") {
+        if handle.atributo("id") == Some("assinaturasAtuais") {
             if contagem.is_some() {
                 return None;
             }
-            contagem = Some(node.inner_text(parser).parse().ok()?);
+            contagem = Some(handle.texto().parse().ok()?);
         }
     }
     contagem
 }
 
-fn editor_observado(html: &str, versao_base: u32) -> bool {
+fn editor_observado(html: &crate::tela_html::HtmlServido, versao_base: u32) -> bool {
     html.contains(&format!("name='hdnVersao' value='{versao_base}'"))
         && html.contains("name='hdnIgnorarNovaVersao' value='N'")
         && html.contains("name='txaEditor_1'")
@@ -154,9 +160,7 @@ fn verificar_publicacao(envio: &mut EnvioHttps, dados: &ConferenciaPublicacao<'_
         editada,
         respondeu,
     } = dados;
-    let url = format!(
-        "{origem}/controlador.php?acao=documento_visualizar&id_documento={id_documento}&versao={versao_nova}"
-    );
+    let url = url_da_releitura(origem, id_documento, versao_nova);
     let Ok(html) = envio.get(&url, cookie).and_then(decodificar_resposta) else {
         return Resultado::Incerto;
     };
@@ -183,27 +187,46 @@ fn verificar_publicacao(envio: &mut EnvioHttps, dados: &ConferenciaPublicacao<'_
     }
 }
 
+/// A guarda autoriza a base normalizada; URLs de GET não usam a origem bruta.
+fn url_do_editor(origem: &str, id_documento: &str) -> String {
+    format!(
+        "{origem}/controlador.php?acao={acao}&id_documento={id_documento}",
+        acao = AcaoDoSei::EditorMontar.como_na_url()
+    )
+}
+
+fn url_da_releitura(origem: &str, id_documento: &str, versao_nova: u32) -> String {
+    format!(
+        "{origem}/controlador.php?acao={acao}&id_documento={id_documento}&versao={versao_nova}",
+        acao = AcaoDoSei::DocumentoVisualizar.como_na_url()
+    )
+}
+
 fn carregar_par(
     numero: &NumeroDocumento,
     previa: &PreviaCopia,
-) -> Result<(VersaoDocumento, String, String), Falha> {
-    let n = VersaoDocumento::nova(previa.versao_base).map_err(|_| Falha::VersaoAlterada)?;
-    let pasta = std::env::current_dir().map_err(|_| Falha::Leitura)?;
+) -> Result<(VersaoDocumento, String, String), ErroSalvarNoSei> {
+    let n =
+        VersaoDocumento::nova(previa.versao_base).map_err(ErroSalvarNoSei::VersaoBaseInvalida)?;
+    let pasta = std::env::current_dir().map_err(ErroSalvarNoSei::PastaAtualIlegivel)?;
     let (base, editada) = ler_par(&pasta, numero, n)?;
     Ok((n, base, editada))
 }
 
 /// A estrutura da foto local distingue os trechos editáveis da moldura SEI.
-fn corpos_da_edicao<'a>(base: &'a str, editada: &'a str) -> Result<(&'a str, &'a str), Falha> {
+fn corpos_da_edicao<'a>(
+    base: &'a str,
+    editada: &'a str,
+) -> Result<(&'a str, &'a str), ErroSalvarNoSei> {
     let (inicio_base, corpo_base, fim_base) =
-        partes_da_foto(base).ok_or(Falha::EditorIndisponivel)?;
+        partes_da_foto(base).ok_or(ErroSalvarNoSei::FotoLocalForaDaForma)?;
     let (inicio_edicao, corpo_editado, fim_edicao) =
-        partes_da_foto(editada).ok_or(Falha::EditorIndisponivel)?;
+        partes_da_foto(editada).ok_or(ErroSalvarNoSei::FotoLocalForaDaForma)?;
     if inicio_base != inicio_edicao || fim_base != fim_edicao {
-        return Err(Falha::RegiaoNaoEditavelAlterada);
+        return Err(ErroSalvarNoSei::RegiaoNaoEditavelAlterada);
     }
     if corpo_base == corpo_editado {
-        return Err(Falha::BaseAlterada);
+        return Err(ErroSalvarNoSei::BaseAlterada);
     }
     Ok((corpo_base, corpo_editado))
 }
@@ -215,10 +238,30 @@ fn executar(
     numero: &NumeroDocumento,
     previa: &PreviaCopia,
 ) -> Resultado {
+    // Guardar a origem antes de interpretar o host e antes de qualquer GET/POST.
+    // Assim origens malformadas e imitadoras têm a mesma recusa tipada.
+    if let Err(causa) = origem_de_treinamento::exigir(Escrita::DocumentoSalvar, sessao.origem) {
+        return Resultado::Recusado(ErroSalvarNoSei::OrigemForaDoTreinamento(causa));
+    }
     let instalacao = match Instalacao::interpretar(sessao.origem) {
         Some(instalacao) if instalacao.host() == "sei.test" => instalacao,
-        _ => return Resultado::Recusado(Falha::EditorIndisponivel),
+        Some(instalacao) => {
+            return nativo::executar(cli, sessao, indice, numero, previa, &instalacao)
+                .unwrap_or_else(Resultado::Recusado);
+        }
+        None => return Resultado::Recusado(ErroSalvarNoSei::InstalacaoSemEditorObservado),
     };
+    executar_sintetico(cli, sessao, indice, numero, previa, &instalacao)
+}
+
+fn executar_sintetico(
+    cli: &Cli,
+    sessao: &SessaoDoProcesso<'_>,
+    indice: &crate::indice_local::IndiceLocal,
+    numero: &NumeroDocumento,
+    previa: &PreviaCopia,
+    instalacao: &Instalacao,
+) -> Resultado {
     let (n, local_base, local_editada) = match carregar_par(numero, previa) {
         Ok(par) => par,
         Err(falha) => return Resultado::Recusado(falha),
@@ -230,7 +273,7 @@ fn executar(
         processo: None,
         anexo: PedidoDoAnexo::default(),
     };
-    let Ok(lido) = obter_documento_com_propriedades(
+    let lido = match obter_documento_com_propriedades(
         sessao,
         &pedido,
         PedidoDeVersoes {
@@ -241,45 +284,45 @@ fn executar(
         indice,
         &mut envio,
         false,
-    ) else {
-        return Resultado::Recusado(Falha::Leitura);
+    ) {
+        Ok(lido) => lido,
+        Err(erro) => return Resultado::Recusado(ErroSalvarNoSei::LeituraDoDocumento(erro)),
     };
     if lido.versoes.atual.as_ref().map(|v| v.numero()) != Ok(n.numero()) {
-        return Resultado::Recusado(Falha::VersaoAlterada);
+        return Resultado::Recusado(ErroSalvarNoSei::VersaoAlterada);
     }
     if lido.versoes.foto.as_ref().map(|foto| foto.html.as_str()) != Some(local_base.as_str()) {
-        return Resultado::Recusado(Falha::BaseAlterada);
+        return Resultado::Recusado(ErroSalvarNoSei::BaseAlterada);
     }
     let (_base, editada) = match corpos_da_edicao(&local_base, &local_editada) {
         Ok(par) => par,
         Err(falha) => return Resultado::Recusado(falha),
     };
-    let url = format!(
-        "{}/controlador.php?acao=editor_montar&id_documento={}",
-        sessao.origem, lido.id_documento
-    );
-    let Ok(cookie) = sessao.cookie.valor() else {
-        return Resultado::Recusado(Falha::Leitura);
-    };
-    let Ok(editor) = envio.get(&url, cookie).and_then(decodificar_resposta) else {
-        return Resultado::Recusado(Falha::EditorIndisponivel);
+    let editada = html_para_envio(editada);
+    let origem = instalacao.url_base();
+    let url = url_do_editor(&origem, &lido.id_documento);
+    let cookie: &str = &lido.cookie;
+    let editor = match envio.get(&url, cookie).and_then(decodificar_resposta) {
+        Ok(editor) => editor,
+        Err(falha) => return Resultado::Recusado(ErroSalvarNoSei::EditorNaoServido(falha)),
     };
     if !editor_observado(&editor, n.numero()) {
-        return Resultado::Recusado(Falha::Formulario);
+        return Resultado::Recusado(ErroSalvarNoSei::EditorForaDaForma);
     }
     let envio_unico = derivar_submissao(
         &EDITAR,
-        &instalacao,
+        instalacao,
         &TelaServida {
             url: &url,
             html: &editor,
             codificacao: CodificacaoDaTela::Utf8,
         },
-        cli.unidade.as_deref().unwrap_or(""),
-        &[("txaEditor_1", editada), ("confirmar_assinaturas", "1")],
+        cli.unidade.as_deref(),
+        &[("txaEditor_1", &editada), ("confirmar_assinaturas", "1")],
     );
-    let Ok(envio_unico) = envio_unico else {
-        return Resultado::Recusado(Falha::Formulario);
+    let envio_unico = match envio_unico {
+        Ok(envio_unico) => envio_unico,
+        Err(erro) => return Resultado::Recusado(ErroSalvarNoSei::Formulario(erro)),
     };
     // Daqui em diante até uma falha de conexão pode ter produzido efeito.
     let post = enviar_submissao_via(envio_unico, sessao.cookie, |s, c| envio.post(s, c));
@@ -291,70 +334,80 @@ fn executar(
     verificar_publicacao(
         &mut envio,
         &ConferenciaPublicacao {
-            origem: sessao.origem,
+            origem: &origem,
             cookie,
             id_documento: &lido.id_documento,
             url_editor: &url,
             numero,
             versao_nova: previa.versao_editada,
-            editada,
+            editada: &editada,
             respondeu,
         },
     )
 }
 
-pub(super) fn confirmar(cli: &Cli, numero: &NumeroDocumento, previa: &PreviaCopia) -> ExitCode {
+pub(super) fn confirmar(
+    cli: &Cli,
+    numero: &NumeroDocumento,
+    previa: &PreviaCopia,
+) -> anyhow::Result<()> {
     com_sessao(cli, |sessao, indice| {
         match executar(cli, sessao, indice, numero, previa) {
             Resultado::Confirmado(versao) => {
                 if cli.json {
-                    println!(
-                        "{}",
-                        json!({
-                            "documento": numero.as_str(),
-                            "confirmado": true,
-                            "versao_criada": versao,
-                            "releitura_confirmada": true,
-                            "assinaturas_apos": 0
-                        })
-                    );
+                    let mut valor = json!({
+                        "documento": numero.as_str(),
+                        "confirmado": true,
+                        "versao_criada": versao,
+                        "releitura_confirmada": true,
+                        "quebras_lf_canonicas_no_envio": true,
+                        "assinaturas_apos": 0
+                    });
+                    crate::indice_local::anexar_avisos(&mut valor, indice);
+                    println!("{valor}");
                 } else {
                     println!(
                         "IES: documento {} salvo na versão {versao}, conferida por releitura.",
                         numero.as_str()
                     );
                 }
-                ExitCode::SUCCESS
+                Ok(())
             }
-            Resultado::Recusado(Falha::Local(causa)) => {
-                erro_fonte(cli.json, causa.subcodigo(), Falha::Local(causa).mensagem())
-            }
-            Resultado::Recusado(falha) => {
-                erro_fonte(cli.json, "escrita_remota_nao_validada", falha.mensagem())
-            }
-            Resultado::Incerto => {
-                if cli.json {
-                    println!(
-                        "{}",
-                        json!({
-                            "codigo": "efeito_incerto",
-                            "erro": "edição não comprovada; não repita --confirmar sem releitura independente",
-                            "confirmado": false,
-                            "retentavel": false
-                        })
-                    );
-                } else {
-                    eprintln!("IES: edição não comprovada; não repita --confirmar sem releitura.");
-                }
-                ExitCode::from(3)
-            }
+            Resultado::Recusado(falha) => Err(falha.into()),
+            Resultado::Incerto => Err(ErroSalvarNoSei::EdicaoNaoComprovada.into()),
         }
     })
 }
 
 #[cfg(test)]
+mod acervo_editor;
+
+#[cfg(test)]
 mod testes_moldura {
     use super::corpos_da_edicao;
+
+    #[test]
+    fn urls_de_editor_e_releitura_usam_base_autorizada_canonica() {
+        use super::{Instalacao, url_da_releitura, url_do_editor};
+
+        for configuracao in [
+            "https://sei.test/sei",
+            "https://sei.test/sei/",
+            "https://SEI.TEST/sei/",
+        ] {
+            let instalacao = Instalacao::interpretar(configuracao).unwrap();
+            let origem = instalacao.url_base();
+            assert_eq!(origem, "https://sei.test/sei");
+            let editor = url_do_editor(&origem, "11519");
+            let releitura = url_da_releitura(&origem, "11519", 4);
+            assert!(editor.starts_with("https://sei.test/sei/controlador.php?acao="));
+            assert!(editor.ends_with("&id_documento=11519"));
+            assert!(releitura.starts_with("https://sei.test/sei/controlador.php?acao="));
+            assert!(releitura.ends_with("&id_documento=11519&versao=4"));
+            assert!(!editor.contains("/sei//controlador.php"));
+            assert!(!releitura.contains("/sei//controlador.php"));
+        }
+    }
 
     const BASE: &str = "<html><head><title>Documento</title></head><body><main id='corpoEditavel'><p>Antes</p></main><div>Versão 3</div></body></html>";
 
@@ -376,5 +429,45 @@ mod testes_moldura {
             corpos_da_edicao(BASE, &edicao),
             Ok(("<p>Antes</p>", "<p>Depois</p>"))
         ));
+    }
+
+    #[cfg(unix)]
+    #[test]
+    fn base_utf8_invalida_preserva_causa_sem_expor_conteudo_privado() {
+        use super::{ErroSalvarNoSei, ler_par};
+        use crate::documento::NumeroDocumento;
+        use crate::documento_versoes::VersaoDocumento;
+        use std::error::Error;
+        use std::os::unix::fs::PermissionsExt;
+        use std::sync::atomic::{AtomicUsize, Ordering};
+
+        static PROXIMA: AtomicUsize = AtomicUsize::new(0);
+        let pasta = std::env::temp_dir().join(format!(
+            "ies-utf8-base-{}-{}",
+            std::process::id(),
+            PROXIMA.fetch_add(1, Ordering::Relaxed)
+        ));
+        std::fs::create_dir(&pasta).unwrap();
+        let numero = NumeroDocumento::novo("719").unwrap();
+        let arquivo = pasta.join("719.v1.html");
+        let sigilo = b"SIGILO_MINUTA_719_\xff";
+        std::fs::write(&arquivo, sigilo).unwrap();
+        std::fs::set_permissions(&arquivo, std::fs::Permissions::from_mode(0o600)).unwrap();
+
+        let erro = ler_par(&pasta, &numero, VersaoDocumento::nova(1).unwrap()).unwrap_err();
+        std::fs::remove_file(&arquivo).unwrap();
+        std::fs::remove_dir(&pasta).unwrap();
+
+        assert!(matches!(erro, ErroSalvarNoSei::BaseNaoUtf8(_)));
+        let fonte = erro.source().expect("fonte do UTF-8");
+        assert!(
+            fonte.is::<std::str::Utf8Error>(),
+            "a causa não deve reter o Vec privado"
+        );
+        let exibido = format!("{erro:?}\n{erro}\n{fonte:?}\n{fonte}");
+        assert!(
+            !exibido.contains(&format!("{sigilo:?}")) && !exibido.contains("SIGILO_MINUTA_719_"),
+            "nenhum formato público do erro deve conter bytes da minuta"
+        );
     }
 }

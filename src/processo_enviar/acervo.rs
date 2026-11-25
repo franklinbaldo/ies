@@ -5,7 +5,7 @@
 //! `aberto_em`), a tela "Enviar Processo" (conferência e a consulta
 //! derivada), a resposta XML de cada consulta feita a partir dela, o 302
 //! do POST e, por escrita, a regra de verificação: a unidade nova da
-//! árvore relida é um item da última consulta (escolhido pela sigla), e o
+//! árvore relida é um interacao da última consulta (escolhido pela sigla), e o
 //! POST derivado da tela com ele; a origem fica ou sai. Só contagens e
 //! formas, nunca URL. `#[ignore]`: lê os ZIPs do cache local
 //! (`IES_ACERVO_CACHE`).
@@ -23,6 +23,7 @@ use crate::formulario_web::{
     CodificacaoDaTela, RespostaDoPost, TelaServida, derivar_consulta_ajax, derivar_submissao,
 };
 use crate::instalacao::Instalacao;
+use crate::tela_html::HtmlServido;
 use crate::transporte::RespostaWeb;
 use std::collections::BTreeMap;
 use std::fmt::Write as _;
@@ -54,7 +55,7 @@ fn barra(
 ) -> String {
     let oferece = match ler_enviar_da_barra(inst, html, id) {
         Ok(link) => link.is_some(),
-        Err(erro) => return format!("`{}`", crate::erro_publico::folha(&erro)),
+        Err(erro) => return format!("`{erro:?}`"),
     };
     let (Some(u), Some(l)) = (unidade, lida) else {
         return format!(
@@ -74,7 +75,7 @@ fn barra(
 struct Tela {
     id: String,
     url: String,
-    html: String,
+    html: HtmlServido,
     conferida: TelaDeEnvio,
 }
 
@@ -86,12 +87,12 @@ fn tela_servida(tela: &Tela) -> TelaServida<'_> {
     }
 }
 
-fn resposta_gravada(item: &serde_json::Value, status: u64) -> RespostaDoPost<Cursor<Vec<u8>>> {
-    let corpo = gravacao::corpo(item);
+fn resposta_gravada(interacao: &serde_json::Value, status: u64) -> RespostaDoPost<Cursor<Vec<u8>>> {
+    let corpo = gravacao::corpo(interacao);
     RespostaDoPost {
         resposta: RespostaWeb {
             status_code: i32::try_from(status).unwrap_or(0),
-            mime: gravacao::mime(item),
+            mime: gravacao::mime(interacao),
             content_length: Some(corpo.len()),
             localizacao: None,
             corpo: Cursor::new(corpo),
@@ -135,7 +136,7 @@ fn verificacao(
         let manter = depois.contains(unidade);
         let campos = campos_do_envio(&tela.conferida, &destino, manter, false);
         let pares: Vec<(&str, &str)> = campos.iter().map(|(n, v)| (*n, v.as_str())).collect();
-        match derivar_submissao(&ENVIAR_PROCESSO, inst, &tela_servida(tela), "", &pares) {
+        match derivar_submissao(&ENVIAR_PROCESSO, inst, &tela_servida(tela), None, &pares) {
             Ok(_) => "POST derivado",
             Err(_) => "POST não derivado",
         }
@@ -144,7 +145,10 @@ fn verificacao(
 }
 
 #[test]
-#[allow(clippy::too_many_lines)] // Um laço por gravação, como os replays de concluir e reabrir.
+#[expect(
+    clippy::too_many_lines,
+    reason = "Um laço por gravação, como os replays de concluir e reabrir"
+)]
 #[ignore = "lê os ZIPs do acervo em IES_ACERVO_CACHE (padrão ~/.cache/ies); sem rede"]
 fn replay_de_processo_enviar_no_acervo() {
     let mut contagem = Contagem::new();
@@ -159,15 +163,15 @@ fn replay_de_processo_enviar_no_acervo() {
         let mut escrita: Option<Escrita> = None;
         let mut ultima: &str = "";
         for r in gravacao::respostas(json) {
-            let id = gravacao::id_procedimento(r.item)
-                .or_else(|| gravacao::id_da_pesquisa_rapida(r.item))
+            let id = gravacao::id_procedimento(r.interacao)
+                .or_else(|| gravacao::id_da_pesquisa_rapida(r.interacao))
                 .unwrap_or_default();
-            let html = || html_da_resposta(r.item).ok();
+            let html = || html_da_resposta(r.interacao).ok();
             match (r.operacao, r.metodo, r.status) {
                 ("procedimento_trabalhar", "GET", 200) => {
-                    if let Some(t) =
-                        html().and_then(|h| ler_tela_do_processo(&inst, &h, &id, None).ok())
-                    {
+                    if let Some(t) = html().and_then(|h| {
+                        ler_tela_do_processo(&inst, &HtmlServido::de_teste(&h), &id, None).ok()
+                    }) {
                         unidade = Some(t.unidade);
                     }
                 }
@@ -193,8 +197,11 @@ fn replay_de_processo_enviar_no_acervo() {
                 }
                 ("procedimento_enviar", "GET", 200) => {
                     let Some(h) = html() else { continue };
-                    let url = r.item["response"]["url"].as_str().unwrap_or("").to_owned();
-                    let classe = match conferir_tela_de_envio(&h, &id) {
+                    let url = r.interacao["response"]["url"]
+                        .as_str()
+                        .unwrap_or("")
+                        .to_owned();
+                    let classe = match conferir_tela_de_envio(&HtmlServido::de_teste(&h), &id) {
                         Ok(conferida) => {
                             let forma = if conferida.unidade_atual {
                                 "4.1/5.0"
@@ -204,7 +211,7 @@ fn replay_de_processo_enviar_no_acervo() {
                             let nova = Tela {
                                 id: id.clone(),
                                 url,
-                                html: h,
+                                html: HtmlServido::de_teste(&h),
                                 conferida,
                             };
                             let campos = campos_da_consulta(&nova.conferida, "SIGLA");
@@ -227,7 +234,7 @@ fn replay_de_processo_enviar_no_acervo() {
                             tela = Some(nova);
                             classe
                         }
-                        Err(erro) => format!("`{}`", crate::erro_publico::folha(&erro)),
+                        Err(erro) => format!("`{erro:?}`"),
                     };
                     somar(&mut contagem, "tela de envio", classe, nome);
                 }
@@ -237,27 +244,28 @@ fn replay_de_processo_enviar_no_acervo() {
                     } else {
                         "de outra tela"
                     };
-                    let classe = match ler_resposta_da_consulta(resposta_gravada(r.item, status)) {
-                        Ok(lidos) => {
-                            let n = match lidos.len() {
-                                0 => "nenhum item",
-                                1 => "um item",
-                                _ => "vários itens",
-                            };
-                            if ultima == "procedimento_enviar" {
-                                itens = lidos;
+                    let classe =
+                        match ler_resposta_da_consulta(resposta_gravada(r.interacao, status)) {
+                            Ok(lidos) => {
+                                let n = match lidos.len() {
+                                    0 => "nenhum interacao",
+                                    1 => "um interacao",
+                                    _ => "vários itens",
+                                };
+                                if ultima == "procedimento_enviar" {
+                                    itens = lidos;
+                                }
+                                format!("{de}: {n}")
                             }
-                            format!("{de}: {n}")
-                        }
-                        Err(falha) => format!("{de}: `{}`", crate::erro_publico::folha(&falha)),
-                    };
+                            Err(falha) => format!("{de}: `{falha:?}`"),
+                        };
                     somar(&mut contagem, "resposta da consulta", classe, nome);
                 }
                 ("procedimento_enviar", "POST", status) => {
                     let classe = match status {
                         302 if redirecionamento_esperado(
-                            gravacao::localizacao(r.item),
-                            &gravacao::url_sem_consulta(json, r.item),
+                            gravacao::localizacao(r.interacao),
+                            &gravacao::url_sem_consulta(json, r.interacao),
                             &id,
                         ) =>
                         {

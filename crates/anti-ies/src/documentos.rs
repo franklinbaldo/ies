@@ -2,7 +2,7 @@
 //! Modelo local sintético; HTML vem de SQLite, jamais de uma cassette congelada.
 mod trabalho;
 use super::{Estado, Resposta, eh_controlador_sei, escapar, parametro_unico};
-use iesei::documentos_simulados::{self as modelo, Falha};
+use iesei::documentos_simulados::{self as modelo, ErroDocumentosSimulados};
 use iesei::instalacao::Instalacao;
 use rusqlite::Connection;
 use std::fmt::Write as _;
@@ -54,13 +54,15 @@ fn descricao_do_cadastro(corpo: &str) -> Option<String> {
     .then(String::new)
 }
 
-fn erros_de_modelo(falha: &Falha) -> Resposta {
+fn erros_de_modelo(falha: &ErroDocumentosSimulados) -> Resposta {
     match falha {
-        Falha::ProcessoIndisponivel => Resposta::nova(Estado::NaoEncontrado),
-        Falha::TipoIndisponivel | Falha::EntradaInvalida | Falha::ProcessoNaoAbertoNaUnidade => {
+        ErroDocumentosSimulados::ProcessoIndisponivel => Resposta::nova(Estado::NaoEncontrado),
+        ErroDocumentosSimulados::TipoIndisponivel
+        | ErroDocumentosSimulados::EntradaInvalida
+        | ErroDocumentosSimulados::ProcessoNaoAbertoNaUnidade => {
             Resposta::nova(Estado::RequisicaoInvalida)
         }
-        Falha::Sqlite(_) => Resposta::nova(Estado::DadosInsuficientes),
+        ErroDocumentosSimulados::Sqlite(_) => Resposta::nova(Estado::DadosInsuficientes),
     }
 }
 
@@ -90,10 +92,11 @@ fn pagina_da_arvore(banco: &Connection, origem: &Instalacao, cenario: &str, id: 
     let Ok(Some(processo)) = modelo::ler_processo(banco, origem, cenario, id) else {
         return Resposta::nova(Estado::NaoEncontrado);
     };
-    let Ok(documentos) = modelo::documentos(banco, origem, cenario, id) else {
+    let Ok(nos) = crate::documento_arvore::nos_do_processo(banco, origem, cenario, id) else {
         return Resposta::nova(Estado::DadosInsuficientes);
     };
-    let mut html = String::from("<html><head><script>\nvar Nos = new Array();\n");
+    let mut html =
+        String::from("<html><head><script>\nvar Nos = new Array();\nvar NosAcoes = new Array();\n");
     let nup = escapar_js(&processo.nup);
     writeln!(
         html,
@@ -115,23 +118,7 @@ fn pagina_da_arvore(banco: &Connection, origem: &Instalacao, cenario: &str, id: 
     writeln!(html, "Nos[0].acoes = '{}';", escapar_js(&link)).expect("formatação String");
     html.push_str("Nos[0].src = '';\n");
     writeln!(html, "Nos[0].html = '{}';", escapar_js(&situacao)).expect("formatação String");
-    for (indice, doc) in documentos.iter().enumerate() {
-        let indice = indice + 1;
-        let rotulo = escapar_js(&format!("{} {}", doc.tipo, doc.numero_sei));
-        let numero = escapar_js(&doc.numero_sei);
-        writeln!(
-            html,
-            "Nos[{indice}] = new infraArvoreNo(\"DOCUMENTO\",\"{}\",\"{id}\",\
-             \"about:blank\",\"ifrVisualizacao\",\"{rotulo}\",\"Documento interno\",\
-             \"svg/documento_interno.svg\",\"svg/documento_interno.svg\",\
-             \"svg/documento_interno.svg\",true,false,null,null,\"noVisitado\",\"{numero}\");",
-            doc.id
-        )
-        .expect("formatação String");
-        writeln!(html, "Nos[{indice}].acoes = '';").expect("formatação String");
-        writeln!(html, "Nos[{indice}].src = '';").expect("formatação String");
-        writeln!(html, "Nos[{indice}].html = '';").expect("formatação String");
-    }
+    html.push_str(&nos);
     html.push_str("</script></head><body><div id=\"divArvore\"></div></body></html>");
     Resposta::html(html)
 }

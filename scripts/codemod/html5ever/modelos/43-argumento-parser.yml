@@ -1,0 +1,28 @@
+id: 43-argumento-parser
+language: rust
+message: "Nas chamadas das funções que perderam o parâmetro tl::Parser (regra 42), o argumento sai"
+severity: hint
+rule:
+  all:
+    - any:
+        - pattern: parser
+        - pattern: $D.parser()
+        - pattern: self.parser
+    - inside:
+        kind: arguments
+        inside:
+          kind: call_expression
+          has:
+            field: function
+            regex: "(^|::)(FUNCOES)$"
+    - not:
+        inside:
+          stopBy: end
+          kind: mod_item
+          follows:
+            kind: attribute_item
+            regex: 'cfg\(test\)'
+fix:
+  template: "/* ies-codemod: remover linha */"
+  expandEnd:
+    regex: ","

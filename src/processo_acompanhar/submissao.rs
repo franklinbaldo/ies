@@ -1,10 +1,11 @@
 //! Derivação pura do POST de inclusão de Acompanhamento Especial (#254).
 //! Não faz I/O: o formulário e a URL devem vir da MESMA resposta servida.
 //! Caso do Todos `tests/test_processo_acompanhar_010.py` @323eb01.
-use super::fluxo::ErroPrevia;
+use super::ErroAcompanhar;
 use super::{escolher_grupo, grupos_do_cadastro};
+use crate::acao_do_sei::AcaoDoSei;
 use crate::formulario_web::{
-    ConferenciaDaUnidade, EfeitoAvaliado, EnvioDoFormulario, EstadoDoProcesso,
+    CampoDeTexto, ConferenciaDaUnidade, EfeitoAvaliado, EnvioDoFormulario, EstadoDoProcesso,
     OperacaoDeFormulario, ResultadoDoEnvio, SubmissaoDerivada, TelaServida, derivar_submissao,
 };
 use crate::instalacao::Instalacao;
@@ -13,7 +14,7 @@ use crate::instalacao::Instalacao;
 /// O primitivo recusa action fora da instalação, hash inválido, botão ausente,
 /// duplicidade de controles e campos não ofertados.
 const INCLUIR: OperacaoDeFormulario = OperacaoDeFormulario {
-    acao: "acompanhamento_cadastrar",
+    acao: AcaoDoSei::AcompanhamentoCadastrar,
     formulario: "frmAcompanhamentoCadastro",
     envio: EnvioDoFormulario::BotaoDeEnvio("sbmCadastrarAcompanhamento"),
     campos_ocultos_exigidos: &["hdnIdProtocolo"],
@@ -34,19 +35,53 @@ pub(crate) fn derivar_inclusao(
     id_procedimento: &str,
     unidade: &str,
     grupo: Option<&str>,
-    observacao: &str,
-) -> Result<SubmissaoDerivada, ErroPrevia> {
+    observacao: CampoDeTexto<'_>,
+) -> Result<SubmissaoDerivada, ErroAcompanhar> {
     let grupos = grupos_do_cadastro(tela.html, id_procedimento)?;
     let escolhido = escolher_grupo(&grupos, grupo)?;
     derivar_submissao(
         &INCLUIR,
         instalacao,
         tela,
-        unidade,
+        Some(unidade),
         &[
             ("selGrupoAcompanhamento", &escolhido.valor),
-            ("txaObservacao", observacao),
+            ("txaObservacao", observacao.enviado()),
         ],
     )
-    .map_err(ErroPrevia::Formulario)
+    .map_err(ErroAcompanhar::Formulario)
+}
+
+/// Exclusão pelo `submit()` do formulário observado na lista. Sem botão.
+const EXCLUIR: OperacaoDeFormulario = OperacaoDeFormulario {
+    acao: AcaoDoSei::AcompanhamentoExcluir,
+    formulario: "frmGerenciarAcompanhamento",
+    envio: EnvioDoFormulario::SubmitPorScript,
+    campos_ocultos_exigidos: &["hdnInfraItemId"],
+    campos_ocultos_reescritos: &["hdnInfraItemId"],
+    campos_usuario: &[],
+    resultado: ResultadoDoEnvio::ConferidoPorLeituraPosterior,
+    unidade: ConferenciaDaUnidade::NaTelaDeOrigemDoLink,
+    efeito: EfeitoAvaliado::AlteraEstadoDoProcesso {
+        o_que: EstadoDoProcesso::AcompanhamentoEspecial,
+    },
+};
+
+/// A action assinada e o alvo foram conferidos na mesma tela servida.
+pub(crate) fn derivar_exclusao(
+    instalacao: &Instalacao,
+    tela: &TelaServida<'_>,
+    unidade: &str,
+    id_alvo: &str,
+    action_observada: &str,
+) -> Result<SubmissaoDerivada, ErroAcompanhar> {
+    crate::formulario_web::derivar_submissao_com_action(
+        &EXCLUIR,
+        instalacao,
+        tela,
+        Some(unidade),
+        &[("hdnInfraItemId", id_alvo)],
+        Some(action_observada),
+    )
+    .map_err(ErroAcompanhar::Formulario)
 }

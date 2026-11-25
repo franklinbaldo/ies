@@ -4,19 +4,16 @@
 //! `arquivo`; e a gravação idempotente de `DOC.vN.html`, conferida para o
 //! lote inteiro antes da primeira gravação.
 use crate::copia_documento::ErroCopia;
-use crate::documento_versoes::VersaoDocumento;
+use crate::documento_versoes::{ErroVersao, VersaoDocumento};
 use crate::foto_documento::{self, FotoGravada};
 use crate::processo_obter::{DocumentoObtido, PedidoDeVersoes};
 use serde_json::{Map, Value, json};
 use std::path::Path;
 
-/// O pedido de versões; `None` para `--versao 0` (validado antes, saída 1).
-pub(crate) fn pedido(versao: Option<u32>, saida: bool) -> Option<PedidoDeVersoes> {
-    let versao = match versao {
-        Some(n) => Some(VersaoDocumento::nova(n).ok()?),
-        None => None,
-    };
-    Some(PedidoDeVersoes {
+/// O pedido de versões; falha com `VersaoDocumentoInvalida` para `--versao 0`.
+pub(crate) fn pedido(versao: Option<u32>, saida: bool) -> Result<PedidoDeVersoes, ErroVersao> {
+    let versao = versao.map(VersaoDocumento::nova).transpose()?;
+    Ok(PedidoDeVersoes {
         cache: false,
         versao,
         foto: saida,
@@ -68,26 +65,35 @@ pub(crate) fn gravar_fotos_com_cache(
 }
 
 /// O objeto `arquivo` de um documento gravado em `--saida`.
+/// `motivo` só existe quando a foto já estava igual (`gravado: false`).
 pub(crate) fn json_do_arquivo(nome: &str, bytes: u64, sha256: &str, gravado: bool) -> Value {
-    json!({
+    let mut arquivo = json!({
         "nome": nome,
         "bytes": bytes,
         "sha256": sha256,
         "gravado": gravado,
-        "motivo": if gravado { Value::Null } else { json!("igual") },
-    })
+    });
+    if !gravado && let Some(objeto) = arquivo.as_object_mut() {
+        objeto.insert("motivo".to_owned(), json!("igual"));
+    }
+    arquivo
 }
 
-/// `versao`, `versao_atual` e `versao_atual_motivo`.
+/// `versao` (só com a versão lida), `versao_atual` (só com a atual
+/// conhecida) ou `versao_atual_motivo` (só sem a atual).
 pub(crate) fn inserir_campos(objeto: &mut Map<String, Value>, d: &DocumentoObtido) {
     let v = &d.versoes;
-    objeto.insert("versao".into(), json!(v.lida.map(VersaoDocumento::numero)));
-    let (atual, motivo) = match v.atual {
-        Ok(n) => (json!(n.numero()), Value::Null),
-        Err(sem) => (Value::Null, json!(sem.motivo())),
-    };
-    objeto.insert("versao_atual".into(), atual);
-    objeto.insert("versao_atual_motivo".into(), motivo);
+    if let Some(lida) = v.lida {
+        objeto.insert("versao".into(), json!(lida.numero()));
+    }
+    match v.atual {
+        Ok(n) => {
+            objeto.insert("versao_atual".into(), json!(n.numero()));
+        }
+        Err(sem) => {
+            objeto.insert("versao_atual_motivo".into(), json!(sem.motivo()));
+        }
+    }
 }
 
 /// Linha humana sobre a versão, quando a atual é conhecida.
@@ -112,7 +118,7 @@ pub(crate) fn linha_do_arquivo(nome: &str, bytes: u64, gravado: bool) -> String 
 #[cfg(test)]
 pub(crate) mod testes {
     use super::*;
-    use crate::arvore_processo::{NaturezaDoDocumento, ProcessoNaArvore};
+    use crate::arvore_processo::{Cancelamento, NaturezaDoDocumento, ProcessoNaArvore};
     use crate::processo_obter::{FotoDaVersao, SemVersaoAtual, VersoesDoDocumento};
 
     pub(crate) fn documento(versoes: VersoesDoDocumento) -> DocumentoObtido {
@@ -122,9 +128,8 @@ pub(crate) mod testes {
             rotulo: "Despacho 0011519".into(),
             tipo: "Despacho".into(),
             natureza: NaturezaDoDocumento {
-                icone: Some("documento_interno".into()),
-                cancelado: Some(false),
-                motivo_do_cancelamento: None,
+                icone: "documento_interno".into(),
+                cancelamento: Cancelamento::Ativo,
                 dica: None,
             },
             pasta: None,
@@ -140,6 +145,7 @@ pub(crate) mod testes {
             requisicoes: 6,
             versoes,
             propriedades: crate::propriedades_documento::PropriedadesDocumento::NaoPedidas,
+            cookie: crate::transporte::sessao::CookieLido::sintetico("PHPSESSID=SINTETICO"),
         }
     }
 
@@ -171,7 +177,7 @@ pub(crate) mod testes {
             atual: Ok(v(n)),
             foto: Some(FotoDaVersao {
                 versao: v(n),
-                html: html.into(),
+                html: crate::tela_html::HtmlServido::de_teste(html),
             }),
         });
         d.numero = numero.into();
@@ -189,10 +195,10 @@ pub(crate) mod testes {
 
     #[test]
     fn pedido_de_versoes_pelas_opcoes() {
-        assert_eq!(pedido(None, false), Some(PedidoDeVersoes::default()));
+        assert_eq!(pedido(None, false), Ok(PedidoDeVersoes::default()));
         assert_eq!(
             pedido(None, true),
-            Some(PedidoDeVersoes {
+            Ok(PedidoDeVersoes {
                 cache: false,
                 versao: None,
                 foto: true
@@ -200,13 +206,16 @@ pub(crate) mod testes {
         );
         assert_eq!(
             pedido(Some(3), false),
-            Some(PedidoDeVersoes {
+            Ok(PedidoDeVersoes {
                 cache: false,
                 versao: Some(v(3)),
                 foto: false
             })
         );
-        assert_eq!(pedido(Some(0), true), None);
+        assert_eq!(
+            pedido(Some(0), true),
+            Err(ErroVersao::VersaoDocumentoInvalida)
+        );
     }
 
     #[test]
@@ -331,7 +340,7 @@ pub(crate) mod testes {
         inserir_campos(&mut objeto, &d);
         assert_eq!(
             Value::Object(objeto),
-            json!({"versao": 2, "versao_atual": 2, "versao_atual_motivo": null})
+            json!({"versao": 2, "versao_atual": 2})
         );
         assert_eq!(
             linha_humana(&d).as_deref(),
@@ -340,6 +349,10 @@ pub(crate) mod testes {
         assert_eq!(
             json_do_arquivo("0011519.v2.html", 7, "ab", false),
             json!({"nome": "0011519.v2.html", "bytes": 7, "sha256": "ab", "gravado": false, "motivo": "igual"})
+        );
+        assert_eq!(
+            json_do_arquivo("0011519.v2.html", 7, "ab", true),
+            json!({"nome": "0011519.v2.html", "bytes": 7, "sha256": "ab", "gravado": true})
         );
         let nao = documento(VersoesDoDocumento {
             crc_rodape: None,
@@ -351,8 +364,8 @@ pub(crate) mod testes {
         let mut objeto = Map::new();
         inserir_campos(&mut objeto, &nao);
         assert_eq!(
-            objeto["versao_atual_motivo"],
-            json!("nao_servida_no_conteudo")
+            Value::Object(objeto),
+            json!({"versao_atual_motivo": "nao_servida_no_conteudo"})
         );
         assert_eq!(linha_humana(&nao), None);
     }

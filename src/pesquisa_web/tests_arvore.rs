@@ -2,8 +2,8 @@
 //! `a.protocoloNormal`, `class` repetido idêntico neste) e das linhas de
 //! Goiás com acerto em documento. HTML sintético.
 use super::*;
-use crate::erro_html::ErroHtml;
 use crate::pesquisa_web::tests_fixtures::{linha, numero};
+use crate::tela_html::HtmlServido;
 
 fn tabela(linhas: &str) -> String {
     format!("<html><table class=\"pesquisaResultado\">{linhas}</table></html>")
@@ -11,7 +11,7 @@ fn tabela(linhas: &str) -> String {
 
 #[test]
 fn linha_com_arvore_de_mesmo_href_e_class_repetido_identico_e_aceita() {
-    let html = tabela(&format!("{}{}", linha(1), linha(2)));
+    let html = HtmlServido::de_teste(&tabela(&format!("{}{}", linha(1), linha(2))));
     let lidos = ler_resultados(&html).unwrap();
     assert_eq!(lidos.len(), 2);
     assert_eq!(lidos[0].numero.as_str(), numero(1));
@@ -23,7 +23,7 @@ fn arvore_com_href_diferente_do_link_do_processo_e_recusada() {
     let original = linha(1);
     let (antes, depois) = original.split_once("class=\"arvore\">").unwrap();
     let antes = antes.replacen("id_procedimento=1001", "id_procedimento=9999", 1);
-    let html = tabela(&format!("{antes}class=\"arvore\">{depois}"));
+    let html = HtmlServido::de_teste(&tabela(&format!("{antes}class=\"arvore\">{depois}")));
     assert_eq!(
         ler_resultados(&html),
         Err(ErroResultadoPesquisa::LinkDaArvoreComHrefDiferenteDoLinkDoProcesso)
@@ -36,27 +36,28 @@ fn duas_arvores_na_mesma_linha_sao_recusadas() {
     let inicio = original.find("<a onclick").unwrap();
     let fim = original.find("</a>").unwrap() + "</a>".len();
     let arvore = &original[inicio..fim];
-    let html = tabela(&original.replacen(arvore, &format!("{arvore}{arvore}"), 1));
+    let html = HtmlServido::de_teste(&tabela(&original.replacen(
+        arvore,
+        &format!("{arvore}{arvore}"),
+        1,
+    )));
     assert_eq!(
         ler_resultados(&html),
-        Err(ErroResultadoPesquisa::Html(ErroHtml::repetido(
-            "linha_de_pesquisa_com_mais_de_um_link_da_arvore"
-        )))
+        Err(ErroResultadoPesquisa::LinhaDePesquisaComMaisDeUmLinkDaArvore)
     );
 }
 
 #[test]
-fn class_repetido_com_valores_diferentes_continua_recusado() {
-    let html = tabela(&linha(1).replacen(
+fn class_repetido_vale_o_primeiro() {
+    // Como no navegador: a segunda ocorrência de class não conta.
+    let html = HtmlServido::de_teste(&tabela(&linha(1).replacen(
         "title=\"Tipo\" class=\"protocoloNormal\"",
         "title=\"Tipo\" class=\"outra\"",
         1,
-    ));
+    )));
     assert_eq!(
         ler_resultados(&html),
-        Err(ErroResultadoPesquisa::Html(ErroHtml::html(
-            "html_de_pesquisa_nao_interpretado"
-        )))
+        ler_resultados(&HtmlServido::de_teste(&tabela(&linha(1))))
     );
 }
 
@@ -65,7 +66,7 @@ fn link_de_trabalho_fora_da_arvore_e_do_protocolo_continua_recusado() {
     // A tolerância é só para a árvore da própria linha: outro link de
     // trabalho na tabela ainda some da projeção e falha fechado.
     let extra = "<tr><td><a href=\"controlador.php?acao=procedimento_trabalhar&id_procedimento=5\">x</a></td></tr>";
-    let html = tabela(&format!("{}{extra}", linha(1)));
+    let html = HtmlServido::de_teste(&tabela(&format!("{}{extra}", linha(1))));
     assert_eq!(
         ler_resultados(&html),
         Err(ErroResultadoPesquisa::LinkDeProcessoSemClasseReconhecida)
@@ -99,7 +100,7 @@ fn linha_com_documento(posicao: u64, documento: &str, no_documento: &str) -> Str
 fn linha_com_acerto_em_documento_publica_so_o_processo() {
     let com_documento = linha_com_documento(2, "77", "77");
     assert_eq!(com_documento.matches("documento_visualizar").count(), 2);
-    let html = tabela(&format!("{}{com_documento}{}", linha(1), linha(3)));
+    let html = HtmlServido::de_teste(&tabela(&format!("{}{com_documento}{}", linha(1), linha(3))));
     let lidos = ler_resultados(&html).unwrap();
     let numeros: Vec<&str> = lidos.iter().map(|r| r.numero.as_str()).collect();
     assert_eq!(numeros, [numero(1), numero(2), numero(3)]);
@@ -107,7 +108,7 @@ fn linha_com_acerto_em_documento_publica_so_o_processo() {
 
 #[test]
 fn documento_da_linha_diferente_do_link_do_processo_e_recusado() {
-    let html = tabela(&linha_com_documento(1, "77", "78"));
+    let html = HtmlServido::de_teste(&tabela(&linha_com_documento(1, "77", "78")));
     assert_eq!(
         ler_resultados(&html),
         Err(ErroResultadoPesquisa::LinkDoDocumentoDaLinhaDiferenteDoProcesso)
@@ -116,10 +117,10 @@ fn documento_da_linha_diferente_do_link_do_processo_e_recusado() {
 
 #[test]
 fn documento_na_linha_sem_id_documento_no_processo_e_recusado() {
-    let html = tabela(&linha_com_documento(1, "77", "77").replace(
+    let html = HtmlServido::de_teste(&tabela(&linha_com_documento(1, "77", "77").replace(
         "&id_documento=77&infra_sistema=100000100",
         "&infra_sistema=100000100",
-    ));
+    )));
     assert_eq!(
         ler_resultados(&html),
         Err(ErroResultadoPesquisa::LinkDoDocumentoDaLinhaDiferenteDoProcesso)
@@ -137,7 +138,11 @@ fn processo_visitado_com_class_repetido_contendo_a_classe_e_lido() {
         1,
     );
     assert_ne!(visitado, linha(1));
-    let lidos = ler_resultados(&tabela(&format!("{visitado}{}", linha(2)))).unwrap();
+    let lidos = ler_resultados(&HtmlServido::de_teste(&tabela(&format!(
+        "{visitado}{}",
+        linha(2)
+    ))))
+    .unwrap();
     assert_eq!(lidos.len(), 2);
     assert_eq!(lidos[0].numero.as_str(), numero(1));
     let sem_a_classe = linha(1).replacen(
@@ -145,10 +150,9 @@ fn processo_visitado_com_class_repetido_contendo_a_classe_e_lido() {
         "target=\"_blank\" class=\"processoVisitado\" ",
         1,
     );
+    // Vale o primeiro class, como no navegador: sem a classe, não é o link.
     assert_eq!(
-        ler_resultados(&tabela(&sem_a_classe)),
-        Err(ErroResultadoPesquisa::Html(ErroHtml::html(
-            "html_de_pesquisa_nao_interpretado"
-        )))
+        ler_resultados(&HtmlServido::de_teste(&tabela(&sem_a_classe))),
+        Err(ErroResultadoPesquisa::LinhaDePesquisaSemLinkDoProcesso)
     );
 }

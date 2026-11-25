@@ -14,11 +14,7 @@ pub(crate) mod tests_apoio;
 #[cfg(test)]
 mod tests_tela;
 
-use crate::erro_html::ErroHtml;
 pub(crate) use tela::ler_marcadores;
-
-/// `acao` do link na barra, da tela e do link guardado no índice.
-pub(crate) const ACAO: &str = "andamento_marcador_gerenciar";
 
 /// `<id>#<nome>`: o nome para a semântica, o id (só dígitos, antes do
 /// primeiro `#`) para referência sem ambiguidade. O nome pode conter `#`.
@@ -81,37 +77,38 @@ pub(crate) enum TelaDosMarcadores {
     SemTabela,
 }
 
-/// Falhas do link na barra e da tela: uma variante por fato.
-#[derive(Clone, Copy, Debug, PartialEq, Eq, crate::erro_publico::Causa)]
+/// Falhas do link na barra e da tela: um erro por fato.
+#[derive(Clone, Debug, PartialEq, Eq, thiserror::Error)]
+#[error("{self:?}")]
 pub(crate) enum ErroMarcadores {
-    BarraDoProcessoForaDaFormaObservada,
-    BarrasDoProcessoRepetidasNaArvore,
+    Legenda(#[from] crate::legenda::ErroLegenda),
+    Barra(#[from] crate::arvore_processo::ErroBarraDoProcesso),
     LinksDosMarcadoresRepetidosNaBarra,
     EnderecoDosMarcadoresNaoReconhecido,
     EnderecoDosMarcadoresDeOutroProcesso,
     TelaDosMarcadoresAusente,
+    /// A `action` do formulário de marcadores não se deixa ler em pares.
+    ConsultaDoFormularioIlegivel(
+        #[source] crate::consulta_do_controlador::ErroConsultaDoControlador,
+    ),
+    /// A `acao` do formulário de marcadores não é única nem conhecida.
+    AcaoDoFormularioNaoLida(#[source] crate::consulta_do_controlador::ErroAcaoDaUrl),
+    /// O `id_procedimento` do formulário não é único.
+    IdDoFormularioNaoLido(#[source] crate::consulta_do_controlador::ErroParametroDaUrl),
     NumeroDosMarcadoresDiferenteDoSolicitado,
     IdDosMarcadoresDiferenteDoAberto,
     MarcadoresAlemDoTotalDeclarado,
-    #[causa(transparente)]
-    Html(ErroHtml),
+    CabecalhoDosMarcadoresNaoReconhecido,
+    /// O número da legenda dos marcadores não é um inteiro decimal.
+    LegendaDosMarcadoresForaDaFormaObservada,
+    LinhaDoMarcadorForaDaFormaObservada,
+    MarcadorRepetidoNaTela,
+    TabelasDosMarcadoresRepetidas,
 }
 
 impl ErroMarcadores {
-    /// Recusas do link na barra (o resto é da tela).
-    pub(crate) fn do_link(self) -> bool {
-        matches!(
-            self,
-            Self::BarraDoProcessoForaDaFormaObservada
-                | Self::BarrasDoProcessoRepetidasNaArvore
-                | Self::LinksDosMarcadoresRepetidosNaBarra
-                | Self::EnderecoDosMarcadoresNaoReconhecido
-                | Self::EnderecoDosMarcadoresDeOutroProcesso
-        )
-    }
-
     /// A página não é a tela deste processo: um link guardado errou.
-    pub(crate) fn link_envelhecido(self) -> bool {
+    pub(crate) fn link_envelhecido(&self) -> bool {
         matches!(
             self,
             Self::TelaDosMarcadoresAusente

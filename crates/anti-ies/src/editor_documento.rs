@@ -6,19 +6,21 @@ use crate::{
     parametro_unico,
 };
 use iesei::documento_versoes::ler;
-use iesei::editor_documento::{Edicao, Falha, consultar_oferta, publicar};
+use iesei::editor_documento::{Edicao, ErroEditorDocumento, consultar_oferta, publicar};
 use iesei::instalacao::Instalacao;
 use rusqlite::Connection;
 use std::num::NonZeroU32;
 
-fn resposta_de_falha(falha: &Falha) -> Resposta {
+fn resposta_de_falha(falha: &ErroEditorDocumento) -> Resposta {
     let estado = match falha {
-        Falha::NaoObservado | Falha::Sqlite(_) => Estado::DadosInsuficientes,
-        Falha::NaoOferecido => Estado::MetodoNaoPermitido,
-        Falha::VersaoDivergente
-        | Falha::ConteudoDivergente
-        | Falha::AssinaturasNaoConfirmadas
-        | Falha::DadoInvalido => Estado::RequisicaoInvalida,
+        ErroEditorDocumento::NaoObservado | ErroEditorDocumento::Sqlite(_) => {
+            Estado::DadosInsuficientes
+        }
+        ErroEditorDocumento::NaoOferecido => Estado::MetodoNaoPermitido,
+        ErroEditorDocumento::VersaoDivergente
+        | ErroEditorDocumento::ConteudoDivergente
+        | ErroEditorDocumento::AssinaturasNaoConfirmadas
+        | ErroEditorDocumento::DadoInvalido => Estado::RequisicaoInvalida,
     };
     Resposta::nova(estado)
 }

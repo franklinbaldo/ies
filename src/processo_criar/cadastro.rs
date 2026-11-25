@@ -1,34 +1,25 @@
 //! Validação offline do cadastro de processo servido pelo SEI.
 //! Sem envio HTTP, JS, URLs montadas ou deduções a partir do nome do tipo.
-use crate::erro_html::ErroHtml;
-use crate::html_atributos::{atributo_presente, nos_com_id, valor_do_atributo};
 
-#[derive(Debug, Clone, Copy, PartialEq, Eq, crate::erro_publico::Causa)]
+#[derive(Debug, Clone, PartialEq, Eq, thiserror::Error)]
+#[error("{self:?}")]
 pub(crate) enum ErroCadastro {
-    #[causa(nome = "tipo_do_cadastro_divergente")]
     TipoDeCadastroDivergente,
-    #[causa(nome = "nivel_de_acesso_nao_oferecido")]
     NivelNaoOferecido,
-    #[causa(nome = "nivel_de_acesso_desabilitado")]
     NivelDesabilitado,
-    #[causa(nome = "assunto_sugerido_desabilitado")]
     AssuntoDesabilitado,
-    #[causa(nome = "hipotese_legal_desabilitada")]
     HipoteseLegalDesabilitada,
     HipoteseLegalNaoIdentificada,
-    #[causa(nome = "especificacao_acima_do_limite_do_cadastro")]
     EspecificacaoAcimaDoLimite {
         limite: usize,
         tamanho: usize,
     },
-    #[causa(transparente)]
-    Html(ErroHtml),
-}
-
-impl ErroCadastro {
-    pub(crate) fn subcodigo(self) -> &'static str {
-        crate::erro_publico::folha(&self)
-    }
+    AssuntoSugeridoNaoUnico,
+    CadastroDeProcessoAusenteOuRepetido,
+    EspecificacaoNaoPublicadaNoCadastro,
+    LimiteDaEspecificacaoInvalidoNoCadastro(#[source] std::num::ParseIntError),
+    /// O campo da especificação existe, mas o formulário não publica `maxlength`.
+    LimiteDaEspecificacaoNaoPublicado,
 }
 
 #[derive(Debug, Clone, PartialEq, Eq)]
@@ -36,20 +27,18 @@ pub(crate) struct CadastroObservado {
     pub(crate) id_tipo: String,
     pub(crate) assunto: String,
     pub(crate) id_assunto: String,
-    pub(crate) nivel: String,
+    pub(crate) nivel: crate::dominio::NivelDeCriacao,
     pub(crate) hipotese_legal: Option<String>,
-    pub(crate) limite_especificacao: Option<usize>,
+    pub(crate) limite_especificacao: usize,
 }
 
 impl CadastroObservado {
     /// O maxlength de input é contado em unidades UTF-16, como no navegador.
-    /// Sem atributo no formulário servido, não inferir limite universal.
     pub(crate) fn validar_especificacao(&self, especificacao: &str) -> Result<(), ErroCadastro> {
-        if let Some(limite) = self.limite_especificacao {
-            let tamanho = especificacao.encode_utf16().count();
-            if tamanho > limite {
-                return Err(ErroCadastro::EspecificacaoAcimaDoLimite { limite, tamanho });
-            }
+        let limite = self.limite_especificacao;
+        let tamanho = especificacao.encode_utf16().count();
+        if tamanho > limite {
+            return Err(ErroCadastro::EspecificacaoAcimaDoLimite { limite, tamanho });
         }
         Ok(())
     }
@@ -59,9 +48,9 @@ impl CadastroObservado {
 /// sugerido e o nível pedido. Não autoriza uma submissão: a ação, todos
 /// os hidden e os interessados ainda precisam ser conferidos pelo fluxo.
 pub(crate) fn conferir_cadastro(
-    html: &str,
+    html: &crate::tela_html::HtmlServido,
     id_tipo: &str,
-    nivel: &str,
+    nivel: crate::dominio::NivelDeCriacao,
 ) -> Result<CadastroObservado, ErroCadastro> {
     conferir_cadastro_interno(html, id_tipo, nivel, false)
 }
@@ -70,110 +59,89 @@ pub(crate) fn conferir_cadastro(
 /// por AJAX observado, que o fluxo consulta antes de derivar a escrita.
 /// Nada aqui autoriza escolher um valor ausente da resposta real.
 pub(crate) fn conferir_cadastro_com_ajax_pendente(
-    html: &str,
+    html: &crate::tela_html::HtmlServido,
     id_tipo: &str,
-    nivel: &str,
+    nivel: crate::dominio::NivelDeCriacao,
 ) -> Result<CadastroObservado, ErroCadastro> {
     conferir_cadastro_interno(html, id_tipo, nivel, true)
 }
 
 fn conferir_cadastro_interno(
-    html: &str,
+    html: &crate::tela_html::HtmlServido,
     id_tipo: &str,
-    nivel: &str,
+    nivel: crate::dominio::NivelDeCriacao,
     permite_ajax_pendente: bool,
 ) -> Result<CadastroObservado, ErroCadastro> {
-    use ErroCadastro as E;
-    let dom = tl::parse(html, tl::ParserOptions::default())
-        .map_err(|_| ErroHtml::html("cadastro_de_processo_html_invalido"))?;
-    let formularios = nos_com_id(&dom, "frmProcedimentoCadastro")
-        .map_err(|e| ErroHtml::atributo("cadastro_de_processo_html_invalido", e))?;
+    let dom = crate::tela_html::arvore(html);
+    let formularios = dom.com_id("frmProcedimentoCadastro").collect::<Vec<_>>();
     let [formulario] = formularios.as_slice() else {
-        return Err(ErroHtml::ausente("cadastro_de_processo_ausente_ou_repetido").into());
+        return Err(ErroCadastro::CadastroDeProcessoAusenteOuRepetido);
     };
-    let parser = dom.parser();
-    let form = formulario
-        .get(parser)
-        .and_then(tl::Node::as_tag)
-        .ok_or(ErroHtml::html("cadastro_de_processo_html_invalido"))?;
-    if form.name().as_utf8_str() != "form" {
-        return Err(ErroHtml::ausente("cadastro_de_processo_ausente_ou_repetido").into());
+    let form = *formulario;
+    if form.nome() != "form" {
+        return Err(ErroCadastro::CadastroDeProcessoAusenteOuRepetido);
     }
 
     let mut ids = Vec::new();
     let mut descricoes = 0;
     let mut limite_especificacao = None;
     let mut radios = Vec::new();
-    for handle in form.query_selector(parser, "input").into_iter().flatten() {
-        let tag = handle
-            .get(parser)
-            .and_then(tl::Node::as_tag)
-            .ok_or(ErroHtml::html("cadastro_de_processo_html_invalido"))?;
-        let nome = valor_do_atributo(tag, "name")
-            .map_err(|e| ErroHtml::atributo("cadastro_de_processo_html_invalido", e))?;
-        match nome.as_deref() {
+    for handle in form.elementos("input") {
+        let nome = handle.atributo("name");
+        match nome {
             Some("hdnIdTipoProcedimento") => {
-                ids.push(
-                    valor_do_atributo(tag, "value")
-                        .map_err(|e| ErroHtml::atributo("cadastro_de_processo_html_invalido", e))?,
-                );
+                ids.push(handle.atributo("value"));
             }
             Some("txtDescricao") => {
-                if atributo_presente(tag, "disabled")
-                    .map_err(|e| ErroHtml::atributo("cadastro_de_processo_html_invalido", e))?
-                {
-                    return Err(ErroHtml::ausente("especificacao_nao_publicada_no_cadastro").into());
+                if handle.presente("disabled") {
+                    return Err(ErroCadastro::EspecificacaoNaoPublicadaNoCadastro);
                 }
                 // Usar apenas o limite publicado neste cadastro, nunca
                 // um valor fixo extrapolado de outras instalações.
-                limite_especificacao = valor_do_atributo(tag, "maxlength")
-                    .map_err(|e| ErroHtml::atributo("cadastro_de_processo_html_invalido", e))?
+                limite_especificacao = handle
+                    .atributo("maxlength")
                     .map(|literal| {
-                        literal.parse::<usize>().map_err(|_| {
-                            ErroHtml::valor("limite_da_especificacao_invalido_no_cadastro")
-                        })
+                        literal
+                            .parse::<usize>()
+                            .map_err(ErroCadastro::LimiteDaEspecificacaoInvalidoNoCadastro)
                     })
                     .transpose()?;
                 descricoes += 1;
             }
             Some("rdoNivelAcesso") => {
-                let valor = valor_do_atributo(tag, "value")
-                    .map_err(|e| ErroHtml::atributo("cadastro_de_processo_html_invalido", e))?;
-                let desabilitado = atributo_presente(tag, "disabled")
-                    .map_err(|e| ErroHtml::atributo("cadastro_de_processo_html_invalido", e))?;
+                let valor = handle.atributo("value");
+                let desabilitado = handle.presente("disabled");
                 radios.push((valor, desabilitado));
             }
             _ => {}
         }
     }
-    if ids.as_slice() != [Some(id_tipo.to_owned())] {
-        return Err(E::TipoDeCadastroDivergente);
+    if ids.as_slice() != [Some(id_tipo)] {
+        return Err(ErroCadastro::TipoDeCadastroDivergente);
     }
     if descricoes != 1 {
-        return Err(ErroHtml::ausente("especificacao_nao_publicada_no_cadastro").into());
+        return Err(ErroCadastro::EspecificacaoNaoPublicadaNoCadastro);
     }
-    let valor_nivel = match nivel {
-        "publico" => "0",
-        "restrito" => "1",
-        _ => return Err(E::NivelNaoOferecido),
-    };
+    let valor_nivel = nivel.valor_radio();
     let correspondentes: Vec<_> = radios
         .iter()
-        .filter(|(valor, _)| valor.as_deref() == Some(valor_nivel))
+        .filter(|(valor, _)| *valor == Some(valor_nivel))
         .collect();
     match correspondentes.as_slice() {
         [(_, false)] => {}
-        [(_, true)] => return Err(E::NivelDesabilitado),
-        _ => return Err(E::NivelNaoOferecido),
+        [(_, true)] => return Err(ErroCadastro::NivelDesabilitado),
+        _ => return Err(ErroCadastro::NivelNaoOferecido),
     }
 
     let (id_assunto, assunto, hipotese_legal) =
-        conferir_listas(form, parser, nivel, permite_ajax_pendente)?;
+        conferir_listas(form, nivel, permite_ajax_pendente)?;
+    let limite_especificacao =
+        limite_especificacao.ok_or(ErroCadastro::LimiteDaEspecificacaoNaoPublicado)?;
     Ok(CadastroObservado {
         id_tipo: id_tipo.to_owned(),
         assunto,
         id_assunto,
-        nivel: nivel.to_owned(),
+        nivel,
         hipotese_legal,
         limite_especificacao,
     })
@@ -182,30 +150,21 @@ fn conferir_cadastro_interno(
 /// Lê apenas listas publicadas dentro do mesmo formulário, sem inferir
 /// itens ausentes. Dois assuntos não equivalem a um sugerido único.
 fn conferir_listas(
-    form: &tl::HTMLTag<'_>,
-    parser: &tl::Parser<'_>,
-    nivel: &str,
+    form: crate::tela_html::Elemento<'_>,
+    nivel: crate::dominio::NivelDeCriacao,
     permite_ajax_pendente: bool,
 ) -> Result<(String, String, Option<String>), ErroCadastro> {
-    use ErroCadastro as E;
     let mut assuntos = Vec::new();
     let mut hipotese = Vec::new();
     let mut selects_assunto = 0;
     let mut selects_hipotese = 0;
-    for handle in form.query_selector(parser, "select").into_iter().flatten() {
-        let select = handle
-            .get(parser)
-            .and_then(tl::Node::as_tag)
-            .ok_or(ErroHtml::html("cadastro_de_processo_html_invalido"))?;
-        let nome = valor_do_atributo(select, "name")
-            .map_err(|e| ErroHtml::atributo("cadastro_de_processo_html_invalido", e))?;
-        let destino = match nome.as_deref() {
+    for handle in form.elementos("select") {
+        let nome = handle.atributo("name");
+        let destino = match nome {
             Some("selAssuntos") => {
                 selects_assunto += 1;
-                if atributo_presente(select, "disabled")
-                    .map_err(|e| ErroHtml::atributo("cadastro_de_processo_html_invalido", e))?
-                {
-                    return Err(E::AssuntoDesabilitado);
+                if handle.presente("disabled") {
+                    return Err(ErroCadastro::AssuntoDesabilitado);
                 }
                 &mut assuntos
             }
@@ -213,53 +172,39 @@ fn conferir_listas(
                 selects_hipotese += 1;
                 // No nível público, um seletor restrito desabilitado
                 // não impede a prévia nem exige hipótese legal.
-                if nivel == "restrito"
-                    && atributo_presente(select, "disabled")
-                        .map_err(|e| ErroHtml::atributo("cadastro_de_processo_html_invalido", e))?
+                if nivel == crate::dominio::NivelDeCriacao::Restrito && handle.presente("disabled")
                 {
-                    return Err(E::HipoteseLegalDesabilitada);
+                    return Err(ErroCadastro::HipoteseLegalDesabilitada);
                 }
                 &mut hipotese
             }
             _ => continue,
         };
-        for opcao in select
-            .query_selector(parser, "option")
-            .into_iter()
-            .flatten()
-        {
-            let tag = opcao
-                .get(parser)
-                .and_then(tl::Node::as_tag)
-                .ok_or(ErroHtml::html("cadastro_de_processo_html_invalido"))?;
-            if atributo_presente(tag, "disabled")
-                .map_err(|e| ErroHtml::atributo("cadastro_de_processo_html_invalido", e))?
-            {
+        for opcao in handle.elementos("option") {
+            if opcao.presente("disabled") {
                 continue;
             }
-            let valor = valor_do_atributo(tag, "value")
-                .map_err(|e| ErroHtml::atributo("cadastro_de_processo_html_invalido", e))?;
-            let titulo =
-                crate::transporte::texto_de_recusa::decodificar_entidades(&tag.inner_text(parser));
+            let valor = opcao.atributo("value").map(str::to_owned);
+            let titulo = opcao.texto();
             if let Some(valor) = valor.filter(|v| !v.is_empty() && v != "null") {
                 destino.push((valor, titulo));
             }
         }
     }
     let [(id_assunto, assunto)] = assuntos.as_slice() else {
-        return Err(ErroHtml::valor("assunto_sugerido_nao_unico").into());
+        return Err(ErroCadastro::AssuntoSugeridoNaoUnico);
     };
     if selects_assunto != 1 || assunto.is_empty() {
-        return Err(ErroHtml::valor("assunto_sugerido_nao_unico").into());
+        return Err(ErroCadastro::AssuntoSugeridoNaoUnico);
     }
-    let hipotese_legal = if nivel == "restrito" {
+    let hipotese_legal = if nivel == crate::dominio::NivelDeCriacao::Restrito {
         if selects_hipotese != 1 {
-            return Err(E::HipoteseLegalNaoIdentificada);
+            return Err(ErroCadastro::HipoteseLegalNaoIdentificada);
         }
         match hipotese.as_slice() {
             [(id, titulo)] if !titulo.is_empty() => Some(id.clone()),
             [] if permite_ajax_pendente => None,
-            _ => return Err(E::HipoteseLegalNaoIdentificada),
+            _ => return Err(ErroCadastro::HipoteseLegalNaoIdentificada),
         }
     } else {
         None
@@ -273,7 +218,7 @@ mod tests {
 
     fn tela(assuntos: &str, publico: &str, hipotese: &str) -> String {
         format!(
-            "<form id='frmProcedimentoCadastro'><input type='hidden' name='hdnIdTipoProcedimento' value='12'><input name='txtDescricao'><input type='radio' name='rdoNivelAcesso' value='0' {publico}><input type='radio' name='rdoNivelAcesso' value='1'><select name='selAssuntos'>{assuntos}</select><select name='selHipoteseLegal'>{hipotese}</select></form>"
+            "<form id='frmProcedimentoCadastro'><input type='hidden' name='hdnIdTipoProcedimento' value='12'><input name='txtDescricao' maxlength='250'><input type='radio' name='rdoNivelAcesso' value='0' {publico}><input type='radio' name='rdoNivelAcesso' value='1'><select name='selAssuntos'>{assuntos}</select><select name='selHipoteseLegal'>{hipotese}</select></form>"
         )
     }
     const ASSUNTO: &str = "<option value='21'>Assunto de teste</option>";
@@ -281,25 +226,33 @@ mod tests {
 
     #[test]
     fn valida_cadastro_publico_e_restrito_sem_escrever() {
-        let html = tela(ASSUNTO, "", HIPOTESE);
-        let publico = conferir_cadastro(&html, "12", "publico").unwrap();
+        let html = crate::tela_html::HtmlServido::de_teste(&tela(ASSUNTO, "", HIPOTESE));
+        let publico =
+            conferir_cadastro(&html, "12", crate::dominio::NivelDeCriacao::Publico).unwrap();
         assert_eq!(publico.id_assunto, "21");
         assert_eq!(publico.assunto, "Assunto de teste");
         assert_eq!(publico.hipotese_legal, None);
-        let restrito = conferir_cadastro(&html, "12", "restrito").unwrap();
+        let restrito =
+            conferir_cadastro(&html, "12", crate::dominio::NivelDeCriacao::Restrito).unwrap();
         assert_eq!(restrito.hipotese_legal.as_deref(), Some("31"));
     }
 
     #[test]
     fn recusa_formulario_ausente_e_tipo_de_outro_cadastro() {
         assert_eq!(
-            conferir_cadastro("<div></div>", "12", "publico"),
-            Err(ErroCadastro::Html(ErroHtml::ausente(
-                "cadastro_de_processo_ausente_ou_repetido"
-            )))
+            conferir_cadastro(
+                &crate::tela_html::HtmlServido::de_teste("<div></div>"),
+                "12",
+                crate::dominio::NivelDeCriacao::Publico
+            ),
+            Err(ErroCadastro::CadastroDeProcessoAusenteOuRepetido)
         );
         assert_eq!(
-            conferir_cadastro(&tela(ASSUNTO, "", HIPOTESE), "13", "publico"),
+            conferir_cadastro(
+                &crate::tela_html::HtmlServido::de_teste(&tela(ASSUNTO, "", HIPOTESE)),
+                "13",
+                crate::dominio::NivelDeCriacao::Publico
+            ),
             Err(ErroCadastro::TipoDeCadastroDivergente)
         );
     }
@@ -311,10 +264,12 @@ mod tests {
             "<option value='1'>Um</option><option value='2'>Outro</option>",
         ] {
             assert_eq!(
-                conferir_cadastro(&tela(opcoes, "", HIPOTESE), "12", "publico"),
-                Err(ErroCadastro::Html(ErroHtml::valor(
-                    "assunto_sugerido_nao_unico"
-                )))
+                conferir_cadastro(
+                    &crate::tela_html::HtmlServido::de_teste(&tela(opcoes, "", HIPOTESE)),
+                    "12",
+                    crate::dominio::NivelDeCriacao::Publico
+                ),
+                Err(ErroCadastro::AssuntoSugeridoNaoUnico)
             );
         }
     }
@@ -322,19 +277,32 @@ mod tests {
     #[test]
     fn recusa_nivel_desabilitado() {
         assert_eq!(
-            conferir_cadastro(&tela(ASSUNTO, "disabled", HIPOTESE), "12", "publico"),
+            conferir_cadastro(
+                &crate::tela_html::HtmlServido::de_teste(&tela(ASSUNTO, "disabled", HIPOTESE)),
+                "12",
+                crate::dominio::NivelDeCriacao::Publico
+            ),
             Err(ErroCadastro::NivelDesabilitado)
         );
     }
 
     #[test]
     fn placeholder_null_precisa_de_ajax_antes_de_uma_escrita() {
-        let html = tela(ASSUNTO, "", "<option value='null'> </option>");
+        let html = crate::tela_html::HtmlServido::de_teste(&tela(
+            ASSUNTO,
+            "",
+            "<option value='null'> </option>",
+        ));
         assert_eq!(
-            conferir_cadastro(&html, "12", "restrito"),
+            conferir_cadastro(&html, "12", crate::dominio::NivelDeCriacao::Restrito),
             Err(ErroCadastro::HipoteseLegalNaoIdentificada)
         );
-        let observado = conferir_cadastro_com_ajax_pendente(&html, "12", "restrito").unwrap();
+        let observado = conferir_cadastro_com_ajax_pendente(
+            &html,
+            "12",
+            crate::dominio::NivelDeCriacao::Restrito,
+        )
+        .unwrap();
         assert_eq!(observado.hipotese_legal, None);
     }
 
@@ -345,22 +313,40 @@ mod tests {
     fn select_desabilitado_nao_comprova_assunto_ou_hipotese() {
         // Teste sintético da semântica HTML; oráculo de campos:
         // Todos tests/paginas_reais/procedimento_gerar.html @323eb01.
-        let assunto_desabilitado = tela(ASSUNTO, "", HIPOTESE)
-            .replace("name='selAssuntos'", "name='selAssuntos' disabled");
+        let assunto_desabilitado = crate::tela_html::HtmlServido::de_teste(
+            &tela(ASSUNTO, "", HIPOTESE)
+                .replace("name='selAssuntos'", "name='selAssuntos' disabled"),
+        );
         assert_eq!(
-            conferir_cadastro(&assunto_desabilitado, "12", "publico"),
+            conferir_cadastro(
+                &assunto_desabilitado,
+                "12",
+                crate::dominio::NivelDeCriacao::Publico
+            ),
             Err(ErroCadastro::AssuntoDesabilitado)
         );
-        let hipotese_desabilitada = tela(ASSUNTO, "", HIPOTESE).replace(
-            "name='selHipoteseLegal'",
-            "name='selHipoteseLegal' disabled",
-        );
+        let hipotese_desabilitada =
+            crate::tela_html::HtmlServido::de_teste(&tela(ASSUNTO, "", HIPOTESE).replace(
+                "name='selHipoteseLegal'",
+                "name='selHipoteseLegal' disabled",
+            ));
         assert_eq!(
-            conferir_cadastro(&hipotese_desabilitada, "12", "restrito"),
+            conferir_cadastro(
+                &hipotese_desabilitada,
+                "12",
+                crate::dominio::NivelDeCriacao::Restrito
+            ),
             Err(ErroCadastro::HipoteseLegalDesabilitada)
         );
         // Hipótese desabilitada é irrelevante quando o nível é público.
-        assert!(conferir_cadastro(&hipotese_desabilitada, "12", "publico").is_ok());
+        assert!(
+            conferir_cadastro(
+                &hipotese_desabilitada,
+                "12",
+                crate::dominio::NivelDeCriacao::Publico
+            )
+            .is_ok()
+        );
     }
 
     #[test]
@@ -370,7 +356,11 @@ mod tests {
             "<option value='1'>Uma</option><option value='2'>Outra</option>",
         ] {
             assert_eq!(
-                conferir_cadastro(&tela(ASSUNTO, "", opcoes), "12", "restrito"),
+                conferir_cadastro(
+                    &crate::tela_html::HtmlServido::de_teste(&tela(ASSUNTO, "", opcoes)),
+                    "12",
+                    crate::dominio::NivelDeCriacao::Restrito
+                ),
                 Err(ErroCadastro::HipoteseLegalNaoIdentificada)
             );
         }

@@ -1,15 +1,13 @@
 //! CLI de relacionamento: prévia, remoção confirmada e efeito incerto.
-use crate::processo::NumeroProcesso;
-use crate::processo_concluir_cli::{com_sessao, erro_de_uso};
+use crate::processo_concluir_cli::com_sessao;
 use crate::processo_relacionar::{
     FalhaRelacionar, Pedido, Previa, ResultadoRelacionar, mesmo_protocolo, prever,
 };
 use crate::visao_do_controle::EnvioHttps;
-use crate::{Cli, Domain, Processo, ProcessoAcao, saida_erro};
+use crate::{Cli, Domain, Processo, ProcessoAcao};
 use serde_json::json;
-use std::process::ExitCode;
 
-pub(crate) fn tentar_relacionar(cli: &Cli) -> Option<ExitCode> {
+pub(crate) fn tentar_relacionar(cli: &Cli) -> Option<anyhow::Result<()>> {
     let Domain::Processo(Processo {
         acao:
             Some(ProcessoAcao::Relacionar {
@@ -23,27 +21,22 @@ pub(crate) fn tentar_relacionar(cli: &Cli) -> Option<ExitCode> {
     else {
         return None;
     };
-    let nup = match NumeroProcesso::novo(numero) {
-        Ok(n) => n,
-        Err(erro) => return Some(erro_de_uso(cli.json, erro.subcodigo())),
-    };
-    let outro = match NumeroProcesso::novo(com) {
-        Ok(n) => n,
-        Err(erro) => return Some(erro_de_uso(cli.json, erro.subcodigo())),
-    };
+    let nup = numero.clone();
+    let outro = com.clone();
     // A identidade é conhecida pela própria entrada da CLI: não abrir
     // sessão, índice ou rede para tentar relacionar o processo consigo mesmo.
     if mesmo_protocolo(nup.as_str(), outro.as_str()) {
-        return Some(falha(
-            cli.json,
-            &FalhaRelacionar::RelacionamentoConsigoMesmo,
-        ));
+        return Some(Err(FalhaRelacionar::RelacionamentoConsigoMesmo.into()));
     }
     Some(com_sessao(cli, |sessao, indice| {
-        // A escrita real só será habilitada após ensaio de treinamento.
-        // Esta trava não interfere na prévia nem nos testes offline do motor.
-        if *confirmar {
-            return falha(cli.json, &FalhaRelacionar::ConfirmacaoAindaNaoValidada);
+        // Aprovada em treinamento (10/11/2026): grava também em produção.
+        if *confirmar
+            && let Err(causa) = crate::origem_de_treinamento::exigir(
+                crate::origem_de_treinamento::Escrita::ProcessoRelacionar,
+                sessao.origem,
+            )
+        {
+            return Err(causa.into());
         }
         let pedido = Pedido {
             nup: &nup,
@@ -52,66 +45,29 @@ pub(crate) fn tentar_relacionar(cli: &Cli) -> Option<ExitCode> {
             remover: *remover,
             confirmar: *confirmar,
         };
-        match prever(sessao, &pedido, indice, &mut EnvioHttps) {
-            Ok(preview) => publicar(cli.json, &preview),
-            Err(FalhaRelacionar::Abertura(erro)) => saida_erro::erro_fonte_http(
-                cli.json,
-                erro.subcodigo(),
-                erro.mensagem(),
-                erro.status_http(),
-            ),
-            Err(erro) => falha(cli.json, &erro),
-        }
+        let preview = prever(sessao, &pedido, indice, &mut EnvioHttps)?;
+        publicar(cli.json, &preview, indice);
+        Ok(())
     }))
 }
 
-fn falha(json_mode: bool, erro: &FalhaRelacionar) -> ExitCode {
-    let incerto = erro.saida() == 3;
-    let mensagem = if incerto {
-        "O envio não comprovou a alteração do relacionamento. Confira o SEI antes de qualquer nova confirmação; não repita a escrita."
-    } else if matches!(erro, FalhaRelacionar::ConfirmacaoAindaNaoValidada) {
-        "Confirmação indisponível até validação em treinamento; a prévia continua disponível."
-    } else {
-        "Operação recusada ou prévia indisponível"
-    };
+fn publicar(json_mode: bool, previa: &Previa, indice: &crate::indice_local::IndiceLocal) {
     if json_mode {
-        let mut resposta = json!({
-            "codigo": if incerto { "efeito_incerto" } else { "operacao_recusada" },
-            "subcodigo": erro.subcodigo(),
-            "erro": mensagem,
-            "retentavel": false,
+        let mut valor = json!({
+            "nup": previa.nup,
+            "id_procedimento": previa.id_procedimento,
+            "destino": previa.destino,
+            "id_destino": previa.id_destino,
+            "tipo_destino": previa.tipo_destino,
+            "remover": previa.remover,
+            "confirmado": previa.resultado == ResultadoRelacionar::Confirmado,
+            "alterado": previa.resultado == ResultadoRelacionar::Confirmado,
+            "sem_efeito": previa.sem_efeito(),
+            "origem": "web",
+            "requisicoes": previa.requisicoes,
         });
-        if let Some(status) = erro.status_http() {
-            resposta["status_http"] = json!(status.status);
-            if let Some(texto) = &status.mensagem_do_servidor {
-                resposta["mensagem_servidor"] = json!(texto);
-            }
-        }
-        println!("{resposta}");
-    } else {
-        eprintln!("IES: {mensagem} [{}]", erro.subcodigo());
-    }
-    ExitCode::from(erro.saida())
-}
-
-fn publicar(json_mode: bool, previa: &Previa) -> ExitCode {
-    if json_mode {
-        println!(
-            "{}",
-            json!({
-                "nup": previa.nup,
-                "id_procedimento": previa.id_procedimento,
-                "destino": previa.destino,
-                "id_destino": previa.id_destino,
-                "tipo_destino": previa.tipo_destino,
-                "remover": previa.remover,
-                "confirmado": previa.resultado == ResultadoRelacionar::Confirmado,
-                "alterado": previa.resultado == ResultadoRelacionar::Confirmado,
-                "sem_efeito": previa.sem_efeito(),
-                "origem": "web",
-                "requisicoes": previa.requisicoes,
-            })
-        );
+        crate::indice_local::anexar_avisos(&mut valor, indice);
+        println!("{valor}");
     } else if previa.resultado == ResultadoRelacionar::Confirmado {
         println!(
             "Relacionamento {} e conferido: {} com {}. Requisições: {}",
@@ -150,5 +106,4 @@ fn publicar(json_mode: bool, previa: &Previa) -> ExitCode {
             },
         );
     }
-    ExitCode::SUCCESS
 }

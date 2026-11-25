@@ -5,19 +5,18 @@ use crate::indice_local::IndiceLocal;
 use crate::marcadores_processo::MarcadoresLidos;
 use crate::processo::NumeroProcesso;
 use crate::processo_marcar::{
-    Decisao, ErroMarcar, Operacao, Rotulo, decidir, interpretar_rotulo, validar_texto,
+    Decisao, ErroMarcar, Operacao, Rotulo, confirmar_retirada, decidir, executar_atribuicao, recusa,
 };
 use crate::processo_obter::{
     EnvioDoProcesso, Marcadores, PedidoDeAndamentos, PedidoDoProcesso, SessaoDoProcesso,
     obter_processo,
 };
 use crate::visao_do_controle::EnvioHttps;
-use crate::{Cli, Domain, Processo, ProcessoAcao, processo_concluir_cli, saida_erro};
+use crate::{Cli, Domain, Processo, ProcessoAcao, processo_concluir_cli};
 use serde_json::json;
-use std::process::ExitCode;
 
 /// Despacho específico, sem tocar nos outros subcomandos.
-pub(crate) fn tentar_marcar(cli: &Cli) -> Option<ExitCode> {
+pub(crate) fn tentar_marcar(cli: &Cli) -> Option<anyhow::Result<()>> {
     let Domain::Processo(Processo {
         acao:
             Some(ProcessoAcao::Marcar {
@@ -32,94 +31,51 @@ pub(crate) fn tentar_marcar(cli: &Cli) -> Option<ExitCode> {
     else {
         return None;
     };
-    let nup = match NumeroProcesso::novo(numero) {
-        Ok(nup) => nup,
-        Err(erro) => {
-            return Some(erro_de_uso(
-                cli,
-                erro.subcodigo(),
-                "número de processo inválido",
-            ));
-        }
+    let nup = numero.clone();
+    // O clap exige exatamente um dos dois e já interpretou o rótulo.
+    let (rotulo, operacao) = match (marcador, retirar) {
+        (Some(rotulo), _) => (rotulo, Operacao::Atribuir),
+        (None, Some(rotulo)) => (rotulo, Operacao::Retirar),
+        (None, None) => unreachable!("o clap exige --marcador ou --retirar"),
     };
-    let (bruto, operacao) = if let Some(rotulo) = marcador {
-        (rotulo.as_str(), Operacao::Atribuir)
-    } else if let Some(rotulo) = retirar {
-        (rotulo.as_str(), Operacao::Retirar)
-    } else {
-        // O clap exige exatamente um dos dois, sem tentar abrir a sessão.
-        return Some(erro_de_uso(
-            cli,
-            "marcador_nao_informado",
-            "informe --marcador ou --retirar",
-        ));
-    };
-    let rotulo = match interpretar_rotulo(bruto) {
-        Ok(rotulo) => rotulo,
-        Err(erro) => return Some(erro_de_uso(cli, erro.subcodigo(), erro.mensagem())),
-    };
-    if let Some(texto) = texto
-        && let Err(erro) = validar_texto(texto)
-    {
-        return Some(erro_de_uso(cli, erro.subcodigo(), erro.mensagem()));
-    }
-    if *confirmar {
-        // Fatia WIP (#255): sem POST observado, recusa antes de sessão e rede.
-        return Some(falha(cli, ErroMarcar::EscritaAindaFechada, 0));
-    }
     Some(processo_concluir_cli::com_sessao(cli, |sessao, indice| {
+        if *confirmar
+            && let Err(causa) = crate::origem_de_treinamento::exigir(
+                crate::origem_de_treinamento::Escrita::ProcessoMarcar,
+                sessao.origem,
+            )
+        {
+            return Err(causa.into());
+        }
+        if operacao == Operacao::Atribuir {
+            return executar_atribuicao(
+                cli,
+                sessao,
+                indice,
+                &nup,
+                (rotulo, texto.as_deref(), *confirmar),
+                &mut EnvioHttps,
+            );
+        }
+        if *confirmar {
+            return confirmar_retirada(cli, sessao, indice, &nup, rotulo, &mut EnvioHttps);
+        }
         previa(
             cli,
             sessao,
             indice,
             &nup,
-            (&rotulo, operacao),
+            (rotulo, operacao),
             *confirmar,
             &mut EnvioHttps,
         )
     }))
 }
 
-fn erro_de_uso(cli: &Cli, subcodigo: &str, mensagem: &str) -> ExitCode {
-    if cli.json {
-        println!(
-            "{}",
-            json!({
-                "codigo": "entrada_invalida", "subcodigo": subcodigo,
-                "erro": mensagem, "retentavel": false
-            })
-        );
-    } else {
-        eprintln!("IES: {mensagem} [{subcodigo}]");
-    }
-    ExitCode::from(2)
-}
-
-fn falha(cli: &Cli, erro: ErroMarcar, requisicoes: u8) -> ExitCode {
-    if cli.json {
-        println!(
-            "{}",
-            json!({
-                "codigo": "fonte_invalida", "subcodigo": erro.subcodigo(),
-                "erro": erro.mensagem(), "retentavel": false,
-                "requisicoes": requisicoes
-            })
-        );
-    } else {
-        eprintln!(
-            "IES: {} [{}]; requisições: {}",
-            erro.mensagem(),
-            erro.subcodigo(),
-            requisicoes
-        );
-    }
-    ExitCode::from(1)
-}
-
 fn marcadores_observados(marcadores: &Marcadores) -> Result<&MarcadoresLidos, ErroMarcar> {
     match marcadores {
         Marcadores::Lidos(lista) => Ok(lista),
-        _ => Err(ErroMarcar::MarcadoresNaoLidos),
+        Marcadores::Omitidos => Err(ErroMarcar::MarcadoresNaoLidos),
     }
 }
 
@@ -131,7 +87,7 @@ fn previa<E: EnvioDoProcesso>(
     (rotulo, operacao): (&Rotulo, Operacao),
     confirmar: bool,
     envio: &mut E,
-) -> ExitCode {
+) -> anyhow::Result<()> {
     let pedido = PedidoDoProcesso {
         nup,
         unidade: cli.unidade.as_deref(),
@@ -142,32 +98,16 @@ fn previa<E: EnvioDoProcesso>(
         unidade_exigida: true,
         leitura_das_pastas: crate::processo_obter::LeituraDasPastas::Estrita,
     };
-    let aberto = match obter_processo(sessao, &pedido, indice, envio) {
-        Ok(aberto) => aberto,
-        Err(erro) => {
-            return saida_erro::erro_fonte_http(
-                cli.json,
-                erro.subcodigo(),
-                erro.mensagem(),
-                erro.status_http(),
-            );
-        }
-    };
+    let aberto = obter_processo(sessao, &pedido, indice, envio)?;
     let n = aberto.requisicoes;
     let Some(unidade) = aberto.unidade.as_deref() else {
-        return falha(cli, ErroMarcar::UnidadeDaSessaoNaoPublicada, n);
+        return Err(recusa(ErroMarcar::UnidadeDaSessaoNaoPublicada, n));
     };
-    let lidos = match marcadores_observados(&aberto.marcadores) {
-        Ok(lidos) => lidos,
-        Err(erro) => return falha(cli, erro, n),
-    };
-    let decisao = match decidir(lidos, rotulo, operacao) {
-        Ok(decisao) => decisao,
-        Err(erro) => return falha(cli, erro, n),
-    };
+    let lidos = marcadores_observados(&aberto.marcadores).map_err(|erro| recusa(erro, n))?;
+    let decisao = decidir(lidos, rotulo, operacao).map_err(|erro| recusa(erro, n))?;
     if confirmar && decisao == Decisao::PreviaDeRetirada {
         // Ainda sem prova dos campos e da resposta do POST, nunca escrever.
-        return falha(cli, ErroMarcar::RemocaoSemFormularioObservado, n);
+        return Err(recusa(ErroMarcar::RemocaoSemFormularioObservado, n));
     }
     let nada_a_fazer = decisao == Decisao::NadaAFazer;
     let acao = match operacao {
@@ -175,22 +115,21 @@ fn previa<E: EnvioDoProcesso>(
         Operacao::Retirar => "retirar",
     };
     if cli.json {
-        println!(
-            "{}",
-            json!({
-                "nup": nup.as_str(),
-                "id_procedimento": aberto.arvore.processo.id,
-                "unidade": unidade,
-                "marcador": format!("{}#{}", rotulo.id, rotulo.nome),
-                "acao": acao,
-                "origem": "web",
-                "confirmado": confirmar,
-                "alterado": false,
-                "nada_a_fazer": nada_a_fazer,
-                "retirada_possivel": !nada_a_fazer,
-                "requisicoes": n,
-            })
-        );
+        let mut valor = json!({
+            "nup": nup.as_str(),
+            "id_procedimento": aberto.arvore.processo.id,
+            "unidade": unidade,
+            "marcador": format!("{}#{}", rotulo.id, rotulo.nome),
+            "acao": acao,
+            "origem": "web",
+            "confirmado": confirmar,
+            "alterado": false,
+            "nada_a_fazer": nada_a_fazer,
+            "retirada_possivel": false, // Sem formulário de remoção validado, não prometer ação.
+            "requisicoes": n,
+        });
+        crate::indice_local::anexar_avisos(&mut valor, indice);
+        println!("{valor}");
     } else if nada_a_fazer {
         println!(
             "Processo {}: nada a fazer com {} ({}). Requisições: {}.",
@@ -201,7 +140,7 @@ fn previa<E: EnvioDoProcesso>(
         );
     } else {
         println!(
-            "Prévia: retirar marcador {}#{} do processo {} (unidade {}). Requisições: {}. A escrita ainda não está disponível.",
+            "Prévia: retirar marcador {}#{} do processo {} (unidade {}). Requisições: {}. Esta prévia não alterou o processo. Para tentar a remoção, use --confirmar em treinamento; a escrita só ocorre após formulário conferido.",
             rotulo.id,
             rotulo.nome,
             nup.as_str(),
@@ -209,7 +148,7 @@ fn previa<E: EnvioDoProcesso>(
             n
         );
     }
-    ExitCode::SUCCESS
+    Ok(())
 }
 
 #[cfg(test)]
@@ -287,7 +226,7 @@ mod tests {
             let mut respostas = abertura(arvore.clone());
             respostas.push(ok(tela_dos_marcadores(NUP, ID)));
             let (saida, pedidos) = rodar_com(&amb, respostas, |sessao, nup, indice, roteiro| {
-                let rotulo = interpretar_rotulo("501#Revisão").unwrap();
+                let rotulo = crate::processo_marcar::interpretar_rotulo("501#Revisão").unwrap();
                 previa(
                     &cli,
                     sessao,
@@ -298,12 +237,17 @@ mod tests {
                     roteiro,
                 )
             });
-            let status_esperado = if confirmar {
-                ExitCode::from(1)
+            if confirmar {
+                assert!(matches!(
+                    saida.unwrap_err().downcast_ref(),
+                    Some(crate::processo_marcar::FalhaDaMarcacao::Recusada {
+                        causa: ErroMarcar::RemocaoSemFormularioObservado,
+                        requisicoes: 4,
+                    })
+                ));
             } else {
-                ExitCode::SUCCESS
-            };
-            assert_eq!(saida, status_esperado);
+                saida.unwrap();
+            }
             assert_eq!(pedidos, esperado);
             assert_eq!(pedidos.len(), 4);
             assert!(pedidos.iter().all(|pedido| pedido.metodo == "GET"));

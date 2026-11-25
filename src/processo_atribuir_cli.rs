@@ -1,18 +1,14 @@
-//! Prévia Web de atribuição por login exato; escrita bloqueada até a
-//! sequência POST único e releitura estar coberta por teste de transporte.
-use crate::processo::NumeroProcesso;
+//! Prévia Web de atribuição por login exato; confirmação apenas nas
+//! instalação de treinamento `UnB` com efeito verificado por releitura.
 use crate::processo_atribuir::{
-    ErroProcessoAtribuir, EstadoDaAtribuicao, PedidoDaAtribuicao, ProcessoAtribuido,
-    executar_previa,
+    EstadoDaAtribuicao, PedidoDaAtribuicao, ProcessoAtribuido, executar_previa,
 };
-use crate::processo_concluir_cli::{com_sessao, erro_de_uso, json_base_da_falha};
-use crate::saida_erro;
+use crate::processo_concluir_cli::com_sessao;
 use crate::visao_do_controle::EnvioHttps;
 use crate::{Cli, Domain, Processo, ProcessoAcao};
 use serde_json::json;
-use std::process::ExitCode;
 
-pub(crate) fn tentar_atribuir(cli: &Cli) -> Option<ExitCode> {
+pub(crate) fn tentar_atribuir(cli: &Cli) -> Option<anyhow::Result<()>> {
     let Domain::Processo(Processo {
         acao:
             Some(ProcessoAcao::Atribuir {
@@ -26,98 +22,27 @@ pub(crate) fn tentar_atribuir(cli: &Cli) -> Option<ExitCode> {
     else {
         return None;
     };
-    Some(match NumeroProcesso::novo(numero) {
-        Ok(nup) => {
-            if *confirmar {
-                // Segurança: a escrita incompleta é recusada antes de abrir sessão ou rede.
-                falhar(
-                    cli.json,
-                    ErroProcessoAtribuir::EscritaAindaNaoVerificada.subcodigo(),
-                )
-            } else {
-                com_sessao(cli, |sessao, indice| {
-                    let pedido = PedidoDaAtribuicao {
-                        nup: &nup,
-                        unidade: cli.unidade.as_deref(),
-                        usuario: if *remover { None } else { usuario.as_deref() },
-                        confirmar: false,
-                    };
-                    match executar_previa(sessao, &pedido, indice, &mut EnvioHttps) {
-                        Ok(feito) => publicar_previa(cli.json, &feito),
-                        Err(erro) => publicar_falha(cli.json, &erro),
-                    }
-                })
-            }
+    let nup = numero.clone();
+    Some(com_sessao(cli, |sessao, indice| {
+        // Limite inviolável: escrita só em instalação de treinamento.
+        if *confirmar
+            && let Err(causa) = crate::origem_de_treinamento::exigir(
+                crate::origem_de_treinamento::Escrita::ProcessoAtribuir,
+                sessao.origem,
+            )
+        {
+            return Err(causa.into());
         }
-        Err(erro) => erro_de_uso(cli.json, erro.subcodigo()),
-    })
-}
-
-/// A trava de escrita ainda é recusada sem sessão, preservando o contrato.
-fn falhar(json_mode: bool, subcodigo: &str) -> ExitCode {
-    if json_mode {
-        println!(
-            "{}",
-            json!({
-                "codigo": "atribuicao_recusada",
-                "subcodigo": subcodigo,
-                "retentavel": false
-            })
-        );
-    } else {
-        eprintln!("IES: atribuição recusada [{subcodigo}]");
-    }
-    ExitCode::from(1)
-}
-
-/// Toda recusa HTTP expõe status e mensagem saneada; a causa é preservada.
-/// Fatos de diagnóstico da prévia são publicados sem extrapolar uma unidade
-/// da árvore para outra: lista vazia = observada sem abertos; null = não lida.
-pub(crate) fn json_de_falha(erro: &ErroProcessoAtribuir) -> serde_json::Value {
-    let mut valor = json_base_da_falha(
-        "atribuicao_recusada",
-        erro.subcodigo(),
-        erro.mensagem(),
-        erro.status_http().cloned(),
-    );
-    if let Some(objeto) = valor.as_object_mut() {
-        match erro {
-            ErroProcessoAtribuir::SituacaoDaAtribuicaoNaoObservada {
-                unidade,
-                aberto_em,
-                motivo,
-                requisicoes,
-            } => {
-                objeto.insert("unidade".to_owned(), json!(unidade));
-                objeto.insert("aberto_em".to_owned(), json!(aberto_em));
-                objeto.insert("motivo".to_owned(), json!(motivo));
-                objeto.insert("requisicoes".to_owned(), json!(requisicoes));
-            }
-            ErroProcessoAtribuir::EfeitoIncertoNaAtribuicao {
-                requisicoes,
-                atribuicao_relida,
-                ..
-            } => {
-                objeto.insert("requisicoes".to_owned(), json!(requisicoes));
-                // Estado observado após o POST, não evidência de autoria.
-                objeto.insert("atribuicao_relida".to_owned(), json!(atribuicao_relida));
-            }
-            _ => {}
-        }
-    }
-    valor
-}
-
-fn publicar_falha(json_mode: bool, erro: &ErroProcessoAtribuir) -> ExitCode {
-    if json_mode {
-        println!("{}", json_de_falha(erro));
-    } else {
-        eprintln!(
-            "{}",
-            saida_erro::linha_humana(erro.subcodigo(), erro.mensagem(), erro.status_http())
-        );
-    }
-    ExitCode::from(erro.saida())
+        let pedido = PedidoDaAtribuicao {
+            nup: &nup,
+            unidade: cli.unidade.as_deref(),
+            usuario: if *remover { None } else { usuario.as_deref() },
+            confirmar: *confirmar,
+        };
+        let feito = executar_previa(sessao, &pedido, indice, &mut EnvioHttps)?;
+        publicar_previa(cli.json, &feito, indice);
+        Ok(())
+    }))
 }
 
 /// Traduz o estado único do domínio para os dois campos do contrato JSON legado.
@@ -126,32 +51,66 @@ pub(crate) fn json_da_previa(feito: &ProcessoAtribuido) -> serde_json::Value {
         EstadoDaAtribuicao::Previa => (false, false),
         EstadoDaAtribuicao::AlteracaoConfirmada => (true, true),
     };
-    json!({
+    let mut valor = json!({
         "nup": feito.nup,
         "id_procedimento": feito.id_procedimento,
         "unidade": feito.unidade,
-        "usuario_atual": feito.usuario_atual,
-        "usuario_pedido": feito.usuario_pedido,
         "remover": feito.usuario_pedido.is_none(),
         "valor_da_opcao": feito.valor_da_opcao,
         "confirmado": confirmado,
         "alterado": alterado,
         "origem": "web",
         "requisicoes": feito.requisicoes
-    })
+    });
+    // Sem atribuição, a chave é omitida: nunca texto vazio como sentinela.
+    if let (Some(campos), Some(login)) = (valor.as_object_mut(), feito.usuario_atual.as_deref()) {
+        campos.insert("usuario_atual".to_owned(), json!(login));
+    }
+    // Na remoção não há usuário pedido: a chave é omitida.
+    if let (Some(campos), Some(pedido)) = (valor.as_object_mut(), feito.usuario_pedido.as_deref()) {
+        campos.insert("usuario_pedido".to_owned(), json!(pedido));
+    }
+    valor
 }
 
-fn publicar_previa(json_mode: bool, feito: &ProcessoAtribuido) -> ExitCode {
-    if json_mode {
-        println!("{}", json_da_previa(feito));
-    } else {
-        println!("Prévia: processo {}, unidade {}.", feito.nup, feito.unidade);
-        if let Some(login) = &feito.usuario_pedido {
-            println!("Atribuir a {login}; opção verificada na tela.");
-        } else {
-            println!("Remover a atribuição observada.");
+/// O texto depende do mesmo estado tipado que os dois campos JSON.
+/// Uma alteração já comprovada não pode ser apresentada como mera prévia.
+pub(crate) fn texto_humano(feito: &ProcessoAtribuido) -> String {
+    let titulo = match (feito.estado, feito.usuario_pedido.as_ref()) {
+        (EstadoDaAtribuicao::Previa, _) => "Prévia",
+        (EstadoDaAtribuicao::AlteracaoConfirmada, Some(_)) => "Atribuição confirmada",
+        (EstadoDaAtribuicao::AlteracaoConfirmada, None) => "Remoção confirmada",
+    };
+    let mut linhas = vec![format!(
+        "{titulo}: processo {}, unidade {}.",
+        feito.nup, feito.unidade
+    )];
+    let atual = feito.usuario_atual.as_deref().unwrap_or("nenhuma");
+    if feito.estado == EstadoDaAtribuicao::Previa {
+        linhas.push(format!("Atribuição atual: {atual}."));
+        match &feito.usuario_pedido {
+            Some(login) => linhas.push(format!("Atribuir a {login}; opção verificada na tela.")),
+            None => linhas.push("Remover a atribuição observada.".to_owned()),
         }
-        println!("Requisições: {}", feito.requisicoes);
+    } else {
+        linhas.push(format!("Atribuição anterior: {atual}."));
+        let nova = feito.usuario_pedido.as_deref().unwrap_or("nenhuma");
+        linhas.push(format!("Atribuição agora: {nova}."));
     }
-    ExitCode::SUCCESS
+    linhas.push(format!("Requisições: {}.", feito.requisicoes));
+    linhas.join("\n")
+}
+
+fn publicar_previa(
+    json_mode: bool,
+    feito: &ProcessoAtribuido,
+    indice: &crate::indice_local::IndiceLocal,
+) {
+    if json_mode {
+        let mut valor = json_da_previa(feito);
+        crate::indice_local::anexar_avisos(&mut valor, indice);
+        println!("{valor}");
+    } else {
+        println!("{}", texto_humano(feito));
+    }
 }

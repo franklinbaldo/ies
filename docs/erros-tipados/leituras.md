@@ -11,7 +11,7 @@ Parte do [guia de erros tipados](../erros-tipados.md), separada por responsabili
 ## Anexo do documento externo
 
 `ErroAnexo` (`src/anexo_documento.rs`, Refs #60 fatia 3) tem uma
-variante por fato da resposta de `documento_download_anexo`: sem tipo,
+erro por fato da resposta de `documento_download_anexo`: sem tipo,
 tipo fora da lista observada, cabeçalho repetido, `Content-Disposition`
 fora da forma, acima do limite, vazio, exceção do SEI (com status 200 e a
 mensagem saneada como apresentação) e as falhas de gravação do parcial.
@@ -22,7 +22,7 @@ sessão encerrada de `processo NUP`. Lista no
 ## Pesquisa em documentos
 
 `ies documento buscar` ([contrato](../../contracts/cli/documento-buscar.md))
-reaproveita as variantes de `processo buscar` e acrescenta, cada uma pelo
+reaproveita os erros de `processo buscar` e acrescenta, cada uma pelo
 fato verificável: na tela, `ErroRegraDoFormularioDePesquisa` com a opção
 `#optDocumentos` (`opcao_de_documentos_*`), as caixas de tipo
 (`caixa_de_tipo_de_documento_ausente_na_tela`,

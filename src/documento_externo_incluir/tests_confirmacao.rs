@@ -1,8 +1,9 @@
-//! Cenários técnicos auxiliares do BDD-332-03/04; transporte exclusivamente sintético.
+//! Regressões da confirmação externa; transporte exclusivamente sintético.
 use super::*;
-use crate::arvore_processo::NaturezaDoDocumento;
+use crate::arvore_processo::{Cancelamento, NaturezaDoDocumento};
 use crate::documento_externo_incluir::cadastro::observar_cadastro;
 use crate::formulario_web::{CodificacaoDaTela, Redirecionamento302};
+use crate::tela_html::HtmlServido;
 
 const URL: &str = "https://sei.exemplo.gov.br/sei/controlador.php?acao=documento_receber&id_procedimento=10&infra_hash=aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa";
 
@@ -29,13 +30,12 @@ fn foto(novo: bool) -> FotoProcesso {
     let documentos = if novo {
         vec![DocumentoNaArvore {
             id: "42".into(),
-            rotulo: "Anexo 123".into(),
+            rotulo: "Anexo (123)".into(),
             numero_sei: Some("123".into()),
             pasta: None,
             natureza: NaturezaDoDocumento {
-                icone: Some("documento_pdf".into()),
-                cancelado: Some(false),
-                motivo_do_cancelamento: None,
+                icone: "documento_pdf".into(),
+                cancelamento: Cancelamento::Ativo,
                 dica: None,
             },
         }]
@@ -69,10 +69,10 @@ fn contexto() -> (String, Instalacao) {
 #[test]
 fn confirmado_so_apos_cadastro_e_releitura_unica() {
     let (html, instalacao) = contexto();
-    let cadastro = observar_cadastro(&html, "Anexo", 68).unwrap();
+    let cadastro = observar_cadastro(&HtmlServido::de_teste(&html), "Anexo", 68).unwrap();
     let tela = TelaServida {
         url: URL,
-        html: &html,
+        html: &HtmlServido::de_teste(&html),
         codificacao: CodificacaoDaTela::Iso88591,
     };
     let mut passos = Vec::new();
@@ -114,10 +114,10 @@ fn confirmado_so_apos_cadastro_e_releitura_unica() {
 #[test]
 fn upload_recusado_nao_cadastra_nem_rele() {
     let (html, instalacao) = contexto();
-    let cadastro = observar_cadastro(&html, "Anexo", 68).unwrap();
+    let cadastro = observar_cadastro(&HtmlServido::de_teste(&html), "Anexo", 68).unwrap();
     let tela = TelaServida {
         url: URL,
-        html: &html,
+        html: &HtmlServido::de_teste(&html),
         codificacao: CodificacaoDaTela::Iso88591,
     };
     let mut passos = Vec::new();
@@ -140,17 +140,16 @@ fn upload_recusado_nao_cadastra_nem_rele() {
     )
     .unwrap_err();
     assert!(matches!(erro, FalhaConfirmacao::UploadRecusado(_)));
-    assert_eq!(erro.codigo_saida(), 1);
     assert_eq!(passos, ["upload"]);
 }
 
 #[test]
 fn html_generico_e_arvore_nova_nao_provam_autoria() {
     let (html, instalacao) = contexto();
-    let cadastro = observar_cadastro(&html, "Anexo", 68).unwrap();
+    let cadastro = observar_cadastro(&HtmlServido::de_teste(&html), "Anexo", 68).unwrap();
     let tela = TelaServida {
         url: URL,
-        html: &html,
+        html: &HtmlServido::de_teste(&html),
         codificacao: CodificacaoDaTela::Iso88591,
     };
     let mut passos = Vec::new();
@@ -168,7 +167,9 @@ fn html_generico_e_arvore_nova_nao_provam_autoria() {
         },
         |p, _| {
             p.push("cadastro");
-            Ok(RespostaDoEnvio::Html("<html>ok</html>".into()))
+            Ok(RespostaDoEnvio::Html(HtmlServido::de_teste(
+                "<html>ok</html>",
+            )))
         },
         |p| {
             p.push("reler");
@@ -176,49 +177,77 @@ fn html_generico_e_arvore_nova_nao_provam_autoria() {
         },
     )
     .unwrap_err();
-    assert!(matches!(erro, FalhaConfirmacao::EfeitoIncerto));
-    assert_eq!(erro.codigo_saida(), 3);
+    assert!(matches!(erro, FalhaConfirmacao::NaoConfirmado));
     assert!(erro.temporario_possivel());
     assert_eq!(passos, ["upload", "cadastro", "reler"]);
 }
 
 #[test]
-fn bdd_332_03_nao_confirma_documento_interno_com_mesmo_rotulo() {
-    // BDD-332-03 exige documento EXTERNO comprovado pela releitura.
+fn documento_interno_com_mesmo_rotulo_nao_confirma_externo() {
+    // A releitura precisa comprovar que o documento é EXTERNO.
     // Rótulo/Número novos, isoladamente, não comprovam sua natureza.
-    for icone in [Some("documento_interno"), None] {
-        let (html, instalacao) = contexto();
-        let cadastro = observar_cadastro(&html, "Anexo", 68).unwrap();
-        let tela = TelaServida {
-            url: URL,
-            html: &html,
-            codificacao: CodificacaoDaTela::Iso88591,
-        };
-        let erro = confirmar_sequencia(
-            &mut (),
-            &instalacao,
-            &tela,
-            "ABC",
-            &cadastro,
-            &foto(false),
-            "Anexo",
-            |()| Ok(recibo()),
-            |(), _| {
-                Ok(RespostaDoEnvio::Redirecionamento(
-                    Redirecionamento302::sintetico(
-                        Some("controlador.php?acao=arvore_visualizar&id_documento=42"),
-                        URL,
-                    ),
-                ))
-            },
-            |()| {
-                let mut leitura = foto(true);
-                leitura.documentos[0].natureza.icone = icone.map(str::to_owned);
-                Ok(leitura)
-            },
-        )
-        .unwrap_err();
-        assert!(matches!(erro, FalhaConfirmacao::EfeitoIncerto));
-        assert_eq!(erro.codigo_saida(), 3);
+    // Ícone ausente ou fora da forma não chega aqui: a leitura da árvore recusa.
+    let (html, instalacao) = contexto();
+    let cadastro = observar_cadastro(&HtmlServido::de_teste(&html), "Anexo", 68).unwrap();
+    let tela = TelaServida {
+        url: URL,
+        html: &HtmlServido::de_teste(&html),
+        codificacao: CodificacaoDaTela::Iso88591,
+    };
+    let erro = confirmar_sequencia(
+        &mut (),
+        &instalacao,
+        &tela,
+        "ABC",
+        &cadastro,
+        &foto(false),
+        "Anexo",
+        |()| Ok(recibo()),
+        |(), _| {
+            Ok(RespostaDoEnvio::Redirecionamento(
+                Redirecionamento302::sintetico(
+                    Some("controlador.php?acao=arvore_visualizar&id_documento=42"),
+                    URL,
+                ),
+            ))
+        },
+        |()| {
+            let mut leitura = foto(true);
+            leitura.documentos[0].natureza.icone = "documento_interno".to_owned();
+            Ok(leitura)
+        },
+    )
+    .unwrap_err();
+    assert!(matches!(erro, FalhaConfirmacao::NaoConfirmado));
+}
+
+#[test]
+fn causas_da_confirmacao_externa_permanecem_na_cadeia_de_erros() {
+    use std::error::Error as _;
+
+    let casos = [
+        FalhaConfirmacao::UploadRecusado(FalhaUpload::Recusado {
+            motivo: "recusado".to_owned(),
+        }),
+        FalhaConfirmacao::UploadIncerto(FalhaUpload::NaoConfirmado {
+            status_http: Some(503),
+        }),
+    ];
+    for erro in &casos {
+        assert!(
+            erro.source()
+                .and_then(|causa| causa.downcast_ref::<FalhaUpload>())
+                .is_some(),
+            "fonte do upload perdida: {erro:?}"
+        );
     }
+
+    let cadastro = FalhaConfirmacao::TemporarioSemCadastro(FalhaCadastroEnvio::ReciboSemData);
+    assert!(
+        cadastro
+            .source()
+            .and_then(|causa| causa.downcast_ref::<FalhaCadastroEnvio>())
+            .is_some(),
+        "fonte da preparacao do cadastro perdida"
+    );
 }

@@ -2,6 +2,13 @@
 //! Origem dos cenários: Todos/src/todos/anexacao.py @323eb01, adaptados.
 use std::process::{Command, Output};
 
+#[path = "support/falha.rs"]
+mod falha_cli;
+use falha_cli::falha;
+#[path = "support/falha_por.rs"]
+mod falha_por_cli;
+use falha_por_cli::falha_por;
+
 const PRINCIPAL: &str = "00001.000001/2026-01";
 const ANEXADO: &str = "00001.000002/2026-01";
 
@@ -17,21 +24,18 @@ fn executar(args: &[&str]) -> Output {
         .expect("IES deve iniciar")
 }
 
-fn json(saida: &Output) -> serde_json::Value {
-    serde_json::from_slice(&saida.stdout).expect("JSON válido")
-}
-
 #[test]
 fn comando_recusa_numero_vazio_antes_da_sessao() {
     let saida = executar(&["processo", "anexar", " ", "--a", PRINCIPAL, "--json"]);
     assert_eq!(saida.status.code(), Some(2));
-    let valor = json(&saida);
-    assert_eq!(valor["codigo"], "entrada_invalida");
-    assert_eq!(valor["subcodigo"], "numero_processo_vazio");
+    assert!(
+        saida.stdout.is_empty(),
+        "uso inválido é recusado pelo clap, sem JSON"
+    );
 }
 
 #[test]
-fn confirmar_recusa_sem_acessar_sessao_ou_rede() {
+fn confirmar_recusa_sem_sessao_ativa() {
     let saida = executar(&[
         "processo",
         "anexar",
@@ -41,24 +45,19 @@ fn confirmar_recusa_sem_acessar_sessao_ou_rede() {
         "--confirmar",
         "--json",
     ]);
-    assert_eq!(saida.status.code(), Some(1));
-    let valor = json(&saida);
-    assert_eq!(valor["subcodigo"], "confirmacao_de_anexacao_nao_validada");
-    assert_eq!(valor["retentavel"], false);
+    falha_por(&saida, "UrlDoControleIlegivel", "Ausente");
 }
 
 #[test]
 fn mesma_identidade_recusa_antes_da_sessao() {
     let saida = executar(&["processo", "anexar", PRINCIPAL, "--a", PRINCIPAL, "--json"]);
-    assert_eq!(saida.status.code(), Some(1));
-    assert_eq!(json(&saida)["subcodigo"], "anexacao_ao_mesmo_processo");
+    falha(&saida, "AnexacaoAoProprioProcesso");
 }
 
 #[test]
 fn previa_sem_sessao_falha_fechado() {
     let saida = executar(&["processo", "anexar", ANEXADO, "--a", PRINCIPAL, "--json"]);
-    assert_eq!(saida.status.code(), Some(1));
-    assert_eq!(json(&saida)["codigo"], "fonte_invalida");
+    falha_por(&saida, "UrlDoControleIlegivel", "Ausente");
 }
 
 #[test]

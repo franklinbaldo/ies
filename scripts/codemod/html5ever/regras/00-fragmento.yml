@@ -1,0 +1,20 @@
+id: 00-fragmento
+language: rust
+message: 'interpretar() cujo primeiro nível (dom.children()) é lido: o texto é um trecho, lido como innerHTML de body'
+severity: hint
+rule:
+  all:
+    - pattern: 'let $D = crate::tela_html::interpretar($H);'
+    - precedes:
+        stopBy: end
+        has:
+          stopBy: end
+          pattern: $D.children()
+    - not:
+        inside:
+          stopBy: end
+          kind: mod_item
+          follows:
+            kind: attribute_item
+            regex: 'cfg\(test\)'
+fix: 'let $D = crate::tela_html::fragmento($H);'

@@ -1,16 +1,16 @@
 //! A tela "Marcadores do Processo" (`andamento_marcador_gerenciar`), lida
 //! sem envio: `btnAdicionar`, `btnRemover`, `acaoRemover` e o `action` do
 //! `form#frmGerenciarMarcador` nunca participam além da conferência de
-//! identidade. Atributos pelo tokenizador de `html_atributos`; aninhamento
-//! pelo `tl`; sem regex e sem JavaScript.
-use super::{ACAO, ErroMarcadores as E, MarcadorDoProcesso, MarcadoresLidos, TelaDosMarcadores};
-use crate::erro_html::ErroHtml;
-use crate::formulario_web::decodificar_atributo;
-use crate::html_atributos::{atributos, nos_com_id, nos_com_id_em};
+//! identidade. Atributos e aninhamento pela árvore
+//! `tela_html`; sem regex e sem JavaScript.
+use super::{ErroMarcadores, MarcadorDoProcesso, MarcadoresLidos, TelaDosMarcadores};
+use crate::acao_do_sei::AcaoDoSei;
+use crate::consulta_do_controlador::ConsultaDoControlador;
+use crate::legenda::{Legenda, ler_legenda};
 use crate::nivel_de_detalhe::texto_colapsado;
 use std::collections::HashSet;
 
-type Tag<'p> = &'p tl::HTMLTag<'p>;
+type Tag<'p> = crate::tela_html::Elemento<'p>;
 
 const TITULO: &str = "SEI - Marcadores do Processo ";
 const CABECALHO: [&str; 6] = [
@@ -22,54 +22,50 @@ const CABECALHO: [&str; 6] = [
     "A\u{e7}\u{f5}es",
 ];
 
-const ILEGIVEL: E = E::Html(ErroHtml::html("html_dos_marcadores_nao_interpretado"));
-const LINHA: E = E::Html(ErroHtml::valor("linha_do_marcador_fora_da_forma_observada"));
+const LINHA: ErroMarcadores = ErroMarcadores::LinhaDoMarcadorForaDaFormaObservada;
 
 /// Lê a tela e confere a identidade (NUP e id, comparação opaca) antes de
 /// qualquer linha.
-pub(crate) fn ler_marcadores(html: &str, nup: &str, id: &str) -> Result<TelaDosMarcadores, E> {
-    let dom = tl::parse(html, tl::ParserOptions::default()).map_err(|_| ILEGIVEL)?;
-    let parser = dom.parser();
+pub(crate) fn ler_marcadores(
+    html: &crate::tela_html::HtmlServido,
+    nup: &str,
+    id: &str,
+) -> Result<TelaDosMarcadores, ErroMarcadores> {
+    let dom = crate::tela_html::arvore(html);
     conferir_identidade(&dom, nup, id)?;
-    let tabela = match nos_com_id(&dom, "tblMarcadores")
-        .map_err(|_| ILEGIVEL)?
-        .as_slice()
-    {
+    let tabela = match dom.com_id("tblMarcadores").collect::<Vec<_>>().as_slice() {
         [] => return Ok(TelaDosMarcadores::SemTabela),
-        [unica] => unica
-            .get(parser)
-            .and_then(tl::Node::as_tag)
-            .ok_or(ILEGIVEL)?,
-        _ => return Err(ErroHtml::repetido("tabelas_dos_marcadores_repetidas").into()),
+        [unica] => *unica,
+        _ => return Err(ErroMarcadores::TabelasDosMarcadoresRepetidas),
     };
-    if tabela.name() != "table" || !descendentes(tabela, parser, "table").is_empty() {
-        return Err(ErroHtml::repetido("tabelas_dos_marcadores_repetidas").into());
+    if tabela.nome() != "table" || !descendentes(tabela, "table").is_empty() {
+        return Err(ErroMarcadores::TabelasDosMarcadoresRepetidas);
     }
-    let total_declarado = legenda(tabela, parser)?;
-    let mut ths = descendentes(tabela, parser, "th").into_iter();
+    let total_declarado = legenda(tabela)?;
+    let mut ths = descendentes(tabela, "th").into_iter();
     let cabecalho_ok = ths.len() == CABECALHO.len()
         && CABECALHO.iter().enumerate().all(|(i, esperado)| {
             ths.next()
-                .is_some_and(|th| rotulo_do_th(th, parser, i == 0).as_deref() == Ok(*esperado))
+                .is_some_and(|th| rotulo_do_th(th, i == 0).as_deref() == Ok(*esperado))
         });
     if !cabecalho_ok {
-        return Err(ErroHtml::valor("cabecalho_dos_marcadores_nao_reconhecido").into());
+        return Err(ErroMarcadores::CabecalhoDosMarcadoresNaoReconhecido);
     }
     let mut itens = Vec::new();
     let mut ids = HashSet::new();
-    for tr in descendentes(tabela, parser, "tr") {
-        let celulas = filhos(tr, parser, "td");
+    for tr in descendentes(tabela, "tr") {
+        let celulas = filhos(tr, "td");
         if celulas.is_empty() {
             continue;
         }
-        let marcador = linha(&celulas, parser)?;
+        let marcador = linha(&celulas)?;
         if !ids.insert(marcador.id.clone()) {
-            return Err(ErroHtml::repetido("marcador_repetido_na_tela").into());
+            return Err(ErroMarcadores::MarcadorRepetidoNaTela);
         }
         itens.push(marcador);
     }
     if itens.len() > total_declarado {
-        return Err(E::MarcadoresAlemDoTotalDeclarado);
+        return Err(ErroMarcadores::MarcadoresAlemDoTotalDeclarado);
     }
     Ok(TelaDosMarcadores::Lidos(MarcadoresLidos {
         total_declarado,
@@ -80,131 +76,115 @@ pub(crate) fn ler_marcadores(html: &str, nup: &str, id: &str) -> Result<TelaDosM
 /// O único `title` começa por "SEI - Marcadores do Processo " seguido do
 /// NUP; o único `form#frmGerenciarMarcador` tem `action` com uma
 /// `acao=andamento_marcador_gerenciar` e o `id_procedimento` aberto.
-fn conferir_identidade(dom: &tl::VDom<'_>, nup: &str, id: &str) -> Result<(), E> {
-    let parser = dom.parser();
-    let titulos: Vec<_> = dom
-        .query_selector("title")
-        .into_iter()
-        .flatten()
-        .filter_map(|n| n.get(parser).and_then(tl::Node::as_tag))
-        .collect();
+fn conferir_identidade(
+    dom: &crate::tela_html::Documento,
+    nup: &str,
+    id: &str,
+) -> Result<(), ErroMarcadores> {
+    let titulos: Vec<_> = dom.elementos("title").collect();
     let [titulo] = titulos.as_slice() else {
-        return Err(E::TelaDosMarcadoresAusente);
+        return Err(ErroMarcadores::TelaDosMarcadoresAusente);
     };
-    let titulo = texto(titulo, parser).map_err(|_| E::TelaDosMarcadoresAusente)?;
+    let titulo = texto(*titulo);
     let numero = titulo
         .strip_prefix(TITULO)
-        .ok_or(E::TelaDosMarcadoresAusente)?;
+        .ok_or(ErroMarcadores::TelaDosMarcadoresAusente)?;
     if numero != nup {
-        return Err(E::NumeroDosMarcadoresDiferenteDoSolicitado);
+        return Err(ErroMarcadores::NumeroDosMarcadoresDiferenteDoSolicitado);
     }
-    let formularios = nos_com_id(dom, "frmGerenciarMarcador").map_err(|_| ILEGIVEL)?;
+    let formularios = dom.com_id("frmGerenciarMarcador").collect::<Vec<_>>();
     let [formulario] = formularios.as_slice() else {
-        return Err(E::TelaDosMarcadoresAusente);
+        return Err(ErroMarcadores::TelaDosMarcadoresAusente);
     };
-    let formulario = formulario
-        .get(parser)
-        .and_then(tl::Node::as_tag)
-        .ok_or(ILEGIVEL)?;
-    if formulario.name() != "form" {
-        return Err(E::TelaDosMarcadoresAusente);
+    let formulario = *formulario;
+    if formulario.nome() != "form" {
+        return Err(ErroMarcadores::TelaDosMarcadoresAusente);
     }
-    let action = atributo(formulario, "action")
-        .map_err(|_| ILEGIVEL)?
-        .ok_or(E::TelaDosMarcadoresAusente)?;
+    let action = formulario
+        .atributo("action")
+        .map(str::to_owned)
+        .ok_or(ErroMarcadores::TelaDosMarcadoresAusente)?;
     let consulta = action
         .strip_prefix("controlador.php?")
-        .ok_or(E::TelaDosMarcadoresAusente)?;
-    let valores = |chave: &str| -> Vec<&str> {
-        consulta
-            .split('&')
-            .filter_map(|par| par.strip_prefix(chave)?.strip_prefix('='))
-            .collect()
-    };
-    if valores("acao") != [ACAO] {
-        return Err(E::TelaDosMarcadoresAusente);
+        .ok_or(ErroMarcadores::TelaDosMarcadoresAusente)?;
+    let pares = ConsultaDoControlador::ler(consulta)
+        .map_err(ErroMarcadores::ConsultaDoFormularioIlegivel)?;
+    let acao = pares
+        .acao()
+        .map_err(ErroMarcadores::AcaoDoFormularioNaoLida)?;
+    if acao != AcaoDoSei::AndamentoMarcadorGerenciar.como_na_url() {
+        return Err(ErroMarcadores::TelaDosMarcadoresAusente);
     }
-    if valores("id_procedimento") != [id] {
-        return Err(E::IdDosMarcadoresDiferenteDoAberto);
+    let id_observado = pares
+        .unico("id_procedimento")
+        .map_err(ErroMarcadores::IdDoFormularioNaoLido)?;
+    if id_observado != id {
+        return Err(ErroMarcadores::IdDosMarcadoresDiferenteDoAberto);
     }
     Ok(())
 }
 
 /// `Marcadores (N registro):` ou `Marcadores (N registros):`, sem faixa.
-fn legenda(tabela: Tag<'_>, parser: &tl::Parser<'_>) -> Result<usize, E> {
-    let fora = E::Html(ErroHtml::valor(
-        "legenda_dos_marcadores_fora_da_forma_observada",
-    ));
-    let [caption] = descendentes(tabela, parser, "caption")[..] else {
-        return Err(fora);
+fn legenda(tabela: Tag<'_>) -> Result<usize, ErroMarcadores> {
+    let fora = || ErroMarcadores::LegendaDosMarcadoresForaDaFormaObservada;
+    let [caption] = descendentes(tabela, "caption")[..] else {
+        return Err(fora());
     };
-    let legenda = texto(caption, parser).map_err(|_| fora)?;
-    let (numero, palavra) = legenda
-        .strip_prefix("Marcadores (")
-        .and_then(|r| r.strip_suffix("):"))
-        .and_then(|r| r.split_once(' '))
-        .ok_or(fora)?;
-    if !matches!(palavra, "registro" | "registros")
-        || numero.is_empty()
-        || !numero.bytes().all(|b| b.is_ascii_digit())
-    {
-        return Err(fora);
+    let legenda = texto(caption);
+    if !legenda.starts_with("Marcadores (") {
+        return Err(fora());
     }
-    numero.parse().map_err(|_| fora)
+    let Legenda { total, faixa } = ler_legenda(&legenda)?;
+    if faixa.is_some() {
+        return Err(fora());
+    }
+    Ok(total)
 }
 
 /// Rótulo de `div.infraDivRotuloOrdenacao` ou do `th`; a seleção é o `th`
 /// sem texto com `#lnkInfraCheck`.
-fn rotulo_do_th(th: Tag<'_>, parser: &tl::Parser<'_>, selecao: bool) -> Result<String, E> {
-    let fora = E::Html(ErroHtml::valor("cabecalho_dos_marcadores_nao_reconhecido"));
+fn rotulo_do_th(th: Tag<'_>, selecao: bool) -> Result<String, ErroMarcadores> {
+    let fora = || ErroMarcadores::CabecalhoDosMarcadoresNaoReconhecido;
     if selecao {
-        let marcado = nos_com_id_em(th, parser, "lnkInfraCheck").map_err(|_| fora)?;
+        let marcado = th.com_id("lnkInfraCheck").collect::<Vec<_>>();
         if marcado.len() != 1 {
-            return Err(fora);
+            return Err(fora());
         }
     }
-    let rotulos = nos_por_elemento_e_classe_em(th, parser, "div", "infraDivRotuloOrdenacao")?;
+    let rotulos = nos_por_elemento_e_classe_em(th, "div", "infraDivRotuloOrdenacao");
     match rotulos.as_slice() {
-        [] => texto(th, parser),
-        [div] => texto(div, parser),
-        _ => Err(fora),
+        [] => Ok(texto(th)),
+        [div] => Ok(texto(*div)),
+        _ => Err(fora()),
     }
 }
 
-fn nos_por_elemento_e_classe_em<'p>(
-    raiz: Tag<'_>,
-    parser: &'p tl::Parser<'p>,
-    elemento: &str,
-    classe: &str,
-) -> Result<Vec<Tag<'p>>, E> {
+fn nos_por_elemento_e_classe_em<'p>(raiz: Tag<'p>, elemento: &str, classe: &str) -> Vec<Tag<'p>> {
     let mut achados = Vec::new();
-    for tag in descendentes(raiz, parser, elemento) {
-        if atributos(tag)
-            .and_then(|a| a.tem_classe(classe))
-            .map_err(|_| ILEGIVEL)?
-        {
+    for tag in descendentes(raiz, elemento) {
+        if tag.tem_classe(classe) {
             achados.push(tag);
         }
     }
-    Ok(achados)
+    achados
 }
 
 /// Uma linha: seleção, Marcador, Texto, Usuário, Data/Hora, Ações.
-fn linha(celulas: &[Tag<'_>], parser: &tl::Parser<'_>) -> Result<MarcadorDoProcesso, E> {
+fn linha(celulas: &[Tag<'_>]) -> Result<MarcadorDoProcesso, ErroMarcadores> {
     let [selecao, marcador, texto_td, usuario, data_hora, _acoes] = celulas[..] else {
         return Err(LINHA);
     };
     // Seleção: um `input.infraCheckbox` com `value` decimal.
-    let caixas = nos_por_elemento_e_classe_em(selecao, parser, "input", "infraCheckbox")?;
+    let caixas = nos_por_elemento_e_classe_em(selecao, "input", "infraCheckbox");
     let [caixa] = caixas.as_slice() else {
         return Err(LINHA);
     };
-    let id = atributo(caixa, "value")?.ok_or(LINHA)?;
+    let id = caixa.atributo("value").map(str::to_owned).ok_or(LINHA)?;
     if id.is_empty() || !id.bytes().all(|b| b.is_ascii_digit()) {
         return Err(LINHA);
     }
-    for ancora in descendentes(selecao, parser, "a") {
-        if let Some(id_ancora) = atributo(ancora, "id")?
+    for ancora in descendentes(selecao, "a") {
+        if let Some(id_ancora) = ancora.atributo("id")
             && id_ancora
                 .strip_prefix("lnkInfraID-")
                 .is_some_and(|resto| resto != id)
@@ -212,28 +192,31 @@ fn linha(celulas: &[Tag<'_>], parser: &tl::Parser<'_>) -> Result<MarcadorDoProce
             return Err(LINHA);
         }
     }
-    if atributo(texto_td, "id")?.is_some_and(|v| v != format!("tdAndamentoMarcador{id}")) {
+    if texto_td
+        .atributo("id")
+        .is_some_and(|v| v != format!("tdAndamentoMarcador{id}"))
+    {
         return Err(LINHA);
     }
     // Marcador: o texto da célula; o ícone dá a cor; os `title`, quando
     // presentes, repetem o nome.
-    let nome = texto(marcador, parser)?;
+    let nome = texto(marcador);
     if nome.is_empty() {
         return Err(LINHA);
     }
-    let [icone] = descendentes(marcador, parser, "img")[..] else {
+    let [icone] = descendentes(marcador, "img")[..] else {
         return Err(LINHA);
     };
-    let cor = cor(&atributo(icone, "src")?.ok_or(LINHA)?)?;
+    let cor = cor(icone.atributo("src").ok_or(LINHA)?)?;
     for tag in [icone, *caixa] {
-        if let Some(titulo) = atributo(tag, "title")?
-            && texto_colapsado(&titulo) != nome
+        if let Some(titulo) = tag.atributo("title")
+            && texto_colapsado(titulo) != nome
         {
             return Err(LINHA);
         }
     }
-    let texto_lido = texto(texto_td, parser)?;
-    let data_hora = texto(data_hora, parser)?;
+    let texto_lido = texto(texto_td);
+    let data_hora = texto(data_hora);
     if !eh_data_hora(&data_hora) {
         return Err(LINHA);
     }
@@ -242,26 +225,24 @@ fn linha(celulas: &[Tag<'_>], parser: &tl::Parser<'_>) -> Result<MarcadorDoProce
         nome,
         cor,
         texto: (!texto_lido.is_empty()).then_some(texto_lido),
-        usuario: sigla(usuario, parser)?,
+        usuario: sigla(usuario)?,
         data_hora,
     })
 }
 
 /// Célula vazia: `None`; senão, exatamente um `a.ancoraSigla` com todo o texto.
-fn sigla(celula: Tag<'_>, parser: &tl::Parser<'_>) -> Result<Option<String>, E> {
-    let completo = texto(celula, parser)?;
-    let ancoras = nos_por_elemento_e_classe_em(celula, parser, "a", "ancoraSigla")?;
+fn sigla(celula: Tag<'_>) -> Result<Option<String>, ErroMarcadores> {
+    let completo = texto(celula);
+    let ancoras = nos_por_elemento_e_classe_em(celula, "a", "ancoraSigla");
     match ancoras.as_slice() {
         [] if completo.is_empty() => Ok(None),
-        [ancora] if !completo.is_empty() && texto(ancora, parser)? == completo => {
-            Ok(Some(completo))
-        }
+        [ancora] if !completo.is_empty() && texto(*ancora) == completo => Ok(Some(completo)),
         _ => Err(LINHA),
     }
 }
 
 /// `<cor>` de `svg/marcador_<cor>.svg` (com `?…` opcional).
-fn cor(src: &str) -> Result<String, E> {
+fn cor(src: &str) -> Result<String, ErroMarcadores> {
     let resto = src.strip_prefix("svg/marcador_").ok_or(LINHA)?;
     let (cor, depois) = resto.split_once(".svg").ok_or(LINHA)?;
     if cor.is_empty()
@@ -285,43 +266,18 @@ fn eh_data_hora(texto: &str) -> bool {
         })
 }
 
-/// Valor do atributo com entidades decodificadas.
-fn atributo(tag: Tag<'_>, nome: &'static str) -> Result<Option<String>, E> {
-    let lidos = atributos(tag).map_err(|_| ILEGIVEL)?;
-    lidos
-        .valor(nome)
-        .map_err(|_| ILEGIVEL)?
-        .map(|v| decodificar(v).ok_or(LINHA))
-        .transpose()
-}
-
 /// Entidades decodificadas (`&nbsp;` como espaço inseparável).
-fn decodificar(bruto: &str) -> Option<String> {
-    decodificar_atributo(&bruto.replace("&nbsp;", "\u{a0}"))
-}
-
 /// Texto visível, entidades decodificadas e espaços colapsados.
-fn texto(tag: Tag<'_>, parser: &tl::Parser<'_>) -> Result<String, E> {
-    decodificar(&tag.inner_text(parser))
-        .map(|t| texto_colapsado(&t))
-        .ok_or(LINHA)
+fn texto(tag: Tag<'_>) -> String {
+    texto_colapsado(&tag.texto())
 }
 
 /// Descendentes `elemento` de `raiz`, na ordem do documento.
-fn descendentes<'p>(raiz: Tag<'_>, parser: &'p tl::Parser<'p>, elemento: &str) -> Vec<Tag<'p>> {
-    raiz.query_selector(parser, elemento)
-        .into_iter()
-        .flatten()
-        .filter_map(|n| n.get(parser).and_then(tl::Node::as_tag))
-        .collect()
+fn descendentes<'p>(raiz: Tag<'p>, elemento: &str) -> Vec<Tag<'p>> {
+    raiz.elementos(elemento).collect()
 }
 
 /// Filhos diretos `elemento` de `pai`.
-fn filhos<'p>(pai: Tag<'_>, parser: &'p tl::Parser<'p>, elemento: &str) -> Vec<Tag<'p>> {
-    pai.children()
-        .top()
-        .iter()
-        .filter_map(|h| h.get(parser).and_then(tl::Node::as_tag))
-        .filter(|t| t.name() == elemento)
-        .collect()
+fn filhos<'p>(pai: Tag<'p>, elemento: &str) -> Vec<Tag<'p>> {
+    pai.filhos().filter(|t| t.nome() == elemento).collect()
 }

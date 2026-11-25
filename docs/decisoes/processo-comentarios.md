@@ -4,14 +4,14 @@ title: Parser tipado e conferência estrita dos comentários do processo
 operation: processo.comentarios
 implementation: partial
 status: adopted-for-scope
-scope: núcleo offline da lista de comentários 4.x e 5.0 e da conferência posterior de escrita por id e texto exato; fluxo Web pendente
+scope: leitor offline 4.x/5.0, CLI GET e confirmação única sintética em treinamento; SQLite v33 e anti-IES
 selected_strategy: web-formulario-servido-tabela-versao-conferencia-estrita
 alternatives: web-formulario-servido-tabela-versao-conferencia-estrita,web-html-sem-identidade,rest-wssei
-evidence_level: todos-323eb01-cassettes-publicas-cartoes-testes-sinteticos
+evidence_level: todos-323eb01-cassettes-estrutura-unb-go-testes-sinteticos-cli-https-sqlite
 live_validation: not-run
 ---
 
-# Comentários do processo — fatia offline (#257)
+# Comentários do processo — leitura CLI e anti-IES (#257)
 
 ## Contexto e observação
 
@@ -39,19 +39,25 @@ não substitui o replay integral do HTML.
 | Adere à interface Web observada | sim | parcial | não comprovado |
 | Recusa lista truncada ou duplicada | sim | não | não demonstrado |
 | Requer backend alternativo | não | não | sim |
-| Escrita atestada por leitura | planejada, ainda não ligada à CLI | não | não |
+| Escrita atestada por leitura | implementada no ensaio sintético | não | não |
 
 ## Decisão
 
-Introduzir uma base offline compilável que funciona nas duas formas de
-linha, com testes para vazio, 4.x, 5.0, id repetido, tabela ausente,
-visão não observada e total incompleto. O verificador pós-escrita
-**não** manda POST: recebe exclusivamente lista relida completa e
-exige correspondência unívoca de id e texto.
+Preservar o leitor que funciona nas formas 4.x/5.0 e ligá-lo ao GET
+`comentario_listar` **oferecido na barra conferida da árvore**, por
+`processo comentarios`. A CLI não monta URLs; POST só é enviado em `processo comentar --confirmar` sob guarda de treinamento. Não aceita
+fotografia incompleta ou ausente como lista completa. A projeção do
+anti-IES usa SQLite v33, distinguindo explicitamente lista desconhecida,
+lista conhecida e total de observações maior que a página. Os testes
+reais da CLI passam por HTTPS local, simulador e SQLite.
 
-Nenhuma integração Web de escrita é liberada nesta fatia.
-O caminho futuro será a URL da barra, sem montagem manual,
-prévia Web, POST único pelo formulário servido e releitura.
+O verificador pós-escrita recebe exclusivamente uma lista relida completa
+e exige id aceito e texto unívocos. A CLI só envia POST após conferir
+o formulário publicado, recebe o 302 sem segui-lo e relê a lista.
+Desvio após a tentativa produz saída 1, sem repetir a escrita. A capacidade
+continua restrita a origens de treinamento; produção é recusada
+antes da primeira requisição. A confirmação ainda não passou pelo replay
+semântico bilateral das cassettes nem por ensaio live.
 Não restaurar a visão P/T após uso: a preferência de sessão permanece
 como o SEI a deixou, conforme a política do IES, evitando requisições
 extras e alteração da sessão compartilhada.
@@ -63,12 +69,13 @@ extras e alteração da sessão compartilhada.
 - [Testes do leitor](../../src/processo_comentarios/tests.rs)
 - [Testes de conferência](../../src/processo_comentar/tests.rs)
 - [Matriz de evidências](../../contracts/evidencias/processo-comentarios.md)
-- [Teste de barreira da CLI](../../tests/cli_processo_comentarios.rs)
+- [Teste da CLI (entrada inválida sem sessão)](../../tests/cli_processo_comentarios.rs)
+- [Ciclo completo HTTPS ↔ anti-IES ↔ SQLite](../../tests/aies_comentarios_cli.rs)
+- [Inspeção estrutural de 76 interações UnB/GO](https://github.com/franklinbaldo/ies/actions/runs/42786966461)
 - [Live](../validacao-live/2026-11-05-processo-comentarios.md)
 
 ## Limitações e revisão
 
 Revisar após replay dos HTMLs 4.x/5.0 e primeira leitura real da UnB:
 identidade do título, transição 302 de lista vazia, paginação e
-orçamento de requisições. Não considerar esta decisão evidência de
-uma escrita realizada.
+orçamento de requisições. Não considerar a confirmação sintética evidência de escrita em SEI externo.

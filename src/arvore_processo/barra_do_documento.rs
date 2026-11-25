@@ -8,12 +8,9 @@ use super::endereco::{EnderecoRecusado, conferir_endereco_relativo_por};
 use super::literais::{
     Literal, concatenacao_vazia_da_barra, indice_da_barra, ler_barra, ler_declaracao,
 };
-use crate::erro_html::ErroHtml;
-use crate::formulario_web::decodificar_atributo;
-use crate::html_atributos::atributos;
+use crate::acao_do_sei::AcaoDoSei;
+use crate::consulta_do_controlador::menciona_acao;
 use crate::instalacao::Instalacao;
-
-pub(crate) const ACAO_DAS_VERSOES: &str = "documento_versao_listar";
 
 /// URL absoluta da lista de versões, assinada: `Debug` redigido.
 #[derive(Clone, PartialEq, Eq)]
@@ -50,17 +47,17 @@ pub(crate) struct BarraDoDocumento {
     pub(crate) edicao: EdicaoNaBarra,
 }
 
-#[derive(Clone, Copy, Debug, PartialEq, Eq, crate::erro_publico::Causa)]
+#[derive(Clone, Debug, PartialEq, Eq, thiserror::Error)]
+#[error("{self:?}")]
 pub(crate) enum ErroBarraDoDocumento {
-    #[causa(nome = "barras_do_documento_repetidas_na_arvore")]
+    LinhaDaBarraDoDocumentoIlegivel(#[source] super::ErroArvore),
     BarrasRepetidasNaArvore,
-    #[causa(nome = "link_das_versoes_de_outro_documento")]
     EnderecoDasVersoesDeOutroDocumento,
-    #[causa(transparente)]
-    Html(ErroHtml),
+    BarraDoDocumentoForaDaFormaObservada,
+    BotoesDeCienciaDoDocumentoRepetidos,
+    LinkDasVersoesNaoReconhecido,
+    LinkDasVersoesRepetidoNaBarra,
 }
-
-impl ErroBarraDoDocumento {}
 
 /// Lê a barra do `DOCUMENTO` de id `id_documento` numa árvore já conferida;
 /// sem barra (ou sem o nó), nada publicado.
@@ -70,7 +67,6 @@ pub(crate) fn ler_barra_do_documento(
     id_documento: &str,
     id_procedimento: &str,
 ) -> Result<BarraDoDocumento, ErroBarraDoDocumento> {
-    use ErroBarraDoDocumento as E;
     let nada = BarraDoDocumento {
         versoes: None,
         edicao: EdicaoNaBarra::NaoPublicada,
@@ -78,42 +74,18 @@ pub(crate) fn ler_barra_do_documento(
     let Some(texto) = barra_do_no(html, id_documento)? else {
         return Ok(nada);
     };
-    let dom = tl::parse(&texto, tl::ParserOptions::default())
-        .map_err(|_| ErroHtml::valor("barra_do_documento_fora_da_forma_observada"))?;
-    let parser = dom.parser();
+    let dom = crate::tela_html::arvore(&texto);
     let (mut links, mut edicoes) = (Vec::new(), Vec::new());
-    for no in dom.query_selector("a").into_iter().flatten() {
-        let Some(tag) = no.get(parser).and_then(tl::Node::as_tag) else {
-            continue;
-        };
-        let lidos = atributos(tag)
-            .map_err(|e| ErroHtml::atributo("barra_do_documento_fora_da_forma_observada", e))?;
-        let valor = |nome| -> Result<Option<String>, E> {
-            match lidos.valor(nome).map_err(|e| {
-                E::Html(ErroHtml::atributo(
-                    "barra_do_documento_fora_da_forma_observada",
-                    e,
-                ))
-            })? {
-                Some(bruto) => {
-                    decodificar_atributo(bruto)
-                        .map(Some)
-                        .ok_or(E::Html(ErroHtml::valor(
-                            "barra_do_documento_fora_da_forma_observada",
-                        )))
-                }
-                None => Ok(None),
-            }
-        };
-        if let Some(href) = valor("href")?
-            && acao_do_href(&href) == Some(ACAO_DAS_VERSOES)
+    for no in dom.elementos("a") {
+        if let Some(href) = no.atributo("href")
+            && menciona_acao(href, AcaoDoSei::DocumentoVersaoListar)
         {
-            links.push(href);
+            links.push(href.to_owned());
         }
-        if let Some(onclick) = valor("onclick")?
+        if let Some(onclick) = no.atributo("onclick")
             && onclick.contains("editarConteudo")
         {
-            edicoes.push(match onclick.as_str() {
+            edicoes.push(match onclick {
                 "editarConteudo('N');" => EdicaoNaBarra::NaoAssinado,
                 "editarConteudo('S');" => EdicaoNaBarra::Assinado,
                 _ => EdicaoNaBarra::ForaDaForma,
@@ -128,18 +100,18 @@ pub(crate) fn ler_barra_do_documento(
     let href = match links.as_slice() {
         [] => return Ok(BarraDoDocumento { edicao, ..nada }),
         [href] => href,
-        _ => return Err(ErroHtml::repetido("link_das_versoes_repetido_na_barra").into()),
+        _ => return Err(ErroBarraDoDocumento::LinkDasVersoesRepetidoNaBarra),
     };
     let recusa = |r| match r {
-        EnderecoRecusado::NaoReconhecido => {
-            E::Html(ErroHtml::valor("link_das_versoes_nao_reconhecido"))
+        EnderecoRecusado::NaoReconhecido => ErroBarraDoDocumento::LinkDasVersoesNaoReconhecido,
+        EnderecoRecusado::DeOutroProcesso => {
+            ErroBarraDoDocumento::EnderecoDasVersoesDeOutroDocumento
         }
-        EnderecoRecusado::DeOutroProcesso => E::EnderecoDasVersoesDeOutroDocumento,
     };
     conferir_endereco_relativo_por(
         instalacao,
         href,
-        ACAO_DAS_VERSOES,
+        AcaoDoSei::DocumentoVersaoListar,
         "id_procedimento",
         id_procedimento,
     )
@@ -147,7 +119,7 @@ pub(crate) fn ler_barra_do_documento(
     let url = conferir_endereco_relativo_por(
         instalacao,
         href,
-        ACAO_DAS_VERSOES,
+        AcaoDoSei::DocumentoVersaoListar,
         "id_documento",
         id_documento,
     )
@@ -158,17 +130,11 @@ pub(crate) fn ler_barra_do_documento(
     })
 }
 
-/// O primeiro `acao=` da consulta (a conferência recusa dois).
-fn acao_do_href(href: &str) -> Option<&str> {
-    let (_, consulta) = href.split_once('?')?;
-    consulta
-        .split('&')
-        .find_map(|par| par.strip_prefix("acao="))
-}
-
 /// O texto da barra do nó `DOCUMENTO` de id `id`; duas barras são recusa.
-pub(crate) fn barra_do_no(html: &str, id: &str) -> Result<Option<String>, ErroBarraDoDocumento> {
-    use ErroBarraDoDocumento as E;
+pub(crate) fn barra_do_no(
+    html: &str,
+    id: &str,
+) -> Result<Option<crate::tela_html::HtmlServido>, ErroBarraDoDocumento> {
     let mut indice = None;
     for linha in html.split('\n') {
         if let Ok(Some((i, argumentos))) = ler_declaracao(linha)
@@ -188,13 +154,13 @@ pub(crate) fn barra_do_no(html: &str, id: &str) -> Result<Option<String>, ErroBa
         if indice_da_barra(linha) != Some(indice) || concatenacao_vazia_da_barra(linha).is_some() {
             continue;
         }
-        let Some((_, lido)) = ler_barra(linha)
-            .map_err(|_| ErroHtml::valor("barra_do_documento_fora_da_forma_observada"))?
+        let Some((_, lido)) =
+            ler_barra(linha).map_err(ErroBarraDoDocumento::LinhaDaBarraDoDocumentoIlegivel)?
         else {
-            return Err(ErroHtml::valor("barra_do_documento_fora_da_forma_observada").into());
+            return Err(ErroBarraDoDocumento::BarraDoDocumentoForaDaFormaObservada);
         };
         if texto.replace(lido).is_some() {
-            return Err(E::BarrasRepetidasNaArvore);
+            return Err(ErroBarraDoDocumento::BarrasRepetidasNaArvore);
         }
     }
     Ok(texto)

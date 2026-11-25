@@ -2,6 +2,12 @@
 //! e recusa sem sessão; nenhuma execução consulta ou escreve no SEI.
 use std::process::{Command, Output};
 
+#[path = "support/falha.rs"]
+mod falha_cli;
+#[path = "support/falha_por.rs"]
+mod falha_por_cli;
+use falha_por_cli::falha_por;
+
 fn sem_sessao(args: &[&str]) -> Output {
     Command::new(env!("CARGO_BIN_EXE_ies"))
         .args(args)
@@ -53,10 +59,9 @@ fn argumentos_invalidos_falham_antes_da_sessao() {
         ],
     ] {
         let saida = sem_sessao(&args);
+        // Erro de uso do clap: saída 2, nada no stdout.
         assert_eq!(saida.status.code(), Some(2), "{args:?}");
-        let valor: serde_json::Value =
-            serde_json::from_slice(&saida.stdout).expect("erro JSON tipado");
-        assert_eq!(valor["codigo"], "entrada_invalida");
+        assert_eq!(saida.stdout, b"", "{args:?}");
     }
 }
 
@@ -76,11 +81,7 @@ fn sem_sessao_recusa_previa_e_confirmacao_sem_rede() {
             args.push("--confirmar");
         }
         let saida = sem_sessao(&args);
-        assert_eq!(saida.status.code(), Some(1), "{args:?}");
-        let valor: serde_json::Value =
-            serde_json::from_slice(&saida.stdout).expect("erro JSON tipado");
-        assert_eq!(valor["codigo"], "fonte_invalida");
-        assert_ne!(valor["codigo"], "nao_implementado");
+        falha_por(&saida, "UrlDoControleIlegivel", "Ausente");
     }
 }
 
@@ -104,9 +105,7 @@ fn hipotese_legal_explicitamente_invalida_eh_recusada_antes_da_sessao() {
             escolha,
             "--json",
         ]);
-        assert_eq!(saida.status.code(), Some(2));
-        let valor: serde_json::Value =
-            serde_json::from_slice(&saida.stdout).expect("erro JSON tipado");
-        assert_eq!(valor["subcodigo"], "hipotese_legal_informada_invalida");
+        assert_eq!(saida.status.code(), Some(2), "{nivel} {escolha}");
+        assert_eq!(saida.stdout, b"");
     }
 }

@@ -15,13 +15,47 @@ import tempfile
 import time
 
 from ensaio_processo_criar import (
-    chamar_ies, origem_privada_permitida, origens_de_treinamento,
+    chamar_ies, codigo_tipado_publicavel, origem_privada_permitida,
+    origens_de_treinamento,
 )
 
 
 def quantidade(resposta: dict) -> int | None:
     valor = resposta.get("requisicoes")
     return valor if type(valor) is int and valor > 0 else None
+
+
+def falha_da_previa(codigo: int | None, resposta: dict) -> tuple[int, dict]:
+    """Falha do ensaio com causa tipada; nunca publica HTML ou mensagem livre."""
+    relatorio = {"estado": "PREVIA_FAIL", "requisicoes": [quantidade(resposta)]}
+    # Comparação de dois fatos publicados no JSON; nunca divulga siglas.
+    unidade = resposta.get("unidade")
+    abertas = resposta.get("aberto_em")
+    if (type(unidade) is str and unidade and type(abertas) is list
+            and all(type(sigla) is str for sigla in abertas)):
+        relatorio["unidade_consta_na_arvore"] = unidade in abertas
+    if type(codigo) is int:
+        relatorio["saida_cli"] = codigo
+    subcodigo = codigo_tipado_publicavel(resposta.get("subcodigo"))
+    if subcodigo is not None:
+        relatorio["subcodigo"] = subcodigo
+    status = resposta.get("status_http")
+    if type(status) is int and 100 <= status <= 599:
+        relatorio["status_http"] = status
+    return 1, relatorio
+
+
+def registrar_estado_relido_incerto(relatorio: dict, resposta: dict, usuario: str) -> None:
+    """Relato da CLI, não prova de que este POST produziu a alteração.
+
+    Aceita apenas o usuário pedido, ausência explicitamente observada ou
+    observação nula; nunca publica texto de resposta arbitrário no registro.
+    """
+    if "atribuicao_relida" not in resposta:
+        return
+    relida = resposta["atribuicao_relida"]
+    if relida is None or (type(relida) is str and relida in ("", usuario)):
+        relatorio["atribuicao_relida"] = relida
 
 
 def atribuicao_da_unidade(resposta: dict, unidade: str) -> str | None:
@@ -38,6 +72,8 @@ def atribuicao_da_unidade(resposta: dict, unidade: str) -> str | None:
     if isinstance(pessoa, dict) and isinstance(pessoa.get("sigla"), str):
         return pessoa["sigla"]
     return None
+
+
 
 
 def sincronizar_diretorio(pasta: Path) -> None:
@@ -76,7 +112,7 @@ def ensaiar(*, ies: str, registro: Path, nup: str, usuario: str, origem: str,
     try:
         codigo, previa = executar(ies, atribuir)
     except (OSError, subprocess.TimeoutExpired, ValueError):
-        return 1, {"estado": "PREVIA_FAIL", "requisicoes": [None]}
+        return falha_da_previa(None, {})
     identificador = previa.get("id_procedimento")
     unidade = previa.get("unidade")
     if (codigo != 0 or previa.get("nup") != nup
@@ -87,7 +123,7 @@ def ensaiar(*, ies: str, registro: Path, nup: str, usuario: str, origem: str,
             or previa.get("confirmado") is not False
             or previa.get("alterado") is not False
             or quantidade(previa) is None):
-        return 1, {"estado": "PREVIA_FAIL", "requisicoes": [quantidade(previa)]}
+        return falha_da_previa(codigo, previa)
 
     # Trava durável antes do primeiro POST; segundo ensaio exige outro registro.
     try:
@@ -162,6 +198,7 @@ def ensaiar(*, ies: str, registro: Path, nup: str, usuario: str, origem: str,
                 or escrita.get("alterado") is not True
                 or quantidade(escrita) is None):
             relatorio["estado"] = "EFEITO_INCERTO"
+            registrar_estado_relido_incerto(relatorio, escrita, usuario)
             gravar()
             return 3, relatorio
         relatorio["estado"] = "ATRIBUICAO_VERIFICACAO_PENDENTE"
@@ -204,6 +241,7 @@ def ensaiar(*, ies: str, registro: Path, nup: str, usuario: str, origem: str,
                 or remocao.get("alterado") is not True
                 or quantidade(remocao) is None):
             relatorio["estado"] = "EFEITO_INCERTO"
+            registrar_estado_relido_incerto(relatorio, remocao, usuario)
             gravar()
             return 3, relatorio
         relatorio["estado"] = "REMOCAO_VERIFICACAO_PENDENTE"
@@ -246,6 +284,8 @@ def main() -> int:
     parser.add_argument("--usuario")
     parser.add_argument("--preflight", action="store_true",
                         help="confere a origem e não abre rede")
+    parser.add_argument("--descobrir", action="store_true",
+                        help="le apenas recebidos e ate 3 processos; nunca escreve")
     args = parser.parse_args()
     try:
         permitidas = origens_de_treinamento(
@@ -259,6 +299,9 @@ def main() -> int:
     else:
         if args.preflight:
             codigo, relatorio = 0, {"estado": "PREFLIGHT_PASS", "origem": origem}
+        elif args.descobrir:
+            from ensaio_processo_atribuir_descoberta import descobrir_candidato
+            codigo, relatorio = descobrir_candidato(ies=args.ies, origem=origem)
         elif args.registro is None or args.nup is None or args.usuario is None:
             codigo, relatorio = 2, {"estado": "BLOQUEADO", "motivo": "argumentos_ausentes"}
         else:

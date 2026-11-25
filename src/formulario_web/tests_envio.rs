@@ -1,8 +1,8 @@
 //! RED/GREEN do envio injetável: resposta sintética, no máximo uma chamada.
 use super::tests::{OPERACAO, instalacao, tela_iso, url_servida};
 use super::*;
+use crate::tela_html::HtmlServido;
 use crate::transporte::sessao::CookieDaSessao;
-use ErroSubmissaoFormulario as E;
 use std::cell::Cell;
 use std::fs;
 use std::io::Cursor;
@@ -21,8 +21,8 @@ fn submissao() -> SubmissaoDerivada {
     derivar_submissao(
         &OPERACAO,
         &instalacao(),
-        &tela_iso(&url, FORM),
-        "UNIDADE TESTE",
+        &tela_iso(&url, &HtmlServido::de_teste(FORM)),
+        Some("UNIDADE TESTE"),
         &[("txtProtocoloPesquisa", "0001")],
     )
     .unwrap()
@@ -36,7 +36,8 @@ impl Drop for Pasta {
     }
 }
 
-fn cookie(modo: u32) -> (Pasta, PathBuf) {
+/// O cookie da sessão num arquivo privado (`0600` no Unix).
+fn cookie() -> (Pasta, PathBuf) {
     use std::sync::atomic::{AtomicUsize, Ordering};
     static N: AtomicUsize = AtomicUsize::new(0);
     let pasta = std::env::temp_dir().join(format!(
@@ -50,10 +51,8 @@ fn cookie(modo: u32) -> (Pasta, PathBuf) {
     #[cfg(unix)]
     {
         use std::os::unix::fs::PermissionsExt;
-        fs::set_permissions(&arquivo, fs::Permissions::from_mode(modo)).unwrap();
+        fs::set_permissions(&arquivo, fs::Permissions::from_mode(0o600)).unwrap();
     }
-    #[cfg(not(unix))]
-    let _ = modo;
     (Pasta(pasta), arquivo)
 }
 
@@ -67,15 +66,17 @@ fn resposta(status_code: i32, html: &str) -> RespostaDoPost<Cursor<Vec<u8>>> {
     )
 }
 
-fn html(r: Result<RespostaDoEnvio, E>) -> Result<String, E> {
+fn html(
+    r: Result<RespostaDoEnvio, ErroSubmissaoFormulario>,
+) -> Result<String, ErroSubmissaoFormulario> {
     r.map(|resposta| match resposta {
-        RespostaDoEnvio::Html(html) => html,
+        RespostaDoEnvio::Html(html) => html.as_str().to_owned(),
         RespostaDoEnvio::Redirecionamento(_) => panic!("302 inesperado"),
     })
 }
 
-fn enviar_com(status_code: i32, html_: &str) -> (Result<String, E>, usize) {
-    let (_pasta, arquivo) = cookie(0o600);
+fn enviar_com(status_code: i32, html_: &str) -> (Result<String, ErroSubmissaoFormulario>, usize) {
+    let (_pasta, arquivo) = cookie();
     let chamadas = Cell::new(0);
     let r = enviar_submissao_via(submissao(), &CookieDaSessao::ler(&arquivo), |_, _| {
         chamadas.set(chamadas.get() + 1);
@@ -95,7 +96,7 @@ fn resposta_com_marcador_de_resultado_e_aceita_com_uma_chamada() {
 
 #[test]
 fn marcador_com_booleano_antes_da_classe_e_reconhecido() {
-    let html = crate::html_atributos::com_booleano_antes_dos_atributos(RESULTADO);
+    let html = crate::tela_html::teste::com_booleano_antes_dos_atributos(RESULTADO);
     let (r, n) = enviar_com(200, &html);
     assert_eq!(r.unwrap(), html);
     assert_eq!(n, 1);
@@ -103,7 +104,7 @@ fn marcador_com_booleano_antes_da_classe_e_reconhecido() {
 
 #[test]
 fn closure_recebe_post_corpo_cabecalhos_e_cookie_da_sessao() {
-    let (_pasta, arquivo) = cookie(0o600);
+    let (_pasta, arquivo) = cookie();
     let r = enviar_submissao_via(submissao(), &CookieDaSessao::ler(&arquivo), |s, cookie| {
         assert_eq!(SubmissaoDerivada::METODO, "POST");
         assert_eq!(
@@ -128,18 +129,17 @@ fn closure_recebe_post_corpo_cabecalhos_e_cookie_da_sessao() {
 
 #[test]
 fn redirecionamento_nao_302_e_negacao_apos_envio_sao_falhas_de_transporte() {
-    for (status, falha) in [
-        (301, "redirecionamento_recusado"),
-        (303, "redirecionamento_recusado"),
-        (307, "redirecionamento_recusado"),
-        (401, "sessao_nao_autorizada"),
-        (403, "sessao_nao_autorizada"),
+    for (status, _falha) in [
+        (301, "redirecionamento"),
+        (303, "redirecionamento"),
+        (307, "redirecionamento"),
+        (401, "acesso_negado"),
+        (403, "acesso_negado"),
     ] {
         let (r, n) = enviar_com(status, "");
-        let E::Transporte(obtida) = r.unwrap_err() else {
+        let ErroSubmissaoFormulario::Transporte(obtida) = r.unwrap_err() else {
             panic!("{status}: esperava falha de transporte")
         };
-        assert_eq!(obtida.subcodigo(), falha, "{status}");
         assert_eq!(
             obtida.status_http().map(|h| i32::from(h.status)),
             Some(status)
@@ -152,19 +152,25 @@ fn redirecionamento_nao_302_e_negacao_apos_envio_sao_falhas_de_transporte() {
 fn tela_de_login_com_200_apos_envio_e_recusa_propria() {
     let login = "<html><form id='frmLogin'><input name='txtUsuario'></form></html>";
     let (r, _) = enviar_com(200, login);
-    assert_eq!(r.unwrap_err(), E::TelaDeLoginRecebidaAposEnvio);
+    assert_eq!(
+        r.unwrap_err(),
+        ErroSubmissaoFormulario::TelaDeLoginRecebidaAposEnvio
+    );
 }
 
 #[test]
 fn resposta_200_sem_marcador_de_resultado_e_recusada() {
     let formulario_de_volta = "<html><form id='frmPesquisaProtocolo'></form></html>";
     let (r, _) = enviar_com(200, formulario_de_volta);
-    assert_eq!(r.unwrap_err(), E::MarcadorDeResultadoAusenteNaResposta);
+    assert_eq!(
+        r.unwrap_err(),
+        ErroSubmissaoFormulario::MarcadorDeResultadoAusenteNaResposta
+    );
 }
 
 #[test]
 fn falha_de_rede_nao_repete_o_envio() {
-    let (_pasta, arquivo) = cookie(0o600);
+    let (_pasta, arquivo) = cookie();
     let chamadas = Cell::new(0);
     let r = enviar_submissao_via::<Cursor<Vec<u8>>, _>(
         submissao(),
@@ -174,14 +180,19 @@ fn falha_de_rede_nao_repete_o_envio() {
             Err(FalhaTransporte::Rede)
         },
     );
-    assert_eq!(r.unwrap_err(), E::Transporte(FalhaTransporte::Rede));
+    assert_eq!(
+        r.unwrap_err(),
+        ErroSubmissaoFormulario::Transporte(FalhaTransporte::Rede)
+    );
     assert_eq!(chamadas.get(), 1);
 }
 
 #[cfg(unix)]
 #[test]
 fn cookie_com_permissao_insegura_impede_qualquer_envio() {
-    let (_pasta, arquivo) = cookie(0o644);
+    use std::os::unix::fs::PermissionsExt;
+    let (_pasta, arquivo) = cookie();
+    fs::set_permissions(&arquivo, fs::Permissions::from_mode(0o644)).unwrap();
     let chamadas = Cell::new(0);
     let r = enviar_submissao_via(submissao(), &CookieDaSessao::ler(&arquivo), |_, _| {
         chamadas.set(chamadas.get() + 1);
@@ -189,7 +200,9 @@ fn cookie_com_permissao_insegura_impede_qualquer_envio() {
     });
     assert_eq!(
         r.unwrap_err(),
-        E::Transporte(FalhaTransporte::ArquivoPrivadoComPermissoesInseguras)
+        ErroSubmissaoFormulario::Transporte(FalhaTransporte::CookieDaSessaoIlegivel(
+            crate::arquivo_privado::ErroArquivoPrivado::PermissoesAbertas
+        ))
     );
     assert_eq!(chamadas.get(), 0);
 }
@@ -206,8 +219,8 @@ impl std::io::Read for CorpoQueNaoDeveSerLido {
 fn enviar_com_redirecionamento(
     status: u16,
     localizacao: Option<&str>,
-) -> (Result<RespostaDoEnvio, E>, usize) {
-    let (_pasta, arquivo) = cookie(0o600);
+) -> (Result<RespostaDoEnvio, ErroSubmissaoFormulario>, usize) {
+    let (_pasta, arquivo) = cookie();
     let chamadas = Cell::new(0);
     let r = enviar_submissao_via(submissao(), &CookieDaSessao::ler(&arquivo), |_, _| {
         chamadas.set(chamadas.get() + 1);
@@ -258,7 +271,7 @@ fn post_com_307_ou_308_nao_reenvia_o_formulario() {
             status,
             Some("http://sei.exemplo.gov.br/sei/controlador.php"),
         );
-        let Err(E::Transporte(falha)) = resposta else {
+        let Err(ErroSubmissaoFormulario::Transporte(falha)) = resposta else {
             panic!("esperada recusa tipada");
         };
         assert_eq!(falha.status_http().map(|s| s.status), Some(status));
@@ -293,14 +306,16 @@ fn erro_500_apos_envio_expoe_status_e_mensagem_pela_submissao() {
     );
     assert_eq!(n, 1);
     let erro = r.unwrap_err();
-    assert_eq!(erro.subcodigo(), "status_http_de_erro_do_servidor");
     let http = erro.status_http().expect("status do POST");
     assert_eq!(http.status, 500);
     assert_eq!(
         http.mensagem_do_servidor.as_deref(),
         Some("Falha ao paginar.")
     );
-    assert_eq!(E::TelaDeLoginRecebidaAposEnvio.status_http(), None);
+    assert_eq!(
+        ErroSubmissaoFormulario::TelaDeLoginRecebidaAposEnvio.status_http(),
+        None
+    );
 }
 
 /// Validação da Infra na estrutura observada (textarea oculto + `alert`).
@@ -321,12 +336,9 @@ fn resposta_200_com_validacao_da_infra_e_recusa_com_a_mensagem() {
         let (r, n) = enviar_com(200, &com_validacao(corpo, "Protocolo inv&aacute;lido."));
         let erro = r.unwrap_err();
         assert_eq!(n, 1);
-        assert_eq!(erro.subcodigo(), "validacao_recusada_pelo_sei", "{corpo}");
-        let http = erro.status_http().expect("mensagem do SEI");
-        assert_eq!(http.status, 200);
         assert_eq!(
-            http.mensagem_do_servidor.as_deref(),
-            Some("Protocolo inválido.")
+            erro,
+            ErroSubmissaoFormulario::ValidacaoRecusadaPeloSei("Protocolo inválido.".into())
         );
     }
     // Textarea vazio não é recusa: vale o marcador, como antes.
@@ -335,6 +347,6 @@ fn resposta_200_com_validacao_da_infra_e_recusa_com_a_mensagem() {
     let sem_marcador = com_validacao(formulario_de_volta, "");
     assert_eq!(
         enviar_com(200, &sem_marcador).0.unwrap_err(),
-        E::MarcadorDeResultadoAusenteNaResposta
+        ErroSubmissaoFormulario::MarcadorDeResultadoAusenteNaResposta
     );
 }

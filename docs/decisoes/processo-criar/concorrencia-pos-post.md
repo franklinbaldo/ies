@@ -23,11 +23,11 @@ não aplicado) produzem a mesma sequência de respostas observáveis.
 Não existe predicado sobre essas fotografias que distinga os casos.
 
 **Escolha:** `Desfecho::CoincidenciaUnica` significa apenas igualdade
-observada. A camada de escrita retorna **saída 3**, diagnóstico tipado
+observada. A camada de escrita retorna **saída 1**, diagnóstico tipado
 `candidato_unico_sem_prova_causal`, NUP candidato e causa do POST.
 O JSON indica `possivel_residuo`, sem `confirmado: true` e sem retry.
 Quando há dois processos e apenas um coincide, é necessário verificar
-ambos antes de classificar, mas a conclusão também é efeito incerto.
+ambos antes de classificar, mas a conclusão também é escrita não confirmada.
 As provas parciais de candidatos seguem separadas.
 
 Alternativas rejeitadas: declarar sucesso por um único candidato

@@ -17,52 +17,25 @@ use crate::transporte::envio_post::{TelaDoControle, enviar_post, ler_tela_do_con
 use crate::transporte::sessao::ReferenciasDaSessao;
 use crate::visao_do_controle::{self, ErroVisaoDoControle, TelaAtual};
 
-#[derive(Debug, Clone, PartialEq, Eq, crate::erro_publico::Causa)]
+#[derive(Debug, Clone, PartialEq, Eq, thiserror::Error)]
+#[error("{self:?}")]
 pub(super) enum ErroPaginaWeb {
-    #[causa(interna)]
-    Transporte(FalhaTransporte),
-    #[causa(interna)]
-    Caixa(ErroCaixa),
-    #[causa(interna)]
-    Pagina(ErroPaginaDoControle),
-    #[causa(interna)]
-    Visao(ErroVisaoDoControle),
+    Transporte(#[from] FalhaTransporte),
+    Caixa(#[from] ErroCaixa),
+    Pagina(#[from] ErroPaginaDoControle),
+    Visao(#[from] ErroVisaoDoControle),
 }
 
 impl ErroPaginaWeb {
-    pub(super) fn subcodigo(&self) -> &'static str {
-        crate::erro_publico::folha(self)
-    }
-
-    pub(super) fn mensagem(&self) -> &'static str {
+    /// A sessão do SEI acabou (decide o relogin único): por `match` no tipo, sem
+    /// percorrer a cadeia `source()`.
+    pub(crate) fn sessao_encerrada(&self) -> bool {
         match self {
-            Self::Transporte(erro) => erro.mensagem(),
-            Self::Caixa(_) => "Controle de Processos não reconhecido",
-            Self::Pagina(_) => ErroPaginaDoControle::MENSAGEM,
-            Self::Visao(erro) => erro.mensagem(),
+            Self::Transporte(erro) => erro.sessao_encerrada(),
+            Self::Pagina(erro) => erro.sessao_encerrada(),
+            Self::Visao(erro) => erro.sessao_encerrada(),
+            Self::Caixa(_) => false,
         }
-    }
-
-    /// Status e mensagem do SEI, do GET ou do POST do paginador.
-    pub(super) fn status_http(&self) -> Option<&crate::transporte::StatusHttpRecusado> {
-        match self {
-            Self::Transporte(erro) => erro.status_http(),
-            Self::Pagina(erro) => erro.status_http(),
-            Self::Visao(erro) => erro.status_http(),
-            Self::Caixa(_) => None,
-        }
-    }
-}
-
-impl crate::relogin_cli::FalhaPublicavel for ErroPaginaWeb {
-    fn subcodigo(&self) -> &'static str {
-        ErroPaginaWeb::subcodigo(self)
-    }
-    fn mensagem(&self) -> &'static str {
-        ErroPaginaWeb::mensagem(self)
-    }
-    fn status_http(&self) -> Option<&crate::transporte::StatusHttpRecusado> {
-        ErroPaginaWeb::status_http(self)
     }
 }
 
@@ -71,14 +44,14 @@ impl crate::relogin_cli::FalhaPublicavel for ErroPaginaWeb {
 /// do Controle lida é colhida no índice local, sem requisição a mais.
 pub(super) fn obter(
     arquivos: &ArquivosDeAcesso,
+    indice: &IndiceLocal,
     unidade: Option<&str>,
     categoria: Categoria,
     pagina: Option<usize>,
-) -> Result<String, ErroPaginaWeb> {
-    let indice = IndiceLocal::da_configuracao(arquivos);
+) -> Result<crate::tela_html::HtmlServido, ErroPaginaWeb> {
     let sessao =
         ReferenciasDaSessao::ler(&arquivos.url_controle, &arquivos.origem, &arquivos.cookie)?;
-    let colheita = Colheita::das_referencias(&indice, &sessao);
+    let colheita = Colheita::das_referencias(indice, &sessao);
     let tela = ler_tela_do_controle(&sessao)?;
     colheita.colher(&tela.html, Some(&tela.mime));
     let detalhada = crate::controle_contexto::contexto_da_pagina(&tela.html)
@@ -116,7 +89,7 @@ fn obter_da_tela(
     categoria: Categoria,
     numero: usize,
     colheita: &Colheita<'_>,
-) -> Result<String, ErroPaginaWeb> {
+) -> Result<crate::tela_html::HtmlServido, ErroPaginaWeb> {
     // A tela de origem passa pelas mesmas recusas da leitura sem opção.
     let leitura = paginas::juntar(std::slice::from_ref(&tela.html), unidade)?;
     let unidade_da_tela = leitura.unidade.ok_or(ErroPaginaWeb::Caixa(
@@ -148,31 +121,4 @@ fn obter_da_tela(
         colheita.colher(html, Some(&tela.mime));
     }
     Ok(obtida.unwrap_or(tela.html))
-}
-
-#[cfg(test)]
-mod tests {
-    use super::*;
-    use crate::formulario_web::ErroSubmissaoFormulario;
-    use crate::transporte::StatusHttpRecusado;
-
-    fn recusa(status: u16) -> FalhaTransporte {
-        FalhaTransporte::StatusHttpDeErroDoServidor(StatusHttpRecusado {
-            status,
-            mensagem_do_servidor: Some("x".to_owned()),
-        })
-    }
-
-    #[test]
-    fn status_do_get_e_do_post_chegam_a_borda() {
-        let get = ErroPaginaWeb::Transporte(recusa(500));
-        assert_eq!(get.status_http().map(|h| h.status), Some(500));
-        let post = ErroPaginaWeb::Pagina(ErroPaginaDoControle::Submissao(
-            ErroSubmissaoFormulario::Transporte(recusa(502)),
-        ));
-        assert_eq!(post.status_http().map(|h| h.status), Some(502));
-        assert_eq!(post.subcodigo(), "status_http_de_erro_do_servidor");
-        let local = ErroPaginaWeb::Transporte(FalhaTransporte::CookieInvalido);
-        assert_eq!(local.status_http(), None);
-    }
 }

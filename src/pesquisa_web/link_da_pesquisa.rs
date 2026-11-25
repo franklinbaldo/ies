@@ -2,112 +2,86 @@
 //! Forma observada (`UnB` 4.0.9, PEN1 5.0.4, GO 5.0.3; capturas privadas):
 //! `<a link="protocolo_pesquisar" href="controlador.php?acao=protocolo_pesquisar&…&infra_hash=<64 hex>">`,
 //! exatamente um por Controle. Só esse link é seguido, da mesma resposta.
-use crate::erro_html::ErroHtml;
-use crate::formulario_web::decodificar_atributo;
-use crate::html_atributos::valor_do_atributo;
+use crate::acao_do_sei::AcaoDoSei;
+use crate::consulta_do_controlador::{
+    ConsultaDoControlador, ErroConsultaDoControlador, menciona_acao,
+};
 use crate::instalacao::Instalacao;
-use crate::transporte::{conferir_chave_de_consulta, conferir_valor_de_consulta};
 
-/// Uma variante por fato verificável do link no Controle.
-#[derive(Clone, Copy, Debug, PartialEq, Eq, crate::erro_publico::Causa)]
+/// um erro por fato verificável do link no Controle.
+#[derive(Clone, Debug, PartialEq, Eq, thiserror::Error)]
+#[error("{self:?}")]
 pub(crate) enum ErroLinkDaPesquisa {
     /// `https://`, `http://` ou `//`: o menu observado é relativo.
     LinkDaPesquisaComEnderecoAbsoluto,
-    #[causa(transparente)]
-    Html(ErroHtml),
+    LinkDaPesquisaAusenteNoControle,
+    LinkDaPesquisaNaoReconhecido,
+    LinksDaPesquisaRepetidosNoControle,
+    /// A consulta do link não se lê em pares `chave=valor` canônicos.
+    ConsultaDoLinkIlegivel(#[source] ErroConsultaDoControlador),
 }
-
-impl ErroLinkDaPesquisa {}
 
 /// URL absoluta do link de pesquisa do Controle, resolvida contra a URL
 /// da tela servida e conferida na instalação. Nenhuma requisição.
 pub(crate) fn link_da_pesquisa(
     instalacao: &Instalacao,
     url_do_controle: &str,
-    html: &str,
+    html: &crate::tela_html::HtmlServido,
 ) -> Result<String, ErroLinkDaPesquisa> {
-    use ErroLinkDaPesquisa as E;
     let href = href_publicado(html)?;
     let minusculo = href.to_ascii_lowercase();
     if ["https://", "http://", "//"]
         .iter()
         .any(|prefixo| minusculo.starts_with(prefixo))
     {
-        return Err(E::LinkDaPesquisaComEnderecoAbsoluto);
+        return Err(ErroLinkDaPesquisa::LinkDaPesquisaComEnderecoAbsoluto);
     }
-    let nao = E::Html(ErroHtml::valor("link_da_pesquisa_nao_reconhecido"));
-    let consulta = href.strip_prefix("controlador.php?").ok_or(nao)?;
+    let nao = || ErroLinkDaPesquisa::LinkDaPesquisaNaoReconhecido;
+    let consulta = href.strip_prefix("controlador.php?").ok_or_else(nao)?;
     if !href.bytes().all(|b| (33..=126).contains(&b)) || href.contains(['#', '\\', '\'']) {
-        return Err(nao);
+        return Err(nao());
     }
-    let (mut acoes, mut hashes) = (0, 0);
-    for par in consulta.split('&') {
-        let (nome, valor) = par.split_once('=').ok_or(nao)?;
-        conferir_chave_de_consulta(nome).map_err(|_| nao)?;
-        conferir_valor_de_consulta(valor).map_err(|_| nao)?;
-        match nome {
-            "acao" if valor == ACAO_DA_PESQUISA => acoes += 1,
-            "infra_hash" if valor.len() == 64 && valor.bytes().all(|b| b.is_ascii_hexdigit()) => {
-                hashes += 1;
-            }
-            "acao" | "infra_hash" | "acao_ajax" => return Err(nao),
-            _ => {}
-        }
-    }
-    if acoes != 1 || hashes != 1 {
-        return Err(nao);
+    let consulta =
+        ConsultaDoControlador::ler(consulta).map_err(ErroLinkDaPesquisa::ConsultaDoLinkIlegivel)?;
+    if consulta.acao() != Ok(AcaoDoSei::ProtocoloPesquisar.como_na_url())
+        || consulta.valores("acao_ajax").next().is_some()
+        || !consulta
+            .unico("infra_hash")
+            .is_ok_and(|hash| hash.len() == 64 && hash.bytes().all(|b| b.is_ascii_hexdigit()))
+    {
+        return Err(nao());
     }
     let base = url_do_controle.split('?').next().unwrap_or_default();
-    let (pasta, _) = base.rsplit_once('/').ok_or(nao)?;
+    let (pasta, _) = base.rsplit_once('/').ok_or_else(nao)?;
     let url = format!("{pasta}/{href}");
     let (host, caminho) = url
         .strip_prefix("https://")
         .and_then(|r| r.split_once('?'))
         .and_then(|(antes, _)| antes.split_once('/'))
-        .ok_or(nao)?;
+        .ok_or_else(nao)?;
     if !instalacao.autoriza_controlador(host, caminho) {
-        return Err(nao);
+        return Err(nao());
     }
     Ok(url)
 }
 
-const ACAO_DA_PESQUISA: &str = "protocolo_pesquisar";
-
 /// O único `href` (decodificado) de `<a>` cuja consulta tem
 /// `acao=protocolo_pesquisar`; `protocolo_pesquisa_rapida` não conta.
-fn href_publicado(html: &str) -> Result<String, ErroLinkDaPesquisa> {
-    use ErroLinkDaPesquisa as E;
-    let nao = E::Html(ErroHtml::valor("link_da_pesquisa_nao_reconhecido"));
-    let dom = tl::parse(html, tl::ParserOptions::default()).map_err(|_| nao)?;
-    let parser = dom.parser();
+fn href_publicado(html: &crate::tela_html::HtmlServido) -> Result<String, ErroLinkDaPesquisa> {
+    let dom = crate::tela_html::arvore(html);
     let mut achados = Vec::new();
-    for no in dom.query_selector("a").into_iter().flatten() {
-        let Some(tag) = no.get(parser).and_then(tl::Node::as_tag) else {
+    for no in dom.elementos("a") {
+        let Some(href) = no.atributo("href") else {
             continue;
         };
-        let Some(bruto) = valor_do_atributo(tag, "href").map_err(|_| nao)? else {
-            continue;
-        };
-        let Some(href) = decodificar_atributo(&bruto) else {
-            // Entidade desconhecida só importa se puder ser o menu da pesquisa.
-            if bruto.contains(ACAO_DA_PESQUISA) {
-                return Err(nao);
-            }
-            continue;
-        };
-        let publica = href.split_once('?').is_some_and(|(_, consulta)| {
-            consulta
-                .split('&')
-                .any(|par| par.strip_prefix("acao=") == Some(ACAO_DA_PESQUISA))
-        });
-        if publica {
+        if menciona_acao(href, AcaoDoSei::ProtocoloPesquisar) {
             achados.push(href);
         }
     }
     match achados.len() {
-        0 => Err(ErroHtml::ausente("link_da_pesquisa_ausente_no_controle").into()),
-        1 => Ok(achados.remove(0)),
-        _ => Err(ErroHtml::repetido("links_da_pesquisa_repetidos_no_controle").into()),
+        0 => Err(ErroLinkDaPesquisa::LinkDaPesquisaAusenteNoControle),
+        1 => Ok(achados.remove(0).to_owned()),
+        _ => Err(ErroLinkDaPesquisa::LinksDaPesquisaRepetidosNoControle),
     }
 }
 

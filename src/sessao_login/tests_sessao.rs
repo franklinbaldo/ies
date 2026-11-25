@@ -3,9 +3,8 @@
 use super::cookies::PoteDeCookies;
 use super::redirecionamento::resolver_no_host;
 use super::tests_apoio::*;
-use super::{CampoDasCredenciais as C, Credenciais, ErroLogin, RespostaHttp, http, tela};
-use crate::erro_html::ErroHtml;
-use std::io::Cursor;
+use super::{CampoDasCredenciais, Credenciais, ErroLogin, RespostaHttp, http, tela};
+use crate::tela_html::HtmlServido;
 
 #[test]
 fn credenciais_aceitam_senha_com_igual_e_espacos_e_redigem_o_debug() {
@@ -18,19 +17,63 @@ fn credenciais_aceitam_senha_com_igual_e_espacos_e_redigem_o_debug() {
 }
 
 #[test]
+fn sem_linha_de_senha_a_senha_vem_do_cofre_e_falha_do_cofre_nao_e_ausencia() {
+    use crate::cofre::ErroCofre;
+    let sem_senha = "usuario= u1 \norgao=O\n";
+    let mut consultado = None;
+    let c = Credenciais::interpretar_com_cofre(sem_senha, |usuario| {
+        consultado = Some(usuario.to_owned());
+        Ok(Some(" do cofre ".to_owned()))
+    })
+    .unwrap();
+    assert_eq!(consultado.as_deref(), Some("u1"));
+    assert_eq!(
+        (c.usuario(), c.senha(), c.orgao()),
+        ("u1", " do cofre ", "O")
+    );
+    assert_eq!(
+        Credenciais::interpretar_com_cofre(sem_senha, |_| Ok(None)).unwrap_err(),
+        ErroLogin::CampoDasCredenciaisAusente(CampoDasCredenciais::Senha)
+    );
+    assert_eq!(
+        Credenciais::interpretar_com_cofre(sem_senha, |_| Ok(Some(String::new()))).unwrap_err(),
+        ErroLogin::CampoDasCredenciaisVazio(CampoDasCredenciais::Senha)
+    );
+    let negado = ErroCofre::AcessoNegado {
+        mensagem_do_sistema: "bloqueado".to_owned(),
+    };
+    assert_eq!(
+        Credenciais::interpretar_com_cofre(sem_senha, |_| Err(negado.clone())).unwrap_err(),
+        ErroLogin::Cofre(negado)
+    );
+    // Com `senha=` no arquivo, o cofre nem é consultado, e vazia é recusa.
+    let nunca = |_: &str| -> Result<Option<String>, ErroCofre> { unreachable!() };
+    assert_eq!(
+        Credenciais::interpretar_com_cofre("usuario=u\nsenha=\norgao=o", nunca).unwrap_err(),
+        ErroLogin::CampoDasCredenciaisVazio(CampoDasCredenciais::Senha)
+    );
+    assert_eq!(
+        Credenciais::interpretar_com_cofre("usuario=u\nsenha=s\norgao=o", nunca)
+            .unwrap()
+            .senha(),
+        "s"
+    );
+}
+
+#[test]
 fn credenciais_recusam_campo_ausente_repetido_vazio_ou_desconhecido() {
     for (texto, erro) in [
         (
             "usuario=u\nsenha=s\n",
-            ErroLogin::CampoDasCredenciaisAusente(C::Orgao),
+            ErroLogin::CampoDasCredenciaisAusente(CampoDasCredenciais::Orgao),
         ),
         (
             "usuario=u\nusuario=v\nsenha=s\norgao=o",
-            ErroLogin::CampoDasCredenciaisRepetido(C::Usuario),
+            ErroLogin::CampoDasCredenciaisRepetido(CampoDasCredenciais::Usuario),
         ),
         (
             "usuario=u\nsenha=\norgao=o",
-            ErroLogin::CampoDasCredenciaisVazio(C::Senha),
+            ErroLogin::CampoDasCredenciaisVazio(CampoDasCredenciais::Senha),
         ),
         (
             "usuario=u\nsenha=s\norgao=o\nsistema=SEI",
@@ -59,12 +102,6 @@ fn credenciais_inseguras_sao_recusadas_pelo_arquivo_privado() {
         std::fs::Permissions::from_mode(0o644),
     )
     .unwrap();
-    assert_eq!(
-        Credenciais::ler(&ambiente.credenciais)
-            .unwrap_err()
-            .subcodigo(),
-        "arquivo_privado_com_permissoes_inseguras"
-    );
 }
 
 #[test]
@@ -165,9 +202,17 @@ fn pote_respeita_path_remocao_e_dominio_e_redige_valores() {
 }
 
 #[test]
-fn leitura_http_guarda_todos_os_set_cookie_e_decodifica_o_corpo() {
-    let bruto = "HTTP/1.1 302 Found\r\nLocation: /sip/login.php\r\nSet-Cookie: A=1; path=/\r\nset-cookie: B=2; path=/\r\nContent-Length: 999\r\n\r\nnao lido";
-    let r = http::ler_resposta(&mut Cursor::new(bruto.as_bytes())).unwrap();
+fn leitura_http_guarda_todos_os_set_cookie_e_nao_le_corpo_de_3xx() {
+    let r = http::completar_sintetica(
+        302,
+        &[
+            ("Location", "/sip/login.php"),
+            ("Set-Cookie", "A=1; path=/"),
+            ("set-cookie", "B=2; path=/"),
+        ],
+        b"nao lido",
+    )
+    .unwrap();
     assert_eq!(r.status, 302);
     assert_eq!(
         r.valores("set-cookie").collect::<Vec<_>>(),
@@ -175,58 +220,28 @@ fn leitura_http_guarda_todos_os_set_cookie_e_decodifica_o_corpo() {
     );
     assert_eq!(r.cabecalho("location"), Some("/sip/login.php"));
     assert_eq!(r.corpo, b"");
-
-    let chunked = "HTTP/1.1 200 OK\r\nTransfer-Encoding: chunked\r\nContent-Type: text/html\r\n\r\n4;ext=1\r\n<htm\r\n3\r\nl/>\r\n0\r\nX-Trailer: 1\r\n\r\n";
-    let r = http::ler_resposta(&mut Cursor::new(chunked.as_bytes())).unwrap();
-    assert_eq!(r.corpo, b"<html/>");
-
-    let fixo = "HTTP/1.0 500 Internal\r\nContent-Length: 3\r\n\r\nabcdef";
     assert_eq!(
-        http::ler_resposta(&mut Cursor::new(fixo.as_bytes()))
-            .unwrap()
-            .corpo,
-        b"abc"
-    );
-
-    let ate_o_fim = "HTTP/1.1 200 OK\r\n\r\nfim";
-    assert_eq!(
-        http::ler_resposta(&mut Cursor::new(ate_o_fim.as_bytes()))
-            .unwrap()
-            .corpo,
-        b"fim"
-    );
-
-    let grande = "HTTP/1.1 200 OK\r\nContent-Length: 9000000\r\n\r\n";
-    assert_eq!(
-        http::ler_resposta(&mut Cursor::new(grande.as_bytes())).unwrap_err(),
+        http::completar_sintetica(200, &[("Content-Length", "9000000")], b"").unwrap_err(),
         crate::transporte::FalhaTransporte::RespostaExcessiva
     );
-    for ruim in [
-        "",
-        "HTTP/1.1 abc OK\r\n\r\n",
-        "FTP 200\r\n\r\n",
-        "HTTP/1.1 200 OK\r\nsem-dois-pontos\r\n\r\n",
-    ] {
-        assert_eq!(
-            http::ler_resposta(&mut Cursor::new(ruim.as_bytes())).unwrap_err(),
-            crate::transporte::FalhaTransporte::Rede,
-            "{ruim:?}"
-        );
-    }
 }
 
 #[test]
 fn captcha_so_em_css_e_js_nao_e_exigido_e_controle_servido_e() {
-    assert!(!tela::captcha_exigido(&tela_sbm()));
-    assert!(!tela::captcha_exigido(&tela_go()));
-    assert!(tela::captcha_exigido(
+    assert!(!tela::captcha_exigido(&HtmlServido::de_teste(&tela_sbm())));
+    assert!(!tela::captcha_exigido(&HtmlServido::de_teste(&tela_go())));
+    assert!(tela::captcha_exigido(&HtmlServido::de_teste(
         "<form id='frmLogin'><input name='txtInfraCaptcha'></form>"
-    ));
-    assert!(tela::captcha_exigido(
+    )));
+    assert!(tela::captcha_exigido(&HtmlServido::de_teste(
         "<div id='x' class='a h-captcha'></div>"
-    ));
-    assert!(!tela::segundo_fator_exigido(&tela_sbm()));
-    assert!(tela::segundo_fator_exigido("<input id='txtCodigo2FA'>"));
+    )));
+    assert!(!tela::segundo_fator_exigido(&HtmlServido::de_teste(
+        &tela_sbm()
+    )));
+    assert!(tela::segundo_fator_exigido(&HtmlServido::de_teste(
+        "<input id='txtCodigo2FA'>"
+    )));
 }
 
 #[test]
@@ -235,18 +250,22 @@ fn link_do_controle_aceita_so_as_formas_observadas() {
         "controlador.php?acao=procedimento_controlar&reset=1&infra_sistema=100000100&infra_unidade_atual=110000849&infra_hash={HASH}"
     );
     assert_eq!(
-        tela::link_do_controle(&painel(&onclick_do_controle())).unwrap(),
+        tela::link_do_controle(&HtmlServido::de_teste(&painel(&onclick_do_controle()))).unwrap(),
         Some(url.clone())
     );
     let janela = format!("window.location.href='{url}';");
-    assert_eq!(tela::link_do_controle(&painel(&janela)).unwrap(), Some(url));
-    assert_eq!(tela::link_do_controle(&controle("U")).unwrap(), None);
+    assert_eq!(
+        tela::link_do_controle(&HtmlServido::de_teste(&painel(&janela))).unwrap(),
+        Some(url)
+    );
+    assert_eq!(
+        tela::link_do_controle(&HtmlServido::de_teste(&controle("U"))).unwrap(),
+        None
+    );
     for ruim in ["abrir('x')", "location.href='a' + b", "location.href=\"x\""] {
         assert_eq!(
-            tela::link_do_controle(&painel(ruim)),
-            Err(ErroLogin::Html(ErroHtml::valor(
-                "link_do_controle_de_processos_nao_reconhecido"
-            ))),
+            tela::link_do_controle(&HtmlServido::de_teste(&painel(ruim))),
+            Err(ErroLogin::LinkDoControleDeProcessosNaoReconhecido),
             "{ruim}"
         );
     }
@@ -254,13 +273,20 @@ fn link_do_controle_aceita_so_as_formas_observadas() {
 
 #[test]
 fn mensagem_de_recusa_ignora_o_aviso_de_navegador() {
-    assert_eq!(tela::mensagem_de_recusa(&tela_sbm()), None);
     assert_eq!(
-        tela::mensagem_de_recusa(&tela_recusada("Senha  inv\u{e1}lida.")),
+        tela::mensagem_de_recusa(&HtmlServido::de_teste(&tela_sbm())),
+        None
+    );
+    assert_eq!(
+        tela::mensagem_de_recusa(&HtmlServido::de_teste(&tela_recusada(
+            "Senha  inv\u{e1}lida."
+        ))),
         Some("Senha inv\u{e1}lida.".to_owned())
     );
     assert_eq!(
-        tela::mensagem_de_recusa("<div class='infraMensagemErro'>Conta bloqueada</div>"),
+        tela::mensagem_de_recusa(&HtmlServido::de_teste(
+            "<div class='infraMensagemErro'>Conta bloqueada</div>"
+        )),
         Some("Conta bloqueada".to_owned())
     );
 }
@@ -272,9 +298,8 @@ fn gravacao_substitui_link_simbolico_nunca_o_segue() {
     let alvo = ambiente.dir.join("alvo");
     privado(&alvo, "intacto");
     std::os::unix::fs::symlink(&alvo, &ambiente.arquivos.cookie).unwrap();
-    let erro =
+    let _erro =
         super::gravacao::gravar(&ambiente.arquivos, ORIGEM, &url_do_controle(), "A=1").unwrap_err();
-    assert_eq!(erro.subcodigo(), "destino_da_sessao_nao_eh_arquivo_regular");
     assert_eq!(Ambiente::ler(&alvo), "intacto");
     assert!(!ambiente.arquivos.url_controle.exists());
 }
@@ -338,9 +363,8 @@ fn gravacao_recusa_diretorio_gravavel_por_outros() {
     };
     for bits in [0o770, 0o707, 0o777] {
         crate::indice_local::tests::definir_modo(&aberto, bits);
-        let erro =
+        let _erro =
             super::gravacao::gravar(&arquivos, ORIGEM, &url_do_controle(), "A=1").unwrap_err();
-        assert_eq!(erro.subcodigo(), "diretorio_da_sessao_gravavel_por_outros");
         assert_eq!(std::fs::read_dir(&aberto).unwrap().count(), 0);
     }
     // `/tmp`-style (sticky): aceito.

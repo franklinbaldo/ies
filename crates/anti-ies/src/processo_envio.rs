@@ -3,7 +3,7 @@
 use crate::{Estado, Resposta, despachar};
 use iesei::instalacao::Instalacao;
 use iesei::processos::{
-    Falha, PedidoEnvio, ProcessoSimulado, enviar_da_unidade, ler, limpar_anotacao,
+    ErroProcessos, PedidoEnvio, ProcessoSimulado, enviar_da_unidade, ler, registrar_anotacao,
 };
 use rusqlite::Connection;
 use std::fmt::Write;
@@ -12,6 +12,7 @@ mod formulario;
 mod navegacao;
 use formulario::pagina_de_envio;
 pub use navegacao::navegacao;
+pub(crate) use navegacao::nos_e_proximo_indice;
 
 fn unico<'a>(alvo: &'a str, chave: &str) -> Option<&'a str> {
     let (_, query) = alvo.split_once('?')?;
@@ -30,7 +31,7 @@ fn html(texto: &str) -> String {
 
 /// A unidade ativa vem da fotografia do Controle R; cenários antigos sem
 /// Controle R conservam a origem do processo como unidade da sessão.
-fn unidade_da_sessao(
+pub(crate) fn unidade_da_sessao(
     banco: &Connection,
     instalacao: &Instalacao,
     cenario: &str,
@@ -54,7 +55,7 @@ fn pagina_anotacao(processo: &ProcessoSimulado) -> Option<String> {
     ))
 }
 
-fn pares(corpo: &str) -> Option<Vec<(&str, &str)>> {
+pub(crate) fn pares(corpo: &str) -> Option<Vec<(&str, &str)>> {
     if corpo.len() > 16_384 {
         return None;
     }
@@ -64,7 +65,7 @@ fn pares(corpo: &str) -> Option<Vec<(&str, &str)>> {
         .collect::<Option<Vec<_>>>()
 }
 
-fn campo_unico<'a>(campos: &'a [(&str, &str)], chave: &str) -> Option<&'a str> {
+pub(crate) fn campo_unico<'a>(campos: &'a [(&str, &str)], chave: &str) -> Option<&'a str> {
     let mut valores = campos.iter().filter(|(k, _)| *k == chave).map(|(_, v)| *v);
     let valor = valores.next()?;
     valores.next().is_none().then_some(valor)
@@ -125,14 +126,16 @@ fn redirecionado(acao: &str, id: &str) -> Resposta {
     }
 }
 
-fn estado_da_falha(falha: &Falha) -> Estado {
+fn estado_da_falha(falha: &ErroProcessos) -> Estado {
     match falha {
-        Falha::ProcessoNaoEncontrado | Falha::Sqlite(_) => Estado::DadosInsuficientes,
-        Falha::DadoInvalido
-        | Falha::OrigemNaoAberta
-        | Falha::DestinoNaoOferecido
-        | Falha::DestinoJaAberto
-        | Falha::AnotacaoNaoObservada => Estado::RequisicaoInvalida,
+        ErroProcessos::ProcessoNaoEncontrado | ErroProcessos::Sqlite(_) => {
+            Estado::DadosInsuficientes
+        }
+        ErroProcessos::DadoInvalido
+        | ErroProcessos::OrigemNaoAberta
+        | ErroProcessos::DestinoNaoOferecido
+        | ErroProcessos::DestinoJaAberto
+        | ErroProcessos::AnotacaoNaoObservada => Estado::RequisicaoInvalida,
     }
 }
 
@@ -192,12 +195,14 @@ pub fn responder(
         return Resposta::nova(Estado::RequisicaoInvalida);
     };
     if acao == "anotacao_registrar" {
-        if campo_unico(&campos, "hdnIdProtocolo") != Some(id)
-            || campo_unico(&campos, "txaDescricao") != Some("")
-        {
+        let Some(texto) = campo_unico(&campos, "txaDescricao").and_then(decodificar_formulario)
+        else {
+            return Resposta::nova(Estado::RequisicaoInvalida);
+        };
+        if campo_unico(&campos, "hdnIdProtocolo") != Some(id) {
             return Resposta::nova(Estado::RequisicaoInvalida);
         }
-        return match limpar_anotacao(banco, instalacao, cenario, id) {
+        return match registrar_anotacao(banco, instalacao, cenario, id, &texto) {
             Ok(()) => redirecionado(acao, id),
             Err(falha) => Resposta::nova(estado_da_falha(&falha)),
         };
@@ -297,8 +302,8 @@ pub(crate) fn decodificar_formulario(texto: &str) -> Option<String> {
     let bytes = texto.as_bytes();
     let mut saida = Vec::with_capacity(bytes.len());
     let mut posicao = 0;
-    while posicao < bytes.len() {
-        match bytes[posicao] {
+    while let Some(&byte) = bytes.get(posicao) {
+        match byte {
             b'+' => saida.push(b' '),
             b'%' => {
                 let alto = (char::from(*bytes.get(posicao + 1)?)).to_digit(16)?;

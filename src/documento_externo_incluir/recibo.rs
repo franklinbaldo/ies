@@ -2,6 +2,8 @@
 //! Oráculo: Todos #775 (`UnB` SEI 4), cassette de escrita `UnB`; a etapa não cadastra documento.
 //! Os testes exercitam respostas sintéticas; isto ainda não habilita `--confirmar`.
 
+use crate::transporte::{FalhaTransporte, corpo::ErroCorpoHttp};
+
 #[derive(Clone, Debug, PartialEq, Eq)]
 pub(crate) struct ReciboUpload {
     pub(crate) nome_upload: String,
@@ -11,16 +13,25 @@ pub(crate) struct ReciboUpload {
     pub(crate) data_hora: String,
 }
 
-#[derive(Clone, Debug, PartialEq, Eq)]
+#[derive(Clone, Debug, PartialEq, Eq, thiserror::Error)]
+#[error("{self:?}")]
 pub(crate) enum FalhaUpload {
     PreparacaoMultipart(super::multipart::FalhaMultipart),
     Recusado {
         motivo: String,
     },
     /// Depois de um POST, ausência de prova não significa ausência de temporário.
-    EfeitoIncerto {
+    NaoConfirmado {
         status_http: Option<u16>,
     },
+    /// O POST não obteve resposta (falha de transporte).
+    EnvioSemResposta(#[source] FalhaTransporte),
+    /// O corpo da resposta não foi lido dentro do limite.
+    CorpoNaoLido(#[source] FalhaTransporte),
+    /// O corpo da resposta não decodifica no charset declarado.
+    CorpoIlegivel(#[source] ErroCorpoHttp),
+    /// O tamanho informado no recibo não é um número.
+    TamanhoDoReciboIlegivel(#[source] std::num::ParseIntError),
 }
 
 pub(crate) fn interpretar_resposta(
@@ -31,7 +42,7 @@ pub(crate) fn interpretar_resposta(
 ) -> Result<ReciboUpload, FalhaUpload> {
     // Um POST de upload pode ter criado um temporário mesmo quando o resultado
     // não é reconhecido. Nunca transformar ausência de prova em novo envio.
-    let incerto = || FalhaUpload::EfeitoIncerto {
+    let incerto = || FalhaUpload::NaoConfirmado {
         status_http: Some(status_http),
     };
     if status_http != 200 {
@@ -55,7 +66,9 @@ pub(crate) fn interpretar_resposta(
     let [nome_upload, nome, tipo, tamanho, data_hora, fim] = partes.as_slice() else {
         return Err(incerto());
     };
-    let tamanho_bytes = tamanho.parse::<u64>().map_err(|_| incerto())?;
+    let tamanho_bytes = tamanho
+        .parse::<u64>()
+        .map_err(FalhaUpload::TamanhoDoReciboIlegivel)?;
     if !fim.is_empty()
         || nome_upload.is_empty()
         || nome.is_empty()
@@ -77,14 +90,13 @@ pub(crate) fn interpretar_resposta(
 }
 
 /// Interpreta o retorno do POST temporário, sem confundi-lo com o cadastro.
-#[allow(dead_code)] // #332: usado na bancada; a CLI ainda não transmite.
 pub(crate) fn interpretar_http<R: std::io::Read>(
     resposta: crate::transporte::RespostaWeb<R>,
     nome_esperado: &str,
     tamanho_esperado: u64,
 ) -> Result<ReciboUpload, FalhaUpload> {
     let status_http = u16::try_from(resposta.status_code).unwrap_or(0);
-    let incerto = || FalhaUpload::EfeitoIncerto {
+    let incerto = || FalhaUpload::NaoConfirmado {
         status_http: Some(status_http),
     };
     if status_http != 200
@@ -94,10 +106,10 @@ pub(crate) fn interpretar_http<R: std::io::Read>(
     {
         return Err(incerto());
     }
-    let bytes =
-        crate::transporte::ler_limitado(resposta.corpo, 64 * 1024).map_err(|_| incerto())?;
-    let corpo = crate::transporte::corpo::decode_http_body(&bytes, &resposta.mime)
-        .map_err(|_| incerto())?;
+    let bytes = crate::transporte::ler_limitado(resposta.corpo, 64 * 1024)
+        .map_err(FalhaUpload::CorpoNaoLido)?;
+    let corpo = crate::tela_html::HtmlServido::do_corpo(&bytes, &resposta.mime)
+        .map_err(FalhaUpload::CorpoIlegivel)?;
     interpretar_resposta(status_http, &corpo, nome_esperado, tamanho_esperado)
 }
 
@@ -138,7 +150,7 @@ mod tests {
         for status in [302, 403, 500, 503] {
             assert_eq!(
                 interpretar_resposta(status, RECIBO, "prova.pdf", 68),
-                Err(FalhaUpload::EfeitoIncerto {
+                Err(FalhaUpload::NaoConfirmado {
                     status_http: Some(status),
                 })
             );
@@ -146,7 +158,7 @@ mod tests {
     }
 
     #[test]
-    fn corpo_vazio_html_ou_recibo_truncado_eh_efeito_incerto() {
+    fn corpo_vazio_html_ou_recibo_truncado_eh_nao_confirmado() {
         for corpo in [
             "",
             "<html><title>Login</title></html>",
@@ -155,7 +167,7 @@ mod tests {
         ] {
             assert_eq!(
                 interpretar_resposta(200, corpo, "prova.pdf", 68),
-                Err(FalhaUpload::EfeitoIncerto {
+                Err(FalhaUpload::NaoConfirmado {
                     status_http: Some(200),
                 })
             );
@@ -169,7 +181,7 @@ mod tests {
             let diferente = RECIBO.replace("application/pdf", mime);
             assert_eq!(
                 interpretar_resposta(200, &diferente, "prova.pdf", 68),
-                Err(FalhaUpload::EfeitoIncerto {
+                Err(FalhaUpload::NaoConfirmado {
                     status_http: Some(200)
                 }),
                 "{mime}"
@@ -182,7 +194,7 @@ mod tests {
         for (nome, tamanho) in [("outro.pdf", 68), ("prova.pdf", 67)] {
             assert_eq!(
                 interpretar_resposta(200, RECIBO, nome, tamanho),
-                Err(FalhaUpload::EfeitoIncerto {
+                Err(FalhaUpload::NaoConfirmado {
                     status_http: Some(200),
                 })
             );
@@ -192,16 +204,25 @@ mod tests {
     #[test]
     fn recibo_ambiguo_ou_com_tamanho_nao_numerico_nao_autoriza_cadastro() {
         for corpo in [
-            "94e336aa#prova.pdf#application/pdf#xx#11/10/2026 11:07:50#",
             "94e336aa#prova.pdf#application/pdf#68#11/10/2026 11:07:50#extra#",
             "#prova.pdf#application/pdf#68#11/10/2026 11:07:50#",
         ] {
             assert_eq!(
                 interpretar_resposta(200, corpo, "prova.pdf", 68),
-                Err(FalhaUpload::EfeitoIncerto {
+                Err(FalhaUpload::NaoConfirmado {
                     status_http: Some(200),
                 })
             );
         }
+        // Tamanho não numérico: a causa do `parse` é guardada na variante.
+        assert!(matches!(
+            interpretar_resposta(
+                200,
+                "94e336aa#prova.pdf#application/pdf#xx#11/10/2026 11:07:50#",
+                "prova.pdf",
+                68
+            ),
+            Err(FalhaUpload::TamanhoDoReciboIlegivel(_))
+        ));
     }
 }

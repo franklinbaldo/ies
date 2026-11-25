@@ -1,5 +1,5 @@
 //! RED/GREEN do JSON dos documentos movidos: id composto opaco, rótulo,
-//! número SEI e o destino (`{numero, id_procedimento}` ou `null`), sem URL
+//! número SEI e o destino (`{numero, id_procedimento}` ou ausente), sem URL
 //! nem a dica; `[]` sem movido; some com `--sem-documentos`. O movido
 //! cujo documento está entre os documentos sai com
 //! `presente_entre_os_documentos: true` e marcado no texto humano.
@@ -48,7 +48,7 @@ fn movido_publica_o_destino_sem_url_nem_dica() {
     assert!(!texto.contains("controlador.php") && !texto.contains(&"6".repeat(64)));
     assert!(!texto.contains("motivo sintetico"));
     let sem_link = json_do_processo(&nup, &com_movidos(&arvore_com_movido("10", NUP, "")), false);
-    assert!(sem_link["documentos_movidos"][0]["destino"].is_null());
+    assert!(sem_link["documentos_movidos"][0].get("destino").is_none());
     assert_eq!(
         json_do_processo(&nup, &aberto(None), false)["documentos_movidos"],
         json!([])

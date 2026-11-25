@@ -12,9 +12,7 @@ fn bdd_88_03_cli_nao_inventa_versao_ausente_do_historico() {
         5,
     );
     assert_eq!(saida.status.code(), Some(1));
-    let valor = json(&saida);
-    assert_eq!(valor["documento"], DOC);
-    assert_eq!(valor["subcodigo"], "versao_nao_observada");
+    falha_por_cli::falha_por(&saida, "Documento", "Versoes");
     assert!(!pasta.0.join("0011519.v2.html").exists());
 }
 
@@ -43,12 +41,7 @@ fn bdd_88_03_cli_documento_nao_acessivel_na_sessao() {
         Some(0),
         "documento ausente virou sucesso"
     );
-    let valor = json(&saida);
-    assert!(valor["subcodigo"].is_string(), "recusa sem causa: {valor}");
-    assert!(
-        valor["documentos"].is_null(),
-        "publicou documento não observado: {valor}"
-    );
+    falha_por_cli::falha_por(&saida, "Documento", "Processo");
     assert!(!destino.join("0011519.v1.html").exists());
 }
 
@@ -71,10 +64,7 @@ fn bdd_88_03_cli_recusa_versao_sem_acesso_na_sessao() {
     // nenhum POST modificador e nenhuma foto da versão não acessível.
     let saida = executar_com_restricao(&pasta, &args, 6, true, true);
     assert_eq!(saida.status.code(), Some(1), "não recusou versão restrita");
-    let valor = json(&saida);
-    assert_eq!(valor["status_http"], 403, "recusa sem HTTP 403: {valor}");
-    assert_eq!(valor["documento"], DOC);
-    assert!(valor["documentos"].is_null());
+    falha_por_cli::falha_por(&saida, "Documento", "Status");
     assert!(!destino.join("0011519.v1.html").exists());
 
     let humano = executar_com_restricao(
@@ -146,8 +136,6 @@ fn bdd_88_03_cli_recusa_sessao_sem_acesso_antes_da_pesquisa() {
     // não há pesquisa nem leitura do histórico, muito menos foto.
     let saida = executar_com_sessao(&pasta, &args, 1, true, false, true);
     assert_eq!(saida.status.code(), Some(1));
-    let valor = json(&saida);
-    assert_eq!(valor["status_http"], 403, "sessão não recusada: {valor}");
-    assert!(valor["documentos"].is_null());
+    falha_por_cli::falha_por(&saida, "Documento", "Status");
     assert!(!destino.join("0011519.v1.html").exists());
 }

@@ -16,33 +16,28 @@ fn sem_sessao(args: &[&str]) -> Output {
         .expect("IES deve iniciar")
 }
 
-fn json(saida: &Output) -> serde_json::Value {
-    serde_json::from_slice(&saida.stdout).expect("JSON na saída")
+/// Falha fechada (#695): saída 1, stdout vazio, stderr `Error: <Erro>`.
+fn sem_arquivos_de_sessao(saida: &Output) {
+    assert_eq!(saida.status.code(), Some(1));
+    assert!(saida.stdout.is_empty(), "falha não publica stdout");
+    let erro = String::from_utf8_lossy(&saida.stderr);
+    assert!(
+        erro.starts_with("Error: UrlDoControleIlegivel(Ausente)"),
+        "{erro}"
+    );
 }
 
 const NUP: &str = "00001.000001/2026-01";
 
 #[test]
 fn uso_invalido_sai_com_2_antes_da_configuracao() {
-    for (args, subcodigo) in [
-        (
-            vec!["processo", "enviar", " ", "--para", "TESTE", "--json"],
-            "numero_processo_vazio",
-        ),
-        (
-            vec!["processo", "enviar", NUP, "--para", " ", "--json"],
-            "sigla_de_destino_invalida",
-        ),
-        (
-            vec!["processo", "enviar", NUP, "--para", "A\tB", "--json"],
-            "sigla_de_destino_invalida",
-        ),
-        (
-            vec![
-                "processo", "enviar", NUP, "--para", "A", "--para", "B", "--json",
-            ],
-            "mais_de_um_destino_nao_suportado",
-        ),
+    for args in [
+        vec!["processo", "enviar", " ", "--para", "TESTE", "--json"],
+        vec!["processo", "enviar", NUP, "--para", " ", "--json"],
+        vec!["processo", "enviar", NUP, "--para", "A\tB", "--json"],
+        vec![
+            "processo", "enviar", NUP, "--para", "A", "--para", "B", "--json",
+        ],
     ] {
         for confirmar in [false, true] {
             let mut args = args.clone();
@@ -51,9 +46,10 @@ fn uso_invalido_sai_com_2_antes_da_configuracao() {
             }
             let saida = sem_sessao(&args);
             assert_eq!(saida.status.code(), Some(2), "{args:?}");
-            let valor = json(&saida);
-            assert_eq!(valor["codigo"], "entrada_invalida");
-            assert_eq!(valor["subcodigo"], subcodigo, "{args:?}");
+            assert!(
+                saida.stdout.is_empty(),
+                "uso inválido é recusado pelo clap, sem JSON"
+            );
         }
     }
 }
@@ -65,9 +61,7 @@ fn sem_configuracao_falha_fechado_sem_rede() {
         args.extend_from_slice(extra);
         let saida = sem_sessao(&args);
         assert_eq!(saida.status.code(), Some(1), "{args:?}");
-        let valor = json(&saida);
-        assert_eq!(valor["codigo"], "fonte_invalida");
-        assert_ne!(valor["codigo"], "nao_implementado");
+        sem_arquivos_de_sessao(&saida);
     }
 }
 
@@ -99,18 +93,13 @@ fn bdd_remover_anotacoes_e_opcao_da_cli_sem_confirmacao_cega() {
     ];
     let previa = sem_sessao(&base);
     assert_eq!(previa.status.code(), Some(1));
-    assert_eq!(json(&previa)["codigo"], "fonte_invalida");
+    sem_arquivos_de_sessao(&previa);
     // Sem sessão o comando não pode observar nem confirmar a tela.
     // A recusa continua sem rede, mas agora a confirmação requer preflight.
     let mut confirmar = base.to_vec();
     confirmar.push("--confirmar");
     let saida = sem_sessao(&confirmar);
     assert_eq!(saida.status.code(), Some(1));
-    assert_eq!(json(&saida)["codigo"], "fonte_invalida");
-    // A confirmação da nova escrita fica fechada antes da leitura da sessão
-    // enquanto o ensaio live de treinamento estiver NOT_RUN (#333).
-    assert_eq!(
-        json(&saida)["subcodigo"],
-        "remocao_de_anotacoes_sem_verificacao"
-    );
+    sem_arquivos_de_sessao(&saida);
+    // Sem trava de ensaio: a confirmação segue para a sessão, que falta.
 }

@@ -8,8 +8,6 @@
 use super::ErroResultadoPesquisa;
 use super::resposta::FaixaDaPesquisa;
 use crate::dominio::IdProcedimento;
-use crate::erro_html::ErroHtml;
-use crate::html_atributos::ErroAtributoHtml;
 use crate::processo::{NumeroProcesso, NumeroProcessoInvalido};
 
 mod envio;
@@ -29,10 +27,10 @@ pub(crate) struct DocumentoEncontrado {
     pub(crate) rotulo: String,
     /// NUP do processo, opaco.
     pub(crate) processo: NumeroProcesso,
-    /// Sigla de "Unidade:"; `None` quando a linha não mostra.
-    pub(crate) unidade: Option<String>,
-    /// "Inclusão:" como mostrada (`dd/mm/aaaa`); `None` quando ausente.
-    pub(crate) inclusao: Option<String>,
+    /// Sigla de "Unidade:", lida da sub-linha de metadados (sem ela, erro).
+    pub(crate) unidade: String,
+    /// "Inclusão:" como mostrada (`dd/mm/aaaa`), lida da sub-linha de metadados.
+    pub(crate) inclusao: String,
     /// O link do documento é `documento_download_anexo`.
     pub(crate) anexo: bool,
 }
@@ -60,25 +58,31 @@ pub(crate) enum RespostaDeDocumentos {
     SemResultado,
 }
 
-/// Uma variante por fato verificável da linha de documento.
-#[derive(Clone, Copy, Debug, PartialEq, Eq, crate::erro_publico::Causa)]
+/// um erro por fato verificável da linha de documento.
+#[derive(Clone, Debug, PartialEq, Eq, thiserror::Error)]
+#[error("{self:?}")]
 pub(crate) enum ErroDocumentoDaPesquisa {
     /// Recusa da leitura comum do link do processo e da árvore.
-    #[causa(interna)]
-    Linha(ErroResultadoPesquisa),
-    #[causa(interna)]
-    AtributoHtml(ErroAtributoHtml),
+    Linha(#[from] ErroResultadoPesquisa),
     LinhaDeDocumentoSemIdDocumentoNoLinkDoProcesso,
     LinkDoDocumentoDiferenteDoProcesso,
     NumeroSeiComLinkDiferenteDoDocumento,
     LinhaDaPesquisaForaDeUmRegistro,
-    #[causa(interna)]
-    NumeroDoProcesso(NumeroProcessoInvalido),
-    #[causa(transparente)]
-    Html(ErroHtml),
+    NumeroDoProcesso(#[from] NumeroProcessoInvalido),
+    CelulaDoTituloDoDocumentoAusenteOuRepetida,
+    DataDeInclusaoForaDaFormaObservada,
+    /// Sub-linha de metadados sem "Unidade:" ou com o valor vazio.
+    UnidadeDoDocumentoAusente,
+    /// Sub-linha de metadados sem "Inclusão:".
+    InclusaoDoDocumentoAusente,
+    LinkDaLinhaDeDocumentoNaoReconhecido,
+    LinkDoDocumentoAusenteNaLinha,
+    LinksDoDocumentoRepetidosNaLinha,
+    MetadadoDoDocumentoRepetido,
+    NumeroSeiAusenteNaLinha,
+    NumeroSeiRepetidoNaPesquisa,
+    RotuloDoDocumentoAusente,
 }
-
-impl ErroDocumentoDaPesquisa {}
 
 #[cfg(test)]
 mod tests;

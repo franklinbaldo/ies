@@ -4,10 +4,20 @@ title: Matriz de derivação das fatias WIP da CLI
 description: Notas de handoff das fatias parciais de processo, separadas da matriz principal
 ---
 
+> **Arquivo histórico (11/11/2026):** referências a BDD/Gherkin e
+> cenários numerados abaixo descrevem a migração antiga. Não são
+> condições de trabalho nem gates. O método atual é E2E via cassettes,
+> conforme [AGENTS.md](../AGENTS.md) e [ciclo](anti-ies/ciclo-cassettes.md).
+
+
 # Matriz — fatias WIP de processo
 
 Complementa a [matriz principal](matriz-derivacao-cli.md). Cada seção
 registra o estado de uma fatia de handoff, sem promover NOT_RUN a PASS.
+
+## Handoff #638 — anotar processo (PR Draft #646)
+
+`ies processo anotar NUP --texto T` está **PENDENTE PR** em relação à main. BDD-ANOT-01: prévia Web da anotação atual de um processo aberto na unidade da sessão, com GET do formulário `frmAnotacaoCadastro` e **zero POST**. O anti-IES serve o mesmo formulário a partir da observação explícita no SQLite. E2E CLI real → HTTPS local → anti-IES → SQLite sintético; confronto semântico com cassettes UnB/GO ainda NOT_RUN; live NOT_RUN. BDDs de registro, consulta direta e remoção continuam pendentes. [Contrato](../contracts/cli/processo-anotar.md) · [decisão](decisoes/processo-anotar.md) · [PR](https://github.com/franklinbaldo/ies/pull/646).
 
 ## Handoff #332 — incluir PDF externo (PR Draft #352)
 
@@ -37,7 +47,7 @@ O comando de escrita novo, autorizado apenas em treinamento, lê a barra do proc
 A PR #279 entregou prévia com três GET e sem escrita;
 a PR #284 implementa `--confirmar` para sobrestar e retomar:
 uma única escrita derivada do formulário ou função do SEI,
-seguida de releitura obrigatória do estado; saída 3 quando incerto.
+seguida de releitura obrigatória do estado; saída 1 quando incerto.
 Orçamento em teste sintético frio: seis requisições para cada
 operação, sendo um POST no sobrestar e um GET mutável no retomar.
 RED da #284: quatro falhas novas antes do código.

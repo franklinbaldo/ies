@@ -1,10 +1,9 @@
 //! Falhas técnicas de interpretação e paginação Web; não são entidades do SEI.
 use crate::dominio::Categoria;
-use crate::erro_html::ErroHtml;
-use std::fmt;
 
 /// Nunca inclui HTML, cookies, URLs ou conteúdo de processos nas mensagens.
-#[derive(Debug, Clone, PartialEq, Eq, crate::erro_publico::Causa)]
+#[derive(Debug, Clone, PartialEq, Eq, thiserror::Error)]
+#[error("{}", self.texto())]
 pub enum ErroCaixa {
     TabelaAusente {
         categoria: Categoria,
@@ -26,12 +25,10 @@ pub enum ErroCaixa {
         categoria: Categoria,
         id: String,
     },
-    #[causa(nome = "numero_da_caixa_invalido")]
     NumeroInvalido {
         categoria: Categoria,
         id: String,
     },
-    #[causa(nome = "processo_ambiguo")]
     MaisDeUmNumeroNaLinhaDoProcesso {
         categoria: Categoria,
         id: String,
@@ -43,16 +40,19 @@ pub enum ErroCaixa {
     ClassesDeEstadoDiferentesNoLinkDoProcesso {
         categoria: Categoria,
         id: String,
+        #[source]
+        motivo: crate::classe_link_processo::ClassesDeEstadoDiferentesNoLink,
     },
     TotalExcedido {
         categoria: Categoria,
     },
-    #[causa(nome = "total_divergente")]
     TotaisDeclaradosDiferentesEntrePaginas {
         categoria: Categoria,
     },
     FaixaInvalida {
         categoria: Categoria,
+        #[source]
+        motivo: crate::paginas::ErroFaixaDaLegenda,
     },
     FaixaDesconhecida {
         categoria: Categoria,
@@ -67,6 +67,12 @@ pub enum ErroCaixa {
     TotalNaoDeclaradoNaLegenda {
         categoria: Categoria,
     },
+    /// A legenda da tabela não está em nenhuma forma observada (leitor `legenda`).
+    LegendaIlegivel {
+        categoria: Categoria,
+        #[source]
+        motivo: crate::legenda::ErroLegenda,
+    },
     /// Legenda sem intervalo e total diferente do número de linhas.
     LegendaSemFaixaComTotalDiferenteDasLinhas {
         categoria: Categoria,
@@ -76,23 +82,22 @@ pub enum ErroCaixa {
         categoria: Categoria,
     },
     LimitePaginas,
-    #[causa(nome = "visao_resumida_com_paginacao_nao_demonstrada")]
     VisaoResumidaComPaginacao,
     /// `hdnIdMarcador{unidade}` preenchido: a lista é só a do marcador.
     FiltroDeMarcadorAtivoNoControle,
     IdentificacaoDaUnidadeAusenteNoControle,
     ContextoNaoVerificavel,
-    #[causa(nome = "contexto_divergente")]
     ContextoDaPaginaDiferenteDoAnterior,
     SemPaginas,
-    #[causa(transparente)]
-    Html(ErroHtml),
+    HashesDeCriteriosGeradosRepetidosNoControle,
+    HashesDeCriteriosRecebidosRepetidosNoControle,
+    HtmlDaCaixaInvalido,
+    IdentificacoesDaUnidadeRepetidasNoControle,
+    TiposDeVisualizacaoRepetidosNoControle,
+    UnidadeInesperada,
 }
 
 impl ErroCaixa {
-    pub fn subcodigo(&self) -> &'static str {
-        crate::erro_publico::folha(self)
-    }
     pub fn categoria(&self) -> Option<Categoria> {
         match self {
             Self::TabelaAusente { categoria }
@@ -107,14 +112,28 @@ impl ErroCaixa {
             | Self::ClassesDeEstadoDiferentesNoLinkDoProcesso { categoria, .. }
             | Self::TotalExcedido { categoria }
             | Self::TotaisDeclaradosDiferentesEntrePaginas { categoria }
-            | Self::FaixaInvalida { categoria }
+            | Self::FaixaInvalida { categoria, .. }
             | Self::FaixaDesconhecida { categoria }
             | Self::FaixaAlterada { categoria }
             | Self::FaixaDescontinua { categoria }
             | Self::TotalNaoDeclaradoNaLegenda { categoria }
+            | Self::LegendaIlegivel { categoria, .. }
             | Self::LegendaSemFaixaComTotalDiferenteDasLinhas { categoria }
             | Self::PaginadorDaTabelaSemFaixaNaLegenda { categoria } => Some(*categoria),
-            _ => None,
+            Self::IdInvalido
+            | Self::LimitePaginas
+            | Self::VisaoResumidaComPaginacao
+            | Self::FiltroDeMarcadorAtivoNoControle
+            | Self::IdentificacaoDaUnidadeAusenteNoControle
+            | Self::ContextoNaoVerificavel
+            | Self::ContextoDaPaginaDiferenteDoAnterior
+            | Self::SemPaginas
+            | Self::HashesDeCriteriosGeradosRepetidosNoControle
+            | Self::HashesDeCriteriosRecebidosRepetidosNoControle
+            | Self::HtmlDaCaixaInvalido
+            | Self::IdentificacoesDaUnidadeRepetidasNoControle
+            | Self::TiposDeVisualizacaoRepetidosNoControle
+            | Self::UnidadeInesperada => None,
         }
     }
     pub fn id(&self) -> Option<&str> {
@@ -124,21 +143,49 @@ impl ErroCaixa {
             | Self::MaisDeUmNumeroNaLinhaDoProcesso { id, .. }
             | Self::LinkDoProcessoNaoIdentificadoNaLinha { id, .. }
             | Self::ClassesDeEstadoDiferentesNoLinkDoProcesso { id, .. } => Some(id),
-            _ => None,
+            Self::TabelaAusente { .. }
+            | Self::TabelasDaCategoriaRepetidas { .. }
+            | Self::TabelaInvalida { .. }
+            | Self::LegendaAusente { .. }
+            | Self::LegendasDaTabelaRepetidas { .. }
+            | Self::IdInvalido
+            | Self::TotalExcedido { .. }
+            | Self::TotaisDeclaradosDiferentesEntrePaginas { .. }
+            | Self::FaixaInvalida { .. }
+            | Self::FaixaDesconhecida { .. }
+            | Self::FaixaAlterada { .. }
+            | Self::FaixaDescontinua { .. }
+            | Self::TotalNaoDeclaradoNaLegenda { .. }
+            | Self::LegendaIlegivel { .. }
+            | Self::LegendaSemFaixaComTotalDiferenteDasLinhas { .. }
+            | Self::PaginadorDaTabelaSemFaixaNaLegenda { .. }
+            | Self::LimitePaginas
+            | Self::VisaoResumidaComPaginacao
+            | Self::FiltroDeMarcadorAtivoNoControle
+            | Self::IdentificacaoDaUnidadeAusenteNoControle
+            | Self::ContextoNaoVerificavel
+            | Self::ContextoDaPaginaDiferenteDoAnterior
+            | Self::SemPaginas
+            | Self::HashesDeCriteriosGeradosRepetidosNoControle
+            | Self::HashesDeCriteriosRecebidosRepetidosNoControle
+            | Self::HtmlDaCaixaInvalido
+            | Self::IdentificacoesDaUnidadeRepetidasNoControle
+            | Self::TiposDeVisualizacaoRepetidosNoControle
+            | Self::UnidadeInesperada => None,
         }
     }
 }
 
-impl fmt::Display for ErroCaixa {
-    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-        write!(f, "leitura da caixa: {}", self.subcodigo())?;
-        if let Some(categoria) = self.categoria() {
-            write!(f, " ({})", categoria.rotulo())?;
-        }
-        if let Some(id) = self.id() {
-            write!(f, " (id {id})")?;
-        }
-        Ok(())
+impl ErroCaixa {
+    fn texto(&self) -> String {
+        let categoria = self
+            .categoria()
+            .map(|c| format!(" ({})", c.rotulo()))
+            .unwrap_or_default();
+        let id = self
+            .id()
+            .map(|id| format!(" (id {id})"))
+            .unwrap_or_default();
+        format!("leitura da caixa: {self:?}{categoria}{id}")
     }
 }
-impl std::error::Error for ErroCaixa {}

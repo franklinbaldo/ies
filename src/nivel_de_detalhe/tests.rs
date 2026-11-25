@@ -1,7 +1,7 @@
 //! RED/GREEN do Nível de detalhe: tela sintética modelada na estrutura da
 //! tela `procedimento_configurar_detalhe` de PEN1 e GO (02/11/2026).
 use super::*;
-use crate::erro_html::ErroHtml;
+use crate::tela_html::HtmlServido;
 
 /// Tela com as 12 opções; `marcadas` são os campos com `checked`.
 pub(crate) fn tela(marcadas: &[&str]) -> String {
@@ -72,11 +72,11 @@ fn modelo_tem_doze_opcoes_com_campos_rotulos_e_chaves_unicos() {
 
 #[test]
 fn tela_com_tres_marcadas_como_a_pen1() {
-    let html = tela(&[
+    let html = HtmlServido::de_teste(&tela(&[
         "chkSinAtribuicao",
         "chkSinTipoProcesso",
         "chkSinInteressados",
-    ]);
+    ]));
     let nivel = ler_nivel_de_detalhe(&html).unwrap();
     assert_eq!(nivel.opcoes.len(), 12);
     let marcadas: Vec<_> = nivel
@@ -96,41 +96,45 @@ fn tela_com_tres_marcadas_como_a_pen1() {
 #[test]
 fn tela_com_todas_marcadas_como_go_e_booleano_antes_dos_atributos() {
     let todas: Vec<_> = ColunaDoDetalhe::TODAS.iter().map(|c| c.campo()).collect();
-    let html = crate::html_atributos::com_booleano_antes_dos_atributos(&tela(&todas));
+    let html = HtmlServido::de_teste(&crate::tela_html::teste::com_booleano_antes_dos_atributos(
+        &tela(&todas),
+    ));
     let nivel = ler_nivel_de_detalhe(&html).unwrap();
     assert!(nivel.opcoes.iter().all(|o| o.marcada));
 }
 
 #[test]
 fn opcoes_faltando_repetidas_extras_ou_com_rotulo_trocado_sao_recusadas() {
-    use ErroNivelDeDetalhe as E;
     let base = tela(&[]);
     assert_eq!(
-        ler_nivel_de_detalhe(&tela_com(&[], &[])),
-        Err(E::NenhumaOpcaoDoDetalhePublicada)
+        ler_nivel_de_detalhe(&HtmlServido::de_teste(&tela_com(&[], &[]))),
+        Err(ErroNivelDeDetalhe::NenhumaOpcaoDoDetalhePublicada)
     );
-    let repetida = base.replacen("name=\"chkSinAnotacao\"", "name=\"chkSinAtribuicao\"", 1);
+    let repetida = HtmlServido::de_teste(&base.replacen(
+        "name=\"chkSinAnotacao\"",
+        "name=\"chkSinAtribuicao\"",
+        1,
+    ));
     assert_eq!(
         ler_nivel_de_detalhe(&repetida),
-        Err(E::OpcaoDoDetalheRepetida {
+        Err(ErroNivelDeDetalhe::OpcaoDoDetalheRepetida {
             coluna: ColunaDoDetalhe::Atribuicao
         })
     );
-    let extra = base.replacen(
+    let extra = HtmlServido::de_teste(&base.replacen(
         "</form>",
         "<input type=\"checkbox\" name=\"chkSinNovaColuna\"></form>",
         1,
-    );
+    ));
     assert_eq!(
         ler_nivel_de_detalhe(&extra),
-        Err(E::Html(ErroHtml::valor(
-            "opcao_do_nivel_de_detalhe_nao_prevista"
-        )))
+        Err(ErroNivelDeDetalhe::OpcaoDoNivelDeDetalheNaoPrevista)
     );
-    let rotulo = base.replacen(">Prioridade</label>", ">Urgência</label>", 1);
+    let rotulo =
+        HtmlServido::de_teste(&base.replacen(">Prioridade</label>", ">Urgência</label>", 1));
     assert_eq!(
         ler_nivel_de_detalhe(&rotulo),
-        Err(E::RotuloDaOpcaoDoDetalheDiferente {
+        Err(ErroNivelDeDetalhe::RotuloDaOpcaoDoDetalheDiferente {
             coluna: ColunaDoDetalhe::Prioridade
         })
     );
@@ -140,21 +144,41 @@ fn opcoes_faltando_repetidas_extras_ou_com_rotulo_trocado_sao_recusadas() {
         1,
     );
     assert_eq!(
-        ler_nivel_de_detalhe(&acao),
-        Err(E::AcaoDoFormularioDoNivelDeDetalheDiferente)
+        ler_nivel_de_detalhe(&HtmlServido::de_teste(&acao)),
+        Err(ErroNivelDeDetalhe::AcaoDoFormularioDoNivelDeDetalheDiferente)
+    );
+    let repetida = HtmlServido::de_teste(&base.replacen(
+        "acao=procedimento_configurar_detalhe&amp;",
+        "acao=procedimento_configurar_detalhe&amp;acao=procedimento_configurar_detalhe&amp;",
+        1,
+    ));
+    assert_eq!(
+        ler_nivel_de_detalhe(&repetida),
+        Err(ErroNivelDeDetalhe::AcaoDoFormularioNaoLida(
+            crate::consulta_do_controlador::ErroAcaoDaUrl::AcaoRepetida
+        ))
+    );
+    let solta = HtmlServido::de_teste(&base.replacen(
+        "acao=procedimento_configurar_detalhe&amp;",
+        "acao=procedimento_configurar_detalhe&amp;solta&amp;",
+        1,
+    ));
+    assert_eq!(
+        ler_nivel_de_detalhe(&solta),
+        Err(ErroNivelDeDetalhe::ConsultaDoFormularioIlegivel(
+            crate::consulta_do_controlador::ErroConsultaDoControlador::ParSemIgual
+        ))
     );
     assert_eq!(
-        ler_nivel_de_detalhe("<html><form id='x'></form></html>"),
-        Err(E::Html(ErroHtml::ausente(
-            "formulario_do_nivel_de_detalhe_ausente"
-        )))
+        ler_nivel_de_detalhe(&HtmlServido::de_teste("<html><form id='x'></form></html>")),
+        Err(ErroNivelDeDetalhe::FormularioDoNivelDeDetalheAusente(
+            crate::formulario_web::ErroSubmissaoFormulario::FormularioAusenteNaTela
+        ))
     );
-    let dois = format!("{base}{base}");
+    let dois = HtmlServido::de_teste(&format!("{base}{base}"));
     assert_eq!(
         ler_nivel_de_detalhe(&dois),
-        Err(E::Html(ErroHtml::repetido(
-            "formularios_do_nivel_de_detalhe_repetidos"
-        )))
+        Err(ErroNivelDeDetalhe::FormulariosDoNivelDeDetalheRepetidos)
     );
 }
 
@@ -169,7 +193,10 @@ fn onze_da_unb() -> Vec<ColunaDoDetalhe> {
 
 #[test]
 fn tela_da_unb_sem_prioridade_publica_a_opcao_indisponivel() {
-    let html = tela_com(&onze_da_unb(), &["chkSinAtribuicao", "chkSinControlePrazo"]);
+    let html = HtmlServido::de_teste(&tela_com(
+        &onze_da_unb(),
+        &["chkSinAtribuicao", "chkSinControlePrazo"],
+    ));
     let nivel = ler_nivel_de_detalhe(&html).unwrap();
     assert_eq!(nivel.opcoes.len(), 12);
     let prioridade = nivel.opcoes[4];
@@ -187,35 +214,37 @@ fn tela_da_unb_sem_prioridade_publica_a_opcao_indisponivel() {
 
 #[test]
 fn subconjunto_ainda_recusa_caixa_desconhecida_repetida_ou_rotulo_trocado() {
-    use ErroNivelDeDetalhe as E;
     let base = tela_com(&onze_da_unb(), &[]);
-    let desconhecida = base.replacen(
+    let desconhecida = HtmlServido::de_teste(&base.replacen(
         "</form>",
         "<input type=\"checkbox\" name=\"chkSinNivelUrgencia\"></form>",
         1,
-    );
+    ));
     assert_eq!(
         ler_nivel_de_detalhe(&desconhecida),
-        Err(E::Html(ErroHtml::valor(
-            "opcao_do_nivel_de_detalhe_nao_prevista"
-        )))
+        Err(ErroNivelDeDetalhe::OpcaoDoNivelDeDetalheNaoPrevista)
     );
-    let repetida = base.replacen("name=\"chkSinAnotacao\"", "name=\"chkSinMarcadores\"", 1);
+    let repetida = HtmlServido::de_teste(&base.replacen(
+        "name=\"chkSinAnotacao\"",
+        "name=\"chkSinMarcadores\"",
+        1,
+    ));
     assert_eq!(
         ler_nivel_de_detalhe(&repetida),
-        Err(E::OpcaoDoDetalheRepetida {
+        Err(ErroNivelDeDetalhe::OpcaoDoDetalheRepetida {
             coluna: ColunaDoDetalhe::Marcadores
         })
     );
-    let rotulo = base.replacen(">Marcadores</label>", ">Etiquetas</label>", 1);
+    let rotulo =
+        HtmlServido::de_teste(&base.replacen(">Marcadores</label>", ">Etiquetas</label>", 1));
     assert_eq!(
         ler_nivel_de_detalhe(&rotulo),
-        Err(E::RotuloDaOpcaoDoDetalheDiferente {
+        Err(ErroNivelDeDetalhe::RotuloDaOpcaoDoDetalheDiferente {
             coluna: ColunaDoDetalhe::Marcadores
         })
     );
     // Uma só caixa publicada ainda é tela válida.
-    let uma = tela_com(&[ColunaDoDetalhe::Marcadores], &[]);
+    let uma = HtmlServido::de_teste(&tela_com(&[ColunaDoDetalhe::Marcadores], &[]));
     let nivel = ler_nivel_de_detalhe(&uma).unwrap();
     assert_eq!(nivel.opcoes.iter().filter(|o| o.disponivel).count(), 1);
 }

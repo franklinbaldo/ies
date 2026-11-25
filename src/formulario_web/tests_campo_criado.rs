@@ -3,10 +3,11 @@
 //! o valor da operação; publicado pela tela, é recusa. HTML sintético.
 use super::tests::{instalacao, tela_iso};
 use super::*;
-use ErroSubmissaoFormulario as E;
+use crate::acao_do_sei::AcaoDoSei;
+use crate::tela_html::HtmlServido;
 
 const OPERACAO: OperacaoDeFormulario = OperacaoDeFormulario {
-    acao: "infra_trocar_unidade",
+    acao: AcaoDoSei::InfraTrocarUnidade,
     formulario: "frmInfraSelecaoUnidade",
     envio: EnvioDoFormulario::SubmitPorScriptComCampoCriado("selInfraUnidades"),
     campos_ocultos_exigidos: &["hdnInfraItensSelecionados"],
@@ -43,14 +44,17 @@ const INTERIOR: &str = "<input type='hidden' name='hdnInfraTipoPagina' value='1'
     <input type='radio' name='chkInfraItem' value='2'>\
     <input type='hidden' name='hdnInfraItensSelecionados' value='1'>";
 
-fn derivar(interior: &str, campos: &[(&str, &str)]) -> Result<SubmissaoDerivada, E> {
+fn derivar(
+    interior: &str,
+    campos: &[(&str, &str)],
+) -> Result<SubmissaoDerivada, ErroSubmissaoFormulario> {
     let url = url();
-    let pagina = html(interior);
+    let pagina = HtmlServido::de_teste(&html(interior));
     derivar_submissao(
         &OPERACAO,
         &instalacao(),
         &tela_iso(&url, &pagina),
-        "TESTE",
+        Some("TESTE"),
         campos,
     )
 }
@@ -92,16 +96,9 @@ fn campo_criado_ja_publicado_pela_tela_e_recusado() {
     let interior = format!("{INTERIOR}<input type='hidden' name='selInfraUnidades' value='9'>");
     assert_eq!(
         derivar(&interior, &CAMPOS).map(|_| ()),
-        Err(E::CampoCriadoPeloScriptJaPublicado {
+        Err(ErroSubmissaoFormulario::CampoCriadoPeloScriptJaPublicado {
             campo: "selInfraUnidades".into()
         })
-    );
-    assert_eq!(
-        E::CampoCriadoPeloScriptJaPublicado {
-            campo: String::new()
-        }
-        .subcodigo(),
-        "campo_criado_pelo_script_ja_publicado"
     );
 }
 
@@ -111,7 +108,7 @@ fn campo_criado_repetido_na_operacao_e_recusado() {
     campos.push(("selInfraUnidades", "1"));
     assert_eq!(
         derivar(INTERIOR, &campos).map(|_| ()),
-        Err(E::CampoInformadoMaisDeUmaVez {
+        Err(ErroSubmissaoFormulario::CampoInformadoMaisDeUmaVez {
             campo: "selInfraUnidades".into()
         })
     );

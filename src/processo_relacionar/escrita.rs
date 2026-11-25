@@ -1,20 +1,20 @@
 //! Remover relacionamento: action servida no handler, POST único e releitura.
 //! A remoção não é inferida do HTML devolvido pelo POST nem só do estado final.
-use super::{FalhaRelacionar as E, tela};
+use super::{FalhaRelacionar, tela};
+use crate::acao_do_sei::AcaoDoSei;
+use crate::consulta_do_controlador::ConsultaDoControlador;
 use crate::formulario_web::{
-    ConferenciaDaUnidade, EfeitoAvaliado, EnvioDoFormulario, EstadoDoProcesso,
+    CampoDeTexto, ConferenciaDaUnidade, EfeitoAvaliado, EnvioDoFormulario, EstadoDoProcesso,
     OperacaoDeFormulario, RespostaDoEnvio, ResultadoDoEnvio, TelaServida, consulta_do_controlador,
     derivar_submissao, derivar_submissao_com_action, enviar_submissao_via,
 };
 use crate::instalacao::Instalacao;
-use crate::pagina_do_controle::codificacao_da_tela;
 use crate::processo_concluir::escrita::{Contador, obter_tela};
 use crate::processo_obter::{EnvioDoProcesso, SessaoDoProcesso};
-use crate::transporte::{conferir_chave_de_consulta, conferir_valor_de_consulta};
 use crate::visao_do_controle::EnvioDoControle as _;
 
 const REMOVER: OperacaoDeFormulario = OperacaoDeFormulario {
-    acao: "procedimento_excluir_relacionamento",
+    acao: AcaoDoSei::ProcedimentoExcluirRelacionamento,
     formulario: "frmProcedimentoListarRelacionamentos",
     envio: EnvioDoFormulario::SubmitPorScript,
     campos_ocultos_exigidos: &["hdnInfraItemId"],
@@ -28,7 +28,7 @@ const REMOVER: OperacaoDeFormulario = OperacaoDeFormulario {
 };
 
 const ADICIONAR: OperacaoDeFormulario = OperacaoDeFormulario {
-    acao: "procedimento_relacionar",
+    acao: AcaoDoSei::ProcedimentoRelacionar,
     formulario: "frmProcedimentoListarRelacionamentos",
     envio: EnvioDoFormulario::BotaoDeEnvio("sbmAdicionar"),
     campos_ocultos_exigidos: &["hdnIdProtocolo"],
@@ -42,100 +42,70 @@ const ADICIONAR: OperacaoDeFormulario = OperacaoDeFormulario {
 };
 
 /// A action do script precisa identificar o processo que abriu a tela.
-fn action_do_processo(url: &str, id: &str) -> bool {
+pub(super) fn action_do_processo(url: &str, id: &str) -> bool {
     let Some(query) = url.strip_prefix("controlador.php?") else {
         return false;
     };
-    let mut ids = Vec::new();
-    for par in query.split('&') {
-        let Some((chave, valor)) = par.split_once('=') else {
-            return false;
-        };
-        if conferir_chave_de_consulta(chave).is_err() || conferir_valor_de_consulta(valor).is_err()
-        {
-            return false;
-        }
-        if chave == "id_procedimento" {
-            ids.push(valor);
-        }
-    }
-    ids.as_slice() == [id]
+    ConsultaDoControlador::ler(query).is_ok_and(|query| query.unico("id_procedimento") == Ok(id))
+}
+
+/// O `id_procedimento` da tela de origem: uma vez só na consulta da URL servida.
+fn id_da_origem(url: &str) -> Result<&str, FalhaRelacionar> {
+    let Some((_, consulta)) = url.split_once('?') else {
+        return Err(FalhaRelacionar::IdDaOrigemNaActionAusente);
+    };
+    let consulta =
+        ConsultaDoControlador::ler(consulta).map_err(FalhaRelacionar::ConsultaDaOrigemIlegivel)?;
+    consulta
+        .unico("id_procedimento")
+        .map_err(FalhaRelacionar::IdDaOrigemIlegivel)
 }
 
 /// O 302 de aceite volta à tela; resultado=1 e ação únicos.
-fn aceite_da_remocao(localizacao: &str, url_post: &str, id: &str) -> bool {
+pub(crate) fn aceite_da_remocao(localizacao: &str, url_post: &str, id: &str) -> bool {
     let Some(query) = consulta_do_controlador(localizacao, url_post) else {
         return false;
     };
-    let (mut acoes, mut resultados, mut ids) = (0, 0, 0);
-    for par in query.split('&') {
-        let Some((chave, valor)) = par.split_once('=') else {
-            return false;
-        };
-        if conferir_chave_de_consulta(chave).is_err() || conferir_valor_de_consulta(valor).is_err()
-        {
-            return false;
-        }
-        match chave {
-            "acao" if valor == "procedimento_relacionar" => acoes += 1,
-            "resultado" if valor == "1" => resultados += 1,
-            "id_procedimento" if valor == id => ids += 1,
-            "acao" | "resultado" | "id_procedimento" => return false,
-            _ => {}
-        }
-    }
-    acoes == 1 && resultados == 1 && ids <= 1
+    let Ok(query) = ConsultaDoControlador::ler(query) else {
+        return false;
+    };
+    let ids: Vec<_> = query.valores("id_procedimento").collect();
+    query.acao() == Ok(AcaoDoSei::ProcedimentoRelacionar.como_na_url())
+        && query.unico("resultado") == Ok("1")
+        && (ids.is_empty() || ids == [id])
 }
 
 /// O sucesso requer duas provas: POST com 302 de aceite e GET novo sem vínculo.
 /// Mesmo que a GET já não mostre o vínculo, falha/recusa do POST jamais vira 0.
-#[allow(clippy::too_many_arguments)] // Contexto de origem, formulário e transporte explícitos.
 pub(super) fn remover<V: EnvioDoProcesso>(
     sessao: &SessaoDoProcesso<'_>,
     instalacao: &Instalacao,
     cookie: &str,
-    link: &str,
-    html: &str,
-    mime: &str,
+    servida: &TelaServida<'_>,
     id_alvo: &str,
     relacionados_antes: &[tela::Relacionamento],
     rede: &mut Contador<'_, V>,
-) -> Result<(), E> {
+) -> Result<(), FalhaRelacionar> {
     let alvo = relacionados_antes
         .iter()
         .find(|relacao| relacao.id == id_alvo)
-        .ok_or(E::Estrutura("destino_a_remover_sem_identificador"))?;
-    let codificacao = codificacao_da_tela(mime).ok_or(E::Estrutura(
-        "charset_da_tela_de_relacionamentos_nao_suportado",
-    ))?;
-    let servida = TelaServida {
-        url: link,
-        html,
-        codificacao,
-    };
-    let url_exclusao = tela::url_exclusao(html).map_err(E::Estrutura)?;
+        .ok_or(FalhaRelacionar::DestinoARemoverSemIdentificador)?;
+    let url_exclusao = tela::url_exclusao(servida.html)
+        .ok_or(FalhaRelacionar::AcaoExcluirRelacionamentoNaoDeclarada)?;
     // A action deve pertencer ao mesmo processo de origem, não a outro.
-    let id_origem = link
-        .split('?')
-        .nth(1)
-        .and_then(|query| {
-            query
-                .split('&')
-                .find_map(|par| par.strip_prefix("id_procedimento="))
-        })
-        .ok_or(E::Estrutura("id_da_origem_na_action_ausente"))?;
+    let id_origem = id_da_origem(servida.url)?;
     if !action_do_processo(&url_exclusao, id_origem) {
-        return Err(E::Estrutura("action_de_remocao_de_outro_processo"));
+        return Err(FalhaRelacionar::ActionDeRemocaoDeOutroProcesso);
     }
     let submissao = derivar_submissao_com_action(
         &REMOVER,
         instalacao,
-        &servida,
-        "",
+        servida,
+        None,
         &[("hdnInfraItemId", id_alvo)],
         Some(&url_exclusao),
     )
-    .map_err(E::ConsultaDerivacao)?;
+    .map_err(FalhaRelacionar::ConsultaDerivacao)?;
     let mut enviou = false;
     let resultado = enviar_submissao_via(submissao, sessao.cookie, |post, c| {
         enviou = true;
@@ -143,9 +113,9 @@ pub(super) fn remover<V: EnvioDoProcesso>(
     });
     let resposta = resultado.map_err(|erro| {
         if enviou {
-            E::EfeitoIncerto(Some(erro))
+            FalhaRelacionar::NaoConfirmado(Some(erro))
         } else {
-            E::ConsultaDerivacao(erro)
+            FalhaRelacionar::ConsultaDerivacao(erro)
         }
     })?;
     match resposta {
@@ -153,10 +123,14 @@ pub(super) fn remover<V: EnvioDoProcesso>(
             if redir
                 .localizacao()
                 .is_some_and(|loc| aceite_da_remocao(loc, redir.url_do_envio(), id_origem)) => {}
-        _ => return Err(E::EfeitoIncerto(None)),
+        RespostaDoEnvio::Html(_) | RespostaDoEnvio::Redirecionamento(_) => {
+            return Err(FalhaRelacionar::NaoConfirmado(None));
+        }
     }
-    let (nova_tela, _) = obter_tela(rede, cookie, link).map_err(|_| E::EfeitoIncerto(None))?;
-    let linhas = tela::ler_linhas(&nova_tela).map_err(|_| E::EfeitoIncerto(None))?;
+    let (nova_tela, _) =
+        obter_tela(rede, cookie, servida.url).map_err(FalhaRelacionar::NaoConfirmadoNaReleitura)?;
+    let linhas = tela::ler_linhas(&nova_tela)
+        .map_err(FalhaRelacionar::NaoConfirmadoNaTelaDeRelacionamentos)?;
     // Um id removido não prova a remoção do NUP: a relação pode ter
     // reaparecido sob outro id, ou outra relação pode ter sido perdida.
     let destino_permanece = linhas
@@ -171,7 +145,7 @@ pub(super) fn remover<V: EnvioDoProcesso>(
             })
         });
     if destino_permanece || !outras_preservadas {
-        return Err(E::EfeitoIncerto(None));
+        return Err(FalhaRelacionar::NaoConfirmado(None));
     }
     Ok(())
 }
@@ -181,49 +155,31 @@ pub(super) fn remover<V: EnvioDoProcesso>(
  * `txtIdentificacaoProtocolo` e `hdnIdProtocolo` (Todos @323eb01).
  * Um POST, aceite 302 explícito, releitura independente. Sem retry.
  */
-#[allow(clippy::too_many_arguments)] // Contexto observado do formulário, identidade e rede.
 pub(super) fn adicionar<V: EnvioDoProcesso>(
     sessao: &SessaoDoProcesso<'_>,
     instalacao: &Instalacao,
     cookie: &str,
-    link: &str,
-    html: &str,
-    mime: &str,
-    id_destino: &str,
-    nup_destino: &str,
-    tipo_destino: &str,
+    servida: &TelaServida<'_>,
+    destino: &tela::DestinoConsultado,
     relacionados_antes: &[tela::Relacionamento],
     rede: &mut Contador<'_, V>,
-) -> Result<(), E> {
-    let codificacao = codificacao_da_tela(mime).ok_or(E::Estrutura(
-        "charset_da_tela_de_relacionamentos_nao_suportado",
-    ))?;
-    let servida = TelaServida {
-        url: link,
-        html,
-        codificacao,
-    };
+) -> Result<(), FalhaRelacionar> {
     let submissao = derivar_submissao(
         &ADICIONAR,
         instalacao,
-        &servida,
-        "",
+        servida,
+        None,
         &[
-            ("txtProtocolo", nup_destino),
-            ("txtIdentificacaoProtocolo", tipo_destino),
-            ("hdnIdProtocolo", id_destino),
+            ("txtProtocolo", &destino.nup),
+            (
+                "txtIdentificacaoProtocolo",
+                CampoDeTexto::de(destino.tipo.as_deref()).enviado(),
+            ),
+            ("hdnIdProtocolo", &destino.id),
         ],
     )
-    .map_err(E::ConsultaDerivacao)?;
-    let id_origem = link
-        .split('?')
-        .nth(1)
-        .and_then(|query| {
-            query
-                .split('&')
-                .find_map(|par| par.strip_prefix("id_procedimento="))
-        })
-        .ok_or(E::Estrutura("id_da_origem_na_action_ausente"))?;
+    .map_err(FalhaRelacionar::ConsultaDerivacao)?;
+    let id_origem = id_da_origem(servida.url)?;
     let mut enviou = false;
     let resultado = enviar_submissao_via(submissao, sessao.cookie, |post, c| {
         enviou = true;
@@ -231,9 +187,9 @@ pub(super) fn adicionar<V: EnvioDoProcesso>(
     });
     let resposta = resultado.map_err(|erro| {
         if enviou {
-            E::EfeitoIncerto(Some(erro))
+            FalhaRelacionar::NaoConfirmado(Some(erro))
         } else {
-            E::ConsultaDerivacao(erro)
+            FalhaRelacionar::ConsultaDerivacao(erro)
         }
     })?;
     match resposta {
@@ -243,20 +199,24 @@ pub(super) fn adicionar<V: EnvioDoProcesso>(
             if redir
                 .localizacao()
                 .is_some_and(|loc| aceite_da_remocao(loc, redir.url_do_envio(), id_origem)) => {}
-        _ => return Err(E::EfeitoIncerto(None)),
+        RespostaDoEnvio::Html(_) | RespostaDoEnvio::Redirecionamento(_) => {
+            return Err(FalhaRelacionar::NaoConfirmado(None));
+        }
     }
-    let (nova_tela, _) = obter_tela(rede, cookie, link).map_err(|_| E::EfeitoIncerto(None))?;
-    let linhas = tela::ler_linhas(&nova_tela).map_err(|_| E::EfeitoIncerto(None))?;
+    let (nova_tela, _) =
+        obter_tela(rede, cookie, servida.url).map_err(FalhaRelacionar::NaoConfirmadoNaReleitura)?;
+    let linhas = tela::ler_linhas(&nova_tela)
+        .map_err(FalhaRelacionar::NaoConfirmadoNaTelaDeRelacionamentos)?;
     let destino_confirmado = linhas
         .iter()
-        .any(|linha| linha.id == id_destino && super::mesmo_protocolo(&linha.nup, nup_destino));
+        .any(|linha| linha.id == destino.id && super::mesmo_protocolo(&linha.nup, &destino.nup));
     let anteriores_preservados = relacionados_antes.iter().all(|anterior| {
         linhas.iter().any(|atual| {
             atual.id == anterior.id && super::mesmo_protocolo(&atual.nup, &anterior.nup)
         })
     });
     if !destino_confirmado || !anteriores_preservados {
-        return Err(E::EfeitoIncerto(None));
+        return Err(FalhaRelacionar::NaoConfirmado(None));
     }
     Ok(())
 }
@@ -264,6 +224,34 @@ pub(super) fn adicionar<V: EnvioDoProcesso>(
 #[cfg(test)]
 mod tests {
     use super::*;
+    #[test]
+    fn origem_repetida_ou_com_par_sem_igual_recusa_com_a_causa() {
+        assert!(matches!(
+            id_da_origem(
+                "https://h/sei/controlador.php?acao=x&id_procedimento=1&id_procedimento=2"
+            ),
+            Err(FalhaRelacionar::IdDaOrigemIlegivel(
+                crate::consulta_do_controlador::ErroParametroDaUrl::ParametroRepetido(
+                    "id_procedimento"
+                )
+            ))
+        ));
+        assert!(matches!(
+            id_da_origem("https://h/sei/controlador.php?acao=x&lixo&id_procedimento=1"),
+            Err(FalhaRelacionar::ConsultaDaOrigemIlegivel(
+                crate::consulta_do_controlador::ErroConsultaDoControlador::ParSemIgual
+            ))
+        ));
+        assert!(matches!(
+            id_da_origem("https://h/sei/controlador.php"),
+            Err(FalhaRelacionar::IdDaOrigemNaActionAusente)
+        ));
+        assert_eq!(
+            id_da_origem("https://h/sei/controlador.php?acao=x&id_procedimento=1").ok(),
+            Some("1")
+        );
+    }
+
     #[test]
     fn aceite_precisa_da_acao_e_resultado_uma_vez() {
         let url = "https://sei.exemplo.gov.br/sei/controlador.php?acao=procedimento_excluir_relacionamento";

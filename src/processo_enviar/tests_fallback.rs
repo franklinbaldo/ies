@@ -77,9 +77,9 @@ fn bdd_333_03_limpa_anotacao_confere_e_so_depois_envia() {
         ],
     ));
     let feito = resultado.expect("limpeza relida e destino confirmado");
-    assert_eq!(feito.metodo_remocao, Some(MetodoRemocao::LimparAnotacao));
-    assert!(feito.alterado);
-    assert_eq!(feito.anotacao_depois, Some(false));
+    assert_eq!(feito.metodo_remocao(), Some(MetodoRemocao::LimparAnotacao));
+    assert!(feito.alterado());
+    assert_eq!(feito.anotacao_depois(), Some(false));
     assert_eq!(feito.requisicoes, 10);
     let posts: Vec<_> = pedidos.iter().filter(|p| p.metodo == "POST").collect();
     assert_eq!(posts.len(), 3, "consulta de destino, limpeza e envio");
@@ -114,8 +114,8 @@ fn bdd_333_04_anotacao_ja_vazia_nao_grava_limpeza() {
         ],
     ));
     let feito = resultado.expect("nenhuma limpeza redundante");
-    assert_eq!(feito.anotacao_antes, Some(false));
-    assert_eq!(feito.anotacao_depois, Some(false));
+    assert_eq!(feito.anotacao_antes(), Some(false));
+    assert_eq!(feito.anotacao_depois(), Some(false));
     assert_eq!(feito.requisicoes, 8);
     assert!(
         !pedidos
@@ -125,7 +125,7 @@ fn bdd_333_04_anotacao_ja_vazia_nao_grava_limpeza() {
 }
 
 #[test]
-fn bdd_333_04_limpeza_inconclusiva_retorna_3_sem_tramitar() {
+fn bdd_333_04_limpeza_inconclusiva_falha_sem_tramitar() {
     // Dado o envio sem checkbox e a anotação preenchida;
     // Quando executo ies processo enviar NUP --para SIGLA --remover-anotacoes --confirmar;
     // Então uma releitura inconclusiva retorna saída 3 sem enviar nem repetir limpeza.
@@ -139,9 +139,16 @@ fn bdd_333_04_limpeza_inconclusiva_retorna_3_sem_tramitar() {
     let erro = resultado.expect_err("sem releitura não há envio autorizado");
     assert!(matches!(
         erro,
-        super::ErroEnviar::EfeitoIncertoNaLimpezaDaAnotacao
+        super::ErroEnviar::NaoConfirmadoNaLimpezaDaAnotacao(interna)
+            if matches!(interna.as_ref(), super::ErroEnviar::NaoConfirmadoNaRemocaoDeAnotacoes {
+                depois: None,
+                causa,
+            } if matches!(causa.as_ref(), super::ErroEnviar::Anotacoes(
+                super::anotacoes::ErroDasAnotacoes::TelaDasAnotacoes(
+                    crate::transporte::FalhaTransporte::Rede,
+                ),
+            )))
     ));
-    assert_eq!(erro.saida(), 3);
     assert_eq!(
         pedidos
             .iter()
@@ -194,12 +201,14 @@ fn bdd_333_04_envio_incerto_preserva_a_limpeza_ja_comprovada_na_saida() {
         ],
     ));
     let erro = resultado.expect_err("o destino não foi comprovado");
-    assert_eq!(erro.saida(), 3);
-    let saida = serde_json::to_value(crate::processo_enviar_cli::json_de_falha(&erro))
-        .expect("erro tipado serializável");
-    assert_eq!(saida["codigo"], "efeito_incerto");
-    assert_eq!(
-        saida["anotacao_depois"], false,
+    assert!(
+        matches!(
+            erro,
+            super::ErroEnviar::NaoConfirmadoNoEnvio {
+                anotacao_depois: Some(false),
+                ..
+            }
+        ),
         "limpeza confirmada não pode desaparecer da falha"
     );
     for link in [action_anotacao(), action_de_enviar()] {

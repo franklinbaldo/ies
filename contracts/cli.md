@@ -13,10 +13,30 @@ testes e pelas instalações reais.
 - Interface exclusivamente CLI, em português, orientada por substantivos e verbos de domínio.
 - `ies <substantivo> NUMERO` lê; `ies <substantivo>` sem argumentos mostra ajuda.
 - Não existe `agir`, `Action` ou `PageModel` como contrato público.
-- `--json` e `--unidade` são globais; falhas operacionais são estruturadas.
+- `--json` e `--unidade` são globais. `--json` forma só a saída de sucesso.
   `--unidade` é pré-condição conferida na tela, nunca um rótulo ecoado.
-- Códigos de saída: 0 sucesso, 1 falha, 2 uso inválido, 3 efeito incerto.
-- Escritas exigem prévia, confirmação e verificação; efeito incerto nunca se repete automaticamente.
+- Falha (#695): o erro tipado sobe até `main` e sai em stderr como
+  `Error: <Erro> { campos }` (o `Debug` do erro, com a cadeia de causas);
+  stdout fica vazio, também com `--json`. Não há `codigo`, `retentavel` nem
+  mensagem paralela: o nome do erro é a mensagem. Credenciais nunca aparecem no
+  `Debug` (os tipos que as carregam o redigem). Combinação inválida de
+  argumentos que o clap não declara sai pelo próprio clap (`UsoInvalido`),
+  com saída 2.
+- Sucesso reconciliado: quando a releitura comprova uma escrita cujo POST
+  respondeu fora do observado, `falha_do_envio` (ou `falha_do_salvar`) é o
+  mesmo `Debug` do erro tipado do POST, como string; por exemplo
+  `"Envio(Transporte(Status(StatusHttpRecusado { status: 500, … })))"` ou
+  `"RedirecionamentoNaoReconhecido"`. Respostas 200 (validação da Infra,
+  página de exceção) carregam só a mensagem do SEI, nunca um status.
+- Avisos do índice local (#786): a falha que o índice detecta (banco que
+  não abre, entrada recusada antes da gravação, estado ilegível) não muda o
+  resultado nem o código de saída. No sucesso, `--json` traz `avisos`, um
+  array tipado (`{"falha": "banco", "causa": {"erro": "diretorio_nao_privado"}}`,
+  `{"falha": "registro_recusado", "causa": "nup_invalido"}`), omitido quando
+  vazio; sem `--json`, uma linha `Aviso do índice: …` por falha em stderr.
+  Nunca caminho, URL, cookie ou `infra_hash`. `IES_SEM_INDICE` não é falha.
+- Códigos de saída: 0 sucesso (escrita confirmada por releitura), 1 falha (inclusive escrita não confirmada), 2 uso inválido.
+- Escritas exigem prévia, confirmação e verificação; escrita não confirmada nunca se repete automaticamente.
 - Comportamentos são mapeados empiricamente em instalações reais do SEI.
 - Esta superfície de demonstração não é integral: o inventário será aprovado comando a comando.
 
@@ -38,6 +58,9 @@ legado do Todos faz parte do contrato público por pressuposição.
 - `ies bloco listar [--tipo assinatura|interno|reuniao]` e `ies bloco N`
   (leitura Web por menu observado; contratos
   [listar](cli/bloco-listar.md) e [obter](cli/bloco-obter.md); #256).
+- `ies bloco incluir BLOCO --processo NUP | --documento DOC [--confirmar]`
+  (contrato unificado de inclusão em bloco interno/reunião ou assinatura,
+  [bloco.incluir](cli/bloco-incluir.md), #381 e #343; ainda não implementado).
 
 
 - `ies processo NUP`
@@ -61,7 +84,7 @@ legado do Todos faz parte do contrato público por pressuposição.
 - `ies processo marcar NUP --marcador ID#NOME|--retirar ID#NOME [--texto T] [--confirmar]` (prévia e idempotência pela leitura Web; escrita ainda fechada, [contrato](cli/processo-marcar.md))
 - `ies processo sobrestar NUP --motivo TEXTO [--confirmar]` e
   `ies processo retomar NUP [--confirmar]` ([contrato parcial](cli/processo-sobrestar.md):
-  prévia Web; `--confirmar` com uma escrita e verificação por releitura, saída 3 se incerto)
+  prévia Web; `--confirmar` com uma escrita e verificação por releitura, saída 1 se não confirmada)
 - `ies processo enviar NUP --para SIGLA [--manter-aberto] [--confirmar]`
   ([contrato](cli/processo-enviar.md))
 - `ies processo ciente NUP [--confirmar]` (ciência Web: um GET mutador,
@@ -81,15 +104,21 @@ legado do Todos faz parte do contrato público por pressuposição.
 definido, o IES não recorre aos caminhos individuais quando o arquivo
 é recusado. `arquivo_configuracao_nao_pode_ser_lido` permanece para
 ausência, tipo não regular, tamanho excessivo e erro de leitura; as
-recusas novas são `arquivo_configuracao_link_simbolico`,
+recusas novas são `ArquivoConfiguracaoLinkSimbolico`,
 `arquivo_configuracao_permissoes_inseguras`,
-`arquivo_configuracao_json_invalido` e
-`arquivo_configuracao_campo_invalido`. Os campos do JSON devem
+`ArquivoConfiguracaoJsonInvalido` e
+`ArquivoConfiguracaoCampoInvalido`. Os campos do JSON devem
 conter caminhos absolutos não vazios; não há leitura remota nem
 exposição do caminho recusado. Ver [erros tipados](../docs/erros-tipados.md).
 
 - `ies login [--forcar]` (login Web na instalação configurada; grava a sessão
   nos arquivos privados)
+- `ies credenciais salvar|status|excluir --origem URL --usuario LOGIN`
+  (senha do login no cofre do sistema operacional, sem rede;
+  [contrato](cli/credenciais.md))
+- `ies wizard [--perfil NOME]` (assistente que cria um perfil local em
+  `~/.ies/<perfil>`, sem rede, com a senha no cofre;
+  [contrato](cli/wizard.md))
 - `ies esquema`
 
 ## Configurar caminhos locais
@@ -104,8 +133,8 @@ Os três arquivos devem existir e, no Unix, ter permissões privadas; o setup
 confere metadados, não testa a conexão. Grava a configuração local
 com criação exclusiva (não sobrescreve) e permissão 0600 no Unix. Sucesso (0) em JSON:
 `{"configuracao":"gravada","conexao":"nao_verificada"}`.
-Falha operacional usa `fonte_invalida`, `subcodigo`, mensagem saneada
-e saída 1; opção obrigatória ausente é erro do clap (2).
+Falha ao gravar sai com 1 e o erro tipado (`ErroGravacaoDaConfiguracao`)
+em stderr; opção obrigatória ausente é erro do clap (2).
 
 ## Contratos iniciais de leitura
 
@@ -116,8 +145,8 @@ e saída 1; opção obrigatória ausente é erro do clap (2).
 - [documento.obter](cli/documento-obter.md): conteúdo de um ou mais documentos;
   [versões e cópia de trabalho](cli/documento-obter-versoes.md).
   O externo usa o [GET binário](cli/documento-obter-externo.md), com
-  subcódigos próprios (`tipo_de_anexo_nao_permitido`,
-  `anexo_acima_do_limite`, `anexo_recusado_pelo_sei` e afins).
+  subcódigos próprios (`ErroAnexo::TipoNaoPermitido`,
+  `ErroAnexo::AcimaDoLimite`, `ErroAnexo::RecusadoPeloSei` e afins).
 - [documento.buscar](cli/documento-buscar.md): pesquisa Web em documentos pelo número SEI.
 - [documento.salvar](cli/documento-salvar.md): prévia local de cópia versionada, sem confirmação remota.
 - [unidade.listar_processos](cli/unidade-listar-processos.md): caixa de processos;
@@ -125,12 +154,12 @@ e saída 1; opção obrigatória ausente é erro do clap (2).
   [listas Recebidos e Gerados](cli/unidade-recebidos-gerados.md) com forma única
   e [colunas do Nível de detalhe](cli/unidade-colunas.md).
 - [unidade.definir_colunas](cli/unidade-definir-colunas.md): escrita do Nível de
-  detalhe; sem `--confirmar`, prévia sem POST de salvar; efeito incerto sai com 3.
+  detalhe; sem `--confirmar`, prévia sem POST de salvar; escrita não confirmada sai com 1.
 - [unidade.trocar](cli/unidade-trocar.md): troca da unidade da sessão; prévia
-  sem POST, efeito incerto sai com 3; vale para todos os agentes da sessão.
+  sem POST, escrita não confirmada sai com 1; vale para todos os agentes da sessão.
 - [indice.caminho](cli/indice-caminho.md): descoberta local do SQLite, sem rede.
 - [sessao.login](cli/sessao-login.md): `ies login`, credenciais em arquivo
-  `0600`, um GET de conferência da sessão gravada, redirecionamentos só no
+  `0600` (sem `senha=`, a senha vem do [cofre](cli/credenciais.md)), um GET de conferência da sessão gravada, redirecionamentos só no
   host da instalação e gravação atômica por geração, sob lock.
 
 Os comandos `ies unidade listar-processos`, `recebidos`, `gerados` e
@@ -143,7 +172,8 @@ Não fazem escrita; a única escrita é `colunas --definir … --confirmar`, que
 nunca reloga. Os POSTs previstos são os de `--pagina N` (abaixo)
 e os da **troca de visão** R↔D, sem volta: a sessão fica na visão que o
 comando precisou ([visão detalhada](cli/unidade-listar-processos-visao-detalhada.md)).
-Sem esses insumos retorna `nao_implementado`.
+Sem esses insumos, a falha é o erro tipado da configuração ou da sessão
+(por exemplo `UrlDoControleIlegivel(Ausente)`), saída 1, sem rede.
 
 `ies processo buscar TERMO` usa a mesma sessão e as mesmas travas: segue só o
 link `protocolo_pesquisar` publicado pelo Controle; seus POSTs são o da
@@ -163,7 +193,7 @@ por quê e o que cada opção antiga virou:
 
 ## Recusas HTTP e mensagem do SEI
 
-As recusas de resposta do GET (uma variante por fato) e o status e a
+As recusas de resposta do GET (um erro por fato) e o status e a
 mensagem do SEI nas recusas HTTP estão em
 [recusas HTTP](cli/recusas-http.md).
 

@@ -54,7 +54,7 @@ fn cadastro(flag: &str, escolhido: bool) -> String {
         id = if escolhido { "293" } else { "" }
     )
 }
-fn executar(flag: &str) -> (Result<PreviaExterna, ErroPreviaExterna>, Vec<a::Pedido>) {
+fn executar(flag: &str) -> (Result<PreviaExterna, ErroIncluirExterno>, Vec<a::Pedido>) {
     let amb = a::ambiente();
     let mut respostas = a::abertura(arvore());
     respostas.push(a::ok(lista()));
@@ -95,7 +95,7 @@ fn dado_flag_de_gravacao_quando_consulto_previa_entao_nao_envio_post() {
     let (resultado, pedidos) = executar("2");
     assert!(matches!(
         resultado,
-        Err(ErroPreviaExterna::TipoNaoOferecido)
+        Err(ErroIncluirExterno::TipoNaoOferecido(_))
     ));
     let mut esperados = a::pedidos_da_abertura();
     esperados.push(a::get(&url(&link_escolha())));
@@ -111,8 +111,12 @@ fn dado_cadastro_minimo_quando_consulto_sei_entao_projeto_campo_visivel_no_resul
     assert_eq!(previa.campos_oferecidos, ["selSerie"]);
 }
 
-#[test]
-fn bdd_332_04_dado_upload_recusado_quando_confirmo_entao_nao_cadastro() {
+fn confirmar_com_upload_recusado(
+    identidade: &str,
+) -> (
+    Result<super::super::fluxo_confirmar::InclusaoComprovada, ErroIncluirExterno>,
+    Vec<a::Pedido>,
+) {
     // Cenário BDD-332-04 previamente especificado na issue: nunca repetir upload.
     let amb = a::ambiente();
     let mut respostas = a::abertura(arvore());
@@ -120,9 +124,9 @@ fn bdd_332_04_dado_upload_recusado_quando_confirmo_entao_nao_cadastro() {
     respostas.push(a::ok(cadastro("1", false)));
     respostas.push(a::ok(cadastro("1", true).replace(
         "infra_hash=FICTICIO",
-        &format!("infra_hash={}", "b".repeat(64)),
+        &format!("infra_hash={}{identidade}", "b".repeat(64)),
     )));
-    let (resultado, pedidos) = a::rodar_com(&amb, respostas, |sessao, nup, indice, rede| {
+    a::rodar_com(&amb, respostas, |sessao, nup, indice, rede| {
         let pdf = PdfLocal {
             nome: "prova.pdf".into(),
             tamanho_bytes: 68,
@@ -142,21 +146,41 @@ fn bdd_332_04_dado_upload_recusado_quando_confirmo_entao_nao_cadastro() {
                 })
             },
         )
-    });
-    assert!(matches!(
-        resultado,
-        Err(
-            super::super::fluxo_confirmar::ErroConfirmacaoExterna::Sequencia(
+    })
+}
+
+#[test]
+fn bdd_332_04_dado_upload_recusado_quando_confirmo_entao_nao_cadastro() {
+    for identidade in ["", "&id_procedimento=10"] {
+        let (resultado, pedidos) = confirmar_com_upload_recusado(identidade);
+        assert!(matches!(
+            resultado,
+            Err(ErroIncluirExterno::Confirmacao(
                 super::super::confirmacao::FalhaConfirmacao::UploadRecusado(_)
-            )
-        )
-    ));
-    assert_eq!(pedidos.len(), a::pedidos_da_abertura().len() + 3);
-    assert!(
-        pedidos
-            .iter()
-            .all(|p| !p.url.contains("documento_upload_anexo"))
-    );
+            ))
+        ));
+        assert_eq!(pedidos.len(), a::pedidos_da_abertura().len() + 3);
+        assert!(
+            pedidos
+                .iter()
+                .all(|p| !p.url.contains("documento_upload_anexo"))
+        );
+    }
+}
+
+#[test]
+fn destino_de_outro_processo_ou_ambiguo_recusa_antes_do_upload() {
+    for identidade in [
+        "&id_procedimento=99",
+        "&id_procedimento=10&id_procedimento=10",
+    ] {
+        let (resultado, pedidos) = confirmar_com_upload_recusado(identidade);
+        assert!(matches!(
+            resultado,
+            Err(ErroIncluirExterno::UploadParaOutroProcesso)
+        ));
+        assert_eq!(pedidos.len(), a::pedidos_da_abertura().len() + 3);
+    }
 }
 
 #[test]
@@ -212,11 +236,9 @@ fn bdd_332_04_dado_recibo_e_cadastro_quando_releitura_nao_muda_entao_saida_3() {
     });
     assert!(matches!(
         resultado,
-        Err(
-            super::super::fluxo_confirmar::ErroConfirmacaoExterna::Sequencia(
-                super::super::confirmacao::FalhaConfirmacao::EfeitoIncerto
-            )
-        )
+        Err(ErroIncluirExterno::Confirmacao(
+            super::super::confirmacao::FalhaConfirmacao::CriacaoNaoConferida(_)
+        ))
     ));
     assert_eq!(pedidos.len(), a::pedidos_da_abertura().len() + 5);
     let definitivos: Vec<_> = pedidos
@@ -273,12 +295,42 @@ fn bdd_332_04_formulario_sem_campos_de_cadastro_nao_deixa_upload_temporario() {
     });
     assert!(matches!(
         resultado,
-        Err(
-            super::super::fluxo_confirmar::ErroConfirmacaoExterna::CampoCadastroNaoOferecido(
-                "txtDataElaboracao"
-            )
-        )
+        Err(ErroIncluirExterno::CampoDoCadastroNaoOferecido(
+            super::super::fluxo_confirmar::CampoExigidoDoCadastro::DataElaboracao
+        ))
     ));
     assert!(!upload_tentado);
     assert_eq!(pedidos.len(), a::pedidos_da_abertura().len() + 3);
+}
+
+#[test]
+fn link_externo_da_unb_com_id_procedimento_repetido_e_aceito_sem_reconstruir() {
+    // Forma da cassette documento-incluir-unb (SEI 4.0.9, interação 13):
+    // o link Externo de documento_escolher_tipo repete id_procedimento.
+    // Ensaio live de 09/11/2026 recusava este link (link_externo_nao_conferido).
+    let instalacao = Instalacao::interpretar(a::ORIGEM).unwrap();
+    let href = format!(
+        "controlador.php?acao=documento_receber&acao_origem=documento_escolher_tipo&acao_retorno=documento_escolher_tipo&id_procedimento=10&id_serie=-1&arvore=1&id_procedimento=10&infra_sistema=100000100&infra_unidade_atual=110000846&infra_hash={}",
+        "f".repeat(64)
+    );
+    assert_eq!(
+        conferir_destino(&instalacao, &href, "10").ok(),
+        Some(format!("{}/{href}", a::ORIGEM))
+    );
+    for recusado in [
+        href.replacen(
+            "&arvore=1&id_procedimento=10&",
+            "&arvore=1&id_procedimento=11&",
+            1,
+        ),
+        href.replacen("&arvore=1&", "&id_procedimento=10&arvore=1&", 1),
+    ] {
+        assert!(
+            matches!(
+                conferir_destino(&instalacao, &recusado, "10"),
+                Err(ErroIncluirExterno::DestinoDoExternoRecusado(_))
+            ),
+            "{recusado}"
+        );
+    }
 }

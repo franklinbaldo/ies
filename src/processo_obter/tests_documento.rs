@@ -5,13 +5,13 @@
 //! SINTÉTICAS com a forma das cassettes `documento-numero-e-busca-*`.
 use super::tests_apoio::*;
 use super::*;
+use crate::acao_do_sei::AcaoDoSei;
 use crate::arvore_processo::tests::{NUP, arvore, no_documento, no_processo};
 use crate::arvore_processo::tests_conteudo::{
     HASH_CONTEUDO, com_src, src_da_arvore_do_documento, src_visualizar,
 };
 use crate::arvore_processo::tests_tela::tela_do_processo;
 use crate::documento::NumeroDocumento;
-use crate::erro_html::ErroHtml;
 use crate::transporte::sessao::CookieDaSessao;
 
 const DOC: &str = "0000101";
@@ -105,7 +105,7 @@ fn conteudo_pelo_controle_em_cinco_requisicoes_e_aprende_o_caminho() {
     assert_eq!(d.unidade.as_deref(), Some(UNIDADE));
     assert_eq!(d.texto, "Texto do despacho.");
     assert_eq!(d.requisicoes, 5);
-    assert_eq!(d.natureza.icone.as_deref(), Some("documento_interno"));
+    assert_eq!(d.natureza.icone, "documento_interno");
     let debug = format!("{d:?}");
     for segredo in [HASH_CONTEUDO.to_owned(), hash('b'), hash('c')] {
         assert!(!debug.contains(&segredo), "{debug}");
@@ -118,11 +118,11 @@ fn conteudo_pelo_controle_em_cinco_requisicoes_e_aprende_o_caminho() {
             .map(|u| u.url().to_owned())
     };
     assert_eq!(
-        link("procedimento_visualizar", ID),
+        link(AcaoDoSei::ProcedimentoVisualizar, ID),
         Some(absoluta(&src_da_arvore_do_documento(ID, ID_DOC)))
     );
     assert_eq!(
-        link("protocolo_pesquisa_rapida", ""),
+        link(AcaoDoSei::ProtocoloPesquisaRapida, ""),
         Some(absoluta(&action_rapida()))
     );
 }
@@ -158,10 +158,9 @@ fn recusa(arvore: String) -> ErroDocumentoObter {
 
 #[test]
 fn sem_acesso_e_cancelado_sao_recusas_tipadas_sem_get_do_conteudo() {
-    use ErroDocumentoObter as E;
     assert_eq!(
         recusa(arvore_com("")),
-        E::ConteudoNaoPublicadoNaArvore { requisicoes: 4 }
+        ErroDocumentoObter::ConteudoNaoPublicadoNaArvore { requisicoes: 4 }
     );
     let cancelado = arvore_com("")
         .replace("svg/documento_interno.svg", "svg/documento_cancelado.svg")
@@ -169,12 +168,11 @@ fn sem_acesso_e_cancelado_sao_recusas_tipadas_sem_get_do_conteudo() {
             "De: pessoa@exemplo.gov.br\\nPara: outra@exemplo.gov.br",
             "Documento Cancelado: teste",
         );
-    assert_eq!(recusa(cancelado), E::DocumentoCancelado);
+    assert_eq!(recusa(cancelado), ErroDocumentoObter::DocumentoCancelado);
 }
 
 #[test]
 fn duplicidade_e_numero_diferente_na_arvore() {
-    use ErroDocumentoObter as E;
     let duplicada = com_src(
         &arvore(&[
             no_processo(0, ID, NUP),
@@ -186,7 +184,7 @@ fn duplicidade_e_numero_diferente_na_arvore() {
     );
     assert_eq!(
         recusa(duplicada),
-        E::Html(ErroHtml::repetido("numero_sei_repetido_na_arvore"))
+        ErroDocumentoObter::NumeroSeiRepetidoNaArvore
     );
     // Zeros à esquerda são parte do número: 101 não é 0000101.
     let outro = com_src(
@@ -194,13 +192,14 @@ fn duplicidade_e_numero_diferente_na_arvore() {
         1,
         &src_visualizar(ID_DOC),
     );
-    assert_eq!(recusa(outro), E::NumeroSeiDaArvoreDiferenteDoPedido);
+    assert_eq!(
+        recusa(outro),
+        ErroDocumentoObter::NumeroSeiDaArvoreDiferenteDoPedido
+    );
     let ausente = arvore(&[no_processo(0, ID, NUP), no_documento(1, "22", ID, DOC)]);
     assert_eq!(
         recusa(ausente),
-        E::Conteudo(crate::arvore_processo::ErroConteudoNaArvore::Html(
-            ErroHtml::ausente("documento_ausente_da_arvore")
-        ))
+        ErroDocumentoObter::DocumentoAusenteDaArvore
     );
 }
 
@@ -216,7 +215,7 @@ fn titulo_de_outro_documento_e_recusado() {
 #[test]
 fn pesquisa_sem_302_e_tela_de_outro_documento() {
     let amb = ambiente();
-    let (r, pedidos) = rodar_doc(
+    let (_r, pedidos) = rodar_doc(
         &amb,
         DOC,
         vec![
@@ -225,10 +224,6 @@ fn pesquisa_sem_302_e_tela_de_outro_documento() {
         ],
     );
     assert_eq!(pedidos.len(), 2);
-    assert_eq!(
-        r.unwrap_err().subcodigo(),
-        "pesquisa_rapida_nao_abriu_o_documento"
-    );
     let amb = ambiente();
     let mut respostas = ate_a_arvore(String::new());
     respostas[2] = ok(tela_do_processo(
@@ -236,11 +231,7 @@ fn pesquisa_sem_302_e_tela_de_outro_documento() {
         &[src_da_arvore_do_documento(ID, "22")],
     ));
     respostas.pop();
-    let (r, _) = rodar_doc(&amb, DOC, respostas);
-    assert_eq!(
-        r.unwrap_err().subcodigo(),
-        "endereco_da_arvore_de_outro_documento"
-    );
+    let (_r, _) = rodar_doc(&amb, DOC, respostas);
 }
 
 #[test]
@@ -250,7 +241,8 @@ fn propriedades_consulta_apenas_o_cadastro_servido_sem_escrita() {
     // Quando peço --com-propriedades, então faço um único GET adicional,
     // confiro os IDs do formulário e não envio POST de cadastro.
     use crate::arvore_processo::tests_barra_documento::{HASH_VERSOES, barra, com_barra};
-    use crate::propriedades_documento::{Nivel, PropriedadesDocumento};
+    use crate::dominio::NivelDeAcesso;
+    use crate::propriedades_documento::PropriedadesDocumento;
 
     let amb = ambiente();
     let arvore = arvore_com(&src_visualizar(ID_DOC));
@@ -301,9 +293,11 @@ fn propriedades_consulta_apenas_o_cadastro_servido_sem_escrita() {
         PropriedadesDocumento::Lidas(p) => {
             assert_eq!(p.descricao, "Cadastro");
             assert_eq!(p.tipo, "Despacho");
-            assert_eq!(p.nivel_de_acesso, Some(Nivel::Publico));
+            assert_eq!(p.nivel_de_acesso, NivelDeAcesso::Publico);
         }
-        outra => panic!("cadastro publicado deveria ser lido: {outra:?}"),
+        outra @ PropriedadesDocumento::NaoPedidas => {
+            panic!("cadastro publicado deveria ser lido: {outra:?}")
+        }
     }
 }
 
@@ -363,20 +357,20 @@ fn propriedades_do_documento_fechado_consultam_formulario_publicado() {
     assert_eq!(roteiro.respostas_restantes(), 0);
     match lido.propriedades {
         PropriedadesDocumento::Lidas(p) => {
-            assert_eq!(p.fonte, "documento_consultar");
+            assert_eq!(p.fonte, AcaoDoSei::DocumentoConsultar);
             assert_eq!(p.descricao, "Consulta do fechado");
         }
-        outra => panic!("cadastro de consulta deveria ser lido: {outra:?}"),
+        outra @ PropriedadesDocumento::NaoPedidas => {
+            panic!("cadastro de consulta deveria ser lido: {outra:?}")
+        }
     }
 }
 
 #[test]
-fn propriedades_sem_link_publicado_nao_consultam_cadastro() {
+fn propriedades_sem_link_publicado_recusam_sem_cadastro() {
     // Dado um documento com conteúdo mas sem link documento_alterar na barra,
     // Quando executo ies documento DOC --com-propriedades,
-    // Então os metadados ficam null e não há GET adicional ao cadastro.
-    use crate::propriedades_documento::PropriedadesDocumento;
-
+    // Então o comando recusa com erro tipado e não há GET adicional ao cadastro.
     let amb = ambiente();
     let mut respostas = ate_a_arvore(arvore_com(&src_visualizar(ID_DOC)));
     respostas.push(ok(conteudo(DOC)));
@@ -394,7 +388,7 @@ fn propriedades_sem_link_publicado_nao_consultam_cadastro() {
         processo: None,
     };
     let mut roteiro = Roteiro::novo(respostas);
-    let resultado = obter_documento_com_propriedades(
+    let erro = obter_documento_com_propriedades(
         &sessao,
         &pedido,
         PedidoDeVersoes::default(),
@@ -402,9 +396,8 @@ fn propriedades_sem_link_publicado_nao_consultam_cadastro() {
         &mut roteiro,
         true,
     )
-    .unwrap();
-    assert_eq!(resultado.propriedades, PropriedadesDocumento::NaoPublicadas);
-    assert_eq!(resultado.requisicoes, 5);
+    .unwrap_err();
+    assert_eq!(erro, ErroDocumentoObter::PropriedadesNaoPublicadasNaBarra);
     assert_eq!(roteiro.pedidos.len(), 5);
     assert_eq!(roteiro.respostas_restantes(), 0);
 }

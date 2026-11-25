@@ -38,7 +38,10 @@ fn no_documento(
     numero: &str,
     icone: &str,
 ) -> String {
-    let rotulo = js(&format!("{tipo} {numero}"));
+    // SEI 4.0.9 (UnB) rotula o externo com o número entre parênteses:
+    // `Anexo (0012272)` no live de 09/11/2026 e na cassette
+    // documento-mover-cancelar-unb.
+    let rotulo = js(&format!("{tipo} ({numero})"));
     let numero = js(numero);
     let assinatura = crate::protocolo_sintetico::INFRA_HASH;
     let anexo = js(id_anexo);
@@ -83,6 +86,11 @@ pub(crate) fn responder(
         Ok(protocolo) => protocolo,
         Err(estado) => return Resposta::nova(estado),
     };
+    // Campos distintos não podem escolher silenciosamente o primeiro,
+    // mesmo quando a árvore é composta com um PDF registrado no SQLite.
+    if documento.is_some() && protocolo.is_some() && documento != protocolo {
+        return Resposta::nova(Estado::RequisicaoInvalida);
+    }
     let selecionado = documento.or(protocolo);
     let original =
         selecionado.map(|_| documento_arvore::responder(metodo, alvo, banco, origem, cenario));
@@ -100,6 +108,19 @@ pub(crate) fn responder(
         .as_ref()
         .is_some_and(|resposta| resposta.estado != Estado::Ok && !cadastrado)
     {
+        // O leitor de versões não conhece PDFs externos. Quando o mesmo
+        // SQLite comprova que o PDF pertence a OUTRO processo, recusar
+        // a identidade cruzada em vez de cair no 503 da rota de versões.
+        // Sem registro do PDF, conservar 503: desconhecido não é ausente.
+        if let Some(id) = selecionado {
+            match externo::processo_do_documento_publico(banco, origem, cenario, id) {
+                Ok(Some(proprietario)) if proprietario != id_processo => {
+                    return Resposta::nova(Estado::NaoEncontrado);
+                }
+                Err(_) => return Resposta::nova(Estado::DadosInsuficientes),
+                _ => {}
+            }
+        }
         return original.expect("resposta presente");
     }
 
@@ -124,19 +145,20 @@ pub(crate) fn responder(
     }
     let tem_nos = base.is_some();
     let mut pagina = base.map_or_else(|| raiz(id_processo, &processo.nup), |r| r.corpo);
-    let mut novos = if tem_nos {
-        String::new()
+    // O índice pertence à projeção do estado do SQLite, não à sintaxe do
+    // JavaScript recém-renderizado. Pastas e processos anexados também
+    // ocupam índices; o gerador da navegação já conhece todos eles.
+    let (mut novos, inicio) = if tem_nos {
+        match crate::processo_envio::nos_e_proximo_indice(banco, origem, cenario, id_processo) {
+            Ok((_, proximo)) => (String::new(), proximo),
+            Err(estado) => return Resposta::nova(estado),
+        }
     } else {
-        match documento_arvore::nos_do_processo(banco, origem, cenario, id_processo) {
+        match documento_arvore::nos_com_proximo_indice(banco, origem, cenario, id_processo) {
             Ok(nos) => nos,
             Err(estado) => return Resposta::nova(estado),
         }
     };
-    let inicio = pagina
-        .lines()
-        .chain(novos.lines())
-        .filter(|linha| linha.starts_with("Nos[") && linha.contains(" = new infraArvoreNo("))
-        .count();
     for (deslocamento, documento) in externos.into_iter().enumerate() {
         // Espaço numérico separado: rowids internos e externos são independentes.
         let id = documento.id_publico();

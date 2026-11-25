@@ -1,0 +1,30 @@
+id: 21-allow-com-comentario-acima
+language: rust
+message: 'allow com o motivo na linha de comentário acima: expect com reason.'
+severity: hint
+rule:
+  pattern: '#[allow(clippy::$L)]'
+  follows:
+    kind: line_comment
+    regex: '^//[^/!]'
+    pattern: $C
+    not:
+      follows:
+        kind: line_comment
+        regex: '^//[^/!]'
+transform:
+  SEM_BARRAS:
+    replace:
+      source: $C
+      replace: '^//\s*'
+      by: ''
+  MOTIVO:
+    replace:
+      source: $SEM_BARRAS
+      replace: '\.\s*$'
+      by: ''
+fix:
+  template: '#[expect(clippy::$L, reason = "$MOTIVO")]'
+  expandStart:
+    kind: line_comment
+    regex: '^//[^/!]'

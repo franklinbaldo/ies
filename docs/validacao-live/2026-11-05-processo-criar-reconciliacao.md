@@ -242,7 +242,7 @@ Não extrapolar verde de outro SHA: exigir CI no head final.
 
 **Integração:** merge da `main` no branch da PR Draft #283
 em `81f2429`, preservando outras frentes e a infraestrutura
-nova de `#[derive(Causa)]`; a variante nova de hipótese
+nova de `#[derive(Causa)]`; o erro novo de hipótese
 legal recebeu `#[causa(nome = "hipotese_legal_informada_invalida")]`.
 Sem rebase nem force-push. O workflow temporário de
 reconciliação permanece manual, não executado, a retirar
@@ -269,7 +269,7 @@ Nenhuma produção foi acessada. A issue permanece aberta.
 ## Retomada da Coruja — causa AJAX tipada e reconciliação da main
 
 Esta fatia foi dedicada a erros tipados e regressão **offline**, sem
-abrir SEI. A variante `ErroHipotese` passou a derivar `Causa`, a
+abrir SEI. O erro `ErroHipotese` passou a derivar `Causa`, a
 propagar a causa concreta de transporte e a representar forma de
 tela não reconhecida por `ErroHtml`. Foram acrescentados dois
 testes sintéticos de folha/caminho e de HTTP 503. Os testes foram

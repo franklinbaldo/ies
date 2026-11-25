@@ -1,9 +1,10 @@
 //! Saída JSON e humana de `processo enviar`: campos do contrato, nada de
 //! URL, e as falhas com as listas que o SEI publicou.
 use super::{humano, json_de_sucesso, sigla_de_destino};
-use crate::processo_concluir::{FalhaDoEnvio, VerificacaoPorLeitura};
-use crate::processo_enviar::{Destino, ErroEnviar, ProcessoEnviado};
-use crate::transporte::FalhaTransporte;
+use crate::processo_concluir::FalhaDoEnvio;
+use crate::processo_enviar::{
+    DesfechoDoEnvio, Destino, MetodoRemocao, ProcessoEnviado, RemocaoDaAnotacao,
+};
 use serde_json::json;
 
 fn previa() -> ProcessoEnviado {
@@ -11,21 +12,16 @@ fn previa() -> ProcessoEnviado {
         nup: "00001.000001/2026-01".into(),
         id_procedimento: "10".into(),
         unidade: "TESTE".into(),
-        confirmado: false,
-        alterado: false,
         manter_aberto: false,
-        remover_anotacoes: false,
-        anotacao_antes: None,
+        remocao: None,
         anotacao_depois: None,
-        metodo_remocao: None,
         destino: Destino {
             sigla: "TESTE_1_1".into(),
             descricao: "TESTE_1_1 - Unidade 1.1".into(),
             id_unidade: "110000002".into(),
         },
         aberto_em: vec!["TESTE".into()],
-        depois: None,
-        reconciliado_por: None,
+        desfecho: DesfechoDoEnvio::Previa,
         requisicoes: 5,
     }
 }
@@ -38,7 +34,7 @@ fn previa_publica_o_contrato_sem_url() {
                "origem": "web", "confirmado": false, "alterado": false, "manter_aberto": false,
                "destino": {"sigla": "TESTE_1_1", "descricao": "TESTE_1_1 - Unidade 1.1",
                            "id_unidade": "110000002"},
-               "aberto_em": ["TESTE"], "depois_esperado": ["TESTE_1_1"], "depois": null,
+               "aberto_em": ["TESTE"], "depois_esperado": ["TESTE_1_1"],
                "reconciliado_por_leitura": false, "requisicoes": 5})
     );
     let texto = humano(&previa());
@@ -56,87 +52,30 @@ fn previa_publica_o_contrato_sem_url() {
 #[test]
 fn enviado_e_reconciliado() {
     let feito = ProcessoEnviado {
-        confirmado: true,
-        alterado: true,
         manter_aberto: true,
-        depois: Some(vec!["TESTE".into(), "TESTE_1_1".into()]),
-        reconciliado_por: Some(FalhaDoEnvio::RespostaDoEnvioSemRedirecionamento),
+        desfecho: DesfechoDoEnvio::Enviado {
+            depois: vec!["TESTE".into(), "TESTE_1_1".into()],
+            reconciliado_por: Some(FalhaDoEnvio::RespostaDoEnvioSemRedirecionamento),
+        },
         requisicoes: 7,
         ..previa()
     };
     let valor = json_de_sucesso(&feito);
     assert_eq!(valor["depois_esperado"], json!(["TESTE", "TESTE_1_1"]));
     assert_eq!(valor["reconciliado_por_leitura"], true);
-    assert_eq!(
-        valor["falha_do_envio"]["subcodigo"],
-        "resposta_do_envio_sem_redirecionamento"
-    );
     assert!(humano(&feito).contains("Enviado. Aberto em, relido: TESTE, TESTE_1_1"));
 }
 
 #[test]
-fn falhas_levam_as_listas() {
-    let oferecidos = json_de_falha(&ErroEnviar::DestinoNaoOferecidoPeloSei {
-        oferecidos: vec!["OUTRA - Outra".into()],
-    });
-    assert_eq!(oferecidos["subcodigo"], "destino_nao_oferecido_pelo_sei");
-    assert_eq!(oferecidos["oferecidos"], json!(["OUTRA - Outra"]));
-    let incerto = ErroEnviar::EfeitoIncertoNoEnvio {
-        aberto_em: vec!["TESTE".into()],
-        anotacao_depois: None,
-        falha_do_envio: Some(FalhaDoEnvio::RedirecionamentoNaoReconhecidoAposEnviar),
-        verificacao: Box::new(VerificacaoPorLeitura::LeituraFalhou(
-            crate::processo_obter::ErroProcessoObter::Transporte(FalhaTransporte::Rede),
-        )),
-    };
-    let valor = json_de_falha(&incerto);
-    assert_eq!(valor["codigo"], "efeito_incerto");
-    assert_eq!(valor["status_http"], 302);
-    assert_eq!(
-        valor["falha_do_envio"]["subcodigo"],
-        "redirecionamento_nao_reconhecido_apos_enviar"
-    );
-    assert!(valor["verificacao"].is_string());
-    assert_eq!(incerto.saida(), 3);
-}
-
-#[test]
 fn sigla_de_destino_e_conferida_antes_de_tudo() {
-    let um = |s: &str| vec![s.to_owned()];
-    assert_eq!(sigla_de_destino(&um(" TESTE ")), Ok("TESTE"));
+    assert_eq!(sigla_de_destino(" TESTE ").unwrap(), "TESTE");
     assert_eq!(
-        sigla_de_destino(&um("ADCENTRAL/GR/ARQUIVO /PROCE")),
-        Ok("ADCENTRAL/GR/ARQUIVO /PROCE")
+        sigla_de_destino("ADCENTRAL/GR/ARQUIVO /PROCE").unwrap(),
+        "ADCENTRAL/GR/ARQUIVO /PROCE"
     );
-    for ruim in ["", "  ", "A\nB", &"X".repeat(101)] {
-        assert_eq!(
-            sigla_de_destino(&um(ruim)),
-            Err("sigla_de_destino_invalida"),
-            "{ruim:?}"
-        );
+    for ruim in ["", "   ", "A\tB", &"X".repeat(101)] {
+        assert!(sigla_de_destino(ruim).is_err(), "{ruim:?}");
     }
-    assert_eq!(
-        sigla_de_destino(&["A".into(), "B".into()]),
-        Err("mais_de_um_destino_nao_suportado")
-    );
-}
-
-#[test]
-fn erro_de_envio_exibe_sugestoes_guardadas_no_modo_humano() {
-    // A apresentação humana recebe strings tipadas, não serde_json::Value.
-    let sugeridas = vec![
-        "ABC/GECONT - Contabilidade".to_owned(),
-        "ABC/GECONT-18141 - Contabilidade regional".to_owned(),
-    ];
-    assert_eq!(
-        super::texto_das_sugestoes(&sugeridas).as_deref(),
-        Some(concat!(
-            "IES: sugestões guardadas (não confirmadas pelo SEI): ",
-            "ABC/GECONT - Contabilidade, ",
-            "ABC/GECONT-18141 - Contabilidade regional"
-        ))
-    );
-    assert_eq!(super::texto_das_sugestoes(&[]), None);
 }
 
 #[test]
@@ -186,7 +125,7 @@ fn sugestoes_guardadas_compoem_erro_web_sem_consulta_extra() {
                 "OUTRA - Destino publicado pelo SEI",
             )])),
         ]);
-        let ((valor, mensagem, subcodigo, saida), pedidos) =
+        let ((depurado, sugestoes), pedidos) =
             rodar_com(&ambiente, respostas, |sessao, nup, indice, roteiro| {
                 let pedido = PedidoDoEnvio {
                     nup,
@@ -197,20 +136,8 @@ fn sugestoes_guardadas_compoem_erro_web_sem_consulta_extra() {
                     confirmar,
                 };
                 let erro = enviar_processo(sessao, &pedido, indice, roteiro).unwrap_err();
-                let projecao = super::json_de_falha_com_sugestoes(&erro, sessao, indice, DESTINO);
-                assert_ne!(
-                    std::any::type_name_of_val(&projecao),
-                    std::any::type_name::<serde_json::Value>()
-                );
-                let valor = serde_json::to_value(projecao).unwrap();
-                (
-                    valor.clone(),
-                    super::texto_das_sugestoes(&super::sugestoes_guardadas(
-                        &erro, sessao, indice, DESTINO,
-                    )),
-                    erro.subcodigo().to_owned(),
-                    erro.saida(),
-                )
+                let sugestoes = super::sugestoes_guardadas(&erro, sessao, indice, DESTINO);
+                (format!("{erro:?}"), sugestoes)
             });
         // Quatro GET de navegação e um POST apenas de consulta.
         // Mesmo confirmar=true não faz POST de escrita sem destino do SEI.
@@ -219,43 +146,27 @@ fn sugestoes_guardadas_compoem_erro_web_sem_consulta_extra() {
             vec!["GET", "GET", "GET", "GET", "POST"],
         );
         assert_eq!(pedidos.len(), 5);
-        assert_eq!(subcodigo, "destino_nao_oferecido_pelo_sei");
-        assert_eq!(saida, 1);
-        let esperado = if unidade_da_lista == Some(ativa.as_str()) {
-            r#"{"codigo":"fonte_invalida","erro":"o SEI não oferece unidade de destino com essa sigla; nada foi enviado","oferecidos":["OUTRA - Destino publicado pelo SEI"],"retentavel":false,"subcodigo":"destino_nao_oferecido_pelo_sei","sugestoes_guardadas":["TESTE_1_1 - Unidade guardada"]}"#
-        } else {
-            r#"{"codigo":"fonte_invalida","erro":"o SEI não oferece unidade de destino com essa sigla; nada foi enviado","oferecidos":["OUTRA - Destino publicado pelo SEI"],"retentavel":false,"subcodigo":"destino_nao_oferecido_pelo_sei"}"#
-        };
-        assert_eq!(valor.to_string(), esperado);
-        assert_eq!(
-            valor["oferecidos"],
-            json!(["OUTRA - Destino publicado pelo SEI"]),
+        assert!(
+            depurado.starts_with("DestinoNaoOferecidoPeloSei")
+                && depurado.contains("OUTRA - Destino publicado pelo SEI"),
+            "{depurado}"
         );
-        if unidade_da_lista == Some(ativa.as_str()) {
-            assert_eq!(
-                valor["sugestoes_guardadas"],
-                json!(["TESTE_1_1 - Unidade guardada"]),
-            );
-            assert_eq!(
-                mensagem.as_deref(),
-                Some(
-                    "IES: sugestões guardadas (não confirmadas pelo SEI): TESTE_1_1 - Unidade guardada"
-                ),
-            );
+        let esperadas: &[&str] = if unidade_da_lista == Some(ativa.as_str()) {
+            &["TESTE_1_1 - Unidade guardada"]
         } else {
-            assert!(valor.get("sugestoes_guardadas").is_none());
-            assert_eq!(mensagem, None);
-        }
+            &[]
+        };
+        assert_eq!(sugestoes, esperadas);
     }
 }
 
 #[test]
 fn saida_tipificada_serializa_destino_sem_value_intermediario() {
     let feito = ProcessoEnviado {
-        confirmado: true,
-        alterado: true,
-        depois: Some(vec!["TESTE_1_1".into()]),
-        reconciliado_por: Some(FalhaDoEnvio::RedirecionamentoNaoReconhecidoAposEnviar),
+        desfecho: DesfechoDoEnvio::Enviado {
+            depois: vec!["TESTE_1_1".into()],
+            reconciliado_por: Some(FalhaDoEnvio::RedirecionamentoNaoReconhecidoAposEnviar),
+        },
         ..previa()
     };
     let mut bytes = Vec::new();
@@ -268,89 +179,21 @@ fn saida_tipificada_serializa_destino_sem_value_intermediario() {
     let recebido: serde_json::Value = serde_json::from_slice(&bytes).unwrap();
     assert_eq!(recebido, json_de_sucesso(&feito));
     assert_eq!(recebido["destino"]["id_unidade"], "110000002");
-    assert_eq!(recebido["falha_do_envio"]["status_http"], 302);
-    assert!(!String::from_utf8(bytes).unwrap().contains("infra_hash"));
-}
-
-#[test]
-fn falha_de_envio_humana_usa_causas_tipadas_sem_json() {
-    let nao_aplicado = ErroEnviar::EnvioNaoAplicado {
-        aberto_em: vec!["TESTE".into()],
-        depois: vec!["OUTRA".into()],
-        falha_do_envio: Some(FalhaDoEnvio::RedirecionamentoNaoReconhecidoAposEnviar),
-    };
-    let linhas = super::linhas_da_falha(&nao_aplicado);
-    assert!(linhas[0].contains(nao_aplicado.subcodigo()));
-    assert_eq!(linhas[1], "IES: aberto_em: TESTE");
-    assert_eq!(linhas[2], "IES: depois: OUTRA");
     assert_eq!(
-        linhas[3],
-        "IES: resposta da escrita: redirecionamento_nao_reconhecido_apos_enviar"
+        recebido["falha_do_envio"],
+        format!("{:?}", feito.reconciliado_por().unwrap())
     );
-    let incerto = ErroEnviar::EfeitoIncertoNoEnvio {
-        aberto_em: vec![],
-        anotacao_depois: None,
-        falha_do_envio: None,
-        verificacao: Box::new(VerificacaoPorLeitura::SituacaoNaoLida(
-            crate::arvore_processo::MotivoAbertoEm::HtmlDaRaizNaoPublicado,
-        )),
-    };
-    let linhas = super::linhas_da_falha(&incerto);
-    assert_eq!(linhas[1], "IES: aberto_em: (nenhuma unidade)");
-    assert_eq!(linhas[2], "IES: verificação: html_da_raiz_nao_publicado");
-    assert_eq!(incerto.saida(), 3);
-}
-
-#[test]
-fn falhas_do_envio_serializam_direto_com_goldens_fixos() {
-    let casos = [
-        (
-            ErroEnviar::DestinoNaoOferecidoPeloSei { oferecidos: vec![] },
-            r#"{"codigo":"fonte_invalida","erro":"o SEI não oferece unidade de destino com essa sigla; nada foi enviado","oferecidos":[],"retentavel":false,"subcodigo":"destino_nao_oferecido_pelo_sei"}"#,
-        ),
-        (
-            ErroEnviar::VariosDestinosComASigla {
-                candidatos: vec!["TESTE - A".into(), "TESTE - B".into()],
-            },
-            r#"{"candidatos":["TESTE - A","TESTE - B"],"codigo":"fonte_invalida","erro":"o SEI oferece mais de uma unidade com essa sigla; nada foi enviado","retentavel":false,"subcodigo":"varios_destinos_com_a_sigla"}"#,
-        ),
-        (
-            ErroEnviar::EnvioNaoAplicado {
-                aberto_em: vec![],
-                depois: vec![],
-                falha_do_envio: None,
-            },
-            r#"{"aberto_em":[],"codigo":"escrita_nao_aplicada","depois":[],"erro":"a árvore lida depois de enviar não lista o destino: o processo não foi enviado","retentavel":false,"subcodigo":"envio_nao_aplicado"}"#,
-        ),
-        (
-            ErroEnviar::EfeitoIncertoNoEnvio {
-                aberto_em: vec![],
-                anotacao_depois: None,
-                falha_do_envio: Some(FalhaDoEnvio::RedirecionamentoNaoReconhecidoAposEnviar),
-                verificacao: Box::new(VerificacaoPorLeitura::Lida(vec![])),
-            },
-            r#"{"aberto_em":[],"codigo":"efeito_incerto","erro":"não se sabe se o processo foi enviado; confira com `ies processo NUP` antes de repetir","falha_do_envio":{"status_http":302,"subcodigo":"redirecionamento_nao_reconhecido_apos_enviar"},"retentavel":false,"status_http":302,"subcodigo":"efeito_incerto_no_envio","verificacao":null}"#,
-        ),
-    ];
-    for (erro, esperado) in casos {
-        let projecao = super::json_de_falha(&erro);
-        assert_eq!(serde_json::to_string(&projecao).unwrap(), esperado);
-        assert_ne!(
-            std::any::type_name_of_val(&projecao),
-            std::any::type_name::<serde_json::Value>()
-        );
-    }
-}
-
-fn json_de_falha(erro: &ErroEnviar) -> serde_json::Value {
-    serde_json::to_value(super::json_de_falha(erro)).unwrap()
+    assert!(!String::from_utf8(bytes).unwrap().contains("infra_hash"));
 }
 
 #[test]
 fn bdd_previa_publica_opcao_somente_se_solicitada() {
     let mut feito = previa();
     assert!(json_de_sucesso(&feito).get("remover_anotacoes").is_none());
-    feito.remover_anotacoes = true;
+    feito.remocao = Some(RemocaoDaAnotacao {
+        metodo: MetodoRemocao::CheckboxNoEnvio,
+        antes: false,
+    });
     assert_eq!(json_de_sucesso(&feito)["remover_anotacoes"], true);
     assert!(humano(&feito).contains("Remover anotações no envio: sim"));
 }

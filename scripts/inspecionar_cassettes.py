@@ -10,6 +10,7 @@ import re
 import sys
 import tempfile
 from urllib.request import urlopen
+from urllib.parse import parse_qs, urlsplit
 from zipfile import ZipFile
 
 CARDS_ROOT = Path("cassettes").resolve()
@@ -108,12 +109,35 @@ def verificar(caminho, arquivos):
     metodos = collections.Counter()
     acoes = collections.Counter()
     estruturas = collections.Counter()
+    respostas_post_atribuicao = collections.Counter()
+    formatos_redirect_atribuicao = collections.Counter()
     for interacao in interacoes:
         metodo, acao, estrutura = detalhes_requisicao(interacao.get("request"))
         metodos[metodo] += 1
         estruturas[estrutura] += 1
         if acao:
             acoes[(metodo, acao)] += 1
+        if metodo == "POST" and acao == "procedimento_atribuicao_cadastrar":
+            resposta = interacao.get("response") or {}
+            status = resposta.get("status_code")
+            respostas_post_atribuicao[status] += 1
+            if status == 302:
+                cabecalhos = resposta.get("headers") or {}
+                destino = next(
+                    (valor for nome, valor in cabecalhos.items()
+                     if nome.lower() == "location" and isinstance(valor, str)),
+                    "",
+                )
+                args = parse_qs(urlsplit(destino).query, keep_blank_values=True)
+                acao_destino = args.get("acao", [])
+                classe = (
+                    acao_destino[0] if len(acao_destino) == 1 and
+                    acao_destino[0] in ("arvore_visualizar", "principal") else "outra",
+                    len(args.get("id_procedimento", [])) == 1
+                    and args["id_procedimento"][0].isdigit(),
+                    args.get("acao_origem") == ["procedimento_atribuicao_cadastrar"],
+                )
+                formatos_redirect_atribuicao[classe] += 1
     # Nunca imprimir valores de URLs, corpos, cookies, tokens, hashes de sessao ou HTML.
     nome = Path(caminho).name
     print(f"PASS {card['installation']} {nome}: {len(interacoes)} interacoes; SHA-1/SHA-256 OK")
@@ -121,6 +145,9 @@ def verificar(caminho, arquivos):
     print("ACTIONS", sorted((metodo, acao, n) for (metodo, acao), n in acoes.items()))
     if not acoes:
         print("ACTIONS_NOT_EXTRACTED; REQUEST_KEYS", sorted(estruturas.items()))
+    if respostas_post_atribuicao:
+        print("ATTRIBUTION_POST_STATUSES", sorted(respostas_post_atribuicao.items()))
+        print("ATTRIBUTION_302_SHAPES", sorted(formatos_redirect_atribuicao.items()))
     return len(interacoes)
 
 

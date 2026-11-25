@@ -1,0 +1,29 @@
+id: 21-unica-comparada-com-literal-VALOR
+language: rust
+message: 'A única acao= é lida no enum e comparada com a variante.'
+severity: hint
+rule:
+  pattern: $C.unico("acao") == Ok("VALOR")
+  not:
+    inside:
+      stopBy: end
+      kind: mod_item
+      follows:
+        kind: attribute_item
+        regex: 'cfg\((all\()?test\b'
+fix: '$C.acao() == Ok(crate::acao_do_sei::AcaoDoSei::VARIANTE)'
+---
+id: 21b-unica-diferente-do-literal-VALOR
+language: rust
+message: 'A única acao= é lida no enum e comparada com a variante.'
+severity: hint
+rule:
+  pattern: $C.unico("acao") != Ok("VALOR")
+  not:
+    inside:
+      stopBy: end
+      kind: mod_item
+      follows:
+        kind: attribute_item
+        regex: 'cfg\((all\()?test\b'
+fix: '$C.acao() != Ok(crate::acao_do_sei::AcaoDoSei::VARIANTE)'

@@ -17,15 +17,11 @@ mod tests_link;
 mod tests_lista;
 #[cfg(test)]
 mod tests_visao;
-use crate::erro_html::ErroHtml;
 use crate::historico::ErroHistorico;
 use crate::processo::Andamento;
 pub(crate) use link::{EnderecoDoHistorico, ler_link_do_historico};
 pub(crate) use lista::ler_andamentos;
 pub(crate) use visao::{CAMPO_TIPO, VER_HISTORICO_COMPLETO, conferir_regra_de_ver_historico};
-
-/// `acao` do link guardado no índice local (objeto = id do processo).
-pub(crate) const ACAO_DO_HISTORICO: &str = "procedimento_consultar_historico";
 
 /// Visão servida, lida de `hdnTipoHistorico` (`R` ou `P`).
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
@@ -52,35 +48,41 @@ pub(crate) struct AndamentosLidos {
     pub(crate) itens: Vec<Andamento>,
 }
 
-/// Falhas do link do histórico na árvore: uma variante por fato.
-#[derive(Clone, Copy, Debug, PartialEq, Eq, crate::erro_publico::Causa)]
+/// Falhas do link do histórico na árvore: um erro por fato.
+#[derive(Clone, Debug, PartialEq, Eq, thiserror::Error)]
+#[error("{self:?}")]
 pub(crate) enum ErroLinkDoHistorico {
     LinkDoHistoricoAusenteNaArvore,
     EnderecoDoHistoricoDeOutroProcesso,
-    #[causa(transparente)]
-    Html(ErroHtml),
+    EnderecoDoHistoricoNaoReconhecido,
+    LinkDoHistoricoForaDaFormaObservada,
+    LinksDoHistoricoRepetidosNaArvore,
 }
 
-impl ErroLinkDoHistorico {}
-
 /// Falhas da página do histórico e da troca de visão.
-#[derive(Clone, Copy, Debug, PartialEq, Eq, crate::erro_publico::Causa)]
+#[derive(Clone, Debug, PartialEq, Eq, thiserror::Error)]
+#[error("{self:?}")]
 pub(crate) enum ErroAndamentos {
+    Legenda(#[from] crate::legenda::ErroLegenda),
+    TotalDeclaradoNaoCabeEmU64(#[source] std::num::TryFromIntError),
     /// Título, tabela ou linhas (leitor de `crate::historico`).
-    #[causa(interna)]
-    Historico(ErroHistorico),
+    Historico(#[from] ErroHistorico),
     AndamentosAlemDoTotalDeclarado,
     TipoDoHistoricoNaoPublicado,
+    /// O campo `hdnTipoHistorico` existe, mas não publica o atributo `value`.
+    TipoDoHistoricoSemValor,
     CharsetDoHistoricoNaoSuportado,
-    RegraDeVerHistoricoNaoObservada,
+    /// A função `verHistorico` servida não aparece literalmente na página.
+    RegraDeVerHistoricoAusenteNaPagina,
     VisaoDoHistoricoDiferenteDaPedida,
-    #[causa(transparente)]
-    Html(ErroHtml),
+    LegendaDosAndamentosAusente,
+    LegendaDosAndamentosForaDaFormaObservada,
+    FormularioDoTipoNaoLocalizado(#[source] crate::formulario_web::ErroSubmissaoFormulario),
 }
 
 impl ErroAndamentos {
     /// A página é de outro NUP: um link guardado errou.
-    pub(crate) fn diverge_do_pedido(self) -> bool {
-        self == Self::Historico(ErroHistorico::NumeroDoHistoricoDiferenteDoSolicitado)
+    pub(crate) fn diverge_do_pedido(&self) -> bool {
+        *self == Self::Historico(ErroHistorico::NumeroDoHistoricoDiferenteDoSolicitado)
     }
 }

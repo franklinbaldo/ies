@@ -1,0 +1,14 @@
+id: 06-no-filter-map
+language: rust
+message: 'filter_map(|n| n.get(parser)) antes de texto some.'
+severity: hint
+rule:
+  pattern: $R.filter_map(|$N| $N.get($P))
+  not:
+    inside:
+      stopBy: end
+      kind: mod_item
+      follows:
+        kind: attribute_item
+        regex: 'cfg\(test\)'
+fix: '$R'

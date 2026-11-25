@@ -5,6 +5,7 @@ use super::tests_candidatos::{
     arvore_com_propriedades, gerados_com_candidato, propriedades_correspondentes,
 };
 use super::*;
+use crate::acao_do_sei::AcaoDoSei;
 use crate::processo_concluir::tests_apoio::{NUP, ambiente, ok, r302, rodar_com, trabalhar};
 use crate::transporte::FalhaTransporte;
 
@@ -28,13 +29,7 @@ fn post_criador_responde_html_200_e_rele_gerados_sem_retry() {
         )
     });
     let erro = resultado.unwrap_err();
-    assert_eq!(erro.saida(), 3);
     let diagnostico = erro.diagnostico_apos_post().expect("releitura obrigatoria");
-    assert_eq!(
-        diagnostico.causa_post,
-        "resposta_inesperada_apos_post_criador"
-    );
-    assert_eq!(diagnostico.causa_releitura, None);
     assert_eq!(diagnostico.candidatos_observados, Some(vec![]));
     assert_eq!(requests.len(), 5);
     assert_eq!(requests.iter().filter(|r| r.metodo == "POST").count(), 1);
@@ -67,13 +62,7 @@ fn location_ambigua_rele_controle_sem_seguir_location() {
         )
     });
     let erro = resultado.unwrap_err();
-    assert_eq!(erro.saida(), 3);
-    let diagnostico = erro.diagnostico_apos_post().expect("releitura obrigatoria");
-    assert_eq!(
-        diagnostico.causa_post,
-        "localizacao_invalida_apos_post_criador"
-    );
-    assert_eq!(diagnostico.causa_releitura, None);
+    let _diagnostico = erro.diagnostico_apos_post().expect("releitura obrigatoria");
     assert_eq!(requests.len(), 5);
     assert_eq!(requests.iter().filter(|r| r.metodo == "POST").count(), 1);
     assert_eq!(
@@ -102,11 +91,6 @@ fn retorno_inesperado_e_releitura_falha_preservam_as_duas_causas() {
         )
     });
     let diagnostico = resultado.unwrap_err().diagnostico_apos_post().unwrap();
-    assert_eq!(
-        diagnostico.causa_post,
-        "resposta_inesperada_apos_post_criador"
-    );
-    assert_eq!(diagnostico.causa_releitura, Some("falha_de_rede"));
     assert_eq!(diagnostico.candidatos_observados, None);
     assert_eq!(requests.len(), 5);
     assert_eq!(requests.iter().filter(|r| r.metodo == "POST").count(), 1);
@@ -125,7 +109,7 @@ fn redirecionamento_com_duas_acoes_nao_eh_seguido() {
         )),
         ok(tela_controle()),
     ];
-    let (resultado, requests) = rodar_com(&amb, respostas, |sessao, _, _, rede| {
+    let (_resultado, requests) = rodar_com(&amb, respostas, |sessao, _, _, rede| {
         criar(
             sessao.origem,
             sessao.url_do_controle,
@@ -134,14 +118,6 @@ fn redirecionamento_com_duas_acoes_nao_eh_seguido() {
             rede,
         )
     });
-    assert_eq!(
-        resultado
-            .unwrap_err()
-            .diagnostico_apos_post()
-            .unwrap()
-            .causa_post,
-        "localizacao_invalida_apos_post_criador"
-    );
     assert_eq!(requests.len(), 5);
     assert_eq!(
         requests.iter().filter(|req| req.metodo == "POST").count(),
@@ -161,7 +137,7 @@ fn redirecionamento_com_id_invalido_duplicado_nao_eh_seguido() {
         )),
         ok(tela_controle()),
     ];
-    let (resultado, requests) = rodar_com(&amb, respostas, |sessao, _, _, rede| {
+    let (_resultado, requests) = rodar_com(&amb, respostas, |sessao, _, _, rede| {
         criar(
             sessao.origem,
             sessao.url_do_controle,
@@ -170,14 +146,6 @@ fn redirecionamento_com_id_invalido_duplicado_nao_eh_seguido() {
             rede,
         )
     });
-    assert_eq!(
-        resultado
-            .unwrap_err()
-            .diagnostico_apos_post()
-            .unwrap()
-            .causa_post,
-        "localizacao_invalida_apos_post_criador"
-    );
     assert_eq!(requests.len(), 5);
     assert_eq!(
         requests.iter().filter(|req| req.metodo == "POST").count(),
@@ -207,7 +175,7 @@ fn redirecionamento_valido_com_propriedades_divergentes_nao_confirma() {
         ok(arvore(
             &[UNIDADE],
             &[acao_da_barra(&link_das_propriedades(
-                "procedimento_alterar",
+                AcaoDoSei::ProcedimentoAlterar,
                 "10",
             ))],
         )),
@@ -223,12 +191,7 @@ fn redirecionamento_valido_com_propriedades_divergentes_nao_confirma() {
             rede,
         )
     });
-    let erro = resultado.expect_err("Location e árvore não provam o cadastro solicitado");
-    assert_eq!(erro.saida(), 3);
-    assert_eq!(
-        erro.subcodigo(),
-        "propriedades_divergentes_apos_post_criador"
-    );
+    let _erro = resultado.expect_err("Location e árvore não provam o cadastro solicitado");
     assert_eq!(requests.len(), 7); // 3 GET + 1 POST + tela + árvore + propriedades
     assert_eq!(requests.iter().filter(|r| r.metodo == "POST").count(), 1);
     assert_eq!(requests[6].metodo, "GET");
@@ -247,7 +210,7 @@ fn redirecionamento_valido_get_verificador_503_preserva_causa_http() {
         r302(&format!(
             "controlador.php?acao=procedimento_trabalhar&id_procedimento=10&infra_hash={HASH}"
         )),
-        Err(FalhaTransporte::StatusHttpDeErroDoServidor(
+        Err(FalhaTransporte::Status(
             crate::transporte::StatusHttpRecusado::sem_mensagem(503),
         )),
     ];
@@ -261,7 +224,6 @@ fn redirecionamento_valido_get_verificador_503_preserva_causa_http() {
         )
     });
     let erro = resultado.expect_err("sem GET verificador não se confirma a criação");
-    assert_eq!(erro.saida(), 3);
     assert_eq!(erro.status_http().map(|status| status.status), Some(503));
     assert_eq!(requests.len(), 5); // 3 GET + 1 POST criador + 1 GET verificador
     assert_eq!(requests.iter().filter(|r| r.metodo == "POST").count(), 1);
@@ -289,9 +251,7 @@ fn redirecionamento_valido_get_verificador_sem_rede_preserva_causa() {
             rede,
         )
     });
-    let erro = resultado.expect_err("falha da leitura é incerta, não recusa do POST");
-    assert_eq!(erro.saida(), 3);
-    assert_eq!(erro.subcodigo(), "falha_de_rede");
+    let _erro = resultado.expect_err("falha da leitura é incerta, não recusa do POST");
     assert_eq!(requests.len(), 5);
     assert_eq!(requests.iter().filter(|r| r.metodo == "POST").count(), 1);
 }
@@ -319,9 +279,7 @@ fn location_para_id_preexistente_nao_confirma_criacao() {
             rede,
         )
     });
-    let erro = resultado.expect_err("ID preexistente não comprova nova criação");
-    assert_eq!(erro.saida(), 3);
-    assert_eq!(erro.subcodigo(), "id_preexistente_no_retorno_criador");
+    let _erro = resultado.expect_err("ID preexistente não comprova nova criação");
     assert_eq!(requests.len(), 4); // 3 GET de preparação + 1 POST, zero GET inútil
     assert_eq!(requests.iter().filter(|r| r.metodo == "POST").count(), 1);
 }
@@ -357,11 +315,26 @@ fn nivel_restrito_concorrente_nao_prova_criacao_publica() {
         )
     });
     let erro = resultado.expect_err("nível divergente não comprova a criação");
-    assert_eq!(erro.saida(), 3);
     assert_eq!(
         erro.diagnostico_apos_post().unwrap().candidatos_observados,
         Some(vec![NUP.to_owned()])
     );
     assert_eq!(requests.len(), 8); // 3 GET iniciais + 1 POST + 1 GET Controle + 3 GET de prova
     assert_eq!(requests.iter().filter(|r| r.metodo == "POST").count(), 1);
+}
+
+#[test]
+fn location_com_fragmento_da_arvore_identifica_o_processo_criado() {
+    // UnB 4.0.9 (cassette documento-criar-corpo-unb, interação 5): o 302 do
+    // procedimento_gerar termina em `#ID-<id>`, a âncora da árvore.
+    let instalacao =
+        crate::instalacao::Instalacao::interpretar("https://sei.exemplo.gov.br/sei").unwrap();
+    let envio = format!(
+        "https://sei.exemplo.gov.br/sei/controlador.php?acao=procedimento_gerar&acao_origem=procedimento_gerar&infra_sistema=100000100&infra_unidade_atual=110000846&infra_hash={HASH}"
+    );
+    let localizacao = format!(
+        "controlador.php?acao=procedimento_trabalhar&acao_origem=procedimento_gerar&acao_retorno=procedimento_escolher_tipo&id_procedimento=51229&atualizar_arvore=1&infra_sistema=100000100&infra_unidade_atual=110000846&infra_hash={HASH}#ID-51229"
+    );
+    let r = super::links::retorno_da_criacao(&instalacao, &localizacao, &envio);
+    assert_eq!(r.map(|(_, id)| id).ok(), Some("51229".to_owned()));
 }

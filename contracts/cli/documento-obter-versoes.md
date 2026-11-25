@@ -47,7 +47,9 @@ com `versao=N`, o `id_documento` do nó (servido duas vezes, com o mesmo
 valor, nas sete instalações) e o `id_procedimento`. Outras âncoras da
 célula (`href="#ID-N"` do "Recuperar Versão", cujo link fica no
 `onclick`) não são seguidas. Total declarado diferente das linhas lidas
-é recusa.
+é recusa. A coluna inicial de seleção pode estar ausente, como no
+histórico de versão única observado na UnB. A largura das linhas
+precisa corresponder ao cabeçalho servido.
 
 ## Caminhos e requisições
 
@@ -60,11 +62,11 @@ os demais caminhos, como na [leitura Web](documento-obter-web.md).
 | --- | --- | --- |
 | sem `--versao` (com ou sem `--saida`) | G + 1 | o conteúdo atual (`Nos[i].src`); a versão vem do rodapé |
 | `--saida DIR` sem rodapé e barra com a lista | G + 2 | conteúdo atual e a lista (para saber N) |
-| `--saida DIR` sem rodapé e sem a lista | G + 1 | recusa `lista_de_versoes_nao_publicada_na_arvore`, nada gravado |
+| `--saida DIR` sem rodapé e sem a lista | G + 1 | recusa `ListaDeVersoesNaoPublicadaNaArvore`, nada gravado |
 | `--versao N` (com ou sem `--saida`) | G + 2 | a lista e o `documento_visualizar` da linha N; o conteúdo atual **não** é pedido |
 
-Decisão de custo (proprietário, 04/11/2026): `versao_atual` é `null`
-salvo quando pedida (`--versao`) ou já servida na tela lida. O rodapé é
+Decisão de custo (proprietário, 04/11/2026): `versao_atual` sai só
+quando pedida (`--versao`) ou já servida na tela lida. O rodapé é
 servido na tela do conteúdo, então sai sem GET a mais; a lista (1 GET)
 só é pedida por `--versao N` ou pela foto quando falta o rodapé.
 
@@ -73,15 +75,15 @@ só é pedida por `--versao N` ou pela foto quando falta o rodapé.
 Cada documento do JSON da leitura Web ganha:
 
 - `versao`: a versão do texto publicado (N de `--versao N` ou a do
-  rodapé), senão `null`;
+  rodapé); sem a chave quando não há;
 - `versao_atual`: a maior versão da lista, quando lida, ou a do rodapé
-  do conteúdo atual; senão `null`;
-- `versao_atual_motivo`: `null` quando publicada; senão
+  do conteúdo atual; sem a chave quando não se sabe;
+- `versao_atual_motivo`: só quando `versao_atual` não sai; vale
   `nao_servida_no_conteudo` (sem rodapé, lista não pedida);
 - com `--saida`, `arquivo` (no lugar de `texto`, como na leitura Web):
-  `{"nome": "DOC.vN.html", "bytes": B, "sha256": "…", "gravado": true,
-  "motivo": null}`, ou `"gravado": false, "motivo": "igual"` quando a
-  foto já existia com o mesmo SHA-256.
+  `{"nome": "DOC.vN.html", "bytes": B, "sha256": "…", "gravado": true}`,
+  ou `"gravado": false, "motivo": "igual"` quando a foto já existia com o
+  mesmo SHA-256.
 
 Sem `--saida`, `texto` é o da versão lida. Nunca URL, `infra_hash`,
 cookie ou HTML no terminal. Os campos `copia` e `copia_motivo` de #88
@@ -104,22 +106,22 @@ carrega a identidade inteira e o arquivo é a foto fiel da versão.
   gravar com nome incerto.
 - **Idempotente.** Ausente: grava. Presente com o mesmo SHA-256: não
   grava, sai 0 e diz `gravado: false`. Presente com outro conteúdo:
-  `foto_local_divergente`. O lote inteiro é conferido antes da primeira
+  `ErroCopia::FotoDivergente`. O lote inteiro é conferido antes da primeira
   gravação: uma divergência não grava nenhuma foto.
 - **Antes da rede.** `DIR` tem de existir e ser diretório (link no
   caminho, inclusive o próprio `DIR`, é aceito; o modo do `DIR` é da
   pessoa e não é conferido) (0 requisições). Com `--versao N` o nome já é
   conhecido: cada `DOC.vN.html` presente tem de ser legível, privado e
   coerente com o nome (título do mesmo número SEI; rodapé, se houver, da
-  versão N), senão `foto_local_divergente` com 0 requisições. Os bytes só
+  versão N), senão `ErroCopia::FotoDivergente` com 0 requisições. Os bytes só
   se comparam depois da leitura.
 - **Gravação.** Parcial `0600` criado novo em `DIR`, `fsync` e
   `hard_link` para o nome final (falha se o nome surgiu: nunca
   sobrescreve), sem seguir link. HTML com `infra_hash` não vai a arquivo
-  (`conteudo_com_link_assinado`).
+  (`ConteudoComLinkAssinado`).
 - **Sem registro.** Nada vai para o índice local: o arquivo é a única
   memória da foto. Quem confere que `DOC.vN.html` ainda é o que o SEI
-  serve é a releitura (`foto_local_divergente`, acima) e, no futuro, o
+  serve é a releitura (`ErroCopia::FotoDivergente`, acima) e, no futuro, o
   salvar remoto (#89), que relê a versão N. A prévia de
   [`documento salvar`](documento-salvar.md) é offline e não a verifica.
 - **Edição (#89).** O agente cria `DOC.v(N+1).html` a partir de
@@ -128,32 +130,32 @@ carrega a identidade inteira e o arquivo é a foto fiel da versão.
 
 ## Falhas tipadas
 
-| Subcódigo | Fato |
+| Erro (stderr) | Fato |
 | --- | --- |
-| `versao_documento_invalida` | `--versao 0` (antes de qualquer rede) |
-| `lista_de_versoes_nao_publicada_na_arvore` | `--versao N` e a barra do documento não publica a lista |
-| `versao_nao_observada` | N não está entre as linhas da lista |
-| `versao_servida_diferente_da_pedida` | o rodapé da versão servida declara outra versão |
-| `link_das_versoes_*`, `barra_do_documento_*` | barra repetida, fora da forma, link repetido, de outro documento ou processo |
-| `historico_documento_ausente`, `lista_versoes_incompleta`, `colunas_historico_inesperadas`, `linha_historico_incompleta`, `link_versao_ausente_ou_ambiguo`, `link_versao_inseguro`, `identidade_documento_divergente`, `versao_documento_duplicada`, `legendas_historico_versoes_repetidas` | a lista servida fora da forma observada |
-| `titulo_do_conteudo_de_outro_documento` | a versão servida é de outro número SEI |
-| `documento_cancelado_sem_conteudo_na_arvore`, `conteudo_nao_publicado_na_arvore` | como na leitura Web, antes da lista |
-| `lista_de_versoes_nao_publicada_na_arvore` | `--saida`, sem rodapé, e a barra não publica a lista |
-| `conteudo_com_link_assinado` | `--saida` e o HTML servido traz `infra_hash` |
-| `foto_local_divergente` | `DOC.vN.html` presente com outro conteúdo, ou (antes da rede, com `--versao N`) com título ou rodapé de outro documento ou versão |
-| `diretorio_texto_documento_ausente`, `destino_copia_inseguro` | `DIR` ausente ou não diretório (antes da rede) |
-| `copia_local_link_simbolico`, `copia_local_permissoes_inseguras`, `leitura_copia_falhou`, `gravacao_foto_falhou` | a foto presente não pôde ser lida com segurança, ou a gravação falhou (nada publicado) |
+| `ErroVersao::VersaoDocumentoInvalida` | `--versao 0` (antes de qualquer rede) |
+| `ListaDeVersoesNaoPublicadaNaArvore` | `--versao N` e a barra do documento não publica a lista |
+| `VersaoPedidaAusenteNoHistorico` | N não está entre as linhas da lista |
+| `VersaoServidaDiferenteDaPedida` | o rodapé da versão servida declara outra versão |
+| `ErroDocumentoObter::BarraDoDocumento(ErroBarraDoDocumento::{BarrasRepetidasNaArvore, BarraDoDocumentoForaDaFormaObservada, LinkDasVersoesRepetidoNaBarra, LinkDasVersoesNaoReconhecido, EnderecoDasVersoesDeOutroDocumento})` | barra repetida, fora da forma, link repetido, de outro documento ou processo |
+| `ErroVersao::HistoricoDocumentoAusente`, `ErroVersao::ListaIncompleta`, `ErroVersao::ColunasHistoricoInesperadas`, `ErroVersao::LinhaIncompleta`, `ErroVersao::LinkVersaoAusenteOuAmbiguo`, `ErroVersao::LinkInseguro`, `ErroVersao::DocumentoDivergente`, `ErroVersao::VersaoDocumentoDuplicada`, `ErroVersao::LegendasHistoricoVersoesRepetidas` | a lista servida fora da forma observada |
+| `ErroDocumentoObter::TituloDeOutroDocumento` | a versão servida é de outro número SEI |
+| `ErroDocumentoObter::DocumentoCancelado`, `ConteudoNaoPublicadoNaArvore` | como na leitura Web, antes da lista |
+| `ListaDeVersoesNaoPublicadaNaArvore` | `--saida`, sem rodapé, e a barra não publica a lista |
+| `ConteudoComLinkAssinado` | `--saida` e o HTML servido traz `infra_hash` |
+| `ErroCopia::FotoDivergente` | `DOC.vN.html` presente com outro conteúdo, ou (antes da rede, com `--versao N`) com título ou rodapé de outro documento ou versão |
+| `ErroArquivoTexto::DiretorioAusente`, `ErroCopia::DestinoInseguro` | `DIR` ausente ou não diretório (antes da rede) |
+| `ErroCopia::LinkSimbolico`, `ErroCopia::PermissoesInseguras`, `ErroCopia::LeituraFalhou`, `ErroCopia::ConsultaDaFotoFalhou(ErrorKind)`, `ErroCopia::GravacaoFalhou`, `ErroCopia::GravacaoDaFotoRecusada(FalhaDaGravacao::…)` | a foto presente não pôde ser lida com segurança, ou a gravação falhou (nada publicado) |
 
 ## Documento externo
 
 O externo (`.src` `documento_download_anexo`) é lido pelo
 [GET binário](documento-obter-externo.md) (fatia 3 do #60). O arquivo
 não serve rodapé e não há versão para o nome: sem `--versao`,
-`versao: null`, `versao_atual: null` com `nao_servida_no_conteudo`; a
-barra não é lida. Com `--saida`, grava o arquivo original `DOC.ext` como
+sem a chave `versao`; sem `versao_atual`, com `versao_atual_motivo:
+nao_servida_no_conteudo`; a barra não é lida. Com `--saida`, grava o arquivo original `DOC.ext` como
 antes (sem sobrescrever, [externo](documento-obter-externo.md)), não uma
 foto. Com `--versao N`, a barra do nó (0 GET) é lida antes
-do anexo: sem a lista (o observado) é `lista_de_versoes_nao_publicada_na_arvore`,
+do anexo: sem a lista (o observado) é `ListaDeVersoesNaoPublicadaNaArvore`,
 em G requisições, sem o GET do anexo; com a lista (não observado num
 externo), `barra_do_documento_fora_da_forma_observada`.
 
@@ -165,7 +167,7 @@ nenhuma recuperação de versão. Localmente, só a foto em `DIR`.
 
 Live na UnB 4.0.9 (04/11/2026, [varredura UnB e GO](../../docs/validacao-live/2026-11-04-varredura-unb-go.md)): `--versao 1` **PASS**
 (versão 1 de 3, 4 requisições); processo concluído ou aberto só em outra
-unidade não publica a lista na barra (`lista_de_versoes_nao_publicada_na_arvore`).
+unidade não publica a lista na barra (`ListaDeVersoesNaoPublicadaNaArvore`).
 
 Validação live: `--versao N` **PASS** na PEN4, na PEN3 e na UFRJ 4.1.5
 (G + 2) ([varredura](../../docs/validacao-live/2026-11-04-varredura-ufrj-pen3-pen4.md)).

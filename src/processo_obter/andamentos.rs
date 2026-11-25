@@ -6,16 +6,35 @@
 //! GET serviu a visão `R`. A visão não é restaurada.
 use super::abertura::{ArvoreAberta, Contexto, Lida, Rede, fora_de_palpite};
 use super::login::{DestinoDoRedirecionamento, destino};
-use super::{Andamentos, EnvioDoProcesso, ErroProcessoObter as E, PedidoDeAndamentos};
+use super::{Andamentos, EnvioDoProcesso, ErroProcessoObter, PedidoDeAndamentos};
+use crate::acao_do_sei::AcaoDoSei;
 use crate::formulario_web::{
     ErroSubmissaoFormulario, RespostaDoEnvio, TelaServida, derivar_submissao, enviar_submissao_via,
 };
 use crate::historico_processo::{
-    ACAO_DO_HISTORICO, AndamentosLidos, CAMPO_TIPO, ErroAndamentos, ErroLinkDoHistorico,
-    TipoDoHistorico, VER_HISTORICO_COMPLETO, conferir_regra_de_ver_historico, ler_andamentos,
+    AndamentosLidos, CAMPO_TIPO, ErroAndamentos, TipoDoHistorico, VER_HISTORICO_COMPLETO,
+    conferir_regra_de_ver_historico, ler_andamentos,
 };
 use crate::pagina_do_controle::codificacao_da_tela;
-use crate::transporte::StatusHttpRecusado;
+
+/// O formulário `verHistorico('P')` não foi derivado nem enviado como
+/// observado. Tipo próprio da etapa do histórico completo, distinto da
+/// pesquisa rápida; o nome público é o do formulário (`transparente`).
+#[derive(Clone, Debug, PartialEq, Eq, thiserror::Error)]
+#[error("{self:?}")]
+pub(crate) enum HistoricoNaoPedido {
+    Formulario(#[from] ErroSubmissaoFormulario),
+}
+
+impl HistoricoNaoPedido {
+    /// A sessão do SEI acabou (decide o relogin único): por `match` no tipo, sem
+    /// percorrer a cadeia `source()`.
+    pub(crate) fn sessao_encerrada(&self) -> bool {
+        match self {
+            Self::Formulario(erro) => erro.sessao_encerrada(),
+        }
+    }
+}
 
 /// O pedido e o que o fluxo já sabe ao chegar aqui.
 pub(super) struct Leitura<'a> {
@@ -28,7 +47,7 @@ pub(super) struct Leitura<'a> {
 /// Página do histórico lida: URL de onde veio, HTML, MIME e a leitura.
 struct PaginaLida {
     url: String,
-    html: String,
+    html: crate::tela_html::HtmlServido,
     mime: String,
     lidos: AndamentosLidos,
 }
@@ -38,7 +57,7 @@ pub(super) fn ler<V: EnvioDoProcesso>(
     rede: &mut Rede<'_, V>,
     aberta: &ArvoreAberta,
     leitura: &Leitura<'_>,
-) -> Result<Andamentos, E> {
+) -> Result<Andamentos, ErroProcessoObter> {
     if leitura.pedido == PedidoDeAndamentos::Omitidos {
         return Ok(Andamentos::Omitidos);
     }
@@ -52,13 +71,10 @@ pub(super) fn ler<V: EnvioDoProcesso>(
         Some(pagina) => pagina,
         None => match &aberta.historico {
             Ok(endereco) => pelo_link_da_arvore(contexto, rede, endereco.as_str())?,
-            Err(ErroLinkDoHistorico::LinkDoHistoricoAusenteNaArvore) => {
-                return Ok(Andamentos::LinkNaoPublicadoNaArvore);
-            }
-            Err(erro) => return Err(E::LinkDoHistorico(*erro)),
+            Err(erro) => return Err(ErroProcessoObter::LinkDoHistorico(erro.clone())),
         },
     };
-    contexto.aprender_link(ACAO_DO_HISTORICO, id, &pagina.url);
+    contexto.aprender_link(AcaoDoSei::ProcedimentoConsultarHistorico, id, &pagina.url);
     if leitura.pedido == PedidoDeAndamentos::Completos
         && pagina.lidos.tipo == TipoDoHistorico::Resumido
     {
@@ -73,9 +89,9 @@ fn pelo_guardado<V: EnvioDoProcesso>(
     contexto: &Contexto<'_>,
     rede: &mut Rede<'_, V>,
     id: &str,
-) -> Result<Option<PaginaLida>, E> {
+) -> Result<Option<PaginaLida>, ErroProcessoObter> {
     let Some(link) = contexto
-        .chave(ACAO_DO_HISTORICO, id)
+        .chave(AcaoDoSei::ProcedimentoConsultarHistorico, id)
         .and_then(|chave| contexto.indice.link(&contexto.instalacao, chave))
     else {
         return Ok(None);
@@ -90,16 +106,16 @@ fn pelo_guardado<V: EnvioDoProcesso>(
                 lidos,
             })),
             Err(erro) if erro.diverge_do_pedido() => {
-                contexto.esquecer_link(ACAO_DO_HISTORICO, id);
+                contexto.esquecer_link(AcaoDoSei::ProcedimentoConsultarHistorico, id);
                 Ok(None)
             }
-            Err(erro) => Err(E::Andamentos(erro)),
+            Err(erro) => Err(ErroProcessoObter::Andamentos(erro)),
         },
         Lida::Login | Lida::Redirecionamento(_) => {
-            contexto.esquecer_link(ACAO_DO_HISTORICO, id);
+            contexto.esquecer_link(AcaoDoSei::ProcedimentoConsultarHistorico, id);
             Ok(None)
         }
-        Lida::Falha(falha) => Err(E::Transporte(falha)),
+        Lida::Falha(falha) => Err(ErroProcessoObter::Transporte(falha)),
     }
 }
 
@@ -107,7 +123,7 @@ fn pelo_link_da_arvore<V: EnvioDoProcesso>(
     contexto: &Contexto<'_>,
     rede: &mut Rede<'_, V>,
     url: &str,
-) -> Result<PaginaLida, E> {
+) -> Result<PaginaLida, ErroProcessoObter> {
     match rede.get(url)? {
         Lida::Html { html, mime } => {
             let lidos = ler_andamentos(&html, contexto.nup)?;
@@ -119,8 +135,10 @@ fn pelo_link_da_arvore<V: EnvioDoProcesso>(
             })
         }
         Lida::Redirecionamento(local) => Err(fora_de_palpite(local.as_deref())),
-        Lida::Login => Err(E::SessaoEncerrada),
-        Lida::Falha(falha) => Err(E::Transporte(falha)),
+        Lida::Login => Err(ErroProcessoObter::SessaoEncerrada(
+            crate::erro_publico::SessaoEncerrada,
+        )),
+        Lida::Falha(falha) => Err(ErroProcessoObter::Transporte(falha)),
     }
 }
 
@@ -130,9 +148,9 @@ fn ver_completo<V: EnvioDoProcesso>(
     rede: &mut Rede<'_, V>,
     pagina: &PaginaLida,
     unidade: Option<&str>,
-) -> Result<AndamentosLidos, E> {
+) -> Result<AndamentosLidos, ErroProcessoObter> {
     conferir_regra_de_ver_historico(&pagina.html)?;
-    let codificacao = codificacao_da_tela(&pagina.mime).ok_or(E::Andamentos(
+    let codificacao = codificacao_da_tela(&pagina.mime).ok_or(ErroProcessoObter::Andamentos(
         ErroAndamentos::CharsetDoHistoricoNaoSuportado,
     ))?;
     let tela = TelaServida {
@@ -145,10 +163,10 @@ fn ver_completo<V: EnvioDoProcesso>(
         &VER_HISTORICO_COMPLETO,
         &contexto.instalacao,
         &tela,
-        unidade,
+        Some(unidade),
         &[(CAMPO_TIPO, "P")],
     )
-    .map_err(E::FormularioDoHistorico)?;
+    .map_err(HistoricoNaoPedido::Formulario)?;
     rede.requisicoes.registrar();
     let envio = &mut *rede.envio;
     let html = match enviar_submissao_via(submissao, contexto.cookie, |s, c| envio.post(s, c)) {
@@ -156,20 +174,27 @@ fn ver_completo<V: EnvioDoProcesso>(
         Ok(RespostaDoEnvio::Redirecionamento(r)) => {
             return Err(match destino(r.localizacao()) {
                 DestinoDoRedirecionamento::Outro => {
-                    E::RedirecionamentoNaoReconhecido(StatusHttpRecusado::sem_mensagem(302))
+                    ErroProcessoObter::RedirecionamentoNaoReconhecido
                 }
-                _ => E::SessaoEncerrada,
+                DestinoDoRedirecionamento::RecusaSemAssinatura
+                | DestinoDoRedirecionamento::Login => {
+                    ErroProcessoObter::SessaoEncerrada(crate::erro_publico::SessaoEncerrada)
+                }
             });
         }
         Err(ErroSubmissaoFormulario::TelaDeLoginRecebidaAposEnvio) => {
-            return Err(E::SessaoEncerrada);
+            return Err(ErroProcessoObter::SessaoEncerrada(
+                crate::erro_publico::SessaoEncerrada,
+            ));
         }
-        Err(ErroSubmissaoFormulario::Transporte(falha)) => return Err(E::Transporte(falha)),
-        Err(outro) => return Err(E::FormularioDoHistorico(outro)),
+        Err(ErroSubmissaoFormulario::Transporte(falha)) => {
+            return Err(ErroProcessoObter::Transporte(falha));
+        }
+        Err(outro) => return Err(HistoricoNaoPedido::Formulario(outro).into()),
     };
     let lidos = ler_andamentos(&html, contexto.nup)?;
     if lidos.tipo != TipoDoHistorico::Completo {
-        return Err(E::Andamentos(
+        return Err(ErroProcessoObter::Andamentos(
             ErroAndamentos::VisaoDoHistoricoDiferenteDaPedida,
         ));
     }

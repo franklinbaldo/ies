@@ -19,13 +19,13 @@ a verificação é a situação `aberto_em` que
 Segue as invariantes de escrita do [contrato da CLI](../cli.md) e as peças
 de [`processo concluir`](processo-concluir.md) (abertura, cookie, tela antes
 da escrita, leitura de verificação). Saídas 0 sucesso, 1 falha, 2 uso
-inválido, 3 efeito incerto. Só a Web, a mesma sessão; nenhuma URL montada:
+inválido, 3 escrita não confirmada. Só a Web, a mesma sessão; nenhuma URL montada:
 o link da barra, o `action` da tela e a URL do autocomplete que o script
 da tela declara.
 
 ## Entrada
 
-- `NUP`: o de `ies processo NUP`; inválido sai com 2 (`entrada_invalida`)
+- `NUP`: o de `ies processo NUP`; inválido sai com 2 (erro do clap)
   antes de qualquer arquivo ou requisição.
 - `--para SIGLA`: **uma** sigla de unidade, como o autocomplete da tela a
   publica (`SIGLA - Nome`). Vazia, com caractere de controle ou com mais
@@ -37,18 +37,21 @@ da tela declara.
   `chkSinRemoverAnotacoes`, quando habilitado na tela de envio. Se ausente,
   mas a barra oferecer `anotacao_registrar` e o formulário do mesmo processo
   for legível, planeja limpar `txaDescricao` antes do envio; sem ambos os
-  caminhos, recusa com `remocao_de_anotacoes_nao_oferecida`.
+  caminhos, recusa com `RemocaoDeAnotacoesNaoOferecida`.
   `--confirmar` com checkbox é admitido somente quando a tela de anotações
   da mesma origem foi oferecida e lida, permitindo releitura independente.
   A alternativa `limpar_anotacao` salva `txaDescricao=""` uma única vez
   se houver anotação, exige releitura independente do texto vazio **antes**
   de enviar, e só então tramita. Com texto já vazio, dispensa a gravação da
   anotação. A leitura de `aberto_em` comprova tramitação, não exclusão
-  de anotações.
-  A prévia consulta o formulário `anotacao_registrar` da própria origem,
-  quando o link é publicado na barra, e expõe `anotacao_antes` como
-  `true` (texto presente), `false` (campo vazio) ou campo omitido (link
-  não observado); essa primeira leitura **não prova a remoção posterior**.
+  de anotações. PASS nas sete instalações, sem anotação preexistente:
+  [cobertura de 10/11/2026](../../docs/validacao-live/2026-11-10-cobertura-7-instalacoes.md).
+  A prévia consulta o formulário `anotacao_registrar` da própria origem
+  e expõe `anotacao_antes` como `true` (texto presente) ou `false` (campo
+  vazio). Sem o link de `anotacao_registrar` na barra, a remoção é recusada
+  (`RemocaoDeAnotacoesNaoOferecida` na prévia, `RemocaoDeAnotacoesSemVerificacao`
+  com `--confirmar`), pois a presença antes não pode ser lida. Essa primeira
+  leitura **não prova a remoção posterior**.
 - `--unidade SIGLA` (global): conferida na tela do processo.
 - `--confirmar`: envia. Sem ele, só prévia.
 
@@ -63,10 +66,10 @@ da tela declara.
 
 | Situação lida | Barra | Resultado |
 | --- | --- | --- |
-| não lida | qualquer | 1, `situacao_do_processo_nao_lida_antes_de_enviar` (`motivo`) |
-| sem a unidade da sessão | sem enviar | 1, `processo_nao_aberto_na_unidade_da_sessao` |
-| sem a unidade da sessão | com enviar | 1, `unidade_da_sessao_ausente_da_situacao` |
-| com a unidade da sessão | sem enviar | 1, `envio_nao_publicado_na_barra` |
+| não lida | qualquer | 1, `SituacaoDoProcessoNaoLidaAntesDeEnviar` (`motivo`) |
+| sem a unidade da sessão | sem enviar | 1, `ProcessoNaoAbertoNaUnidadeDaSessao` |
+| sem a unidade da sessão | com enviar | 1, `UnidadeDaSessaoAusenteDaSituacao` |
+| com a unidade da sessão | sem enviar | 1, `EnvioNaoPublicadoNaBarra` |
 | com a unidade da sessão | link recusado | 1, subcódigo da barra |
 | com a unidade da sessão | link | segue |
 
@@ -101,11 +104,11 @@ da tela declara.
 | 3 | sempre | `SIGLA` | o efetivo do `selOrgao` |
 | 4 | `SIGLA` tem `/` e há termo alargado | o termo alargado | o efetivo |
 
-   Nenhum item exato: 1, `destino_nao_oferecido_pelo_sei` (`oferecidos`:
+   Nenhum item exato: 1, `DestinoNaoOferecidoPeloSei` (`oferecidos`:
    as descrições da **última** resposta lida); mais de um: 1,
-   `varios_destinos_com_a_sigla` (`candidatos`). Sem `/` só há a consulta
+   `VariosDestinosComASigla` (`candidatos`). Sem `/` só há a consulta
    3, como antes. Destino já em `aberto_em`: 1,
-   `processo_ja_aberto_no_destino` (a leitura não distinguiria o efeito).
+   `ProcessoJaAbertoNoDestino` (a leitura não distinguiria o efeito).
 7. **Sem `--confirmar`**: publica `destino`, `aberto_em`, `depois_esperado`
    e o plano. Com `--remover-anotacoes`, publica `remover_anotacoes: true`
    e `metodo_remocao: "checkbox_no_envio" | "limpar_anotacao"`, conforme
@@ -113,7 +116,7 @@ da tela declara.
    Quando a anotação foi lida, `anotacao_antes: true/false` aparece na
    prévia; se o link não foi oferecido, o campo é omitido.
    Nenhum POST de escrita.
-8. **Com `--confirmar`**, o método `checkbox_no_envio` só prossegue
+8. **Com `--confirmar`**, o método `CheckboxNoEnvio` só prossegue
    quando a origem oferece a tela `anotacao_registrar`, previamente lida.
    Um único POST de envio com `chkSinRemoverAnotacoes=on`, sem retry,
    é derivado pelo formulário (`ENVIAR_PROCESSO`). No método
@@ -129,10 +132,10 @@ da tela declara.
    Com checkbox, outro GET de `anotacao_registrar` exige `txaDescricao`
    vazio e a mesma identidade de processo. Presença de texto após o
    envio é alteração parcial (saída 1); releitura indisponível ou
-   inconclusiva é efeito incerto (saída 3), sem retry. No fallback,
+   inconclusiva é escrita não confirmada (saída 1), sem retry. No fallback,
    a limpeza e a releitura acontecem antes do envio: anotação ainda
    preenchida recusa o envio (1); leitura inconclusiva da limpeza recusa
-   o envio com saída 3. O envio posterior continua sujeito à
+   o envio com saída 1. O envio posterior continua sujeito à
    reconciliação do destino já existente.
 
 ## Conferência da tela "Enviar Processo"
@@ -140,7 +143,7 @@ da tela declara.
 Formulário `frmAtividadeListar` (`method="post"`). Todo controle enviável
 precisa ser um destes, senão `campo_nao_previsto_na_tela_de_envio`:
 ocultos `hdnInfraTipoPagina`, `hdnIdProtocolos` (igual ao id aberto, senão
-`tela_de_envio_de_outro_processo`), `hdnIdAtividades`, `hdnIdUnidade` e
+`TelaDeEnvioDeOutroProcesso`), `hdnIdAtividades`, `hdnIdUnidade` e
 `hdnUnidades`; `sbmEnviar`; `selProcedimentos`, `selOrgao`, `selUnidades`;
 `txtUnidade`; caixas `chkSinManterAberto`, `chkSinRemoverAnotacoes`,
 `chkSinEnviarEmailNotificacao`, `chkSinDiasUteis`,
@@ -152,13 +155,13 @@ rádios `rdoPrazo`, `rdoPrazoRetornoProgramado`,
 `rdoPrazo`/`txtPrazo`/`txtDias`; 4.1 e 5.0, as de retorno e reabertura
 programados).
 
-| Fato | Subcódigo |
+| Fato | Erro (stderr) |
 | --- | --- |
-| Sem o formulário | `formulario_de_envio_ausente` |
-| Caixa ou rádio marcado, texto ou `hdnUnidades`/`hdnIdUnidade` não vazio, opção em `selUnidades`, opção `selected` em `selProcedimentos` | `tela_de_envio_com_opcoes_preenchidas` |
-| Órgão efetivo do `selOrgao` (a última opção `selected`, como o navegador) ausente ou `null` | `orgao_da_tela_de_envio_nao_selecionado` |
-| Sem a linha `objAutoCompletarUnidade = new infraAjaxAutoCompletar('hdnIdUnidade','txtUnidade','…');` única | `autocompletar_de_unidade_nao_declarado` |
-| `prepararExecucao` fora das duas formas observadas, ou repetido | `consulta_do_autocompletar_fora_da_forma_observada` |
+| Sem o formulário | `ErroTelaDeEnvio::FormularioDeEnvioAusente` |
+| Caixa ou rádio marcado, texto ou `hdnUnidades`/`hdnIdUnidade` não vazio, opção em `selUnidades`, opção `selected` em `selProcedimentos` | `TelaDeEnvioComOpcoesPreenchidas` |
+| Órgão efetivo do `selOrgao` (a última opção `selected`, como o navegador) ausente ou `null` | `OrgaoDaTelaDeEnvioNaoSelecionado` |
+| Sem a linha `objAutoCompletarUnidade = new infraAjaxAutoCompletar('hdnIdUnidade','txtUnidade','…');` única | `AutocompletarDeUnidadeNaoDeclarado` |
+| `prepararExecucao` fora das duas formas observadas, ou repetido | `ErroTelaDeEnvio::ConsultaDoAutocompletarForaDaFormaObservada` |
 
 O POST **sem `--remover-anotacoes`** leva, na ordem do documento: os ocultos como servidos, salvo
 `hdnUnidades` = `ID±DESCRIÇÃO` do item escolhido (a forma do
@@ -175,21 +178,22 @@ Só na prévia com `--remover-anotacoes`, se a barra servir um link
 `frmAnotacaoCadastro` sem escrever. O campo oculto `hdnIdProtocolo`
 identifica o processo; `txaDescricao` com texto não vazio indica anotação
 presente na unidade de origem. A tela só permite comprovar o **antes**.
-A prévia publica `anotacao_antes` sem converter ausência de observação em
-ausência de anotação. Leitura recusada é falha tipada, antes do autocomplete.
+A prévia publica `anotacao_antes` sem converter falha de leitura em ausência
+de anotação. Sem o link da tela de anotações, a remoção é recusada antes do
+autocomplete. Leitura recusada é falha tipada, antes do autocomplete.
 
-| Forma não observada | Subcódigo |
+| Falha de leitura | Erro (stderr) |
 | --- | --- |
-| Barra ilegível | `barra_de_anotacoes_nao_interpretada` |
-| Endereço de anotação inválido | `endereco_de_anotacoes_nao_reconhecido` |
-| Links de anotação repetidos | `links_de_anotacoes_repetidos` |
-| HTML de anotação ilegível | `tela_de_anotacoes_nao_interpretada` |
-| Formulário ausente | `formulario_de_anotacoes_ausente` |
-| Campo não publicado | `anotacao_nao_publicada` |
-| Identidade divergente | `anotacao_de_outro_processo` |
-| Campos repetidos | `campos_de_anotacao_repetidos` |
+| Barra ilegível | `ErroLinkDasAnotacoes::BarraDeAnotacoesNaoInterpretada` |
+| Endereço de anotação inválido | `ErroLinkDasAnotacoes::EnderecoDeAnotacoesNaoReconhecido` |
+| Links de anotação repetidos | `ErroLinkDasAnotacoes::LinksDeAnotacoesRepetidos` |
+| HTML de anotação ilegível | `ErroLeituraDaAnotacao::TelaDeAnotacoesNaoInterpretada` |
+| Formulário ausente | `ErroLeituraDaAnotacao::FormularioDeAnotacoesAusente` |
+| Campo não publicado | `ErroLeituraDaAnotacao::AnotacaoNaoPublicada` |
+| Identidade divergente | `ErroLeituraDaAnotacao::AnotacaoDeOutroProcesso` |
+| Campos repetidos | `ErroLeituraDaAnotacao::CamposDeAnotacaoRepetidos` |
 
-## Resposta e efeito incerto
+## Resposta e escrita não confirmada
 
 **Esperada**: 302 (não seguido) com `Location`
 `controlador.php?acao=arvore_visualizar…`, `acao_origem=procedimento_enviar`
@@ -204,12 +208,12 @@ não é o esperado. Qualquer outra
 | --- | --- | --- | --- |
 | Esperada | destino em `aberto_em` e unidade da sessão como pedido | 0 | `alterado: true` |
 | Não esperada | idem | 0 | `alterado: true`, `reconciliado_por_leitura: true`, `falha_do_envio` |
-| Qualquer | sem o destino | 1 | `escrita_nao_aplicada` / `envio_nao_aplicado` |
-| Qualquer | destino, mas a unidade da sessão diferente do pedido | 1 | `escrita_diferente_da_solicitada` / `situacao_da_origem_diferente_da_pedida_apos_envio` |
-| Qualquer | leitura falhou ou situação não lida | 3 | `efeito_incerto` / `efeito_incerto_no_envio` |
+| Qualquer | sem o destino | 1 | `EnvioNaoAplicado` |
+| Qualquer | destino, mas a unidade da sessão diferente do pedido | 1 | `SituacaoDaOrigemDiferenteDaPedidaAposEnvio` |
+| Qualquer | leitura falhou ou situação não lida | 1 | `NaoConfirmadoNoEnvio` |
 
 Quando o fallback já comprovou a limpeza e a releitura da tramitação falha,
-continua sendo saída 3, mas a saída humana e o JSON preservam o fato
+continua sendo saída 1, mas a saída humana e o JSON preservam o fato
 `anotacao_depois: false` (ausência relida antes de tentar enviar). Isso
 **não** significa que a tramitação tenha sido comprovada.
 
@@ -232,14 +236,19 @@ processo sai da unidade; voltar exige uma sessão na unidade de destino
  "origem": "web", "confirmado": false, "alterado": false,
  "manter_aberto": false,
  "destino": {"sigla": "TESTE_1_1", "descricao": "TESTE_1_1 - Unidade 1.1", "id_unidade": "110000002"},
- "aberto_em": ["TESTE"], "depois_esperado": ["TESTE_1_1"], "depois": null,
+ "aberto_em": ["TESTE"], "depois_esperado": ["TESTE_1_1"],
  "reconciliado_por_leitura": false, "requisicoes": 5}
 ```
 
-Nunca URL, `infra_hash` ou cookie. Falhas:
-`{"codigo", "subcodigo", "erro", "retentavel": false}` mais `aberto_em`,
-`oferecidos`, `candidatos`, `depois`, `falha_do_envio`, `verificacao` e
-`status_http` quando houver. A saída humana da prévia termina com "Para
+Na prévia não existe "depois": as chaves `depois` e `anotacao_depois` são
+omitidas. Após escrita confirmada (ou reconciliada por leitura) saem com
+valor.
+
+Nunca URL, `infra_hash` ou cookie. Falhas: saída 1, stdout vazio e
+`Error: <ErroEnviar::…>` em stderr; `aberto_em`, `oferecidos`,
+`candidatos`, `depois`, `falha_do_envio` e `verificacao` são campos dos
+erros que os observaram. Destino recusado pelo SEI sobe com o contexto
+`SugestoesGuardadas` quando o índice local tem siglas parecidas. A saída humana da prévia termina com "Para
 enviar, repita com --confirmar".
 
 ## Sequência e orçamento

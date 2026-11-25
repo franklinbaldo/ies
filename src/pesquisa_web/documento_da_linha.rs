@@ -3,27 +3,13 @@
 //! `id_documento`, e o nome e o número SEI do documento são
 //! `a.protocoloNormal` de `documento_visualizar` com o mesmo `id_documento`.
 //! Só essa forma é aceita; o documento não é publicado.
-use super::ErroResultadoPesquisa;
-use crate::erro_html::ErroHtml;
-use crate::html_atributos::valor_do_atributo;
+use crate::acao_do_sei::AcaoDoSei;
 
-/// Campos da consulta de um `href` `controlador.php?`, com a sobra `amp;`
-/// de `&amp;` removida depois de um separador (como na leitura do processo).
+/// Campos da consulta de um `href` `controlador.php?` já decodificado
+/// pela árvore: o `&amp;` do HTML chega como `&`.
 fn campos(href: &str) -> Option<Vec<&str>> {
     let consulta = href.strip_prefix("controlador.php?")?;
-    Some(
-        consulta
-            .split('&')
-            .enumerate()
-            .map(|(i, campo)| {
-                if i == 0 {
-                    campo
-                } else {
-                    campo.strip_prefix("amp;").unwrap_or(campo)
-                }
-            })
-            .collect(),
-    )
+    Some(consulta.split('&').collect())
 }
 
 /// O único valor de `nome`, decimal e não vazio.
@@ -45,7 +31,11 @@ pub(super) fn documento_visualizado(href: &str) -> Option<&str> {
         .iter()
         .filter_map(|c| c.strip_prefix("acao="))
         .collect();
-    if acoes != ["documento_visualizar"] {
+    if acoes
+        .into_iter()
+        .map(AcaoDoSei::ler)
+        .ne([Some(AcaoDoSei::DocumentoVisualizar)])
+    {
         return None;
     }
     unico_decimal(&campos, "id_documento")
@@ -59,21 +49,15 @@ pub(super) fn documento_do_processo(href: &str) -> Option<&str> {
 /// Separa os `a.protocoloNormal` da linha em candidatos a link do processo
 /// e `id_documento` dos links que só abrem um documento.
 pub(super) fn separar(
-    parser: &tl::Parser<'_>,
-    links: Vec<tl::NodeHandle>,
-) -> Result<(Vec<tl::NodeHandle>, Vec<String>), ErroResultadoPesquisa> {
+    links: Vec<crate::tela_html::Elemento<'_>>,
+) -> (Vec<crate::tela_html::Elemento<'_>>, Vec<String>) {
     let mut candidatos = Vec::new();
     let mut documentos = Vec::new();
-    for no in links {
-        let href = match no.get(parser).and_then(tl::Node::as_tag) {
-            Some(link) => valor_do_atributo(link, "href")
-                .map_err(|e| ErroHtml::atributo("html_de_pesquisa_nao_interpretado", e))?,
-            None => None,
-        };
-        match href.as_deref().and_then(documento_visualizado) {
+    for link in links {
+        match link.atributo("href").and_then(documento_visualizado) {
             Some(id) => documentos.push(id.to_owned()),
-            None => candidatos.push(no),
+            None => candidatos.push(link),
         }
     }
-    Ok((candidatos, documentos))
+    (candidatos, documentos)
 }

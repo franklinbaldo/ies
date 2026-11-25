@@ -2,6 +2,7 @@
 //! Contrato: docs/arquitetura/0002-submeter-formulario-observado.md.
 //! `action` aqui é o atributo do `<form>`, não um despachante genérico.
 mod ajax;
+mod campo_de_texto;
 mod codificacao;
 mod erro;
 mod guardada;
@@ -10,12 +11,13 @@ mod login;
 mod redirecionamento;
 mod unidade;
 
-use crate::html_atributos::{nos_com_id, nos_por_elemento_e_classe};
+use crate::acao_do_sei::{AcaoDaSubmissao, AcaoDoSei};
 use crate::instalacao::Instalacao;
 use crate::transporte::sessao::CookieDaSessao;
 use crate::transporte::validacao_da_infra::mensagem_de_validacao_da_infra;
-use crate::transporte::{FalhaTransporte, RespostaWeb, StatusHttpRecusado, decodificar_resposta};
+use crate::transporte::{FalhaTransporte, RespostaWeb, decodificar_resposta};
 pub(crate) use ajax::{ConsultaAjax, derivar_consulta_ajax};
+pub(crate) use campo_de_texto::CampoDeTexto;
 use codificacao::codificar;
 pub(crate) use codificacao::decodificar_atributo;
 pub(crate) use erro::ErroSubmissaoFormulario;
@@ -75,7 +77,7 @@ pub(crate) enum EnvioDoFormulario {
 /// Declaração `const` feita pela própria operação; não há catálogo central.
 #[derive(Debug)]
 pub(crate) struct OperacaoDeFormulario {
-    pub(crate) acao: &'static str,
+    pub(crate) acao: AcaoDoSei,
     pub(crate) formulario: &'static str,
     pub(crate) envio: EnvioDoFormulario,
     pub(crate) campos_ocultos_exigidos: &'static [&'static str],
@@ -129,7 +131,7 @@ pub(crate) enum CodificacaoDaTela {
 /// HTML e URL exata da mesma resposta, na mesma geração de sessão.
 pub(crate) struct TelaServida<'a> {
     pub(crate) url: &'a str,
-    pub(crate) html: &'a str,
+    pub(crate) html: &'a crate::tela_html::HtmlServido,
     pub(crate) codificacao: CodificacaoDaTela,
 }
 
@@ -138,7 +140,7 @@ pub(crate) struct SubmissaoDerivada {
     url: String,
     host: String,
     caminho: String,
-    acao: &'static str,
+    acao: AcaoDaSubmissao,
     referer: String,
     nomes: Vec<String>,
     corpo: Vec<u8>,
@@ -194,25 +196,32 @@ fn ordenar_campos<'c>(
     operacao: &OperacaoDeFormulario,
     campos: &'c [(&'c str, &'c str)],
 ) -> Result<Vec<(&'c str, &'c str)>, ErroSubmissaoFormulario> {
-    use ErroSubmissaoFormulario as E;
     let criado = match operacao.envio {
         EnvioDoFormulario::SubmitPorScriptComCampoCriado(campo) => Some(campo),
-        _ => None,
+        EnvioDoFormulario::BotaoDeEnvio(_)
+        | EnvioDoFormulario::SubmitPorScript
+        | EnvioDoFormulario::BotaoDesabilitadoPeloOnsubmit(_) => None,
     };
     for (i, (nome, _)) in campos.iter().enumerate() {
         let campo = (*nome).to_owned();
         if criado == Some(*nome) {
             if controles.iter().any(|c| c.nome() == *nome) {
-                return Err(E::CampoCriadoPeloScriptJaPublicado { campo });
+                return Err(ErroSubmissaoFormulario::CampoCriadoPeloScriptJaPublicado { campo });
             }
-            if campos[..i].iter().any(|(anterior, _)| anterior == nome) {
-                return Err(E::CampoInformadoMaisDeUmaVez { campo });
+            if campos.iter().take(i).any(|(anterior, _)| anterior == nome) {
+                return Err(ErroSubmissaoFormulario::CampoInformadoMaisDeUmaVez { campo });
             }
             continue;
         }
         let oculto = operacao.campos_ocultos_reescritos.contains(nome);
-        if !oculto && !operacao.campos_usuario.contains(nome) {
-            return Err(E::CampoForaDaListaDaOperacao { campo });
+        let usuario = operacao.campos_usuario.iter().any(|permitido| {
+            *permitido == *nome
+                || permitido
+                    .strip_suffix('*')
+                    .is_some_and(|prefixo| nome.starts_with(prefixo))
+        });
+        if !oculto && !usuario {
+            return Err(ErroSubmissaoFormulario::CampoForaDaListaDaOperacao { campo });
         }
         let publicados: Vec<_> = controles
             .iter()
@@ -223,15 +232,15 @@ fn ordenar_campos<'c>(
             })
             .collect();
         if publicados.is_empty() {
-            return Err(E::CampoNaoPublicadoPeloFormulario { campo });
+            return Err(ErroSubmissaoFormulario::CampoNaoPublicadoPeloFormulario { campo });
         }
         // Só um `<select multiple>` (e nenhum outro controle de mesmo nome)
         // admite o nome repetido; os valores vêm da operação.
         let multipla = publicados
             .iter()
             .all(|c| matches!(c, Controle::SelecaoMultipla(_)));
-        if !multipla && campos[..i].iter().any(|(anterior, _)| anterior == nome) {
-            return Err(E::CampoInformadoMaisDeUmaVez { campo });
+        if !multipla && campos.iter().take(i).any(|(anterior, _)| anterior == nome) {
+            return Err(ErroSubmissaoFormulario::CampoInformadoMaisDeUmaVez { campo });
         }
     }
     // Ordem do documento; um rádio com vários controles é emitido uma vez,
@@ -295,7 +304,7 @@ pub(crate) fn derivar_submissao(
     operacao: &OperacaoDeFormulario,
     instalacao: &Instalacao,
     tela: &TelaServida<'_>,
-    unidade_solicitada: &str,
+    unidade_solicitada: Option<&str>,
     campos: &[(&str, &str)],
 ) -> Result<SubmissaoDerivada, ErroSubmissaoFormulario> {
     derivar_submissao_com_action(operacao, instalacao, tela, unidade_solicitada, campos, None)
@@ -308,29 +317,31 @@ pub(crate) fn derivar_submissao_com_action(
     operacao: &OperacaoDeFormulario,
     instalacao: &Instalacao,
     tela: &TelaServida<'_>,
-    unidade_solicitada: &str,
+    unidade_solicitada: Option<&str>,
     campos: &[(&str, &str)],
     url_declarada: Option<&str>,
 ) -> Result<SubmissaoDerivada, ErroSubmissaoFormulario> {
-    use ErroSubmissaoFormulario as E;
     if operacao.efeito == EfeitoAvaliado::Desconhecido {
-        return Err(E::EfeitoDaOperacaoNaoAvaliado);
+        return Err(ErroSubmissaoFormulario::EfeitoDaOperacaoNaoAvaliado);
     }
     if tela.html.len() > crate::MAX_HTML_BYTES {
-        return Err(E::Transporte(FalhaTransporte::RespostaExcessiva));
+        return Err(ErroSubmissaoFormulario::Transporte(
+            FalhaTransporte::RespostaExcessiva,
+        ));
     }
-    let servida =
-        UrlHttps::interpretar(tela.url).ok_or(E::Transporte(FalhaTransporte::UrlInvalida))?;
+    let servida = UrlHttps::interpretar(tela.url).ok_or(ErroSubmissaoFormulario::Transporte(
+        FalhaTransporte::UrlInvalida,
+    ))?;
     if !instalacao.autoriza_controlador(servida.host, servida.caminho) {
-        return Err(E::Transporte(FalhaTransporte::OrigemNaoAutorizada));
+        return Err(ErroSubmissaoFormulario::Transporte(
+            FalhaTransporte::OrigemNaoAutorizada,
+        ));
     }
-    // tl só recusa entradas acima de u32::MAX bytes, já barradas acima.
-    let dom = tl::parse(tela.html, tl::ParserOptions::default())
-        .map_err(|_| E::Transporte(FalhaTransporte::RespostaExcessiva))?;
+    let dom = crate::tela_html::arvore(tela.html);
     match operacao.unidade {
         ConferenciaDaUnidade::NaTelaDoFormulario => conferir_unidade(&dom, unidade_solicitada)?,
         ConferenciaDaUnidade::NaTelaDeOrigemDoLink => {
-            if !nos_com_id(&dom, "lnkInfraUnidade")?.is_empty() {
+            if !dom.com_id("lnkInfraUnidade").collect::<Vec<_>>().is_empty() {
                 conferir_unidade(&dom, unidade_solicitada)?;
             }
         }
@@ -341,14 +352,14 @@ pub(crate) fn derivar_submissao_com_action(
         Some(url) => resolver_action_declarada(url, &servida, instalacao, operacao)?,
         None => resolver_action(form, &servida, instalacao, operacao)?,
     };
-    let controles = ler_controles(form, dom.parser(), operacao)?;
+    let controles = ler_controles(form, operacao)?;
     let ordenados = ordenar_campos(&controles, operacao, campos)?;
     let corpo = codificar_corpo(&ordenados, tela.codificacao)?;
     Ok(SubmissaoDerivada {
         url,
         host: servida.host.to_owned(),
         caminho: servida.caminho.to_owned(),
-        acao: operacao.acao,
+        acao: AcaoDaSubmissao::Controlador(operacao.acao),
         referer: tela.url.to_owned(),
         nomes: ordenados.iter().map(|(n, _)| (*n).to_owned()).collect(),
         corpo: corpo.into_bytes(),
@@ -402,7 +413,7 @@ impl fmt::Debug for Redirecionamento302 {
 /// HTML com o marcador da operação, ou 302 entregue à operação como dado.
 #[derive(Debug)]
 pub(crate) enum RespostaDoEnvio {
-    Html(String),
+    Html(crate::tela_html::HtmlServido),
     Redirecionamento(Redirecionamento302),
 }
 
@@ -418,7 +429,6 @@ pub(crate) fn enviar_submissao_via<R: Read, F>(
 where
     F: FnOnce(SubmissaoDerivada, &str) -> Result<RespostaDoPost<R>, FalhaTransporte>,
 {
-    use ErroSubmissaoFormulario as E;
     let cookie = cookie.valor()?;
     let resultado = submissao.resultado;
     let url_do_envio = submissao.url.clone();
@@ -433,16 +443,10 @@ where
             url_do_envio,
         }));
     }
-    let html = decodificar_resposta(resposta).map_err(|falha| match falha {
-        FalhaTransporte::PaginaDeLoginRecebidaNoControle => E::TelaDeLoginRecebidaAposEnvio,
-        outra => E::Transporte(outra),
-    })?;
+    let html = decodificar_resposta(resposta).map_err(ErroSubmissaoFormulario::da_resposta)?;
     // 200 com a validação da Infra: recusa do SEI, com ou sem marcador.
     if let Some(mensagem) = mensagem_de_validacao_da_infra(&html) {
-        return Err(E::ValidacaoRecusadaPeloSei(StatusHttpRecusado {
-            status: 200,
-            mensagem_do_servidor: Some(mensagem),
-        }));
+        return Err(ErroSubmissaoFormulario::ValidacaoRecusadaPeloSei(mensagem));
     }
     let marcadores: &[MarcadorDeResultado] = match &resultado {
         ResultadoDoEnvio::ConferidoPorLeituraPosterior => &[],
@@ -451,14 +455,17 @@ where
     };
     let mut marcado = resultado == ResultadoDoEnvio::ConferidoPorLeituraPosterior;
     if !marcadores.is_empty() {
-        let dom = tl::parse(&html, tl::ParserOptions::default())
-            .map_err(|_| E::Transporte(FalhaTransporte::RespostaExcessiva))?;
+        let dom = crate::tela_html::arvore(&html);
         for MarcadorDeResultado { elemento, classe } in marcadores {
-            marcado |= !nos_por_elemento_e_classe(&dom, None, elemento, classe)?.is_empty();
+            marcado |= !dom
+                .elementos(elemento)
+                .filter(|elemento| elemento.tem_classe(classe))
+                .collect::<Vec<_>>()
+                .is_empty();
         }
     }
     if !marcado {
-        return Err(E::MarcadorDeResultadoAusenteNaResposta);
+        return Err(ErroSubmissaoFormulario::MarcadorDeResultadoAusenteNaResposta);
     }
     Ok(RespostaDoEnvio::Html(html))
 }

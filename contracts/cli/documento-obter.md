@@ -42,11 +42,11 @@ Não presumir essa oferta em instalações que não a apresentam.
 
 ## Falhas e evidências
 
-O shim de entrada interpreta `DOC` como número SEI composto apenas por\ndígitos ASCII, preserva zeros à esquerda e não consulta a instalação.\nEntrada inválida retorna `entrada_invalida` com subcódigo tipado e saída 2.
+O shim de entrada interpreta `DOC` como número SEI composto apenas por\ndígitos ASCII, preserva zeros à esquerda e não consulta a instalação.\nEntrada inválida é erro do clap, saída 2, antes de qualquer arquivo ou rede.
 
 Espaços externos comuns podem ser aparados. Caracteres de controle
 (CR, LF, tab ou outros), **inclusive nas extremidades da entrada
-original**, são recusados com variante Rust `Controle` e subcódigo
+original**, são recusados com o erro `Controle` e subcódigo
 `numero_documento_controle`, antes de qualquer normalização.
 Caracteres não ASCII/dígitos misturados continuam retornando
 `numero_documento_nao_numerico`; nunca converter números Unicode.\nUma entrada válida segue para a [leitura Web](documento-obter-web.md),
@@ -93,7 +93,7 @@ do fluxo Web implementado em `ies documento DOC`.
 
 A tabela de versões só pode ter **uma legenda `caption`**. Mesmo que
 ambas declarem o mesmo total, duas legendas são ambíguas e o parser
-falha com a variante Rust `LegendasDoHistoricoRepetidas` e subcódigo
+falha com o erro `LegendasDoHistoricoRepetidas` e subcódigo
 `legendas_historico_versoes_repetidas`. Não escolher a primeira legenda
 para certificar cobertura, sobretudo se uma legenda externa preceder
 `Lista de Versões`. A contagem continua confrontada às linhas
@@ -107,11 +107,11 @@ Exige arquivo regular privado (0600 no Unix), não segue symlink final
 no Linux, limita a 8 MB e aplica o mesmo leitor seguro de arquivos
 da sessão. Exige número SEI exato, inclusive zeros à esquerda; título
 único SEI e texto visível do corpo, sem `script`, `style` ou `iframe`.
-Erros de fonte, título, conteúdo e número diferente são variantes Rust
+Erros de fonte, título, conteúdo e número diferente são erros tipados
 com subcódigos próprios; falhas não expõem HTML nem tokens.
 
-A saída é `escopo: html_privado_offline`, `autenticacao_remota: false`
-e `versao_atual: null`. Não afirmar atualidade, assinatura, integridade
+A saída é `escopo: html_privado_offline`, `autenticacao_remota: false`,
+sem a chave `versao_atual`. Não afirmar atualidade, assinatura, integridade
 criptográfica, identidade da sessão nem versão do documento. Opções
 remotas como `--versao` ou `--com-propriedades` são recusadas
 no modo local, assim como vários DOCs (um arquivo só). Sem
@@ -129,8 +129,8 @@ Não cria diretórios, não altera o HTML capturado e nunca faz requisições
 ao SEI. Um erro de gravação é tipado e não publica conteúdo.
 
 Na exportação, a saída JSON informa documento, escopo
-`html_privado_texto_exportado_offline`, bytes e
-`versao_atual: null`, mas **não** devolve o texto no terminal.
+`html_privado_texto_exportado_offline`, bytes, sem
+`versao_atual`, mas **não** devolve o texto no terminal.
 Sem `--saida`, permanece a leitura offline de texto existente.
 A `--saida DIR` da [leitura Web](documento-obter-web.md) não grava
 `DOC.txt`: grava a foto `DOC.vN.html` (#207).
@@ -170,7 +170,7 @@ Nenhum acesso Web é acrescentado.
 
 Na leitura `--html-privado`, somente conteúdo executável presente na
 árvore **visível** do `body` (`script`, `style`, `iframe` ou `noscript`)
-recusa a extração com a variante Rust já tipada
+recusa a extração com o erro tipado
 `ErroCorpoDocumento::CorpoComConteudoExecutavel`.
 Um `script` ou `iframe` alojado exclusivamente em `template`/`svg`
 ignorados não invalida um parágrafo visível legítimo nem vaza o
@@ -186,7 +186,7 @@ sem `head`; preservar essa possibilidade de replay local. Porém um
 `title` presente **somente** em `body`, `svg` ou `template` não
 identifica o documento SEI, ainda que seu texto pareça um título
 `SEI/instalação - DOC - Tipo`. Nessa situação a função de identidade
-falha com a variante tipada existente `ErroTituloDocumento::TituloAusente`,
+falha com o erro tipado existente `ErroTituloDocumento::TituloDocumentoAusente`,
 sem exportar conteúdo ou inferir documento pelo corpo. Dois títulos
 externos válidos seguem rejeitados por `TitulosDeDocumentoRepetidos`.
 A regra não abre URLs, não consulta a instalação, não modifica a

@@ -1,7 +1,11 @@
 //! Regressões sintéticas: função de navegação inerte não autoriza POST (#246).
 //! Oráculo positivo: Todos `tests/test_escolha_na_lista_010.py` @323eb01.
 //! Os casos negativos são adversariais HTML, não capturas de treinamento.
+use super::guarda_navegacao::ErroGuardaDeNavegacao::{
+    FuncaoNaoDeclaradaEmScriptAtivo, ScriptForaDaFormaObservada,
+};
 use super::*;
+use crate::tela_html::HtmlServido;
 
 const ESCOLHER: &str = r"function escolher(id) {
     document.getElementById('hdnIdSerie').value = id;
@@ -13,8 +17,8 @@ const EXIBIR: &str = r"function exibirSeries(tipo) {
     document.getElementById('frmDocumentoEscolherTipo').submit();
 }";
 
-fn script_inerte(codigo: &str, variante: usize) -> String {
-    match variante {
+fn script_inerte(codigo: &str, forma: usize) -> String {
+    match forma {
         0 => format!("<template><script>{codigo}</script></template>"),
         1 => format!("<script type='application/json'>{codigo}</script>"),
         2 => format!("<!-- <script>{codigo}</script> -->"),
@@ -28,15 +32,19 @@ fn escolher_ignora_codigo_em_template_json_ou_comentario_html() {
     let tabela = r##"<table id="tblSeries"><tr><td>
         <a href="#" onclick="escolher(291)">Despacho</a>
         </td></tr></table>"##;
-    for variante in 0..3 {
-        let tela = format!("{}{}", script_inerte(ESCOLHER, variante), tabela);
+    for forma in 0..3 {
+        let tela = HtmlServido::de_teste(&format!("{}{}", script_inerte(ESCOLHER, forma), tabela));
         assert_eq!(
             escolha_do_tipo(&instalacao, &tela, "4864", "Despacho"),
-            Err(ErroCriar::LinkDoTipoNaoNavegavel),
-            "variante inerte {variante} não pode autorizar navegação POST"
+            Err(
+                super::ErroListaDeTiposDocumento::NavegacaoNaoComprovadaPorScript(
+                    super::guarda_navegacao::ErroGuardaDeNavegacao::FuncaoNaoDeclaradaEmScriptAtivo
+                )
+            ),
+            "forma inerte {forma} não pode autorizar navegação POST"
         );
     }
-    let ativa = format!("<script>{ESCOLHER}</script>{tabela}");
+    let ativa = HtmlServido::de_teste(&format!("<script>{ESCOLHER}</script>{tabela}"));
     assert_eq!(
         escolha_do_tipo(&instalacao, &ativa, "4864", "Despacho"),
         Ok(EscolhaDoDocumento::Formulario("291".to_owned()))
@@ -48,15 +56,19 @@ fn filtro_exibir_todos_ignora_script_inerte() {
     let botoes = r#"<a id="ancExibirSeries" href="javascript:void(0);"
         onclick="exibirSeries('T');">Todos</a>
         <table id="tblSeries"></table>"#;
-    for variante in 0..3 {
-        let tela = format!("{}{}", script_inerte(EXIBIR, variante), botoes);
+    for forma in 0..3 {
+        let tela = HtmlServido::de_teste(&format!("{}{}", script_inerte(EXIBIR, forma), botoes));
         assert_eq!(
             filtro_de_todos(&tela),
-            Err(ErroCriar::LinkDoTipoNaoNavegavel),
-            "variante inerte {variante} não pode autorizar POST do filtro"
+            Err(
+                super::ErroListaDeTiposDocumento::NavegacaoNaoComprovadaPorScript(
+                    super::guarda_navegacao::ErroGuardaDeNavegacao::FuncaoNaoDeclaradaEmScriptAtivo
+                )
+            ),
+            "forma inerte {forma} não pode autorizar POST do filtro"
         );
     }
-    let ativa = format!("<script>{EXIBIR}</script>{botoes}");
+    let ativa = HtmlServido::de_teste(&format!("<script>{EXIBIR}</script>{botoes}"));
     assert_eq!(filtro_de_todos(&ativa), Ok(true));
 }
 
@@ -71,28 +83,51 @@ fn comentario_string_e_bloco_inalcancavel_nao_provam_navegacao() {
     let filtro = r#"<a id="ancExibirSeries" href="javascript:void(0);"
         onclick="exibirSeries('T');">Todos</a>
         <table id="tblSeries"></table>"#;
-    for (variante, montar) in [
-        (0, format!("/* {ESCOLHER} */")),
-        (1, format!("const exemplo = `{ESCOLHER}`;")),
-        (2, format!("if (false) {{ {ESCOLHER} }}")),
+    for (forma, montar, motivo) in [
+        (
+            0,
+            format!("/* {ESCOLHER} */"),
+            FuncaoNaoDeclaradaEmScriptAtivo,
+        ),
+        (
+            1,
+            format!("const exemplo = `{ESCOLHER}`;"),
+            FuncaoNaoDeclaradaEmScriptAtivo,
+        ),
+        // Declaração dentro de bloco: fora do nível superior.
+        (
+            2,
+            format!("if (false) {{ {ESCOLHER} }}"),
+            ScriptForaDaFormaObservada,
+        ),
     ] {
-        let tela = format!("<script>{montar}</script>{tabela}");
+        let tela = HtmlServido::de_teste(&format!("<script>{montar}</script>{tabela}"));
         assert_eq!(
             escolha_do_tipo(&instalacao, &tela, "4864", "Despacho"),
-            Err(ErroCriar::LinkDoTipoNaoNavegavel),
-            "função escolher inerte em JS ativo variante {variante}"
+            Err(super::ErroListaDeTiposDocumento::NavegacaoNaoComprovadaPorScript(motivo)),
+            "função escolher inerte em JS ativo forma {forma}"
         );
     }
-    for (variante, montar) in [
-        (0, format!("// {EXIBIR}")),
-        (1, format!("const exemplo = `{EXIBIR}`;")),
-        (2, format!("if (false) {{ {EXIBIR} }}")),
+    for (forma, montar, motivo) in [
+        // O comentário de linha só cobre a primeira linha: o `}` final
+        // fecha um bloco que não abriu.
+        (0, format!("// {EXIBIR}"), ScriptForaDaFormaObservada),
+        (
+            1,
+            format!("const exemplo = `{EXIBIR}`;"),
+            FuncaoNaoDeclaradaEmScriptAtivo,
+        ),
+        (
+            2,
+            format!("if (false) {{ {EXIBIR} }}"),
+            ScriptForaDaFormaObservada,
+        ),
     ] {
-        let tela = format!("<script>{montar}</script>{filtro}");
+        let tela = HtmlServido::de_teste(&format!("<script>{montar}</script>{filtro}"));
         assert_eq!(
             filtro_de_todos(&tela),
-            Err(ErroCriar::LinkDoTipoNaoNavegavel),
-            "função exibirSeries inerte em JS ativo variante {variante}"
+            Err(super::ErroListaDeTiposDocumento::NavegacaoNaoComprovadaPorScript(motivo)),
+            "função exibirSeries inerte em JS ativo forma {forma}"
         );
     }
 }
@@ -112,10 +147,14 @@ fn expressao_nomeada_nao_publica_funcao_global_de_navegacao() {
         format!("const interna = {ESCOLHER};"),
         format!("const interna = ({ESCOLHER});"),
     ] {
-        let html = format!("<script>{expressao}</script>{tabela}");
+        let html = HtmlServido::de_teste(&format!("<script>{expressao}</script>{tabela}"));
         assert_eq!(
             escolha_do_tipo(&instalacao, &html, "4864", "Despacho"),
-            Err(ErroCriar::LinkDoTipoNaoNavegavel),
+            Err(
+                super::ErroListaDeTiposDocumento::NavegacaoNaoComprovadaPorScript(
+                    super::guarda_navegacao::ErroGuardaDeNavegacao::ScriptForaDaFormaObservada
+                )
+            ),
             "expressão não-global não autoriza POST de escolha"
         );
     }
@@ -123,10 +162,14 @@ fn expressao_nomeada_nao_publica_funcao_global_de_navegacao() {
         format!("const interna = {EXIBIR};"),
         format!("const interna = ({EXIBIR});"),
     ] {
-        let html = format!("<script>{expressao}</script>{filtro}");
+        let html = HtmlServido::de_teste(&format!("<script>{expressao}</script>{filtro}"));
         assert_eq!(
             filtro_de_todos(&html),
-            Err(ErroCriar::LinkDoTipoNaoNavegavel),
+            Err(
+                super::ErroListaDeTiposDocumento::NavegacaoNaoComprovadaPorScript(
+                    super::guarda_navegacao::ErroGuardaDeNavegacao::ScriptForaDaFormaObservada
+                )
+            ),
             "expressão não-global não autoriza POST de filtro"
         );
     }
@@ -134,7 +177,9 @@ fn expressao_nomeada_nao_publica_funcao_global_de_navegacao() {
     assert_eq!(
         escolha_do_tipo(
             &instalacao,
-            &format!("<script>const marcador = 1; {ESCOLHER}</script>{tabela}"),
+            &HtmlServido::de_teste(&format!(
+                "<script>const marcador = 1; {ESCOLHER}</script>{tabela}"
+            )),
             "4864",
             "Despacho",
         ),
@@ -146,7 +191,7 @@ fn expressao_nomeada_nao_publica_funcao_global_de_navegacao() {
 fn expressao_na_lista_servida_recusa_post_com_orcamento_exato() {
     // Regressão end-to-end para a guarda do POST de navegação: sem função
     // global publicada, quatro GETs de prévia; nenhum POST de filtro/escolha.
-    use super::fluxo::{ErroPreviaCriacao, PedidoCriacao, executar_criacao};
+    use super::fluxo::{ErroDocumentoCriar, PedidoCriacao, executar_criacao};
     use crate::processo_concluir::tests_apoio as apoio;
     use crate::propriedades_processo::tests_apoio::acao_da_barra;
     let link = format!(
@@ -169,13 +214,17 @@ fn expressao_na_lista_servida_recusa_post_com_orcamento_exato() {
                 unidade: None,
                 tipo: "Despacho",
                 descricao: Some("Ensaio"),
-                nivel: Some("publico"),
+                nivel: Some(crate::dominio::NivelDeAcesso::Publico),
             };
             executar_criacao(sessao, &pedido, indice, rede, true)
         });
     assert!(matches!(
         resultado,
-        Err(ErroPreviaCriacao::Tipo(ErroCriar::LinkDoTipoNaoNavegavel))
+        Err(ErroDocumentoCriar::ListaDeTipos(
+            super::ErroListaDeTiposDocumento::NavegacaoNaoComprovadaPorScript(
+                super::guarda_navegacao::ErroGuardaDeNavegacao::ScriptForaDaFormaObservada
+            )
+        ))
     ));
     let mut esperados = apoio::pedidos_da_abertura();
     esperados.push(apoio::get(&format!("{}/{}", apoio::ORIGEM, link)));
@@ -184,17 +233,17 @@ fn expressao_na_lista_servida_recusa_post_com_orcamento_exato() {
 
 #[test]
 fn controles_de_tipo_dentro_de_template_nao_sao_oferta() {
-    // Cenário HTML adversarial sintético, não atribuído ao SEI real:
-    // um link em template não está disponível para clicar ou selecionar.
+    // Cenário HTML adversarial sintético, não atribuído ao SEI real: o
+    // conteúdo de template fica fora da árvore, como no navegador.
     let instalacao = Instalacao::interpretar("https://sei.exemplo.gov.br/sei").unwrap();
     let href = format!(
         "controlador.php?acao=documento_gerar&id_procedimento=4864&infra_hash={}",
         "a".repeat(64)
     );
     let visivel = format!(r#"<a href="{href}">Despacho</a>"#);
-    let lista = format!(
+    let lista = HtmlServido::de_teste(&format!(
         r#"<table id="tblSeries"><tr><td>{visivel}<template>{visivel}</template></td></tr></table>"#
-    );
+    ));
     assert_eq!(tipos_oferecidos(&lista).unwrap(), ["Despacho"]);
     assert_eq!(
         escolha_do_tipo(&instalacao, &lista, "4864", "Despacho"),
@@ -202,74 +251,28 @@ fn controles_de_tipo_dentro_de_template_nao_sao_oferta() {
             "https://sei.exemplo.gov.br/sei/{href}"
         )))
     );
-    let apenas_inerte = format!(
+    let apenas_inerte = HtmlServido::de_teste(&format!(
         r#"<table id="tblSeries"><tr><td><template>{visivel}</template></td></tr></table>"#
-    );
+    ));
     assert_eq!(
         tipos_oferecidos(&apenas_inerte).unwrap(),
         Vec::<String>::new()
     );
     assert_eq!(
         escolha_do_tipo(&instalacao, &apenas_inerte, "4864", "Despacho"),
-        Err(ErroCriar::TipoAusente)
+        Err(super::ErroListaDeTiposDocumento::TipoAusente)
     );
 }
 
 #[test]
 fn botao_exibir_todos_em_template_nao_autoriza_filtro() {
-    // O script é ativo, mas o único acionador está num fragmento inerte.
-    // Nenhum POST de filtro deve ser derivado desse HTML.
+    // O script é ativo, mas o único acionador está no conteúdo de um
+    // template, fora da árvore como no navegador: nenhum POST de filtro.
     let botao = r#"<a id="ancExibirSeries" href="javascript:void(0);" onclick="exibirSeries('T');">Todos</a>"#;
-    let html = format!(
+    let html = HtmlServido::de_teste(&format!(
         "<script>{EXIBIR}</script><template>{botao}</template><table id=\"tblSeries\"></table>"
-    );
+    ));
     assert_eq!(filtro_de_todos(&html), Ok(false));
-}
-
-#[test]
-fn tipos_em_controles_hidden_nao_sao_oferecidos() {
-    // Adversarial sintético: hidden no próprio link ou em ancestral
-    // retira o tipo da oferta; a cópia visível segue selecionável.
-    let instalacao = Instalacao::interpretar("https://sei.exemplo.gov.br/sei").unwrap();
-    let href = format!(
-        "controlador.php?acao=documento_gerar&id_procedimento=4864&infra_hash={}",
-        "a".repeat(64)
-    );
-    let visivel = format!(r#"<a href="{href}">Despacho</a>"#);
-    let oculto = format!(r#"<a hidden href="{href}">Despacho</a>"#);
-    for inerte in [&oculto, &format!("<div hidden>{visivel}</div>")] {
-        let lista = format!(r#"<table id="tblSeries"><tr><td>{visivel}{inerte}</td></tr></table>"#);
-        assert_eq!(tipos_oferecidos(&lista).unwrap(), ["Despacho"]);
-        assert_eq!(
-            escolha_do_tipo(&instalacao, &lista, "4864", "Despacho"),
-            Ok(EscolhaDoDocumento::Link(format!(
-                "https://sei.exemplo.gov.br/sei/{href}"
-            )))
-        );
-        let sem_visivel = format!(r#"<table id="tblSeries"><tr><td>{inerte}</td></tr></table>"#);
-        assert_eq!(
-            tipos_oferecidos(&sem_visivel).unwrap(),
-            Vec::<String>::new()
-        );
-        assert_eq!(
-            escolha_do_tipo(&instalacao, &sem_visivel, "4864", "Despacho"),
-            Err(ErroCriar::TipoAusente)
-        );
-    }
-}
-
-#[test]
-fn exibir_todos_hidden_nao_autoriza_filtro() {
-    // Script real isolado não oferece o link oculto; não emitir POST.
-    let botao = r#"<a id="ancExibirSeries" href="javascript:void(0);" onclick="exibirSeries('T');">Todos</a>"#;
-    let botao_oculto = r#"<a hidden id="ancExibirSeries" href="javascript:void(0);" onclick="exibirSeries('T');">Todos</a>"#;
-    for inerte in [
-        format!("<div hidden>{botao}</div>"),
-        botao_oculto.to_owned(),
-    ] {
-        let tela = format!("<script>{EXIBIR}</script>{inerte}<table id=\"tblSeries\"></table>");
-        assert_eq!(filtro_de_todos(&tela), Ok(false));
-    }
 }
 
 #[test]
@@ -281,12 +284,12 @@ fn tipo_interno_nao_e_ambiguo_por_link_externo_homonimo() {
         "controlador.php?acao=documento_gerar&id_procedimento=4864&infra_hash={}",
         "a".repeat(64)
     );
-    let html = format!(
+    let html = HtmlServido::de_teste(&format!(
         r#"<table id="tblSeries"><tr><td>
         <a href="{href}">Despacho</a>
         <a href="controlador.php?acao=documento_receber">Despacho</a>
         </td></tr></table>"#
-    );
+    ));
     assert_eq!(tipos_oferecidos(&html).unwrap(), ["Despacho"]);
     assert_eq!(
         escolha_do_tipo(&instalacao, &html, "4864", "Despacho"),

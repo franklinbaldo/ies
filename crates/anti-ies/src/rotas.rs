@@ -1,9 +1,11 @@
 //! Rotas HTTP da simulação; um estado SQLite compartilhado entre capacidades.
 use crate::{
     Resposta, arvore_compartilhada, controlar, documento_arvore, documento_cancelar,
-    documento_versoes, documentos, editor_documento, eh_controlador_sei, parametro_unico,
-    pdf_externo, pesquisa_documento, processo_criacao, processo_envio, processo_relacionar,
-    retorno_programado,
+    documento_ciencia, documento_versoes, documentos, editor_documento, eh_controlador_sei,
+    nivel_de_detalhe, parametro_unico, pdf_externo, pesquisa_documento, prazo_processo,
+    processo_andamento, processo_anexacao, processo_atribuicao, processo_ciencia, processo_criacao,
+    processo_envio, processo_marcadores, processo_relacionar, processo_sobrestamento,
+    retorno_programado, validacao_acesso,
 };
 use iesei::acesso_sessao::{self, AcessoSessao};
 use iesei::instalacao::Instalacao;
@@ -70,7 +72,10 @@ fn trabalhar_protocolo(
 }
 
 /// Resolve uma única operação a partir do estado da instalação e do cenário.
-#[allow(clippy::too_many_lines)] // Despachante de ações HTTP: cada capacidade permanece em módulo próprio.
+#[expect(
+    clippy::too_many_lines,
+    reason = "Despachante de ações HTTP: cada capacidade permanece em módulo próprio"
+)]
 pub(crate) fn responder(
     metodo: &str,
     alvo: &str,
@@ -99,6 +104,9 @@ pub(crate) fn responder(
         return Resposta::nova(crate::Estado::RequisicaoInvalida);
     };
     match parametro_unico(alvo, "acao") {
+        Some("usuario_validar_acesso") if eh_controlador_sei(alvo) => {
+            validacao_acesso::responder(metodo, alvo, corpo, banco, instalacao, cenario)
+        }
         Some("procedimento_enviar" | "anotacao_registrar") if eh_controlador_sei(alvo) => {
             processo_envio::responder(metodo, alvo, corpo, banco, instalacao, cenario)
         }
@@ -106,6 +114,9 @@ pub(crate) fn responder(
             == Some("unidade_auto_completar_envio_processo") =>
         {
             processo_envio::autocompletar(metodo, alvo, corpo, banco, instalacao, cenario)
+        }
+        Some("procedimento_configurar_detalhe") if eh_controlador_sei(alvo) => {
+            nivel_de_detalhe::responder(metodo, corpo, banco, instalacao, cenario)
         }
         Some("procedimento_controlar") if eh_controlador_sei(alvo) => {
             processo_criacao::controle_com_menu(metodo, alvo, banco, instalacao, cenario)
@@ -116,17 +127,71 @@ pub(crate) fn responder(
         Some("procedimento_alterar" | "procedimento_consultar") if eh_controlador_sei(alvo) => {
             processo_criacao::propriedades(metodo, alvo, banco, instalacao, cenario)
         }
-        Some("procedimento_relacionar") if eh_controlador_sei(alvo) => {
-            processo_relacionar::responder(metodo, alvo, banco, instalacao, cenario)
+        Some("procedimento_consultar_historico" | "procedimento_atualizar_andamento")
+            if eh_controlador_sei(alvo) =>
+        {
+            processo_andamento::responder(metodo, alvo, corpo, banco, instalacao, cenario)
+        }
+        Some("acompanhamento_gerenciar" | "acompanhamento_excluir") if eh_controlador_sei(alvo) => {
+            crate::processo_acompanhar::responder(metodo, alvo, corpo, banco, instalacao, cenario)
+        }
+        Some("comentario_listar" | "comentario_cadastrar") if eh_controlador_sei(alvo) => {
+            crate::processo_comentarios::responder(metodo, alvo, corpo, banco, instalacao, cenario)
+        }
+        Some("procedimento_anexar") if eh_controlador_sei(alvo) => {
+            processo_anexacao::responder(metodo, alvo, corpo, banco, instalacao, cenario)
+        }
+        None if parametro_unico(alvo, "acao_ajax") == Some("procedimento_anexacao_verificar") => {
+            processo_anexacao::consulta(metodo, alvo, corpo, banco, instalacao, cenario)
+        }
+        Some("procedimento_sobrestar" | "procedimento_remover_sobrestamento")
+            if eh_controlador_sei(alvo) =>
+        {
+            processo_sobrestamento::responder(metodo, alvo, corpo, banco, instalacao, cenario)
+        }
+        Some(
+            "andamento_marcador_gerenciar"
+            | "andamento_marcador_remover"
+            | "andamento_marcador_cadastrar",
+        ) if eh_controlador_sei(alvo) => {
+            processo_marcadores::responder(metodo, alvo, corpo, banco, instalacao, cenario)
+        }
+        Some("procedimento_atribuicao_cadastrar") if eh_controlador_sei(alvo) => {
+            processo_atribuicao::responder(metodo, alvo, corpo, banco, instalacao, cenario)
+        }
+        Some("controle_prazo_definir") if eh_controlador_sei(alvo) => {
+            prazo_processo::responder(metodo, alvo, corpo, banco, instalacao, cenario)
+        }
+        Some("controle_prazo_listar" | "controle_prazo_excluir") if eh_controlador_sei(alvo) => {
+            prazo_processo::responder_lista(metodo, alvo, corpo, banco, instalacao, cenario)
+        }
+        Some("procedimento_relacionar" | "procedimento_excluir_relacionamento")
+            if eh_controlador_sei(alvo) =>
+        {
+            processo_relacionar::responder(metodo, alvo, corpo, banco, instalacao, cenario)
         }
         None if parametro_unico(alvo, "acao_ajax") == Some("protocolo_RI1023") => {
-            processo_relacionar::consulta(metodo, alvo, corpo, banco, instalacao, cenario)
+            processo_anexacao::identificar(metodo, alvo, corpo, banco, instalacao, cenario)
+                .unwrap_or_else(|| {
+                    processo_relacionar::consulta(metodo, alvo, corpo, banco, instalacao, cenario)
+                })
         }
         Some("protocolo_pesquisar") if eh_controlador_sei(alvo) => {
             pesquisa_documento::responder_pesquisa(metodo, alvo, corpo, banco, instalacao, cenario)
         }
         Some("protocolo_pesquisa_rapida") if eh_controlador_sei(alvo) => {
             pesquisa_documento::responder(metodo, alvo, corpo, banco, instalacao, cenario)
+        }
+        Some("bloco_assinatura_listar" | "bloco_interno_listar" | "bloco_reuniao_listar")
+            if eh_controlador_sei(alvo) =>
+        {
+            crate::blocos::responder(metodo, alvo, corpo, banco, instalacao, cenario)
+        }
+        Some("bloco_escolher") if eh_controlador_sei(alvo) => {
+            crate::bloco_escolher::responder(metodo, alvo, corpo, banco, instalacao, cenario)
+        }
+        Some("rel_bloco_protocolo_listar") if eh_controlador_sei(alvo) => {
+            crate::bloco_detalhe::responder(metodo, alvo, banco, instalacao, cenario)
         }
         Some("retorno_programado_listar") => {
             retorno_programado(metodo, alvo, banco, instalacao, cenario)
@@ -143,15 +208,38 @@ pub(crate) fn responder(
         Some("documento_gerar") if eh_controlador_sei(alvo) => {
             documentos::atender(metodo, alvo, corpo, banco, instalacao, cenario)
         }
-        Some("arvore_visualizar") if eh_controlador_sei(alvo) => pdf_externo::complementar_arvore(
-            documentos::atender(metodo, alvo, corpo, banco, instalacao, cenario),
-            alvo,
-            banco,
-            instalacao,
-            cenario,
-        ),
+        Some("arvore_visualizar") if eh_controlador_sei(alvo) => {
+            processo_sobrestamento::tela(metodo, alvo, banco, instalacao, cenario)
+                .or_else(|| processo_ciencia::tela(metodo, alvo, banco, instalacao, cenario))
+                .or_else(|| documento_ciencia::tela(metodo, alvo, banco, instalacao, cenario))
+                .unwrap_or_else(|| {
+                    pdf_externo::complementar_arvore(
+                        documentos::atender(metodo, alvo, corpo, banco, instalacao, cenario),
+                        alvo,
+                        banco,
+                        instalacao,
+                        cenario,
+                    )
+                })
+        }
         Some("procedimento_trabalhar")
-            if eh_controlador_sei(alvo) && parametro_unico(alvo, "id_documento").is_some() =>
+            if eh_controlador_sei(alvo)
+                // Duplicacao ou vazio de protocolo/processo nao equivalem a ausencia.
+                // Validar antes de qualquer ramo que possa escolher outra rota.
+                && ["id_protocolo", "id_procedimento"]
+                    .iter()
+                    .any(|nome| documento_versoes::parametro(alvo, nome).is_err()) =>
+        {
+            Resposta::nova(crate::Estado::RequisicaoInvalida)
+        }
+        Some("procedimento_trabalhar")
+            if eh_controlador_sei(alvo)
+                // Identidade documental inválida também deve chegar ao
+                // validador, nunca cair silenciosamente na rota de processo.
+                && !matches!(
+                    documento_arvore::identidade_documental(alvo, true),
+                    Ok(None)
+                ) =>
         {
             documento_arvore::responder(metodo, alvo, banco, instalacao, cenario)
         }
@@ -169,6 +257,17 @@ pub(crate) fn responder(
             if eh_controlador_sei(alvo) && parametro_unico(alvo, "id_protocolo").is_some() =>
         {
             trabalhar_protocolo(metodo, alvo, corpo, banco, instalacao, cenario)
+        }
+        Some("procedimento_ciencia") if eh_controlador_sei(alvo) => {
+            processo_ciencia::responder(metodo, alvo, banco, instalacao, cenario)
+        }
+        Some("protocolo_ciencia_listar")
+            if eh_controlador_sei(alvo) && parametro_unico(alvo, "id_documento").is_none() =>
+        {
+            processo_ciencia::responder(metodo, alvo, banco, instalacao, cenario)
+        }
+        Some("documento_ciencia" | "protocolo_ciencia_listar") if eh_controlador_sei(alvo) => {
+            documento_ciencia::responder(metodo, alvo, banco, instalacao, cenario)
         }
         Some("documento_cancelar") if eh_controlador_sei(alvo) => {
             documento_cancelar::responder(metodo, alvo, corpo, banco, instalacao, cenario)

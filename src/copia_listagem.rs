@@ -8,18 +8,11 @@ use crate::foto_documento::nome;
 use serde::Serialize;
 use std::path::Path;
 
-#[derive(Debug, Clone, Copy, PartialEq, Eq, crate::erro_publico::Causa)]
+#[derive(Debug, Clone, PartialEq, Eq, thiserror::Error)]
+#[error("{self:?}")]
 pub(crate) enum ErroListagem {
-    #[causa(nome = "limite_copias_locais")]
     LimiteDeCopias,
-    #[causa(interna)]
-    CopiaInvalida(ErroCopia),
-}
-
-impl ErroListagem {
-    pub(crate) fn subcodigo(self) -> &'static str {
-        crate::erro_publico::folha(&self)
-    }
+    CopiaInvalida(#[from] ErroCopia),
 }
 
 /// Uma versão local, sem o conteúdo.
@@ -105,9 +98,7 @@ mod testes {
         fs::write(pasta.join("0007.v02.html"), "outro").unwrap();
         assert_eq!(
             listar_com(&pasta, "0007"),
-            Err(ErroListagem::CopiaInvalida(ErroCopia::Html(
-                crate::erro_html::ErroHtml::repetido("versao_local_repetida")
-            )))
+            Err(ErroListagem::CopiaInvalida(ErroCopia::VersaoLocalRepetida))
         );
         fs::remove_dir_all(&pasta).unwrap();
         let pasta = crate::foto_documento::tests::pasta();

@@ -29,68 +29,105 @@ publica URL assinada, cookie ou `infra_hash`.
 - Se o id não consta da lista completa, retirar também é idempotente,
   saída 0, sem escrita. Se o mesmo id tem nome diferente, recusa.
 - Se está presente e o pedido é retirar, produz **prévia** com a unidade,
-  id, nome e `requisicoes` realmente contadas. `--confirmar` recusa
-  `remocao_sem_formulario_observado`: **nenhum POST**.
-- Se está ausente e o pedido é atribuir, recusa
-  `catalogo_da_unidade_nao_observado`, pois não basta o marcador não
-  existir **no processo** para provar que ele existe **na unidade**.
+  id, nome e `requisicoes` realmente contadas, sem POST. Em origem autorizada
+  de treinamento, `--confirmar` só envia uma remoção quando observa os
+  campos ocultos e o `action` de `acaoRemover` no formulário servido.
+  Falta de formulário comprovado recusa sem POST.
+- Se está ausente e o pedido é atribuir, consulta o formulário
+  `andamento_marcador_cadastrar` oferecido pela unidade. Somente quando
+  esse formulário oferece o id pedido com o nome pedido (`option[value=id]` em
+  `selMarcador`) e o destino do cadastro é a ação assinada do mesmo processo,
+  apresenta a **prévia de atribuição** com `alterado: false` e **zero POST**.
+  A forma dos controles fica com a derivação do formulário. Se a opção não é
+  oferecida ou tem outro nome, ou o destino não é o do processo, recusa com o
+  erro do ponto de falha (`OpcaoDoMarcadorNaoOferecida`,
+  `NomeDoMarcadorDiferenteDoCatalogo`, `DestinoDoCadastroAusente`,
+  `EnderecoDoCadastroDeOutroProcesso`, entre outros da tabela).
+  Um marcador aplicado em outro processo **não** substitui o catálogo da unidade.
 
-A prévia não reivindica a escrita como implementada. O código não executa
-JavaScript e não interpreta mensagem do SEI para classificação.
+A prévia não reivindica uma escrita. A confirmação de **atribuição** exige
+origem de treinamento, catálogo e formulário da unidade conferidos, **um POST**
+e aceite causal por 302 do mesmo processo. Só declara sucesso após nova leitura
+independente confirmar o mesmo `id#nome` e o texto solicitado. Uma resposta
+incerta, inclusive 403 depois de POST efetivamente aplicado, resulta em
+**saída 1**, sem repetir o envio.
+A confirmação de **retirada** exige origem de treinamento autorizada,
+formulário específico observado e um único POST. Só declara sucesso se o
+redirecionamento 302 identifica a operação de retirada no mesmo processo
+**e** uma consulta independente demonstra ausência do marcador. Falha na
+prova causal ou na releitura após o envio resulta em **saída 1**, sem nova
+tentativa, com a orientação de não repetir a confirmação. O código não
+executa JavaScript e não classifica erros pelo texto da mensagem.
 
 ## Orçamento e sequência da fatia
 
 `ies processo NUP --sem-andamentos --sem-propriedades` com exigência da
 unidade e leitura de marcadores. Requisições variam conforme abertura e
-cache, mas são contadas pelo leitor. Não ocorre requisição adicional para
-prévia, idempotência ou recusa. `--confirmar` neste recorte faz **zero
-requisições de escrita**. O teste `previa_de_retirada_e_confirmacao_bloqueada_usam_quatro_get_zero_post`
+cache, mas são contadas pelo leitor. A prévia, idempotência e recusa não
+escrevem. Para retirada confirmada, a CLI lê a tela de gerenciamento,
+envia no máximo **um POST** e relê o processo independentemente. O teste `previa_de_retirada_e_confirmacao_bloqueada_usam_quatro_get_zero_post`
 usa uma abertura fria sintética pelo Controle: **3 GET para abrir o
 processo + 1 GET para a tela dos marcadores = 4 GET, 0 POST**, tanto
 na prévia quanto na confirmação recusada. O transporte roteirizado
 confere a lista exata de pedidos, sem rede real. A contagem de outros
 caminhos de abertura e do índice quente precisa de novos casos.
 Testes sintéticos também conferem idempotência, lista parcial,
-identidade divergente e texto Latin-1 válido. Entrada inválida não
-lê configuração.
+identidade divergente e texto Latin-1 válido. O E2E da prévia de retirada
+presente usa a CLI Rust real, HTTPS local, anti-IES e SQLite efêmero,
+compara saída humana/JSON e consulta novamente os marcadores para
+comprovar **estado inalterado e zero POST**. Na **prévia**, o formulário de remoção ainda não foi validado para envio:
+`retirada_possivel` permanece `false`, mesmo com marcador presente. Isso
+não significa que a capacidade de retirada esteja indisponível. A saída
+humana deixa explícito que a prévia não alterou o processo e que uma tentativa
+de `--confirmar` somente é admitida em treinamento **se** o formulário
+servido for conferido. A segunda metade do BDD-255-02 já possui E2E
+sintético com POST único e releitura, sem prova externa de equivalência.
+Entrada inválida não lê configuração.
 
 ## Inventário normativo de subcódigos
 
-A coluna abaixo é o catálogo verificável usado pelo gate `subcodigos`.
-Todas as recusas de escrita permanecem **sem POST** neste recorte. Enquanto
-a escrita não for observada, `--confirmar` recusa
-`escrita_de_marcador_ainda_fechada` antes de abrir a sessão.
+A tabela abaixo descreve os erros; o stderr traz o nome do erro.
+Recusas pré-submissão permanecem **sem POST**. Se o POST chegou a ser tentado,
+a confirmação depende da resposta causal e da releitura independente.
 
-| Subcódigo | Condição observável ou regra |
+| Erro (stderr) | Condição observável ou regra |
 | --- | --- |
-| `rotulo_do_marcador_sem_separador` | Rótulo sem `#` |
-| `id_do_marcador_nao_decimal` | Identificador ausente ou fora da forma decimal |
-| `nome_do_marcador_vazio` | Nome vazio após o separador |
-| `nome_do_marcador_com_controle` | Caracteres de controle no nome |
-| `lista_de_marcadores_parcial` | Linhas observadas diferentes do total declarado |
-| `rotulo_diferente_do_marcador_lido` | Mesmo id observado com nome diferente |
-| `catalogo_da_unidade_nao_observado` | Atribuição ausente sem catálogo da unidade |
-| `remocao_sem_formulario_observado` | Confirmação de remoção sem contrato da escrita |
-| `escrita_de_marcador_ainda_fechada` | `--confirmar` nesta fatia WIP: saída 1 antes de abrir sessão ou rede, 0 requisições |
-| `marcadores_nao_lidos_para_escrita` | Leitura ausente ou não comprovada |
-| `unidade_da_sessao_nao_publicada_para_marcar` | Unidade não conferida |
-| `texto_do_marcador_longo` | Texto excede 250 caracteres |
+| `ErroMarcar::RotuloSemSeparador` | Rótulo sem `#` |
+| `IdDoMarcadorNaoDecimal` | Identificador ausente ou fora da forma decimal |
+| `NomeDoMarcadorVazio` | Nome vazio após o separador |
+| `NomeDoMarcadorComControle` | Caracteres de controle no nome |
+| `ListaDeMarcadoresParcial` | Linhas observadas diferentes do total declarado |
+| `RotuloDiferenteDoMarcadorLido` | Mesmo id observado com nome diferente |
+| `ErroMarcar::OpcaoDoMarcadorNaoOferecida` | Atribuição ausente com o id fora do catálogo (`selMarcador`) da unidade |
+| `ErroMarcar::NomeDoMarcadorDiferenteDoCatalogo` | Id do catálogo com nome diferente do pedido |
+| `ErroMarcar::DestinoDoCadastroAusente` | O botão `btnAdicionar` (ou o 302) não publica o destino do cadastro |
+| `ErroMarcar::EnderecoDoCadastroNaoReconhecido` / `EnderecoDoCadastroDeOutroProcesso` | Destino do cadastro fora da ação assinada deste processo |
+| `ErroMarcar::FormularioDeCadastroNaoLido` / `TelaDaRemocaoNaoLida` | Tela de cadastro ou de gerenciamento redirecionada ou com sessão encerrada |
+| `ErroMarcar::AcaoDeRemocaoAusente` / `AcaoDeRemocaoAmbigua` | O handler `acaoRemover` não publica uma única ação para o marcador |
+| `ErroMarcar::LinkDeMarcadoresNaoPublicado` | Barra sem o link de gerenciar marcadores |
+| `ErroMarcar::ReleituraDeOutroProcessoOuUnidade` | Releitura do processo com outro id ou outra unidade |
+| `RemocaoSemFormularioObservado` | Remoção sem ação/controles observados no formulário servido |
+| `ErroMarcar::MarcadoresNaoLidos` | Leitura ausente ou não comprovada |
+| `ErroMarcar::UnidadeDaSessaoNaoPublicada` | Unidade não conferida |
+| `TextoDoMarcadorLongo` | Texto excede 250 caracteres |
 
 ## Falhas tipadas
 
 Entrada (2): `numero_processo_vazio`, `numero_processo_controle`,
 `referencia_processo_legada`, `marcador_nao_informado`,
-`rotulo_do_marcador_sem_separador`, `id_do_marcador_nao_decimal`,
-`nome_do_marcador_vazio`, `nome_do_marcador_com_controle`,
-`texto_do_marcador_longo`.
+`ErroMarcar::RotuloSemSeparador`, `IdDoMarcadorNaoDecimal`,
+`NomeDoMarcadorVazio`, `NomeDoMarcadorComControle`,
+`TextoDoMarcadorLongo`.
 
 Leitura/decisão (1): erros específicos da abertura do processo, além de
-`marcadores_nao_lidos_para_escrita`,
-`unidade_da_sessao_nao_publicada_para_marcar`,
-`lista_de_marcadores_parcial`,
-`rotulo_diferente_do_marcador_lido`,
-`catalogo_da_unidade_nao_observado`,
-`remocao_sem_formulario_observado`.
+`ErroMarcar::MarcadoresNaoLidos`,
+`ErroMarcar::UnidadeDaSessaoNaoPublicada`,
+`ListaDeMarcadoresParcial`,
+`RotuloDiferenteDoMarcadorLido`,
+o catálogo e o destino da atribuição (`OpcaoDoMarcadorNaoOferecida`,
+`NomeDoMarcadorDiferenteDoCatalogo`, `DestinoDoCadastroAusente` e as demais
+da tabela) e
+`RemocaoSemFormularioObservado`.
 
 O `status_http` e a mensagem saneada do SEI são preservados pela
 camada de leitura existente. A saída de prévia JSON traz
@@ -100,14 +137,24 @@ camada de leitura existente. A saída de prévia JSON traz
 
 ## Ainda faltam (sem promessa de escrita)
 
-Observar na cassette e ao vivo os formulários de **catálogo da unidade,
-atribuição e remoção** (incluindo URLs assinadas e resposta), testes RED
-do POST único derivado de `formulario_web`, prévia de atribuição ausente,
-reconciliação por releitura após envio, saída 3 no efeito incerto, replay e
-validação live UnB. Somente depois disso habilitar `--confirmar`.
+Restam o confronto semântico bilateral com as cassettes de **atribuição e remoção**,
+prévia e escrita live em UnB
+e nas demais instalações autorizadas, incluindo resíduo e orçamento. O
+POST único de retirada e sua releitura estão implementados **somente com
+prova sintética** pela CLI real ↔ anti-IES ↔ SQLite; a equivalência com
+uma instalação SEI ainda não foi comprovada. A prévia de atribuição usa formulário do catálogo independente no anti-IES;
+a confirmação única e a releitura foram exercitadas sinteticamente, não no SEI externo.
 Escritas são autorizadas apenas em **treinamento**, com prévia, um único
 envio e verificação por leitura, nunca retry.
 
 Ver [estrutura observada](../../docs/como-o-sei-funciona/marcadores-do-processo.md),
 [decisão](../../docs/decisoes/processo-marcar.md) e
 [relatório live](../../docs/validacao-live/2026-11-05-processo-marcar.md).
+
+## Produção (20/11/2026)
+
+Esta escrita foi aprovada no ensaio das sete instalações de treinamento
+([relatório](../../docs/validacao-live/2026-11-20-promocao-7-instalacoes.md))
+e `--confirmar` grava também em produção. Esta seção prevalece sobre as
+menções anteriores a "somente em treinamento". Prévia, POST único, releitura
+e ausência de retry continuam obrigatórios.

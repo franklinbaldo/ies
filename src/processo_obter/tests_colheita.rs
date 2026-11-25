@@ -4,21 +4,23 @@
 //! do Controle do passo 4, sem requisição a mais.
 use super::tests_apoio::*;
 use super::*;
+use crate::acao_do_sei::AcaoDoSei;
 use crate::arvore_processo::tests::NUP;
 use crate::colheita_do_controle::Colheita;
-
-const ACAO: &str = "procedimento_trabalhar";
+use crate::tela_html::HtmlServido;
 
 /// O que um comando anterior (login, listagem) deixou ao ler o Controle.
 fn colhido(amb: &Ambiente, linhas: &[(&str, &str)]) {
-    Colheita::com_geracao(&amb.indice, &instalacao(), &geracao(), &url_controle())
-        .colher(&controle(linhas), Some("text/html; charset=iso-8859-1"));
+    Colheita::com_geracao(&amb.indice, &instalacao(), &geracao(), &url_controle()).colher(
+        &HtmlServido::de_teste(&controle(linhas)),
+        Some("text/html; charset=iso-8859-1"),
+    );
 }
 
 fn trabalho_guardado(amb: &Ambiente, id: &str) -> Option<String> {
     let (inst, g) = (instalacao(), geracao());
     amb.indice
-        .link(&inst, chave(&g, ACAO, id))
+        .link(&inst, chave(&g, AcaoDoSei::ProcedimentoTrabalhar, id))
         .map(|u| u.url().to_owned())
 }
 
@@ -184,4 +186,30 @@ fn controle_do_passo_4_e_colhido_sem_requisicao_a_mais() {
         trabalho_guardado(&amb, "11"),
         Some(absoluta(&trabalhar_controle("11")))
     );
+}
+
+/// BDD-633-02: a modal servida no link colhido é recusa de acesso,
+/// não um palpite de índice envelhecido a ser repetido por outra rota.
+/// Hipótese de transporte sintética baseada no relato GO, não cassette da modal.
+#[test]
+fn bdd_633_02_link_colhido_com_modal_recusa_sem_tentar_outro_caminho() {
+    let amb = ambiente();
+    colhido(&amb, &[(ID, NUP)]);
+    let modal = crate::arvore_processo::tests_tela::tela_do_processo(
+        UNIDADE,
+        &[String::new()],
+    )
+    .replace(
+        "</body>",
+        "<script>function inicializar(){infraAbrirJanelaModal('controlador.php?acao=usuario_validar_acesso&acao_origem=procedimento_trabalhar&id_procedimento=10&infra_hash=SINTETICO',500,300,true,'finalizar');}</script></body>",
+    );
+    let (resultado, pedidos) = rodar(&amb, None, vec![ok(modal)]);
+    assert!(matches!(
+        resultado,
+        Err(ErroProcessoObter::Tela(
+            crate::arvore_processo::ErroTelaDoProcesso::ProcessoExigeValidacaoDeAcesso
+        ))
+    ));
+    assert_eq!(pedidos, [get(&absoluta(&trabalhar_controle(ID)))]);
+    assert!(trabalho_guardado(&amb, ID).is_some());
 }

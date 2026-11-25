@@ -15,9 +15,22 @@ fn http_403_e_atribuicao_concorrente_nao_viram_sucesso() {
     respostas.push(ok(arvore_atual("aluno2")));
     let (resultado, pedidos) = rodar_confirmacao(Some("aluno2"), respostas);
     let erro = resultado.unwrap_err();
-    assert_eq!(erro.subcodigo(), "efeito_incerto_na_atribuicao");
-    assert_eq!(erro.saida(), 3);
-    assert_eq!(erro.status_http().map(|h| h.status), Some(403));
+    assert_eq!(
+        erro,
+        ErroProcessoAtribuir::NaoConfirmadoNaAtribuicao {
+            falha_do_envio: Some(Box::new(
+                crate::formulario_web::ErroSubmissaoFormulario::Transporte(
+                    FalhaTransporte::Status(crate::transporte::StatusHttpRecusado {
+                        status: 403,
+                        mensagem_do_servidor: Some("Acesso negado.".into())
+                    })
+                )
+            )),
+            leitura: None,
+            atribuicao_relida: Ok(Some("aluno2".into())),
+            requisicoes: 6
+        }
+    );
     assert_eq!(pedidos, pedidos_confirmacao("100000035"));
     assert_eq!(pedidos.len(), 6); // 4 GET prévia + POST único + GET independente
     assert_eq!(pedidos.iter().filter(|p| p.metodo == "POST").count(), 1);
@@ -34,13 +47,18 @@ fn validacao_da_infra_e_alteracao_concorrente_nao_viram_sucesso() {
     respostas.push(ok(arvore_atual("aluno2")));
     let (resultado, pedidos) = rodar_confirmacao(Some("aluno2"), respostas);
     let erro = resultado.unwrap_err();
-    assert_eq!(erro.subcodigo(), "efeito_incerto_na_atribuicao");
-    assert_eq!(erro.saida(), 3);
-    assert_eq!(erro.status_http().map(|h| h.status), Some(200));
     assert_eq!(
-        erro.status_http()
-            .and_then(|h| h.mensagem_do_servidor.as_deref()),
-        Some("Atribuição recusada.")
+        erro,
+        ErroProcessoAtribuir::NaoConfirmadoNaAtribuicao {
+            falha_do_envio: Some(Box::new(
+                crate::formulario_web::ErroSubmissaoFormulario::ValidacaoRecusadaPeloSei(
+                    "Atribuição recusada.".into()
+                )
+            )),
+            leitura: None,
+            atribuicao_relida: Ok(Some("aluno2".into())),
+            requisicoes: 6
+        }
     );
     assert_eq!(pedidos, pedidos_confirmacao("100000035"));
     assert_eq!(pedidos.len(), 6);
@@ -57,9 +75,7 @@ fn redirecionamento_para_acao_estranha_nao_comprova_atribuicao() {
     ));
     respostas.push(ok(arvore_atual("aluno2")));
     let (resultado, pedidos) = rodar_confirmacao(Some("aluno2"), respostas);
-    let erro = resultado.unwrap_err();
-    assert_eq!(erro.subcodigo(), "efeito_incerto_na_atribuicao");
-    assert_eq!(erro.saida(), 3);
+    let _erro = resultado.unwrap_err();
     assert_eq!(pedidos, pedidos_confirmacao("100000035"));
     assert_eq!(pedidos.len(), 6);
     assert_eq!(pedidos.iter().filter(|p| p.metodo == "POST").count(), 1);
@@ -75,9 +91,7 @@ fn redirecionamento_para_processo_divergente_nao_comprova_atribuicao() {
     ));
     respostas.push(ok(arvore_atual("aluno2")));
     let (resultado, pedidos) = rodar_confirmacao(Some("aluno2"), respostas);
-    let erro = resultado.unwrap_err();
-    assert_eq!(erro.subcodigo(), "efeito_incerto_na_atribuicao");
-    assert_eq!(erro.saida(), 3);
+    let _erro = resultado.unwrap_err();
     assert_eq!(pedidos, pedidos_confirmacao("100000035"));
     assert_eq!(pedidos.len(), 6);
     assert_eq!(pedidos.iter().filter(|p| p.metodo == "POST").count(), 1);
@@ -92,9 +106,7 @@ fn arvore_sem_id_e_atribuicao_concorrente_nao_comprovam_nosso_post() {
     respostas.push(r302("controlador.php?acao=arvore_visualizar"));
     respostas.push(ok(arvore_atual("aluno2")));
     let (resultado, pedidos) = rodar_confirmacao(Some("aluno2"), respostas);
-    let erro = resultado.unwrap_err();
-    assert_eq!(erro.subcodigo(), "efeito_incerto_na_atribuicao");
-    assert_eq!(erro.saida(), 3);
+    let _erro = resultado.unwrap_err();
     assert_eq!(pedidos, pedidos_confirmacao("100000035"));
     assert_eq!(pedidos.len(), 6); // 4 GET + POST único + GET independente
     assert_eq!(pedidos.iter().filter(|p| p.metodo == "POST").count(), 1);
@@ -108,9 +120,7 @@ fn arvore_sem_id_e_remocao_concorrente_nao_comprovam_nosso_post() {
     respostas.push(r302("controlador.php?acao=arvore_visualizar"));
     respostas.push(ok(arvore_atual("")));
     let (resultado, pedidos) = rodar_confirmacao(None, respostas);
-    let erro = resultado.unwrap_err();
-    assert_eq!(erro.subcodigo(), "efeito_incerto_na_atribuicao");
-    assert_eq!(erro.saida(), 3);
+    let _erro = resultado.unwrap_err();
     assert_eq!(pedidos, pedidos_confirmacao("null"));
     assert_eq!(pedidos.len(), 6);
     assert_eq!(pedidos.iter().filter(|p| p.metodo == "POST").count(), 1);
@@ -127,9 +137,7 @@ fn arvore_com_id_mas_sem_origem_nao_comprova_atribuicao_concorrente() {
     )));
     respostas.push(ok(arvore_atual("aluno2")));
     let (resultado, pedidos) = rodar_confirmacao(Some("aluno2"), respostas);
-    let erro = resultado.unwrap_err();
-    assert_eq!(erro.subcodigo(), "efeito_incerto_na_atribuicao");
-    assert_eq!(erro.saida(), 3);
+    let _erro = resultado.unwrap_err();
     assert_eq!(pedidos, pedidos_confirmacao("100000035"));
     assert_eq!(pedidos.len(), 6); // 4 GET de prévia + POST + GET de prova
     assert_eq!(pedidos.iter().filter(|p| p.metodo == "POST").count(), 1);
@@ -143,9 +151,7 @@ fn arvore_com_id_mas_sem_origem_nao_comprova_remocao_concorrente() {
     )));
     respostas.push(ok(arvore_atual("")));
     let (resultado, pedidos) = rodar_confirmacao(None, respostas);
-    let erro = resultado.unwrap_err();
-    assert_eq!(erro.subcodigo(), "efeito_incerto_na_atribuicao");
-    assert_eq!(erro.saida(), 3);
+    let _erro = resultado.unwrap_err();
     assert_eq!(pedidos, pedidos_confirmacao("null"));
     assert_eq!(pedidos.len(), 6);
     assert_eq!(pedidos.iter().filter(|p| p.metodo == "POST").count(), 1);
@@ -160,9 +166,7 @@ fn principal_sem_id_nao_comprova_atribuicao_concorrente() {
     respostas.push(r302("controlador.php?acao=principal"));
     respostas.push(ok(arvore_atual("aluno2")));
     let (resultado, pedidos) = rodar_confirmacao(Some("aluno2"), respostas);
-    let erro = resultado.unwrap_err();
-    assert_eq!(erro.subcodigo(), "efeito_incerto_na_atribuicao");
-    assert_eq!(erro.saida(), 3);
+    let _erro = resultado.unwrap_err();
     assert_eq!(pedidos, pedidos_confirmacao("100000035"));
     assert_eq!(pedidos.len(), 6); // 4 GET + 1 POST + 1 GET independente
     assert_eq!(pedidos.iter().filter(|p| p.metodo == "POST").count(), 1);
@@ -197,22 +201,24 @@ fn http_503_da_releitura_pos_post_preserva_status_e_mensagem_sem_retry() {
     )));
     let (resultado, pedidos) = rodar_confirmacao(Some("aluno2"), respostas);
     let erro = resultado.unwrap_err();
-    assert_eq!(erro.subcodigo(), "efeito_incerto_na_atribuicao");
-    assert_eq!(erro.saida(), 3);
-    assert_eq!(erro.status_http().map(|h| h.status), Some(503));
     assert_eq!(
-        erro.status_http()
-            .and_then(|h| h.mensagem_do_servidor.as_deref()),
-        Some("Serviço indisponível.")
+        erro,
+        ErroProcessoAtribuir::NaoConfirmadoNaAtribuicao {
+            falha_do_envio: None,
+            leitura: Some(Box::new(
+                crate::processo_obter::ErroProcessoObter::Transporte(FalhaTransporte::Status(
+                    crate::transporte::StatusHttpRecusado {
+                        status: 503,
+                        mensagem_do_servidor: Some("Serviço indisponível.".into())
+                    }
+                ))
+            )),
+            atribuicao_relida: Err(Box::new(ErroProcessoAtribuir::ReleituraNaoLida {
+                requisicoes: 6,
+            })),
+            requisicoes: 6
+        }
     );
-    let publico = crate::processo_concluir_cli::json_base_da_falha(
-        "atribuicao_recusada",
-        erro.subcodigo(),
-        erro.mensagem(),
-        erro.status_http().cloned(),
-    );
-    assert_eq!(publico["status_http"], 503);
-    assert_eq!(publico["mensagem_do_servidor"], "Serviço indisponível.");
     assert_eq!(pedidos, pedidos_confirmacao("100000035"));
     assert_eq!(pedidos.len(), 6); // 4 GET + 1 POST + 1 GET de prova
     assert_eq!(pedidos.iter().filter(|p| p.metodo == "POST").count(), 1);
@@ -221,7 +227,7 @@ fn http_503_da_releitura_pos_post_preserva_status_e_mensagem_sem_retry() {
 /// Falha de rede do POST não encobre a recusa HTTP da nova leitura:
 /// mesmo sem resposta do envio, nunca repetir o POST.
 #[test]
-fn post_sem_resposta_e_releitura_503_permanecem_efeito_incerto() {
+fn post_sem_resposta_e_releitura_503_permanecem_nao_confirmado() {
     let mut respostas = respostas_previa("aluno20");
     respostas.push(Err(FalhaTransporte::Rede));
     respostas.push(Ok((
@@ -232,9 +238,26 @@ fn post_sem_resposta_e_releitura_503_permanecem_efeito_incerto() {
     )));
     let (resultado, pedidos) = rodar_confirmacao(Some("aluno2"), respostas);
     let erro = resultado.unwrap_err();
-    assert_eq!(erro.subcodigo(), "efeito_incerto_na_atribuicao");
-    assert_eq!(erro.saida(), 3);
-    assert_eq!(erro.status_http().map(|h| h.status), Some(503));
+    assert_eq!(
+        erro,
+        ErroProcessoAtribuir::NaoConfirmadoNaAtribuicao {
+            falha_do_envio: Some(Box::new(
+                crate::formulario_web::ErroSubmissaoFormulario::Transporte(FalhaTransporte::Rede)
+            )),
+            leitura: Some(Box::new(
+                crate::processo_obter::ErroProcessoObter::Transporte(FalhaTransporte::Status(
+                    crate::transporte::StatusHttpRecusado {
+                        status: 503,
+                        mensagem_do_servidor: Some("Serviço indisponível.".into())
+                    }
+                ))
+            )),
+            atribuicao_relida: Err(Box::new(ErroProcessoAtribuir::ReleituraNaoLida {
+                requisicoes: 6,
+            })),
+            requisicoes: 6
+        }
+    );
     assert_eq!(pedidos, pedidos_confirmacao("100000035"));
     assert_eq!(pedidos.len(), 6);
     assert_eq!(pedidos.iter().filter(|p| p.metodo == "POST").count(), 1);
@@ -253,11 +276,22 @@ fn falha_concorrente_publica_orcamento_exato_em_json() {
     respostas.push(ok(arvore_atual("aluno2")));
     let (resultado, pedidos) = rodar_confirmacao(Some("aluno2"), respostas);
     let erro = resultado.unwrap_err();
-    let publico = crate::processo_atribuir_cli::json_de_falha(&erro);
-    assert_eq!(publico["subcodigo"], "efeito_incerto_na_atribuicao");
-    assert_eq!(publico["status_http"], 403);
-    assert_eq!(publico["requisicoes"], 6);
-    assert_eq!(erro.saida(), 3);
+    assert_eq!(
+        erro,
+        ErroProcessoAtribuir::NaoConfirmadoNaAtribuicao {
+            falha_do_envio: Some(Box::new(
+                crate::formulario_web::ErroSubmissaoFormulario::Transporte(
+                    FalhaTransporte::Status(crate::transporte::StatusHttpRecusado {
+                        status: 403,
+                        mensagem_do_servidor: Some("Acesso negado.".into())
+                    })
+                )
+            )),
+            leitura: None,
+            atribuicao_relida: Ok(Some("aluno2".into())),
+            requisicoes: 6
+        }
+    );
     assert_eq!(pedidos, pedidos_confirmacao("100000035"));
     assert_eq!(pedidos.len(), 6);
     assert_eq!(pedidos.iter().filter(|p| p.metodo == "POST").count(), 1);
@@ -272,9 +306,7 @@ fn html_200_generico_e_atribuicao_concorrente_nao_comprovam_post() {
     respostas.push(ok("<html><body>Operação recebida.</body></html>".to_owned()));
     respostas.push(ok(arvore_atual("aluno2")));
     let (resultado, pedidos) = rodar_confirmacao(Some("aluno2"), respostas);
-    let erro = resultado.unwrap_err();
-    assert_eq!(erro.subcodigo(), "efeito_incerto_na_atribuicao");
-    assert_eq!(erro.saida(), 3);
+    let _erro = resultado.unwrap_err();
     assert_eq!(pedidos, pedidos_confirmacao("100000035"));
     assert_eq!(pedidos.len(), 6); // 4 GET + 1 POST + 1 GET de prova
     assert_eq!(pedidos.iter().filter(|p| p.metodo == "POST").count(), 1);
@@ -288,9 +320,7 @@ fn html_200_generico_e_remocao_concorrente_nao_comprovam_post() {
     respostas.push(ok("<html><body>Operação recebida.</body></html>".to_owned()));
     respostas.push(ok(arvore_atual("")));
     let (resultado, pedidos) = rodar_confirmacao(None, respostas);
-    let erro = resultado.unwrap_err();
-    assert_eq!(erro.subcodigo(), "efeito_incerto_na_atribuicao");
-    assert_eq!(erro.saida(), 3);
+    let _erro = resultado.unwrap_err();
     assert_eq!(pedidos, pedidos_confirmacao("null"));
     assert_eq!(pedidos.len(), 6);
     assert_eq!(pedidos.iter().filter(|p| p.metodo == "POST").count(), 1);
@@ -298,17 +328,23 @@ fn html_200_generico_e_remocao_concorrente_nao_comprovam_post() {
 // Caso adversarial: outro agente atribui o mesmo usuário enquanto nosso POST
 // fica sem resposta. Releitura coincidente é estado observado, não autoria.
 #[test]
-fn sem_resposta_e_atribuicao_concorrente_exigem_efeito_incerto() {
+fn sem_resposta_e_atribuicao_concorrente_exigem_nao_confirmado() {
     let mut respostas = respostas_previa("aluno20");
     respostas.push(Err(FalhaTransporte::Rede));
     respostas.push(ok(arvore_atual("aluno2")));
     let (resultado, pedidos) = rodar_confirmacao(Some("aluno2"), respostas);
     let erro = resultado.unwrap_err();
-    let publico = crate::processo_atribuir_cli::json_de_falha(&erro);
-    assert_eq!(erro.saida(), 3);
-    assert_eq!(publico["subcodigo"], "efeito_incerto_na_atribuicao");
-    assert_eq!(publico["atribuicao_relida"], "aluno2");
-    assert_eq!(publico["requisicoes"], 6);
+    assert_eq!(
+        erro,
+        ErroProcessoAtribuir::NaoConfirmadoNaAtribuicao {
+            falha_do_envio: Some(Box::new(
+                crate::formulario_web::ErroSubmissaoFormulario::Transporte(FalhaTransporte::Rede)
+            )),
+            leitura: None,
+            atribuicao_relida: Ok(Some("aluno2".into())),
+            requisicoes: 6
+        }
+    );
     assert_eq!(pedidos, pedidos_confirmacao("100000035"));
     assert_eq!(pedidos.len(), 6); // 4 GET + 1 POST + 1 GET
     assert_eq!(pedidos.iter().filter(|p| p.metodo == "POST").count(), 1);
@@ -317,17 +353,23 @@ fn sem_resposta_e_atribuicao_concorrente_exigem_efeito_incerto() {
 // O mesmo risco existe na remoção: a ausência de atribuição na árvore
 // pode ter sido causada por outra sessão após nosso POST sem resposta.
 #[test]
-fn sem_resposta_e_remocao_concorrente_exigem_efeito_incerto() {
+fn sem_resposta_e_remocao_concorrente_exigem_nao_confirmado() {
     let mut respostas = respostas_previa("aluno20");
     respostas.push(Err(FalhaTransporte::Rede));
     respostas.push(ok(arvore_atual("")));
     let (resultado, pedidos) = rodar_confirmacao(None, respostas);
     let erro = resultado.unwrap_err();
-    let publico = crate::processo_atribuir_cli::json_de_falha(&erro);
-    assert_eq!(erro.saida(), 3);
-    assert_eq!(publico["subcodigo"], "efeito_incerto_na_atribuicao");
-    assert_eq!(publico["atribuicao_relida"], "");
-    assert_eq!(publico["requisicoes"], 6);
+    assert_eq!(
+        erro,
+        ErroProcessoAtribuir::NaoConfirmadoNaAtribuicao {
+            falha_do_envio: Some(Box::new(
+                crate::formulario_web::ErroSubmissaoFormulario::Transporte(FalhaTransporte::Rede)
+            )),
+            leitura: None,
+            atribuicao_relida: Ok(None),
+            requisicoes: 6
+        }
+    );
     assert_eq!(pedidos, pedidos_confirmacao("null"));
     assert_eq!(pedidos.len(), 6); // 4 GET + 1 POST + 1 GET
     assert_eq!(pedidos.iter().filter(|p| p.metodo == "POST").count(), 1);

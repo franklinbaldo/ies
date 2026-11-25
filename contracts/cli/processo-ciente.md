@@ -39,55 +39,56 @@ sem declarar ciência a partir de conteúdo não executado ou não exibido.
 Acesso sem botão, tela inválida e cookie recusado falham com saída 1
 **antes** de enviar a escrita. Depois do GET mutador, nenhuma falha
 pode provocar nova escrita: a árvore é relida, e ausência de prova
-sai 3 `efeito_incerto`, nunca sucesso presumido. Antes de tentar
+sai 1 com `ErroCienciaProcesso::NaoConfirmado`, nunca sucesso presumido. Antes de tentar
 outra vez, confira a Lista de Ciências. Uma ciência por usuário por dia.
 
 ## Subcódigos observáveis ou de recusa
 
-| Subcódigo | Condição |
+| Erro (stderr) | Condição |
 | --- | --- |
-| `ciencia_nao_oferecida_na_barra` | Barra sem ação de ciência |
-| `unidade_nao_publicada_antes_da_ciencia` | Unidade ausente na abertura |
-| `barra_de_ciencia_fora_da_forma` | Atributos da barra recusados |
-| `ciencia_repetida_na_barra` | Mais de uma ação |
-| `tela_de_ciencia_nao_publicada` | Tela do nó ausente |
-| `funcao_de_ciencia_ausente_na_tela` | Função ausente |
-| `funcao_de_ciencia_fora_da_forma` | Função inválida |
-| `funcoes_de_ciencia_repetidas` | Função duplicada |
-| `endereco_da_ciencia_nao_reconhecido` | Endereço do GET inválido |
-| `lista_de_ciencias_repetida_na_arvore` | Mais de uma lista |
-| `lista_de_ciencias_fora_da_forma` | Ação inválida |
-| `endereco_da_lista_de_ciencias_nao_reconhecido` | Link inválido |
-| `tela_de_ciencia_redirecionada` | 302 antes da escrita |
-| `aceite_da_ciencia_sem_atividade` | Aceite sem atividade |
-| `atividades_da_ciencia_ambiguas` | Aceite com múltiplas atividades |
-| `lista_de_ciencias_fora_da_forma_observada` | HTML da lista não reconhecido |
-| `atividades_repetidas_na_lista_de_ciencias` | Checkbox duplicado |
-| `efeito_incerto_na_ciencia` | Escrita sem verificação conclusiva |
-| `validacao_da_infra_na_ciencia_do_processo` | GET mutador devolveu validação Infra 200; preservar mensagem e ler novamente |
-| `atividade_do_aceite_do_processo_nao_reconhecida` | Resposta do GET mutador sem identidade de atividade comprovável |
+| `ErroCienciaProcesso::CienciaNaoOferecida` | Barra sem ação de ciência |
+| `ErroCienciaProcesso::UnidadeNaoPublicada` | Unidade ausente na abertura |
+| `ErroCienciaNaArvore::Barra(ErroBarraDoProcesso::BarraDoProcessoForaDaFormaObservada)` | Atributos da barra recusados |
+| `ErroCienciaNaArvore::Barra(ErroBarraDoProcesso::BarrasDoProcessoRepetidasNaArvore)` | Mais de uma barra para o nó raiz na árvore |
+| `CienciaRepetidaNaBarra` | Mais de uma ação |
+| `TelaDeCienciaNaoPublicada` | Tela do nó ausente |
+| `FuncaoDeCienciaAusenteNaTela` | Função ausente |
+| `FuncaoDeCienciaForaDaForma` | Função inválida |
+| `FuncoesDeCienciaRepetidas` | Função duplicada |
+| `EnderecoDaCienciaNaoReconhecido` | Endereço do GET inválido |
+| `ListaDeCienciasRepetidaNaArvore` | Mais de uma lista |
+| `ListaDeCienciasForaDaForma` | Ação inválida |
+| `EnderecoDaListaDeCienciasNaoReconhecido` | Link inválido |
+| `ErroCienciaProcesso::TelaRedirecionada` | 302 antes da escrita |
+| `ErroCiencia::AceiteSemAtividade` | Aceite sem atividade |
+| `ErroCiencia::AtividadesAmbiguas` | Aceite com múltiplas atividades |
+| `ListaDeCienciasForaDaFormaObservada` | HTML da lista não reconhecido |
+| `ErroCiencia::AtividadesRepetidasNaLista` | Checkbox duplicado |
+| `ErroCienciaProcesso::NaoConfirmado` | Escrita sem verificação conclusiva |
+| `FalhaDoAceiteProcesso::ValidacaoDaInfra` | GET mutador devolveu validação Infra 200; preservar mensagem e ler novamente |
 
 
 
-- `ciencia_nao_oferecida_na_barra`
-- `unidade_nao_publicada_antes_da_ciencia`
-- `barra_de_ciencia_fora_da_forma`
-- `ciencia_repetida_na_barra`
-- `tela_de_ciencia_nao_publicada`
-- `funcao_de_ciencia_ausente_na_tela`
-- `funcao_de_ciencia_fora_da_forma`
-- `funcoes_de_ciencia_repetidas`
-- `endereco_da_ciencia_nao_reconhecido`
-- `lista_de_ciencias_repetida_na_arvore`
-- `lista_de_ciencias_fora_da_forma`
-- `endereco_da_lista_de_ciencias_nao_reconhecido`
-- `tela_de_ciencia_redirecionada`
-- `aceite_da_ciencia_sem_atividade`
-- `atividades_da_ciencia_ambiguas`
-- `lista_de_ciencias_fora_da_forma_observada`
-- `atividades_repetidas_na_lista_de_ciencias`
-- `efeito_incerto_na_ciencia`
-- `validacao_da_infra_na_ciencia_do_processo`
+- `ErroCienciaProcesso::CienciaNaoOferecida`
+- `ErroCienciaProcesso::UnidadeNaoPublicada`
+- `ErroCienciaNaArvore::Barra(ErroBarraDoProcesso::BarraDoProcessoForaDaFormaObservada)`
+- `ErroCienciaNaArvore::Barra(ErroBarraDoProcesso::BarrasDoProcessoRepetidasNaArvore)`
+- `CienciaRepetidaNaBarra`
+- `TelaDeCienciaNaoPublicada`
+- `FuncaoDeCienciaAusenteNaTela`
+- `FuncaoDeCienciaForaDaForma`
+- `FuncoesDeCienciaRepetidas`
+- `EnderecoDaCienciaNaoReconhecido`
+- `ListaDeCienciasRepetidaNaArvore`
+- `ListaDeCienciasForaDaForma`
+- `EnderecoDaListaDeCienciasNaoReconhecido`
+- `ErroCienciaProcesso::TelaRedirecionada`
+- `ErroCiencia::AceiteSemAtividade`
+- `ErroCiencia::AtividadesAmbiguas`
+- `ListaDeCienciasForaDaFormaObservada`
+- `ErroCiencia::AtividadesRepetidasNaLista`
+- `ErroCienciaProcesso::NaoConfirmado`
+- `FalhaDoAceiteProcesso::ValidacaoDaInfra`
 - `atividade_do_aceite_do_processo_nao_reconhecida`
 
 Falhas de transporte são tipadas pela infraestrutura. `--json`
@@ -141,7 +142,7 @@ A atividade do aceite não é reconhecida em `<script type="application/json">`,
 `<script type="text/plain">` ou conteúdo inline de `<script src="...">`:
 esses textos não são executados pelo navegador. O fluxo conserva a
 releitura independente, mas não consulta a lista sem `id_atividade`
-comprovada e retorna efeito incerto (saída 3), sem segundo GET mutador.
+comprovada e retorna escrita não confirmada (saída 1), sem segundo GET mutador.
 Scripts inline sem `type` ou com `type="text/javascript"` continuam
 reconhecidos quando satisfazem a forma observada.
 
@@ -153,7 +154,7 @@ A forma observada do SEI é atualizarArvore('url'), com um
 como prova da atividade: JavaScript avalia esse argumento antes
 de chamar a função, e uma exceção pode impedir a recarga.
 Após o único GET potencialmente mutador, essa resposta leva à
-releitura independente e **efeito incerto (saída 3)**, sem consultar
+releitura independente e **escrita não confirmada (saída 1)**, sem consultar
 a Lista de Ciências antiga nem repetir a escrita.
 
 ## Segunda ciência e HTML inerte (#271, 06/11/2026)
@@ -163,13 +164,13 @@ ciência **no mesmo dia** é recusada pelo SEI com validação Infra HTTP 200
 e mensagem «Usuário já deu ciência no processo hoje.». A resposta não publica
 `id_atividade` e não equivale a sucesso. O IES preserva a causa e a
 mensagem saneada, faz somente a releitura de reconciliação e devolve
-`efeito_incerto_na_ciencia` (saída 3): **6 GET sintéticos, exatamente
+`ErroCienciaProcesso::NaoConfirmado` (saída 1): **6 GET sintéticos, exatamente
 um GET mutador, nenhum retry**. Não classificar a recusa pelo texto.
 
 Também é inerte a Lista de Ciências que o parser encontra inteiramente
 dentro de `<noscript>` (ou um checkbox nele), com scripts habilitados.
 A recusa conservadora é a mesma já aplicada a `<template>`: após o GET
-único, ausência de prova visível da atividade retorna saída 3, sem
+único, ausência de prova visível da atividade retorna saída 1, sem
 transformar uma ciência antiga em confirmação da tentativa. Esse controle
 não adiciona requisições. Live e replay específico ainda pendentes.
 
@@ -180,7 +181,7 @@ A resposta do GET mutador também não comprova `id_atividade` quando
 `<noscript>` (com JavaScript habilitado). Assim como `<template>`,
 o contêiner não executa a recarga, embora o parser encontre a chamada.
 A verificação lê novamente a árvore, não usa a lista antiga sem aceite
-válido e retorna **efeito incerto (3)**: 6 GET sintéticos, exatamente
+válido e retorna **escrita não confirmada (3)**: 6 GET sintéticos, exatamente
 um potencialmente mutador e zero retry. Testes RED de leitor e fluxo
 foram publicados antes da correção, no [CI 42302428489](https://github.com/franklinbaldo/ies/actions/runs/42302428489)
 (2 FAIL / 1.775 PASS / 22 ignored anteriores).
@@ -221,27 +222,22 @@ Identidade do alvo, GET mutador único e releitura não mudam.
 ## Recusa Infra HTTP 200 na apresentação (#271)
 
 Em resposta `txaInfraValidacao`, o SEI pode recusar uma segunda ciência
-com HTTP **200**. A saída `--json` publica `codigo: efeito_incerto`,
-`status_http: 200`, `mensagem_do_servidor` saneada e `requisicoes` reais
-observadas pelo fluxo. HTTP 200 não significa sucesso nem autoriza retry:
+com HTTP **200**. A falha sai com 1 e
+`ErroCienciaProcesso::NaoConfirmado { requisicoes, falha_do_aceite: Some(ValidacaoDaInfra(mensagem)), .. }`,
+com as `requisicoes` reais observadas pelo fluxo. HTTP 200 não significa sucesso nem autoriza retry:
 a ciência continua sem prova de escrita e exige conferência no SEI.
-A saída humana mantém a mensagem de recusa e o aviso de efeito incerto.
 Testes públicos de apresentação preservam a contagem sintética de
 **6 GET, um potencialmente mutador, nenhum retry**; live NOT_RUN.
 
-## Orientação de efeito incerto no processo (#271, 07/11/2026)
+## Orientação de escrita não confirmada no processo (#271, 07/11/2026)
 
 Se o GET de escrita foi enviado e a nova Lista de Ciências não comprovou a
-atividade, a mensagem humana informa que a ciência pode ter sido registrada
-e exige conferir a **Lista de Ciências antes de nova confirmação**. O aviso
-separado fornece o número de requisições realmente contabilizado e diz
-explicitamente **não repetir a escrita**. Uma nova prévia de leitura não é
-proibida. Erros anteriores à escrita não recebem esse aviso.
-
-A saída JSON permanece com `efeito_incerto`, `requisicoes` e
-`retentavel: false`, além da causa HTTP quando observada. Não há novo
-GET, retry, alteração de subcódigo, orçamento sintético ou mudança do código
-de saída 3; ensaio real em treinamento permanece NOT_RUN.
+atividade, a falha é `ErroCienciaProcesso::NaoConfirmado`, com o número de
+requisições realmente contabilizado e a causa HTTP quando observada: a
+ciência pode ter sido registrada; confira a **Lista de Ciências antes de
+nova confirmação** e **não repita a escrita**. Uma nova prévia de leitura
+não é proibida. Não há novo GET nem retry; saída 1. Ensaio real em
+treinamento permanece NOT_RUN.
 
 ## Instruções vazias no aceite (WIP #271)
 

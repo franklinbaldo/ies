@@ -66,7 +66,7 @@ fn cadastro(tipo: &TipoDeProcesso) -> Resposta {
          <input type='hidden' name='hdnIdTipoProcedimento' value='{}'>\
          <input type='hidden' name='hdnFlagProcedimentoCadastro' value='0'>\
          <input type='hidden' name='hdnAssuntos' value=''>\
-         <input type='text' name='txtDescricao' value=''>\
+         <input type='text' name='txtDescricao' maxlength='250' value=''>\
          <input type='radio' name='rdoNivelAcesso' value='0' checked>\
          <input type='radio' name='rdoNivelAcesso' value='1'>\
          <select name='selAssuntos'><option value='{}'>{}</option></select>\
@@ -115,7 +115,9 @@ fn confirmar(corpo: &str, banco: &Connection, instalacao: &Instalacao, cenario: 
     ) else {
         return Resposta::nova(Estado::RequisicaoInvalida);
     };
-    if campo_unico(&campos, "hdnInteressadosProcedimento").is_some_and(|valor| !valor.is_empty()) {
+    if campos.iter().any(|(nome, valor)| {
+        nome == "hdnInteressadosProcedimento" && !valor.is_empty()
+    }) {
         // Resolucao de interessados nao faz parte desta fatia.
         return Resposta::nova(Estado::RequisicaoInvalida);
     }
@@ -133,11 +135,11 @@ fn confirmar(corpo: &str, banco: &Connection, instalacao: &Instalacao, cenario: 
     };
     match criacao_processo::criar(banco, instalacao, cenario, id_tipo, especificacao, &unidade) {
         Ok(criado) => Resposta::redirecionar(format!(
-            "controlador.php?acao=procedimento_trabalhar&id_procedimento={}",
+            "controlador.php?acao=procedimento_trabalhar&id_procedimento={}&infra_hash={HASH}",
             criado.id_procedimento
         )),
-        Err(criacao_processo::Falha::DadoInvalido) => Resposta::nova(Estado::RequisicaoInvalida),
-        Err(criacao_processo::Falha::Sqlite(_)) => Resposta::nova(Estado::DadosInsuficientes),
+        Err(criacao_processo::ErroCriacaoProcesso::DadoInvalido) => Resposta::nova(Estado::RequisicaoInvalida),
+        Err(criacao_processo::ErroCriacaoProcesso::Sqlite(_)) => Resposta::nova(Estado::DadosInsuficientes),
     }
 }
 
@@ -229,8 +231,18 @@ pub(crate) fn controle_com_menu(
     instalacao: &Instalacao,
     cenario: &str,
 ) -> Resposta {
-    acrescentar_menu(
-        controlar(metodo, alvo, banco, instalacao, cenario),
+    crate::blocos::acrescentar_menu(
+        crate::prazo_processo::acrescentar_menu(
+            acrescentar_menu(
+                controlar(metodo, alvo, banco, instalacao, cenario),
+                banco,
+                instalacao,
+                cenario,
+            ),
+            banco,
+            instalacao,
+            cenario,
+        ),
         banco,
         instalacao,
         cenario,

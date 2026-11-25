@@ -1,0 +1,14 @@
+id: 15-nome
+language: rust
+message: 'Nome do elemento.'
+severity: hint
+rule:
+  pattern: $T.name().as_utf8_str()
+  not:
+    inside:
+      stopBy: end
+      kind: mod_item
+      follows:
+        kind: attribute_item
+        regex: 'cfg\(test\)'
+fix: '$T.nome()'

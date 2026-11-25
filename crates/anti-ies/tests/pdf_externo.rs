@@ -150,7 +150,7 @@ fn bdd_332_02_03_04_hypotese_sintetica_upload_e_cadastro_sao_estados_distintos()
     let selecionado = pedir(endereco, "GET", &format!("/sei/{location}"), b"");
     assert!(selecionado.starts_with("HTTP/1.1 200 OK\r\n"));
     assert!(selecionado.contains("infraArvoreNo(\"DOCUMENTO\",\"8000000000001\""));
-    assert!(selecionado.contains("Anexo 050000001"));
+    assert!(selecionado.contains("Anexo (050000001)"));
 
     let depois = pedir(
         endereco,
@@ -180,7 +180,7 @@ fn bdd_332_04_upload_rejeitado_nao_cadastra_e_cenario_isolado_nao_vaza() {
     assert_eq!(vazio, []);
     assert!(matches!(
         modelo::cadastrar(&banco, &origem, "ensaio", "7", "293", 999),
-        Err(modelo::Falha::UploadAusente)
+        Err(modelo::ErroPdfExterno::UploadAusente)
     ));
     assert!(matches!(
         modelo::receber(
@@ -191,7 +191,7 @@ fn bdd_332_04_upload_rejeitado_nao_cadastra_e_cenario_isolado_nao_vaza() {
             "maior.pdf",
             201 * 1024 * 1024
         ),
-        Err(modelo::Falha::LimiteExcedido)
+        Err(modelo::ErroPdfExterno::LimiteExcedido)
     ));
     assert_eq!(
         modelo::documentos(&banco, &origem, "outro", "7")
@@ -214,6 +214,45 @@ fn bdd_332_04_upload_rejeitado_nao_cadastra_e_cenario_isolado_nao_vaza() {
         modelo::documentos(&banco, &origem, "ensaio", "7").unwrap(),
         []
     );
+}
+
+#[test]
+fn recibo_legado_sem_bytes_nao_publica_pdf_sem_download() {
+    let banco = Connection::open_in_memory().unwrap();
+    iniciar(&banco).unwrap();
+    semear(&banco);
+    let origem = origem();
+    let recibo = modelo::receber(&banco, &origem, "ensaio", "7", "legado.pdf", 42).unwrap();
+    let resultado = modelo::cadastrar(&banco, &origem, "ensaio", "7", "293", recibo.id);
+    assert!(matches!(
+        resultado,
+        Err(modelo::ErroPdfExterno::UploadSemConteudoRecuperavel)
+    ));
+    let cadastro = anti_ies::pdf_externo::atender(
+        "POST",
+        "/sei/controlador.php?acao=documento_receber&id_procedimento=7",
+        b"selSerie=293&hdnFlagDocumentoCadastro=2&hdnAnexos=upload-1%C2%B1legado.pdf",
+        &banco,
+        &origem,
+        "ensaio",
+    )
+    .unwrap();
+    assert_eq!(cadastro.estado, anti_ies::Estado::RequisicaoInvalida);
+    assert_eq!(
+        modelo::documentos(&banco, &origem, "ensaio", "7").unwrap(),
+        []
+    );
+
+    let arvore = anti_ies::pdf_externo::atender(
+        "GET",
+        "/sei/controlador.php?acao=arvore_visualizar&id_procedimento=7",
+        b"",
+        &banco,
+        &origem,
+        "ensaio",
+    )
+    .unwrap();
+    assert!(!arvore.corpo.contains("legado.pdf"));
 }
 
 #[test]
@@ -281,7 +320,15 @@ fn bdd_332_04_releitura_sqlite_indisponivel_nao_vira_processo_inexistente() {
     iniciar(&banco).unwrap();
     semear(&banco);
     let origem = origem();
-    let recibo = modelo::receber(&banco, &origem, "ensaio", "7", "prova.pdf", 42).unwrap();
+    let recibo = modelo::receber_conteudo(
+        &banco,
+        &origem,
+        "ensaio",
+        "7",
+        "prova.pdf",
+        b"%PDF-1.7\nconteudo",
+    )
+    .unwrap();
     modelo::cadastrar(&banco, &origem, "ensaio", "7", "293", recibo.id).unwrap();
     banco.execute_batch("DROP TABLE sim_processo").unwrap();
     let resposta = anti_ies::pdf_externo::atender(
@@ -319,7 +366,15 @@ fn bdd_332_03_arvore_compartilhada_mostra_documentos_interno_e_externo() {
         )
         .unwrap();
         interno::criar(&banco, &origem, "ensaio", "7", "291", "Interno").unwrap();
-        let temporario = modelo::receber(&banco, &origem, "ensaio", "7", "anexo.pdf", 45).unwrap();
+        let temporario = modelo::receber_conteudo(
+            &banco,
+            &origem,
+            "ensaio",
+            "7",
+            "anexo.pdf",
+            b"%PDF-1.7\nconteudo",
+        )
+        .unwrap();
         modelo::cadastrar(&banco, &origem, "ensaio", "7", "293", temporario.id).unwrap();
         for _ in 0..2 {
             let (mut fluxo, _) = escuta.accept().unwrap();
@@ -347,4 +402,26 @@ fn bdd_332_03_arvore_compartilhada_mostra_documentos_interno_e_externo() {
     assert!(arvore.contains("050000001"));
     assert!(arvore.contains("anexo.pdf"));
     servidor.join().unwrap();
+}
+
+#[test]
+fn falha_ao_persistir_os_bytes_nao_deixa_upload_parcial() {
+    let banco = Connection::open_in_memory().unwrap();
+    iniciar(&banco).unwrap();
+    semear(&banco);
+    // Injeta uma falha de persistência no segundo BLOB, em INSERT ou UPDATE.
+    banco
+        .execute_batch("CREATE UNIQUE INDEX falha_no_blob ON externo_upload(conteudo)")
+        .unwrap();
+    let origem = origem();
+    let bytes = b"%PDF-1.7";
+    modelo::receber_conteudo(&banco, &origem, "ensaio", "7", "primeiro.pdf", bytes).unwrap();
+    assert!(matches!(
+        modelo::receber_conteudo(&banco, &origem, "ensaio", "7", "segundo.pdf", bytes),
+        Err(modelo::ErroPdfExterno::Sqlite(_))
+    ));
+    let uploads: i64 = banco
+        .query_row("SELECT count(*) FROM externo_upload", [], |r| r.get(0))
+        .unwrap();
+    assert_eq!(uploads, 1);
 }

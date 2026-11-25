@@ -1,13 +1,11 @@
 //! CLI do registro de andamento: valida entrada antes da sessão, nunca retry.
-use crate::processo::NumeroProcesso;
-use crate::processo_andamento_registrar::{self, Erro, texto_valido};
-use crate::processo_concluir_cli::{com_sessao, json_base_da_falha, publicar_valor_da_falha};
+use crate::processo_andamento_registrar;
+use crate::processo_andamento_registrar::{RespostaInesperada, Resultado};
+use crate::processo_concluir_cli::com_sessao;
 use crate::visao_do_controle::EnvioHttps;
-use crate::{Cli, Domain, Processo, ProcessoAcao, saida_erro};
-use serde_json::json;
-use std::process::ExitCode;
+use crate::{Cli, Domain, Processo, ProcessoAcao};
 
-pub(crate) fn tentar_registrar(cli: &Cli) -> Option<ExitCode> {
+pub(crate) fn tentar_registrar(cli: &Cli) -> Option<anyhow::Result<()>> {
     let Domain::Processo(Processo {
         acao:
             Some(ProcessoAcao::Andamento {
@@ -20,36 +18,18 @@ pub(crate) fn tentar_registrar(cli: &Cli) -> Option<ExitCode> {
     else {
         return None;
     };
-    let numero = match NumeroProcesso::novo(numero) {
-        Ok(n) => n,
-        Err(e) => {
-            return Some(erro_de_uso(
-                cli.json,
-                e.subcodigo(),
-                "Número de processo inválido",
-            ));
+    let numero = numero.clone();
+    Some(com_sessao(cli, |sessao, indice| {
+        // Aprovada em treinamento (10/11/2026): grava também em produção.
+        if *confirmar
+            && let Err(causa) = crate::origem_de_treinamento::exigir(
+                crate::origem_de_treinamento::Escrita::ProcessoAndamento,
+                sessao.origem,
+            )
+        {
+            return Err(causa.into());
         }
-    };
-    if !texto_valido(texto) {
-        return Some(erro_de_uso(
-            cli.json,
-            "texto_do_andamento_vazio_ou_maior_que_500_caracteres",
-            "Texto do andamento deve conter entre 1 e 500 caracteres",
-        ));
-    }
-    if *confirmar {
-        // Fatia WIP (#259): a confirmação sintética ainda não fecha; recusa
-        // antes de abrir sessão ou rede.
-        let e = Erro::EscritaAindaFechada;
-        return Some(publicar_valor_da_falha(
-            cli.json,
-            &json_base_da_falha("fonte_invalida", e.subcodigo(), e.mensagem(), None),
-            e.saida(),
-        ));
-    }
-    Some(com_sessao(
-        cli,
-        |sessao, indice| match processo_andamento_registrar::registrar(
+        let r = processo_andamento_registrar::registrar(
             sessao,
             &numero,
             texto,
@@ -57,68 +37,52 @@ pub(crate) fn tentar_registrar(cli: &Cli) -> Option<ExitCode> {
             cli.unidade.as_deref(),
             indice,
             &mut EnvioHttps,
-        ) {
-            Ok(r) => {
-                if cli.json {
-                    println!(
-                        "{}",
-                        json!({
-                            "numero": r.numero,
-                            "texto": r.texto,
-                            "confirmado": r.confirmado,
-                            "alterado": r.total_depois.is_some(),
-                            "origem": "web",
-                            "total_antes": r.total_antes,
-                            "total_depois": r.total_depois,
-                            "requisicoes": r.requisicoes,
-                            "resposta_inesperada": r.resposta_inesperada,
-                        })
-                    );
-                } else if r.confirmado {
-                    println!(
-                        "Andamento registrado e conferido no processo {}. Requisições: {}",
-                        r.numero, r.requisicoes
-                    );
-                } else {
-                    println!(
-                        "Prévia: registrar no processo {} o andamento: {:?}. Nenhuma escrita. Requisições: {}. Para gravar, use --confirmar.",
-                        r.numero, r.texto, r.requisicoes
-                    );
-                }
-                ExitCode::SUCCESS
-            }
-            Err(Erro::Abertura(e)) => {
-                saida_erro::erro_fonte_http(cli.json, e.subcodigo(), e.mensagem(), e.status_http())
-            }
-            Err(e) => publicar_valor_da_falha(
-                cli.json,
-                &json_base_da_falha(
-                    if e.saida() == 3 {
-                        "efeito_incerto"
-                    } else {
-                        "fonte_invalida"
-                    },
-                    e.subcodigo(),
-                    e.mensagem(),
-                    None,
-                ),
-                e.saida(),
-            ),
-        },
-    ))
+        )?;
+        if cli.json {
+            let mut valor = serde_json::to_value(saida(&r))?;
+            crate::indice_local::anexar_avisos(&mut valor, indice);
+            println!("{valor}");
+        } else if r.confirmado {
+            println!(
+                "Andamento registrado e conferido no processo {}. Requisições: {}",
+                r.numero, r.requisicoes
+            );
+        } else {
+            println!(
+                "Prévia: registrar no processo {} o andamento: {:?}. Nenhuma escrita. Requisições: {}. Para gravar, use --confirmar.",
+                r.numero, r.texto, r.requisicoes
+            );
+        }
+        Ok(())
+    }))
 }
 
-fn erro_de_uso(json_mode: bool, subcodigo: &str, mensagem: &str) -> ExitCode {
-    if json_mode {
-        println!(
-            "{}",
-            json!({
-                "codigo": "entrada_invalida", "subcodigo": subcodigo,
-                "erro": mensagem, "retentavel": false
-            })
-        );
-    } else {
-        eprintln!("IES: {mensagem} [{subcodigo}]");
+/// Sem valor, a chave é omitida: a saída não traz null (#749).
+#[derive(serde::Serialize)]
+struct Saida<'a> {
+    alterado: bool,
+    confirmado: bool,
+    numero: &'a str,
+    origem: &'static str,
+    requisicoes: u8,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    resposta_inesperada: Option<RespostaInesperada>,
+    texto: &'a str,
+    total_antes: u64,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    total_depois: Option<u64>,
+}
+
+fn saida(r: &Resultado) -> Saida<'_> {
+    Saida {
+        alterado: r.total_depois.is_some(),
+        confirmado: r.confirmado,
+        numero: &r.numero,
+        origem: "web",
+        requisicoes: r.requisicoes,
+        resposta_inesperada: r.resposta_inesperada,
+        texto: &r.texto,
+        total_antes: r.total_antes,
+        total_depois: r.total_depois,
     }
-    ExitCode::from(2)
 }

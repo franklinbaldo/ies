@@ -1,53 +1,63 @@
 //! Histórico Web observado: nunca constrói links nem abre editor.
-use crate::documento::NumeroDocumento;
-use crate::erro_html::ErroHtml;
-use crate::html_atributos::{nos_por_elemento_e_classe, valor_do_atributo};
+use crate::acao_do_sei::AcaoDoSei;
+use crate::consulta_do_controlador::ConsultaDoControlador;
+use crate::legenda::ler_legenda;
 use std::collections::HashSet;
 use std::num::NonZeroU32;
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Hash)]
 pub struct VersaoDocumento(NonZeroU32);
 
-#[derive(Debug, Clone, Copy, PartialEq, Eq, crate::erro_publico::Causa)]
+#[derive(Debug, Clone, PartialEq, Eq, thiserror::Error)]
+#[error("{self:?}")]
 pub enum ErroVersao {
-    #[causa(nome = "linha_historico_incompleta")]
+    Legenda(#[from] crate::legenda::ErroLegenda),
     LinhaIncompleta,
-    #[causa(nome = "link_versao_inseguro")]
+    /// O número da versão não cabe em u32; guarda o tipo do erro de conversão.
+    NumeroDaVersaoIlegivel(std::num::IntErrorKind),
     LinkInseguro,
-    #[causa(nome = "identidade_documento_divergente")]
+    /// A consulta do link não se deixa ler em pares.
+    ConsultaDoLinkIlegivel(#[source] crate::consulta_do_controlador::ErroConsultaDoControlador),
+    /// A `acao` do link ausente ou repetida.
+    AcaoDoLinkNaoLida(#[source] crate::consulta_do_controlador::ErroAcaoDaUrl),
+    /// A `versao` do link não é única.
+    VersaoDoLinkNaoLida(#[source] crate::consulta_do_controlador::ErroParametroDaUrl),
+    /// O `infra_hash` do link não é único.
+    HashDoLinkNaoLido(#[source] crate::consulta_do_controlador::ErroParametroDaUrl),
     DocumentoDivergente,
-    #[causa(nome = "lista_versoes_incompleta")]
     ListaIncompleta,
-    VersaoNaoObservada,
-    #[causa(transparente)]
-    Html(ErroHtml),
-}
-impl ErroVersao {
-    pub fn subcodigo(self) -> &'static str {
-        crate::erro_publico::folha(&self)
-    }
+    VersaoPedidaAusenteNoHistorico,
+    ColunasHistoricoInesperadas,
+    HistoricoDocumentoAusente,
+    HistoricosDocumentoDuplicados,
+    LegendasHistoricoVersoesRepetidas,
+    LinkVersaoAusenteOuAmbiguo,
+    VersaoDocumentoDuplicada,
+    VersaoDocumentoInvalida,
 }
 
 impl VersaoDocumento {
     pub fn nova(numero: u32) -> Result<Self, ErroVersao> {
         NonZeroU32::new(numero)
             .map(Self)
-            .ok_or(ErroVersao::Html(ErroHtml::valor(
-                "versao_documento_invalida",
-            )))
+            .ok_or(ErroVersao::VersaoDocumentoInvalida)
     }
     pub fn interpretar(texto: &str) -> Result<Self, ErroVersao> {
         if texto.is_empty() || !texto.bytes().all(|b| b.is_ascii_digit()) {
-            return Err(ErroHtml::valor("versao_documento_invalida").into());
+            return Err(ErroVersao::VersaoDocumentoInvalida);
         }
         Self::nova(
             texto
-                .parse()
-                .map_err(|_| ErroHtml::valor("versao_documento_invalida"))?,
+                .parse::<u32>()
+                .map_err(|erro| ErroVersao::NumeroDaVersaoIlegivel(*erro.kind()))?,
         )
     }
     pub fn numero(self) -> u32 {
         self.0.get()
+    }
+    /// A versão `N + 1`; não existe depois do maior `u32`.
+    pub fn seguinte(self) -> Option<Self> {
+        self.0.checked_add(1).map(Self)
     }
 }
 
@@ -78,7 +88,7 @@ impl HistoricoDocumento {
         self.entradas
             .iter()
             .find(|e| e.versao == numero)
-            .ok_or(ErroVersao::VersaoNaoObservada)
+            .ok_or(ErroVersao::VersaoPedidaAusenteNoHistorico)
     }
     #[cfg(test)]
     pub fn len(&self) -> usize {
@@ -86,86 +96,67 @@ impl HistoricoDocumento {
     }
 }
 
-fn texto(no: &tl::Node<'_>, parser: &tl::Parser<'_>) -> String {
-    no.inner_text(parser)
-        .split_whitespace()
-        .collect::<Vec<_>>()
-        .join(" ")
+fn texto(no: crate::tela_html::Elemento<'_>) -> String {
+    no.texto().split_whitespace().collect::<Vec<_>>().join(" ")
 }
 
 // Não normalizar chaves percent-encoded, pontos ou campos repetidos:
-// o PHP interpreta essas variantes de forma potencialmente ambígua.
+// o PHP interpreta essas formas de modo potencialmente ambígua.
 fn conferir_link(href: &str, id: &str, versao: VersaoDocumento) -> Result<(), ErroVersao> {
     let query = href
         .strip_prefix("controlador.php?")
         .ok_or(ErroVersao::LinkInseguro)?;
-    let mut acao = None;
-    let mut id_observado = None;
-    let mut versao_observada = None;
-    let mut hash = None;
-    let parametros = query.replace("&amp;", "&");
-    for parte in parametros.split('&') {
-        let (chave, valor) = parte.split_once('=').ok_or(ErroVersao::LinkInseguro)?;
-        if chave.is_empty()
-            || !chave.bytes().all(|b| b.is_ascii_lowercase() || b == b'_')
-            || valor.bytes().any(|b| b <= 32 || b >= 127)
-        {
-            return Err(ErroVersao::LinkInseguro);
-        }
-        let slot = match chave {
-            "acao" => &mut acao,
-            "id_documento" => &mut id_observado,
-            "versao" => &mut versao_observada,
-            "infra_hash" => &mut hash,
-            _ => continue,
-        };
-        // `id_documento` servido duas vezes com o mesmo valor (sete
-        // instalações); valores diferentes ou outra chave repetida: recusa.
-        match slot.replace(valor) {
-            Some(anterior) if chave == "id_documento" && anterior == valor => {}
-            Some(_) => return Err(ErroVersao::LinkInseguro),
-            None => {}
-        }
+    if query.bytes().any(|b| b <= 32 || b >= 127) {
+        return Err(ErroVersao::LinkInseguro);
     }
-    if acao != Some("documento_visualizar")
-        || versao_observada != Some(versao.numero().to_string().as_str())
+    let pares = ConsultaDoControlador::ler(query).map_err(ErroVersao::ConsultaDoLinkIlegivel)?;
+    let acao = pares.acao().map_err(ErroVersao::AcaoDoLinkNaoLida)?;
+    let versao_observada = pares
+        .unico("versao")
+        .map_err(ErroVersao::VersaoDoLinkNaoLida)?;
+    // `id_documento` servido duas vezes com o mesmo valor (sete
+    // instalações); valores diferentes: recusa.
+    let ids: Vec<&str> = pares.valores("id_documento").collect();
+    let id_observado = match ids.as_slice() {
+        [] => None,
+        [primeiro, resto @ ..] if resto.iter().all(|v| v == primeiro) => Some(*primeiro),
+        _ => return Err(ErroVersao::LinkInseguro),
+    };
+    let hash = pares
+        .unico("infra_hash")
+        .map_err(ErroVersao::HashDoLinkNaoLido)?;
+    if acao != AcaoDoSei::DocumentoVisualizar.como_na_url()
+        || versao_observada != versao.numero().to_string().as_str()
     {
         return Err(ErroVersao::LinkInseguro);
     }
     if id_observado != Some(id) {
         return Err(ErroVersao::DocumentoDivergente);
     }
-    if !hash.is_some_and(|h| h.len() == 64 && h.bytes().all(|b| b.is_ascii_hexdigit())) {
+    if hash.len() != 64 || !hash.bytes().all(|b| b.is_ascii_hexdigit()) {
         return Err(ErroVersao::LinkInseguro);
     }
     Ok(())
 }
 
 fn linhas_do_historico(
-    tabela: &tl::HTMLTag<'_>,
-    parser: &tl::Parser<'_>,
+    tabela: crate::tela_html::Elemento<'_>,
     id_interno: &str,
 ) -> Result<Vec<EntradaVersao>, ErroVersao> {
-    let mut cabecalho = false;
+    let mut coluna_de_selecao = None;
     let mut entradas = Vec::new();
     let mut encontrados = HashSet::new();
-    for tr_handle in tabela.query_selector(parser, "tr").into_iter().flatten() {
-        let tr = tr_handle
-            .get(parser)
-            .and_then(tl::Node::as_tag)
-            .ok_or(ErroVersao::LinhaIncompleta)?;
-        let cols: Vec<_> = tr
-            .query_selector(parser, "th")
-            .into_iter()
-            .flatten()
-            .filter_map(|h| h.get(parser))
-            .collect();
+    for tr_handle in tabela.elementos("tr") {
+        let cols: Vec<_> = tr_handle.elementos("th").collect();
         if !cols.is_empty() {
-            let titulos: Vec<_> = cols.iter().map(|n| texto(n, parser)).collect();
-            if cabecalho
-                || titulos
+            let titulos: Vec<_> = cols.iter().copied().map(texto).collect();
+            let (tem_selecao, nomes) = match titulos.as_slice() {
+                [selecao, nomes @ ..] if selecao.is_empty() => (true, nomes),
+                nomes => (false, nomes),
+            };
+            if coluna_de_selecao.is_some()
+                || nomes
                     != [
-                        "",
                         "Versão",
                         "Usuário",
                         "Unidade",
@@ -173,136 +164,102 @@ fn linhas_do_historico(
                         "Ações",
                     ]
             {
-                return Err(ErroHtml::valor("colunas_historico_inesperadas").into());
+                return Err(ErroVersao::ColunasHistoricoInesperadas);
             }
-            cabecalho = true;
+            coluna_de_selecao = Some(tem_selecao);
             continue;
         }
-        let celulas: Vec<_> = tr
-            .query_selector(parser, "td")
-            .into_iter()
-            .flatten()
-            .filter_map(|h| h.get(parser))
-            .collect();
+        let celulas: Vec<_> = tr_handle.elementos("td").collect();
         if celulas.is_empty() {
             continue;
         }
-        if !cabecalho || celulas.len() != 6 {
+        let ((Some(true), [_, versao, usuario, unidade, modificacao, acoes])
+        | (Some(false), [versao, usuario, unidade, modificacao, acoes])) =
+            (coluna_de_selecao, celulas.as_slice())
+        else {
             return Err(ErroVersao::LinhaIncompleta);
-        }
-        let numero = VersaoDocumento::interpretar(&texto(celulas[1], parser))?;
+        };
+        let numero = VersaoDocumento::interpretar(&texto(*versao))?;
         if !encontrados.insert(numero) {
-            return Err(ErroHtml::repetido("versao_documento_duplicada").into());
+            return Err(ErroVersao::VersaoDocumentoDuplicada);
         }
-        let td = celulas[5].as_tag().ok_or(ErroVersao::LinhaIncompleta)?;
         let mut links = Vec::new();
-        for a in td
-            .query_selector(parser, "a")
-            .into_iter()
-            .flatten()
-            .filter_map(|h| h.get(parser))
-            .filter_map(tl::Node::as_tag)
-        {
+        for a in acoes.elementos("a") {
             // `href` lido da fonte da tag; tag ilegível não some da contagem.
             // Âncora de fragmento (`#ID-N`, "Recuperar Versão" com o link no
             // `onclick`) não é link de versão e nunca é seguida.
-            let href = valor_do_atributo(a, "href")
-                .map_err(|e| ErroHtml::atributo("link_versao_ausente_ou_ambiguo", e))?;
+            let href = a.atributo("href");
             links.extend(href.filter(|h| !h.starts_with('#')));
         }
-        if links.len() != 1 {
-            return Err(ErroHtml::ausente("link_versao_ausente_ou_ambiguo").into());
-        }
-        conferir_link(&links[0], id_interno, numero)?;
-        let valores: Vec<_> = celulas[2..5].iter().map(|n| texto(n, parser)).collect();
-        if valores.iter().any(String::is_empty) {
+        let Ok([link]) = <[&str; 1]>::try_from(links) else {
+            return Err(ErroVersao::LinkVersaoAusenteOuAmbiguo);
+        };
+        conferir_link(link, id_interno, numero)?;
+        let [usuario, unidade, modificacao] = [*usuario, *unidade, *modificacao].map(texto);
+        if [&usuario, &unidade, &modificacao]
+            .iter()
+            .any(|s| s.is_empty())
+        {
             return Err(ErroVersao::LinhaIncompleta);
         }
         entradas.push(EntradaVersao {
             versao: numero,
-            usuario: valores[0].clone(),
-            unidade: valores[1].clone(),
-            modificacao: valores[2].clone(),
-            link: links.remove(0),
+            usuario,
+            unidade,
+            modificacao,
+            link: link.to_owned(),
         });
         if entradas.len() > 10_000 {
             return Err(ErroVersao::ListaIncompleta);
         }
     }
-    if !cabecalho {
-        return Err(ErroHtml::valor("colunas_historico_inesperadas").into());
+    if coluna_de_selecao.is_none() {
+        return Err(ErroVersao::ColunasHistoricoInesperadas);
     }
     Ok(entradas)
 }
 
 /// Caption única é requisito de identidade e contagem da tabela Web.
-fn legenda_unica(tabela: &tl::HTMLTag<'_>, parser: &tl::Parser<'_>) -> Result<String, ErroVersao> {
-    let mut legendas = tabela
-        .query_selector(parser, "caption")
-        .into_iter()
-        .flatten();
+fn legenda_unica(tabela: crate::tela_html::Elemento<'_>) -> Result<String, ErroVersao> {
+    let mut legendas = tabela.elementos("caption");
     let primeira = legendas.next().ok_or(ErroVersao::ListaIncompleta)?;
     if legendas.next().is_some() {
-        return Err(ErroHtml::repetido("legendas_historico_versoes_repetidas").into());
+        return Err(ErroVersao::LegendasHistoricoVersoesRepetidas);
     }
-    primeira
-        .get(parser)
-        .map(|no| texto(no, parser))
-        .ok_or(ErroVersao::ListaIncompleta)
+    Ok(texto(primeira))
 }
 
 /// Interpreta uma lista observada. O total declarado é facultativo, mas, quando
 /// disponível na tabela de origem, é obrigatório conferir a cobertura.
 pub fn interpretar_historico(
-    html: &str,
-    documento: &NumeroDocumento,
+    html: &crate::tela_html::HtmlServido,
     id_interno: &str,
     total_declarado: Option<usize>,
 ) -> Result<HistoricoDocumento, ErroVersao> {
     if id_interno.is_empty() || !id_interno.bytes().all(|b| b.is_ascii_digit()) {
         return Err(ErroVersao::DocumentoDivergente);
     }
-    let dom = tl::parse(html, tl::ParserOptions::default())
-        .map_err(|_| ErroHtml::ausente("historico_documento_ausente"))?;
-    let parser = dom.parser();
+    let dom = crate::tela_html::arvore(html);
     let mut tabela = None;
-    for handle in nos_por_elemento_e_classe(&dom, None, "table", "infraTable")
-        .map_err(|e| ErroHtml::atributo("historico_documento_ausente", e))?
+    for handle in dom
+        .elementos("table")
+        .filter(|elemento| elemento.tem_classe("infraTable"))
     {
-        let no = handle
-            .get(parser)
-            .ok_or(ErroHtml::ausente("historico_documento_ausente"))?;
-        let tag = no
-            .as_tag()
-            .ok_or(ErroHtml::ausente("historico_documento_ausente"))?;
-        let captions: Vec<_> = tag
-            .query_selector(parser, "caption")
-            .into_iter()
-            .flatten()
-            .filter_map(|h| h.get(parser))
-            .collect();
-        if captions
-            .iter()
-            .any(|c| texto(c, parser).contains("Versões"))
-        {
+        let captions: Vec<_> = handle.elementos("caption").collect();
+        if captions.iter().any(|c| texto(*c).contains("Versões")) {
             if tabela.is_some() {
-                return Err(ErroHtml::repetido("historicos_documento_duplicados").into());
+                return Err(ErroVersao::HistoricosDocumentoDuplicados);
             }
-            tabela = Some(tag);
+            tabela = Some(handle);
         }
     }
-    let tabela = tabela.ok_or(ErroHtml::ausente("historico_documento_ausente"))?;
-    let legenda = legenda_unica(tabela, parser)?;
-    let declaradas = legenda
-        .rsplit_once('(')
-        .and_then(|(_, resto)| resto.split_once(" registros"))
-        .and_then(|(numero, _)| numero.parse::<usize>().ok())
-        .ok_or(ErroVersao::ListaIncompleta)?;
-    let entradas = linhas_do_historico(tabela, parser, id_interno)?;
+    let tabela = tabela.ok_or(ErroVersao::HistoricoDocumentoAusente)?;
+    let legenda = legenda_unica(tabela)?;
+    let declaradas = ler_legenda(&legenda)?.total;
+    let entradas = linhas_do_historico(tabela, id_interno)?;
     if declaradas != entradas.len() || total_declarado.is_some_and(|n| n != declaradas) {
         return Err(ErroVersao::ListaIncompleta);
     }
-    let _ = documento; // Número SEI é opaco: ID interno vem do nó do documento.
     Ok(HistoricoDocumento { entradas })
 }
 
@@ -313,6 +270,7 @@ mod testes_anti_ies;
 #[cfg(test)]
 pub(crate) mod testes {
     use super::*;
+    use crate::tela_html::HtmlServido;
     fn pagina(numeros: &[u32], ids: &[&str]) -> String {
         use std::fmt::Write as _;
         let mut linhas = String::new();
@@ -359,9 +317,12 @@ pub(crate) mod testes {
 
     #[test]
     fn forma_servida_com_id_repetido_e_ancora_de_recuperar_e_lida() {
-        let doc = NumeroDocumento::novo("0007").unwrap();
-        let h =
-            interpretar_historico(&pagina_servida("42", "42", &[2, 1]), &doc, "42", None).unwrap();
+        let h = interpretar_historico(
+            &HtmlServido::de_teste(&pagina_servida("42", "42", &[2, 1])),
+            "42",
+            None,
+        )
+        .unwrap();
         assert_eq!(h.atual().unwrap().numero(), 2);
         assert_eq!(h.len(), 2);
         let v1 = h.selecionar(VersaoDocumento::nova(1).unwrap()).unwrap();
@@ -373,60 +334,92 @@ pub(crate) mod testes {
 
     #[test]
     fn id_repetido_com_valores_diferentes_e_recusado() {
-        let doc = NumeroDocumento::novo("0007").unwrap();
         assert_eq!(
-            interpretar_historico(&pagina_servida("42", "43", &[1]), &doc, "42", None),
+            interpretar_historico(
+                &HtmlServido::de_teste(&pagina_servida("42", "43", &[1])),
+                "42",
+                None
+            ),
             Err(ErroVersao::LinkInseguro)
         );
         // Uma âncora a mais que não é fragmento continua ambígua.
-        let extra = pagina_servida("42", "42", &[1]).replace(
+        let extra = HtmlServido::de_teste(&pagina_servida("42", "42", &[1]).replace(
             "&nbsp;</td></tr>",
             "<a href=\"controlador.php?acao=outra\">x</a></td></tr>",
-        );
+        ));
         assert_eq!(
-            interpretar_historico(&extra, &doc, "42", None),
-            Err(ErroVersao::Html(ErroHtml::ausente(
-                "link_versao_ausente_ou_ambiguo"
-            )))
+            interpretar_historico(&extra, "42", None),
+            Err(ErroVersao::LinkVersaoAusenteOuAmbiguo)
         );
     }
 
     #[test]
     fn booleano_antes_de_class_e_href_nao_esconde_versoes() {
-        let doc = NumeroDocumento::novo("0007").unwrap();
-        let html = crate::html_atributos::com_booleano_antes_dos_atributos(&pagina(
-            &[1, 4],
-            &["42", "42"],
-        ));
-        let h = interpretar_historico(&html, &doc, "42", Some(2)).unwrap();
+        let html =
+            HtmlServido::de_teste(&crate::tela_html::teste::com_booleano_antes_dos_atributos(
+                &pagina(&[1, 4], &["42", "42"]),
+            ));
+        let h = interpretar_historico(&html, "42", Some(2)).unwrap();
         assert_eq!(h.atual().unwrap().numero(), 4);
     }
     #[test]
+    fn historico_da_unb_sem_coluna_de_selecao_le_a_versao_unica() {
+        let html = pagina(&[1], &["42"])
+            .replace("<th></th>", "")
+            .replace(r#"<td><input type="checkbox" /></td>"#, "");
+        let html = HtmlServido::de_teste(&html);
+        let historico = interpretar_historico(&html, "42", Some(1)).unwrap();
+        let entrada = historico
+            .selecionar(VersaoDocumento::nova(1).unwrap())
+            .unwrap();
+        assert_eq!(historico.atual().unwrap().numero(), 1);
+        assert_eq!(entrada.usuario, "Ana");
+        assert!(entrada.link_privado().contains("versao=1&"));
+    }
+
+    #[test]
+    fn nao_aceita_linha_com_coluna_de_selecao_que_o_cabecalho_nao_anuncia() {
+        let html = HtmlServido::de_teste(&pagina(&[1], &["42"]).replace("<th></th>", ""));
+        assert_eq!(
+            interpretar_historico(&html, "42", Some(1)),
+            Err(ErroVersao::LinhaIncompleta),
+        );
+    }
+
+    #[test]
     fn atual_e_nao_contiguas() {
-        let doc = NumeroDocumento::novo("0007").unwrap();
-        let h =
-            interpretar_historico(&pagina(&[1, 4], &["42", "42"]), &doc, "42", Some(2)).unwrap();
+        let h = interpretar_historico(
+            &HtmlServido::de_teste(&pagina(&[1, 4], &["42", "42"])),
+            "42",
+            Some(2),
+        )
+        .unwrap();
         assert_eq!(h.atual().unwrap().numero(), 4);
         assert_eq!(
             h.selecionar(VersaoDocumento::nova(2).unwrap()),
-            Err(ErroVersao::VersaoNaoObservada)
+            Err(ErroVersao::VersaoPedidaAusenteNoHistorico)
         );
     }
     #[test]
     fn recusa_duplicada_e_documento_trocado() {
-        let doc = NumeroDocumento::novo("0007").unwrap();
         assert_eq!(
-            interpretar_historico(&pagina(&[1, 1], &["42", "42"]), &doc, "42", None),
-            Err(ErroVersao::Html(ErroHtml::repetido(
-                "versao_documento_duplicada"
-            )))
+            interpretar_historico(
+                &HtmlServido::de_teste(&pagina(&[1, 1], &["42", "42"])),
+                "42",
+                None
+            ),
+            Err(ErroVersao::VersaoDocumentoDuplicada)
         );
         assert_eq!(
-            interpretar_historico(&pagina(&[1], &["43"]), &doc, "42", None),
+            interpretar_historico(&HtmlServido::de_teste(&pagina(&[1], &["43"])), "42", None),
             Err(ErroVersao::DocumentoDivergente)
         );
         assert_eq!(
-            interpretar_historico(&pagina(&[1], &["42"]), &doc, "42", Some(2)),
+            interpretar_historico(
+                &HtmlServido::de_teste(&pagina(&[1], &["42"])),
+                "42",
+                Some(2)
+            ),
             Err(ErroVersao::ListaIncompleta)
         );
     }
@@ -434,24 +427,36 @@ pub(crate) mod testes {
     fn numero_zero_e_link_com_acao_repetida_sao_recusados() {
         assert_eq!(
             VersaoDocumento::nova(0),
-            Err(ErroVersao::Html(ErroHtml::valor(
-                "versao_documento_invalida"
-            )))
+            Err(ErroVersao::VersaoDocumentoInvalida)
         );
-        let doc = NumeroDocumento::novo("0007").unwrap();
-        let html = pagina(&[1], &["42"]).replace(
+        let html = HtmlServido::de_teste(&pagina(&[1], &["42"]).replace(
             "acao=documento_visualizar",
             "acao=documento_visualizar&amp;acao=editor_montar",
-        );
+        ));
         assert_eq!(
-            interpretar_historico(&html, &doc, "42", None),
-            Err(ErroVersao::LinkInseguro)
+            interpretar_historico(&html, "42", None),
+            Err(ErroVersao::AcaoDoLinkNaoLida(
+                crate::consulta_do_controlador::ErroAcaoDaUrl::AcaoRepetida
+            ))
+        );
+    }
+
+    #[test]
+    fn par_sem_igual_no_link_da_versao_e_recusado_com_a_causa() {
+        let html = HtmlServido::de_teste(&pagina(&[1], &["42"]).replace(
+            "acao=documento_visualizar",
+            "acao=documento_visualizar&amp;solto",
+        ));
+        assert_eq!(
+            interpretar_historico(&html, "42", None),
+            Err(ErroVersao::ConsultaDoLinkIlegivel(
+                crate::consulta_do_controlador::ErroConsultaDoControlador::ParSemIgual
+            ))
         );
     }
 
     #[test]
     fn legendas_repetidas_nao_podem_confirmar_cobertura_de_versoes() {
-        let doc = NumeroDocumento::novo("0007").unwrap();
         let pagina = pagina(&[1], &["42"]);
         let duplicada = pagina.replacen(
             "</caption>",
@@ -465,16 +470,9 @@ pub(crate) mod testes {
         );
         for html in [duplicada, extra] {
             assert_eq!(
-                interpretar_historico(&html, &doc, "42", None),
-                Err(ErroVersao::Html(ErroHtml::repetido(
-                    "legendas_historico_versoes_repetidas"
-                )))
+                interpretar_historico(&HtmlServido::de_teste(&html), "42", None),
+                Err(ErroVersao::LegendasHistoricoVersoesRepetidas)
             );
         }
-        assert_eq!(
-            ErroVersao::Html(ErroHtml::repetido("legendas_historico_versoes_repetidas"))
-                .subcodigo(),
-            "legendas_historico_versoes_repetidas"
-        );
     }
 }

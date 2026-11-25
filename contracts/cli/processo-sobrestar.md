@@ -17,7 +17,7 @@ publicada pelo SEI. Nenhuma URL assinada, senha ou cookie é exibido.
 
 NUP usa o mesmo validador de `ies processo NUP`. `--motivo` é
 obrigatório em sobrestar; branco ou vazio recusa com código de saída 2
-(`motivo_do_sobrestamento_vazio`) antes de qualquer arquivo ou rede.
+(`ErroSobrestamento::MotivoVazio`) antes de qualquer arquivo ou rede.
 O motivo aceito é preservado integralmente no formulário e na saída JSON,
 incluindo espaços nas extremidades e quebras de linha.
 
@@ -42,7 +42,7 @@ ou GET da função de retirada) e uma nova leitura da árvore. Não há
 retry de escrita, execução de JavaScript ou seguimento do 302. A
 conferência exige `Sobrestado` na unidade para sobrestar, e
 `AbertoEm::Unidades` com a unidade ativa para retomar. Se a
-verificação falhar, sai com código 3 (efeito incerto). Um 302
+verificação falhar, sai com código 1 (escrita não confirmada). Um 302
 isolado nunca prova a escrita. O JSON de sucesso só publica
 `alterado:true` e `reconciliado_por_leitura:true` após
 verificação. **Autenticação e escrita live ainda NOT_RUN**; o
@@ -72,36 +72,36 @@ ainda não foram testados com esta implementação. Live: NOT_RUN,
 
 ## Recusas tipadas (contrato de subcódigos)
 
-| Subcódigo | Condição |
+| Erro (stderr) | Condição |
 | --- | --- |
-| `motivo_do_sobrestamento_vazio` | Não há motivo válido |
-| `unidade_do_sobrestamento_nao_publicada` | Unidade não observada |
-| `situacao_antes_do_sobrestamento_nao_lida` | Situação não observada |
-| `barra_do_sobrestamento_nao_interpretada` | Barra fora da forma |
-| `acoes_de_sobrestamento_repetidas_na_barra` | Ações duplicadas |
-| `endereco_do_sobrestamento_nao_reconhecido` | URL inválida |
-| `endereco_do_sobrestamento_de_outro_processo` | ID diferente |
-| `tela_do_no_da_retomada_nao_reconhecida` | URL da raiz não reconhecida |
-| `processo_ja_sobrestado` | Já sobrestado |
-| `processo_nao_sobrestado` | Retomada não aplicável |
-| `processo_nao_aberto_na_unidade_para_sobrestar` | Outra unidade |
-| `processo_sobrestado_em_outra_unidade` | Outra unidade |
-| `acao_de_sobrestamento_nao_oferecida` | Barra não oferece |
-| `tela_de_sobrestamento_redirecionada` | GET da tela devolveu 302, antes do POST |
-| `charset_da_tela_de_sobrestar_nao_suportado` | Charset da tela não conhecido |
-| `tela_de_sobrestar_nao_interpretada` | HTML da janela não interpretado |
-| `formulario_de_sobrestar_ausente` | Formulário ausente |
-| `formulario_de_sobrestar_de_outro_processo` | Identidade da janela diferente |
-| `opcao_somente_sobrestar_nao_oferecida` | Rádio S ausente, repetido ou marcado de saída |
-| `tela_de_sobrestar_com_destino_preenchido` | Vínculo com outro processo preenchido |
-| `campo_inesperado_na_tela_de_sobrestar` | Campo extra, ausente, desabilitado ou repetido |
-| `endereco_de_retomar_ausente_na_tela` | Função/variável não publicadas |
-| `endereco_de_retomar_fora_da_forma` | Forma da variável ou função não observada |
-| `enderecos_de_retomar_repetidos_na_tela` | Duas URLs de escrita |
-| `endereco_de_retomar_nao_reconhecido` | URL assinada não reconhecida |
-| `endereco_de_retomar_de_outro_processo` | URL de outro id |
-| `sobrestamento_ou_retomada_nao_aplicados` | Leitura confirma que o estado não mudou |
-| `efeito_incerto_no_sobrestamento` | Leitura posterior falhou ou não decidiu (saída 3) |
+| `MotivoDoSobrestamentoVazio` | Não há motivo válido |
+| `ErroSobrestamento::UnidadeNaoPublicada` | Unidade não observada |
+| `ErroSobrestamento::SituacaoNaoLida` | Situação não observada |
+| `ErroAcaoSobrestar::Barra(ErroBarraDoProcesso::BarraDoProcessoForaDaFormaObservada)` | Barra fora da forma |
+| `ErroAcaoSobrestar::AcoesDeSobrestamentoRepetidasNaBarra` | Ações duplicadas |
+| `ErroAcaoSobrestar::EnderecoDoSobrestamentoNaoReconhecido` | URL inválida |
+| `ErroAcaoSobrestar::OutroProcesso` | ID diferente |
+| `ErroAcaoSobrestar::TelaDoNoDaRetomadaNaoReconhecida` | URL da raiz não reconhecida |
+| `ErroSobrestamento::JaSobrestado` | Já sobrestado |
+| `ErroSobrestamento::NaoSobrestado` | Retomada não aplicável |
+| `ErroSobrestamento::ForaDaUnidade` | Outra unidade |
+| `ErroSobrestamento::SobrestadoEmOutraUnidade` | Outra unidade |
+| `ErroSobrestamento::AcaoNaoOferecida` | Barra não oferece |
+| `ErroSobrestamento::TelaRedirecionada` | GET da tela devolveu 302, antes do POST |
+| `ErroSobrestamento::CharsetNaoSuportado` | Charset da tela não conhecido |
+| `ErroTela::NaoInterpretada` | HTML da janela não interpretado |
+| `ErroTela::FormularioAusente` | Formulário ausente |
+| `ErroTela::OutroProcesso` | Identidade da janela diferente |
+| `ErroTela::OpcaoNaoOferecida` | Rádio S ausente, repetido ou marcado de saída |
+| `ErroTela::DestinoPreenchido` | Vínculo com outro processo preenchido |
+| `ErroTela::CampoInesperado` | Campo extra, ausente, desabilitado ou repetido |
+| `ErroEnderecoDeRetomar::EnderecoDeRetomarAusenteNaTela` | Função/variável não publicadas |
+| `ErroEnderecoDeRetomar::EnderecoDeRetomarForaDaForma` | Forma da variável ou função não observada |
+| `ErroEnderecoDeRetomar::EnderecosDeRetomarRepetidosNaTela` | Duas URLs de escrita |
+| `ErroEnderecoDeRetomar::EnderecoDeRetomarNaoReconhecido` | URL assinada não reconhecida |
+| `ErroEnderecoDeRetomar::OutroProcesso` | URL de outro id |
+| `ErroSobrestamento::EscritaNaoAplicada` | Leitura confirma que o estado não mudou |
+| `ErroSobrestamento::NaoConfirmado` | Leitura posterior falhou ou não decidiu (saída 1) |
 
 [Decisão](../../docs/decisoes/processo-sobrestar.md) ·
 [live](../../docs/validacao-live/2026-11-05-processo-sobrestar.md) ·

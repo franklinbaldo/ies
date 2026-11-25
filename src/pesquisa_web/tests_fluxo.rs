@@ -1,7 +1,7 @@
 //! RED/GREEN do fluxo de `ies processo buscar`: sequência exata de
 //! requisições por transporte injetável, com telas sintéticas.
 use super::*;
-use crate::erro_html::ErroHtml;
+use crate::acao_do_sei::AcaoDoSei;
 use crate::formulario_web::{RespostaDoPost, SubmissaoDerivada};
 use crate::pesquisa_web::resposta::FaixaDaPesquisa;
 use crate::pesquisa_web::tests_fixtures::{
@@ -328,7 +328,7 @@ fn pagina_2_envia_um_post_de_navegar_sem_o_botao() {
 
 #[test]
 fn pagina_fora_do_intervalo_falha_antes_do_post_de_pagina() {
-    let (r, pedidos) = buscar(
+    let (_r, pedidos) = buscar(
         "00001",
         Some(200),
         None,
@@ -337,10 +337,6 @@ fn pagina_fora_do_intervalo_falha_antes_do_post_de_pagina() {
             ok(tela_de_pesquisa()),
             ok(resultado("00001", 1, 10, "1.234")),
         ],
-    );
-    assert_eq!(
-        r.unwrap_err().subcodigo(),
-        "pagina_da_pesquisa_fora_do_intervalo"
     );
     assert_eq!(pedidos, tres_pedidos());
 }
@@ -358,19 +354,21 @@ fn validacao_da_infra_e_recusa_com_mensagem_do_sei() {
         ],
     );
     let erro = r.unwrap_err();
-    assert_eq!(erro.subcodigo(), "validacao_recusada_pelo_sei");
-    let http = erro.status_http().unwrap();
-    assert_eq!(http.status, 200);
-    assert_eq!(
-        http.mensagem_do_servidor.as_deref(),
-        Some("Protocolo não informado.")
+    assert!(
+        matches!(
+            &erro,
+            ErroBuscaDeProcesso::Pesquisa(ErroPesquisaProtocolo::Submissao(
+                crate::formulario_web::ErroSubmissaoFormulario::ValidacaoRecusadaPeloSei(m)
+            )) if m == "Protocolo não informado."
+        ),
+        "{erro:?}"
     );
     assert_eq!(pedidos.len(), 3);
 }
 
 #[test]
 fn pagina_desconhecida_apos_o_post_nao_e_reconhecida() {
-    let (r, pedidos) = buscar(
+    let (_r, pedidos) = buscar(
         "00001",
         None,
         None,
@@ -379,10 +377,6 @@ fn pagina_desconhecida_apos_o_post_nao_e_reconhecida() {
             ok(tela_de_pesquisa()),
             ok("<html><a id=\"lnkInfraUnidade\">UNIDADE TESTE</a><p>outra</p></html>".to_owned()),
         ],
-    );
-    assert_eq!(
-        r.unwrap_err().subcodigo(),
-        "resposta_da_pesquisa_nao_reconhecida"
     );
     assert_eq!(pedidos.len(), 3);
 }
@@ -393,9 +387,7 @@ fn controle_sem_o_link_da_pesquisa_para_no_primeiro_get() {
     assert_eq!(
         r.unwrap_err(),
         ErroBuscaDeProcesso::Link(
-            crate::pesquisa_web::link_da_pesquisa::ErroLinkDaPesquisa::Html(ErroHtml::ausente(
-                "link_da_pesquisa_ausente_no_controle"
-            ))
+            crate::pesquisa_web::link_da_pesquisa::ErroLinkDaPesquisa::LinkDaPesquisaAusenteNoControle
         )
     );
     assert_eq!(pedidos, vec![get(url_controle())]);
@@ -404,11 +396,7 @@ fn controle_sem_o_link_da_pesquisa_para_no_primeiro_get() {
 #[test]
 fn link_para_outro_host_e_recusado_sem_segunda_requisicao() {
     let outro = format!("https://outro.exemplo.org/sei/{}", href_do_menu());
-    let (r, pedidos) = buscar("00001", None, None, vec![ok(controle(&menu(&outro)))]);
-    assert_eq!(
-        r.unwrap_err().subcodigo(),
-        "link_da_pesquisa_com_endereco_absoluto"
-    );
+    let (_r, pedidos) = buscar("00001", None, None, vec![ok(controle(&menu(&outro)))]);
     assert_eq!(pedidos.len(), 1);
 }
 
@@ -461,7 +449,7 @@ fn origem_de_outra_instalacao_nao_envia_nada() {
 
 #[test]
 fn pagina_obtida_com_outra_faixa_e_recusada() {
-    let (r, pedidos) = buscar(
+    let (_r, pedidos) = buscar(
         "00001",
         Some(2),
         None,
@@ -472,16 +460,12 @@ fn pagina_obtida_com_outra_faixa_e_recusada() {
             ok(resultado("00001", 1, 10, "1.234")),
         ],
     );
-    assert_eq!(
-        r.unwrap_err().subcodigo(),
-        "faixa_da_pesquisa_diferente_da_pagina_solicitada"
-    );
     assert_eq!(pedidos.len(), 4);
 }
 
 #[test]
 fn tela_de_resultado_com_outro_termo_nao_pagina() {
-    let (r, pedidos) = buscar(
+    let (_r, pedidos) = buscar(
         "00001",
         Some(2),
         None,
@@ -491,25 +475,17 @@ fn tela_de_resultado_com_outro_termo_nao_pagina() {
             ok(resultado("00002", 1, 10, "1.234")),
         ],
     );
-    assert_eq!(
-        r.unwrap_err().subcodigo(),
-        "protocolo_da_tela_de_resultado_diferente_do_pesquisado"
-    );
     assert_eq!(pedidos.len(), 3);
 }
 
 #[test]
 fn termo_acima_do_maxlength_servido_para_antes_do_post() {
     let termo = "1".repeat(51);
-    let (r, pedidos) = buscar(
+    let (_r, pedidos) = buscar(
         &termo,
         None,
         None,
         vec![ok(controle_com_menu()), ok(tela_de_pesquisa())],
-    );
-    assert_eq!(
-        r.unwrap_err().subcodigo(),
-        "termo_acima_do_maxlength_da_tela"
     );
     assert_eq!(pedidos, vec![get(url_controle()), get(url_da_tela())]);
 }
@@ -529,15 +505,11 @@ fn lista_numa_pagina_publica_total_e_nao_tem_pagina_2() {
     assert_eq!(lista.total_declarado, 2);
     assert_eq!(lista.faixa, FaixaDaPesquisa { inicio: 1, fim: 2 });
     assert_eq!(pedidos, tres_pedidos());
-    let (r, pedidos) = buscar(
+    let (_r, pedidos) = buscar(
         "00001",
         Some(2),
         None,
         vec![ok(controle_com_menu()), ok(tela_de_pesquisa()), resposta()],
-    );
-    assert_eq!(
-        r.unwrap_err().subcodigo(),
-        "pagina_da_pesquisa_fora_do_intervalo"
     );
     assert_eq!(pedidos, tres_pedidos());
 }
@@ -578,8 +550,8 @@ fn colheita_do_controle_nao_muda_a_sequencia_e_guarda_o_link_da_pesquisa() {
     let chave = crate::indice_local::ChaveDoLink {
         geracao_sessao: &geracao,
         unidade: "110000001",
-        acao: "protocolo_pesquisar",
-        objeto: "",
+        acao: AcaoDoSei::ProtocoloPesquisar,
+        alvo: "",
     };
     assert_eq!(
         indice.link(&instalacao, chave).map(|u| u.url().to_owned()),

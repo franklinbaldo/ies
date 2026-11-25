@@ -1,0 +1,17 @@
+id: 09b-seletor-let-else
+language: rust
+message: 'Seletor por nome no documento em let-else: o ramo não ocorre.'
+severity: hint
+rule:
+  pattern: let Some($F) = $D.query_selector($S) else { $$$B };
+  not:
+    inside:
+      stopBy: end
+      kind: mod_item
+      follows:
+        kind: attribute_item
+        regex: 'cfg\(test\)'
+constraints:
+  S:
+    regex: '^"[a-z][a-z0-9]*"$'
+fix: 'let $F = $D.elementos($S);'

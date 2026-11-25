@@ -56,7 +56,7 @@ fn executar(
     respostas: Vec<crate::processo_concluir::tests_apoio::Resposta>,
     confirmar: bool,
 ) -> (
-    Result<Previa, ErroPrevia>,
+    Result<Previa, ErroAcompanhar>,
     Vec<crate::processo_concluir::tests_apoio::Pedido>,
 ) {
     let amb = ambiente();
@@ -90,9 +90,40 @@ fn requests_post() -> Vec<crate::processo_concluir::tests_apoio::Pedido> {
 fn previa_deriva_formulario_sem_post_com_orcamento_exato() {
     let (resultado, pedidos) = executar(preparar(), false);
     let plano = resultado.unwrap();
-    assert!(!plano.confirmado && !plano.alterado && !plano.ja_estava);
+    assert!(!plano.estado.confirmado() && !plano.estado.alterado() && !plano.estado.ja_estava());
     assert_eq!(plano.requisicoes, 5);
     assert_eq!(pedidos, &requests_post()[..5]);
+}
+
+// BDD-348-03: grupo ausente e outro grupo presente são uma prévia no-op.
+// O servidor pode publicar a lista com H, sem oferecer G para retirada.
+// A CLI não pode transformar a ausência de G numa recusa nem selecionar H.
+#[test]
+fn deixar_grupo_ausente_nao_seleciona_outro_grupo() {
+    let amb = ambiente();
+    let mut respostas = abertura(arvore(&[UNIDADE], &[acao_da_barra(&gerenciar())]));
+    respostas.push(ok(lista("H")));
+    let (resultado, pedidos) = rodar_com(&amb, respostas, |sessao, nup, indice, roteiro| {
+        let pedido = Pedido {
+            nup,
+            unidade: None,
+            grupo: Some("G"),
+            observacao: None,
+            deixar: true,
+            confirmar: false,
+        };
+        previa(sessao, &pedido, indice, roteiro)
+    });
+    let plano = resultado.expect("grupo G ausente: informar no-op, não recusar por H");
+    assert_eq!(plano.operacao, "deixar");
+    assert_eq!(plano.grupo, "G");
+    assert!(plano.id_de_remocao.is_none());
+    assert!(plano.estado.ja_estava());
+    assert!(!plano.estado.confirmado() && !plano.estado.alterado());
+    assert_eq!(plano.requisicoes, 4);
+    let mut esperados = crate::processo_concluir::tests_apoio::pedidos_da_abertura();
+    esperados.push(get(&absoluta(&gerenciar())));
+    assert_eq!(pedidos, esperados, "somente GET, nenhum POST contra H");
 }
 
 #[test]
@@ -101,7 +132,7 @@ fn confirmar_post_unico_e_reler_lista_mesmo_processo() {
     respostas.extend([r302(&gerenciar()), ok(lista("G"))]);
     let (resultado, pedidos) = executar(respostas, true);
     let feito = resultado.unwrap();
-    assert!(feito.confirmado && feito.alterado && !feito.ja_estava);
+    assert!(feito.estado.confirmado() && feito.estado.alterado() && !feito.estado.ja_estava());
     assert_eq!(feito.id_de_remocao.as_deref(), Some("831"));
     assert_eq!(feito.requisicoes, 7);
     assert_eq!(pedidos, requests_post());
@@ -113,24 +144,30 @@ fn falha_de_rede_no_post_nao_repete_e_reconcilia_pela_leitura() {
     let mut respostas = preparar();
     respostas.extend([Err(FalhaTransporte::Rede), ok(lista("G"))]);
     let (resultado, pedidos) = executar(respostas, true);
-    assert!(resultado.unwrap().alterado);
+    assert!(resultado.unwrap().estado.alterado());
     assert_eq!(pedidos, requests_post());
 }
 
 #[test]
-fn falha_na_releitura_depois_do_post_e_efeito_incerto_sem_retry() {
+fn falha_na_releitura_depois_do_post_e_nao_confirmado_sem_retry() {
     let mut respostas = preparar();
     respostas.extend([r302(&gerenciar()), Err(FalhaTransporte::Rede)]);
     let (resultado, pedidos) = executar(respostas, true);
-    assert!(matches!(resultado, Err(ErroPrevia::EfeitoIncerto)));
+    assert!(matches!(
+        resultado,
+        Err(ErroAcompanhar::AcompanhamentoNaoConfirmado)
+    ));
     assert_eq!(pedidos, requests_post());
 }
 
 #[test]
-fn lista_apos_post_sem_linha_nova_e_efeito_incerto() {
+fn lista_apos_post_sem_linha_nova_e_nao_confirmado() {
     let mut respostas = preparar();
     respostas.extend([r302(&gerenciar()), ok(lista("Outro"))]);
     let (resultado, pedidos) = executar(respostas, true);
-    assert!(matches!(resultado, Err(ErroPrevia::EfeitoIncerto)));
+    assert!(matches!(
+        resultado,
+        Err(ErroAcompanhar::AcompanhamentoNaoConfirmado)
+    ));
     assert_eq!(pedidos, requests_post());
 }

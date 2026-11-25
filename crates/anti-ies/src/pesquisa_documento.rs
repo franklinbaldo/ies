@@ -1,7 +1,7 @@
 //! Busca sintética de número SEI: rota de pesquisa rápida e estado SQLite.
 //! Somente loopback; sem consultas externas ou credenciais verdadeiras.
 use crate::{Estado, Resposta, despachar, eh_controlador_sei, parametro_unico};
-use iesei::documento_versoes::{ids_por_numero, ler as ler_documento};
+use iesei::documento_versoes::{ids_da_pesquisa_por_numero, ids_por_numero, ler as ler_documento};
 use iesei::documentos_simulados::ids_por_nup;
 use iesei::instalacao::Instalacao;
 use rusqlite::Connection;
@@ -38,7 +38,7 @@ pub fn responder(
     let (ids, chave) = match ids_por_nup(banco, instalacao, cenario, &numero) {
         Ok(ids) if !ids.is_empty() => (ids, "id_protocolo"),
         Ok(_) if numero.bytes().all(|b| b.is_ascii_digit()) => {
-            match ids_por_numero(banco, instalacao, cenario, &numero) {
+            match ids_da_pesquisa_por_numero(banco, instalacao, cenario, &numero) {
                 Ok(ids) => (ids, "id_documento"),
                 Err(_) => return Resposta::nova(Estado::DadosInsuficientes),
             }

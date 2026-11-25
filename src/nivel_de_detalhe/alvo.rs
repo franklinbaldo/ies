@@ -12,7 +12,8 @@ pub(crate) enum AlvoDasColunas {
 }
 
 /// Erro de uso em `--definir` (saída 2, zero requisições).
-#[derive(Clone, Debug, PartialEq, Eq, crate::erro_publico::Causa)]
+#[derive(Clone, Debug, PartialEq, Eq, thiserror::Error)]
+#[error("{self:?}")]
 pub(crate) enum ErroDaListaDeColunas {
     ListaDeColunasVazia,
     /// Item vazio entre vírgulas (`tipo,,anotacao`).
@@ -24,23 +25,6 @@ pub(crate) enum ErroDaListaDeColunas {
     ColunaRepetidaNaLista {
         coluna: ColunaDoDetalhe,
     },
-}
-
-impl ErroDaListaDeColunas {
-    pub(crate) fn subcodigo(&self) -> &'static str {
-        crate::erro_publico::folha(self)
-    }
-
-    pub(crate) fn mensagem(&self) -> &'static str {
-        match self {
-            Self::ListaDeColunasVazia => "--definir exige `todas` ou uma lista de colunas",
-            Self::ItemVazioNaListaDeColunas => "a lista de --definir tem um item vazio",
-            Self::ColunaDesconhecida { .. } => {
-                "coluna desconhecida em --definir (`ies unidade colunas` lista as chaves)"
-            }
-            Self::ColunaRepetidaNaLista { .. } => "coluna repetida na lista de --definir",
-        }
-    }
 }
 
 /// Opção pedida que a tela desta instalação não publica.
@@ -62,9 +46,8 @@ impl AlvoDasColunas {
     /// `todas` ou chaves estáveis separadas por vírgula (espaços em volta
     /// de cada chave são ignorados).
     pub(crate) fn interpretar(texto: &str) -> Result<Self, ErroDaListaDeColunas> {
-        use ErroDaListaDeColunas as E;
         if texto.trim().is_empty() {
-            return Err(E::ListaDeColunasVazia);
+            return Err(ErroDaListaDeColunas::ListaDeColunasVazia);
         }
         if texto.trim() == "todas" {
             return Ok(Self::Todas);
@@ -72,14 +55,15 @@ impl AlvoDasColunas {
         let mut colunas = Vec::new();
         for item in texto.split(',').map(str::trim) {
             if item.is_empty() {
-                return Err(E::ItemVazioNaListaDeColunas);
+                return Err(ErroDaListaDeColunas::ItemVazioNaListaDeColunas);
             }
-            let coluna =
-                ColunaDoDetalhe::pela_chave(item).ok_or_else(|| E::ColunaDesconhecida {
+            let coluna = ColunaDoDetalhe::pela_chave(item).ok_or_else(|| {
+                ErroDaListaDeColunas::ColunaDesconhecida {
                     chave: item.to_owned(),
-                })?;
+                }
+            })?;
             if colunas.contains(&coluna) {
-                return Err(E::ColunaRepetidaNaLista { coluna });
+                return Err(ErroDaListaDeColunas::ColunaRepetidaNaLista { coluna });
             }
             colunas.push(coluna);
         }
@@ -122,7 +106,7 @@ pub(crate) fn planejar(
         .map(|opcao| opcao.coluna)
         .collect();
     let alvo = match alvo {
-        AlvoDasColunas::Todas => disponiveis.clone(),
+        AlvoDasColunas::Todas => disponiveis,
         AlvoDasColunas::Lista(colunas) => {
             if let Some(&coluna) = colunas.iter().find(|c| !disponiveis.contains(c)) {
                 return Err(ColunaIndisponivelNestaInstalacao { coluna });

@@ -12,19 +12,21 @@ fn sem_sessao(args: &[&str]) -> Output {
         .output()
         .expect("IES deve iniciar")
 }
-fn json(saida: &Output) -> serde_json::Value {
-    serde_json::from_slice(&saida.stdout).expect("resposta JSON")
+/// Falha fechada (#695): saída 1, stdout vazio, stderr `Error: <Erro>`.
+fn sem_arquivos_de_sessao(saida: &Output) {
+    assert_eq!(saida.status.code(), Some(1));
+    assert!(saida.stdout.is_empty(), "falha não publica stdout");
+    let erro = String::from_utf8_lossy(&saida.stderr);
+    assert!(
+        erro.starts_with("Error: UrlDoControleIlegivel(Ausente)"),
+        "{erro}"
+    );
 }
 #[test]
 fn marcador_invalido_sai_2_antes_de_ler_sessao() {
-    for (rotulo, subcodigo) in [
-        ("sem-separador", "rotulo_do_marcador_sem_separador"),
-        ("x#Nome", "id_do_marcador_nao_decimal"),
-        ("501# ", "nome_do_marcador_vazio"),
-    ] {
+    for rotulo in ["sem-separador", "x#Nome", "501# "] {
         let saida = sem_sessao(&["processo", "marcar", "NUP", "--marcador", rotulo, "--json"]);
         assert_eq!(saida.status.code(), Some(2), "{rotulo}");
-        assert_eq!(json(&saida)["subcodigo"], subcodigo);
     }
 }
 #[test]
@@ -43,9 +45,7 @@ fn marcador_valido_tenta_sessao_sem_enviar_escrita() {
         }
         let saida = sem_sessao(&args);
         assert_eq!(saida.status.code(), Some(1), "{args:?}");
-        let valor = json(&saida);
-        assert_eq!(valor["codigo"], "fonte_invalida");
-        assert_ne!(valor["subcodigo"], "nao_implementado");
+        sem_arquivos_de_sessao(&saida);
     }
 }
 #[test]
@@ -90,7 +90,6 @@ fn texto_acima_do_limite_observado_sai_2_sem_abrir_sessao() {
         "--json",
     ]);
     assert_eq!(saida.status.code(), Some(2));
-    assert_eq!(json(&saida)["subcodigo"], "texto_do_marcador_longo");
 }
 #[test]
 fn texto_multilinha_ou_unicode_nao_cria_recusa_antes_da_tela() {
@@ -111,15 +110,35 @@ fn texto_multilinha_ou_unicode_nao_cria_recusa_antes_da_tela() {
             }
             let saida = sem_sessao(&args);
             assert_eq!(saida.status.code(), Some(1));
-            if confirmar {
-                assert_eq!(
-                    json(&saida)["subcodigo"],
-                    "escrita_de_marcador_ainda_fechada"
-                );
-                assert_eq!(json(&saida)["requisicoes"], 0);
-            } else {
-                assert_eq!(json(&saida)["codigo"], "fonte_invalida");
-            }
+            sem_arquivos_de_sessao(&saida);
         }
     }
+}
+
+#[test]
+fn atribuicao_confirmada_exige_sessao_privada_antes_de_qualquer_rede() {
+    let saida = sem_sessao(&[
+        "processo",
+        "marcar",
+        "NUP",
+        "--marcador",
+        "501#Revisão",
+        "--confirmar",
+        "--json",
+    ]);
+    assert_eq!(saida.status.code(), Some(1));
+}
+
+#[test]
+fn retirada_confirmada_exige_sessao_privada_antes_de_qualquer_rede() {
+    let saida = sem_sessao(&[
+        "processo",
+        "marcar",
+        "NUP",
+        "--retirar",
+        "501#Revisão",
+        "--confirmar",
+        "--json",
+    ]);
+    assert_eq!(saida.status.code(), Some(1));
 }

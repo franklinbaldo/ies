@@ -2,28 +2,32 @@
 //! Forma observada nas cassettes `processo-busca-*` (`unb`, `pen1`, `ufrj`, `go`),
 //! POSTs 6 e 10: `Location` relativo para `procedimento_trabalhar`.
 //! Contrato: docs/arquitetura/0002-submeter-formulario-observado.md.
+use crate::acao_do_sei::AcaoDoSei;
+use crate::consulta_do_controlador::ConsultaDoControlador;
 use crate::dominio::IdProcedimento;
+use crate::erro_web::ErroCaixa;
 use crate::formulario_web::Redirecionamento302;
 use crate::instalacao::Instalacao;
 use crate::sessao_login::redirecionamento::{ErroDeOrigem, esquema_http, sufixo_da_mesma_origem};
-use crate::transporte::{conferir_chave_de_consulta, conferir_valor_de_consulta};
 use crate::url_observada::{esquema_e_resto, partes_https, pasta, tem_esquema};
-use ErroRedirecionamentoDaPesquisa as E;
 
-#[derive(Clone, Copy, Debug, PartialEq, Eq, crate::erro_publico::Causa)]
+#[derive(Clone, Debug, PartialEq, Eq, thiserror::Error)]
+#[error("{self:?}")]
 pub(crate) enum ErroRedirecionamentoDaPesquisa {
     LocalizacaoDoRedirecionamentoAusente,
     LocalizacaoDoRedirecionamentoAcimaDoLimite,
     LocalizacaoDoRedirecionamentoNaoEhUrlHttps,
     LocalizacaoDoRedirecionamentoForaDaInstalacao,
     ParametroNaoCanonicoNaLocalizacaoDoRedirecionamento,
+    /// Um trecho da URL do envio não tem `=`.
+    ParametroNaoCanonicoNaUrlDoEnvio,
     RedirecionamentoParaAcaoDiferenteDeProcedimentoTrabalhar,
     AcaoDeOrigemAusenteNoRedirecionamento,
     AcaoDeOrigemRepetidaNoRedirecionamento,
     AcaoDeOrigemDoRedirecionamentoDiferenteDaPesquisa,
     IdProcedimentoAusenteNoRedirecionamento,
     IdProcedimentoRepetidoNoRedirecionamento,
-    IdProcedimentoNaoDecimalNoRedirecionamento,
+    IdProcedimentoNaoDecimalNoRedirecionamento(#[source] ErroCaixa),
     InfraHashAusenteNoRedirecionamento,
     InfraHashRepetidoNoRedirecionamento,
     InfraHashForaDoFormatoNoRedirecionamento,
@@ -50,9 +54,9 @@ pub(crate) enum ErroRedirecionamentoDaPesquisa {
     IdDocumentoAusenteNoRedirecionamento,
     IdDocumentoRepetidoNoRedirecionamento,
     IdDocumentoNaoDecimalNoRedirecionamento,
+    /// O `id_documento` do 302 recusado pelo tipo de id (não decimal).
+    IdDocumentoRecusadoNoRedirecionamento(#[source] ErroCaixa),
 }
-
-impl ErroRedirecionamentoDaPesquisa {}
 
 /// URL absoluta de `procedimento_trabalhar` já conferida (mesma instalação,
 /// uma `acao`, chaves canônicas, `infra_hash` de 64 hex). É assinada:
@@ -102,21 +106,24 @@ pub(crate) enum OrigemDoTrabalho<'a> {
 }
 
 impl OrigemDoTrabalho<'_> {
-    fn acao_de_origem(self) -> Option<&'static str> {
+    fn acao_de_origem(self) -> Option<AcaoDoSei> {
         match self {
-            Self::Pesquisa => Some("protocolo_pesquisar"),
+            Self::Pesquisa => Some(AcaoDoSei::ProtocoloPesquisar),
             Self::PesquisaRapida | Self::PesquisaRapidaDocumento => {
-                Some("protocolo_pesquisa_rapida")
+                Some(AcaoDoSei::ProtocoloPesquisaRapida)
             }
             Self::EntradaPorId { .. } | Self::EntradaPorIdComDocumento { .. } => None,
-            Self::Controle { .. } => Some("procedimento_controlar"),
+            Self::Controle { .. } => Some(AcaoDoSei::ProcedimentoControlar),
         }
     }
     fn chave_do_id(self) -> &'static str {
         match self {
             Self::PesquisaRapida => "id_protocolo",
             Self::PesquisaRapidaDocumento => "id_documento",
-            _ => "id_procedimento",
+            Self::Pesquisa
+            | Self::EntradaPorId { .. }
+            | Self::EntradaPorIdComDocumento { .. }
+            | Self::Controle { .. } => "id_procedimento",
         }
     }
 }
@@ -125,20 +132,24 @@ impl OrigemDoTrabalho<'_> {
 /// teto dos arquivos privados de URL assinada.
 const LIMITE_DA_LOCALIZACAO: usize = 8_192;
 
-/// Host, caminho e consulta de uma URL `https://` absoluta.
-fn partir_https(url: &str) -> Option<(&str, &str, &str)> {
+/// Host, caminho e consulta (se houver `?`) de uma URL `https://` absoluta.
+fn partir_https(url: &str) -> Option<(&str, &str, Option<&str>)> {
     let partes = partes_https(url)?;
-    Some((partes.host, partes.caminho, partes.consulta.unwrap_or("")))
+    Some((partes.host, partes.caminho, partes.consulta))
 }
 
 /// Resolve como o navegador resolveria, sem normalizar `..`: o caminho
 /// resultante precisa ser exatamente o controlador da instalação.
-fn resolver(localizacao: &str, url_do_envio: &str, aceita_http: bool) -> Result<String, E> {
+fn resolver(
+    localizacao: &str,
+    url_do_envio: &str,
+    aceita_http: bool,
+) -> Result<String, ErroRedirecionamentoDaPesquisa> {
     if !localizacao.bytes().all(|b| (33..=126).contains(&b)) || localizacao.contains(['#', '\\']) {
-        return Err(E::LocalizacaoDoRedirecionamentoNaoEhUrlHttps);
+        return Err(ErroRedirecionamentoDaPesquisa::LocalizacaoDoRedirecionamentoNaoEhUrlHttps);
     }
-    let (host, caminho, _) =
-        partir_https(url_do_envio).ok_or(E::LocalizacaoDoRedirecionamentoNaoEhUrlHttps)?;
+    let (host, caminho, _) = partir_https(url_do_envio)
+        .ok_or(ErroRedirecionamentoDaPesquisa::LocalizacaoDoRedirecionamentoNaoEhUrlHttps)?;
     let http = aceita_http && esquema_http(localizacao);
     let resto_absoluto = localizacao
         .strip_prefix("https://")
@@ -150,14 +161,18 @@ fn resolver(localizacao: &str, url_do_envio: &str, aceita_http: bool) -> Result<
         });
     Ok(if let Some(resto) = resto_absoluto {
         let sufixo = sufixo_da_mesma_origem(resto, host, http).map_err(|erro| match erro {
-            ErroDeOrigem::OutroHost => E::LocalizacaoDoRedirecionamentoForaDaInstalacao,
-            ErroDeOrigem::AutoridadeInvalida => E::LocalizacaoDoRedirecionamentoNaoEhUrlHttps,
+            ErroDeOrigem::OutroHost => {
+                ErroRedirecionamentoDaPesquisa::LocalizacaoDoRedirecionamentoForaDaInstalacao
+            }
+            ErroDeOrigem::AutoridadeInvalida => {
+                ErroRedirecionamentoDaPesquisa::LocalizacaoDoRedirecionamentoNaoEhUrlHttps
+            }
         })?;
         format!("https://{host}{sufixo}")
     } else if localizacao.starts_with('/') {
         format!("https://{host}{localizacao}")
     } else if tem_esquema(localizacao) {
-        return Err(E::LocalizacaoDoRedirecionamentoNaoEhUrlHttps);
+        return Err(ErroRedirecionamentoDaPesquisa::LocalizacaoDoRedirecionamentoNaoEhUrlHttps);
     } else {
         match pasta(caminho) {
             Some(diretorio) => format!("https://{host}/{diretorio}/{localizacao}"),
@@ -166,43 +181,31 @@ fn resolver(localizacao: &str, url_do_envio: &str, aceita_http: bool) -> Result<
     })
 }
 
-/// Valores por nome de parâmetro, com nomes canônicos e sem `;`.
-fn parametros(consulta: &str) -> Result<Vec<(&str, &str)>, E> {
-    consulta
-        .split('&')
-        .map(|item| {
-            let (nome, valor) = item
-                .split_once('=')
-                .ok_or(E::ParametroNaoCanonicoNaLocalizacaoDoRedirecionamento)?;
-            conferir_chave_de_consulta(nome)
-                .and_then(|()| conferir_valor_de_consulta(valor))
-                .map_err(|_| E::ParametroNaoCanonicoNaLocalizacaoDoRedirecionamento)?;
-            Ok((nome, valor))
-        })
-        .collect()
+/// Parâmetros da consulta do 302: nomes canônicos e sem `;`, cada um com `=`.
+fn parametros(
+    consulta: Option<&str>,
+) -> Result<ConsultaDoControlador<'_>, ErroRedirecionamentoDaPesquisa> {
+    ConsultaDoControlador::da_url(consulta).map_err(|_| {
+        ErroRedirecionamentoDaPesquisa::ParametroNaoCanonicoNaLocalizacaoDoRedirecionamento
+    })
 }
 
-fn valores<'a>(parametros: &[(&str, &'a str)], nome: &str) -> Vec<&'a str> {
-    parametros
-        .iter()
-        .filter(|(n, _)| *n == nome)
-        .map(|(_, v)| *v)
-        .collect()
+fn parametros_do_envio(
+    url_do_envio: &str,
+) -> Result<ConsultaDoControlador<'_>, ErroRedirecionamentoDaPesquisa> {
+    let consulta = partir_https(url_do_envio).and_then(|(_, _, consulta)| consulta);
+    ConsultaDoControlador::da_url(consulta)
+        .map_err(|_| ErroRedirecionamentoDaPesquisa::ParametroNaoCanonicoNaUrlDoEnvio)
 }
 
-fn parametros_do_envio(url_do_envio: &str) -> Vec<(&str, &str)> {
-    let consulta = partir_https(url_do_envio).map_or("", |(_, _, consulta)| consulta);
-    consulta
-        .split('&')
-        .filter_map(|i| i.split_once('='))
-        .collect()
-}
-
-fn unidade_do_envio(url_do_envio: &str) -> Result<String, E> {
-    match valores(&parametros_do_envio(url_do_envio), "infra_unidade_atual").as_slice() {
-        [] => Err(E::UnidadeAtualAusenteNaUrlDoEnvio),
+fn unidade_do_envio(url_do_envio: &str) -> Result<String, ErroRedirecionamentoDaPesquisa> {
+    let unidades = parametros_do_envio(url_do_envio)?
+        .valores("infra_unidade_atual")
+        .collect::<Vec<_>>();
+    match unidades.as_slice() {
+        [] => Err(ErroRedirecionamentoDaPesquisa::UnidadeAtualAusenteNaUrlDoEnvio),
         [unidade] => Ok((*unidade).to_owned()),
-        _ => Err(E::UnidadeAtualRepetidaNaUrlDoEnvio),
+        _ => Err(ErroRedirecionamentoDaPesquisa::UnidadeAtualRepetidaNaUrlDoEnvio),
     }
 }
 
@@ -212,12 +215,15 @@ fn decimal(valor: &str) -> bool {
 
 /// O POST observado é o `action` assinado do formulário, que traz
 /// `infra_sistema`; sem ele não há com o que comparar: falha fechada.
-fn sistema_do_envio(url_do_envio: &str) -> Result<String, E> {
-    match valores(&parametros_do_envio(url_do_envio), "infra_sistema").as_slice() {
-        [] => Err(E::InfraSistemaAusenteNaUrlDoEnvio),
+fn sistema_do_envio(url_do_envio: &str) -> Result<String, ErroRedirecionamentoDaPesquisa> {
+    let sistemas = parametros_do_envio(url_do_envio)?
+        .valores("infra_sistema")
+        .collect::<Vec<_>>();
+    match sistemas.as_slice() {
+        [] => Err(ErroRedirecionamentoDaPesquisa::InfraSistemaAusenteNaUrlDoEnvio),
         [sistema] if decimal(sistema) => Ok((*sistema).to_owned()),
-        [_] => Err(E::InfraSistemaNaoDecimalNaUrlDoEnvio),
-        _ => Err(E::InfraSistemaRepetidoNaUrlDoEnvio),
+        [_] => Err(ErroRedirecionamentoDaPesquisa::InfraSistemaNaoDecimalNaUrlDoEnvio),
+        _ => Err(ErroRedirecionamentoDaPesquisa::InfraSistemaRepetidoNaUrlDoEnvio),
     }
 }
 
@@ -250,84 +256,91 @@ pub(crate) fn conferir_trabalho(
 ) -> Result<ProcessoRedirecionado, ErroRedirecionamentoDaPesquisa> {
     let localizacao = localizacao
         .filter(|l| !l.is_empty())
-        .ok_or(E::LocalizacaoDoRedirecionamentoAusente)?;
+        .ok_or(ErroRedirecionamentoDaPesquisa::LocalizacaoDoRedirecionamentoAusente)?;
     if localizacao.len() > LIMITE_DA_LOCALIZACAO {
-        return Err(E::LocalizacaoDoRedirecionamentoAcimaDoLimite);
+        return Err(ErroRedirecionamentoDaPesquisa::LocalizacaoDoRedirecionamentoAcimaDoLimite);
     }
     let aceita_http = !matches!(origem, OrigemDoTrabalho::Controle { .. });
     let absoluta = resolver(localizacao, url_base, aceita_http)?;
-    let (host, caminho, consulta) =
-        partir_https(&absoluta).ok_or(E::LocalizacaoDoRedirecionamentoNaoEhUrlHttps)?;
+    let (host, caminho, consulta) = partir_https(&absoluta)
+        .ok_or(ErroRedirecionamentoDaPesquisa::LocalizacaoDoRedirecionamentoNaoEhUrlHttps)?;
     if !instalacao.autoriza_controlador(host, caminho) {
-        return Err(E::LocalizacaoDoRedirecionamentoForaDaInstalacao);
+        return Err(ErroRedirecionamentoDaPesquisa::LocalizacaoDoRedirecionamentoForaDaInstalacao);
     }
     let pares = parametros(consulta)?;
-    if valores(&pares, "acao") != ["procedimento_trabalhar"] {
-        return Err(E::RedirecionamentoParaAcaoDiferenteDeProcedimentoTrabalhar);
+    if pares.acao() != Ok(AcaoDoSei::ProcedimentoTrabalhar.como_na_url()) {
+        return Err(ErroRedirecionamentoDaPesquisa::RedirecionamentoParaAcaoDiferenteDeProcedimentoTrabalhar);
     }
-    match (
-        valores(&pares, "acao_origem").as_slice(),
-        origem.acao_de_origem(),
-    ) {
-        ([], None) => {}
-        ([], Some(_)) => return Err(E::AcaoDeOrigemAusenteNoRedirecionamento),
-        ([_, ..], None) => return Err(E::AcaoDeOrigemInesperadaNoRedirecionamento),
-        ([observada], Some(esperada)) if *observada == esperada => {}
-        ([_], Some(_)) => return Err(E::AcaoDeOrigemDoRedirecionamentoDiferenteDaPesquisa),
-        (_, Some(_)) => return Err(E::AcaoDeOrigemRepetidaNoRedirecionamento),
-    }
+    conferir_acao_de_origem(&pares, &origem)?;
     let documento = matches!(origem, OrigemDoTrabalho::PesquisaRapidaDocumento);
-    let id = match valores(&pares, origem.chave_do_id()).as_slice() {
-        [] | [""] if documento => return Err(E::IdDocumentoAusenteNoRedirecionamento),
-        [] | [""] => return Err(E::IdProcedimentoAusenteNoRedirecionamento),
-        [id] if documento => {
-            IdProcedimento::novo(id).map_err(|_| E::IdDocumentoNaoDecimalNoRedirecionamento)?
+    let id = match pares
+        .valores(origem.chave_do_id())
+        .collect::<Vec<_>>()
+        .as_slice()
+    {
+        [] | [""] if documento => {
+            return Err(ErroRedirecionamentoDaPesquisa::IdDocumentoAusenteNoRedirecionamento);
         }
-        [id] => {
-            IdProcedimento::novo(id).map_err(|_| E::IdProcedimentoNaoDecimalNoRedirecionamento)?
+        [] | [""] => {
+            return Err(ErroRedirecionamentoDaPesquisa::IdProcedimentoAusenteNoRedirecionamento);
         }
-        _ if documento => return Err(E::IdDocumentoRepetidoNoRedirecionamento),
-        _ => return Err(E::IdProcedimentoRepetidoNoRedirecionamento),
+        [id] if documento => IdProcedimento::novo(id)
+            .map_err(ErroRedirecionamentoDaPesquisa::IdDocumentoRecusadoNoRedirecionamento)?,
+        [id] => IdProcedimento::novo(id)
+            .map_err(ErroRedirecionamentoDaPesquisa::IdProcedimentoNaoDecimalNoRedirecionamento)?,
+        _ if documento => {
+            return Err(ErroRedirecionamentoDaPesquisa::IdDocumentoRepetidoNoRedirecionamento);
+        }
+        _ => return Err(ErroRedirecionamentoDaPesquisa::IdProcedimentoRepetidoNoRedirecionamento),
     };
     if let OrigemDoTrabalho::EntradaPorId { id: pedido }
     | OrigemDoTrabalho::Controle { id: pedido }
     | OrigemDoTrabalho::EntradaPorIdComDocumento { id: pedido, .. } = origem
         && id.as_str() != pedido
     {
-        return Err(E::IdProcedimentoDoRedirecionamentoDiferenteDoPedido);
+        return Err(
+            ErroRedirecionamentoDaPesquisa::IdProcedimentoDoRedirecionamentoDiferenteDoPedido,
+        );
     }
     if let OrigemDoTrabalho::EntradaPorIdComDocumento { documento, .. } = origem
-        && valores(&pares, "id_documento") != [documento]
+        && pares.valores("id_documento").collect::<Vec<_>>() != [documento]
     {
-        return Err(E::IdDocumentoDoRedirecionamentoDiferenteDoPedido);
+        return Err(ErroRedirecionamentoDaPesquisa::IdDocumentoDoRedirecionamentoDiferenteDoPedido);
     }
-    match valores(&pares, "infra_hash").as_slice() {
-        [] => return Err(E::InfraHashAusenteNoRedirecionamento),
-        [hash] if hash.len() == 64 && hash.bytes().all(|b| b.is_ascii_hexdigit()) => {}
-        [_] => return Err(E::InfraHashForaDoFormatoNoRedirecionamento),
-        _ => return Err(E::InfraHashRepetidoNoRedirecionamento),
-    }
-    let unidade = match valores(&pares, "infra_unidade_atual").as_slice() {
-        [] => return Err(E::UnidadeAtualAusenteNoRedirecionamento),
+    conferir_infra_hash(&pares)?;
+    let unidade = match pares
+        .valores("infra_unidade_atual")
+        .collect::<Vec<_>>()
+        .as_slice()
+    {
+        [] => return Err(ErroRedirecionamentoDaPesquisa::UnidadeAtualAusenteNoRedirecionamento),
         [unidade] => *unidade,
-        _ => return Err(E::UnidadeAtualRepetidaNoRedirecionamento),
+        _ => return Err(ErroRedirecionamentoDaPesquisa::UnidadeAtualRepetidaNoRedirecionamento),
     };
     let sem_referencia = matches!(
         origem,
         OrigemDoTrabalho::EntradaPorId { .. } | OrigemDoTrabalho::EntradaPorIdComDocumento { .. }
     );
     if !sem_referencia && unidade != unidade_do_envio(url_base)? {
-        return Err(E::UnidadeAtualDoRedirecionamentoDiferenteDaDoEnvio);
+        return Err(
+            ErroRedirecionamentoDaPesquisa::UnidadeAtualDoRedirecionamentoDiferenteDaDoEnvio,
+        );
     }
-    let sistema = match valores(&pares, "infra_sistema").as_slice() {
-        [] => return Err(E::InfraSistemaAusenteNoRedirecionamento),
+    let sistema = match pares
+        .valores("infra_sistema")
+        .collect::<Vec<_>>()
+        .as_slice()
+    {
+        [] => return Err(ErroRedirecionamentoDaPesquisa::InfraSistemaAusenteNoRedirecionamento),
         [sistema] if decimal(sistema) => *sistema,
-        [_] => return Err(E::InfraSistemaNaoDecimalNoRedirecionamento),
-        _ => return Err(E::InfraSistemaRepetidoNoRedirecionamento),
+        [_] => {
+            return Err(ErroRedirecionamentoDaPesquisa::InfraSistemaNaoDecimalNoRedirecionamento);
+        }
+        _ => return Err(ErroRedirecionamentoDaPesquisa::InfraSistemaRepetidoNoRedirecionamento),
     };
     // Comparação exata, sem normalizar zeros à esquerda.
     if !sem_referencia && sistema != sistema_do_envio(url_base)? {
-        return Err(E::InfraSistemaDoRedirecionamentoDiferenteDoEnvio);
+        return Err(ErroRedirecionamentoDaPesquisa::InfraSistemaDoRedirecionamentoDiferenteDoEnvio);
     }
     Ok(ProcessoRedirecionado {
         id,
@@ -335,18 +348,62 @@ pub(crate) fn conferir_trabalho(
     })
 }
 
+/// `acao_origem` do 302: ausente, igual à esperada pela origem, ou recusa.
+fn conferir_acao_de_origem(
+    pares: &ConsultaDoControlador<'_>,
+    origem: &OrigemDoTrabalho<'_>,
+) -> Result<(), ErroRedirecionamentoDaPesquisa> {
+    match (
+        pares.valores("acao_origem").collect::<Vec<_>>().as_slice(),
+        origem.acao_de_origem(),
+    ) {
+        ([], None) => {}
+        ([], Some(_)) => {
+            return Err(ErroRedirecionamentoDaPesquisa::AcaoDeOrigemAusenteNoRedirecionamento);
+        }
+        ([_, ..], None) => {
+            return Err(ErroRedirecionamentoDaPesquisa::AcaoDeOrigemInesperadaNoRedirecionamento);
+        }
+        ([observada], Some(esperada)) if AcaoDoSei::ler(observada) == Some(esperada) => {}
+        ([_], Some(_)) => {
+            return Err(
+                ErroRedirecionamentoDaPesquisa::AcaoDeOrigemDoRedirecionamentoDiferenteDaPesquisa,
+            );
+        }
+        (_, Some(_)) => {
+            return Err(ErroRedirecionamentoDaPesquisa::AcaoDeOrigemRepetidaNoRedirecionamento);
+        }
+    }
+    Ok(())
+}
+
+/// Um `infra_hash` de 64 dígitos hexadecimais, nem ausente nem repetido.
+fn conferir_infra_hash(
+    pares: &ConsultaDoControlador<'_>,
+) -> Result<(), ErroRedirecionamentoDaPesquisa> {
+    match pares.valores("infra_hash").collect::<Vec<_>>().as_slice() {
+        [] => return Err(ErroRedirecionamentoDaPesquisa::InfraHashAusenteNoRedirecionamento),
+        [hash] if hash.len() == 64 && hash.bytes().all(|b| b.is_ascii_hexdigit()) => {}
+        [_] => {
+            return Err(ErroRedirecionamentoDaPesquisa::InfraHashForaDoFormatoNoRedirecionamento);
+        }
+        _ => return Err(ErroRedirecionamentoDaPesquisa::InfraHashRepetidoNoRedirecionamento),
+    }
+    Ok(())
+}
+
 /// O `id_documento` da URL de trabalho já conferida (302 da pesquisa em
 /// documentos): exatamente um, decimal e não vazio.
 pub(crate) fn documento_do_trabalho(
     trabalho: &UrlDeTrabalho,
 ) -> Result<String, ErroRedirecionamentoDaPesquisa> {
-    let consulta = partir_https(trabalho.as_str()).map_or("", |(_, _, consulta)| consulta);
+    let consulta = partir_https(trabalho.as_str()).and_then(|(_, _, consulta)| consulta);
     let pares = parametros(consulta)?;
-    match valores(&pares, "id_documento").as_slice() {
-        [] | [""] => Err(E::IdDocumentoAusenteNoRedirecionamento),
+    match pares.valores("id_documento").collect::<Vec<_>>().as_slice() {
+        [] | [""] => Err(ErroRedirecionamentoDaPesquisa::IdDocumentoAusenteNoRedirecionamento),
         [id] if decimal(id) => Ok((*id).to_owned()),
-        [_] => Err(E::IdDocumentoNaoDecimalNoRedirecionamento),
-        _ => Err(E::IdDocumentoRepetidoNoRedirecionamento),
+        [_] => Err(ErroRedirecionamentoDaPesquisa::IdDocumentoNaoDecimalNoRedirecionamento),
+        _ => Err(ErroRedirecionamentoDaPesquisa::IdDocumentoRepetidoNoRedirecionamento),
     }
 }
 

@@ -7,6 +7,12 @@ use std::path::{Path, PathBuf};
 use std::process::{Command, Output};
 use std::time::{SystemTime, UNIX_EPOCH};
 
+#[path = "support/falha.rs"]
+mod falha_cli;
+#[path = "support/falha_por.rs"]
+mod falha_por_cli;
+use falha_por_cli::falha_por;
+
 const ORIGEM: &str = "https://sei.exemplo/sei";
 
 struct Ambiente {
@@ -131,10 +137,9 @@ fn binario_real_lista_e_pesquisa_no_indice_sem_cookie_ou_http() {
     // Sem cookie, a coleta é recusada antes da primeira requisição.
     let atualizar = ambiente.executar(&["unidade", "listar", "--atualizar", "--json"]);
     assert_eq!(atualizar.status.code(), Some(1));
-    let recusada: serde_json::Value = serde_json::from_slice(&atualizar.stdout).unwrap();
-    assert_eq!(recusada["requisicoes"], 0);
-    assert_ne!(recusada["origem"], "indice");
-    assert!(recusada["subcodigo"].is_string());
+    assert_eq!(atualizar.stdout, b"", "o cache antigo não é publicado");
+    falha_por(&atualizar, "LupaSemListaIntegral", "CookieDaSessaoIlegivel");
+    falha_por(&atualizar, "LupaSemListaIntegral", "Ausente");
 
     // A tabela documentada é consultável por um agente externo em modo
     // somente leitura, e os comandos não mudam o snapshot nem o esquema.

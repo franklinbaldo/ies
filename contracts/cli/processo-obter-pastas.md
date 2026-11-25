@@ -21,7 +21,7 @@ decisão em [processo.obter](../../docs/decisoes/processo-obter.md).
 - `AGUARDE` (15 argumentos): a1 `AGUARDE<k>`, a2 `PASTA<k>` de uma pasta
   declarada, a3 `null`. Marca a pasta como **não carregada**.
 - `DOCUMENTO`: o pai (a2) é o processo ou uma `PASTA<k>` declarada.
-- Qualquer outro tipo continua `tipo_de_no_da_arvore_nao_suportado`.
+- Qualquer outro tipo continua `TipoDeNoDaArvoreNaoSuportado`.
 
 A primeira pasta pode vir na mesma linha do `.html` do nó anterior
 (`Nos[i-1].html = '…';Nos[i] = new infraArvoreNo(…);`), como observado;
@@ -37,9 +37,9 @@ os outros links assinados: `controlador.php?…` relativo, uma
 `abrir_pastas=1`, nenhum `fechar_pastas`, um `infra_hash` de 64 hex, na
 mesma instalação. Faz **um** GET dela e lê de novo a árvore inteira, com a
 mesma conferência de identidade. Sem a ação:
-`pastas_nao_carregadas_sem_acao_de_abrir`, sem outra requisição. Depois
+`PastasNaoCarregadasSemAcaoDeAbrir`, sem outra requisição. Depois
 do GET, qualquer `AGUARDE` restante é
-`pastas_nao_carregadas_apos_abrir_pastas`. Sem `AGUARDE`, nada a mais.
+`PastasNaoCarregadasAposAbrirPastas`. Sem `AGUARDE`, nada a mais.
 
 O IES **não** abre pasta por pasta (`procedimento_paginar` por POST) nem
 chama `FECHAR_PASTAS`, e não restaura o estado das pastas.
@@ -58,17 +58,17 @@ recusa. Barra vazia, ou com links sem esse parâmetro (ao vivo:
 `protocolo_modelo_gerenciar`, `documento_consultar_recebido`, sem
 `comentario_listar`), deixa o documento **sem identidade**. Documento sem
 linha `.acoes` nunca foi observado e é
-`documento_da_pasta_sem_identidade_na_barra`. A linha seguinte
+`DocumentoDaPastaSemIdentidadeNaBarra`. A linha seguinte
 `Nos[i].acoes = Nos[i].acoes.concat('');` (UFRJ e GO, sempre com o
 literal vazio) não muda a barra; concatenação com conteúdo é
 `barra_de_no_fora_da_forma_observada`.
 
 **Por pasta.** Toda identidade achada está na lista declarada e aparece
-**exatamente uma vez** (`documento_da_pasta_nao_declarado`,
+**exatamente uma vez** (`DocumentoDaPastaNaoDeclarado`,
 `protocolo_repetido_na_pasta`), e os declarados sem documento
 identificado são **tantos quantos** os documentos sem identidade da pasta.
 Se todos têm identidade, faltar um é `protocolo_declarado_ausente_da_pasta`;
-senão, a diferença é `contagem_da_pasta_diferente_da_declarada`. Os ids
+senão, a diferença é `ContagemDaPastaDiferenteDaDeclarada`. Os ids
 de documento (a1) são únicos na árvore inteira e, depois de abrir, não
 resta `AGUARDE`. A `verificacao` da pasta é `por_identidade` (todos com
 identidade), `mista` (alguns) ou `por_contagem` (nenhum).
@@ -78,7 +78,7 @@ A regra é a barra observada, nunca o texto "aberto somente na unidade" do
 
 A pasta fechada da primeira leitura não é conferida (os documentos dela
 não estão lá); uma pasta com `AGUARDE` **e** documentos é
-`pasta_carregada_pela_metade`. Nunca se publica lista parcial como
+`PastaCarregadaPelaMetade`. Nunca se publica lista parcial como
 completa. Em `ies processo NUP` (consulta **informativa**), com NUP e id do
 processo comprovados, apenas lacunas na leitura dos documentos podem gerar
 **sucesso com aviso**, sem publicar documentos ou pastas: pasta carregada
@@ -91,8 +91,7 @@ na consulta informativa.
 
 ## Saída
 
-Cada item de `documentos` ganha `pasta`: o id do nó (`"PASTA1"`) ou `null`
-na raiz. Ao lado, `pastas` lista as pastas na ordem da árvore:
+Cada item de `documentos` ganha `pasta`: o id do nó (`"PASTA1"`) ; na raiz, a chave `pasta` sai. Ao lado, `pastas` lista as pastas na ordem da árvore:
 
 ```json
 {"documentos": [{"id_documento": "D", "rotulo": "…", "numero_sei": "…", "pasta": "PASTA1"}],
@@ -105,7 +104,7 @@ na raiz. Ao lado, `pastas` lista as pastas na ordem da árvore:
 `total` é a quantidade declarada em `Pastas[k]['protocolos']`, já
 conferida; `verificacao` e as duas quantidades dizem como. No topo,
 `verificacao_das_pastas` é a mais fraca presente (`por_contagem` <
-`mista` < `por_identidade`) ou `null` sem pastas; se alguma pasta não é
+`mista` < `por_identidade`) ou a chave sai sem pastas; se alguma pasta não é
 toda por identidade, `verificacao_das_pastas_motivo:
 "documentos_sem_identidade_na_barra"`. Identidade só é alegada onde foi
 conferida. `pastas` sai `[]` sem pastas, e as três
@@ -116,7 +115,7 @@ Na consulta informativa com leitura de documentos incompleta, a CLI retorna
 **código 0** com os metadados do processo que foram comprovados e, sem
 `--sem-documentos`, apresenta `documentos_incluidos: false`,
 `documentos: []`, `documentos_movidos: []`, `pastas: []`,
-`verificacao_das_pastas: null` e `aviso_leitura_parcial` com o motivo
+`verificacao_das_pastas` ausente e `aviso_leitura_parcial` com o motivo
 legível. A saída humana informa `Aviso: leitura parcial do processo: lista
 de documentos incompleta (...)`. A lista vazia **não** afirma ausência de
 documentos. Com `--sem-documentos`, permanecem omitidos os campos de
@@ -153,23 +152,23 @@ na seção *Integridade* são convertidas em aviso; as demais continuam
 falhas de saída 1. A decisão não se aplica a outras operações.
 
 `pasta_fora_da_forma_observada`, `pasta_repetida_na_arvore`,
-`pasta_com_pai_diferente_do_processo`, `aguarde_fora_da_forma_observada`,
-`aguarde_com_pai_diferente_de_pasta`,
+`PastaComPaiDiferenteDoProcesso`, `aguarde_fora_da_forma_observada`,
+`AguardeComPaiDiferenteDePasta`,
 `protocolos_da_pasta_fora_da_forma_observada`,
 `protocolos_da_pasta_declarados_mais_de_uma_vez`,
 `protocolos_declarados_para_pasta_ausente`,
-`pasta_sem_protocolos_declarados`, `barra_de_no_fora_da_forma_observada`,
-`identidades_divergentes_na_barra_do_documento`,
-`documento_da_pasta_sem_identidade_na_barra`,
-`documento_da_pasta_nao_declarado`, `protocolo_repetido_na_pasta`,
+`PastaSemProtocolosDeclarados`, `barra_de_no_fora_da_forma_observada`,
+`IdentidadesDivergentesNaBarraDoDocumento`,
+`DocumentoDaPastaSemIdentidadeNaBarra`,
+`DocumentoDaPastaNaoDeclarado`, `protocolo_repetido_na_pasta`,
 `protocolo_declarado_ausente_da_pasta`,
-`contagem_da_pasta_diferente_da_declarada`, `pasta_carregada_pela_metade`,
-`pastas_nao_carregadas_sem_acao_de_abrir`,
+`ContagemDaPastaDiferenteDaDeclarada`, `PastaCarregadaPelaMetade`,
+`PastasNaoCarregadasSemAcaoDeAbrir`,
 `acao_de_abrir_pastas_fora_da_forma_observada`,
 `acoes_de_abrir_pastas_repetidas`,
 `endereco_de_abrir_pastas_nao_reconhecido`,
-`pastas_nao_carregadas_apos_abrir_pastas`. Login depois de abrir é
-`sessao_encerrada_rode_ies_login`; outro status, o erro de transporte.
+`PastasNaoCarregadasAposAbrirPastas`. Login depois de abrir é
+`SessaoEncerrada`; outro status, o erro de transporte.
 
 ## Limitações
 

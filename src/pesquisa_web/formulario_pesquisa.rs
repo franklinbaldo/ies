@@ -6,6 +6,7 @@ use super::redirecionamento::{
 };
 use super::regras_formulario::{ErroRegraDoFormularioDePesquisa, PesquisarEm, ler_regras_da_tela};
 use super::resposta::{ErroRespostaDaPesquisa, RespostaDaPesquisa, ler_resposta_html};
+use crate::acao_do_sei::AcaoDoSei;
 use crate::formulario_web::{
     ConferenciaDaUnidade, EfeitoAvaliado, EnvioDoFormulario, ErroSubmissaoFormulario,
     EstadoDeSessao, MarcadorDeResultado, OperacaoDeFormulario, RespostaDoEnvio, ResultadoDoEnvio,
@@ -61,7 +62,7 @@ pub(crate) const MARCADORES_DA_RESPOSTA: ResultadoDoEnvio = ResultadoDoEnvio::Um
 /// O servidor pode lembrar página/filtro da sessão
 /// (docs/como-o-sei-funciona/tabelas-e-paginacao.md): não é consulta pura.
 pub(crate) const PESQUISAR_PROTOCOLO: OperacaoDeFormulario = OperacaoDeFormulario {
-    acao: "protocolo_pesquisar",
+    acao: AcaoDoSei::ProtocoloPesquisar,
     formulario: "frmPesquisaProtocolo",
     envio: EnvioDoFormulario::BotaoDeEnvio("sbmPesquisar"),
     campos_ocultos_exigidos: CAMPOS_OCULTOS_DA_PESQUISA,
@@ -74,25 +75,26 @@ pub(crate) const PESQUISAR_PROTOCOLO: OperacaoDeFormulario = OperacaoDeFormulari
     },
 };
 
-#[derive(Clone, Debug, PartialEq, Eq, crate::erro_publico::Causa)]
+#[derive(Clone, Debug, PartialEq, Eq, thiserror::Error)]
+#[error("{self:?}")]
 pub(crate) enum ErroPesquisaProtocolo {
-    #[causa(interna)]
-    Filtro(ErroFiltro),
-    #[causa(interna)]
-    RegraDoFormulario(ErroRegraDoFormularioDePesquisa),
-    #[causa(interna)]
-    Submissao(ErroSubmissaoFormulario),
-    #[causa(interna)]
-    Redirecionamento(ErroRedirecionamentoDaPesquisa),
-    #[causa(interna)]
-    Resposta(ErroRespostaDaPesquisa),
+    Filtro(#[from] ErroFiltro),
+    RegraDoFormulario(#[from] ErroRegraDoFormularioDePesquisa),
+    Submissao(#[from] ErroSubmissaoFormulario),
+    Redirecionamento(#[from] ErroRedirecionamentoDaPesquisa),
+    Resposta(#[from] ErroRespostaDaPesquisa),
 }
 
 impl ErroPesquisaProtocolo {
-    pub(crate) fn status_http(&self) -> Option<&crate::transporte::StatusHttpRecusado> {
+    /// A sessão do SEI acabou (decide o relogin único): por `match` no tipo, sem
+    /// percorrer a cadeia `source()`.
+    pub(crate) fn sessao_encerrada(&self) -> bool {
         match self {
-            Self::Submissao(erro) => erro.status_http(),
-            _ => None,
+            Self::Submissao(erro) => erro.sessao_encerrada(),
+            Self::Filtro(_)
+            | Self::RegraDoFormulario(_)
+            | Self::Redirecionamento(_)
+            | Self::Resposta(_) => false,
         }
     }
 }
@@ -212,9 +214,8 @@ fn derivar_com(
     (unidade_solicitada, protocolo, inicio): (&str, &str, Option<&str>),
     filtros: FiltrosDaPesquisa<'_>,
 ) -> Result<SubmissaoDerivada, ErroPesquisaProtocolo> {
-    use ErroPesquisaProtocolo as E;
     let excessiva = || {
-        E::Submissao(ErroSubmissaoFormulario::Transporte(
+        ErroPesquisaProtocolo::Submissao(ErroSubmissaoFormulario::Transporte(
             FalhaTransporte::RespostaExcessiva,
         ))
     };
@@ -223,15 +224,14 @@ fn derivar_com(
     }
     // As recusas de instalação e unidade vêm de `derivar_submissao`, depois
     // destas regras; ler a tela em memória não tem efeito.
-    let dom = tl::parse(tela.html, tl::ParserOptions::default()).map_err(|_| excessiva())?;
+    let dom = crate::tela_html::arvore(tela.html);
     let form = localizar_formulario(&dom, operacao.formulario)?;
-    let regras = ler_regras_da_tela(form, dom.parser(), em)?;
+    let regras = ler_regras_da_tela(form, em)?;
     // O navegador conta `maxlength` em unidades UTF-16; termo maior não
     // seria digitável na tela servida e não sai em POST.
-    if let Some(maxlength) = regras.maxlength_do_termo
-        && protocolo.encode_utf16().count() > maxlength as usize
-    {
-        return Err(E::RegraDoFormulario(
+    let maxlength = regras.maxlength_do_termo;
+    if usize::try_from(maxlength).is_ok_and(|maximo| protocolo.encode_utf16().count() > maximo) {
+        return Err(ErroPesquisaProtocolo::RegraDoFormulario(
             ErroRegraDoFormularioDePesquisa::TermoAcimaDoMaxlengthDaTela { maxlength },
         ));
     }
@@ -243,7 +243,7 @@ fn derivar_com(
             .map(|(nome, valor)| (*nome, valor.as_str())),
     );
     campos.push(("txtProtocoloPesquisa", protocolo));
-    let extras = derivar_campos(form, dom.parser(), em == PesquisarEm::Documentos, filtros)?;
+    let extras = derivar_campos(form, em == PesquisarEm::Documentos, filtros)?;
     campos.extend(extras.iter().map(|(nome, valor)| (*nome, valor.as_str())));
     campos.extend(
         regras
@@ -254,14 +254,21 @@ fn derivar_com(
     if let Some(inicio) = inicio {
         campos.push(("hdnInicio", inicio));
     }
-    derivar_submissao(operacao, instalacao, tela, unidade_solicitada, &campos).map_err(E::Submissao)
+    derivar_submissao(
+        operacao,
+        instalacao,
+        tela,
+        Some(unidade_solicitada),
+        &campos,
+    )
+    .map_err(ErroPesquisaProtocolo::Submissao)
 }
 
 /// Resposta classificada, o HTML 200 (para a paginação) e, no 302, a URL
 /// de trabalho conferida (só `ies processo NUP` a abre).
 pub(crate) struct EnvioInterpretado<R = RespostaDaPesquisa> {
     pub(crate) resposta: R,
-    pub(crate) html: Option<String>,
+    pub(crate) html: Option<crate::tela_html::HtmlServido>,
     pub(crate) trabalho: Option<UrlDeTrabalho>,
 }
 
@@ -300,7 +307,37 @@ pub(crate) fn falha_do_envio(erro: ErroSubmissaoFormulario) -> ErroPesquisaProto
                 ErroRespostaDaPesquisa::RespostaDaPesquisaNaoReconhecida,
             )
         }
-        outro => ErroPesquisaProtocolo::Submissao(outro),
+        outro @ (ErroSubmissaoFormulario::EfeitoDaOperacaoNaoAvaliado
+        | ErroSubmissaoFormulario::UnidadeDaTelaDiferenteDaSolicitada
+        | ErroSubmissaoFormulario::UnidadeNaoInformada
+        | ErroSubmissaoFormulario::FormulariosComMesmoIdentificadorNaTela
+        | ErroSubmissaoFormulario::MetodoDoFormularioDiferenteDePost
+        | ErroSubmissaoFormulario::EnctypeDoFormularioNaoUrlencoded
+        | ErroSubmissaoFormulario::AcceptCharsetPublicadoNoFormulario
+        | ErroSubmissaoFormulario::AcaoDoFormularioNaoEhUrlHttps
+        | ErroSubmissaoFormulario::AcaoDoFormularioForaDaInstalacao
+        | ErroSubmissaoFormulario::AcaoDoFormularioDiferenteDaOperacao
+        | ErroSubmissaoFormulario::AcaoDoFormularioSemInfraHashUnico
+        | ErroSubmissaoFormulario::ConsultaDaAcaoIlegivel(_)
+        | ErroSubmissaoFormulario::CampoOcultoAusenteNoFormulario { .. }
+        | ErroSubmissaoFormulario::CampoOcultoRepetidoNoFormulario { .. }
+        | ErroSubmissaoFormulario::HdnAcaoPublicadoSemRegraDaOperacao
+        | ErroSubmissaoFormulario::CampoForaDaListaDaOperacao { .. }
+        | ErroSubmissaoFormulario::CampoNaoPublicadoPeloFormulario { .. }
+        | ErroSubmissaoFormulario::CampoInformadoMaisDeUmaVez { .. }
+        | ErroSubmissaoFormulario::CampoCriadoPeloScriptJaPublicado { .. }
+        | ErroSubmissaoFormulario::ValorNaoRepresentavelNaCodificacao { .. }
+        | ErroSubmissaoFormulario::TelaDeLoginRecebidaAposEnvio
+        | ErroSubmissaoFormulario::ValidacaoRecusadaPeloSei(_)
+        | ErroSubmissaoFormulario::Transporte(_)
+        | ErroSubmissaoFormulario::AcaoDoFormularioAusente
+        | ErroSubmissaoFormulario::BotaoDeEnvioAusenteNoFormulario
+        | ErroSubmissaoFormulario::BotoesDeEnvioRepetidosNoFormulario
+        | ErroSubmissaoFormulario::FormularioAusenteNaTela
+        | ErroSubmissaoFormulario::IdentificacaoDaUnidadeAusenteNaTela
+        | ErroSubmissaoFormulario::IdentificacoesDaUnidadeRepetidasNaTela(_)) => {
+            ErroPesquisaProtocolo::Submissao(outro)
+        }
     }
 }
 

@@ -1,16 +1,20 @@
 //! RED/GREEN do leitor da tela de propriedades: forma observada na `UnB`
 //! 4.0.9, identidade, campos e recusas tipadas. Fixtures sintéticas.
-use super::ErroPropriedades as E;
 use super::tests_apoio::{tela_das_propriedades, tela_restrita};
 use super::*;
-use crate::erro_html::ErroHtml;
-use crate::html_atributos::com_booleano_antes_dos_atributos;
+use crate::tela_html::HtmlServido;
+use crate::tela_html::teste::com_booleano_antes_dos_atributos;
 
 const NUP: &str = "00001.000001/2026-01";
 const ID: &str = "10";
 
-fn ler(html: &str) -> Result<PropriedadesLidas, E> {
-    ler_propriedades(html, NUP, ID, FonteDasPropriedades::Alterar)
+fn ler(html: &str) -> Result<PropriedadesLidas, super::ErroPropriedades> {
+    ler_propriedades(
+        &HtmlServido::de_teste(html),
+        NUP,
+        ID,
+        FonteDasPropriedades::Alterar,
+    )
 }
 
 fn padrao() -> String {
@@ -29,17 +33,17 @@ fn le_os_campos_da_forma_observada() {
     assert_eq!(
         lidas,
         PropriedadesLidas {
-            tipo: Some("Tipo Sintetico: Teste".into()),
+            tipo: "Tipo Sintetico: Teste".into(),
             especificacao: "Especificação sintética & teste".into(),
             interessados: vec!["Pessoa Sintetica A".into(), "Entidade Sintetica B".into()],
             assuntos: vec![Assunto {
-                codigo: Some("000.01".into()),
+                codigo: "000.01".into(),
                 descricao: "Assunto sintético um".into(),
             }],
             observacoes: "Observação sintética".into(),
             nivel_de_acesso: NivelDeAcesso::Publico,
             hipotese_legal: None,
-            data_de_geracao: Some("01/02/2026".into()),
+            data_de_geracao: "01/02/2026".into(),
             fonte: FonteDasPropriedades::Alterar,
         }
     );
@@ -53,7 +57,13 @@ fn booleano_antes_dos_atributos_nao_muda_a_leitura() {
 
 #[test]
 fn fonte_consultar_e_publicada() {
-    let lidas = ler_propriedades(&padrao(), NUP, ID, FonteDasPropriedades::Consultar).unwrap();
+    let lidas = ler_propriedades(
+        &HtmlServido::de_teste(&padrao()),
+        NUP,
+        ID,
+        FonteDasPropriedades::Consultar,
+    )
+    .unwrap();
     assert_eq!(lidas.fonte, FonteDasPropriedades::Consultar);
 }
 
@@ -95,16 +105,21 @@ fn sigiloso_pelo_valor_2() {
 fn identidade_e_conferida() {
     assert_eq!(
         ler_propriedades(
-            &padrao(),
+            &HtmlServido::de_teste(&padrao()),
             "00009.000009/2026-09",
             ID,
             FonteDasPropriedades::Alterar
         ),
-        Err(E::NumeroDasPropriedadesDiferenteDoSolicitado)
+        Err(super::ErroPropriedades::NumeroDasPropriedadesDiferenteDoSolicitado)
     );
     assert_eq!(
-        ler_propriedades(&padrao(), NUP, "11", FonteDasPropriedades::Alterar),
-        Err(E::IdDasPropriedadesDiferenteDoAberto)
+        ler_propriedades(
+            &HtmlServido::de_teste(&padrao()),
+            NUP,
+            "11",
+            FonteDasPropriedades::Alterar
+        ),
+        Err(super::ErroPropriedades::IdDasPropriedadesDiferenteDoAberto)
     );
     let sem = trocar(
         "id=\"hdnProtocoloFormatado\" name=\"hdnProtocoloFormatado\"",
@@ -112,7 +127,7 @@ fn identidade_e_conferida() {
     );
     assert_eq!(
         ler(&sem),
-        Err(E::Html(ErroHtml::ausente("campo_das_propriedades_ausente")))
+        Err(super::ErroPropriedades::CampoDasPropriedadesAusente)
     );
     let repetido = padrao().replace(
         "</form>",
@@ -120,19 +135,20 @@ fn identidade_e_conferida() {
     );
     assert_eq!(
         ler(&repetido),
-        Err(E::Html(ErroHtml::repetido(
-            "campo_das_propriedades_repetido"
-        )))
+        Err(super::ErroPropriedades::CampoDasPropriedadesRepetido)
     );
 }
 
 #[test]
 fn formulario_ausente_ou_repetido() {
     let sem = trocar("id=\"frmProcedimentoCadastro\"", "id=\"frmOutro\"");
-    assert_eq!(ler(&sem), Err(E::FormularioDasPropriedadesAusente));
+    assert_eq!(
+        ler(&sem),
+        Err(super::ErroPropriedades::FormularioDasPropriedadesAusente)
+    );
     assert_eq!(
         ler("<html><body>Link sem assinatura</body></html>"),
-        Err(E::FormularioDasPropriedadesAusente)
+        Err(super::ErroPropriedades::FormularioDasPropriedadesAusente)
     );
     let dois = padrao().replace(
         "</body>",
@@ -140,43 +156,44 @@ fn formulario_ausente_ou_repetido() {
     );
     assert_eq!(
         ler(&dois),
-        Err(E::Html(ErroHtml::repetido(
-            "formularios_das_propriedades_repetidos"
-        )))
+        Err(super::ErroPropriedades::FormulariosDasPropriedadesRepetidos)
     );
 }
 
 #[test]
-fn tipo_sem_marcacao_e_nulo_e_id_oculto_diferente_e_recusa() {
+fn tipo_sem_marcacao_id_oculto_diferente_e_opcoes_repetidas_recusam() {
     let sem = trocar(
         "<option value=\"100000002\" selected=\"selected\">",
         "<option value=\"100000002\">",
     );
-    assert_eq!(ler(&sem).unwrap().tipo, None);
+    assert_eq!(
+        ler(&sem),
+        Err(super::ErroPropriedades::TipoDoProcessoNaoMarcado)
+    );
     let outro = trocar(
         "id=\"hdnIdTipoProcedimento\" name=\"hdnIdTipoProcedimento\" value=\"100000002\"",
         "id=\"hdnIdTipoProcedimento\" name=\"hdnIdTipoProcedimento\" value=\"100000003\"",
     );
-    assert_eq!(ler(&outro), Err(E::TipoDoProcessoInconsistente));
+    assert_eq!(
+        ler(&outro),
+        Err(super::ErroPropriedades::TipoDoProcessoInconsistente)
+    );
     let dois = trocar(
         "<option value=\"100000003\">",
         "<option value=\"100000003\" selected=\"selected\">",
     );
     assert_eq!(
         ler(&dois),
-        Err(E::Html(ErroHtml::repetido("opcoes_marcadas_repetidas")))
+        Err(super::ErroPropriedades::OpcoesMarcadasRepetidas)
     );
 }
 
 #[test]
-fn assunto_sem_codigo_publica_so_a_descricao() {
+fn assunto_sem_codigo_e_recusa() {
     let html = trocar("000.01 - Assunto sint\u{e9}tico um", "Assunto sem codigo");
     assert_eq!(
-        ler(&html).unwrap().assuntos,
-        [Assunto {
-            codigo: None,
-            descricao: "Assunto sem codigo".into()
-        }]
+        ler(&html),
+        Err(super::ErroPropriedades::CodigoDoAssuntoNaoInterpretado)
     );
 }
 
@@ -189,7 +206,7 @@ fn assunto_fora_da_forma_e_recusa() {
     ] {
         assert_eq!(
             ler(&trocar(de, para)),
-            Err(E::Html(ErroHtml::valor("assunto_fora_da_forma_observada"))),
+            Err(super::ErroPropriedades::AssuntoForaDaFormaObservada),
             "{para}"
         );
     }
@@ -200,9 +217,7 @@ fn interessado_sem_texto_e_recusa_e_sem_opcoes_e_lista_vazia() {
     let vazio = trocar("Pessoa Sintetica A", "");
     assert_eq!(
         ler(&vazio),
-        Err(E::Html(ErroHtml::valor(
-            "interessado_fora_da_forma_observada"
-        )))
+        Err(super::ErroPropriedades::InteressadoForaDaFormaObservada)
     );
     let sem = trocar(
         "<option value=\"301\">Pessoa Sintetica A</option>\n<option value=\"302\">Entidade Sintetica B</option>\n",
@@ -212,7 +227,7 @@ fn interessado_sem_texto_e_recusa_e_sem_opcoes_e_lista_vazia() {
 }
 
 #[test]
-fn lista_oculta_preenchida_nunca_observada_e_recusa() {
+fn lista_oculta_preenchida_e_recusa() {
     for campo in ["hdnAssuntos", "hdnInteressadosProcedimento"] {
         let html = trocar(
             &format!("id=\"{campo}\" name=\"{campo}\" value=\"\""),
@@ -220,7 +235,7 @@ fn lista_oculta_preenchida_nunca_observada_e_recusa() {
         );
         assert_eq!(
             ler(&html),
-            Err(E::ListaOcultaDasPropriedadesNaoObservada),
+            Err(super::ErroPropriedades::ListaOcultaDasPropriedadesPreenchida),
             "{campo}"
         );
     }
@@ -229,7 +244,10 @@ fn lista_oculta_preenchida_nunca_observada_e_recusa() {
 #[test]
 fn nivel_de_acesso_nao_marcado_ou_fora_da_forma() {
     let nenhum = trocar("value=\"0\" checked=\"checked\" class", "value=\"0\" class");
-    assert_eq!(ler(&nenhum), Err(E::NivelDeAcessoNaoMarcado));
+    assert_eq!(
+        ler(&nenhum),
+        Err(super::ErroPropriedades::NivelDeAcessoNaoMarcado)
+    );
     let dois = padrao().replacen(
         "value=\"1\"  class",
         "value=\"1\" checked=\"checked\" class",
@@ -237,9 +255,7 @@ fn nivel_de_acesso_nao_marcado_ou_fora_da_forma() {
     );
     assert_eq!(
         ler(&dois),
-        Err(E::Html(ErroHtml::valor(
-            "nivel_de_acesso_fora_da_forma_observada"
-        )))
+        Err(super::ErroPropriedades::NivelDeAcessoForaDaFormaObservada)
     );
     let valor = trocar(
         "value=\"0\" checked=\"checked\"",
@@ -247,36 +263,46 @@ fn nivel_de_acesso_nao_marcado_ou_fora_da_forma() {
     );
     assert_eq!(
         ler(&valor),
-        Err(E::Html(ErroHtml::valor(
-            "nivel_de_acesso_fora_da_forma_observada"
-        )))
+        Err(super::ErroPropriedades::NivelDeAcessoForaDaFormaObservada)
     );
     let id = trocar("id=\"optPublico\"", "id=\"optOutro\"");
     assert_eq!(
         ler(&id),
-        Err(E::Html(ErroHtml::valor(
-            "nivel_de_acesso_fora_da_forma_observada"
-        )))
+        Err(super::ErroPropriedades::NivelDeAcessoForaDaFormaObservada)
     );
 }
 
 #[test]
-fn data_de_geracao_vazia_e_nula_e_fora_da_forma_e_recusa() {
+fn data_de_geracao_ausente_vazia_ou_fora_da_forma_e_recusa() {
     let vazia = trocar("value=\"01/02/2026\"", "value=\"\"");
-    assert_eq!(ler(&vazia).unwrap().data_de_geracao, None);
+    assert_eq!(
+        ler(&vazia),
+        Err(super::ErroPropriedades::DataDeGeracaoAusente)
+    );
+    let ausente = trocar(
+        "id=\"hdnDtaGeracao\" name=\"hdnDtaGeracao\" value=\"01/02/2026\"",
+        "id=\"hdnOutra\" name=\"hdnOutra\" value=\"01/02/2026\"",
+    );
+    assert_eq!(
+        ler(&ausente),
+        Err(super::ErroPropriedades::DataDeGeracaoAusente)
+    );
     let fora = trocar("value=\"01/02/2026\"", "value=\"2026-02-01\"");
     assert_eq!(
         ler(&fora),
-        Err(E::Html(ErroHtml::valor(
-            "data_de_geracao_fora_da_forma_observada"
-        )))
+        Err(super::ErroPropriedades::DataDeGeracaoForaDaFormaObservada)
     );
 }
 
 #[test]
-fn entidade_desconhecida_e_recusa() {
+fn entidade_desconhecida_fica_literal_como_no_navegador() {
     let html = trocar("&amp; teste", "&desconhecida; teste");
-    assert_eq!(ler(&html), Err(E::TextoDasPropriedadesNaoDecodificado));
+    let escapada = trocar("&amp; teste", "&amp;desconhecida; teste");
+    assert_eq!(
+        ler(&html).unwrap().especificacao,
+        "Especificação sintética &desconhecida; teste"
+    );
+    assert_eq!(ler(&html), ler(&escapada));
 }
 
 #[test]
@@ -292,7 +318,7 @@ fn campos_obrigatorios_ausentes_sao_recusa() {
         let html = trocar(&format!("id=\"{id}\""), "id=\"outro\"");
         assert_eq!(
             ler(&html),
-            Err(E::Html(ErroHtml::ausente("campo_das_propriedades_ausente"))),
+            Err(super::ErroPropriedades::CampoDasPropriedadesAusente),
             "{id}"
         );
     }

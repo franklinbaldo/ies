@@ -1,0 +1,18 @@
+id: 51-as-tag-ok-or
+language: rust
+message: 'n.as_tag().ok_or(e)?: o nó já é o elemento'
+severity: hint
+rule:
+  all:
+    - pattern: '$N.as_tag().$M($E)?'
+    - not:
+        inside:
+          stopBy: end
+          kind: mod_item
+          follows:
+            kind: attribute_item
+            regex: 'cfg\(test\)'
+constraints:
+  M:
+    regex: '^ok_or(_else)?$'
+fix: '$N'

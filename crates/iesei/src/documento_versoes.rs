@@ -26,16 +26,11 @@ pub struct DocumentoSimulado {
     pub revisoes: Vec<Revisao>,
 }
 
-#[derive(Debug)]
-pub enum Falha {
-    Sqlite(rusqlite::Error),
+#[derive(Debug, thiserror::Error)]
+#[error("{self:?}")]
+pub enum ErroDocumentoVersoes {
+    Sqlite(#[from] rusqlite::Error),
     DadoInvalido,
-}
-
-impl From<rusqlite::Error> for Falha {
-    fn from(erro: rusqlite::Error) -> Self {
-        Self::Sqlite(erro)
-    }
 }
 
 /// Reconstrói as versões do documento de forma atômica e idempotente.
@@ -47,7 +42,7 @@ pub fn guardar(
     banco: &mut Connection,
     cenario: &str,
     documento: &DocumentoSimulado,
-) -> Result<(), Falha> {
+) -> Result<(), ErroDocumentoVersoes> {
     let valido = |texto: &str| !texto.trim().is_empty();
     if !valido(cenario)
         || !valido(&documento.id_procedimento)
@@ -63,7 +58,7 @@ pub fn guardar(
         || !valido(&documento.tipo)
         || documento.revisoes.is_empty()
     {
-        return Err(Falha::DadoInvalido);
+        return Err(ErroDocumentoVersoes::DadoInvalido);
     }
     let mut vistas = HashSet::new();
     for revisao in &documento.revisoes {
@@ -74,7 +69,7 @@ pub fn guardar(
             || !valido(&revisao.html_corpo)
             || revisao.html_corpo.contains("infra_hash")
         {
-            return Err(Falha::DadoInvalido);
+            return Err(ErroDocumentoVersoes::DadoInvalido);
         }
     }
     let origem = documento.instalacao.url_base();
@@ -132,7 +127,7 @@ pub fn ler(
     instalacao: &Instalacao,
     cenario: &str,
     id_documento: &str,
-) -> Result<Option<DocumentoSimulado>, Falha> {
+) -> Result<Option<DocumentoSimulado>, ErroDocumentoVersoes> {
     let origem = instalacao.url_base();
     let cabecalho: Option<(String, String, String, String)> = banco
         .query_row(
@@ -162,8 +157,9 @@ pub fn ler(
     let mut revisoes = Vec::new();
     for linha in linhas {
         let (versao, usuario, unidade, modificacao, html_corpo) = linha?;
-        let numero_versao = u32::try_from(versao).map_err(|_| Falha::DadoInvalido)?;
-        let versao = NonZeroU32::new(numero_versao).ok_or(Falha::DadoInvalido)?;
+        let numero_versao =
+            u32::try_from(versao).map_err(|_| ErroDocumentoVersoes::DadoInvalido)?;
+        let versao = NonZeroU32::new(numero_versao).ok_or(ErroDocumentoVersoes::DadoInvalido)?;
         revisoes.push(Revisao {
             versao,
             usuario,
@@ -173,7 +169,7 @@ pub fn ler(
         });
     }
     if revisoes.is_empty() {
-        return Err(Falha::DadoInvalido);
+        return Err(ErroDocumentoVersoes::DadoInvalido);
     }
     Ok(Some(DocumentoSimulado {
         instalacao: instalacao.clone(),
@@ -196,7 +192,7 @@ pub fn ids_por_numero(
     instalacao: &Instalacao,
     cenario: &str,
     numero: &str,
-) -> Result<Vec<String>, Falha> {
+) -> Result<Vec<String>, ErroDocumentoVersoes> {
     let mut consulta = banco.prepare(
         "SELECT id_documento FROM documento_simulado
          WHERE origem=?1 AND cenario=?2 AND numero=?3
@@ -212,7 +208,40 @@ pub fn ids_por_numero(
     Ok(encontrados)
 }
 
-/// Lista documentos versionados pertencentes a um processo no mesmo cenário.
+/// A pesquisa rapida pode localizar o mesmo numero SEI sem os zeros iniciais.
+/// Isso e somente resolucao da busca: o numero publicado na arvore permanece
+/// opaco e precisa ser conferido literalmente pela CLI. Na `UnB`: `11505` -> `0011505`.
+/// Nao escolhe arbitrariamente entre duas identidades equivalentes.
+///
+/// # Errors
+/// Preserva a falha original do SQLite.
+pub fn ids_da_pesquisa_por_numero(
+    banco: &Connection,
+    instalacao: &Instalacao,
+    cenario: &str,
+    numero: &str,
+) -> Result<Vec<String>, ErroDocumentoVersoes> {
+    let exatos = ids_por_numero(banco, instalacao, cenario, numero)?;
+    if !exatos.is_empty() || !numero.bytes().all(|b| b.is_ascii_digit()) {
+        return Ok(exatos);
+    }
+    let mut consulta = banco.prepare(
+        "SELECT id_documento FROM documento_simulado
+         WHERE origem=?1 AND cenario=?2 AND ltrim(numero, '0')=ltrim(?3, '0')
+         ORDER BY id_documento",
+    )?;
+    let linhas = consulta.query_map(params![instalacao.url_base(), cenario, numero], |linha| {
+        linha.get::<_, String>(0)
+    })?;
+    let mut encontrados = Vec::new();
+    for linha in linhas {
+        encontrados.push(linha?);
+    }
+    Ok(encontrados)
+}
+
+/// Lista documentos com revisão existente no processo e cenário.
+/// A identidade de um documento recém-criado não inventa versão nem corpo.
 ///
 /// # Errors
 /// Propaga a falha original do SQLite.
@@ -223,12 +252,82 @@ pub fn ids_do_processo(
     id_procedimento: &str,
 ) -> rusqlite::Result<Vec<String>> {
     let mut stmt = banco.prepare(
-        "SELECT id_documento FROM documento_simulado
-         WHERE origem=?1 AND cenario=?2 AND id_procedimento=?3 ORDER BY id_documento",
+        "SELECT d.id_documento FROM documento_simulado d
+         WHERE d.origem=?1 AND d.cenario=?2 AND d.id_procedimento=?3
+         AND EXISTS(
+             SELECT 1 FROM documento_revisao r
+             WHERE r.origem=d.origem AND r.cenario=d.cenario
+               AND r.id_documento=d.id_documento
+         )
+         ORDER BY d.id_documento",
     )?;
     let linhas = stmt.query_map(
         params![instalacao.url_base(), cenario, id_procedimento],
         |linha| linha.get::<_, String>(0),
     )?;
     linhas.collect()
+}
+
+#[cfg(test)]
+mod testes_criacao {
+    use super::*;
+    use crate::banco_cassettes::iniciar;
+    use crate::documentos_simulados::{self, Processo, Tipo};
+
+    #[test]
+    fn criado_nao_inventa_revisao_mas_passa_a_ser_versionado_apos_edicao() {
+        let mut banco = Connection::open_in_memory().unwrap();
+        iniciar(&banco).unwrap();
+        let origem = Instalacao::interpretar("https://simulado.invalid/sei").unwrap();
+        let cena = "criar-depois-editar";
+        documentos_simulados::registrar_processo(
+            &banco,
+            &origem,
+            cena,
+            &Processo {
+                id: "10".into(),
+                nup: "00001.000001/2026-01".into(),
+                unidade: "TESTE".into(),
+            },
+        )
+        .unwrap();
+        documentos_simulados::registrar_tipo(
+            &banco,
+            &origem,
+            cena,
+            "10",
+            &Tipo {
+                id: "291".into(),
+                nome: "Despacho".into(),
+            },
+        )
+        .unwrap();
+        let criado = documentos_simulados::criar(&banco, &origem, cena, "10", "291", "").unwrap();
+        let ids_versionados = ids_do_processo(&banco, &origem, cena, "10").unwrap();
+        assert_eq!(ids_versionados, Vec::<String>::new());
+        guardar(
+            &mut banco,
+            cena,
+            &DocumentoSimulado {
+                instalacao: origem.clone(),
+                id_documento: criado.id.to_string(),
+                id_procedimento: "10".into(),
+                numero_processo: "00001.000001/2026-01".into(),
+                numero: criado.numero_sei,
+                tipo: criado.tipo,
+                revisoes: vec![Revisao {
+                    versao: NonZeroU32::new(1).unwrap(),
+                    usuario: "TESTE".into(),
+                    unidade: "TESTE".into(),
+                    modificacao: "09/11/2026".into(),
+                    html_corpo: "<p>Conteúdo sintético</p>".into(),
+                }],
+            },
+        )
+        .unwrap();
+        assert_eq!(
+            ids_do_processo(&banco, &origem, cena, "10").unwrap(),
+            vec![criado.id.to_string()]
+        );
+    }
 }

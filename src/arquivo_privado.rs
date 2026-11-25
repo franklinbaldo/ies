@@ -1,5 +1,5 @@
-//! Gravação privada única (#211): o par de escrita de
-//! `transporte::arquivo_privado`, que é a leitura. Cria (exclusivo) ou
+//! Gravação privada única (#211): o par de escrita de [`ler`], que é
+//! a leitura. Cria (exclusivo) ou
 //! substitui (atômico) um arquivo `0600` sem nunca seguir link simbólico
 //! no nome final, no diretório real (resolvido com `canonicalize`) que,
 //! se é do IES, no Unix não é gravável por grupo ou outros sem sticky
@@ -97,20 +97,38 @@ impl Politica {
 }
 
 /// Falha tipada, sem caminho nem conteúdo.
-#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+#[derive(Clone, Copy, Debug, PartialEq, Eq, thiserror::Error)]
+#[error("{self:?}")]
 pub(crate) enum FalhaDaGravacao {
     SemNomeDeArquivo,
     DiretorioAusente,
+    /// O diretório (ou o atual, no caminho relativo) não pôde ser consultado:
+    /// o motivo do sistema.
+    DiretorioNaoConsultado(std::io::ErrorKind),
+    /// Um nível do caminho existe e não é diretório.
+    NivelDoCaminhoNaoEhDiretorio,
+    /// Um nível do caminho não pôde ser consultado (o motivo do sistema).
+    NivelDoCaminhoIlegivel(std::io::ErrorKind),
+    /// O sistema recusou criar um nível `0700`.
+    CriacaoDoDiretorioFalhou(std::io::ErrorKind),
+    /// O sistema recusou criar o temporário `0600`.
+    CriacaoDoTemporarioFalhou(std::io::ErrorKind),
+    /// O sistema recusou escrever ou sincronizar o temporário (o motivo).
+    ErroDeIoNaEscrita(std::io::ErrorKind),
+    /// Oito nomes de temporário seguidos já existiam.
+    NomesDeTemporarioEsgotados,
     /// O diretório real do destino é gravável por grupo ou outros
     /// (`mode & 0o022`) sem o sticky bit (`0o1000`). Só no Unix.
-    #[cfg_attr(not(unix), allow(dead_code))]
+    #[cfg(unix)]
     DiretorioGravavelPorOutros,
     DestinoJaExiste,
     DestinoNaoEhArquivoRegular,
     AcimaDoLimite,
-    CriacaoFalhou,
+    /// Falha do sistema ao consultar o nome final antes da publicação.
+    CriacaoFalhou(ErrorKind),
     EscritaFalhou,
-    ConfirmacaoFalhou,
+    /// O sistema recusou publicar no nome final (o motivo do sistema).
+    ConfirmacaoFalhou(std::io::ErrorKind),
 }
 
 /// O pai do destino existe e é diretório (links no caminho são aceitos)
@@ -140,7 +158,8 @@ fn diretorio_real(destino: &Path, politica: Politica) -> Result<PathBuf, FalhaDa
                 Err(erro) if erro.kind() == ErrorKind::NotFound => {
                     criar_nivel(nivel, politica.diretorio)?;
                 }
-                Ok(_) | Err(_) => return Err(FalhaDaGravacao::DiretorioAusente),
+                Ok(_) => return Err(FalhaDaGravacao::NivelDoCaminhoNaoEhDiretorio),
+                Err(erro) => return Err(FalhaDaGravacao::NivelDoCaminhoIlegivel(erro.kind())),
             }
         }
     }
@@ -150,8 +169,8 @@ fn diretorio_real(destino: &Path, politica: Politica) -> Result<PathBuf, FalhaDa
 /// `canonicalize` do diretório e, se é do IES, a conferência do modo do
 /// diretório real.
 fn real_e_conferido(pasta: &Path, dono: Diretorio) -> Result<PathBuf, FalhaDaGravacao> {
-    let real = fs::canonicalize(pasta).map_err(|_| FalhaDaGravacao::DiretorioAusente)?;
-    let info = fs::metadata(&real).map_err(|_| FalhaDaGravacao::DiretorioAusente)?;
+    let real = fs::canonicalize(pasta).map_err(|erro| falha_ao_consultar(&erro))?;
+    let info = fs::metadata(&real).map_err(|erro| falha_ao_consultar(&erro))?;
     if !info.is_dir() {
         return Err(FalhaDaGravacao::DiretorioAusente);
     }
@@ -176,7 +195,16 @@ fn absoluto(destino: &Path) -> Result<PathBuf, FalhaDaGravacao> {
     }
     std::env::current_dir()
         .map(|corrente| corrente.join(destino))
-        .map_err(|_| FalhaDaGravacao::DiretorioAusente)
+        .map_err(|erro| falha_ao_consultar(&erro))
+}
+
+/// Ausente quando o sistema diz que não existe; senão, o motivo.
+fn falha_ao_consultar(erro: &std::io::Error) -> FalhaDaGravacao {
+    if erro.kind() == ErrorKind::NotFound {
+        FalhaDaGravacao::DiretorioAusente
+    } else {
+        FalhaDaGravacao::DiretorioNaoConsultado(erro.kind())
+    }
 }
 
 /// Cria um nível `0700` dentro de um diretório real conferido como o
@@ -200,9 +228,10 @@ fn criar_nivel(nivel: &Path, dono: Diretorio) -> Result<(), FalhaDaGravacao> {
         // Outro processo criou ao mesmo tempo: vale se for diretório.
         Err(erro) if erro.kind() == ErrorKind::AlreadyExists => match fs::metadata(&nivel) {
             Ok(info) if info.is_dir() => Ok(()),
-            _ => Err(FalhaDaGravacao::DiretorioAusente),
+            Ok(_) => Err(FalhaDaGravacao::NivelDoCaminhoNaoEhDiretorio),
+            Err(erro) => Err(FalhaDaGravacao::NivelDoCaminhoIlegivel(erro.kind())),
         },
-        Err(_) => Err(FalhaDaGravacao::CriacaoFalhou),
+        Err(erro) => Err(FalhaDaGravacao::CriacaoDoDiretorioFalhou(erro.kind())),
     }
 }
 
@@ -263,7 +292,8 @@ impl Parcial {
     }
 
     pub(crate) fn escrever(&mut self, bytes: &[u8]) -> Result<(), FalhaDaGravacao> {
-        let total = self.escritos.saturating_add(bytes.len() as u64);
+        let total = u64::try_from(bytes.len())
+            .map_or(u64::MAX, |novos| self.escritos.saturating_add(novos));
         if self.politica.limite.is_some_and(|limite| total > limite) {
             return Err(FalhaDaGravacao::AcimaDoLimite);
         }
@@ -273,7 +303,7 @@ impl Parcial {
             .ok_or(FalhaDaGravacao::EscritaFalhou)?;
         arquivo
             .write_all(bytes)
-            .map_err(|_| FalhaDaGravacao::EscritaFalhou)?;
+            .map_err(|erro| FalhaDaGravacao::ErroDeIoNaEscrita(erro.kind()))?;
         self.escritos = total;
         Ok(())
     }
@@ -283,12 +313,11 @@ impl Parcial {
         if let Some(arquivo) = self.arquivo.take() {
             arquivo
                 .sync_all()
-                .map_err(|_| FalhaDaGravacao::EscritaFalhou)?;
+                .map_err(|erro| FalhaDaGravacao::ErroDeIoNaEscrita(erro.kind()))?;
         }
         Ok(())
     }
 
-    #[cfg_attr(not(test), allow(dead_code))]
     pub(crate) fn temporario(&self) -> &Path {
         &self.temporario
     }
@@ -303,14 +332,14 @@ impl Parcial {
                     if erro.kind() == ErrorKind::AlreadyExists {
                         FalhaDaGravacao::DestinoJaExiste
                     } else {
-                        FalhaDaGravacao::ConfirmacaoFalhou
+                        FalhaDaGravacao::ConfirmacaoFalhou(erro.kind())
                     }
                 })?;
             }
             Modo::Substituir => {
                 conferir_destino(&self.destino, Modo::Substituir)?;
                 fs::rename(&self.temporario, &self.destino)
-                    .map_err(|_| FalhaDaGravacao::ConfirmacaoFalhou)?;
+                    .map_err(|erro| FalhaDaGravacao::ConfirmacaoFalhou(erro.kind()))?;
                 self.confirmado = true;
             }
         }
@@ -350,7 +379,7 @@ impl Eq for Parcial {}
 fn conferir_destino(destino: &Path, modo: Modo) -> Result<(), FalhaDaGravacao> {
     match (fs::symlink_metadata(destino), modo) {
         (Err(erro), _) if erro.kind() == ErrorKind::NotFound => Ok(()),
-        (Err(_), _) => Err(FalhaDaGravacao::CriacaoFalhou),
+        (Err(erro), _) => Err(FalhaDaGravacao::CriacaoFalhou(erro.kind())),
         (Ok(_), Modo::Exclusivo) => Err(FalhaDaGravacao::DestinoJaExiste),
         (Ok(info), Modo::Substituir) if info.file_type().is_file() => Ok(()),
         (Ok(_), Modo::Substituir) => Err(FalhaDaGravacao::DestinoNaoEhArquivoRegular),
@@ -378,10 +407,10 @@ fn criar_temporario(pasta: &Path, prefixo: &str) -> Result<(PathBuf, File), Falh
             Ok(arquivo) => return Ok((temporario, arquivo)),
             // Órfão recente de um PID reaproveitado: o próximo número.
             Err(erro) if erro.kind() == ErrorKind::AlreadyExists => {}
-            Err(_) => return Err(FalhaDaGravacao::CriacaoFalhou),
+            Err(erro) => return Err(FalhaDaGravacao::CriacaoDoTemporarioFalhou(erro.kind())),
         }
     }
-    Err(FalhaDaGravacao::CriacaoFalhou)
+    Err(FalhaDaGravacao::NomesDeTemporarioEsgotados)
 }
 
 /// Remove `PREFIXO*` regulares sem modificação há mais de
@@ -421,6 +450,11 @@ fn sincronizar_pasta(destino: &Path) {
         let _ = File::open(pasta).and_then(|d| d.sync_all());
     }
 }
+
+pub(crate) use leitura::{ErroArquivoPrivado, ler};
+pub(crate) use trava::{ErroDaTrava, TravaDeArquivo, travar_com_espera};
+mod leitura;
+mod trava;
 
 #[cfg(test)]
 #[path = "arquivo_privado/tests.rs"]

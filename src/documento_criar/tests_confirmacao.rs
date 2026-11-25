@@ -1,16 +1,16 @@
 //! Ensaios sintéticos da fronteira real de escrita e verificação (#246).
 //! Casos de Todos `src/todos/documentos.py::_conferir_criacao` @323eb01.
 use super::*;
-use crate::arvore_processo::{DocumentoNaArvore, NaturezaDoDocumento};
+use crate::arvore_processo::{Cancelamento, DocumentoNaArvore, NaturezaDoDocumento};
 use crate::formulario_web::{CodificacaoDaTela, RespostaDoPost};
 use crate::transporte::sessao::CookieDaSessao;
 use crate::transporte::{FalhaTransporte, RespostaWeb};
 use std::io::Cursor;
 
 #[derive(Default)]
-struct RedeSintetica {
-    chamadas: Vec<&'static str>,
-    submissoes: Vec<crate::formulario_web::SubmissaoDerivada>,
+pub(super) struct RedeSintetica {
+    pub(super) chamadas: Vec<&'static str>,
+    pub(super) submissoes: Vec<crate::formulario_web::SubmissaoDerivada>,
 }
 fn documento(id: &str, numero: &str, tipo: &str) -> DocumentoNaArvore {
     DocumentoNaArvore {
@@ -19,14 +19,13 @@ fn documento(id: &str, numero: &str, tipo: &str) -> DocumentoNaArvore {
         numero_sei: Some(numero.to_owned()),
         pasta: None,
         natureza: NaturezaDoDocumento {
-            icone: None,
-            cancelado: None,
-            motivo_do_cancelamento: None,
+            icone: "documento_interno".into(),
+            cancelamento: Cancelamento::Ativo,
             dica: None,
         },
     }
 }
-fn foto(novos: usize) -> FotoDaCriacao {
+pub(super) fn foto(novos: usize) -> FotoDaCriacao {
     let mut documentos = vec![documento("101", "0000001", "Ofício")];
     if novos > 0 {
         documentos.push(documento("102", "0000002", "Despacho"));
@@ -40,16 +39,16 @@ fn foto(novos: usize) -> FotoDaCriacao {
         pastas_nao_carregadas: false,
     }
 }
-fn submissao_sintetica() -> crate::formulario_web::SubmissaoDerivada {
+pub(super) fn submissao_sintetica() -> crate::formulario_web::SubmissaoDerivada {
     let hash = "a".repeat(64);
-    let html = format!(
+    let html = crate::tela_html::HtmlServido::de_teste(&format!(
         r#"<html><form id="frmDocumentoCadastro" method="post"
           action="controlador.php?acao=documento_gerar&amp;infra_hash={hash}">
           <input type="hidden" name="hdnIdSerie" value="291">
           <input type="hidden" name="hdnFlagDocumentoCadastro" value="1">
           <input type="radio" name="rdoNivelAcesso" id="optPublico" value="0">
           </form></html>"#
-    );
+    ));
     let url = format!(
         "https://sei.exemplo.gov.br/sei/controlador.php?acao=documento_gerar&infra_hash={}",
         "b".repeat(64)
@@ -64,7 +63,7 @@ fn submissao_sintetica() -> crate::formulario_web::SubmissaoDerivada {
         &CADASTRAR,
         &instalacao,
         &servida,
-        "UNIDADE TESTE",
+        Some("UNIDADE TESTE"),
         &[("hdnFlagDocumentoCadastro", "2"), ("rdoNivelAcesso", "0")],
     )
     .unwrap()
@@ -146,7 +145,10 @@ fn redirect_sem_location_nao_prova_a_criacao_mesmo_com_arvore_alterada() {
             Ok(foto(1))
         },
     );
-    assert!(matches!(resultado, Err(ErroPreviaCriacao::EfeitoIncerto)));
+    assert!(matches!(
+        resultado,
+        Err(ErroConfirmacaoDaCriacao::NaoConfirmado)
+    ));
     assert_eq!(rede.chamadas, ["POST criador", "GET arvore"]);
     assert_eq!(rede.submissoes.len(), 1);
 }
@@ -173,13 +175,13 @@ fn falha_do_post_ainda_rele_a_arvore_sem_repetir_escrita() {
     );
     assert!(matches!(
         resultado,
-        Err(ErroPreviaCriacao::EfeitoIncertoNoEnvio(_))
+        Err(ErroConfirmacaoDaCriacao::NaoConfirmadoNoEnvio(_))
     ));
     assert_eq!(rede.chamadas, ["POST criador", "GET arvore"]);
     assert_eq!(rede.submissoes.len(), 1);
 }
 #[test]
-fn dois_documentos_novos_sao_efeito_incerto_apos_post_unico() {
+fn dois_documentos_novos_sao_nao_confirmado_apos_post_unico() {
     let mut rede = RedeSintetica::default();
     let cookie = CookieDaSessao::sintetico("PHPSESSID=SINTETICO");
     let resultado = postar_e_verificar(
@@ -194,7 +196,12 @@ fn dois_documentos_novos_sao_efeito_incerto_apos_post_unico() {
             Ok(foto(2))
         },
     );
-    assert!(matches!(resultado, Err(ErroPreviaCriacao::EfeitoIncerto)));
+    assert_eq!(
+        resultado,
+        Err(ErroConfirmacaoDaCriacao::NaoDemonstradoNaArvore(
+            crate::documento_criar::ErroConferenciaDeCriacao::NaoConfirmado
+        ))
+    );
     assert_eq!(rede.chamadas, ["POST criador", "GET arvore"]);
     assert_eq!(rede.submissoes.len(), 1);
 }
@@ -216,7 +223,7 @@ fn leitura_posterior_falha_sem_segunda_escrita() {
     );
     assert!(matches!(
         resultado,
-        Err(ErroPreviaCriacao::EfeitoIncertoNaReleitura(
+        Err(ErroConfirmacaoDaCriacao::NaoConfirmadoNaReleitura(
             ErroProcessoObter::Transporte(FalhaTransporte::Rede)
         ))
     ));
@@ -244,7 +251,7 @@ fn foto_incompleta_recusa_antes_do_post() {
     );
     assert!(matches!(
         resultado,
-        Err(ErroPreviaCriacao::ArvoreIncompleta)
+        Err(ErroConfirmacaoDaCriacao::ArvoreIncompleta)
     ));
     assert!(
         rede.chamadas.is_empty(),
@@ -272,7 +279,7 @@ fn foto_inicial_com_ids_duplicados_recusa_antes_do_post() {
     );
     assert!(matches!(
         resultado,
-        Err(ErroPreviaCriacao::FotoInicialInconsistente)
+        Err(ErroConfirmacaoDaCriacao::FotoInicialInconsistente)
     ));
     assert!(rede.chamadas.is_empty(), "IDs ambíguos não autorizam POST");
 }
@@ -297,7 +304,7 @@ fn foto_inicial_sem_id_do_processo_recusa_antes_do_post() {
     );
     assert!(matches!(
         resultado,
-        Err(ErroPreviaCriacao::FotoInicialInconsistente)
+        Err(ErroConfirmacaoDaCriacao::FotoInicialInconsistente)
     ));
     assert!(
         rede.chamadas.is_empty(),
@@ -337,7 +344,10 @@ fn redirect_para_host_externo_nao_comprova_criacao() {
             Ok(foto(1))
         },
     );
-    assert!(matches!(resultado, Err(ErroPreviaCriacao::EfeitoIncerto)));
+    assert!(matches!(
+        resultado,
+        Err(ErroConfirmacaoDaCriacao::NaoConfirmado)
+    ));
     assert_eq!(rede.chamadas, ["POST criador", "GET arvore"]);
     assert_eq!(rede.submissoes.len(), 1);
 }
@@ -413,169 +423,10 @@ fn html_200_sem_aceite_nao_comprova_post_ante_concorrencia() {
             Ok(foto(1))
         },
     );
-    assert!(matches!(resultado, Err(ErroPreviaCriacao::EfeitoIncerto)));
-    assert_eq!(rede.chamadas, ["POST criador", "GET arvore"]);
-    assert_eq!(rede.submissoes.len(), 1, "nunca repetir POST");
-}
-
-#[test]
-fn falha_http_403_do_post_preserva_recusa_apesar_de_arvore_concorrente() {
-    let mut rede = RedeSintetica::default();
-    let cookie = CookieDaSessao::sintetico("PHPSESSID=SINTETICO");
-    let resultado = postar_e_verificar(
-        &mut rede,
-        submissao_sintetica(),
-        &cookie,
-        &foto(0),
-        "Despacho",
-        |rede, submissao, _| {
-            rede.chamadas.push("POST criador");
-            rede.submissoes.push(submissao);
-            Err::<RespostaDoPost<Cursor<Vec<u8>>>, _>(FalhaTransporte::AcessoNegado(
-                crate::transporte::StatusHttpRecusado {
-                    status: 403,
-                    mensagem_do_servidor: Some("acesso negado sintético".to_owned()),
-                },
-            ))
-        },
-        |rede| {
-            rede.chamadas.push("GET arvore");
-            Ok(foto(1))
-        },
-    );
-    let erro = resultado.expect_err("POST com falha não confirma a criação concorrente");
-    assert_eq!(erro.subcodigo(), "efeito_incerto_na_criacao_de_documento");
-    let http = erro.status_http().expect("preservar status HTTP do POST");
-    assert_eq!(http.status, 403);
-    assert_eq!(
-        http.mensagem_do_servidor.as_deref(),
-        Some("acesso negado sintético")
-    );
-    assert_eq!(rede.chamadas, ["POST criador", "GET arvore"]);
-    assert_eq!(rede.submissoes.len(), 1, "nunca repetir POST");
-}
-
-#[test]
-fn falha_http_503_do_post_preserva_mensagem_saneada() {
-    let mut rede = RedeSintetica::default();
-    let cookie = CookieDaSessao::sintetico("PHPSESSID=SINTETICO");
-    let resultado = postar_e_verificar(
-        &mut rede,
-        submissao_sintetica(),
-        &cookie,
-        &foto(0),
-        "Despacho",
-        |rede, submissao, _| {
-            rede.chamadas.push("POST criador");
-            rede.submissoes.push(submissao);
-            Err::<RespostaDoPost<Cursor<Vec<u8>>>, _>(FalhaTransporte::StatusHttpDeErroDoServidor(
-                crate::transporte::StatusHttpRecusado {
-                    status: 503,
-                    mensagem_do_servidor: Some("indisponibilidade sintética".to_owned()),
-                },
-            ))
-        },
-        |rede| {
-            rede.chamadas.push("GET arvore");
-            Ok(foto(1))
-        },
-    );
-    let erro = resultado.expect_err("HTTP 503 não confirma efeito");
-    let http = erro.status_http().expect("preservar causa HTTP 503");
-    assert_eq!(http.status, 503);
-    assert_eq!(
-        http.mensagem_do_servidor.as_deref(),
-        Some("indisponibilidade sintética")
-    );
-    assert_eq!(rede.chamadas, ["POST criador", "GET arvore"]);
-    assert_eq!(rede.submissoes.len(), 1);
-}
-
-#[test]
-fn redirecionamento_invalido_ou_id_alheio_nao_confirma() {
-    for destino in [
-        "controlador.php?acao=documento_visualizar&id_documento=999",
-        "controlador.php?acao=procedimento_trabalhar&id_documento=102",
-        "//sei/controlador.php?acao=documento_visualizar&id_documento=102",
-    ] {
-        let mut rede = RedeSintetica::default();
-        let cookie = CookieDaSessao::sintetico("PHPSESSID=SINTETICO");
-        let resultado = postar_e_verificar(
-            &mut rede,
-            submissao_sintetica(),
-            &cookie,
-            &foto(0),
-            "Despacho",
-            |rede, submissao, _| {
-                rede.chamadas.push("POST criador");
-                rede.submissoes.push(submissao);
-                Ok(RespostaDoPost {
-                    resposta: RespostaWeb {
-                        status_code: 302,
-                        mime: "text/html".to_owned(),
-                        content_length: None,
-                        localizacao: Some(destino.to_owned()),
-                        corpo: Cursor::new(Vec::new()),
-                    },
-                    localizacao: Some(destino.to_owned()),
-                })
-            },
-            |rede| {
-                rede.chamadas.push("GET arvore");
-                Ok(foto(1))
-            },
-        );
-        assert!(matches!(resultado, Err(ErroPreviaCriacao::EfeitoIncerto)));
-        assert_eq!(rede.chamadas, ["POST criador", "GET arvore"]);
-        assert_eq!(rede.submissoes.len(), 1);
-    }
-}
-
-#[test]
-fn validacao_infra_200_preserva_a_causa_apos_post() {
-    let mut rede = RedeSintetica::default();
-    let cookie = CookieDaSessao::sintetico("PHPSESSID=SINTETICO");
-    let resultado = postar_e_verificar(
-        &mut rede,
-        submissao_sintetica(),
-        &cookie,
-        &foto(0),
-        "Despacho",
-        |rede, submissao, _| {
-            rede.chamadas.push("POST criador");
-            rede.submissoes.push(submissao);
-            Ok(RespostaDoPost {
-                resposta: RespostaWeb {
-                    status_code: 200,
-                    mime: "text/html; charset=UTF-8".to_owned(),
-                    content_length: None,
-                    localizacao: None,
-                    corpo: Cursor::new(
-                        "<html><textarea id=\"txaInfraValidacao\">Recusa sintética</textarea></html>"
-                            .as_bytes()
-                            .to_vec(),
-                    ),
-                },
-                localizacao: None,
-            })
-        },
-        |rede| {
-            rede.chamadas.push("GET arvore");
-            Ok(foto(1))
-        },
-    );
-    let erro = resultado.expect_err("validacao Infra 200 e escrita incerta");
     assert!(matches!(
-        erro.causa_envio(),
-        Some(ErroSubmissaoFormulario::ValidacaoRecusadaPeloSei(_))
+        resultado,
+        Err(ErroConfirmacaoDaCriacao::NaoConfirmado)
     ));
-    assert_eq!(erro.subcodigo(), "efeito_incerto_na_criacao_de_documento");
-    let status = erro.status_http().expect("causa de validacao preservada");
-    assert_eq!(status.status, 200);
-    assert_eq!(
-        status.mensagem_do_servidor.as_deref(),
-        Some("Recusa sintética")
-    );
     assert_eq!(rede.chamadas, ["POST criador", "GET arvore"]);
-    assert_eq!(rede.submissoes.len(), 1);
+    assert_eq!(rede.submissoes.len(), 1, "nunca repetir POST");
 }

@@ -89,7 +89,6 @@ fn ler_controle_interno<V: EnvioDoControle>(
     mut requisicoes: Option<&mut ContagemDeRequisicoes>,
     envio: &mut V,
 ) -> Result<ControleLido, ErroBuscaDeProcesso> {
-    use ErroBuscaDeProcesso as E;
     let tela = ler_tela_via(
         sessao.url_do_controle,
         sessao.cookie,
@@ -104,7 +103,7 @@ fn ler_controle_interno<V: EnvioDoControle>(
     let unidade = unidade_do_controle(&tela.html)?;
     if unidade_pedida.is_some_and(|s| s.split_whitespace().collect::<Vec<_>>().join(" ") != unidade)
     {
-        return Err(E::UnidadeDoControleDiferenteDaSolicitada);
+        return Err(ErroBuscaDeProcesso::UnidadeDoControleDiferenteDaSolicitada);
     }
     Ok(ControleLido { tela, unidade })
 }
@@ -155,7 +154,7 @@ pub(crate) fn buscar_colhendo_filtrado<A: AlvoDaPesquisa, V: EnvioDoControle>(
     )
 }
 
-/// Variante que deixa a contagem disponível também quando uma tentativa
+/// Versão que deixa a contagem disponível também quando uma tentativa
 /// falha, para que o chamador e os testes observem o custo real do fluxo.
 #[cfg(test)]
 pub(crate) fn buscar_colhendo_contado<A: AlvoDaPesquisa, V: EnvioDoControle>(
@@ -204,7 +203,6 @@ pub(crate) fn pesquisar_a_partir_do_controle_filtrado<A: AlvoDaPesquisa, V: Envi
     requisicoes: &mut ContagemDeRequisicoes,
     envio: &mut V,
 ) -> Result<BuscaRealizada<A::Resposta>, ErroBuscaDeProcesso> {
-    use ErroBuscaDeProcesso as E;
     let unidade = &controle.unidade;
     let controle = &controle.tela;
     let instalacao = &controle.instalacao;
@@ -232,7 +230,7 @@ pub(crate) fn pesquisar_a_partir_do_controle_filtrado<A: AlvoDaPesquisa, V: Envi
         });
     };
     let contagem = A::contagem(&resposta);
-    let Some(pagina) = planejar_pagina_por(contagem, html.as_deref(), solicitada)? else {
+    let Some(pagina) = planejar_pagina_por(contagem, html.as_ref(), solicitada)? else {
         return Ok(BuscaRealizada {
             unidade: unidade.clone(),
             resposta,
@@ -241,8 +239,8 @@ pub(crate) fn pesquisar_a_partir_do_controle_filtrado<A: AlvoDaPesquisa, V: Envi
         });
     };
     // 4. POST de `navegar(inicio)` derivado da tela de resultado.
-    let html = html.ok_or(E::Paginacao(
-        ErroPaginacaoDaPesquisa::RegraDeNavegacaoDaPesquisaNaoObservada,
+    let html = html.ok_or(ErroBuscaDeProcesso::Paginacao(
+        ErroPaginacaoDaPesquisa::HtmlDaRespostaParaPaginarAusente,
     ))?;
     conferir_protocolo_servido(&html, termo)?;
     let tela_do_resultado = TelaAtual {
@@ -260,12 +258,12 @@ pub(crate) fn pesquisar_a_partir_do_controle_filtrado<A: AlvoDaPesquisa, V: Envi
     )?;
     let resposta = match enviar(cookie, envio, requisicoes, submissao)?.0 {
         RespostaDoEnvio::Redirecionamento(_) => {
-            return Err(E::Paginacao(
+            return Err(ErroBuscaDeProcesso::Paginacao(
                 ErroPaginacaoDaPesquisa::RedirecionamentoAoPaginarAPesquisa,
             ));
         }
         RespostaDoEnvio::Html(html) => A::ler_pagina(&html, (pagina.esperada, pagina.numero))
-            .map_err(|erro| E::Pesquisa(ErroPesquisaProtocolo::Resposta(erro)))?,
+            .map_err(|erro| ErroBuscaDeProcesso::Pesquisa(ErroPesquisaProtocolo::Resposta(erro)))?,
     };
     conferir_contagem(&pagina, A::contagem(&resposta))?;
     Ok(BuscaRealizada {

@@ -5,6 +5,7 @@
 //! `documento-numero-e-busca-*`; anexo com os cabeçalhos observados.
 use super::tests_apoio::*;
 use super::*;
+use crate::acao_do_sei::AcaoDoSei;
 use crate::anexo_documento::{Disposicao, ErroAnexo, LimiteDoAnexo};
 use crate::arvore_processo::tests::{NUP, arvore, no_documento, no_processo};
 use crate::arvore_processo::tests_conteudo::{
@@ -169,13 +170,13 @@ fn pdf_externo_e_o_quinto_pedido_pelo_link_da_arvore() {
     assert_eq!(d.numero, DOC);
     assert_eq!(d.tipo, "");
     assert_eq!(d.texto, "");
-    assert_eq!(d.natureza.icone.as_deref(), Some("documento_pdf"));
+    assert_eq!(d.natureza.icone, "documento_pdf");
     let anexo = d.anexo.as_ref().expect("anexo");
     assert_eq!(anexo.mime, "application/pdf");
     assert_eq!(anexo.tamanho, 12);
-    assert_eq!(anexo.nome_original.as_deref(), Some("Minuta.pdf"));
-    assert_eq!(anexo.disposicao, Some(Disposicao::Inline));
-    assert_eq!(anexo.texto, None);
+    assert_eq!(anexo.nome_original, "Minuta.pdf");
+    assert_eq!(anexo.disposicao, Disposicao::Inline);
+    assert_eq!(anexo.texto(), None);
     assert!(!format!("{d:?}").contains(HASH_CONTEUDO));
     // #88: o arquivo não serve rodapé; sem `--versao`, a barra não é lida.
     assert_eq!(d.versoes.lida, None);
@@ -265,7 +266,8 @@ fn externo_sem_src_com_saida_preserva_original_e_recusa_copia_divergente() {
     let doc = lido.unwrap();
     assert_eq!(doc.requisicoes, 6);
     assert_eq!(envio.roteiro.pedidos.len(), 6);
-    let arquivo = doc.anexo.unwrap().arquivo.unwrap();
+    let mut anexo = doc.anexo.unwrap();
+    let arquivo = anexo.tirar_arquivo().unwrap();
     assert_eq!(arquivo.nome(), "0000101.pdf");
     arquivo.concluir().unwrap();
     assert_eq!(
@@ -297,7 +299,10 @@ fn html_recebido_publica_o_texto_visivel() {
         &amb,
         binaria(
             200,
-            &[("content-type", "text/html;;charset=iso-8859-1")],
+            &[
+                ("content-type", "text/html;;charset=iso-8859-1"),
+                ("content-disposition", "inline; filename=\"despacho.html\""),
+            ],
             html,
         ),
         PedidoDoAnexo::default(),
@@ -318,7 +323,8 @@ fn com_saida_o_parcial_fica_no_diretorio_ate_concluir() {
         saida: Some(&dir),
     };
     let (r, _) = rodar(&amb, pdf(), pedido);
-    let arquivo = r.unwrap().anexo.unwrap().arquivo.expect("parcial");
+    let mut anexo = r.unwrap().anexo.unwrap();
+    let arquivo = anexo.tirar_arquivo().expect("parcial");
     assert_eq!(arquivo.nome(), "0000101.pdf");
     arquivo.concluir().unwrap();
     assert_eq!(
@@ -342,10 +348,6 @@ fn limite_do_pedido_chega_ao_transporte_e_recusa() {
         r.unwrap_err(),
         ErroDocumentoObter::Anexo(ErroAnexo::AcimaDoLimite)
     );
-    assert_eq!(
-        ErroDocumentoObter::Anexo(ErroAnexo::AcimaDoLimite).subcodigo(),
-        "anexo_acima_do_limite"
-    );
 }
 
 #[test]
@@ -358,7 +360,9 @@ fn redirect_para_o_login_e_sessao_encerrada_e_tipo_fora_da_lista_e_recusado() {
     );
     assert_eq!(
         r.unwrap_err(),
-        ErroDocumentoObter::Processo(ErroProcessoObter::SessaoEncerrada)
+        ErroDocumentoObter::Processo(ErroProcessoObter::SessaoEncerrada(
+            crate::erro_publico::SessaoEncerrada
+        ))
     );
     let amb = ambiente();
     let (r, _) = rodar(
@@ -380,7 +384,9 @@ fn redirect_para_o_login_e_sessao_encerrada_e_tipo_fora_da_lista_e_recusado() {
     );
     assert_eq!(
         r.unwrap_err(),
-        ErroDocumentoObter::Processo(ErroProcessoObter::SessaoEncerrada)
+        ErroDocumentoObter::Processo(ErroProcessoObter::SessaoEncerrada(
+            crate::erro_publico::SessaoEncerrada
+        ))
     );
 }
 
@@ -391,14 +397,12 @@ fn redirect_para_o_login_e_sessao_encerrada_e_tipo_fora_da_lista_e_recusado() {
 fn externo_pelo_link_da_arvore_guardado_em_duas() {
     let amb = ambiente();
     let (inst, g) = (instalacao(), geracao());
-    amb.indice.registrar_processo(&inst, NUP, ID).unwrap();
-    amb.indice
-        .registrar_documentos(&inst, ID, &[(DOC, ID_DOC)])
-        .unwrap();
+    amb.indice.registrar_processo(&inst, NUP, ID);
+    amb.indice.registrar_documentos(&inst, ID, &[(DOC, ID_DOC)]);
     amb.indice
         .registrar_link(
             &inst,
-            chave(&g, "procedimento_visualizar", ID),
+            chave(&g, AcaoDoSei::ProcedimentoVisualizar, ID),
             &url_arvore(ID),
         )
         .unwrap();

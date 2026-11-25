@@ -28,10 +28,10 @@ os outros links assinados: `controlador.php?` relativo, uma `acao`,
 `id_procedimento` igual ao da árvore, um `infra_hash` de 64 hex, chaves
 canônicas, mesma instalação.
 
-**Link não publicado.** Barra ausente, vazia ou sem o link não derruba o
-comando: sai `"marcadores": null`, `"marcadores"` fica em `nao_lidos` e
-`"marcadores_nao_lidos_motivo": "tela_de_marcadores_nao_publicada_na_barra"`.
-Link presente mas inválido ou repetido é recusa tipada (só quando os
+**Link não publicado.** Barra ausente, vazia ou sem o link faz o comando
+falhar com `MarcadoresNaoPublicadosNaBarra` (saída 1, sem GET, nada
+publicado). Só `--sem-marcadores` dispensa a leitura. Link
+presente mas inválido ou repetido é recusa tipada (só quando os
 marcadores são pedidos).
 
 ## A tela
@@ -62,8 +62,8 @@ pelo tokenizador de atributos, sem regex e sem JavaScript:
     o `title` do ícone e o do checkbox, quando presentes, são iguais a ele.
   - `cor`: de `svg/marcador_<cor>.svg` (um `img`, `<cor>` em minúsculas
     ASCII e `_`).
-  - `texto`: o texto de `td#tdAndamentoMarcador<id>`; vazio é `null`.
-  - `usuario`: o texto de `a.ancoraSigla`; célula vazia é `null`. O nome
+  - `texto`: o texto de `td#tdAndamentoMarcador<id>`; vazio, a chave sai.
+  - `usuario`: o texto de `a.ancoraSigla`; célula vazia, a chave sai. O nome
     completo (`title`) não é publicado.
   - `data_hora`: `dd/mm/aaaa hh:mm`.
   - Ações: nunca lidas nem seguidas.
@@ -76,15 +76,13 @@ pelo tokenizador de atributos, sem regex e sem JavaScript:
 responde **302** para o formulário de adicionar marcador
 (`andamento_marcador_cadastrar`) assinado **do mesmo processo**. O 302
 não é seguido e vira `"marcadores": []`, `marcadores_total_declarado: 0`
-e `marcadores_faixa_observada: null`, sem requisição a mais. Um 302 para
+e sem a chave `marcadores_faixa_observada`, sem requisição a mais. Um 302 para
 `andamento_marcador_cadastrar` de outro processo continua recusa
 (`redirecionamento_nao_reconhecido`).
 
 **Tela sem tabela.** A tela deste processo sem `table#tblMarcadores`
-(forma não observada): sai
-`"marcadores": null`, `"marcadores"` fica em `nao_lidos` e o motivo é
-`"tabela_de_marcadores_nao_publicada_na_tela"`. Nunca `[]` sem
-observação.
+(forma não observada) é `TabelaDeMarcadoresNaoPublicadaNaTela`, saída 1.
+Nunca `[]` sem observação, e nunca `null`.
 
 **Escopo da unidade.** O link e a tela são assinados para a unidade da
 sessão (`infra_unidade_atual`). Que a tela mostra só os marcadores dessa
@@ -118,7 +116,7 @@ o [contrato das propriedades](processo-obter-propriedades.md).
 
 ```json
 "marcadores": [
-  {"id": "501", "rotulo": "501#texto", "nome": "texto", "cor": "azul", "texto": null,
+  {"id": "501", "rotulo": "501#texto", "nome": "texto", "cor": "azul",
    "usuario": "sigla", "data_hora": "dd/mm/aaaa hh:mm"},
   {"id": "502", "rotulo": "502#texto", "nome": "texto", "cor": "amarelo", "texto": "texto",
    "usuario": "sigla", "data_hora": "dd/mm/aaaa hh:mm"}],
@@ -126,8 +124,8 @@ o [contrato das propriedades](processo-obter-propriedades.md).
 "marcadores_faixa_observada": {"inicio": 1, "fim": 2}
 ```
 
-Lidos, `"marcadores"` sai de `nao_lidos`; a faixa é `null` com zero
-linhas. `--sem-marcadores`: nenhum pedido; as chaves `marcadores*` somem,
+Lidos, `"marcadores"` sai de `nao_lidos`; a chave `marcadores_faixa_observada`
+some com zero linhas. `--sem-marcadores`: nenhum pedido; as chaves `marcadores*` somem,
 `"marcadores"` fica em `nao_lidos` e o motivo é
 `"omitidos_por_sem_marcadores"`. Texto humano: uma linha por marcador
 (`- <id>#<nome> [<cor>]: <texto>`).
@@ -150,21 +148,21 @@ a restaurar.
 
 Link: `barra_do_processo_fora_da_forma_observada`,
 `barras_do_processo_repetidas_na_arvore`,
-`links_dos_marcadores_repetidos_na_barra`,
-`endereco_dos_marcadores_nao_reconhecido`,
-`endereco_dos_marcadores_de_outro_processo`.
+`LinksDosMarcadoresRepetidosNaBarra`,
+`EnderecoDosMarcadoresNaoReconhecido`,
+`EnderecoDosMarcadoresDeOutroProcesso`.
 
 Tela: `html_dos_marcadores_nao_interpretado`,
-`tela_dos_marcadores_ausente`,
-`numero_dos_marcadores_diferente_do_solicitado`,
-`id_dos_marcadores_diferente_do_aberto`,
+`TelaDosMarcadoresAusente`,
+`NumeroDosMarcadoresDiferenteDoSolicitado`,
+`IdDosMarcadoresDiferenteDoAberto`,
 `tabelas_dos_marcadores_repetidas`,
 `legenda_dos_marcadores_fora_da_forma_observada`,
 `cabecalho_dos_marcadores_nao_reconhecido`,
 `linha_do_marcador_fora_da_forma_observada`,
-`marcador_repetido_na_tela`, `marcadores_alem_do_total_declarado`.
+`marcador_repetido_na_tela`, `MarcadoresAlemDoTotalDeclarado`.
 
-Login fora de palpite: `sessao_encerrada_rode_ies_login`; 302 de outra
+Login fora de palpite: `SessaoEncerrada`; 302 de outra
 forma: `redirecionamento_nao_reconhecido`; status HTTP de falha, o erro
 de transporte com `status_http`, sem retry.
 

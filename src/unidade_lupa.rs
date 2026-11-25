@@ -5,19 +5,20 @@
 #[path = "unidade_lupa/acervo.rs"]
 mod acervo;
 mod fluxo;
-use crate::entidades_html::decodificar_texto;
-use crate::formulario_web::decodificar_atributo;
-use crate::html_atributos::valor_do_atributo;
 use crate::indice_local::UnidadeGuardada;
+use crate::legenda::ler_legenda;
 pub(crate) use fluxo::{FalhaDaLupa, HttpsLupa, ler_integral_com_contador};
 
-#[derive(Debug, PartialEq, Eq)]
+#[derive(Debug, PartialEq, Eq, thiserror::Error)]
+#[error("{self:?}")]
 pub(crate) enum ErroLupa {
-    HtmlInesperado,
-    FormularioAusente,
+    Legenda(#[from] crate::legenda::ErroLegenda),
+    FormularioAusente(#[source] crate::formulario_web::ErroSubmissaoFormulario),
     TabelaForaDaForma,
     TotalAusente,
     PaginaInvalida,
+    /// O número da página atual não é um inteiro decimal.
+    NumeroDaPaginaIlegivel(#[source] std::num::ParseIntError),
     LinhaSemIdentidade,
     PaginasDivergentes,
 }
@@ -30,141 +31,47 @@ pub(crate) struct PaginaDaLupa {
     pub(crate) paginas: usize,
 }
 
-fn atributo(tag: &tl::HTMLTag<'_>, nome: &'static str) -> Result<Option<String>, ErroLupa> {
-    let bruto = valor_do_atributo(tag, nome).map_err(|_| ErroLupa::HtmlInesperado)?;
-    bruto
-        .map(|x| decodificar_atributo(&x).ok_or(ErroLupa::HtmlInesperado))
-        .transpose()
-}
 fn tags<'a>(
-    raiz: &tl::HTMLTag<'_>,
-    parser: &'a tl::Parser<'a>,
+    raiz: crate::tela_html::Elemento<'a>,
     seletor: &str,
-) -> Vec<&'a tl::HTMLTag<'a>> {
-    raiz.query_selector(parser, seletor)
-        .into_iter()
-        .flatten()
-        .filter_map(|handle| handle.get(parser).and_then(tl::Node::as_tag))
-        .collect()
+) -> Vec<crate::tela_html::Elemento<'a>> {
+    raiz.elementos(seletor).collect()
 }
-fn campo_unico(
-    form: &tl::HTMLTag<'_>,
-    parser: &tl::Parser<'_>,
-    nome: &str,
-) -> Result<String, ErroLupa> {
-    let encontrados = tags(form, parser, "input");
+fn campo_unico(form: crate::tela_html::Elemento<'_>, nome: &str) -> Result<String, ErroLupa> {
+    let encontrados = tags(form, "input");
     let correspondentes: Vec<_> = encontrados
         .into_iter()
-        .filter(|t| atributo(t, "name").ok().flatten().as_deref() == Some(nome))
+        .filter(|t| t.atributo("name") == Some(nome))
         .collect();
     let [unico] = correspondentes.as_slice() else {
         return Err(ErroLupa::PaginaInvalida);
     };
-    atributo(unico, "value")?.ok_or(ErroLupa::PaginaInvalida)
+    unico
+        .atributo("value")
+        .map(str::to_owned)
+        .ok_or(ErroLupa::PaginaInvalida)
 }
-fn total_da_legenda(legenda: &str) -> Option<usize> {
-    let resto = legenda.strip_prefix("Lista de Unidades (")?;
-    let (numero, depois) = resto.split_once(' ')?;
-    let sufixo = depois
-        .strip_prefix("registros")
-        .or_else(|| depois.strip_prefix("registro"))?;
-    // A cassette GO 5.0.3 publica a faixa após o número de registros:
-    // "Lista de Unidades (13671 registros - 1 a 50):".
-    // Não a confundir com uma legenda de outra tabela.
-    if !(sufixo.starts_with(')') || sufixo.starts_with(" - ")) {
-        return None;
+fn total_da_legenda(legenda: &str) -> Result<usize, ErroLupa> {
+    if !legenda.starts_with("Lista de Unidades (") {
+        return Err(ErroLupa::TotalAusente);
     }
-    numero.parse().ok()
+    Ok(ler_legenda(legenda)?.total)
 }
 
-/// A resposta da lupa deve ser uma página de dados identificada pelo formulário,
-/// pela tabela, pelo cabeçalho, pelo total e pelo paginador.
-#[allow(clippy::too_many_lines)]
-pub(crate) fn ler_pagina(html: &str) -> Result<PaginaDaLupa, ErroLupa> {
-    let dom =
-        tl::parse(html, tl::ParserOptions::default()).map_err(|_| ErroLupa::HtmlInesperado)?;
-    let parser = dom.parser();
-    let form = crate::formulario_web::localizar_formulario(&dom, "frmUnidadeLista")
-        .map_err(|_| ErroLupa::FormularioAusente)?;
-    let pagina: usize = campo_unico(form, parser, "hdnInfraPaginaAtual")?
-        .parse()
-        .map_err(|_| ErroLupa::PaginaInvalida)?;
-    let seletores: Vec<_> = tags(form, parser, "select")
-        .into_iter()
-        .filter(|s| {
-            atributo(s, "name").ok().flatten().as_deref() == Some("selInfraPaginacaoSuperior")
-        })
-        .collect();
-    let paginas = match seletores.as_slice() {
-        [] => 1,
-        [seletor] => {
-            // A lupa GO publica índices 0..N-1 nos valores das opções.
-            // Contar opções sem conferir seus índices permitiria tratar
-            // páginas saltadas ou duplicadas como um snapshot completo.
-            let opcoes = tags(seletor, parser, "option");
-            if opcoes.is_empty() {
-                return Err(ErroLupa::PaginaInvalida);
-            }
-            for (indice, opcao) in opcoes.iter().enumerate() {
-                let valor = atributo(opcao, "value")?.ok_or(ErroLupa::PaginaInvalida)?;
-                if valor.parse::<usize>().ok() != Some(indice) {
-                    return Err(ErroLupa::PaginaInvalida);
-                }
-            }
-            opcoes.len()
-        }
-        _ => return Err(ErroLupa::PaginaInvalida),
-    };
-    let tabelas = tags(form, parser, "table");
-    let mut candidatas: Vec<_> = Vec::new();
-    let mut existe_tabela_infra = false;
-    for tabela in tabelas {
-        let classe = atributo(tabela, "class")?.unwrap_or_default();
-        if !classe.split_whitespace().any(|c| c == "infraTable") {
-            continue;
-        }
-        existe_tabela_infra = true;
-        let legendas = tags(tabela, parser, "caption");
-        if legendas.len() == 1
-            && texto_da_tag(legendas[0], parser).starts_with("Lista de Unidades (")
-        {
-            candidatas.push(tabela);
-        }
-    }
-    let tabela = match candidatas.as_slice() {
-        [tabela] => *tabela,
-        [] if !existe_tabela_infra
-            && pagina == 0
-            && paginas == 1
-            && texto_da_tag(form, parser).ends_with("Nenhum registro encontrado.") =>
-        {
-            // GO, cassette unidade-listar-destinos-go, POST passo 12:
-            // a lupa mantém o formulário, mas omite infraTable e declara
-            // a ausência de resultados. Não confundir com uma tabela quebrada.
-            return Ok(PaginaDaLupa {
-                unidades: Vec::new(),
-                total: 0,
-                pagina,
-                paginas,
-            });
-        }
-        _ => return Err(ErroLupa::TabelaForaDaForma),
-    };
-    let legenda = texto_da_tag(tags(tabela, parser, "caption")[0], parser);
-    let total = total_da_legenda(&legenda).ok_or(ErroLupa::TotalAusente)?;
-    if pagina >= paginas {
-        return Err(ErroLupa::PaginaInvalida);
-    }
-    let trs = tags(tabela, parser, "tr");
+fn ler_unidades(
+    tabela: crate::tela_html::Elemento<'_>,
+    total: usize,
+) -> Result<Vec<UnidadeGuardada>, ErroLupa> {
+    let trs = tags(tabela, "tr");
     let mut indices: Option<(usize, usize, usize, usize)> = None;
     let mut unidades = Vec::new();
     for tr in trs {
-        let ths = tags(tr, parser, "th");
+        let ths = tags(tr, "th");
         if !ths.is_empty() {
             if indices.is_some() {
                 continue;
             }
-            let nomes: Vec<_> = ths.iter().map(|c| texto_da_tag(c, parser)).collect();
+            let nomes: Vec<_> = ths.iter().copied().map(texto_da_tag).collect();
             let posicao = |alvo: &str| -> Result<usize, ErroLupa> {
                 let achados: Vec<_> = nomes
                     .iter()
@@ -187,14 +94,16 @@ pub(crate) fn ler_pagina(html: &str) -> Result<PaginaDaLupa, ErroLupa> {
             ));
             continue;
         }
-        let tds = tags(tr, parser, "td");
+        let tds = tags(tr, "td");
         if tds.is_empty() {
             continue;
         }
         let Some((tamanho, sigla, descricao, orgao)) = indices else {
             return Err(ErroLupa::TabelaForaDaForma);
         };
-        if tds.len() == 1 && atributo(tds[0], "colspan")?.is_some() {
+        if let [aviso] = tds.as_slice()
+            && aviso.atributo("colspan").is_some()
+        {
             // O único aviso permitido é a lista realmente vazia.
             if total == 0 && unidades.is_empty() {
                 continue;
@@ -204,26 +113,35 @@ pub(crate) fn ler_pagina(html: &str) -> Result<PaginaDaLupa, ErroLupa> {
         if tds.len() != tamanho {
             return Err(ErroLupa::TabelaForaDaForma);
         }
-        let checkbox: Vec<_> = tags(tr, parser, "input")
+        let checkbox: Vec<_> = tags(tr, "input")
             .into_iter()
-            .filter(|t| atributo(t, "type").ok().flatten().as_deref() == Some("checkbox"))
+            .filter(|t| t.atributo("type") == Some("checkbox"))
             .collect();
         let [unico] = checkbox.as_slice() else {
             return Err(ErroLupa::LinhaSemIdentidade);
         };
-        let id = atributo(unico, "value")?.ok_or(ErroLupa::LinhaSemIdentidade)?;
+        let id = unico
+            .atributo("value")
+            .map(str::to_owned)
+            .ok_or(ErroLupa::LinhaSemIdentidade)?;
         if id.is_empty() {
             return Err(ErroLupa::LinhaSemIdentidade);
         }
-        let sigla = texto_da_tag(tds[sigla], parser);
+        let celula = |i: usize| {
+            tds.get(i)
+                .copied()
+                .map(texto_da_tag)
+                .ok_or(ErroLupa::TabelaForaDaForma)
+        };
+        let sigla = celula(sigla)?;
         if sigla.is_empty() {
             return Err(ErroLupa::TabelaForaDaForma);
         }
         unidades.push(UnidadeGuardada {
             id,
             sigla,
-            descricao: texto_da_tag(tds[descricao], parser),
-            orgao: texto_da_tag(tds[orgao], parser),
+            descricao: celula(descricao)?,
+            orgao: celula(orgao)?,
         });
     }
     if indices.is_none() {
@@ -232,6 +150,93 @@ pub(crate) fn ler_pagina(html: &str) -> Result<PaginaDaLupa, ErroLupa> {
     if unidades.len() > total {
         return Err(ErroLupa::PaginasDivergentes);
     }
+    Ok(unidades)
+}
+
+/// A resposta da lupa deve ser uma página de dados identificada pelo formulário,
+/// pela tabela, pelo cabeçalho, pelo total e pelo paginador.
+pub(crate) fn ler_pagina(html: &crate::tela_html::HtmlServido) -> Result<PaginaDaLupa, ErroLupa> {
+    let dom = crate::tela_html::arvore(html);
+    let form = crate::formulario_web::localizar_formulario(&dom, "frmUnidadeLista")
+        .map_err(ErroLupa::FormularioAusente)?;
+    let pagina: usize = campo_unico(form, "hdnInfraPaginaAtual")?
+        .parse()
+        .map_err(ErroLupa::NumeroDaPaginaIlegivel)?;
+    let seletores: Vec<_> = tags(form, "select")
+        .into_iter()
+        .filter(|s| s.atributo("name") == Some("selInfraPaginacaoSuperior"))
+        .collect();
+    let paginas = match seletores.as_slice() {
+        [] => 1,
+        [seletor] => {
+            // A lupa GO publica índices 0..N-1 nos valores das opções.
+            // Contar opções sem conferir seus índices permitiria tratar
+            // páginas saltadas ou duplicadas como um snapshot completo.
+            let opcoes = tags(*seletor, "option");
+            if opcoes.is_empty() {
+                return Err(ErroLupa::PaginaInvalida);
+            }
+            for (indice, opcao) in opcoes.iter().enumerate() {
+                let valor = opcao
+                    .atributo("value")
+                    .map(str::to_owned)
+                    .ok_or(ErroLupa::PaginaInvalida)?;
+                if valor.parse::<usize>().ok() != Some(indice) {
+                    return Err(ErroLupa::PaginaInvalida);
+                }
+            }
+            opcoes.len()
+        }
+        _ => return Err(ErroLupa::PaginaInvalida),
+    };
+    let tabelas = tags(form, "table");
+    let mut candidatas: Vec<_> = Vec::new();
+    let mut existe_tabela_infra = false;
+    for tabela in tabelas {
+        let classe = tabela
+            .atributo("class")
+            .map(str::to_owned)
+            .unwrap_or_default();
+        if !classe.split_whitespace().any(|c| c == "infraTable") {
+            continue;
+        }
+        existe_tabela_infra = true;
+        let legendas = tags(tabela, "caption");
+        if let [legenda] = legendas.as_slice()
+            && texto_da_tag(*legenda).starts_with("Lista de Unidades (")
+        {
+            candidatas.push(tabela);
+        }
+    }
+    let tabela = match candidatas.as_slice() {
+        [tabela] => *tabela,
+        [] if !existe_tabela_infra
+            && pagina == 0
+            && paginas == 1
+            && texto_da_tag(form).ends_with("Nenhum registro encontrado.") =>
+        {
+            // GO, cassette unidade-listar-destinos-go, POST passo 12:
+            // a lupa mantém o formulário, mas omite infraTable e declara
+            // a ausência de resultados. Não confundir com uma tabela quebrada.
+            return Ok(PaginaDaLupa {
+                unidades: Vec::new(),
+                total: 0,
+                pagina,
+                paginas,
+            });
+        }
+        _ => return Err(ErroLupa::TabelaForaDaForma),
+    };
+    let legenda = tags(tabela, "caption")
+        .first()
+        .copied()
+        .map(texto_da_tag)
+        .ok_or(ErroLupa::TabelaForaDaForma)?;
+    let total = total_da_legenda(&legenda)?;
+    if pagina >= paginas {
+        return Err(ErroLupa::PaginaInvalida);
+    }
+    let unidades = ler_unidades(tabela, total)?;
     Ok(PaginaDaLupa {
         unidades,
         total,
@@ -239,11 +244,8 @@ pub(crate) fn ler_pagina(html: &str) -> Result<PaginaDaLupa, ErroLupa> {
         paginas,
     })
 }
-fn texto_da_tag(tag: &tl::HTMLTag<'_>, parser: &tl::Parser<'_>) -> String {
-    decodificar_texto(&tag.inner_text(parser))
-        .split_whitespace()
-        .collect::<Vec<_>>()
-        .join(" ")
+fn texto_da_tag(tag: crate::tela_html::Elemento<'_>) -> String {
+    tag.texto().split_whitespace().collect::<Vec<_>>().join(" ")
 }
 
 /// Confere que a resposta POST do SEI é a lista *integral*, não uma
@@ -251,21 +253,26 @@ fn texto_da_tag(tag: &tl::HTMLTag<'_>, parser: &tl::Parser<'_>) -> String {
 ///
 /// O valor "null" do órgão não é "Todos": só o valor vazio é universal
 /// na lupa observada no GO pelo Todos @323eb01.
-pub(crate) fn conferir_filtros_de_lista_integral(html: &str) -> Result<(), ErroLupa> {
-    let dom =
-        tl::parse(html, tl::ParserOptions::default()).map_err(|_| ErroLupa::HtmlInesperado)?;
-    let parser = dom.parser();
+pub(crate) fn conferir_filtros_de_lista_integral(
+    html: &crate::tela_html::HtmlServido,
+) -> Result<(), ErroLupa> {
+    let dom = crate::tela_html::arvore(html);
     let form = crate::formulario_web::localizar_formulario(&dom, "frmUnidadeLista")
-        .map_err(|_| ErroLupa::FormularioAusente)?;
-    let inputs = tags(form, parser, "input");
+        .map_err(ErroLupa::FormularioAusente)?;
+    let inputs = tags(form, "input");
     for nome in ["txtSiglaUnidade", "txtDescricaoUnidade"] {
         let mut encontrados = 0;
         for campo in &inputs {
-            if atributo(campo, "name")?.as_deref() != Some(nome) {
+            if campo.atributo("name") != Some(nome) {
                 continue;
             }
             encontrados += 1;
-            if !atributo(campo, "value")?.unwrap_or_default().is_empty() {
+            if !campo
+                .atributo("value")
+                .map(str::to_owned)
+                .unwrap_or_default()
+                .is_empty()
+            {
                 return Err(ErroLupa::PaginaInvalida);
             }
         }
@@ -275,15 +282,15 @@ pub(crate) fn conferir_filtros_de_lista_integral(html: &str) -> Result<(), ErroL
     }
 
     let mut selects = 0;
-    for seletor in tags(form, parser, "select") {
-        if atributo(seletor, "name")?.as_deref() != Some("selOrgaoUnidade") {
+    for seletor in tags(form, "select") {
+        if seletor.atributo("name") != Some("selOrgaoUnidade") {
             continue;
         }
         selects += 1;
-        let opcoes = tags(seletor, parser, "option");
+        let opcoes = tags(seletor, "option");
         let mut selecionadas = Vec::new();
         for (i, opcao) in opcoes.iter().enumerate() {
-            if atributo(opcao, "selected")?.is_some() {
+            if opcao.atributo("selected").is_some() {
                 selecionadas.push(i);
             }
         }
@@ -295,9 +302,7 @@ pub(crate) fn conferir_filtros_de_lista_integral(html: &str) -> Result<(), ErroL
             _ => return Err(ErroLupa::PaginaInvalida),
         };
         let opcao = opcoes.get(indice).ok_or(ErroLupa::PaginaInvalida)?;
-        if atributo(opcao, "value")?.as_deref() != Some("")
-            || texto_da_tag(opcao, parser) != "Todos"
-        {
+        if opcao.atributo("value") != Some("") || texto_da_tag(*opcao) != "Todos" {
             return Err(ErroLupa::PaginaInvalida);
         }
     }

@@ -8,47 +8,53 @@ use crate::arquivo_copia::ler_regular;
 use crate::arquivo_texto_documento::ErroArquivoTexto;
 use crate::documento::NumeroDocumento;
 use crate::documento_versoes::VersaoDocumento;
-use crate::erro_html::ErroHtml;
 use crate::foto_documento::nome;
 use serde::Serialize;
 use std::collections::BTreeSet;
 use std::fs;
 use std::path::Path;
 
-#[derive(Debug, Clone, Copy, PartialEq, Eq, crate::erro_publico::Causa)]
+#[derive(Debug, Clone, PartialEq, Eq, thiserror::Error)]
+#[error("{self:?}")]
 pub enum ErroCopia {
     /// `--saida DIR` ausente ou não diretório.
-    #[causa(interna)]
-    DiretorioDeSaida(ErroArquivoTexto),
-    #[causa(nome = "destino_copia_inseguro")]
+    DiretorioDeSaida(#[from] ErroArquivoTexto),
     DestinoInseguro,
-    #[causa(nome = "copia_local_link_simbolico")]
     LinkSimbolico,
     // Só construída na conferência de permissões Unix.
-    #[cfg_attr(not(unix), allow(dead_code))]
-    #[causa(nome = "copia_local_permissoes_inseguras")]
+    #[cfg(unix)]
     PermissoesInseguras,
     /// A foto local tem outro conteúdo que o servido (ou outro documento
     /// ou versão no próprio HTML).
-    #[causa(nome = "foto_local_divergente")]
     FotoDivergente,
-    #[causa(nome = "gravacao_foto_falhou")]
     GravacaoFalhou,
-    #[causa(nome = "leitura_copia_falhou")]
+    /// A gravação privada recusou a foto (o motivo da gravação).
+    GravacaoDaFotoRecusada(#[source] crate::arquivo_privado::FalhaDaGravacao),
     LeituraFalhou,
-    #[causa(nome = "versao_editada_igual_a_base")]
+    /// A foto local existe e não pôde ser consultada (o motivo do sistema).
+    ConsultaDaFotoFalhou(std::io::ErrorKind),
+    /// O destino não pôde ser consultado (o motivo do sistema).
+    ConsultaDoDestinoFalhou(std::io::ErrorKind),
+    /// A pasta de versões não pôde ser lida (o motivo do sistema).
+    LeituraDaPastaFalhou(std::io::ErrorKind),
+    /// Um arquivo da cópia não pôde ser lido (o motivo do sistema).
+    LeituraDoArquivoFalhou(std::io::ErrorKind),
     EdicaoIgualABase,
-    #[causa(transparente)]
-    Html(ErroHtml),
-}
-impl ErroCopia {
-    pub fn subcodigo(self) -> &'static str {
-        crate::erro_publico::folha(&self)
-    }
+    BaseVersaoAusente,
+    /// O nome `DOC.vN.html` não traz uma versão válida (o motivo da leitura).
+    NomeVersaoLocalInvalido(#[source] crate::documento_versoes::ErroVersao),
+    VersaoEditadaAusente,
+    VersaoLocalRepetida,
 }
 
 pub(crate) fn pasta_segura(pasta: &Path) -> Result<(), ErroCopia> {
-    let dados = fs::symlink_metadata(pasta).map_err(|_| ErroCopia::DestinoInseguro)?;
+    let dados = fs::symlink_metadata(pasta).map_err(|erro| {
+        if erro.kind() == std::io::ErrorKind::NotFound {
+            ErroCopia::DestinoInseguro
+        } else {
+            ErroCopia::ConsultaDoDestinoFalhou(erro.kind())
+        }
+    })?;
     if dados.file_type().is_symlink() || !dados.is_dir() {
         return Err(ErroCopia::DestinoInseguro);
     }
@@ -64,8 +70,8 @@ pub(crate) fn versoes_locais(
     pasta_segura(pasta)?;
     let prefixo = format!("{}.v", documento.as_str());
     let mut versoes = BTreeSet::new();
-    for item in fs::read_dir(pasta).map_err(|_| ErroCopia::LeituraFalhou)? {
-        let item = item.map_err(|_| ErroCopia::LeituraFalhou)?;
+    for item in fs::read_dir(pasta).map_err(|erro| ErroCopia::LeituraDaPastaFalhou(erro.kind()))? {
+        let item = item.map_err(|erro| ErroCopia::LeituraDaPastaFalhou(erro.kind()))?;
         let nome_os = item.file_name();
         let Some(digitos) = nome_os
             .to_str()
@@ -74,10 +80,10 @@ pub(crate) fn versoes_locais(
         else {
             continue;
         };
-        let versao = VersaoDocumento::interpretar(digitos)
-            .map_err(|_| ErroHtml::valor("nome_versao_local_invalido"))?;
+        let versao =
+            VersaoDocumento::interpretar(digitos).map_err(ErroCopia::NomeVersaoLocalInvalido)?;
         if !versoes.insert(versao) {
-            return Err(ErroHtml::repetido("versao_local_repetida").into());
+            return Err(ErroCopia::VersaoLocalRepetida);
         }
     }
     Ok(versoes)
@@ -142,6 +148,7 @@ pub struct PreviaCopia {
     /// Sempre `false`: a prévia é offline e não confere a base com o SEI;
     /// só a releitura (`foto_local_divergente`) ou o salvar remoto (#89).
     pub base_verificada: bool,
+    #[serde(skip_serializing_if = "Option::is_none")]
     pub trecho_divergente: Option<TrechoDivergente>,
     /// Mostrado só na saída humana; JSON legado não contém corpo HTML.
     #[serde(skip_serializing)]
@@ -231,16 +238,13 @@ fn par(
         n
     } else {
         let versoes = versoes_locais(pasta, documento)?;
-        let maior = *versoes
-            .last()
-            .ok_or(ErroHtml::ausente("base_versao_ausente"))?;
+        let maior = *versoes.last().ok_or(ErroCopia::BaseVersaoAusente)?;
         match VersaoDocumento::nova(maior.numero() - 1) {
             Ok(anterior) if versoes.contains(&anterior) => anterior,
             _ => maior,
         }
     };
-    let editada = VersaoDocumento::nova(base.numero().saturating_add(1))
-        .map_err(|_| ErroHtml::ausente("versao_editada_ausente"))?;
+    let editada = base.seguinte().ok_or(ErroCopia::VersaoEditadaAusente)?;
     Ok((base, editada))
 }
 
@@ -254,18 +258,14 @@ pub fn previa_local(
     pasta_segura(pasta)?;
     let (n, seguinte) = par(pasta, documento, solicitada)?;
     let numero = documento.as_str();
-    let base = ler_regular(
-        &pasta.join(nome(numero, n)),
-        ErroCopia::Html(ErroHtml::ausente("base_versao_ausente")),
-    )?;
+    let base = ler_regular(&pasta.join(nome(numero, n)), ErroCopia::BaseVersaoAusente)?;
     let editada = ler_regular(
         &pasta.join(nome(numero, seguinte)),
-        ErroCopia::Html(ErroHtml::ausente("versao_editada_ausente")),
+        ErroCopia::VersaoEditadaAusente,
     )?;
-    if editada == base {
+    let Some(trecho) = trecho_divergente(&base, &editada) else {
         return Err(ErroCopia::EdicaoIgualABase);
-    }
-    let trecho = trecho_divergente(&base, &editada).expect("a edição difere da base");
+    };
     Ok(PreviaCopia {
         documento: numero.to_owned(),
         versao_base: n.numero(),

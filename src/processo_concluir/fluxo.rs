@@ -2,18 +2,17 @@
 //! abertura, decisão antes de escrever, uma escrita e a leitura de
 //! verificação, com a tabela de reconciliação do contrato. Nenhum 302 é
 //! seguido; nenhuma escrita é repetida.
-use super::erro::{ErroConcluir as C, FalhaDoEnvio, VerificacaoPorLeitura};
+use super::erro::{ErroConcluir, FalhaDoEnvio, VerificacaoPorLeitura};
 use super::escrita::{
-    Contador, FalhaDaTela, leitura, ler_cookie, obter_tela, pela_funcao, siglas_abertas, verificar,
+    Contador, FalhaDaTela, leitura, obter_tela, pela_funcao, siglas_abertas, verificar,
 };
 use super::tela::{
     CAMPOS_DO_ENVIO, CONCLUIR_PROCESSO, conferir_tela_de_conclusao, redirecionamento_esperado,
 };
-use super::{FormaDaConclusao, PedidoDaConclusao, ProcessoConcluido};
+use super::{DesfechoDaConclusao, FormaDaConclusao, PedidoDaConclusao, ProcessoConcluido};
 use crate::arvore_processo::{ConcluirNaBarra, ler_funcao_de_concluir};
 use crate::formulario_web::{
-    ErroSubmissaoFormulario, RespostaDoEnvio, SubmissaoDerivada, TelaServida, derivar_submissao,
-    enviar_submissao_via,
+    RespostaDoEnvio, SubmissaoDerivada, TelaServida, derivar_submissao, enviar_submissao_via,
 };
 use crate::indice_local::IndiceLocal;
 use crate::instalacao::Instalacao;
@@ -30,8 +29,8 @@ pub(crate) fn concluir_processo<V: EnvioDoProcesso>(
     pedido: &PedidoDaConclusao<'_>,
     indice: &IndiceLocal,
     envio: &mut V,
-) -> Result<ProcessoConcluido, C> {
-    let instalacao = Instalacao::interpretar(sessao.origem).ok_or(C::Abertura(
+) -> Result<ProcessoConcluido, ErroConcluir> {
+    let instalacao = Instalacao::interpretar(sessao.origem).ok_or(ErroConcluir::Abertura(
         ErroProcessoObter::Transporte(FalhaTransporte::OrigemNaoAutorizada),
     ))?;
     let mut rede = Contador::novo(envio);
@@ -41,79 +40,83 @@ pub(crate) fn concluir_processo<V: EnvioDoProcesso>(
     let unidade = aberto
         .unidade
         .clone()
-        .ok_or(C::UnidadeDaSessaoNaoPublicada)?;
+        .ok_or(ErroConcluir::UnidadeDaSessaoNaoPublicada)?;
     let aberto_em = siglas_abertas(&aberto.arvore.aberto_em)
-        .map_err(|motivo| C::SituacaoDoProcessoNaoLidaAntesDeConcluir { motivo })?;
+        .map_err(|motivo| ErroConcluir::SituacaoDoProcessoNaoLidaAntesDeConcluir { motivo })?;
     let na_unidade = aberto_em.contains(&unidade);
-    let mut feito = ProcessoConcluido {
-        nup: pedido.nup.as_str().to_owned(),
-        id_procedimento: aberto.arvore.processo.id.clone(),
-        unidade,
-        confirmado: pedido.confirmar,
-        alterado: false,
-        forma: None,
-        aberto_em,
-        depois: None,
-        reconciliado_por: None,
-        requisicoes: rede.feitas(),
-    };
-    let acao = match (concluir?, na_unidade) {
-        (None, false) => return Ok(feito),
+    let id = aberto.arvore.processo.id;
+    let desfecho = match (concluir?, na_unidade) {
+        (None, false) => DesfechoDaConclusao::NaoAbertoNaUnidade {
+            confirmado: pedido.confirmar,
+        },
         (Some(_), false) => {
-            return Err(C::UnidadeDaSessaoAusenteDaSituacao {
-                aberto_em: feito.aberto_em,
-            });
+            return Err(ErroConcluir::UnidadeDaSessaoAusenteDaSituacao { aberto_em });
         }
         (None, true) => {
-            return Err(C::ConclusaoNaoPublicadaNaBarra {
-                aberto_em: feito.aberto_em,
-            });
+            return Err(ErroConcluir::ConclusaoNaoPublicadaNaBarra { aberto_em });
         }
-        (Some(acao), true) => acao,
-    };
-    feito.forma = Some(match acao {
-        ConcluirNaBarra::PelaTela(_) => FormaDaConclusao::Tela,
-        ConcluirNaBarra::PelaFuncao { .. } => FormaDaConclusao::Funcao,
-    });
-    if !pedido.confirmar {
-        return Ok(feito);
-    }
-    let cookie = ler_cookie(sessao)
-        .map_err(|falha| C::Formulario(ErroSubmissaoFormulario::Transporte(falha)))?;
-    let id = feito.id_procedimento.clone();
-    let falha = match acao {
-        ConcluirNaBarra::PelaTela(url) => {
-            let submissao = derivar_pela_tela(
-                &mut rede,
-                &cookie,
-                &instalacao,
-                url.as_str(),
-                &id,
-                &feito.unidade,
-            )?;
-            enviar(&mut rede, sessao, submissao, &id)?
-        }
-        ConcluirNaBarra::PelaFuncao { tela_do_no } => {
-            let (html, _) = obter_tela(&mut rede, &cookie, tela_do_no.as_str()).map_err(da_tela)?;
-            let url = ler_funcao_de_concluir(&instalacao, &html, &id)?;
-            pela_funcao(
-                &mut rede,
-                &cookie,
-                url.as_str(),
-                FalhaDoEnvio::RedirecionamentoNaFuncao,
-            )
+        (Some(acao), true) => {
+            let forma = match &acao {
+                ConcluirNaBarra::PelaTela(_) => FormaDaConclusao::Tela,
+                ConcluirNaBarra::PelaFuncao { .. } => FormaDaConclusao::Funcao,
+            };
+            if pedido.confirmar {
+                let cookie = acoes.cookie.clone();
+                let falha = escrever(&mut rede, sessao, &instalacao, &cookie, acao, &id, &unidade)?;
+                let verificacao = verificar(sessao, &leitura(false), indice, &mut rede);
+                conciliar(forma, &aberto_em, &unidade, falha, verificacao)?
+            } else {
+                DesfechoDaConclusao::Previa { forma }
+            }
         }
     };
-    let verificacao = verificar(sessao, &leitura(false), indice, &mut rede);
-    feito.requisicoes = rede.feitas();
-    conciliar(feito, falha, verificacao)
+    Ok(ProcessoConcluido {
+        nup: pedido.nup.as_str().to_owned(),
+        id_procedimento: id,
+        unidade,
+        aberto_em,
+        requisicoes: rede.feitas(),
+        desfecho,
+    })
 }
 
-fn da_tela(falha: FalhaDaTela) -> C {
+/// O único POST (forma `tela`) ou o GET que é a escrita (forma `funcao`).
+/// `Ok(None)`: a resposta esperada; `Ok(Some(falha))`: o pedido saiu e a
+/// resposta não é a esperada; `Err`: nada saiu.
+fn escrever<V: EnvioDoProcesso>(
+    rede: &mut Contador<'_, V>,
+    sessao: &SessaoDoProcesso<'_>,
+    instalacao: &Instalacao,
+    cookie: &str,
+    acao: ConcluirNaBarra,
+    id: &str,
+    unidade: &str,
+) -> Result<Option<FalhaDoEnvio>, ErroConcluir> {
+    match acao {
+        ConcluirNaBarra::PelaTela(url) => {
+            let submissao = derivar_pela_tela(rede, cookie, instalacao, url.as_str(), id, unidade)?;
+            enviar(rede, sessao, submissao, id)
+        }
+        ConcluirNaBarra::PelaFuncao { tela_do_no } => {
+            let (html, _) = obter_tela(rede, cookie, tela_do_no.as_str()).map_err(da_tela)?;
+            let url = ler_funcao_de_concluir(instalacao, &html, id)?;
+            Ok(pela_funcao(
+                rede,
+                cookie,
+                url.as_str(),
+                FalhaDoEnvio::RedirecionamentoNaFuncao,
+            ))
+        }
+    }
+}
+
+fn da_tela(falha: FalhaDaTela) -> ErroConcluir {
     match falha {
-        FalhaDaTela::Transporte(falha) => C::TelaDaEscrita(falha),
-        FalhaDaTela::Redirecionada => C::TelaDaEscritaRedirecionada,
-        FalhaDaTela::SessaoEncerrada => C::SessaoEncerrada,
+        FalhaDaTela::Transporte(falha) => ErroConcluir::TelaDaEscrita(falha),
+        FalhaDaTela::Redirecionada => ErroConcluir::TelaDaEscritaRedirecionada,
+        FalhaDaTela::SessaoEncerrada(crate::erro_publico::SessaoEncerrada) => {
+            ErroConcluir::SessaoEncerrada(crate::erro_publico::SessaoEncerrada)
+        }
     }
 }
 
@@ -125,10 +128,10 @@ fn derivar_pela_tela<V: EnvioDoProcesso>(
     url: &str,
     id: &str,
     unidade: &str,
-) -> Result<SubmissaoDerivada, C> {
+) -> Result<SubmissaoDerivada, ErroConcluir> {
     let (html, mime) = obter_tela(rede, cookie, url).map_err(da_tela)?;
     conferir_tela_de_conclusao(&html, id)?;
-    let codificacao = codificacao_da_tela(&mime).ok_or(C::CharsetDaTelaNaoSuportado)?;
+    let codificacao = codificacao_da_tela(&mime).ok_or(ErroConcluir::CharsetDaTelaNaoSuportado)?;
     let tela = TelaServida {
         url,
         html: &html,
@@ -138,10 +141,10 @@ fn derivar_pela_tela<V: EnvioDoProcesso>(
         &CONCLUIR_PROCESSO,
         instalacao,
         &tela,
-        unidade,
+        Some(unidade),
         &CAMPOS_DO_ENVIO,
     )
-    .map_err(C::Formulario)
+    .map_err(ErroConcluir::Formulario)
 }
 
 /// Um único POST. `Ok(None)`: o 302 esperado; `Ok(Some(falha))`: o pedido
@@ -151,7 +154,7 @@ fn enviar<V: EnvioDoProcesso>(
     sessao: &SessaoDoProcesso<'_>,
     submissao: SubmissaoDerivada,
     id: &str,
-) -> Result<Option<FalhaDoEnvio>, C> {
+) -> Result<Option<FalhaDoEnvio>, ErroConcluir> {
     let mut enviado = false;
     let resposta = enviar_submissao_via(submissao, sessao.cookie, |s, c| {
         enviado = true;
@@ -166,35 +169,39 @@ fn enviar<V: EnvioDoProcesso>(
         }
         Ok(RespostaDoEnvio::Html(_)) => Ok(Some(FalhaDoEnvio::RespostaSemRedirecionamento)),
         Err(erro) if enviado => Ok(Some(FalhaDoEnvio::Envio(erro))),
-        Err(erro) => Err(C::Formulario(erro)),
+        Err(erro) => Err(ErroConcluir::Formulario(erro)),
     }
 }
 
 /// Tabela de reconciliação do contrato.
 fn conciliar(
-    mut feito: ProcessoConcluido,
+    forma: FormaDaConclusao,
+    aberto_em: &[String],
+    unidade: &str,
     falha: Option<FalhaDoEnvio>,
     verificacao: VerificacaoPorLeitura,
-) -> Result<ProcessoConcluido, C> {
+) -> Result<DesfechoDaConclusao, ErroConcluir> {
     let depois = match verificacao {
-        VerificacaoPorLeitura::Lida(ref siglas) => siglas.clone(),
-        _ => {
-            return Err(C::EfeitoIncertoNaConclusao {
-                aberto_em: feito.aberto_em,
+        VerificacaoPorLeitura::Lida(siglas) => siglas,
+        nao_lida @ (VerificacaoPorLeitura::SituacaoNaoLida(_)
+        | VerificacaoPorLeitura::LeituraFalhou(_)) => {
+            return Err(ErroConcluir::NaoConfirmadoNaConclusao {
+                aberto_em: aberto_em.to_vec(),
                 falha_do_envio: falha,
-                verificacao: Box::new(verificacao),
+                verificacao: Box::new(nao_lida),
             });
         }
     };
-    if depois.contains(&feito.unidade) {
-        return Err(C::ConclusaoNaoAplicada {
-            aberto_em: feito.aberto_em,
+    if depois.iter().any(|sigla| sigla == unidade) {
+        return Err(ErroConcluir::ConclusaoNaoAplicada {
+            aberto_em: aberto_em.to_vec(),
             depois,
             falha_do_envio: falha,
         });
     }
-    feito.alterado = true;
-    feito.depois = Some(depois);
-    feito.reconciliado_por = falha;
-    Ok(feito)
+    Ok(DesfechoDaConclusao::Concluido {
+        forma,
+        depois,
+        reconciliado_por: falha,
+    })
 }

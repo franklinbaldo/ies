@@ -6,13 +6,13 @@ use crate::arvore_processo::tests_concluir::absoluta;
 use crate::processo_concluir::tests_apoio::*;
 use crate::propriedades_processo::tests_apoio::acao_da_barra;
 
-fn link_anotacao() -> String {
+pub(super) fn link_anotacao() -> String {
     format!(
         "controlador.php?acao=anotacao_registrar&acao_origem=arvore_visualizar&id_procedimento={ID}&infra_sistema=100000100&infra_unidade_atual=110000001&infra_hash={HASH_ENVIAR}"
     )
 }
 
-fn anotacao(texto: &str, id: &str) -> String {
+pub(super) fn anotacao(texto: &str, id: &str) -> String {
     format!(
         r#"<html><form id="frmAnotacaoCadastro" method="post" action="controlador.php?acao=anotacao_registrar">
           <input name="hdnIdProtocolo" type="hidden" value="{id}">
@@ -57,7 +57,7 @@ fn bdd_previa_remocao_observa_anotacao_sem_escrever() {
     // então a prévia registra a presença e só faz GET de leitura.
     let (resultado, pedidos) = previa_com_anotacao("Minha anotação", ID);
     let feito = resultado.expect("a anotação foi lida");
-    assert_eq!(feito.anotacao_antes, Some(true));
+    assert_eq!(feito.anotacao_antes(), Some(true));
     assert_eq!(feito.requisicoes, 6);
     let mut esperado = pedidos_da_abertura();
     esperado.push(get(&url_da_tela()));
@@ -133,9 +133,9 @@ fn bdd_sem_checkbox_mas_com_anotacao_planeja_edicao_na_previa() {
         enviar_processo(sessao, &pedido, indice, rede)
     });
     let feito = resultado.expect("a edicao da anotacao foi oferecida");
-    assert_eq!(feito.anotacao_antes, Some(true));
+    assert_eq!(feito.anotacao_antes(), Some(true));
     assert_eq!(
-        feito.metodo_remocao,
+        feito.metodo_remocao(),
         Some(super::MetodoRemocao::LimparAnotacao)
     );
     assert_eq!(feito.requisicoes, 6);
@@ -186,9 +186,9 @@ fn bdd_confirmar_checkbox_verifica_anotacao_apos_tramitar() {
         )
     });
     let feito = resultado.expect("o envio e a remoção foram relidos");
-    assert!(feito.alterado);
-    assert_eq!(feito.anotacao_antes, Some(true));
-    assert_eq!(feito.anotacao_depois, Some(false));
+    assert!(feito.alterado());
+    assert_eq!(feito.anotacao_antes(), Some(true));
+    assert_eq!(feito.anotacao_depois(), Some(false));
     assert_eq!(feito.requisicoes, 9);
     let mut esperados = pedidos_da_abertura();
     esperados.push(get(&url_da_tela()));
@@ -246,7 +246,6 @@ fn bdd_anotacao_ainda_presente_apos_envio_e_resultado_parcial() {
         erro,
         super::ErroEnviar::AnotacoesNaoRemovidasAposEnvio { .. }
     ));
-    assert_eq!(erro.codigo(), "escrita_diferente_da_solicitada");
     assert_eq!(pedidos.len(), 9);
     assert_eq!(
         pedidos
@@ -292,9 +291,8 @@ fn bdd_releitura_da_anotacao_falha_apos_envio_sem_retry() {
     let erro = resultado.unwrap_err();
     assert!(matches!(
         erro,
-        super::ErroEnviar::EfeitoIncertoNaRemocaoDeAnotacoes { .. }
+        super::ErroEnviar::NaoConfirmadoNaRemocaoDeAnotacoes { .. }
     ));
-    assert_eq!(erro.saida(), 3);
     assert_eq!(pedidos.len(), 9);
     assert_eq!(pedidos.last(), Some(&get(&absoluta(&link_anotacao()))));
     assert_eq!(
@@ -340,11 +338,16 @@ fn bdd_333_04_remocao_incerta_preserva_destino_comprovado_na_saida_json() {
         )
     });
     let erro = resultado.expect_err("a anotação não pôde ser relida");
-    assert_eq!(erro.saida(), 3);
-    let json = serde_json::to_value(crate::processo_enviar_cli::json_de_falha(&erro))
-        .expect("erro tipado serializável");
-    assert_eq!(json["codigo"], "efeito_incerto");
-    assert_eq!(json["depois"], serde_json::json!([DESTINO]));
+    assert!(matches!(
+        erro,
+        super::ErroEnviar::NaoConfirmadoNaRemocaoDeAnotacoes { depois: Some(depois), causa }
+            if depois == [DESTINO.to_owned()]
+                && matches!(causa.as_ref(), super::ErroEnviar::Anotacoes(
+                    super::anotacoes::ErroDasAnotacoes::TelaDasAnotacoes(
+                        crate::transporte::FalhaTransporte::Rede,
+                    ),
+                ))
+    ));
     assert_eq!(
         pedidos
             .iter()
@@ -424,17 +427,13 @@ fn bdd_333_04_arvore_incerta_mas_anotacao_removida_preserva_a_prova() {
         )
     });
     let erro = resultado.expect_err("árvore incerta não autoriza sucesso");
-    assert_eq!(erro.saida(), 3);
     assert!(matches!(
         erro,
-        super::ErroEnviar::EfeitoIncertoNoEnvio {
+        super::ErroEnviar::NaoConfirmadoNoEnvio {
             anotacao_depois: Some(false),
             ..
         }
     ));
-    let json = serde_json::to_value(crate::processo_enviar_cli::json_de_falha(&erro)).unwrap();
-    assert_eq!(json["codigo"], "efeito_incerto");
-    assert_eq!(json["anotacao_depois"], false);
     assert_eq!(pedidos.len(), 9);
     assert_eq!(pedidos.last(), Some(&get(&absoluta(&link_anotacao()))));
     assert_eq!(

@@ -1,11 +1,14 @@
 //! Argumentos de `ies processo` (subcomandos e flags), separados de `main.rs`.
 use clap::{Args, Subcommand};
 
-// Flags de exclusão independentes correspondem diretamente às opções da CLI.
-#[allow(clippy::struct_excessive_bools)]
+#[expect(
+    clippy::struct_excessive_bools,
+    reason = "Flags de exclusão independentes correspondem diretamente às opções da CLI"
+)]
 #[derive(Debug, Args)]
 pub(crate) struct Processo {
-    pub(crate) numero: Option<String>,
+    #[arg(value_parser = crate::processo::NumeroProcesso::novo)]
+    pub(crate) numero: Option<crate::processo::NumeroProcesso>,
     /// Omite documentos da leitura
     #[arg(long)]
     pub(crate) sem_documentos: bool,
@@ -13,7 +16,7 @@ pub(crate) struct Processo {
     #[arg(long)]
     pub(crate) sem_marcadores: bool,
     /// Omite andamentos da leitura
-    #[arg(long)]
+    #[arg(long, conflicts_with = "andamentos_completos")]
     pub(crate) sem_andamentos: bool,
     /// Omite propriedades adicionais da leitura
     #[arg(long)]
@@ -27,26 +30,54 @@ pub(crate) struct Processo {
 
 #[derive(Debug, Subcommand)]
 pub(crate) enum ProcessoAcao {
+    /// Lista os comentários comprovadamente publicados do processo, sem escrita.
+    Comentarios {
+        #[arg(value_parser = crate::processo::NumeroProcesso::novo)]
+        numero: crate::processo::NumeroProcesso,
+    },
+    /// Prévia de comentário; confirmação só após prova da escrita.
+    Comentar {
+        #[arg(value_parser = crate::processo::NumeroProcesso::novo)]
+        numero: crate::processo::NumeroProcesso,
+        #[arg(long, value_parser = crate::processo_comentar_web::texto_do_comentario)]
+        texto: String,
+        #[arg(long)]
+        confirmar: bool,
+    },
+    /// Consulta, prevê e confirma anotação ou retirada.
+    #[command(group(clap::ArgGroup::new("escrita_da_anotacao").args(["texto", "remover"])))]
+    Anotar {
+        #[arg(value_parser = crate::processo::NumeroProcesso::novo)]
+        numero: crate::processo::NumeroProcesso,
+        #[arg(long, conflicts_with = "remover", value_parser = crate::processo_anotar::texto_da_anotacao)]
+        texto: Option<String>,
+        #[arg(long, conflicts_with = "texto")]
+        remover: bool,
+        /// Exige --texto ou --remover.
+        #[arg(long, requires = "escrita_da_anotacao")]
+        confirmar: bool,
+    },
     /// Registra andamento livre no histórico do processo (prévia antes da escrita)
     Andamento {
-        numero: String,
-        #[arg(long)]
+        #[arg(value_parser = crate::processo::NumeroProcesso::novo)]
+        numero: crate::processo::NumeroProcesso,
+        #[arg(long, value_parser = crate::processo_andamento_registrar::texto_do_andamento)]
         texto: String,
         #[arg(long)]
         confirmar: bool,
     },
     /// Inicia novo processo Web: prévia, ou confirma após validação.
     Criar {
-        #[arg(long)]
+        #[arg(long, value_parser = crate::processo_criar_cli::argumento_de_criacao)]
         tipo: String,
-        #[arg(long)]
+        #[arg(long, value_parser = crate::processo_criar_cli::argumento_de_criacao)]
         especificacao: String,
-        #[arg(long)]
+        #[arg(long, value_parser = crate::processo_criar_cli::argumento_de_criacao)]
         interessado: Vec<String>,
-        #[arg(long, default_value = "publico", value_parser = ["publico", "restrito"])]
-        nivel: String,
+        #[arg(long, value_enum, default_value_t)]
+        nivel: crate::dominio::NivelDeCriacao,
         /// ID#NOME exatos da hipótese observada no AJAX de acesso restrito.
-        #[arg(long, value_name = "ID#NOME")]
+        #[arg(long, value_name = "ID#NOME", value_parser = crate::processo_criar_cli::hipotese_legal)]
         hipotese_legal: Option<String>,
         #[arg(long)]
         confirmar: bool,
@@ -54,7 +85,8 @@ pub(crate) enum ProcessoAcao {
     /// Pesquisa processo na Web (GET, GET e POST); com --pagina N, mais um POST
     Buscar {
         /// NUP inteiro ou parte do número, como digitado no campo Protocolo
-        termo: String,
+        #[arg(value_parser = crate::processo::NumeroProcesso::novo)]
+        termo: crate::processo::NumeroProcesso,
         /// Pede a página N do resultado (um POST que altera a página lembrada)
         #[arg(
             long,
@@ -69,19 +101,28 @@ pub(crate) enum ProcessoAcao {
         #[arg(long, value_name = "TEXTO")]
         assunto: Option<String>,
         /// Data inicial no formato DD/MM/AAAA
-        #[arg(long, value_name = "DD/MM/AAAA")]
-        de: Option<String>,
+        #[arg(
+            long,
+            value_name = "DD/MM/AAAA",
+            value_parser = crate::pesquisa_web::filtros::data_da_cli
+        )]
+        de: Option<crate::unidade_retornos::DataCivil>,
         /// Data final no formato DD/MM/AAAA
-        #[arg(long, value_name = "DD/MM/AAAA")]
-        ate: Option<String>,
+        #[arg(
+            long,
+            value_name = "DD/MM/AAAA",
+            value_parser = crate::pesquisa_web::filtros::data_da_cli
+        )]
+        ate: Option<crate::unidade_retornos::DataCivil>,
     },
     /// Envia o processo a uma unidade (prévia; com --confirmar, um POST e a
     /// verificação por leitura)
     Enviar {
-        numero: String,
+        #[arg(value_parser = crate::processo::NumeroProcesso::novo)]
+        numero: crate::processo::NumeroProcesso,
         /// Sigla da unidade de destino, como o SEI a oferece
-        #[arg(long, required = true)]
-        para: Vec<String>,
+        #[arg(long, value_parser = crate::processo_enviar_cli::sigla_de_destino)]
+        para: String,
         /// Marca "Manter processo aberto na unidade atual"
         #[arg(long)]
         manter_aberto: bool,
@@ -91,9 +132,10 @@ pub(crate) enum ProcessoAcao {
         #[arg(long)]
         confirmar: bool,
     },
-    /// Prévia Web de Acompanhamento Especial (escrita indisponível até reconciliação comprovada)
+    /// Acompanhamento Especial: prévia e confirmação verificada por releitura
     Acompanhar {
-        numero: String,
+        #[arg(value_parser = crate::processo::NumeroProcesso::novo)]
+        numero: crate::processo::NumeroProcesso,
         /// Grupo exatamente como a tela do SEI oferece
         #[arg(long)]
         grupo: Option<String>,
@@ -103,24 +145,36 @@ pub(crate) enum ProcessoAcao {
         /// Retira acompanhamento (sem grupo, exige um único acompanhamento)
         #[arg(long)]
         deixar: bool,
-        /// Confirmação de escrita ainda bloqueada por segurança
+        /// Confirma a escrita; retirada somente em treinamento, com POST único e releitura
         #[arg(long)]
         confirmar: bool,
     },
     /// Atribui ou retira marcador id#nome; prévia Web (escrita ainda não observada).
     Marcar {
-        numero: String,
-        #[arg(long, required_unless_present = "retirar", conflicts_with = "retirar")]
-        marcador: Option<String>,
-        #[arg(long, conflicts_with = "marcador")]
-        retirar: Option<String>,
-        #[arg(long, requires = "marcador", conflicts_with = "retirar")]
+        #[arg(value_parser = crate::processo::NumeroProcesso::novo)]
+        numero: crate::processo::NumeroProcesso,
+        #[arg(
+            long,
+            required_unless_present = "retirar",
+            conflicts_with = "retirar",
+            value_parser = crate::processo_marcar::interpretar_rotulo
+        )]
+        marcador: Option<crate::processo_marcar::Rotulo>,
+        #[arg(long, conflicts_with = "marcador", value_parser = crate::processo_marcar::interpretar_rotulo)]
+        retirar: Option<crate::processo_marcar::Rotulo>,
+        #[arg(
+            long,
+            requires = "marcador",
+            conflicts_with = "retirar",
+            value_parser = crate::processo_marcar::texto_do_marcador
+        )]
         texto: Option<String>,
         #[arg(long)]
         confirmar: bool,
     },
     Atribuir {
-        numero: String,
+        #[arg(value_parser = crate::processo::NumeroProcesso::novo)]
+        numero: crate::processo::NumeroProcesso,
         #[arg(long, required_unless_present = "remover", conflicts_with = "remover")]
         usuario: Option<String>,
         #[arg(long)]
@@ -129,54 +183,67 @@ pub(crate) enum ProcessoAcao {
         confirmar: bool,
     },
     Concluir {
-        numero: String,
+        #[arg(value_parser = crate::processo::NumeroProcesso::novo)]
+        numero: crate::processo::NumeroProcesso,
         #[arg(long)]
         confirmar: bool,
     },
     Reabrir {
-        numero: String,
+        #[arg(value_parser = crate::processo::NumeroProcesso::novo)]
+        numero: crate::processo::NumeroProcesso,
         #[arg(long)]
         confirmar: bool,
     },
     /// Lê o controle de prazo ou prepara uma prévia; escrita bloqueada nesta fatia
+    #[command(group(clap::ArgGroup::new("escrita_do_prazo").args(["ate", "dias", "excluir"])))]
     Prazo {
-        numero: String,
+        #[arg(value_parser = crate::processo::NumeroProcesso::novo)]
+        numero: crate::processo::NumeroProcesso,
         /// Data certa no formato DD/MM/AAAA
-        #[arg(long, conflicts_with_all = ["dias", "excluir"])]
-        ate: Option<String>,
+        #[arg(
+            long,
+            conflicts_with_all = ["dias", "excluir"],
+            value_parser = crate::processo_prazo::data_do_prazo
+        )]
+        ate: Option<crate::unidade_retornos::DataCivil>,
         /// Dias corridos positivos (a contagem exata é do SEI)
-        #[arg(long, conflicts_with = "excluir")]
-        dias: Option<u32>,
-        /// Remove o controle de prazo pela lista da unidade (ainda bloqueado)
+        #[arg(long, conflicts_with = "excluir", value_parser = crate::processo_prazo::dias_do_prazo)]
+        dias: Option<u16>,
+        /// Remove o controle de prazo pela lista da unidade
         #[arg(long)]
         excluir: bool,
-        /// Escrita real; bloqueada até a verificação por leitura estar implementada
-        #[arg(long)]
+        /// Grava uma única vez e confere por releitura independente; exige
+        /// --ate, --dias ou --excluir
+        #[arg(long, requires = "escrita_do_prazo")]
         confirmar: bool,
     },
     /// Registra ciência do usuário no processo: prévia e um GET mutador conferido.
     Ciente {
-        numero: String,
+        #[arg(value_parser = crate::processo::NumeroProcesso::novo)]
+        numero: crate::processo::NumeroProcesso,
         #[arg(long)]
         confirmar: bool,
     },
     Sobrestar {
-        numero: String,
-        #[arg(long)]
+        #[arg(value_parser = crate::processo::NumeroProcesso::novo)]
+        numero: crate::processo::NumeroProcesso,
+        #[arg(long, value_parser = crate::processo_sobrestar::motivo_do_sobrestamento)]
         motivo: String,
         #[arg(long)]
         confirmar: bool,
     },
     Retomar {
-        numero: String,
+        #[arg(value_parser = crate::processo::NumeroProcesso::novo)]
+        numero: crate::processo::NumeroProcesso,
         #[arg(long)]
         confirmar: bool,
     },
     /// Prévia de relacionar/desfazer vínculo; escrita ainda bloqueada
     Relacionar {
-        numero: String,
-        #[arg(long = "com")]
-        com: String,
+        #[arg(value_parser = crate::processo::NumeroProcesso::novo)]
+        numero: crate::processo::NumeroProcesso,
+        #[arg(long = "com", value_parser = crate::processo::NumeroProcesso::novo)]
+        com: crate::processo::NumeroProcesso,
         #[arg(long)]
         remover: bool,
         #[arg(long)]
@@ -184,9 +251,10 @@ pub(crate) enum ProcessoAcao {
     },
     /// Prévia da anexação do processo NUP ao processo principal (--a).
     Anexar {
-        numero: String,
-        #[arg(long)]
-        a: String,
+        #[arg(value_parser = crate::processo::NumeroProcesso::novo)]
+        numero: crate::processo::NumeroProcesso,
+        #[arg(long, value_parser = crate::processo::NumeroProcesso::novo)]
+        a: crate::processo::NumeroProcesso,
         #[arg(long)]
         confirmar: bool,
     },

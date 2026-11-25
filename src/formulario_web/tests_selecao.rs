@@ -2,10 +2,11 @@
 //! O primitivo não escolhe opções; só aceita a repetição que o HTML permite.
 use super::tests::{instalacao, tela_iso, url_servida};
 use super::*;
-use ErroSubmissaoFormulario as E;
+use crate::acao_do_sei::AcaoDoSei;
+use crate::tela_html::HtmlServido;
 
 const OPERACAO_COM_SELECAO: OperacaoDeFormulario = OperacaoDeFormulario {
-    acao: "protocolo_pesquisar",
+    acao: AcaoDoSei::ProtocoloPesquisar,
     formulario: "frmPesquisaProtocolo",
     envio: EnvioDoFormulario::BotaoDeEnvio("sbmPesquisar"),
     campos_ocultos_exigidos: &["hdnInicio"],
@@ -34,13 +35,16 @@ fn pagina(select: &str) -> String {
     )
 }
 
-fn derivar(html: &str, campos: &[(&str, &str)]) -> Result<SubmissaoDerivada, E> {
+fn derivar(
+    html: &str,
+    campos: &[(&str, &str)],
+) -> Result<SubmissaoDerivada, ErroSubmissaoFormulario> {
     let url = url_servida();
     derivar_submissao(
         &OPERACAO_COM_SELECAO,
         &instalacao(),
-        &tela_iso(&url, html),
-        "UNIDADE TESTE",
+        &tela_iso(&url, &HtmlServido::de_teste(html)),
+        Some("UNIDADE TESTE"),
         campos,
     )
 }
@@ -85,7 +89,7 @@ fn select_sem_multiple_continua_recusando_repeticao() {
             &[("selOrgaoPesquisa[]", "1"), ("selOrgaoPesquisa[]", "2")],
         )
         .unwrap_err(),
-        E::CampoInformadoMaisDeUmaVez {
+        ErroSubmissaoFormulario::CampoInformadoMaisDeUmaVez {
             campo: "selOrgaoPesquisa[]".to_owned()
         }
     );
@@ -100,7 +104,7 @@ fn texto_com_mesmo_nome_de_select_multiple_nao_herda_a_excecao() {
             &[("selOrgaoPesquisa[]", "1"), ("selOrgaoPesquisa[]", "2")]
         )
         .unwrap_err(),
-        E::CampoInformadoMaisDeUmaVez {
+        ErroSubmissaoFormulario::CampoInformadoMaisDeUmaVez {
             campo: "selOrgaoPesquisa[]".to_owned()
         }
     );
@@ -108,12 +112,12 @@ fn texto_com_mesmo_nome_de_select_multiple_nao_herda_a_excecao() {
 
 #[test]
 fn select_multiple_desabilitado_nao_e_publicado() {
-    // A forma `multiple disabled` (corrompida pelo mapa do tl 0.7.8) está
+    // A forma `multiple disabled` (regressão do `tl` 0.7.8) está
     // coberta em `tests_atributos`; aqui `disabled` vem por último.
     let desabilitado = MULTIPLO.replace(" multiple>", " multiple='multiple' disabled>");
     assert_eq!(
         derivar(&pagina(&desabilitado), &[("selOrgaoPesquisa[]", "1")]).unwrap_err(),
-        E::CampoNaoPublicadoPeloFormulario {
+        ErroSubmissaoFormulario::CampoNaoPublicadoPeloFormulario {
             campo: "selOrgaoPesquisa[]".to_owned()
         }
     );
