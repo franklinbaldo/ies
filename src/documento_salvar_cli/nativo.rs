@@ -1,7 +1,10 @@
 //! Salvamento no editor publicado para uma minuta sem assinatura.
 use super::{ErroSalvarNoSei, Resultado, carregar_par, html_para_envio};
 use crate::acao_do_sei::AcaoDoSei;
-use crate::arvore_processo::{endereco::conferir_endereco_relativo_por, tela_do_documento};
+use crate::arvore_processo::{
+    EdicaoNaBarra, ErroBarraDoDocumento, endereco::conferir_endereco_relativo_por,
+    ler_barra_do_documento, tela_do_documento,
+};
 use crate::consulta_do_controlador::ConsultaDoControlador;
 use crate::copia_documento::PreviaCopia;
 use crate::documento::NumeroDocumento;
@@ -51,6 +54,7 @@ const EDITAR: OperacaoDeFormulario = OperacaoDeFormulario {
 pub(super) enum ErroEditorNativo {
     TelaDoDocumentoNaoPublicada,
     LinkDoEditorNaoConferido,
+    BarraDoDocumento(#[from] ErroBarraDoDocumento),
     ConsultaDaAssinaturaNaoConferida,
     AssinaturaNaoVerificada,
     DocumentoAssinado,
@@ -143,11 +147,27 @@ struct Editor {
     codificacao: crate::formulario_web::CodificacaoDaTela,
 }
 
+// Um endereço num script não comprova que a ação foi oferecida na barra.
+fn conferir_oferta(
+    instalacao: &Instalacao,
+    html: &str,
+    documento: &str,
+    processo: &str,
+) -> Result<(), ErroEditorNativo> {
+    match ler_barra_do_documento(instalacao, html, documento, processo)?.edicao {
+        EdicaoNaBarra::NaoAssinado | EdicaoNaBarra::Assinado => Ok(()),
+        EdicaoNaBarra::NaoPublicada | EdicaoNaBarra::ForaDaForma => {
+            Err(ErroEditorNativo::LinkDoEditorNaoConferido)
+        }
+    }
+}
+
 fn abrir_editor(
     envio: &mut EnvioHttps,
     instalacao: &Instalacao,
     alvo: &DocumentoNaArvoreAberto,
 ) -> Result<Editor, ErroEditorNativo> {
+    conferir_oferta(instalacao, &alvo.html, &alvo.id_documento, &alvo.processo.id)?;
     let tela = tela_do_documento(
         instalacao,
         &alvo.html,
