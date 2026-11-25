@@ -96,7 +96,7 @@ fn link_em_script(html: &HtmlServido, inicio: &str, fim: &str) -> Option<String>
 }
 
 fn assinatura(
-    envio: &mut EnvioHttps,
+    envio: &mut impl EnvioDoControle,
     instalacao: &Instalacao,
     pagina: &HtmlServido,
     alvo: &DocumentoNaArvoreAberto,
@@ -155,7 +155,8 @@ fn conferir_oferta(
     processo: &str,
 ) -> Result<(), ErroEditorNativo> {
     match ler_barra_do_documento(instalacao, html, documento, processo)?.edicao {
-        EdicaoNaBarra::NaoAssinado | EdicaoNaBarra::Assinado => Ok(()),
+        EdicaoNaBarra::NaoAssinado => Ok(()),
+        EdicaoNaBarra::Assinado => Err(ErroEditorNativo::DocumentoAssinado),
         EdicaoNaBarra::NaoPublicada | EdicaoNaBarra::ForaDaForma => {
             Err(ErroEditorNativo::LinkDoEditorNaoConferido)
         }
@@ -163,7 +164,7 @@ fn conferir_oferta(
 }
 
 fn abrir_editor(
-    envio: &mut EnvioHttps,
+    envio: &mut impl EnvioDoControle,
     instalacao: &Instalacao,
     alvo: &DocumentoNaArvoreAberto,
 ) -> Result<Editor, ErroEditorNativo> {
