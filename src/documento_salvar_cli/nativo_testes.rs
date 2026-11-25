@@ -153,15 +153,14 @@ fn oferta_de_edicao_vem_da_barra_do_documento_e_nao_de_script_generico() {
     }
 }
 
-
 // Hipótese sintética: divergência entre a barra e a resposta AJAX.
 // Exercita a abertura real do editor, sem rede ou cassete fabricada.
 #[test]
 fn abrir_editor_exige_barra_e_consulta_sem_assinatura() {
-    use crate::arvore_processo::tests::{NUP, interno};
-    use crate::arvore_processo::tests_assinatura::{arvore_assinavel, link_da_tela_do_documento};
-    use crate::arvore_processo::tests_barra_documento::barra;
     use crate::arvore_processo::ProcessoNaArvore;
+    use crate::arvore_processo::tests::{NUP, arvore, interno, no_documento, no_processo};
+    use crate::arvore_processo::tests_assinatura::{arvore_assinavel, link_da_tela_do_documento};
+    use crate::arvore_processo::tests_barra_documento::{barra, com_barra};
     use crate::formulario_web::{RespostaDoPost, SubmissaoDerivada};
     use crate::processo_obter::ResolvidoPor;
     use crate::transporte::RespostaWeb;
@@ -223,21 +222,30 @@ fn abrir_editor_exige_barra_e_consulta_sem_assinatura() {
     let instalacao = Instalacao::interpretar("https://sei.exemplo.gov.br/sei").unwrap();
     let origem = instalacao.url_base();
     let hash = "a".repeat(64);
-    for (sinal_barra, sinal_ajax, quantidade) in [
-        (Some('N'), 'N', 3),
-        (Some('N'), 'S', 2),
-        (Some('S'), 'N', 0),
-        (Some('S'), 'S', 0),
-        (None, 'N', 0),
-        (Some('X'), 'N', 0),
+    for (sinal_barra, sinal_ajax, outro_documento, quantidade) in [
+        (Some('N'), 'N', false, 3),
+        (Some('N'), 'S', false, 2),
+        (Some('S'), 'N', false, 0),
+        (Some('S'), 'S', false, 0),
+        (None, 'N', false, 0),
+        (Some('X'), 'N', false, 0),
+        (None, 'N', true, 0),
     ] {
-        let html = arvore_assinavel(
-            "10",
-            "21",
-            "0000101",
-            &barra("10", "21", sinal_barra),
-            &[],
-        );
+        let html = if outro_documento {
+            let base = arvore(&[
+                no_processo(0, "10", NUP),
+                no_documento(1, "21", "10", "0000101"),
+                no_documento(2, "22", "10", "0000102"),
+            ])
+            .replacen(
+                "\"about:blank\"",
+                &format!("\"{}\"", link_da_tela_do_documento("10", "21")),
+                1,
+            );
+            com_barra(&base, 2, &barra("10", "22", Some('N')))
+        } else {
+            arvore_assinavel("10", "21", "0000101", &barra("10", "21", sinal_barra), &[])
+        };
         let alvo = DocumentoNaArvoreAberto {
             numero: "0000101".into(),
             id_documento: "21".into(),
@@ -268,10 +276,9 @@ fn abrir_editor_exige_barra_e_consulta_sem_assinatura() {
         let resultado = abrir_editor(&mut envio, &instalacao, &alvo);
         match (sinal_barra, sinal_ajax) {
             (Some('N'), 'N') => assert_eq!(resultado.unwrap().url, envio.editor),
-            (Some('N'), 'S') | (Some('S'), _) => assert!(matches!(
-                resultado,
-                Err(ErroEditorNativo::DocumentoAssinado)
-            )),
+            (Some('N'), 'S') | (Some('S'), _) => {
+                assert!(matches!(resultado, Err(ErroEditorNativo::DocumentoAssinado)));
+            }
             _ => assert!(matches!(
                 resultado,
                 Err(ErroEditorNativo::LinkDoEditorNaoConferido)
