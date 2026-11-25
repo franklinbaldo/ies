@@ -16,6 +16,14 @@ fn cassette_pen1_bloco_interno_distingue_ausencia_de_inclusao_ja_confirmada() {
         .join("cassettes/pen1/bloco-interno-processos-pen1--69795bb274d6.md");
     let cassette = conferir_cassette_ate(&card, &zip, 20_000_000).unwrap();
     let interacoes = cassette.json["interactions"].as_array().unwrap();
+    // A oferta precisa vir da barra raiz; a mera função na tela não basta.
+    assert!(interacoes.iter().any(|it| {
+        it["request"]["operation"] == "procedimento_visualizar"
+            && it["response"]["status_code"] == 200
+            && html_da_resposta(it).is_ok_and(|html| {
+                matches!(crate::arvore_processo::ler_oferta_de_bloco(&html), Ok(true))
+            })
+    }));
     let ler = |indice: usize| {
         let interacao = &interacoes[indice];
         assert_eq!(
