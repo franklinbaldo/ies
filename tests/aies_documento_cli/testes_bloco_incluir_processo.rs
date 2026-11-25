@@ -308,3 +308,43 @@ fn lista_parcial_de_outro_tipo_nao_impede_a_previa() {
         "{pedidos:?}"
     );
 }
+
+#[test]
+fn previa_processo_sem_oferta_na_barra_recusa_sem_mutacao() {
+    let pasta = Pasta::nova();
+    preparar(&pasta);
+    let (mut banco, instalacao) = estado(&pasta.0.join("anti-ies.sqlite3"), true, 0, false);
+    let mut processo = processos::ler(&banco, &instalacao, CENARIO, "7")
+        .unwrap()
+        .unwrap();
+    processo.aberto_em.clear();
+    processos::guardar(&mut banco, &instalacao, CENARIO, &processo).unwrap();
+    let antes = bloco_detalhe::ler(&banco, &instalacao, CENARIO, Tipo::Interno, BLOCO_INTERNO)
+        .unwrap();
+    let (saida, pedidos) = executar_ciencia_processo(
+        &pasta,
+        &[
+            "--json",
+            "bloco",
+            "incluir",
+            BLOCO_INTERNO,
+            "--processo",
+            NUP_INTERNO,
+        ],
+    );
+    assert_eq!(saida.status.code(), Some(1));
+    assert!(
+        String::from_utf8_lossy(&saida.stderr).contains("não oferece inclusão em bloco"),
+        "{saida:?}",
+    );
+    assert!(
+        pedidos
+            .iter()
+            .all(|p| p.starts_with("GET ") || p == "POST protocolo_pesquisa_rapida"),
+        "{pedidos:?}",
+    );
+    assert_eq!(
+        bloco_detalhe::ler(&banco, &instalacao, CENARIO, Tipo::Interno, BLOCO_INTERNO).unwrap(),
+        antes,
+    );
+}
