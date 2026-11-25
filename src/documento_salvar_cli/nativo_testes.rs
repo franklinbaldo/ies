@@ -120,3 +120,34 @@ fn erro_ou_aceite_inconclusivo_nao_faz_releitura() {
     assert_eq!(correta, Some(42));
     assert_eq!(leituras.get(), 1);
 }
+
+#[test]
+fn oferta_de_edicao_vem_da_barra_do_documento_e_nao_de_script_generico() {
+    use crate::arvore_processo::tests::{NUP, arvore, no_documento, no_processo};
+    use crate::arvore_processo::tests_barra_documento::{barra, com_barra};
+
+    let instalacao = Instalacao::interpretar("https://sei.exemplo.gov.br/sei").unwrap();
+    let arvore = arvore(&[
+        no_processo(0, "10", NUP),
+        no_documento(1, "21", "10", "0000101"),
+        no_documento(2, "22", "10", "0000102"),
+    ]);
+    for sinal in [Some('N'), Some('S')] {
+        let html = com_barra(&arvore, 1, &barra("10", "21", sinal));
+        // S também é oferta, não autorização para perder assinaturas:
+        // a consulta fresca de assinatura continua obrigatória.
+        assert!(conferir_oferta(&instalacao, &html, "21", "10").is_ok());
+    }
+
+    for html in [
+        arvore.clone(),
+        com_barra(&arvore, 1, &barra("10", "21", None)),
+        com_barra(&arvore, 1, &barra("10", "21", Some('X'))),
+        com_barra(&arvore, 2, &barra("10", "22", Some('N'))),
+    ] {
+        assert!(matches!(
+            conferir_oferta(&instalacao, &html, "21", "10"),
+            Err(ErroEditorNativo::LinkDoEditorNaoConferido)
+        ));
+    }
+}
