@@ -132,12 +132,13 @@ fn oferta_de_edicao_vem_da_barra_do_documento_e_nao_de_script_generico() {
         no_documento(1, "21", "10", "0000101"),
         no_documento(2, "22", "10", "0000102"),
     ]);
-    for sinal in [Some('N'), Some('S')] {
-        let html = com_barra(&arvore, 1, &barra("10", "21", sinal));
-        // S também é oferta, não autorização para perder assinaturas:
-        // a consulta fresca de assinatura continua obrigatória.
-        assert!(conferir_oferta(&instalacao, &html, "21", "10").is_ok());
-    }
+    let html = com_barra(&arvore, 1, &barra("10", "21", Some('N')));
+    assert!(conferir_oferta(&instalacao, &html, "21", "10").is_ok());
+    let html = com_barra(&arvore, 1, &barra("10", "21", Some('S')));
+    assert!(matches!(
+        conferir_oferta(&instalacao, &html, "21", "10"),
+        Err(ErroEditorNativo::DocumentoAssinado)
+    ));
 
     for html in [
         arvore.clone(),
@@ -149,5 +150,138 @@ fn oferta_de_edicao_vem_da_barra_do_documento_e_nao_de_script_generico() {
             conferir_oferta(&instalacao, &html, "21", "10"),
             Err(ErroEditorNativo::LinkDoEditorNaoConferido)
         ));
+    }
+}
+
+
+// Hipótese sintética: divergência entre a barra e a resposta AJAX.
+// Exercita a abertura real do editor, sem rede ou cassete fabricada.
+#[test]
+fn abrir_editor_exige_barra_e_consulta_sem_assinatura() {
+    use crate::arvore_processo::tests::{NUP, interno};
+    use crate::arvore_processo::tests_assinatura::{arvore_assinavel, link_da_tela_do_documento};
+    use crate::arvore_processo::tests_barra_documento::barra;
+    use crate::arvore_processo::ProcessoNaArvore;
+    use crate::formulario_web::{RespostaDoPost, SubmissaoDerivada};
+    use crate::processo_obter::ResolvidoPor;
+    use crate::transporte::RespostaWeb;
+    use crate::transporte::sessao::CookieLido;
+    use crate::transporte::testes_http::resposta;
+    use std::io::Cursor;
+
+    struct Roteiro {
+        tela: String,
+        consulta: String,
+        editor: String,
+        sinal: char,
+        pedidos: Vec<String>,
+    }
+
+    impl EnvioDoControle for Roteiro {
+        type Corpo = Cursor<Vec<u8>>;
+
+        fn post(
+            &mut self,
+            _: SubmissaoDerivada,
+            _: &str,
+        ) -> Result<RespostaDoPost<Self::Corpo>, FalhaTransporte> {
+            panic!("POST fora da abertura do editor")
+        }
+
+        fn get(
+            &mut self,
+            url: &str,
+            _: &str,
+        ) -> Result<RespostaWeb<Self::Corpo>, FalhaTransporte> {
+            self.pedidos.push(url.to_owned());
+            let (mime, corpo) = if url == self.tela {
+                (
+                    "text/html; charset=utf-8",
+                    format!(
+                        "<script>\nobjAjaxVerificacaoAssinatura = new infraAjaxComplementar(null,'{}');\nvar linkEditarConteudo = '{}';\n</script>",
+                        self.consulta.split_once("/sei/").unwrap().1,
+                        self.editor.split_once("/sei/").unwrap().1
+                    ),
+                )
+            } else if url == self.consulta {
+                (
+                    "text/xml; charset=utf-8",
+                    format!(
+                        "<resposta><complemento nome='SinAssinado'>{}</complemento></resposta>",
+                        self.sinal
+                    ),
+                )
+            } else if url == self.editor {
+                ("text/html; charset=utf-8", "<html></html>".into())
+            } else {
+                panic!("GET fora do roteiro")
+            };
+            Ok(resposta(200, mime, corpo.into_bytes(), None))
+        }
+    }
+
+    let instalacao = Instalacao::interpretar("https://sei.exemplo.gov.br/sei").unwrap();
+    let origem = instalacao.url_base();
+    let hash = "a".repeat(64);
+    for (sinal_barra, sinal_ajax, quantidade) in [
+        (Some('N'), 'N', 3),
+        (Some('N'), 'S', 2),
+        (Some('S'), 'N', 0),
+        (Some('S'), 'S', 0),
+        (None, 'N', 0),
+        (Some('X'), 'N', 0),
+    ] {
+        let html = arvore_assinavel(
+            "10",
+            "21",
+            "0000101",
+            &barra("10", "21", sinal_barra),
+            &[],
+        );
+        let alvo = DocumentoNaArvoreAberto {
+            numero: "0000101".into(),
+            id_documento: "21".into(),
+            rotulo: "Despacho 0000101".into(),
+            natureza: interno(),
+            processo: ProcessoNaArvore {
+                id: "10".into(),
+                nup: NUP.into(),
+                tipo: "Tipo Sintetico".into(),
+            },
+            unidade: None,
+            resolvido_por: ResolvidoPor::PesquisaRapida,
+            html: HtmlServido::de_teste(&html),
+            requisicoes: 0,
+            cookie: CookieLido::sintetico("PHPSESSID=SINTETICO"),
+        };
+        let mut envio = Roteiro {
+            tela: format!("{origem}/{}", link_da_tela_do_documento("10", "21")),
+            consulta: format!(
+                "{origem}/controlador_ajax.php?acao_ajax=documento_verificar_assinatura&id_documento=21&infra_hash={hash}"
+            ),
+            editor: format!(
+                "{origem}/controlador.php?acao=editor_montar&id_procedimento=10&id_documento=21&infra_hash={hash}"
+            ),
+            sinal: sinal_ajax,
+            pedidos: Vec::new(),
+        };
+        let resultado = abrir_editor(&mut envio, &instalacao, &alvo);
+        match (sinal_barra, sinal_ajax) {
+            (Some('N'), 'N') => assert_eq!(resultado.unwrap().url, envio.editor),
+            (Some('N'), 'S') | (Some('S'), _) => assert!(matches!(
+                resultado,
+                Err(ErroEditorNativo::DocumentoAssinado)
+            )),
+            _ => assert!(matches!(
+                resultado,
+                Err(ErroEditorNativo::LinkDoEditorNaoConferido)
+            )),
+        }
+        let esperados = [&envio.tela, &envio.consulta, &envio.editor];
+        assert_eq!(
+            envio.pedidos.iter().collect::<Vec<_>>(),
+            esperados[..quantidade],
+            "{sinal_barra:?}/{sinal_ajax}"
+        );
     }
 }
