@@ -245,12 +245,7 @@ pub(crate) fn executar(cli: &Cli, grupo: &GrupoEnvio) -> anyhow::Result<()> {
     let arquivos = configuracao::arquivos_de_acesso()?;
     let sessao = ReferenciasDaSessao::ler(&arquivos.url_controle, &arquivos.origem, &arquivos.cookie)?;
     let valor = ler_via(&sessao, cli.unidade.as_deref(), &grupo.acao, &mut EnvioHttps)?;
-    if cli.json {
-        println!("{}", serde_json::to_string_pretty(&valor)?);
-    } else {
-        // O mesmo modelo tipado serializado, sem URL ou cookie.
-        println!("{}", serde_json::to_string_pretty(&valor)?);
-    }
+    println!("{}", serde_json::to_string_pretty(&valor)?);
     Ok(())
 }
 
@@ -281,4 +276,38 @@ mod tests {
         let incompleta = html.replace("2 registros", "3 registros");
         assert!(matches!(ler_lista(&HtmlServido::de_teste(&incompleta)), Err(ErroGrupo::ListaIncompleta)));
     }
+}
+
+#[cfg(test)]
+#[test]
+#[ignore = "exige ZIP original PEN1 verificado em IES_ACERVO_CACHE"]
+fn replay_grupos_envio_pen1_no_acervo() {
+    use crate::cassette::acervo::gravacao;
+    use crate::cassette::{ZipDoAcervo, conferir_cassette_ate, html_da_resposta};
+    use std::path::Path;
+
+    let cache = std::env::var_os("IES_ACERVO_CACHE").expect("IES_ACERVO_CACHE");
+    let zip = ZipDoAcervo::ler(&Path::new(&cache).join("todos-sei-cassettes-pen1.zip")).unwrap();
+    let card = Path::new(env!("CARGO_MANIFEST_DIR"))
+        .join("cassettes/pen1/grupo-envio-ciclo-pen1--cf5fac874b66.md");
+    let gravada = conferir_cassette_ate(&card, &zip, 120_000_000).unwrap();
+
+    // Ordinais e oráculo independente: Todos @caabe699 tests/test_grupo_envio_010.py.
+    let tela = |acao: &str, ordem: usize| {
+        let r = gravacao::respostas(&gravada.json)
+            .filter(|r| r.operacao == acao && r.metodo == "GET")
+            .nth(ordem)
+            .expect("resposta esperada no original");
+        assert_eq!(r.status, 200);
+        HtmlServido::de_teste(&html_da_resposta(r.interacao).expect("HTML da cassette"))
+    };
+    let lista = ler_lista(&tela("grupo_unidade_listar", 2)).unwrap();
+    let ids: Vec<_> = lista.iter().map(|l| l.item.id.as_str()).collect();
+    assert_eq!(ids, ["4", "6"]);
+    let grupo = ler_grupo(&tela("grupo_unidade_consultar", 0), "6").unwrap();
+    assert_eq!(grupo.unidades.iter().map(|u| u.id.as_str()).collect::<Vec<_>>(), ["110000002"]);
+    let alterado = ler_grupo(&tela("grupo_unidade_consultar", 2), "6").unwrap();
+    assert_eq!(alterado.unidades.iter().map(|u| u.id.as_str()).collect::<Vec<_>>(), ["110000002", "110000003"]);
+    let depois = ler_lista(&tela("grupo_unidade_listar", 13)).unwrap();
+    assert!(depois.iter().all(|l| l.item.id != "6"));
 }
