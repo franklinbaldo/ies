@@ -1,5 +1,26 @@
-use super::{Leitura, Pasta, executar_com_teor, json};
+use super::{Leitura, Pasta, executar_bancada, json};
 use std::fs;
+use std::path::Path;
+use std::process::Output;
+
+fn executar_com_teor(
+    incerteza: bool,
+    somente_previa: bool,
+    leitura: Leitura,
+    pdf_de_teor: Option<&[u8]>,
+    caminho_motor: Option<&Path>,
+) -> (Vec<Output>, Vec<String>, usize, Option<Vec<u8>>) {
+    let (saidas, eventos, total, arquivos) = executar_bancada(
+        incerteza.then_some(1),
+        None,
+        somente_previa,
+        leitura,
+        &[],
+        pdf_de_teor,
+        caminho_motor,
+    );
+    (saidas, eventos, total, arquivos.into_iter().next().flatten())
+}
 
 // #873: PDF sintético válido, com offsets xref conferidos pelo Poppler.
 // Diferente do recibo de upload legado, este é um documento interpretável.
