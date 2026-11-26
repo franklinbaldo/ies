@@ -15,7 +15,7 @@ pub(super) fn observar_formularios(
     instalacao: &str,
     html: &HtmlServido,
     gravacao: &serde_json::Value,
-    _interacao: &serde_json::Value,
+    total: usize,
     inst: &Instalacao,
     unidade: &str,
 ) {
@@ -59,6 +59,7 @@ pub(super) fn observar_formularios(
         .collect();
     let mut avancos = 0;
     let mut voltas = 0;
+    let mut anteriores = 0;
     for (indice, (anterior, seguinte)) in respostas.iter().zip(respostas.iter().skip(1)).enumerate()
     {
         assert_eq!(seguinte.metodo, "POST", "{instalacao}");
@@ -66,6 +67,9 @@ pub(super) fn observar_formularios(
             &crate::cassette::html_da_resposta(anterior.interacao).expect("HTML original"),
         );
         let lida = super::detalhe(&html_anterior).expect("detalhe anterior");
+        super::conferir_pagina(&lida, total, anteriores, indice == 0)
+            .expect("continuidade antes de derivar POST");
+        anteriores += lida.processos.len();
         let final_da_lista = lida
             .legenda
             .faixa
@@ -281,4 +285,24 @@ fn dois_posts_usam_url_e_charset_da_resposta_imediatamente_anterior() {
     });
     assert!(matches!(recusa, Err(ErroEnvioPagina::Redirecionamento)));
     std::fs::remove_file(caminho).unwrap();
+}
+
+#[test]
+fn pagina_precisa_concordar_com_total_do_relatorio() {
+    let pagina = super::Pagina {
+        legenda: crate::legenda::Legenda {
+            total: 0,
+            faixa: None,
+        },
+        processos: Vec::new(),
+    };
+    assert!(super::conferir_pagina(&pagina, 0, 0, true).is_ok());
+    assert_eq!(
+        super::conferir_pagina(&pagina, 1, 0, true),
+        Err(super::ErroAcervo::FaixaIncompleta)
+    );
+    assert_eq!(
+        super::conferir_pagina(&pagina, 0, 0, false),
+        Err(super::ErroAcervo::FaixaIncompleta)
+    );
 }

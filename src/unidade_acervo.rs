@@ -257,31 +257,39 @@ fn detalhe(html: &HtmlServido) -> Result<Pagina, ErroAcervo> {
     Ok(Pagina { legenda, processos })
 }
 
-/// Reúne uma única travessia da lista; a legenda local não basta para
-/// provar ausência de páginas repetidas, puladas ou de outro total.
-/// Mantém a multiplicidade das linhas antes de qualquer deduplicação.
+fn conferir_pagina(
+    pagina: &Pagina,
+    total: usize,
+    anteriores: usize,
+    primeira: bool,
+) -> Result<(), ErroAcervo> {
+    if pagina.legenda.total != total || (!primeira && anteriores == total) {
+        return Err(ErroAcervo::FaixaIncompleta);
+    }
+    let linhas = pagina.processos.len();
+    let coerente = match &pagina.legenda.faixa {
+        Some(f) => {
+            f.inicio.checked_sub(1) == Some(anteriores)
+                && f.fim.checked_sub(anteriores) == Some(linhas)
+                && f.fim <= total
+                && linhas > 0
+        }
+        None => anteriores == 0 && linhas == total,
+    };
+    if !coerente {
+        return Err(ErroAcervo::FaixaIncompleta);
+    }
+    Ok(())
+}
+
+/// Reúne a primeira travessia sem deduplicar as linhas.
 fn reunir(paginas: impl IntoIterator<Item = Pagina>) -> Result<Vec<ProcessoDoAcervo>, ErroAcervo> {
     let mut paginas = paginas.into_iter();
     let primeira = paginas.next().ok_or(ErroAcervo::FaixaIncompleta)?;
     let total = primeira.legenda.total;
     let mut processos = Vec::new();
     for (i, pagina) in std::iter::once(primeira).chain(paginas).enumerate() {
-        if pagina.legenda.total != total || (i > 0 && processos.len() == total) {
-            return Err(ErroAcervo::FaixaIncompleta);
-        }
-        let linhas = pagina.processos.len();
-        let coerente = match pagina.legenda.faixa {
-            Some(f) => {
-                f.inicio.checked_sub(1) == Some(processos.len())
-                    && f.fim.checked_sub(processos.len()) == Some(linhas)
-                    && f.fim <= total
-                    && linhas > 0
-            }
-            None => processos.is_empty() && linhas == total,
-        };
-        if !coerente {
-            return Err(ErroAcervo::FaixaIncompleta);
-        }
+        conferir_pagina(&pagina, total, processos.len(), i == 0)?;
         processos.extend(pagina.processos);
     }
     if processos.len() != total {
@@ -466,7 +474,7 @@ fn acervo_detalhe_original() {
                     instalacao,
                     &tela,
                     &conferida.json,
-                    resposta.interacao,
+                    total_anterior.expect("total do relatório anterior"),
                     &instalacao_gravada,
                     unidade.as_deref().expect("unidade do Controle anterior"),
                 );
