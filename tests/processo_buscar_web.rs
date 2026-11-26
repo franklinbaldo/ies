@@ -115,7 +115,7 @@ fn busca_sem_protocolo_exige_criterio_efetivo_antes_da_sessao() {
     ] {
         let saida = ies(&args, true);
         assert_eq!(saida.status.code(), Some(2), "{args:?}");
-        assert!(saida.stdout.is_empty());
+        assert_eq!(saida.stdout, b"");
     }
 }
 
