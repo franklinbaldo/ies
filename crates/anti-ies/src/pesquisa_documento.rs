@@ -157,12 +157,15 @@ fn documento_exato(
 }
 
 fn campo_opcional(corpo: &str, nome: &str) -> Option<String> {
-    super::documentos::campo_formulario_unico(corpo, nome).or_else(|| {
-        (!corpo
-            .split('&')
-            .any(|par| par.split('=').next() == Some(nome)))
-        .then(String::new)
-    })
+    match corpo
+        .split('&')
+        .filter(|par| par.split('=').next() == Some(nome))
+        .count()
+    {
+        0 => Some(String::new()),
+        1 => super::documentos::campo_formulario_unico(corpo, nome),
+        _ => None,
+    }
 }
 
 /// Hipótese sintética de busca processual por tipo e/ou período.
@@ -387,6 +390,26 @@ mod tests {
     use iesei::observacao::{TabelaObservada, UnidadeExibida};
 
     #[test]
+    fn campo_opcional_recusa_ocorrencias_duplicadas_incompletas() {
+        for (corpo, nome, esperado) in [
+            ("outro=1", "q", Some("")),
+            ("q=", "q", Some("")),
+            ("q=a+b", "q", Some("a b")),
+            ("q", "q", None),
+            ("q=%", "q", None),
+            ("q=&q=", "q", None),
+            ("q=&q", "q", None),
+            ("q&q=", "q", None),
+            ("hdnInicio=10&hdnInicio", "hdnInicio", None),
+            ("hdnInicio&hdnInicio=10", "hdnInicio", None),
+            ("txtDataInicio=01%2F01%2F2026", "txtDataInicio", Some("01/01/2026")),
+            ("txtDataInicio=01%2F01%2F2026&txtDataInicio", "txtDataInicio", None),
+        ] {
+            assert_eq!(campo_opcional(corpo, nome).as_deref(), esperado, "{corpo}");
+        }
+    }
+
+    #[test]
     fn registro_negativo_na_unidade_nao_inventa_resultado_de_outro_termo() {
         let mut banco = Connection::open_in_memory().unwrap();
         banco_cassettes::iniciar(&banco).unwrap();
@@ -416,6 +439,26 @@ mod tests {
         assert_eq!(tela.estado, Estado::Ok);
         assert!(tela.corpo.contains("frmPesquisaProtocolo"));
         assert!(tela.corpo.contains("optDocumentos"));
+        let base = "rdoPesquisarEm=P&txtDataInicio=01%2F01%2F2026&hdnInicio=0&selOrgaoPesquisa%5B%5D=0";
+        for extra in ["", "&q=&q", "&q&q=", "&hdnInicio", "&txtDataInicio"] {
+            let resposta = responder_pesquisa(
+                "POST",
+                url,
+                &format!("{base}{extra}"),
+                &banco,
+                &instalacao,
+                "cenario",
+            );
+            assert_eq!(
+                resposta.estado,
+                if extra.is_empty() {
+                    Estado::DadosInsuficientes
+                } else {
+                    Estado::RequisicaoInvalida
+                },
+                "{extra}"
+            );
+        }
         let buscar = |termo: &str| {
             responder_pesquisa(
                 "POST",
