@@ -105,7 +105,12 @@ fn busca_sem_protocolo_exige_criterio_efetivo_antes_da_sessao() {
         vec!["processo", "buscar", "--assunto", "x"],
         vec!["processo", "buscar", "--tipo", " "],
         vec![
-            "processo", "buscar", "--de", "02/01/2026", "--ate", "01/01/2026",
+            "processo",
+            "buscar",
+            "--de",
+            "02/01/2026",
+            "--ate",
+            "01/01/2026",
         ],
     ] {
         let saida = ies(&args, true);
