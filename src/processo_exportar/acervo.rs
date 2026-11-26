@@ -64,7 +64,7 @@ fn replay(formato: Formato, nomes: &[&str], acao: &str, formulario: &str) {
                         && e.atributo("name") == Some("selDocumentosApenas")
                         && e.presente("multiple")
                 });
-                if apenas && oculto && lista {
+                if matches!(formato, Formato::Zip) && apenas && oculto && lista {
                     // Derivação sobre o formulário original, com escolha fictícia.
                     let post = submissao(&origem, &tela, &id, formato, None, Some("123±Anexo"))
                         .expect("modalidade A sobre HTML original");
@@ -96,7 +96,9 @@ fn replay(formato: Formato, nomes: &[&str], acao: &str, formulario: &str) {
         downloads > 0,
         "nenhuma resposta original com download confrontada"
     );
-    assert!(selecao > 0, "nenhum formulário original oferece seleção A");
+    if matches!(formato, Formato::Zip) {
+        assert!(selecao > 0, "nenhum formulário original oferece seleção A");
+    }
     println!(
         "exportação {formato:?}: {formularios} formulários, {downloads} links e {selecao} seletores A originais; wire POST e anti-IES não comprovados"
     );

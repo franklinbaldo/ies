@@ -244,7 +244,9 @@ fn selecao_da_arvore(
         selecionados.push((doc.id.as_str(), format!("{numero} - {tipo} ")));
     }
     Ok(valor_da_lupa(
-        selecionados.iter().map(|(id, titulo)| (*id, titulo.as_str())),
+        selecionados
+            .iter()
+            .map(|(id, titulo)| (*id, titulo.as_str())),
     ))
 }
 
@@ -274,10 +276,10 @@ fn exportar<V: EnvioDoProcesso>(
     let selecao = if pedido.documentos.is_empty() {
         None
     } else {
-        if !matches!(pedido.formato, Formato::Zip) {
-            return Err(ErroSelecao::SelecaoSomenteZip.into());
-        }
-        Some(selecao_da_arvore(&aberto.arvore.documentos, pedido.documentos)?)
+        Some(selecao_da_arvore(
+            &aberto.arvore.documentos,
+            pedido.documentos,
+        )?)
     };
     let id = aberto.arvore.processo.id;
     let link = match pedido.formato {
@@ -329,6 +331,9 @@ pub(crate) fn tentar_exportar(cli: &Cli) -> Option<anyhow::Result<()>> {
     else {
         return None;
     };
+    if !documentos.is_empty() && !matches!(formato, Formato::Zip) {
+        return Some(Err(ErroSelecao::SelecaoSomenteZip.into()));
+    }
     Some(crate::processo_concluir_cli::com_sessao(
         cli,
         |sessao, indice| {

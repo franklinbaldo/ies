@@ -150,7 +150,7 @@ enum Leitura {
     Pdf,
     Zip,
     PdfProcesso,
-    ZipSelecao(&'static str),
+    ZipSelecao(&'static [&'static str]),
 }
 
 fn executar(
@@ -358,16 +358,25 @@ fn executar_com_falha_previa(
     ];
     let mut exportar_selecao = exportar.to_vec();
     let mut comandos = vec![&incluir[..]];
-    let incluir_outro;
-    if let Leitura::ZipSelecao(documento) = leitura {
-        assert_eq!(outros.len(), 1);
-        incluir_outro = [
-            base.as_slice(),
-            &[outros[0].to_str().unwrap(), "--tipo", "Anexo", modo],
-        ]
-        .concat();
-        comandos.push(&incluir_outro);
-        exportar_selecao.extend(["--documentos", documento]);
+    let incluir_outros: Vec<_> = if matches!(leitura, Leitura::ZipSelecao(_)) {
+        outros
+            .iter()
+            .map(|caminho| {
+                [
+                    base.as_slice(),
+                    &[caminho.to_str().unwrap(), "--tipo", "Anexo", modo],
+                ]
+                .concat()
+            })
+            .collect()
+    } else {
+        Vec::new()
+    };
+    comandos.extend(incluir_outros.iter().map(Vec::as_slice));
+    if let Leitura::ZipSelecao(documentos) = leitura {
+        for &documento in documentos {
+            exportar_selecao.extend(["--documentos", documento]);
+        }
     }
     comandos.push(&consultar);
     comandos.extend(leituras.iter().map(<[&str; 8]>::as_slice));
