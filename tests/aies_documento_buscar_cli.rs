@@ -31,6 +31,7 @@ enum EstadoDeBusca {
     SemResultado,
     DocumentoExato,
     Paginas,
+    CoorteContraditoria { negativo_primeiro: bool },
 }
 
 struct Pasta(PathBuf);
@@ -201,6 +202,24 @@ fn preparar_estado(banco: &mut Connection, instalacao: &Instalacao, estado: Esta
             TERMO,
         )
         .unwrap();
+    } else if let EstadoDeBusca::CoorteContraditoria { negativo_primeiro } = estado {
+        let negativo = |banco: &Connection| {
+            pesquisa_documento::registrar_sem_resultado(
+                banco,
+                instalacao,
+                CENARIO,
+                &UnidadeExibida::nova("TESTE").unwrap(),
+                TERMO_PAGINADO,
+            )
+            .unwrap();
+        };
+        if negativo_primeiro {
+            negativo(banco);
+        }
+        preparar_paginas(banco, instalacao);
+        if !negativo_primeiro {
+            negativo(banco);
+        }
     } else {
         preparar_paginas(banco, instalacao);
     }
@@ -389,6 +408,34 @@ fn texto_livre_desconhecido_nao_herda_estado_do_protocolo() {
             String::from_utf8_lossy(&saida.stderr)
         );
         assert!(saida.stdout.is_empty(), "{args:?}");
+    }
+}
+
+#[test]
+fn coorte_contraditoria_recusa_cli_em_ambas_ordens() {
+    for negativo_primeiro in [true, false] {
+        for pagina in ["1", "2"] {
+            let pasta = Pasta::nova();
+            let saida = executar_com_estado(
+                &pasta,
+                &[
+                    "--json",
+                    "documento",
+                    "buscar",
+                    TERMO_PAGINADO,
+                    "--pagina",
+                    pagina,
+                ],
+                EstadoDeBusca::CoorteContraditoria { negativo_primeiro },
+            );
+            assert_eq!(
+                saida.status.code(),
+                Some(1),
+                "{}",
+                String::from_utf8_lossy(&saida.stderr)
+            );
+            assert_eq!(saida.stdout.as_slice(), b"");
+        }
     }
 }
 
