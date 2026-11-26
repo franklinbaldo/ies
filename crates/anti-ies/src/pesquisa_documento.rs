@@ -362,6 +362,37 @@ mod tests {
             );
             assert_eq!(resposta.estado, esperado, "{criterios}");
         }
+        // A segunda página contradiz o zero explícito, ainda que não haja
+        // primeira página positiva. Nenhum deslocamento pode renderizá-la.
+        iesei::pesquisa_documento::registrar_pagina(
+            &mut banco,
+            &instalacao,
+            "cenario",
+            &unidade,
+            "DOC-NAO-ACHADO",
+            &iesei::pesquisa_documento::PaginaObservada {
+                pagina: 2,
+                inicio: 11,
+                fim: 20,
+                total_declarado: 20,
+                linhas: vec![],
+            },
+        )
+        .unwrap();
+        for deslocamento in [0, 10] {
+            let resposta = responder_pesquisa(
+                "POST",
+                url,
+                &format!(
+                    "rdoPesquisarEm=D&chkSinDocumentosGerados=S&txtProtocoloPesquisa=DOC-NAO-ACHADO&hdnInicio={deslocamento}"
+                ),
+                &banco,
+                &instalacao,
+                "cenario",
+            );
+            assert_eq!(resposta.estado, Estado::DadosInsuficientes);
+            assert!(!resposta.corpo.contains("pesquisaSemResultado"));
+        }
         assert_eq!(
             responder_pesquisa(
                 "POST",
