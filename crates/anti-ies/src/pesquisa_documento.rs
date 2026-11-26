@@ -84,6 +84,7 @@ fn formulario_de_pesquisa(unidade: &str, termo: &str, conteudo: &str) -> String 
         <input type="hidden" id="hdnIdAssinante" name="hdnIdAssinante" value=""/>
         <input type="hidden" id="hdnIdContato" name="hdnIdContato" value=""/>
         <input type="text" id="txtProtocoloPesquisa" name="txtProtocoloPesquisa" maxlength="50" value="{}"/>
+        <input type="text" id="q" name="q" value=""/>
         <input type="hidden" id="hdnIdUsuarioGerador1" name="hdnIdUsuarioGerador1" value=""/>
         <input type="hidden" id="hdnIdUsuarioGerador2" name="hdnIdUsuarioGerador2" value=""/>
         <input type="hidden" id="hdnIdUsuarioGerador3" name="hdnIdUsuarioGerador3" value=""/>
@@ -142,6 +143,18 @@ pub fn responder_pesquisa(
     match metodo {
         "GET" => Resposta::html(formulario_de_pesquisa(controle.unidade.as_str(), "", "")),
         "POST" => {
+            // A chave legada não contém q: nunca responder uma consulta textual
+            // com a observação de um protocolo. Só q ausente/vazio é equivalente.
+            let mut textos = corpo
+                .split('&')
+                .filter(|par| par.split('=').next() == Some("q"));
+            let texto = textos.next();
+            if textos.next().is_some() {
+                return Resposta::nova(Estado::RequisicaoInvalida);
+            }
+            if texto.is_some_and(|par| par != "q=") {
+                return Resposta::nova(Estado::DadosInsuficientes);
+            }
             let termo = super::documentos::campo_formulario_unico(corpo, "txtProtocoloPesquisa");
             let radio = super::documentos::campo_formulario_unico(corpo, "rdoPesquisarEm");
             let gerados =
@@ -261,6 +274,7 @@ mod tests {
         assert_eq!(tela.estado, Estado::Ok);
         assert!(tela.corpo.contains("frmPesquisaProtocolo"));
         assert!(tela.corpo.contains("optDocumentos"));
+        assert!(tela.corpo.contains("name=\"q\""));
         let buscar = |termo: &str| {
             responder_pesquisa(
                 "POST",
@@ -275,6 +289,36 @@ mod tests {
         assert_eq!(observado.estado, Estado::Ok);
         assert!(observado.corpo.contains("pesquisaSemResultado"));
         assert_eq!(buscar("OUTRO").estado, Estado::DadosInsuficientes);
+        // A observação negativa de protocolo não prova a mesma consulta com q.
+        for (criterios, esperado) in [
+            ("txtProtocoloPesquisa=DOC-NAO-ACHADO&q=", Estado::Ok),
+            (
+                "txtProtocoloPesquisa=DOC-NAO-ACHADO&q=contrato",
+                Estado::DadosInsuficientes,
+            ),
+            (
+                "txtProtocoloPesquisa=&q=contrato",
+                Estado::DadosInsuficientes,
+            ),
+            (
+                "txtProtocoloPesquisa=DOC-NAO-ACHADO&q=licita%E7%E3o",
+                Estado::DadosInsuficientes,
+            ),
+            (
+                "txtProtocoloPesquisa=DOC-NAO-ACHADO&q=&q=contrato",
+                Estado::RequisicaoInvalida,
+            ),
+        ] {
+            let resposta = responder_pesquisa(
+                "POST",
+                url,
+                &format!("rdoPesquisarEm=D&chkSinDocumentosGerados=S&{criterios}"),
+                &banco,
+                &instalacao,
+                "cenario",
+            );
+            assert_eq!(resposta.estado, esperado, "{criterios}");
+        }
         assert_eq!(
             responder_pesquisa(
                 "POST",
