@@ -166,3 +166,65 @@ fn destino_inexistente_recusa_antes_de_qualquer_escrita() {
                 && !p.starts_with("POST anotacao_registrar "))
     );
 }
+
+fn preparar_efeito_parcial() -> (Connection, Instalacao) {
+    let (banco, instalacao) = preparar();
+    // Contraprova sintética: o servidor aceita o POST, mas não persiste
+    // o segundo destino. A releitura HTTP deve revelar o efeito parcial.
+    banco
+        .execute_batch(
+            "CREATE TEMP TRIGGER omitir_segundo_destino
+             BEFORE INSERT ON processo_abertura
+             WHEN NEW.unidade = 'ARQUIVO'
+             BEGIN SELECT RAISE(IGNORE); END;",
+        )
+        .unwrap();
+    (banco, instalacao)
+}
+
+#[test]
+fn aceite_http_com_efeito_parcial_nao_confirma_nem_repete_envio() {
+    let (saida, _, pedidos, antes, depois) = executar_em_bancada(
+        &[
+            "--json",
+            "processo",
+            "enviar",
+            NUP,
+            "--para",
+            "DESTINO",
+            "--para",
+            "ARQUIVO",
+            "--confirmar",
+        ],
+        false,
+        false,
+        preparar_efeito_parcial,
+        observar,
+    );
+    assert_eq!(saida.status.code(), Some(1), "pedidos={pedidos:?}");
+    assert_eq!(saida.stdout, [] as [u8; 0]);
+    assert!(
+        String::from_utf8_lossy(&saida.stderr).contains("EnvioNaoAplicado"),
+        "stderr={} pedidos={pedidos:?}",
+        String::from_utf8_lossy(&saida.stderr)
+    );
+    assert_eq!(antes.aberto_em, ["TESTE"]);
+    assert_eq!(depois.aberto_em, ["DESTINO"]);
+    assert_eq!(depois.anotacao_origem, antes.anotacao_origem);
+    assert_eq!(
+        pedidos
+            .iter()
+            .filter(|p| p.starts_with("POST procedimento_enviar "))
+            .count(),
+        1
+    );
+    let post = pedidos
+        .iter()
+        .position(|p| p == "POST procedimento_enviar 302")
+        .unwrap();
+    assert!(
+        pedidos[post + 1..]
+            .iter()
+            .any(|p| p == "GET procedimento_visualizar 200")
+    );
+}
