@@ -132,13 +132,15 @@ fn formulario_editor_4(
     };
     Resposta::html(format!(
         "<html><body><form id='frmEditor' hidden method='post' target='ifrEditorSalvar' \
-         action='editor/editor_processar.php?acao=editor_salvar&amp;id_documento={id}&amp;infra_hash={}'>\
+         action='editor/editor_processar.php?acao=editor_salvar&amp;id_procedimento={}&amp;id_documento={id}&amp;infra_hash={}'>\
          <textarea name='txaEditor_1'>{}</textarea>\
          <input type='hidden' id='hdnVersao' name='hdnVersao' value='{}'>\
          <input type='hidden' id='hdnIgnorarNovaVersao' name='hdnIgnorarNovaVersao' value='N'>\
          <label><input type='checkbox' name='confirmar_assinaturas' value='1'>Confirmar perda de assinaturas (anti-IES)</label>\
          </form><iframe id='ifrEditorSalvar' name='ifrEditorSalvar'></iframe>\
-         <output id='assinaturasAtuais'>{}</output></body></html>",
+         <output id='assinaturasAtuais'>{}</output>\
+         <script>CKEDITOR.replace('txaEditor_1', {{\"readOnly\":false}});</script></body></html>",
+        escapar(&documento.id_procedimento),
         crate::protocolo_sintetico::INFRA_HASH,
         escapar(&ultima.html_corpo),
         ultima.versao,
