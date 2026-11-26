@@ -30,6 +30,15 @@ pub(crate) struct Processo {
 
 #[derive(Debug, Subcommand)]
 pub(crate) enum ProcessoAcao {
+    /// Exporta o processo inteiro pelo gerador nativo do SEI.
+    Exportar {
+        #[arg(value_parser = crate::processo::NumeroProcesso::novo)]
+        numero: crate::processo::NumeroProcesso,
+        #[arg(long, value_enum)]
+        formato: crate::processo_exportar::Formato,
+        #[arg(long)]
+        saida: std::path::PathBuf,
+    },
     /// Lista os comentários comprovadamente publicados do processo, sem escrita.
     Comentarios {
         #[arg(value_parser = crate::processo::NumeroProcesso::novo)]
