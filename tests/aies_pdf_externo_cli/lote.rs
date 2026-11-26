@@ -129,8 +129,13 @@ fn lote_segunda_previa_remota_recusada_impede_toda_escrita() {
     let mut segundo = b"%PDF-1.4\n".to_vec();
     segundo.resize(1024 * 1024 + 1, b' ');
     segundo.extend_from_slice(b"\n%%EOF\n");
-    let (saidas, eventos, total, _) =
-        executar_com_falha_previa(None, Some(2), false, false, &[&segundo]);
+    let (saidas, eventos, total, _) = executar_com_falha_previa(
+        None,
+        Some(FalhaPrevia::LimiteMenor(2)),
+        false,
+        false,
+        &[&segundo],
+    );
     falha(&saidas[0], "CadastroNaoConferido");
     let stderr = String::from_utf8_lossy(&saidas[0].stderr);
     assert!(
@@ -139,6 +144,35 @@ fn lote_segunda_previa_remota_recusada_impede_toda_escrita() {
             .any(|linha| linha.trim() == "PdfAcimaDoLimite"),
         "a causa tipada deve ser o limite observado: {stderr}"
     );
+    assert_eq!(
+        eventos
+            .iter()
+            .filter(|e| e.as_str() == "POST documento_receber 200")
+            .count(),
+        2
+    );
+    assert_eq!(total, 0);
+    assert!(
+        !eventos
+            .iter()
+            .any(|e| e.starts_with("POST documento_upload_anexo")
+                || e == "POST documento_receber 302"),
+        "falha na segunda prévia não permite escrita: {eventos:?}"
+    );
+}
+
+#[test]
+fn lote_segunda_previa_sem_hdn_anexos_impede_toda_escrita() {
+    let (saidas, eventos, total, _) = executar_com_falha_previa(
+        None,
+        Some(FalhaPrevia::SemAnexos(2)),
+        false,
+        false,
+        &[b"%PDF-1.4\n2 0 obj\n%%EOF\n"],
+    );
+    falha(&saidas[0], "CampoOcultoAusenteNoFormulario");
+    let stderr = String::from_utf8_lossy(&saidas[0].stderr);
+    assert!(stderr.contains("campo: \"hdnAnexos\""), "{stderr}");
     assert_eq!(
         eventos
             .iter()

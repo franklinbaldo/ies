@@ -139,6 +139,11 @@ fn preparar_banco() -> (Connection, Instalacao) {
 
 type ResultadoBancada = (Vec<Output>, Vec<String>, usize, Vec<Option<Vec<u8>>>);
 
+enum FalhaPrevia {
+    LimiteMenor(usize),
+    SemAnexos(usize),
+}
+
 fn executar(
     cadastro_incerto: Option<usize>,
     somente_previa: bool,
@@ -160,7 +165,7 @@ fn executar(
 )]
 fn executar_com_falha_previa(
     cadastro_incerto: Option<usize>,
-    previa_com_limite_menor: Option<usize>,
+    falha_previa: Option<FalhaPrevia>,
     somente_previa: bool,
     com_leitura: bool,
     adicionais: &[&[u8]],
@@ -237,12 +242,21 @@ fn executar_com_falha_previa(
             .to_owned();
             if metodo == "POST" && acao == "documento_receber" && status == "200" {
                 previas += 1;
-                if previa_com_limite_menor == Some(previas) {
+                let troca = match falha_previa {
+                    Some(FalhaPrevia::LimiteMenor(n)) if n == previas => {
+                        Some(("tamanho : 10", "tamanho : 01"))
+                    }
+                    Some(FalhaPrevia::SemAnexos(n)) if n == previas => {
+                        Some(("name=\"hdnAnexos\"", "name=\"hdnAusent\""))
+                    }
+                    _ => None,
+                };
+                if let Some((original, alterado)) = troca {
                     // Mesmo comprimento: preserva o Content-Length da resposta.
+                    assert_eq!(original.len(), alterado.len());
                     let texto = String::from_utf8(resposta).unwrap();
-                    let original = "tamanho : 10";
                     assert_eq!(texto.matches(original).count(), 1);
-                    resposta = texto.replace(original, "tamanho : 01").into_bytes();
+                    resposta = texto.replace(original, alterado).into_bytes();
                 }
             }
             registro

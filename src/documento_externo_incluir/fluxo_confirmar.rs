@@ -3,6 +3,7 @@
 //! até a validação em treinamento e a confirmação segura do fluxo completo.
 use super::{
     PdfLocal,
+    cadastro_envio::prevalidar_cadastro,
     confirmacao::{FalhaConfirmacao, FotoProcesso, conferir_foto_inicial, confirmar_sequencia},
     fluxo::{CadastroPreparado, ErroIncluirExterno, preparar_previa},
     recibo::{FalhaUpload, ReciboUpload},
@@ -227,6 +228,15 @@ fn conferir_preparo(
                 return Err(ErroIncluirExterno::CampoDoCadastroNaoOferecido(campo));
             }
         }
+        prevalidar_cadastro(
+            instalacao,
+            &TelaServida {
+                url: &preparado.url_cadastro,
+                html: &preparado.html_cadastro,
+                codificacao: preparado.codificacao,
+            },
+            &preparado.previa.unidade,
+        )?;
     }
     conferir_upload(
         instalacao,
