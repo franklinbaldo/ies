@@ -41,14 +41,18 @@ fn datas_civis_invalidas_sao_erros_de_uso() {
     }
 }
 
-// A data válida atravessa o parser. Enquanto o fluxo Web não existe, a
-// CLI falha explicitamente em vez de publicar uma lista vazia.
+// Data válida exige configuração antes da rede.
 #[test]
-fn data_valida_alcanca_o_recorte_wip_sem_saida_de_acervo() {
-    let saida = ies(&["--json", "unidade", "acervo", "--em", "2024-02-29"]);
+fn data_valida_exige_sessao_sem_saida_de_acervo() {
+    let saida = Command::new(env!("CARGO_BIN_EXE_ies"))
+        .args(["--json", "unidade", "acervo", "--em", "2024-02-29"])
+        .env_remove("IES_CONFIG_FILE")
+        .env_remove("IES_URL_CONTROLE_FILE")
+        .env_remove("IES_COOKIE_FILE")
+        .env_remove("IES_ORIGEM_FILE")
+        .output()
+        .expect("binário ies compilado no teste");
     assert_eq!(saida.status.code(), Some(1));
-    assert_eq!(saida.stdout, [] as [u8; 0]);
-    let erro = String::from_utf8_lossy(&saida.stderr);
-    assert!(erro.contains("ComandoSemImplementacaoNoSei"), "{erro}");
-    assert!(erro.contains("29/02/2024"), "{erro}");
+    assert!(saida.stdout.is_empty());
+    assert!(String::from_utf8_lossy(&saida.stderr).contains("UrlDoControleSemCaminho"));
 }

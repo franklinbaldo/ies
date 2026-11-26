@@ -1,10 +1,7 @@
 //! Diagnóstico estrutural do paginador original, sem valores ou URLs.
 use super::{HtmlServido, arvore};
-use crate::formulario_web::{
-    ConferenciaDaUnidade, EfeitoAvaliado, EnvioDoFormulario, ErroSubmissaoFormulario,
-    EstadoDeSessao, OperacaoDeFormulario, ResultadoDoEnvio, SubmissaoDerivada, TelaServida,
-    derivar_submissao,
-};
+use super::web::{ErroEnvioPagina, enviar_pagina_via, formulario_da_pagina};
+use crate::formulario_web::TelaServida;
 use crate::instalacao::Instalacao;
 
 fn identificador(valor: &str) -> bool {
@@ -113,36 +110,6 @@ pub(super) fn observar_formularios(
     println!("{instalacao}: avancos_derivados={avancos} voltas_derivadas={voltas}");
 }
 
-/// Reutiliza o formulário da página atual, sem fabricar action ou hash.
-/// O índice é zero-based; o corpo original não foi persistido pelo gravador.
-fn formulario_da_pagina(
-    instalacao: &Instalacao,
-    tela: &TelaServida<'_>,
-    unidade: &str,
-    pagina: usize,
-) -> Result<SubmissaoDerivada, ErroSubmissaoFormulario> {
-    const PAGINAR: OperacaoDeFormulario = OperacaoDeFormulario {
-        acao: crate::acao_do_sei::AcaoDoSei::EstatisticasDetalharUnidade,
-        formulario: "frmEstatisticasLista",
-        envio: EnvioDoFormulario::SubmitPorScript,
-        campos_ocultos_exigidos: &["hdnInfraPaginaAtual"],
-        campos_ocultos_reescritos: &["hdnInfraPaginaAtual"],
-        campos_usuario: &[],
-        resultado: ResultadoDoEnvio::ConferidoPorLeituraPosterior,
-        unidade: ConferenciaDaUnidade::NaTelaDeOrigemDoLink,
-        efeito: EfeitoAvaliado::AlteraEstadoDaSessao {
-            o_que: EstadoDeSessao::PaginaOuFiltroLembrado,
-        },
-    };
-    derivar_submissao(
-        &PAGINAR,
-        instalacao,
-        tela,
-        Some(unidade),
-        &[("hdnInfraPaginaAtual", &pagina.to_string())],
-    )
-}
-
 #[test]
 fn paginador_reescreve_indice_e_preserva_ocultos_da_tela_atual() {
     use crate::formulario_web::tests::{HASH_TELA, instalacao, tela_iso};
@@ -172,40 +139,6 @@ fn paginador_reescreve_indice_e_preserva_ocultos_da_tela_atual() {
     assert_eq!(post.corpo(), b"hdnInfraPaginaAtual=2&hdnFiltro=novo");
     let ausente = HtmlServido::de_teste(&html.as_str().replace("hdnInfraPaginaAtual", "outro"));
     assert!(formulario_da_pagina(&inst, &tela_iso(&url, &ausente), "U", 1).is_err());
-}
-
-#[derive(Debug, thiserror::Error)]
-#[error("{self:?}")]
-enum ErroEnvioPagina {
-    Submissao(#[from] ErroSubmissaoFormulario),
-    Redirecionamento,
-}
-
-/// Conserva a URL do POST e o MIME da resposta para a próxima derivação.
-/// Reutiliza todas as verificações do envio comum, sem repetir a requisição.
-fn enviar_pagina_via<R: std::io::Read>(
-    submissao: SubmissaoDerivada,
-    cookie: &crate::transporte::sessao::CookieDaSessao,
-    enviar: impl FnOnce(
-        SubmissaoDerivada,
-        &str,
-    ) -> Result<
-        crate::formulario_web::RespostaDoPost<R>,
-        crate::transporte::FalhaTransporte,
-    >,
-) -> Result<(String, String, HtmlServido), ErroEnvioPagina> {
-    use crate::formulario_web::{RespostaDoEnvio, enviar_submissao_via};
-    let url = submissao.url().to_owned();
-    let mut mime = String::new();
-    let resposta = enviar_submissao_via(submissao, cookie, |post, cookie| {
-        let resposta = enviar(post, cookie)?;
-        mime.clone_from(&resposta.resposta.mime);
-        Ok(resposta)
-    })?;
-    match resposta {
-        RespostaDoEnvio::Html(html) => Ok((url, mime, html)),
-        RespostaDoEnvio::Redirecionamento(_) => Err(ErroEnvioPagina::Redirecionamento),
-    }
 }
 
 #[test]

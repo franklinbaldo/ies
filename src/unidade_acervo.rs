@@ -3,7 +3,7 @@
 use crate::legenda::{ErroLegenda, Legenda, ler_legenda};
 use crate::tela_html::{Elemento, HtmlServido, arvore};
 
-#[derive(Debug, PartialEq, Eq)]
+#[derive(Debug, PartialEq, Eq, serde::Serialize)]
 struct ProcessoDoAcervo {
     processo: String,
     tipo: String,
@@ -26,6 +26,9 @@ enum ErroAcervo {
     Legenda(#[from] ErroLegenda),
     FaixaIncompleta,
     ResultadoSemTotal,
+    MenuDeEstatisticasNaoReconhecido,
+    CharsetDaTelaNaoSuportado,
+    UnidadeDiferenteDaSolicitada,
 }
 
 fn texto(no: Elemento<'_>) -> String {
@@ -86,7 +89,7 @@ fn total_do_resultado(
     Ok((total, url))
 }
 
-// Hipótese de submissão baseada no Todos; não abre sessão nem envia POST.
+// Derivação confrontada com o Todos.
 fn formulario_do_acervo(
     instalacao: &crate::instalacao::Instalacao,
     tela: &crate::formulario_web::TelaServida<'_>,
@@ -177,8 +180,13 @@ fn data_iso_reusa_calendario_civil() {
     }
 }
 
+mod web;
+pub(crate) use web::listar;
+
+#[cfg(test)]
 #[path = "unidade_acervo/paginacao_tests.rs"]
 mod paginacao_tests;
+#[cfg(test)]
 #[path = "unidade_acervo/total_tests.rs"]
 mod total_tests;
 
@@ -228,17 +236,24 @@ fn detalhe(html: &HtmlServido) -> Result<Pagina, ErroAcervo> {
         if celulas.len() != colunas.len() {
             return Err(ErroAcervo::TelaDesconhecida);
         }
-        let nup = texto(celulas[processo]);
+        let valor = |pos| {
+            celulas
+                .get(pos)
+                .copied()
+                .map(texto)
+                .ok_or(ErroAcervo::TelaDesconhecida)
+        };
+        let nup = valor(processo)?;
         if nup.is_empty() {
             return Err(ErroAcervo::TelaDesconhecida);
         }
         processos.push(ProcessoDoAcervo {
             processo: nup,
-            tipo: texto(celulas[tipo]),
-            orgao: texto(celulas[orgao]),
-            unidade: texto(celulas[unidade]),
-            mes: texto(celulas[mes]),
-            ano: texto(celulas[ano]),
+            tipo: valor(tipo)?,
+            orgao: valor(orgao)?,
+            unidade: valor(unidade)?,
+            mes: valor(mes)?,
+            ano: valor(ano)?,
         });
     }
     let linhas = processos.len();
@@ -283,6 +298,7 @@ fn conferir_pagina(
 }
 
 /// Reúne a primeira travessia sem deduplicar as linhas.
+#[cfg(test)]
 fn reunir(paginas: impl IntoIterator<Item = Pagina>) -> Result<Vec<ProcessoDoAcervo>, ErroAcervo> {
     let mut paginas = paginas.into_iter();
     let primeira = paginas.next().ok_or(ErroAcervo::FaixaIncompleta)?;
@@ -371,6 +387,7 @@ fn travessia_exige_cobertura_sem_deduplicar() {
     assert_eq!(reunir([]), Err(ErroAcervo::FaixaIncompleta));
 }
 
+#[cfg(test)]
 fn conferir_campos(post: &crate::formulario_web::SubmissaoDerivada) {
     for nome in ["selOrgao", "txtPeriodoDe", "txtPeriodoA", "sbmPesquisar"] {
         assert_eq!(
@@ -383,8 +400,7 @@ fn conferir_campos(post: &crate::formulario_web::SubmissaoDerivada) {
     }
 }
 
-/// Somente diagnóstico do leitor de detalhe, não execução da CLI nem prova
-/// de que todas as respostas pertencem à mesma fotografia do acervo.
+/// Replay estrutural, não prova de fotografia simultânea.
 #[test]
 #[ignore = "acervo original: exige ZIPs verificados no cache"]
 fn acervo_detalhe_original() {
@@ -491,6 +507,7 @@ fn acervo_detalhe_original() {
     }
 }
 
+#[cfg(test)]
 fn conferir_travessia_original(
     instalacao: &str,
     mut lidas: Vec<Pagina>,

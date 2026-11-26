@@ -75,10 +75,7 @@ pub(crate) fn executar(cli: &Cli, acao: &UnidadeAcao) -> anyhow::Result<()> {
             lista,
             crate::unidade_categoria::CategoriaLista::Gerados,
         ),
-        UnidadeAcao::Acervo { em } => {
-            // WIP #878: não abrir sessão nem fingir um acervo vazio.
-            Err(crate::ComandoSemImplementacaoNoSei(format!("unidade acervo --em {em}")).into())
-        }
+        UnidadeAcao::Acervo { em } => crate::unidade_acervo::listar(unidade, cli.json, *em),
         UnidadeAcao::Retornos { mes } => {
             crate::unidade_retornos_cli::listar(unidade, cli.json, *mes)
         }
