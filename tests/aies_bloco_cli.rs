@@ -287,6 +287,26 @@ fn iniciar_tunel(
     })
 }
 
+fn argumentos(interno: bool, numero: Option<&str>, previa: bool) -> Vec<&str> {
+    if previa {
+        vec![
+            "--json",
+            "bloco",
+            "criar",
+            "--descricao",
+            "Despachos de teste",
+        ]
+    } else if let Some(numero) = numero {
+        vec!["--json", "bloco", numero]
+    } else if interno {
+        vec![
+            "--json", "bloco", "listar", "--tipo", "interno", "--pagina", "2",
+        ]
+    } else {
+        vec!["--json", "bloco", "listar", "--tipo", "assinatura"]
+    }
+}
+
 fn executar(interno: bool, numero: Option<&str>, previa: bool) -> (Output, Vec<String>) {
     let detalhe = numero == Some("2195");
     let esperados = if interno || detalhe || previa { 3 } else { 2 };
@@ -335,23 +355,7 @@ fn executar(interno: bool, numero: Option<&str>, previa: bool) -> (Output, Vec<S
     let porta = proxy.local_addr().unwrap().port();
     let tunel = iniciar_tunel(proxy, identidade, endereco, esperados);
 
-    let argumentos: Vec<&str> = if previa {
-        vec![
-            "--json",
-            "bloco",
-            "criar",
-            "--descricao",
-            "Despachos de teste",
-        ]
-    } else if let Some(numero) = numero {
-        vec!["--json", "bloco", numero]
-    } else if interno {
-        vec![
-            "--json", "bloco", "listar", "--tipo", "interno", "--pagina", "2",
-        ]
-    } else {
-        vec!["--json", "bloco", "listar", "--tipo", "assinatura"]
-    };
+    let argumentos = argumentos(interno, numero, previa);
     let saida = Command::new(env!("CARGO_BIN_EXE_ies"))
         .args(argumentos)
         .env("IES_URL_CONTROLE_FILE", controle)
