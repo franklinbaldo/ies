@@ -191,18 +191,20 @@ fn detalhe_sao_tres_get_sem_post_e_so_numero_da_linha() {
 fn cadastro_post_unico_e_releitura_independente() {
     let arquivos = Arquivos::criar();
     let casos = [
-        (302, Some("2196"), true, false),
-        (302, Some("2195"), false, false),
-        (302, Some("9999"), false, false),
-        (302, None, false, false),
-        (500, None, false, false),
-        (302, Some("2196"), false, true),
+        (302, Some("2196"), true, false, false),
+        (302, Some("2195"), false, false, false),
+        (302, Some("9999"), false, false, false),
+        (302, None, false, false, false),
+        (500, None, false, false, false),
+        (302, Some("2196"), false, true, false),
+        // Mesmo ID/descrição do positivo, mas já podia existir fora da página.
+        (302, Some("2196"), false, false, true),
     ];
-    for (status, id, confirmado, mudou_unidade) in casos {
+    for (status, id, confirmado, mudou_unidade, parcial) in casos {
         let mut envio = envio(false);
         let controle = envio.telas.front().unwrap().clone();
         let lista = envio.telas.back_mut().unwrap();
-        let depois = (
+        let mut depois = (
             lista.0.clone(),
             lista
                 .1
@@ -214,6 +216,10 @@ fn cadastro_post_unico_e_releitura_independente() {
                     ),
                 ),
         );
+        if parcial {
+            lista.1 = lista.1.replace("1 registros", "2 registros - 1 a 1");
+            depois.1 = lista.1.replace("2195", "2196");
+        }
         let cadastro = format!("controlador.php?acao=bloco_assinatura_cadastrar&infra_hash={HASH}");
         lista.1.push_str(&format!(
             "<button id='btnNovo' onclick=\"location.href='{cadastro}'\">Novo</button>"
