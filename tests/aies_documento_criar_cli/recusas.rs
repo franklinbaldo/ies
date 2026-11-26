@@ -1,5 +1,5 @@
 //! Casos BDD-246-03 da CLI completa sobre tipos oferecidos pelo anti-IES.
-use super::{criar, executar, executar_com_cena, falha_por};
+use super::{criar, executar, executar_com_cena, falha_por, json};
 
 #[test]
 fn bdd_246_03_cli_recusa_tipo_ausente_sem_escrita() {
@@ -73,4 +73,32 @@ fn texto_padrao_com_confirmacao_recusa_antes_da_sessao() {
     assert_eq!(saidas[0].status.code(), Some(2));
     assert!(trilha.is_empty());
     assert_eq!(quantidade, 1);
+}
+
+#[test]
+fn previa_texto_padrao_cli_usa_catalogo_da_unidade_sem_escrita() {
+    let mut previa = criar(false);
+    previa.extend(["--texto-padrao", "Minuta Padrão & B"]);
+    let (saidas, trilha, quantidade) = executar(&[&previa], false);
+    assert_eq!(
+        saidas[0].status.code(),
+        Some(0),
+        "stderr={} trilha={trilha:?}",
+        String::from_utf8_lossy(&saidas[0].stderr)
+    );
+    let resultado = json(&saidas[0]);
+    assert_eq!(resultado["texto_padrao"]["id"], "007");
+    assert_eq!(resultado["texto_padrao"]["nome"], "Minuta Padrão & B");
+    assert_eq!(resultado["confirmado"], false);
+    assert_eq!(quantidade, 1);
+    assert!(
+        trilha
+            .iter()
+            .any(|pedido| pedido.starts_with("POST texto_padrao_auto_completar: 200"))
+    );
+    assert!(
+        !trilha
+            .iter()
+            .any(|pedido| pedido.starts_with("POST documento_gerar:"))
+    );
 }

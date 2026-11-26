@@ -174,6 +174,17 @@ fn preparar_banco(duplicar_tipo: bool) -> (Connection, Instalacao) {
         )
         .unwrap();
     }
+    for (unidade, id, nome) in [
+        ("TESTE", "007", "Minuta Padrão & B"),
+        ("OUTRA", "008", "Minuta Padrão & B"),
+    ] {
+        banco
+            .execute(
+                "INSERT INTO sim_texto_padrao VALUES (?1, ?2, ?3, ?4, ?5)",
+                rusqlite::params![origem.url_base(), CENARIO, unidade, id, nome],
+            )
+            .unwrap();
+    }
     copia_editavel::semear_revisao_na_criacao(&banco);
     documentos::criar(&banco, &origem, CENARIO, "10", "291", "Anterior").unwrap();
     (banco, origem)
@@ -255,7 +266,12 @@ fn executar_em(
             // Nunca registrar a URL: ela pode incluir credenciais de sessão.
             let acao = rota
                 .split_once('?')
-                .and_then(|(_, query)| query.split('&').find_map(|p| p.strip_prefix("acao=")))
+                .and_then(|(_, query)| {
+                    query.split('&').find_map(|p| {
+                        p.strip_prefix("acao=")
+                            .or_else(|| p.strip_prefix("acao_ajax="))
+                    })
+                })
                 .unwrap_or("desconhecida");
             let mut backend = TcpStream::connect(destino).unwrap();
             backend.write_all(&bytes).unwrap();
