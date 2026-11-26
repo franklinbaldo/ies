@@ -126,6 +126,10 @@ fn replay_da_criacao_de_bloco_de_assinatura_no_acervo() {
             .filter(|n| matches!(*n, "txtDescricao" | "txaDescricao"))
             .collect();
         assert_eq!(descricoes, [campo], "{instalacao}: descrição");
+        assert_eq!(
+            crate::bloco_cli::criar::campo_descricao(&html).expect("leitor de produção"),
+            campo
+        );
         assert!(
             form.descendentes()
                 .any(|no| no.atributo("name") == Some("sbmCadastrarBloco")),

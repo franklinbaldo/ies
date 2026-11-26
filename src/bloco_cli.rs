@@ -14,6 +14,7 @@ use crate::transporte::{self, FalhaTransporte};
 use crate::visao_do_controle::{EnvioDoControle, EnvioHttps};
 use crate::{Bloco, BlocoAcao, Cli};
 use serde_json::{Value, json};
+pub(crate) mod criar;
 mod paginacao;
 mod resolucao;
 pub(crate) use resolucao::ler_bloco_por_numero_via;
@@ -219,6 +220,7 @@ fn executar_leitura(
 }
 pub(crate) fn executar(cli: &Cli, bloco: &Bloco) -> anyhow::Result<()> {
     match (&bloco.numero, &bloco.acao) {
+        (None, Some(BlocoAcao::Criar { descricao })) => criar::executar(cli, descricao),
         (None, Some(BlocoAcao::Listar { tipo, pagina })) => {
             executar_leitura(cli, *tipo, None, *pagina)
         }

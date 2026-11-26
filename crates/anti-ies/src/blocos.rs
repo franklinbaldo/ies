@@ -80,6 +80,9 @@ fn html(pagina: &Pagina, numero_pagina: usize, observadas: &[usize]) -> String {
             observadas,
         );
     }
+    if pagina.tipo == Tipo::Assinatura {
+        write!(saida, "<button id='btnNovo' type='button' onclick=\"location.href='controlador.php?acao=bloco_assinatura_cadastrar&amp;infra_hash={HASH}'\">Novo</button>").expect("String");
+    }
     saida.push_str("<table id='tblBlocos'>");
     if let Some((inicio, fim)) = pagina.faixa {
         write!(
@@ -147,6 +150,26 @@ pub(crate) fn responder(
         (Ok(observadas), Ok(Some(pagina))) if observadas.contains(&numero_pagina) => {
             Resposta::html(html(&pagina, numero_pagina, &observadas))
         }
+        _ => Resposta::nova(Estado::DadosInsuficientes),
+    }
+}
+
+pub(crate) fn cadastro(
+    metodo: &str,
+    banco: &Connection,
+    instalacao: &Instalacao,
+    cenario: &str,
+) -> Resposta {
+    if metodo != "GET" {
+        return Resposta::nova(Estado::MetodoNaoPermitido);
+    }
+    match blocos::ler(banco, instalacao, cenario, Tipo::Assinatura) {
+        Ok(Some(_)) => Resposta::html(format!(
+            "<html><body><form id='frmBlocoCadastro' method='post' action='controlador.php?acao=bloco_assinatura_cadastrar&amp;infra_hash={HASH}'>\
+            <textarea name='txtDescricao'></textarea>\
+            <select name='selGrupoBloco'><option value='null'>Nenhum</option></select>\
+            <button type='submit' name='sbmCadastrarBloco'>Salvar</button></form></body></html>"
+        )),
         _ => Resposta::nova(Estado::DadosInsuficientes),
     }
 }

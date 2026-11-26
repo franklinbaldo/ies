@@ -243,6 +243,11 @@ struct Bloco {
 }
 #[derive(Debug, Subcommand)]
 enum BlocoAcao {
+    /// Abre a prévia de um novo bloco de assinatura, sem gravar
+    Criar {
+        #[arg(long, value_parser = clap::builder::NonEmptyStringValueParser::new())]
+        descricao: String,
+    },
     /// Lista blocos da unidade na página atualmente observada
     Listar {
         /// Tipo de bloco oferecido pelo menu Web
