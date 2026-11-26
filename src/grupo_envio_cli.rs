@@ -103,7 +103,13 @@ fn ler_pagina(html: &HtmlServido) -> Result<(crate::legenda::Legenda, Vec<Linha>
                 && (contadores.is_empty() || contadores == [Some("0")]))
                 || (aviso.is_empty() && contadores == [Some("0")])
             {
-                return Ok((crate::legenda::Legenda { total: 0, faixa: None }, Vec::new()));
+                return Ok((
+                    crate::legenda::Legenda {
+                        total: 0,
+                        faixa: None,
+                    },
+                    Vec::new(),
+                ));
             }
         }
     }
@@ -118,8 +124,12 @@ fn ler_pagina(html: &HtmlServido) -> Result<(crate::legenda::Legenda, Vec<Linha>
         crate::legenda::ler_legenda(&texto(*legenda)).map_err(|_| ErroGrupo::ListaInesperada)?;
     let linhas = ler_linhas(*tabela)?;
     let completa = match &contagem.faixa {
-        Some(f) => f.inicio > 0 && f.inicio <= f.fim && f.fim <= contagem.total
-            && linhas.len() == f.fim - f.inicio + 1,
+        Some(f) => {
+            f.inicio > 0
+                && f.inicio <= f.fim
+                && f.fim <= contagem.total
+                && linhas.len() == f.fim - f.inicio + 1
+        }
         None => !paginada && linhas.len() == contagem.total,
     };
     if !completa {
