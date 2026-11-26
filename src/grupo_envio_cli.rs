@@ -349,6 +349,26 @@ mod tests {
     }
 
     #[test]
+    fn consulta_tipificada_preserva_contrato_json_e_ids_opacos() {
+        let html = GRUPO.replace("value='11'", "value='0011'");
+        let grupo = ler_grupo(&HtmlServido::de_teste(&html), "6").unwrap();
+        assert_eq!(grupo.unidades[0].id, "0011");
+        assert_eq!(grupo.unidades[1].id, "12");
+        assert_eq!(
+            serde_json::to_value(&grupo).unwrap(),
+            serde_json::json!({
+                "id": "6",
+                "nome": "Grupo",
+                "descricao": "Descrição",
+                "unidades": [
+                    {"id": "0011", "nome": "Mesmo nome"},
+                    {"id": "12", "nome": "Mesmo nome"}
+                ]
+            })
+        );
+    }
+
+    #[test]
     fn consulta_recusa_id_trocado_e_membro_duplicado() {
         assert_eq!(
             ler_grupo(&HtmlServido::de_teste(GRUPO), "7"),
