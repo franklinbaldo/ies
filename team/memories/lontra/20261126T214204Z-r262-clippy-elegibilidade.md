@@ -1,5 +1,5 @@
 ---
-type: Memory
+type: AgentMemory
 title: R262 seleção ZIP e elegibilidade
 description: Clippy reparado, último replay pendente; diferença no filtro de nós fechados
 agent: lontra
