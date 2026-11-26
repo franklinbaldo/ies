@@ -60,7 +60,7 @@ impl Drop for Arquivos {
 struct EnvioFalso {
     telas: VecDeque<(String, String)>,
     urls: Vec<String>,
-    aceite: Option<(u16, Option<String>)>,
+    aceite: Option<(i32, Option<String>)>,
     posts: usize,
 }
 impl EnvioDoControle for EnvioFalso {
@@ -219,9 +219,8 @@ fn cadastro_post_unico_e_releitura_independente() {
                     ),
                 ),
         );
-        let cadastro = format!(
-            "controlador.php?acao=bloco_assinatura_cadastrar&infra_hash={HASH}"
-        );
+        let cadastro =
+            format!("controlador.php?acao=bloco_assinatura_cadastrar&infra_hash={HASH}");
         lista.1.push_str(&format!(
             "<button id='btnNovo' onclick=\"location.href='{cadastro}'\">Novo</button>"
         ));
@@ -240,9 +239,7 @@ fn cadastro_post_unico_e_releitura_independente() {
         }
         envio.aceite = Some((
             status,
-            id.map(|id| {
-                format!("controlador.php?acao=bloco_assinatura_listar&id_bloco={id}")
-            }),
+            id.map(|id| format!("controlador.php?acao=bloco_assinatura_listar&id_bloco={id}")),
         ));
         let resultado = criar::criar_via(
             &arquivos.sessao,
