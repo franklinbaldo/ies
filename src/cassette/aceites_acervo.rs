@@ -116,6 +116,7 @@ const SO_RELEITURA: &[(&str, &str)] = &[
         "processo criar: reconciliação pelos Gerados",
     ),
     ("documento_gerar", "documento criar: releitura da árvore"),
+    ("bloco_assinatura_cadastrar", "bloco criar: identidade e releitura"),
     (
         "documento_receber",
         "documento incluir-externo: recibo e releitura",
@@ -150,9 +151,6 @@ const FORA_DAS_ESCRITAS: &[&str] = &[
     "documento_alterar",
     // Lupa de unidades: só um passo de navegação até a lista.
     "grupo_unidade_cadastrar",
-    // Bloco criar ainda só abre o cadastro por GET. Ao implementar o POST,
-    // mover para SO_RELEITURA: o Location isolado não confirma a criação.
-    "bloco_assinatura_cadastrar",
 ];
 
 fn classe_da_operacao(op: &str) -> Option<&'static str> {

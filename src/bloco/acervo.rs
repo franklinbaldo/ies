@@ -92,8 +92,6 @@ fn replay_da_lista_de_blocos_no_acervo() {
 #[test]
 #[ignore = "lê os ZIPs do acervo em IES_ACERVO_CACHE; sem rede"]
 fn replay_da_criacao_de_bloco_de_assinatura_no_acervo() {
-    use crate::consulta_do_controlador::ConsultaDoControlador;
-    use crate::formulario_web::consulta_do_controlador;
     use crate::tela_html::arvore;
 
     let mut vistos = BTreeMap::new();
@@ -171,13 +169,9 @@ fn replay_da_criacao_de_bloco_de_assinatura_no_acervo() {
             })
             .expect("POST 302 de criação não gravado");
         let url = gravacao::url_sem_consulta(json, post.interacao);
-        let consulta = gravacao::localizacao(post.interacao)
-            .and_then(|local| consulta_do_controlador(local, &url))
-            .and_then(|texto| ConsultaDoControlador::ler(texto).ok())
-            .expect("Location original não recuperado");
-        assert_eq!(consulta.acao().ok(), Some("bloco_assinatura_listar"));
-        let id = consulta.unico("id_bloco").expect("id do bloco no Location");
-        assert!(!id.is_empty() && id.bytes().all(|b| b.is_ascii_digit()));
+        let id = gravacao::localizacao(post.interacao)
+            .and_then(|local| crate::bloco_cli::criar::id_do_aceite(local, &url))
+            .expect("identidade publicada no Location original");
 
         let (antes, depois) = listas_da_criacao(&respostas, formulario.passo, post.passo);
         let antes = ler_lista_gravada(antes.expect("lista anterior ao cadastro"));

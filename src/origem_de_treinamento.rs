@@ -34,6 +34,7 @@ pub(crate) enum CausaDaOrigem {
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub(crate) enum Escrita {
     BlocoIncluirDocumento,
+    BlocoCriar,
     DocumentoIncluirExterno,
     DocumentoSalvar,
     ProcessoPrazo,

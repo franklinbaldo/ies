@@ -30,6 +30,8 @@ pub(crate) enum FalhaLeitura {
     UnidadeInesperada,
     HtmlDeBlocosInvalido,
     IdentidadeDoBlocoAmbigua,
+    #[error("nao_confirmado")]
+    NaoConfirmado,
 }
 /// Lista ou detalhe de bloco, já tipados.
 pub(crate) enum Leitura {
@@ -220,7 +222,7 @@ fn executar_leitura(
 }
 pub(crate) fn executar(cli: &Cli, bloco: &Bloco) -> anyhow::Result<()> {
     match (&bloco.numero, &bloco.acao) {
-        (None, Some(BlocoAcao::Criar { descricao })) => criar::executar(cli, descricao),
+        (None, Some(BlocoAcao::Criar { descricao, confirmar })) => criar::executar(cli, descricao, *confirmar),
         (None, Some(BlocoAcao::Listar { tipo, pagina })) => {
             executar_leitura(cli, *tipo, None, *pagina)
         }

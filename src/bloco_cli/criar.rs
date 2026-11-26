@@ -1,12 +1,14 @@
-//! Prévia Web de criação de bloco de assinatura; deriva o POST sem enviá-lo.
-use super::{EnvioDoControle, EnvioHttps, FalhaLeitura, ReferenciasDaSessao};
+//! Criação Web de bloco de assinatura: prévia, POST único e releitura.
+use super::{EnvioDoControle, EnvioHttps, FalhaLeitura, Leitura, ReferenciasDaSessao, ler_tipado_via};
 use crate::Cli;
 use crate::acao_do_sei::AcaoDoSei;
 use crate::bloco::{self, TipoBloco};
+use crate::bloco_estado::EstadoDoBloco;
+use crate::consulta_do_controlador::ConsultaDoControlador;
 use crate::formulario_web::{
     ConferenciaDaUnidade, EfeitoAvaliado, EnvioDoFormulario, EstadoDoProcesso,
-    OperacaoDeFormulario, ResultadoDoEnvio, SubmissaoDerivada, TelaServida, derivar_submissao,
-    localizar_formulario,
+    OperacaoDeFormulario, RespostaDoEnvio, ResultadoDoEnvio, SubmissaoDerivada, TelaServida,
+    consulta_do_controlador, derivar_submissao, enviar_submissao_via, localizar_formulario,
 };
 use crate::instalacao::Instalacao;
 use crate::pagina_do_controle::codificacao_da_tela;
@@ -111,10 +113,20 @@ pub(crate) fn derivar_cadastro(
     )?)
 }
 
-fn previa_via<V: EnvioDoControle>(
+pub(crate) fn id_do_aceite<'a>(local: &'a str, url: &str) -> Option<&'a str> {
+    let consulta = ConsultaDoControlador::ler(consulta_do_controlador(local, url)?).ok()?;
+    if consulta.acao().ok()? != AcaoDoSei::BlocoAssinaturaListar.como_na_url() {
+        return None;
+    }
+    let id = consulta.unico("id_bloco").ok()?;
+    (!id.is_empty() && id.bytes().all(|b| b.is_ascii_digit())).then_some(id)
+}
+
+fn criar_via<V: EnvioDoControle>(
     sessao: &ReferenciasDaSessao,
     unidade_esperada: Option<&str>,
     descricao: &str,
+    confirmar: bool,
     envio: &mut V,
 ) -> Result<serde_json::Value, FalhaLeitura> {
     let controle = ler_tela_via(
@@ -154,15 +166,36 @@ fn previa_via<V: EnvioDoControle>(
         html: &cadastro,
         codificacao,
     };
-    // A prévia também confronta a action, o charset e os controles servidos.
-    // A submissão derivada é descartada; nenhum POST nesta fatia.
-    drop(derivar_cadastro(
-        &controle.instalacao,
-        &tela,
-        &unidade,
-        descricao,
-        &grupo,
-    )?);
+    let submissao = derivar_cadastro(&controle.instalacao, &tela, &unidade, descricao, &grupo)?;
+    if confirmar {
+        let antes = bloco::ler_lista(&lista, TipoBloco::Assinatura)?.lista;
+        let resposta = enviar_submissao_via(submissao, sessao.cookie(), |sub, cookie| {
+            envio.post(sub, cookie)
+        });
+        let Ok(RespostaDoEnvio::Redirecionamento(r)) = resposta else {
+            return Err(FalhaLeitura::NaoConfirmado);
+        };
+        let id = r.localizacao().and_then(|l| id_do_aceite(l, r.url_do_envio()));
+        let relido = ler_tipado_via(sessao, Some(&unidade), TipoBloco::Assinatura, None, None, envio)
+            .map_err(|_| FalhaLeitura::NaoConfirmado)?;
+        let Leitura::Lista(depois) = relido.leitura else {
+            return Err(FalhaLeitura::NaoConfirmado);
+        };
+        let id = id.ok_or(FalhaLeitura::NaoConfirmado)?;
+        let descricao_visivel = descricao.replace('\u{a0}', " ").split_whitespace().collect::<Vec<_>>().join(" ");
+        let bloco = depois.itens.iter().find(|b| {
+            b.numero == id && b.estado == EstadoDoBloco::Gerado && b.descricao == descricao_visivel
+        }).filter(|_| !antes.itens.iter().any(|b| b.numero == id)).ok_or(FalhaLeitura::NaoConfirmado)?;
+        return Ok(serde_json::json!({
+            "unidade": unidade,
+            "tipo_bloco": TipoBloco::Assinatura,
+            "descricao": descricao,
+            "grupo_padrao": grupo,
+            "bloco": bloco,
+            "confirmado": true,
+            "alterado": true
+        }));
+    }
     Ok(serde_json::json!({
         "unidade": unidade,
         "tipo_bloco": TipoBloco::Assinatura,
@@ -173,14 +206,22 @@ fn previa_via<V: EnvioDoControle>(
     }))
 }
 
-pub(super) fn executar(cli: &Cli, descricao: &str) -> anyhow::Result<()> {
+pub(super) fn executar(cli: &Cli, descricao: &str, confirmar: bool) -> anyhow::Result<()> {
     anyhow::ensure!(!descricao.trim().is_empty(), "descrição do bloco vazia");
     let arquivos = crate::configuracao::arquivos_de_acesso()?;
     let sessao =
         ReferenciasDaSessao::ler(&arquivos.url_controle, &arquivos.origem, &arquivos.cookie)?;
-    let previa = previa_via(&sessao, cli.unidade.as_deref(), descricao, &mut EnvioHttps)?;
+    if confirmar {
+        crate::origem_de_treinamento::exigir(
+            crate::origem_de_treinamento::Escrita::BlocoCriar,
+            sessao.origem(),
+        )?;
+    }
+    let previa = criar_via(&sessao, cli.unidade.as_deref(), descricao, confirmar, &mut EnvioHttps)?;
     if cli.json {
         println!("{}", serde_json::to_string_pretty(&previa)?);
+    } else if confirmar {
+        println!("IES: bloco de assinatura criado e conferido: {descricao}.");
     } else {
         println!("IES: prévia de novo bloco de assinatura: {descricao}. Nada gravado.");
     }
@@ -258,6 +299,21 @@ mod tests {
                 )
             );
             assert_eq!(submissao.url(), url);
+        }
+    }
+
+    #[test]
+    fn aceite_publica_identidade_unica_na_lista_da_mesma_origem() {
+        let url = "https://sei.exemplo.gov.br/sei/controlador.php?acao=bloco_assinatura_cadastrar";
+        assert_eq!(id_do_aceite("controlador.php?acao=bloco_assinatura_listar&id_bloco=42", url), Some("42"));
+        for local in [
+            "controlador.php?acao=bloco_assinatura_listar",
+            "controlador.php?acao=bloco_assinatura_listar&id_bloco=42&id_bloco=43",
+            "controlador.php?acao=bloco_assinatura_listar&id_bloco=x",
+            "controlador.php?acao=bloco_interno_listar&id_bloco=42",
+            "https://outro.example/sei/controlador.php?acao=bloco_assinatura_listar&id_bloco=42",
+        ] {
+            assert!(id_do_aceite(local, url).is_none());
         }
     }
 
