@@ -57,3 +57,87 @@ fn download_exige_link_da_mesma_instalacao_e_processo() {
         .is_err()
     );
 }
+
+#[test]
+fn download_sintetico_publica_bytes_e_recusa_respostas_divergentes() {
+    use super::gravar;
+    use crate::anexo_documento::LimiteDoAnexo;
+    use crate::transporte::resposta_binaria::RespostaBinaria;
+    use std::fs;
+    use std::time::{SystemTime, UNIX_EPOCH};
+
+    let instante = SystemTime::now().duration_since(UNIX_EPOCH).unwrap();
+    let pasta = std::env::temp_dir().join(format!(
+        "ies-exportar-{}-{}",
+        std::process::id(),
+        instante.as_nanos()
+    ));
+    fs::create_dir(&pasta).unwrap();
+    let pdf = b"%PDF-1.7\nSINTETICO\n";
+    let zip = b"PK\x05\x06\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0";
+    let resposta = |status, mime: &str, tamanho: usize, corpo| RespostaBinaria {
+        status,
+        cabecalhos: vec![
+            ("content-type".into(), mime.into()),
+            ("content-length".into(), tamanho.to_string()),
+        ],
+        corpo,
+    };
+    let limite = LimiteDoAnexo::novo(100).unwrap();
+    let destino = pasta.join("resultado");
+    for (formato, mime, bytes, sha) in [
+        (
+            Formato::Pdf,
+            "application/pdf",
+            pdf.as_slice(),
+            "e849e57051f3fa640beb4b379b78b76496d4ec0c948668e8fc1e98c78953bcfe",
+        ),
+        (
+            Formato::Zip,
+            "application/zip",
+            zip.as_slice(),
+            "8739c76e681f900923b900c9df0ef75cf421d39cabb54650c4b9ad19b6a76d85",
+        ),
+    ] {
+        let resultado = gravar(
+            resposta(200, mime, bytes.len(), bytes),
+            formato,
+            &destino,
+            limite,
+        )
+        .unwrap();
+        assert_eq!(fs::read(&destino).unwrap(), bytes);
+        assert_eq!(resultado.sha256, sha);
+        assert_eq!(resultado.tamanho_bytes, u64::try_from(bytes.len()).unwrap());
+        assert!(
+            gravar(
+                resposta(200, mime, bytes.len(), bytes),
+                formato,
+                &destino,
+                limite
+            )
+            .is_err()
+        );
+        assert_eq!(fs::read(&destino).unwrap(), bytes);
+        fs::remove_file(&destino).unwrap();
+    }
+    for (status, mime, tamanho, bytes, maximo) in [
+        (503, "application/pdf", pdf.len(), pdf.as_slice(), 100),
+        (200, "text/html", pdf.len(), pdf.as_slice(), 100),
+        (200, "application/pdf", zip.len(), zip.as_slice(), 100),
+        (200, "application/pdf", pdf.len() + 1, pdf.as_slice(), 100),
+        (200, "application/pdf", pdf.len(), pdf.as_slice(), 8),
+    ] {
+        assert!(
+            gravar(
+                resposta(status, mime, tamanho, bytes),
+                Formato::Pdf,
+                &destino,
+                LimiteDoAnexo::novo(maximo).unwrap()
+            )
+            .is_err()
+        );
+        assert_eq!(fs::read_dir(&pasta).unwrap().count(), 0);
+    }
+    fs::remove_dir(&pasta).unwrap();
+}
