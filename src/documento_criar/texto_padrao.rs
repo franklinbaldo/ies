@@ -148,7 +148,8 @@ mod tests {
 
     #[test]
     fn nome_exato_preserva_id_opaco_e_entidades() {
-        let xml = "<itens><item id='007' descricao='A &amp; B'/><item id='8' descricao='A'/></itens>";
+        let xml =
+            "<itens><item id='007' descricao='A &amp; B'/><item id='8' descricao='A'/></itens>";
         let texto = selecionar(xml, "A & B").unwrap();
         assert_eq!(texto.id, "007");
         assert_eq!(texto.nome, "A & B");
