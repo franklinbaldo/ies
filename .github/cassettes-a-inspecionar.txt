@@ -1,3 +1,0 @@
-cassettes/unb/unidade-estatisticas-acervo-unb--74b641c4a8a1.md
-cassettes/pen1/unidade-estatisticas-acervo-pen1--5c557e93a6ce.md
-cassettes/pen2/unidade-estatisticas-acervo-pen2--c64c576f9a9a.md
