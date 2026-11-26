@@ -95,7 +95,7 @@ fn replay_da_criacao_de_bloco_de_assinatura_no_acervo() {
     use crate::tela_html::arvore;
 
     let mut vistos = BTreeMap::new();
-    let mut grupos = BTreeMap::new();
+    let mut observacoes = BTreeMap::new();
     percorrer(&["bloco_assinatura_cadastrar"], |nome, instalacao, json| {
         let campo = match nome {
             "bloco-ciclo-ufrj--9119d6015d02" => "txtDescricao",
@@ -148,7 +148,6 @@ fn replay_da_criacao_de_bloco_de_assinatura_no_acervo() {
             Some("null") => "null",
             Some(_) => "outro",
         };
-        grupos.insert(instalacao.to_owned(), classe_grupo);
 
         conferir_derivacao_do_cadastro(
             json,
@@ -186,13 +185,26 @@ fn replay_da_criacao_de_bloco_de_assinatura_no_acervo() {
             }),
             "{instalacao}: identidade e estado Gerado não observados após criação"
         );
+        observacoes.insert(
+            instalacao.to_owned(),
+            (
+                classe_grupo,
+                antes.itens.len(),
+                antes.total_declarado,
+                depois.itens.len(),
+                depois.total_declarado,
+            ),
+        );
         *vistos.entry(instalacao.to_owned()).or_insert(0usize) += 1;
     });
     assert_eq!(vistos.get("ufrj"), Some(&1));
     assert_eq!(vistos.get("pen3"), Some(&1));
     let mut relatorio = String::new();
-    for (instalacao, classe) in grupos {
-        let _ = writeln!(relatorio, "{instalacao}: grupo padrão {classe}");
+    for (instalacao, (grupo, antes, total_antes, depois, total_depois)) in observacoes {
+        let _ = writeln!(
+            relatorio,
+            "{instalacao}: grupo padrão {grupo}; lista antes {antes}/{total_antes}, depois {depois}/{total_depois}"
+        );
     }
     publicar(&relatorio);
 }
