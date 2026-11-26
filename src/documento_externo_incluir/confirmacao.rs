@@ -50,6 +50,22 @@ impl FalhaConfirmacao {
         )
     }
 }
+pub(crate) fn conferir_foto_inicial(antes: &FotoProcesso) -> Result<(), FalhaConfirmacao> {
+    if antes.pastas_nao_carregadas {
+        return Err(FalhaConfirmacao::FotoInicialIncompleta);
+    }
+    let mut ids = std::collections::HashSet::new();
+    if antes.id.is_empty()
+        || antes
+            .documentos
+            .iter()
+            .any(|doc| doc.id.is_empty() || !ids.insert(doc.id.as_str()))
+    {
+        return Err(FalhaConfirmacao::FotoInicialInconsistente);
+    }
+    Ok(())
+}
+
 /// Upload e cadastro são escritos no máximo uma vez cada. A releitura é
 /// independente mesmo quando o POST definitivo retorna falha ou HTML genérico.
 /// Essa função não habilita a confirmação na CLI; ainda falta prova live.
@@ -71,18 +87,7 @@ where
     C: FnOnce(&mut T, SubmissaoDerivada) -> Result<RespostaDoEnvio, ErroSubmissaoFormulario>,
     L: FnOnce(&mut T) -> Result<FotoProcesso, ErroProcessoObter>,
 {
-    if antes.pastas_nao_carregadas {
-        return Err(FalhaConfirmacao::FotoInicialIncompleta);
-    }
-    let mut ids = std::collections::HashSet::new();
-    if antes.id.is_empty()
-        || antes
-            .documentos
-            .iter()
-            .any(|doc| doc.id.is_empty() || !ids.insert(doc.id.as_str()))
-    {
-        return Err(FalhaConfirmacao::FotoInicialInconsistente);
-    }
+    conferir_foto_inicial(antes)?;
 
     let recibo = enviar_upload(transporte).map_err(|erro| match erro {
         FalhaUpload::Recusado { .. } | FalhaUpload::PreparacaoMultipart(_) => {
