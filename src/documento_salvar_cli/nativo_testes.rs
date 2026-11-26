@@ -291,3 +291,73 @@ fn abrir_editor_exige_barra_e_consulta_sem_assinatura() {
         );
     }
 }
+
+// Hipótese sintética, não replay: percorre o leitor de editor clássico,
+// o localizador da foto e o mesmo builder do POST de produção.
+#[test]
+fn editor_classico_conserva_vizinhas_vazias_no_post() {
+    use crate::formulario_web::CodificacaoDaTela;
+
+    let instalacao = Instalacao::interpretar("https://sei.exemplo.gov.br/sei").unwrap();
+    let hash = "a".repeat(64);
+    let html = HtmlServido::de_teste(&format!(
+        "<form id='frmEditor' method='post' action='controlador.php?acao=editor_salvar&amp;infra_hash={hash}'>\
+         <input type='hidden' name='hdnVersao' value='1'>\
+         <input type='hidden' name='hdnIgnorarNovaVersao' value='N'>\
+         <textarea name='txaEditor_4' readonly>&lt;h1&gt;Fixo&lt;/h1&gt;</textarea>\
+         <textarea name='txaEditor_5' readonly></textarea>\
+         <textarea name='txaEditor_12'>&lt;p&gt;@unidade@&lt;/p&gt;</textarea>\
+         <textarea name='txaEditor_6' readonly></textarea>\
+         <textarea name='txaEditor_7' readonly>&lt;hr&gt;</textarea></form>\
+         <script>CKEDITOR.replace('txaEditor_12', {{\"readOnly\":false}});</script>"
+    ));
+    let protocolo = Protocolo::ler(&html).unwrap();
+    assert_eq!(protocolo.versao().unwrap().numero(), 1);
+    let principal = protocolo.principal().unwrap();
+    assert_eq!(principal, "txaEditor_12");
+    let secoes = protocolo.secoes();
+    assert_eq!(secoes.len(), 5);
+    assert_eq!(secoes[1].html, "");
+    assert_eq!(secoes[3].html, "");
+    let antes = "<body><h1>Fixo</h1>";
+    let depois = "<hr><div unselectable=\"on\"></div></body>";
+    let base = format!("{antes}<p>Unidade</p>{depois}");
+    let edicao = format!("{antes}<p>Novo\r\r\ntexto{depois}");
+    let editado =
+        copia_renderizada::corpo_editado(&base, &edicao, secoes, principal).unwrap();
+    let htmls = htmls_para_post(secoes, principal, editado);
+    assert_eq!(htmls, ["<h1>Fixo</h1>", "", "<p>Novo\ntexto", "", "<hr>"]);
+    let pares: Vec<_> = secoes
+        .iter()
+        .zip(&htmls)
+        .map(|(s, html)| (s.nome.as_str(), html.as_str()))
+        .collect();
+    let url = format!(
+        "https://sei.exemplo.gov.br/sei/controlador.php?acao=editor_montar&infra_hash={hash}"
+    );
+    let submissao = derivar_submissao(
+        &EDITAR,
+        &instalacao,
+        &TelaServida {
+            url: &url,
+            html: &html,
+            codificacao: CodificacaoDaTela::Utf8,
+        },
+        None,
+        &pares,
+    )
+    .unwrap();
+    let corpo = String::from_utf8(submissao.corpo().to_vec()).unwrap();
+    let campos: Vec<_> = corpo.split('&').collect();
+    for campo in [
+        "txaEditor_4=%3Ch1%3EFixo%3C%2Fh1%3E",
+        "txaEditor_5=",
+        "txaEditor_12=%3Cp%3ENovo%0Atexto",
+        "txaEditor_6=",
+        "txaEditor_7=%3Chr%3E",
+        "hdnVersao=1",
+        "hdnIgnorarNovaVersao=N",
+    ] {
+        assert_eq!(campos.iter().filter(|c| **c == campo).count(), 1, "{campo}");
+    }
+}
