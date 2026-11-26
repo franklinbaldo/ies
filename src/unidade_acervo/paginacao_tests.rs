@@ -1,11 +1,24 @@
 //! Diagnóstico estrutural do paginador original, sem valores ou URLs.
 use super::{HtmlServido, arvore};
+use crate::formulario_web::{
+    ConferenciaDaUnidade, EfeitoAvaliado, EnvioDoFormulario, ErroSubmissaoFormulario,
+    EstadoDeSessao, OperacaoDeFormulario, ResultadoDoEnvio, SubmissaoDerivada, TelaServida,
+    derivar_submissao,
+};
+use crate::instalacao::Instalacao;
 
 fn identificador(valor: &str) -> bool {
     !valor.is_empty() && valor.len() <= 80 && valor.bytes().all(|b| b.is_ascii_alphanumeric())
 }
 
-pub(super) fn observar_formularios(instalacao: &str, html: &HtmlServido) {
+pub(super) fn observar_formularios(
+    instalacao: &str,
+    html: &HtmlServido,
+    gravacao: &serde_json::Value,
+    interacao: &serde_json::Value,
+    inst: &Instalacao,
+    unidade: &str,
+) {
     let dom = arvore(html);
     let mut candidatos = 0;
     for form in dom.elementos("form") {
@@ -37,14 +50,29 @@ pub(super) fn observar_formularios(instalacao: &str, html: &HtmlServido) {
     }
     assert_eq!(candidatos, 1, "{instalacao}: campos de paginacao");
     println!("{instalacao}: campos candidatos de paginacao={candidatos}");
+    // UnB tem uma página: não precisa de POST de avanço.
+    if instalacao != "unb" {
+        use crate::cassette::acervo::gravacao as fonte;
+        let url = fonte::url_sem_consulta(gravacao, interacao);
+        let codificacao =
+            crate::pagina_do_controle::codificacao_da_tela(&fonte::mime(interacao))
+                .expect("charset original");
+        let tela = TelaServida {
+            url: &url,
+            html,
+            codificacao,
+        };
+        let post = formulario_da_pagina(inst, &tela, unidade, 1)
+            .expect("derivacao do POST de avanco no HTML original");
+        assert_eq!(
+            post.corpo()
+                .split(|b| *b == b'&')
+                .filter(|p| *p == b"hdnInfraPaginaAtual=1")
+                .count(),
+            1
+        );
+    }
 }
-
-use crate::formulario_web::{
-    ConferenciaDaUnidade, EfeitoAvaliado, EnvioDoFormulario, ErroSubmissaoFormulario,
-    EstadoDeSessao, OperacaoDeFormulario, ResultadoDoEnvio, SubmissaoDerivada, TelaServida,
-    derivar_submissao,
-};
-use crate::instalacao::Instalacao;
 
 /// Reutiliza o formulário da página atual, sem fabricar action ou hash.
 /// O índice é zero-based; o corpo original não foi persistido pelo gravador.
