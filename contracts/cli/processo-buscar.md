@@ -216,4 +216,4 @@ filtros está **NOT_RUN**; não inferir suporte universal.
 
 Busca exclusivamente por tipo/período (#874): hipótese sintética enquanto não houver captura original pertinente. A paginação reutiliza os critérios pedidos no mesmo formulário, sem novo caminho de transporte. O teste de compatibilidade externa depende de replay e validação próprios.
 
-No anti-IES, primeira hipótese de resultado negativo processual por período: somente uma chave explicitamente registrada (origem, cenário, unidade e limites) devolve zero; período desconhecido permanece insuficiente. O teste TLS/CLI é sintético. Listas por período e tipo ainda precisam de estado próprio e validação.
+No anti-IES, hipótese de resultado negativo processual por tipo e/ou período: o catálogo de tipos da pesquisa é registrado separadamente do resultado e do cadastro. Somente uma chave explicitamente registrada (origem, cenário, unidade, ID do tipo e limites) devolve zero; combinação desconhecida permanece insuficiente, inclusive quando o tipo foi oferecido. Os testes TLS/CLI são sintéticos. Listas positivas e paginação ainda precisam de estado próprio e validação.

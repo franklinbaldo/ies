@@ -1,36 +1,80 @@
-//! Observação negativa por período, separada da pesquisa documental.
+//! Tipos oferecidos e observação negativa por critérios da pesquisa processual.
 use crate::instalacao::Instalacao;
 use crate::observacao::UnidadeExibida;
 use rusqlite::{Connection, OptionalExtension, params};
 
-/// Limites como publicados no formulário; vazio representa limite omitido.
+/// ID e limites como publicados no formulário; vazio representa filtro omitido.
 #[derive(Clone, Copy)]
-pub struct Periodo<'a> {
+pub struct Criterios<'a> {
+    pub tipo_id: &'a str,
     pub de: &'a str,
     pub ate: &'a str,
+}
+
+/// Registra uma opção do seletor de pesquisa, independente do resultado.
+///
+/// # Errors
+/// Propaga falha SQLite.
+pub fn registrar_tipo(
+    banco: &Connection,
+    instalacao: &Instalacao,
+    cenario: &str,
+    unidade: &UnidadeExibida,
+    id: &str,
+    nome: &str,
+) -> rusqlite::Result<()> {
+    banco.execute(
+        "INSERT INTO pesquisa_processo_tipo (origem, cenario, unidade, id_tipo, nome)
+         VALUES (?1, ?2, ?3, ?4, ?5)
+         ON CONFLICT(origem, cenario, unidade, id_tipo) DO UPDATE SET nome=excluded.nome",
+        params![instalacao.url_base(), cenario, unidade.as_str(), id, nome],
+    )?;
+    Ok(())
+}
+
+/// Opções conhecidas da pesquisa na unidade, sem inferir oferta pelo cadastro.
+///
+/// # Errors
+/// Propaga falha SQLite.
+pub fn tipos(
+    banco: &Connection,
+    instalacao: &Instalacao,
+    cenario: &str,
+    unidade: &UnidadeExibida,
+) -> rusqlite::Result<Vec<(String, String)>> {
+    let mut consulta = banco.prepare(
+        "SELECT id_tipo, nome FROM pesquisa_processo_tipo
+         WHERE origem=?1 AND cenario=?2 AND unidade=?3 ORDER BY id_tipo",
+    )?;
+    consulta
+        .query_map(params![instalacao.url_base(), cenario, unidade.as_str()], |r| {
+            Ok((r.get(0)?, r.get(1)?))
+        })?
+        .collect()
 }
 
 /// Registra somente a observação negativa explícita do cenário.
 ///
 /// # Errors
-/// Propaga a falha SQLite (inclusive período inteiramente vazio).
+/// Propaga a falha SQLite (inclusive critérios inteiramente vazios).
 pub fn registrar_sem_resultado(
     banco: &Connection,
     instalacao: &Instalacao,
     cenario: &str,
     unidade: &UnidadeExibida,
-    periodo: Periodo<'_>,
+    criterios: Criterios<'_>,
 ) -> rusqlite::Result<()> {
     banco.execute(
         "INSERT INTO pesquisa_processo_periodo_vazio
-         (origem, cenario, unidade, data_inicio, data_fim)
-         VALUES (?1, ?2, ?3, ?4, ?5) ON CONFLICT DO NOTHING",
+         (origem, cenario, unidade, id_tipo, data_inicio, data_fim)
+         VALUES (?1, ?2, ?3, ?4, ?5, ?6) ON CONFLICT DO NOTHING",
         params![
             instalacao.url_base(),
             cenario,
             unidade.as_str(),
-            periodo.de,
-            periodo.ate
+            criterios.tipo_id,
+            criterios.de,
+            criterios.ate
         ],
     )?;
     Ok(())
@@ -45,18 +89,19 @@ pub fn tem_resultado_negativo(
     instalacao: &Instalacao,
     cenario: &str,
     unidade: &UnidadeExibida,
-    periodo: Periodo<'_>,
+    criterios: Criterios<'_>,
 ) -> rusqlite::Result<bool> {
     let registro: Option<i64> = banco
         .query_row(
             "SELECT 1 FROM pesquisa_processo_periodo_vazio
-             WHERE origem=?1 AND cenario=?2 AND unidade=?3 AND data_inicio=?4 AND data_fim=?5",
+             WHERE origem=?1 AND cenario=?2 AND unidade=?3 AND id_tipo=?4 AND data_inicio=?5 AND data_fim=?6",
             params![
                 instalacao.url_base(),
                 cenario,
                 unidade.as_str(),
-                periodo.de,
-                periodo.ate
+                criterios.tipo_id,
+                criterios.de,
+                criterios.ate
             ],
             |linha| linha.get(0),
         )
@@ -74,7 +119,8 @@ mod tests {
         crate::banco_cassettes::iniciar(&banco).unwrap();
         let origem = Instalacao::interpretar("https://sei.test/sei").unwrap();
         let unidade = UnidadeExibida::nova("TESTE").unwrap();
-        let periodo = Periodo {
+        let periodo = Criterios {
+            tipo_id: "",
             de: "01/01/2026",
             ate: "31/01/2026",
         };
@@ -82,8 +128,9 @@ mod tests {
         registrar_sem_resultado(&banco, &origem, "c", &unidade, periodo).unwrap();
         assert!(tem_resultado_negativo(&banco, &origem, "c", &unidade, periodo).unwrap());
         for outro in [
-            Periodo { de: "", ..periodo },
-            Periodo {
+            Criterios { tipo_id: "73", ..periodo },
+            Criterios { de: "", ..periodo },
+            Criterios {
                 ate: "30/01/2026",
                 ..periodo
             },

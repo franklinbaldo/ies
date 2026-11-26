@@ -204,17 +204,39 @@ fn preparar_estado(banco: &mut Connection, instalacao: &Instalacao, estado: Esta
         .unwrap();
     } else if matches!(estado, EstadoDeBusca::PeriodoProcessual) {
         // Hipótese sintética, não resposta original do SEI.
+        let unidade = UnidadeExibida::nova("TESTE").unwrap();
+        for (id, nome) in [("73", "Administrativo"), ("74", "Judicial")] {
+            iesei::pesquisa_processo::registrar_tipo(banco, instalacao, CENARIO, &unidade, id, nome).unwrap();
+        }
         iesei::pesquisa_processo::registrar_sem_resultado(
             banco,
             instalacao,
             CENARIO,
             &UnidadeExibida::nova("TESTE").unwrap(),
-            iesei::pesquisa_processo::Periodo {
+            iesei::pesquisa_processo::Criterios {
+                tipo_id: "",
                 de: "01/01/2026",
                 ate: "31/01/2026",
             },
         )
         .unwrap();
+        for criterios in [
+            iesei::pesquisa_processo::Criterios {
+                tipo_id: "73",
+                de: "",
+                ate: "",
+            },
+            iesei::pesquisa_processo::Criterios {
+                tipo_id: "73",
+                de: "01/01/2026",
+                ate: "31/01/2026",
+            },
+        ] {
+            iesei::pesquisa_processo::registrar_sem_resultado(
+                banco, instalacao, CENARIO, &unidade, criterios,
+            )
+            .unwrap();
+        }
     } else {
         preparar_paginas(banco, instalacao);
     }
@@ -479,6 +501,37 @@ fn processo_por_periodo_distingue_zero_observado_de_periodo_desconhecido() {
             assert_eq!(json["termo"], "");
             assert_eq!(json["total_declarado"], 0);
             assert_eq!(json["processos"].as_array().unwrap().len(), 0);
+        } else {
+            assert!(saida.stdout.is_empty());
+        }
+    }
+}
+
+#[test]
+fn processo_por_tipo_e_periodo_nao_reutiliza_resultado_de_outro_tipo() {
+    for (tipo, datas, esperado) in [
+        ("Administrativo", false, 0),
+        ("Administrativo", true, 0),
+        ("Judicial", false, 1),
+        ("Judicial", true, 1),
+    ] {
+        let pasta = Pasta::nova();
+        let mut args = vec!["--json", "processo", "buscar", "--tipo", tipo];
+        if datas {
+            args.extend(["--de", "01/01/2026", "--ate", "31/01/2026"]);
+        }
+        let saida = executar_com_estado(&pasta, &args, EstadoDeBusca::PeriodoProcessual);
+        assert_eq!(
+            saida.status.code(),
+            Some(esperado),
+            "{}",
+            String::from_utf8_lossy(&saida.stderr)
+        );
+        if esperado == 0 {
+            let json: Value = serde_json::from_slice(&saida.stdout).unwrap();
+            assert_eq!(json["resultado"], "sem_resultado");
+            assert_eq!(json["termo"], "");
+            assert_eq!(json["total_declarado"], 0);
         } else {
             assert!(saida.stdout.is_empty());
         }

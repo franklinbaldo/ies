@@ -63,7 +63,8 @@ fn formulario_de_pesquisa(
     unidade: &str,
     termo: &str,
     conteudo: &str,
-    periodo: Option<iesei::pesquisa_processo::Periodo<'_>>,
+    periodo: Option<iesei::pesquisa_processo::Criterios<'_>>,
+    tipos: &[(String, String)],
 ) -> String {
     let hash = "c".repeat(64);
     let (p, d, de, ate) = match periodo {
@@ -75,6 +76,19 @@ fn formulario_de_pesquisa(
         ),
         None => ("", " checked", String::new(), String::new()),
     };
+    let mut opcoes = String::from("<option value=''></option>");
+    for (id, nome) in tipos {
+        let selecionado = if periodo.is_some_and(|p| p.tipo_id == id) {
+            " selected"
+        } else {
+            ""
+        };
+        opcoes.push_str(&format!(
+            "<option value='{}'{selecionado}>{}</option>",
+            crate::escapar(id),
+            crate::escapar(nome)
+        ));
+    }
     format!(
         r#"<html><head><script>
         function navegar(inicio) {{
@@ -101,6 +115,7 @@ fn formulario_de_pesquisa(
         <input type="hidden" id="hdnIdUsuarioGerador1" name="hdnIdUsuarioGerador1" value=""/>
         <input type="hidden" id="hdnIdUsuarioGerador2" name="hdnIdUsuarioGerador2" value=""/>
         <input type="hidden" id="hdnIdUsuarioGerador3" name="hdnIdUsuarioGerador3" value=""/>
+        <select id="selTipoProcedimentoPesquisa" name="selTipoProcedimentoPesquisa">{opcoes}</select>
         <input type="text" name="txtDataInicio" id="txtDataInicio" value="{de}"/>
         <input type="text" name="txtDataFim" id="txtDataFim" value="{ate}"/>
         <div id="conteudo">{conteudo}</div>
@@ -147,7 +162,7 @@ fn campo_opcional(corpo: &str, nome: &str) -> Option<String> {
     })
 }
 
-/// Primeira hipótese sintética de busca processual: somente período.
+/// Hipótese sintética de busca processual por tipo e/ou período.
 /// Não usa a tabela documental nem deduz zero da ausência de observação.
 fn periodo_processual(
     corpo: &str,
@@ -156,14 +171,17 @@ fn periodo_processual(
     cenario: &str,
     unidade: &iesei::observacao::UnidadeExibida,
 ) -> Resposta {
-    use iesei::pesquisa_processo::{Periodo, tem_resultado_negativo};
+    use iesei::pesquisa_processo::{Criterios, tem_resultado_negativo, tipos};
     let campo = |nome: &str| campo_opcional(corpo, nome);
-    let (Some(de), Some(ate)) = (campo("txtDataInicio"), campo("txtDataFim")) else {
+    let (Some(de), Some(ate), Some(tipo)) = (
+        campo("txtDataInicio"),
+        campo("txtDataFim"),
+        campo("selTipoProcedimentoPesquisa"),
+    ) else {
         return Resposta::nova(Estado::RequisicaoInvalida);
     };
-    if (de.is_empty() && ate.is_empty())
+    if (tipo.is_empty() && de.is_empty() && ate.is_empty())
         || campo("txtProtocoloPesquisa").as_deref() != Some("")
-        || campo("selTipoProcedimentoPesquisa").as_deref() != Some("")
         || campo("q").as_deref() != Some("")
         || campo("chkSinConsiderarDocumentos").as_deref() != Some("")
         || campo("hdnInicio").as_deref() != Some("0")
@@ -182,13 +200,24 @@ fn periodo_processual(
     {
         return Resposta::nova(Estado::RequisicaoInvalida);
     }
-    let periodo = Periodo { de: &de, ate: &ate };
+    let Ok(tipos) = tipos(banco, instalacao, cenario, unidade) else {
+        return Resposta::nova(Estado::DadosInsuficientes);
+    };
+    if !tipo.is_empty() && !tipos.iter().any(|(id, _)| id == &tipo) {
+        return Resposta::nova(Estado::DadosInsuficientes);
+    }
+    let periodo = Criterios {
+        tipo_id: &tipo,
+        de: &de,
+        ate: &ate,
+    };
     match tem_resultado_negativo(banco, instalacao, cenario, unidade, periodo) {
         Ok(true) => Resposta::html(formulario_de_pesquisa(
             unidade.as_str(),
             "",
             "<div class='pesquisaSemResultado'>Nenhum resultado encontrado.</div>",
             Some(periodo),
+            &tipos,
         )),
         Ok(false) | Err(_) => Resposta::nova(Estado::DadosInsuficientes),
     }
@@ -212,12 +241,20 @@ pub fn responder_pesquisa(
         return Resposta::nova(Estado::DadosInsuficientes);
     };
     match metodo {
-        "GET" => Resposta::html(formulario_de_pesquisa(
-            controle.unidade.as_str(),
-            "",
-            "",
-            None,
-        )),
+        "GET" => {
+            let Ok(tipos) =
+                iesei::pesquisa_processo::tipos(banco, instalacao, cenario, &controle.unidade)
+            else {
+                return Resposta::nova(Estado::DadosInsuficientes);
+            };
+            Resposta::html(formulario_de_pesquisa(
+                controle.unidade.as_str(),
+                "",
+                "",
+                None,
+                &tipos,
+            ))
+        }
         "POST" => {
             let termo = super::documentos::campo_formulario_unico(corpo, "txtProtocoloPesquisa");
             let radio = super::documentos::campo_formulario_unico(corpo, "rdoPesquisarEm");
@@ -284,6 +321,7 @@ pub fn responder_pesquisa(
                             &termo,
                             &html,
                             None,
+                            &[],
                         )),
                         Err(estado) => Resposta::nova(estado),
                     }
@@ -303,6 +341,7 @@ pub fn responder_pesquisa(
                             &termo,
                             "<div class='pesquisaSemResultado'>Nenhum resultado encontrado.</div>",
                             None,
+                            &[],
                         ))
                     }
                     Ok(None) => documento_exato(banco, instalacao, cenario, &termo),
