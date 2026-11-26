@@ -306,6 +306,7 @@ fn formulario_classico_anti_ies_usa_leitor_e_post_nativos() {
     let fresco = Protocolo::ler(&relida.html).unwrap();
     assert_eq!(fresco.versao().unwrap().numero(), 2);
     assert_eq!(fresco.secoes()[0].html, "<p>Depois</p>");
+    assert!(releitura::confere(&protocolo, &fresco, 2, "<p>Depois</p>"));
 
     // Segundo escritor independente, com a fotografia de versão 1,
     // e conteúdo diferente: não é retry da operação anterior.
