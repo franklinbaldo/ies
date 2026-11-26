@@ -36,13 +36,37 @@ pub(crate) fn campo_descricao(html: &HtmlServido) -> Result<&'static str, FalhaL
         });
     let campo = campos.next().ok_or(FalhaLeitura::HtmlDeBlocosInvalido)?;
     if campos.next().is_some()
-        || !form.descendentes().any(|no| {
-            no.atributo("name") == Some("sbmCadastrarBloco") && !no.presente("disabled")
-        })
+        || !form
+            .descendentes()
+            .any(|no| no.atributo("name") == Some("sbmCadastrarBloco") && !no.presente("disabled"))
     {
         return Err(FalhaLeitura::HtmlDeBlocosInvalido);
     }
     Ok(campo)
+}
+
+/// Valor do select simples observado no cadastro; ausência não é valor vazio.
+pub(crate) fn grupo_padrao(html: &HtmlServido) -> Result<Option<String>, FalhaLeitura> {
+    let dom = arvore(html);
+    let form = localizar_formulario(&dom, "frmBlocoCadastro")?;
+    let Some(grupo) = form
+        .elementos("select")
+        .find(|no| no.atributo("name") == Some("selGrupoBloco"))
+    else {
+        return Ok(None);
+    };
+    if grupo.presente("disabled") {
+        return Ok(None);
+    }
+    let opcao = grupo
+        .elementos("option")
+        .filter(|no| no.presente("selected"))
+        .last()
+        .or_else(|| grupo.elementos("option").find(|no| !no.presente("disabled")));
+    Ok(opcao.filter(|no| !no.presente("disabled")).map(|no| {
+        no.atributo("value")
+            .map_or_else(|| no.texto().trim().to_owned(), str::to_owned)
+    }))
 }
 
 fn previa_via<V: EnvioDoControle>(
@@ -80,10 +104,12 @@ fn previa_via<V: EnvioDoControle>(
     )?;
     let cadastro = transporte::decodificar_resposta(envio.get(&url, cookie)?)?;
     campo_descricao(&cadastro)?;
+    let grupo = grupo_padrao(&cadastro)?;
     Ok(serde_json::json!({
         "unidade": unidade,
         "tipo_bloco": TipoBloco::Assinatura,
         "descricao": descricao,
+        "grupo_padrao": grupo,
         "confirmado": false,
         "alterado": false,
         "bloco": null
@@ -107,6 +133,31 @@ pub(super) fn executar(cli: &Cli, descricao: &str) -> anyhow::Result<()> {
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    #[test]
+    fn previa_le_grupo_servido_sem_confundir_vazio_e_ausencia() {
+        let casos = [
+            (
+                "<select name='selGrupoBloco'><option value='null'>Nenhum</option></select>",
+                Some("null"),
+            ),
+            (
+                "<select name='selGrupoBloco'><option value='null'>Nenhum</option><option selected value=''>Todos</option></select>",
+                Some(""),
+            ),
+            (
+                "<select name='selGrupoBloco'><option value='null'>Nenhum</option><option selected value='4'>Grupo</option></select>",
+                Some("4"),
+            ),
+            ("<textarea name='txtDescricao'></textarea>", None),
+        ];
+        for (controles, esperado) in casos {
+            let html = HtmlServido::de_teste(&format!(
+                "<form id='frmBlocoCadastro'>{controles}</form>"
+            ));
+            assert_eq!(grupo_padrao(&html).unwrap().as_deref(), esperado);
+        }
+    }
 
     #[test]
     fn novo_duplicado_so_quando_mesmo_destino() {
