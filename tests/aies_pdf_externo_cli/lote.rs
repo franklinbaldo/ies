@@ -102,21 +102,20 @@ fn lote_segundo_cadastro_incerto_preserva_primeiro_e_nao_tenta_terceiro() {
 
 #[test]
 fn lote_segunda_previa_remota_recusada_impede_toda_escrita() {
-    let (saidas, eventos, total, _) = executar_com_falha_previa(
-        None,
-        Some(2),
-        false,
-        false,
-        &[b"%PDF-1.4\n2 0 obj\n%%EOF\n"],
-    );
-    assert_ne!(saidas[0].status.code(), Some(0));
-    assert_eq!(saidas[0].stdout, b"");
+    // 1 MiB ainda permite o primeiro PDF, mas não o segundo.
+    // Uma prévia só do primeiro seguida da sua confirmação não basta.
+    let mut segundo = b"%PDF-1.4\n".to_vec();
+    segundo.resize(1024 * 1024 + 1, b' ');
+    segundo.extend_from_slice(b"\n%%EOF\n");
+    let (saidas, eventos, total, _) =
+        executar_com_falha_previa(None, Some(2), false, false, &[&segundo]);
+    falha(&saidas[0], "PdfAcimaDoLimite");
     assert_eq!(
         eventos
             .iter()
-            .filter(|e| e.as_str() == "POST documento_receber 500")
+            .filter(|e| e.as_str() == "POST documento_receber 200")
             .count(),
-        1
+        2
     );
     assert_eq!(total, 0);
     assert!(

@@ -73,7 +73,7 @@ fn pedido(canal: &mut impl Read) -> (Vec<u8>, String, String) {
                 .then(|| valor.trim().parse::<usize>().unwrap())
         })
         .unwrap_or(0);
-    assert!(tamanho < 64_000, "PDF sintético deve ser pequeno");
+    assert!(tamanho < 3 * 1024 * 1024, "limite da bancada sintética");
     let mut corpo = vec![0; tamanho];
     canal.read_exact(&mut corpo).unwrap();
     cabecalho.extend(corpo);
@@ -158,7 +158,7 @@ fn executar(
 )]
 fn executar_com_falha_previa(
     cadastro_incerto: Option<usize>,
-    previa_recusada: Option<usize>,
+    previa_com_limite_menor: Option<usize>,
     somente_previa: bool,
     com_leitura: bool,
     adicionais: &[&[u8]],
@@ -225,7 +225,7 @@ fn executar_com_falha_previa(
             backend.shutdown(Shutdown::Write).unwrap();
             let mut resposta = Vec::new();
             backend.read_to_end(&mut resposta).unwrap();
-            let mut status = std::str::from_utf8(
+            let status = std::str::from_utf8(
                 &resposta[..resposta.iter().position(|b| *b == b'\r').unwrap()],
             )
             .unwrap()
@@ -235,9 +235,12 @@ fn executar_com_falha_previa(
             .to_owned();
             if metodo == "POST" && acao == "documento_receber" && status == "200" {
                 previas += 1;
-                if previa_recusada == Some(previas) {
-                    resposta = b"HTTP/1.1 500 Internal Server Error\r\nContent-Length: 0\r\nConnection: close\r\n\r\n".to_vec();
-                    status = "500".to_owned();
+                if previa_com_limite_menor == Some(previas) {
+                    // Mesmo comprimento: preserva o Content-Length da resposta.
+                    let texto = String::from_utf8(resposta).unwrap();
+                    let original = "tamanho : 10";
+                    assert_eq!(texto.matches(original).count(), 1);
+                    resposta = texto.replace(original, "tamanho : 01").into_bytes();
                 }
             }
             registro
