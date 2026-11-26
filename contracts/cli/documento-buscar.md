@@ -2,7 +2,7 @@
 type: CommandContract
 title: Buscar documento pela pesquisa Web do SEI
 operation: documento.buscar
-command: ies documento buscar TERMO [--pagina N] [--tipo TIPO] [--assunto TEXTO] [--de DD/MM/AAAA] [--ate DD/MM/AAAA] [--json]
+command: ies documento buscar [TERMO] [--texto TEXTO] [--pagina N] [--tipo TIPO] [--assunto TEXTO] [--de DD/MM/AAAA] [--ate DD/MM/AAAA] [--json]
 effect: read
 implementation: partial
 source_commit: db34008
@@ -10,7 +10,7 @@ source_commit: db34008
 
 # Busca de documento pela pesquisa Web (Refs #61, #56)
 
-`ies documento buscar TERMO [--pagina N] [--json]` executa a mesma
+`ies documento buscar [TERMO] [--texto TEXTO] [--pagina N] [--json]` executa a mesma
 pesquisa Web de [`ies processo buscar`](processo-buscar.md) (tela
 `frmPesquisaProtocolo`, sessão de [`ies login`](sessao-login.md), sem
 relogin, sem REST/SOAP), com a pesquisa **em documentos**. Sintaxe
@@ -30,6 +30,21 @@ Os argumentos de leitura de `ies documento DOC` (`--processo`,
 `--versao`, `--saida`…) junto com `buscar` são
 `opcoes_incompativeis_com_busca` (saída 2). `--unidade` é pré-condição
 conferida no Controle.
+
+## Extensão em desenvolvimento (#879)
+
+O argumento posicional permanece protocolo. `--texto TEXTO` usa o
+controle independente `q`, sem converter texto em número SEI. Sem
+protocolo, envia-se o protocolo vazio, desde que exista texto, tipo ou
+período efetivo. Paginação isolada e assunto sem ID não constituem critério
+efetivo; a ausência de critério é saída 2 antes de configuração. Texto
+vazio ou com controles também é recusado na borda. JSON conserva `termo`
+(vazio se omitido) e acrescenta `texto` quando solicitado.
+
+A derivação reutiliza o mesmo formulário e os filtros na paginação. A
+primeira implementação ainda não está homologada: falta confronto com o
+original GO, validação de paginação e estado independente no anti-IES.
+A fixture sintética de formulário já inclui `q`; ela não prova o POST real.
 
 ## Fluxo e orçamento
 
