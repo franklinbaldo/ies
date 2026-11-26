@@ -215,3 +215,5 @@ filtros está **NOT_RUN**; não inferir suporte universal.
 - `data_da_pesquisa_invalida` e `periodo_da_pesquisa_invertido`: falhas de uso antes da configuração.
 
 Busca exclusivamente por tipo/período (#874): hipótese sintética enquanto não houver captura original pertinente. A paginação reutiliza os critérios pedidos no mesmo formulário, sem novo caminho de transporte. O teste de compatibilidade externa depende de replay e validação próprios.
+
+No anti-IES, primeira hipótese de resultado negativo processual por período: somente uma chave explicitamente registrada (origem, cenário, unidade e limites) devolve zero; período desconhecido permanece insuficiente. O teste TLS/CLI é sintético. Listas por período e tipo ainda precisam de estado próprio e validação.

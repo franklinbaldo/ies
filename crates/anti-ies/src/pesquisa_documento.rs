@@ -59,8 +59,17 @@ pub fn responder(
 
 /// Página HTML da mesma pesquisa servida pela interface Web observada,
 /// reconstruída do estado (não de uma cópia de HTML de cassette).
-fn formulario_de_pesquisa(unidade: &str, termo: &str, conteudo: &str) -> String {
+fn formulario_de_pesquisa(
+    unidade: &str,
+    termo: &str,
+    conteudo: &str,
+    periodo: Option<iesei::pesquisa_processo::Periodo<'_>>,
+) -> String {
     let hash = "c".repeat(64);
+    let (p, d, de, ate) = match periodo {
+        Some(periodo) => (" checked", "", crate::escapar(periodo.de), crate::escapar(periodo.ate)),
+        None => ("", " checked", String::new(), String::new()),
+    };
     format!(
         r#"<html><head><script>
         function navegar(inicio) {{
@@ -73,8 +82,8 @@ fn formulario_de_pesquisa(unidade: &str, termo: &str, conteudo: &str) -> String 
         action="controlador.php?acao=protocolo_pesquisar&amp;acao_origem=protocolo_pesquisar&amp;infra_sistema=100000100&amp;infra_unidade_atual=110000001&amp;infra_hash={hash}#ancoraBarraPesquisa">
         <input type="hidden" name="hdnInfraTipoPagina" id="hdnInfraTipoPagina" value="1"/>
         <button type="submit" name="sbmPesquisar" id="sbmPesquisar" value="Pesquisar">Pesquisar</button>
-        <input type="radio" id="optProcessos" name="rdoPesquisarEm" value="P"/>
-        <input type="radio" id="optDocumentos" name="rdoPesquisarEm" value="D" checked="checked"/>
+        <input type="radio" id="optProcessos" name="rdoPesquisarEm" value="P"{p}/>
+        <input type="radio" id="optDocumentos" name="rdoPesquisarEm" value="D"{d}/>
         <input type="checkbox" id="chkSinDocumentosGerados" name="chkSinDocumentosGerados" value="S" checked="checked"/>
         <input type="checkbox" id="chkSinDocumentosRecebidos" name="chkSinDocumentosRecebidos" value="S" checked="checked"/>
         <select multiple id="selOrgaoPesquisa" name="selOrgaoPesquisa[]">
@@ -87,6 +96,8 @@ fn formulario_de_pesquisa(unidade: &str, termo: &str, conteudo: &str) -> String 
         <input type="hidden" id="hdnIdUsuarioGerador1" name="hdnIdUsuarioGerador1" value=""/>
         <input type="hidden" id="hdnIdUsuarioGerador2" name="hdnIdUsuarioGerador2" value=""/>
         <input type="hidden" id="hdnIdUsuarioGerador3" name="hdnIdUsuarioGerador3" value=""/>
+        <input type="text" name="txtDataInicio" id="txtDataInicio" value="{de}"/>
+        <input type="text" name="txtDataFim" id="txtDataFim" value="{ate}"/>
         <div id="conteudo">{conteudo}</div>
         <input type="hidden" id="hdnInicio" name="hdnInicio" value="0"/>
         </form></body></html>"#,
@@ -122,6 +133,49 @@ fn documento_exato(
     ))
 }
 
+/// Primeira hipótese sintética de busca processual: somente período.
+/// Não usa a tabela documental nem deduz zero da ausência de observação.
+fn periodo_processual(
+    corpo: &str,
+    banco: &Connection,
+    instalacao: &Instalacao,
+    cenario: &str,
+    unidade: &iesei::observacao::UnidadeExibida,
+) -> Resposta {
+    use iesei::pesquisa_processo::{Periodo, tem_resultado_negativo};
+    let campo = |nome: &str| {
+        super::documentos::campo_formulario_unico(corpo, nome).or_else(|| {
+            (!corpo.split('&').any(|par| par.split('=').next() == Some(nome)))
+                .then(String::new)
+        })
+    };
+    let (Some(de), Some(ate)) = (campo("txtDataInicio"), campo("txtDataFim")) else {
+        return Resposta::nova(Estado::RequisicaoInvalida);
+    };
+    if (de.is_empty() && ate.is_empty())
+        || campo("txtProtocoloPesquisa").as_deref() != Some("")
+        || campo("selTipoProcedimentoPesquisa").as_deref() != Some("")
+        || campo("q").as_deref() != Some("")
+        || campo("chkSinConsiderarDocumentos").as_deref() != Some("")
+        || campo("hdnInicio").as_deref() != Some("0")
+        || ["hdnIdAssunto", "hdnIdUnidade", "hdnIdContato", "hdnIdAssinante"]
+            .iter()
+            .any(|nome| campo(nome).as_deref() != Some(""))
+    {
+        return Resposta::nova(Estado::RequisicaoInvalida);
+    }
+    let periodo = Periodo { de: &de, ate: &ate };
+    match tem_resultado_negativo(banco, instalacao, cenario, unidade, periodo) {
+        Ok(true) => Resposta::html(formulario_de_pesquisa(
+            unidade.as_str(),
+            "",
+            "<div class='pesquisaSemResultado'>Nenhum resultado encontrado.</div>",
+            Some(periodo),
+        )),
+        Ok(false) | Err(_) => Resposta::nova(Estado::DadosInsuficientes),
+    }
+}
+
 /// Pesquisa por protocolo na forma documento. Estado desconhecido retorna
 /// 503, nunca `sem_resultado` por omissão de registro no SQLite.
 #[must_use]
@@ -140,10 +194,13 @@ pub fn responder_pesquisa(
         return Resposta::nova(Estado::DadosInsuficientes);
     };
     match metodo {
-        "GET" => Resposta::html(formulario_de_pesquisa(controle.unidade.as_str(), "", "")),
+        "GET" => Resposta::html(formulario_de_pesquisa(controle.unidade.as_str(), "", "", None)),
         "POST" => {
             let termo = super::documentos::campo_formulario_unico(corpo, "txtProtocoloPesquisa");
             let radio = super::documentos::campo_formulario_unico(corpo, "rdoPesquisarEm");
+            if radio.as_deref() == Some("P") {
+                return periodo_processual(corpo, banco, instalacao, cenario, &controle.unidade);
+            }
             let gerados =
                 super::documentos::campo_formulario_unico(corpo, "chkSinDocumentosGerados");
             let recebidos =
@@ -196,6 +253,7 @@ pub fn responder_pesquisa(
                             controle.unidade.as_str(),
                             &termo,
                             &html,
+                            None,
                         )),
                         Err(estado) => Resposta::nova(estado),
                     }
@@ -214,6 +272,7 @@ pub fn responder_pesquisa(
                             controle.unidade.as_str(),
                             &termo,
                             "<div class='pesquisaSemResultado'>Nenhum resultado encontrado.</div>",
+                            None,
                         ))
                     }
                     Ok(None) => documento_exato(banco, instalacao, cenario, &termo),

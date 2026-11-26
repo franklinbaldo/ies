@@ -31,6 +31,7 @@ enum EstadoDeBusca {
     SemResultado,
     DocumentoExato,
     Paginas,
+    PeriodoProcessual,
 }
 
 struct Pasta(PathBuf);
@@ -199,6 +200,19 @@ fn preparar_estado(banco: &mut Connection, instalacao: &Instalacao, estado: Esta
             CENARIO,
             &UnidadeExibida::nova("TESTE").unwrap(),
             TERMO,
+        )
+        .unwrap();
+    } else if matches!(estado, EstadoDeBusca::PeriodoProcessual) {
+        // Hipótese sintética, não resposta original do SEI.
+        iesei::pesquisa_processo::registrar_sem_resultado(
+            banco,
+            instalacao,
+            CENARIO,
+            &UnidadeExibida::nova("TESTE").unwrap(),
+            iesei::pesquisa_processo::Periodo {
+                de: "01/01/2026",
+                ate: "31/01/2026",
+            },
         )
         .unwrap();
     } else {
@@ -434,6 +448,35 @@ fn bdd_61_01_cli_documento_unico_por_numero_exato_sem_seguir_302() {
     // O redirecionamento só fornece IDs internos; não inventar NUP ou SEI.
     assert!(json["documento"].get("numero_sei").is_none());
     assert!(json["processo"].get("numero").is_none());
+}
+
+#[test]
+fn processo_por_periodo_distingue_zero_observado_de_periodo_desconhecido() {
+    for (ate, esperado) in [("31/01/2026", 0), ("30/01/2026", 1)] {
+        let pasta = Pasta::nova();
+        let saida = executar_com_estado(
+            &pasta,
+            &[
+                "--json", "processo", "buscar", "--de", "01/01/2026", "--ate", ate,
+            ],
+            EstadoDeBusca::PeriodoProcessual,
+        );
+        assert_eq!(
+            saida.status.code(),
+            Some(esperado),
+            "{}",
+            String::from_utf8_lossy(&saida.stderr)
+        );
+        if esperado == 0 {
+            let json: Value = serde_json::from_slice(&saida.stdout).unwrap();
+            assert_eq!(json["resultado"], "sem_resultado");
+            assert_eq!(json["termo"], "");
+            assert_eq!(json["total_declarado"], 0);
+            assert_eq!(json["processos"].as_array().unwrap().len(), 0);
+        } else {
+            assert!(saida.stdout.is_empty());
+        }
+    }
 }
 
 #[path = "aies_documento_buscar_cli/paginacao.rs"]

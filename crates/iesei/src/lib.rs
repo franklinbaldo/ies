@@ -25,6 +25,7 @@ pub mod observacao;
 pub mod pastas_incompletas;
 pub mod pdf_externo;
 pub mod pesquisa_documento;
+pub mod pesquisa_processo;
 pub mod prazos;
 pub mod processos;
 pub mod relacionamentos;
