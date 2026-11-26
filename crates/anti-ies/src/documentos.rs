@@ -221,8 +221,6 @@ fn cadastro(
     ))
 }
 
-/// GET navega; POST altera apenas o estado SQLite da simulação.
-/// Tipos, identidade e documentos pertencem ao mesmo cenário/instalação.
 // A seleção de texto padrão ou modelo ainda não é simulada.
 // Não transformar uma solicitação de conteúdo inicial em documento vazio.
 fn texto_inicial_vazio(corpo: &str) -> bool {
@@ -235,6 +233,8 @@ fn texto_inicial_vazio(corpo: &str) -> bool {
     }
 }
 
+/// GET navega; POST altera apenas o estado SQLite da simulação.
+/// Tipos, identidade e documentos pertencem ao mesmo cenário/instalação.
 pub(crate) fn atender(
     metodo: &str,
     alvo: &str,
