@@ -323,8 +323,7 @@ fn editor_classico_conserva_vizinhas_vazias_no_post() {
     let depois = "<hr><div unselectable=\"on\"></div></body>";
     let base = format!("{antes}<p>Unidade</p>{depois}");
     let edicao = format!("{antes}<p>Novo\r\r\ntexto{depois}");
-    let editado =
-        copia_renderizada::corpo_editado(&base, &edicao, secoes, principal).unwrap();
+    let editado = copia_renderizada::corpo_editado(&base, &edicao, secoes, principal).unwrap();
     let htmls = htmls_para_post(secoes, principal, editado);
     assert_eq!(htmls, ["<h1>Fixo</h1>", "", "<p>Novo\ntexto", "", "<hr>"]);
     let pares: Vec<_> = secoes
