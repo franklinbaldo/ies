@@ -36,8 +36,8 @@ fn lote_segundo_pdf_invalido_nao_abre_previa() {
 
 #[test]
 fn lote_confirma_dois_pdfs_em_ordem_sem_retry() {
-    let (saidas, eventos, total, _) =
-        executar(None, false, false, &[b"%PDF-1.4\n2 0 obj\n%%EOF\n"]);
+    let segundo_pdf = b"%PDF-1.4\n2 0 obj\n%%EOF\n";
+    let (saidas, eventos, total, arquivos) = executar(None, false, true, &[segundo_pdf]);
     assert_eq!(saidas[0].status.code(), Some(0), "{:?}", saidas[0].stderr);
     let lote = json(&saidas[0]);
     assert_eq!(lote["escopo"], "confirmacao_web_lote");
@@ -45,7 +45,7 @@ fn lote_confirma_dois_pdfs_em_ordem_sem_retry() {
     assert_eq!(lote["itens"][1]["arquivo"]["nome"], "segundo.pdf");
     assert_eq!(lote["itens"][0]["numero_sei"], "050000001");
     let segundo = lote["itens"][1]["numero_sei"].as_str().unwrap();
-    assert_ne!(segundo, "050000001");
+    assert_eq!(segundo, "050000002");
     assert_eq!(total, 2);
     let primeira_escrita = eventos
         .iter()
@@ -68,6 +68,28 @@ fn lote_confirma_dois_pdfs_em_ordem_sem_retry() {
     let arvore = json(&saidas[1])["documentos"].to_string();
     assert!(arvore.contains("050000001"));
     assert!(arvore.contains(segundo));
+    assert_eq!(saidas.len(), 4);
+    for (saida, numero) in saidas.iter().skip(2).zip(["050000001", "050000002"]) {
+        assert_eq!(saida.status.code(), Some(0), "{:?}", saida.stderr);
+        let lido = json(saida);
+        assert_eq!(lido["documentos"][0]["numero"], numero);
+        assert_eq!(lido["documentos"][0]["fonte"], "documento_download_anexo");
+    }
+    assert_eq!(
+        arquivos,
+        vec![
+            Some(b"%PDF-1.4\n1 0 obj\n%%EOF\n".to_vec()),
+            Some(segundo_pdf.to_vec()),
+        ],
+        "cada número SEI deve devolver seu próprio PDF original"
+    );
+    assert_eq!(
+        eventos
+            .iter()
+            .filter(|e| e.as_str() == "GET documento_download_anexo 200")
+            .count(),
+        2
+    );
 }
 
 #[test]

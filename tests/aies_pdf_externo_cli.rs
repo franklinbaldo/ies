@@ -142,7 +142,7 @@ fn executar(
     somente_previa: bool,
     com_leitura: bool,
     adicionais: &[&[u8]],
-) -> (Vec<Output>, Vec<String>, usize, Option<Vec<u8>>) {
+) -> (Vec<Output>, Vec<String>, usize, Vec<Option<Vec<u8>>>) {
     executar_com_falha_previa(
         cadastro_incerto,
         None,
@@ -162,7 +162,7 @@ fn executar_com_falha_previa(
     somente_previa: bool,
     com_leitura: bool,
     adicionais: &[&[u8]],
-) -> (Vec<Output>, Vec<String>, usize, Option<Vec<u8>>) {
+) -> (Vec<Output>, Vec<String>, usize, Vec<Option<Vec<u8>>>) {
     let pasta = Pasta::nova();
     let (cert, identidade_tls) = identidade(&pasta.0, "sei.test");
     let origem = pasta.privado("origem", ORIGEM);
@@ -292,20 +292,30 @@ fn executar_com_falha_previa(
     let destino_arquivo = pasta.0.join("saida");
     fs::create_dir(&destino_arquivo).unwrap();
     let destino_str = destino_arquivo.to_str().unwrap();
-    let ler_pdf = [
-        "--json",
-        "documento",
-        "050000001",
-        "--processo",
-        NUP,
-        "--saida",
-        destino_str,
-        "--sem-cache",
-    ];
+    let numeros: Vec<_> = if com_leitura {
+        (1..=1 + outros.len())
+            .map(|i| format!("{:09}", 50_000_000 + i))
+            .collect()
+    } else {
+        Vec::new()
+    };
+    let leituras: Vec<_> = numeros
+        .iter()
+        .map(|numero| {
+            [
+                "--json",
+                "documento",
+                numero.as_str(),
+                "--processo",
+                NUP,
+                "--saida",
+                destino_str,
+                "--sem-cache",
+            ]
+        })
+        .collect();
     let mut comandos = vec![&incluir[..], &consultar[..]];
-    if com_leitura {
-        comandos.push(&ler_pdf);
-    }
+    comandos.extend(leituras.iter().map(|args| args.as_slice()));
     let saidas = comandos
         .iter()
         .map(|args| {
@@ -332,8 +342,11 @@ fn executar_com_falha_previa(
     tunel.join().unwrap();
     let total = servidor.join().unwrap();
     let eventos = trilha.lock().unwrap().clone();
-    let arquivo = fs::read(destino_arquivo.join("050000001.pdf")).ok();
-    (saidas, eventos, total, arquivo)
+    let arquivos = numeros
+        .iter()
+        .map(|numero| fs::read(destino_arquivo.join(format!("{numero}.pdf"))).ok())
+        .collect();
+    (saidas, eventos, total, arquivos)
 }
 
 fn json(saida: &Output) -> Value {
@@ -472,8 +485,8 @@ fn bdd_60_03_cli_baixa_pdf_original_do_estado_compartilhado() {
         String::from_utf8_lossy(&saidas[2].stderr),
     );
     assert_eq!(
-        arquivo.as_deref(),
-        Some(b"%PDF-1.4\n1 0 obj\n%%EOF\n".as_slice()),
+        arquivo,
+        vec![Some(b"%PDF-1.4\n1 0 obj\n%%EOF\n".to_vec())],
         "o arquivo salvo deve ser o PDF original enviado, sem conversão"
     );
     let lido = json(&saidas[2]);
