@@ -233,3 +233,185 @@ fn menu_exige_link_unico_assinado_da_instalacao() {
         assert!(link_do_menu(&inst, &HtmlServido::de_teste(&html)).is_err());
     }
 }
+
+#[cfg(test)]
+mod replay {
+    use super::*;
+    use crate::cassette::acervo::gravacao as fonte;
+    use crate::transporte::testes_http::resposta_post;
+    use crate::transporte::{FalhaTransporte, RespostaWeb};
+    use std::collections::VecDeque;
+    use std::io::Cursor;
+    use std::path::{Path, PathBuf};
+
+    // Os bytes, status e MIME são originais; a query da requisição e o
+    // corpo POST não foram gravados. A conferência é de método/ação/rota,
+    // não de igualdade de requisições nem da data histórica consultada.
+    struct Gravado<'a> {
+        json: &'a serde_json::Value,
+        passos: VecDeque<fonte::Resposta<'a>>,
+    }
+
+    impl Gravado<'_> {
+        fn proxima(
+            &mut self,
+            metodo: &str,
+            url: &str,
+        ) -> crate::formulario_web::RespostaDoPost<Cursor<Vec<u8>>> {
+            let r = self.passos.pop_front().expect("requisição além do roteiro");
+            assert_eq!(metodo, r.metodo, "passo {}", r.passo);
+            let (rota, query) = url.split_once('?').expect("consulta da requisição");
+            assert!(
+                rota == fonte::url_sem_consulta(self.json, r.interacao),
+                "rota divergente no passo {}",
+                r.passo
+            );
+            assert!(
+                query.split('&').any(|p| p.strip_prefix("acao=") == Some(r.operacao)),
+                "ação divergente no passo {}",
+                r.passo
+            );
+            resposta_post(
+                i32::try_from(r.status).unwrap(),
+                &fonte::mime(r.interacao),
+                fonte::corpo(r.interacao),
+                None,
+                fonte::localizacao(r.interacao).map(str::to_owned),
+            )
+        }
+    }
+
+    impl EnvioDoControle for Gravado<'_> {
+        type Corpo = Cursor<Vec<u8>>;
+
+        fn post(
+            &mut self,
+            submissao: SubmissaoDerivada,
+            cookie: &str,
+        ) -> Result<crate::formulario_web::RespostaDoPost<Self::Corpo>, FalhaTransporte>
+        {
+            assert!(cookie == "PHPSESSID=SINTETICO");
+            Ok(self.proxima("POST", submissao.url()))
+        }
+
+        fn get(
+            &mut self,
+            url: &str,
+            cookie: &str,
+        ) -> Result<RespostaWeb<Self::Corpo>, FalhaTransporte> {
+            assert!(cookie == "PHPSESSID=SINTETICO");
+            Ok(self.proxima("GET", url).resposta)
+        }
+    }
+
+    fn roteiro(json: &serde_json::Value, paginas: usize) -> Gravado<'_> {
+        let respostas = fonte::respostas(json);
+        let detalhe = respostas
+            .iter()
+            .position(|r| r.operacao == "estatisticas_detalhar_unidade")
+            .expect("detalhe original");
+        // A gravação contém duas consultas estatísticas; só a última
+        // precede a travessia do detalhe. Não simular a consulta anterior.
+        let relatorio = respostas[..detalhe]
+            .iter()
+            .rposition(|r| r.operacao == "gerar_estatisticas_unidade" && r.metodo == "POST")
+            .expect("relatório original");
+        let formulario = respostas[..relatorio]
+            .iter()
+            .rposition(|r| r.operacao == "gerar_estatisticas_unidade" && r.metodo == "GET")
+            .expect("formulário original");
+        let controle = respostas[..formulario]
+            .iter()
+            .rposition(|r| r.operacao == "procedimento_controlar" && r.metodo == "GET")
+            .expect("Controle original");
+        let mut passos = VecDeque::new();
+        for r in respostas {
+            if [controle, formulario, relatorio].contains(&r.passo)
+                || (detalhe..detalhe + paginas).contains(&r.passo)
+            {
+                assert_eq!(r.status, 200, "passo {}", r.passo);
+                passos.push_back(r);
+            }
+        }
+        assert_eq!(passos.len(), paginas + 3);
+        Gravado { json, passos }
+    }
+
+    #[test]
+    #[ignore = "acervo original: exige ZIPs verificados no cache"]
+    fn acervo_detalhe_original_fluxo() {
+        use crate::arquivo_privado::{Politica, gravar};
+        use crate::cassette::{ZipDoAcervo, conferir_cassette_ate};
+
+        let raiz = Path::new(env!("CARGO_MANIFEST_DIR")).join("cassettes");
+        let cache = std::env::var_os("IES_ACERVO_CACHE").map_or_else(
+            || PathBuf::from(std::env::var_os("HOME").expect("HOME")).join(".cache/ies"),
+            PathBuf::from,
+        );
+        for (nome, revisao, total, paginas) in [
+            ("unb", "74b641c4a8a1", 21, 1),
+            ("pen1", "5c557e93a6ce", 305, 7),
+            ("pen2", "c64c576f9a9a", 685, 14),
+        ] {
+            let card = raiz.join(nome).join(format!(
+                "unidade-estatisticas-acervo-{nome}--{revisao}.md"
+            ));
+            let arquivo = crate::cassette::archive_filename(&card).expect("card OKF");
+            let zip = ZipDoAcervo::ler(&cache.join(&arquivo)).expect("ZIP original");
+            let conferida =
+                conferir_cassette_ate(&card, &zip, 120_000_000).expect("integridade do original");
+            assert_eq!(conferida.instalacao, nome);
+            let inst = fonte::instalacao(&conferida.json).expect("instalação original");
+            let mut envio = EnvioContado::novo(roteiro(&conferida.json, paginas));
+
+            // URL inicial e cookie sintéticos, nunca enviados à rede.
+            let url = format!(
+                "{}/controlador.php?acao=procedimento_controlar&infra_hash={}",
+                inst.url_base(),
+                "a".repeat(64)
+            );
+            let pasta = std::env::temp_dir().join(format!(
+                "ies-acervo-replay-{}-{nome}-{}",
+                std::process::id(),
+                std::time::SystemTime::now()
+                    .duration_since(std::time::UNIX_EPOCH)
+                    .unwrap()
+                    .as_nanos()
+            ));
+            std::fs::create_dir(&pasta).unwrap();
+            for (arquivo, valor) in [
+                ("url", url.as_str()),
+                ("origem", inst.url_base()),
+                ("cookie", "PHPSESSID=SINTETICO"),
+            ] {
+                gravar(
+                    &pasta.join(arquivo),
+                    valor.as_bytes(),
+                    Politica::exclusiva().diretorio_do_ies(),
+                )
+                .unwrap();
+            }
+            let sessao = ReferenciasDaSessao::ler(
+                &pasta.join("url"),
+                &pasta.join("origem"),
+                &pasta.join("cookie"),
+            )
+            .unwrap();
+            let data = crate::cli_unidade_aux::data_do_acervo("2024-02-29").unwrap();
+            let resultado = ler_via(&sessao, None, data, &mut envio);
+            std::fs::remove_dir_all(pasta).unwrap();
+
+            let (_, processos) = resultado.unwrap_or_else(|_| panic!("{nome}: fluxo recusado"));
+            assert!(envio.interno.passos.is_empty(), "{nome}: roteiro restante");
+            assert_eq!(envio.total(), paginas + 3, "{nome}");
+            assert_eq!(processos.len(), total, "{nome}");
+            let distintos = processos
+                .iter()
+                .map(|p| p.processo.as_str())
+                .collect::<std::collections::HashSet<_>>()
+                .len();
+            assert_eq!(distintos, total, "{nome}");
+            println!("{nome}: fluxo={total} requisições={}", envio.total());
+        }
+    }
+}
