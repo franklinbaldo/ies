@@ -294,10 +294,11 @@ pub(crate) fn campos_da_consulta_no_orgao<'a>(
 
 /// Os pares do usuário e o `hdnUnidades` reescrito (a forma
 /// `ID±DESCRIÇÃO` do `infraLupaSelect`); o primitivo os põe na ordem do
-/// documento.
+/// documento. O Todos relata `¥` entre destinos no PEN1; o corpo original
+/// não foi capturado. A forma plural ainda precisa de ensaio Web.
 pub(crate) fn campos_do_envio(
     tela: &TelaDeEnvio,
-    destino: &Destino,
+    destinos: &[Destino],
     manter_aberto: bool,
     remover_anotacoes: bool,
 ) -> Vec<(&'static str, String)> {
@@ -314,7 +315,11 @@ pub(crate) fn campos_do_envio(
     campos.extend(tela.textos.iter().map(|texto| (*texto, String::new())));
     campos.push((
         UNIDADES,
-        format!("{}\u{b1}{}", destino.id_unidade, destino.descricao),
+        destinos
+            .iter()
+            .map(|destino| format!("{}\u{b1}{}", destino.id_unidade, destino.descricao))
+            .collect::<Vec<_>>()
+            .join("\u{a5}"),
     ));
     campos
 }

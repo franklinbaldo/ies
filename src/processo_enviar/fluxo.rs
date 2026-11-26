@@ -181,7 +181,7 @@ fn submeter_envio<V: EnvioDoProcesso>(
 ) -> Result<Option<FalhaDoEnvio>, ErroEnviar> {
     let campos = campos_do_envio(
         &tela.conferida,
-        &feito.destino,
+        std::slice::from_ref(&feito.destino),
         pedido.manter_aberto,
         feito.metodo_remocao() == Some(MetodoRemocao::CheckboxNoEnvio),
     );

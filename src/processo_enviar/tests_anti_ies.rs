@@ -114,7 +114,7 @@ fn formulario_real_do_ies_tramita_e_confere_estado_do_anti_ies() {
     );
     let itens = itens_do_autocompletar(&HtmlServido::de_teste(&resposta_ajax.corpo)).unwrap();
     let escolhido = escolher_destino("DESTINO", &itens).unwrap();
-    let campos = campos_do_envio(&tela, &escolhido, true, true);
+    let campos = campos_do_envio(&tela, std::slice::from_ref(&escolhido), true, true);
     let pares: Vec<_> = campos.iter().map(|(k, v)| (*k, v.as_str())).collect();
     let submissao =
         derivar_submissao(&ENVIAR_PROCESSO, &instalacao, &servida, None, &pares).unwrap();

@@ -134,7 +134,7 @@ fn verificacao(
     };
     let derivado = tela.map_or("sem tela", |tela| {
         let manter = depois.contains(unidade);
-        let campos = campos_do_envio(&tela.conferida, &destino, manter, false);
+        let campos = campos_do_envio(&tela.conferida, &[destino], manter, false);
         let pares: Vec<(&str, &str)> = campos.iter().map(|(n, v)| (*n, v.as_str())).collect();
         match derivar_submissao(&ENVIAR_PROCESSO, inst, &tela_servida(tela), None, &pares) {
             Ok(_) => "POST derivado",
