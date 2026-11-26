@@ -48,10 +48,16 @@ pub(super) fn confere(
     };
     persistido.versao().map(VersaoDocumento::numero) == Some(nova)
         && persistido.principal() == Some(principal)
-        && persistido
+        && anterior
             .secoes()
             .iter()
-            .any(|s| s.nome == principal && s.html == editado)
+            .zip(super::htmls_para_post(anterior.secoes(), principal, editado))
+            .all(|(secao, html)| {
+                persistido
+                    .secoes()
+                    .iter()
+                    .any(|s| s.nome == secao.nome && s.html == html)
+            })
 }
 
 #[cfg(test)]
@@ -112,5 +118,57 @@ mod testes {
         let anterior = protocolo(1, &ANTERIOR);
         let sem_vazia = [NOVA[0], NOVA[2], NOVA[3], NOVA[4]];
         assert!(!confere(&anterior, &protocolo(2, &sem_vazia), 2, EDITADO));
+    }
+
+    fn protocolo_json(versao: u32, campos: &[(&str, &str)]) -> Protocolo {
+        let mut dados = serde_json::Map::new();
+        for (id, corpo) in campos {
+            dados.insert(
+                format!("txaEditor_{id}"),
+                serde_json::Value::String(html_escape::decode_html_entities(corpo).into_owned()),
+            );
+        }
+        let config = serde_json::json!({
+            "sei": {"versao": versao, "urlSalvar": "controlador_rest.php"},
+            "initialData": dados,
+            "rootsAttributes": {"txaEditor_12": {"principal": true, "somenteLeitura": false}}
+        });
+        let html = format!("<script>window.INFRA_EDITOR_CONFIG = {config};</script>");
+        Protocolo::ler(&HtmlServido::de_teste(&html)).unwrap()
+    }
+
+    #[test]
+    fn confere_todas_as_secoes_tambem_no_ckeditor() {
+        let anterior = protocolo_json(1, &ANTERIOR);
+        assert!(confere(&anterior, &protocolo_json(2, &NOVA), 2, EDITADO));
+        let mut reordenada = NOVA;
+        reordenada.reverse();
+        assert!(confere(
+            &anterior,
+            &protocolo_json(2, &reordenada),
+            2,
+            EDITADO
+        ));
+        let mut divergente = NOVA;
+        divergente[0].1 = "&lt;h1&gt;Outro&lt;/h1&gt;";
+        assert!(!confere(
+            &anterior,
+            &protocolo_json(2, &divergente),
+            2,
+            EDITADO
+        ));
+        let sem_vazia = [NOVA[0], NOVA[2], NOVA[3], NOVA[4]];
+        assert!(!confere(
+            &anterior,
+            &protocolo_json(2, &sem_vazia),
+            2,
+            EDITADO
+        ));
+        assert!(!confere(
+            &anterior,
+            &protocolo_json(3, &NOVA),
+            2,
+            EDITADO
+        ));
     }
 }
