@@ -6,9 +6,12 @@ use crate::{
     parametro_unico,
 };
 use iesei::documento_versoes::ler;
-use iesei::editor_documento::{Edicao, ErroEditorDocumento, consultar_oferta, publicar};
+use iesei::editor_documento::{
+    Edicao, ErroEditorDocumento, consultar_oferta, ler_secoes, publicar, publicar_secoes,
+};
 use iesei::instalacao::Instalacao;
 use rusqlite::Connection;
+use std::fmt::Write as _;
 use std::num::NonZeroU32;
 
 fn resposta_de_falha(falha: &ErroEditorDocumento) -> Resposta {
@@ -130,19 +133,47 @@ fn formulario_editor_4(
     let Some(ultima) = documento.revisoes.iter().max_by_key(|r| r.versao) else {
         return Resposta::nova(Estado::DadosInsuficientes);
     };
+    let Ok(secoes) = ler_secoes(banco, origem, cenario, id, ultima.versao) else {
+        return Resposta::nova(Estado::DadosInsuficientes);
+    };
+    let mut campos = String::new();
+    let mut editores = String::new();
+    if secoes.is_empty() {
+        campos = format!(
+            "<textarea name='txaEditor_1'>{}</textarea>",
+            escapar(&ultima.html_corpo)
+        );
+        editores = "CKEDITOR.replace('txaEditor_1', {\"readOnly\":false});".into();
+    } else {
+        for secao in secoes {
+            write!(
+                campos,
+                "<textarea name='{}'>{}</textarea>",
+                secao.nome,
+                escapar(&secao.html)
+            )
+            .expect("formatação String");
+            write!(
+                editores,
+                "CKEDITOR.replace('{}', {{\"readOnly\":{}}});",
+                secao.nome,
+                !secao.principal
+            )
+            .expect("formatação String");
+        }
+    }
     Resposta::html(format!(
         "<html><body><form id='frmEditor' hidden method='post' target='ifrEditorSalvar' \
          action='editor/editor_processar.php?acao=editor_salvar&amp;id_procedimento={}&amp;id_documento={id}&amp;infra_hash={}'>\
-         <textarea name='txaEditor_1'>{}</textarea>\
+         {campos}\
          <input type='hidden' id='hdnVersao' name='hdnVersao' value='{}'>\
          <input type='hidden' id='hdnIgnorarNovaVersao' name='hdnIgnorarNovaVersao' value='N'>\
          <label><input type='checkbox' name='confirmar_assinaturas' value='1'>Confirmar perda de assinaturas (anti-IES)</label>\
          </form><iframe id='ifrEditorSalvar' name='ifrEditorSalvar'></iframe>\
          <output id='assinaturasAtuais'>{}</output>\
-         <script>CKEDITOR.replace('txaEditor_1', {{\"readOnly\":false}});</script></body></html>",
+         <script>{editores}</script></body></html>",
         escapar(&documento.id_procedimento),
         crate::protocolo_sintetico::INFRA_HASH,
-        escapar(&ultima.html_corpo),
         ultima.versao,
         oferta.assinaturas
     ))
@@ -158,11 +189,10 @@ fn salvar_editor_4(
     id: &str,
     procedimento: Option<&str>,
 ) -> Resposta {
-    let (Some(versao_base), Some(html_editado), Some("N")) = (
+    let (Some(versao_base), Some("N")) = (
         campo_formulario_unico(corpo, "hdnVersao")
             .and_then(|v| v.parse::<u32>().ok())
             .and_then(NonZeroU32::new),
-        campo_formulario_unico(corpo, "txaEditor_1"),
         campo_formulario_unico(corpo, "hdnIgnorarNovaVersao").as_deref(),
     ) else {
         return Resposta::nova(Estado::RequisicaoInvalida);
@@ -182,18 +212,43 @@ fn salvar_editor_4(
     let Some(ultima) = documento.revisoes.iter().max_by_key(|r| r.versao) else {
         return Resposta::nova(Estado::DadosInsuficientes);
     };
-    match publicar(
-        banco,
-        origem,
-        cenario,
-        id,
-        Edicao {
-            versao_base,
-            html_base: &ultima.html_corpo,
-            html_editado: &html_editado,
-            confirmar_assinaturas,
-        },
-    ) {
+    let Ok(mut secoes) = ler_secoes(banco, origem, cenario, id, ultima.versao) else {
+        return Resposta::nova(Estado::DadosInsuficientes);
+    };
+    let enviados = corpo
+        .split('&')
+        .filter_map(|parte| parte.split_once('='))
+        .filter(|(nome, _)| nome.starts_with("txaEditor_"))
+        .count();
+    if enviados != secoes.len().max(1) {
+        return Resposta::nova(Estado::RequisicaoInvalida);
+    }
+    for secao in &mut secoes {
+        let Some(html) = campo_formulario_unico(corpo, &secao.nome) else {
+            return Resposta::nova(Estado::RequisicaoInvalida);
+        };
+        secao.html = html;
+    }
+    let html_editado = if secoes.is_empty() {
+        campo_formulario_unico(corpo, "txaEditor_1")
+    } else {
+        secoes.iter().find(|s| s.principal).map(|s| s.html.clone())
+    };
+    let Some(html_editado) = html_editado else {
+        return Resposta::nova(Estado::RequisicaoInvalida);
+    };
+    let edicao = Edicao {
+        versao_base,
+        html_base: &ultima.html_corpo,
+        html_editado: &html_editado,
+        confirmar_assinaturas,
+    };
+    let resultado = if secoes.is_empty() {
+        publicar(banco, origem, cenario, id, edicao)
+    } else {
+        publicar_secoes(banco, origem, cenario, id, edicao, &secoes)
+    };
+    match resultado {
         Ok(revisao) => Resposta::html(format!("OK {}", revisao.versao_nova)),
         Err(falha) => resposta_de_falha(&falha),
     }
