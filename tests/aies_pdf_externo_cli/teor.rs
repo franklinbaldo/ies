@@ -113,8 +113,13 @@ fn pdf_motor_ausente_preserva_original_e_indica_limite() {
     let pasta = Pasta::nova();
     let sem_motor = pasta.0.join("sem-motor");
     fs::create_dir(&sem_motor).unwrap();
-    let (saidas, eventos, documentos, arquivo) =
-        executar_com_teor(false, false, Leitura::Pdf, Some(PDF_NATIVO), Some(&sem_motor));
+    let (saidas, eventos, documentos, arquivo) = executar_com_teor(
+        false,
+        false,
+        Leitura::Pdf,
+        Some(PDF_NATIVO),
+        Some(&sem_motor),
+    );
     assert_eq!(documentos, 1);
     assert_eq!(saidas.len(), 5);
     assert_eq!(arquivo.as_deref(), Some(PDF_NATIVO));
