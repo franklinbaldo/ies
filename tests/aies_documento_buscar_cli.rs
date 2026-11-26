@@ -32,6 +32,7 @@ enum EstadoDeBusca {
     DocumentoExato,
     Paginas,
     PeriodoProcessual,
+    PaginasProcessuais,
 }
 
 struct Pasta(PathBuf);
@@ -240,6 +241,8 @@ fn preparar_estado(banco: &mut Connection, instalacao: &Instalacao, estado: Esta
             )
             .unwrap();
         }
+    } else if matches!(estado, EstadoDeBusca::PaginasProcessuais) {
+        processos::preparar_paginas(banco, instalacao);
     } else {
         preparar_paginas(banco, instalacao);
     }
@@ -315,7 +318,8 @@ fn executar(pasta: &Pasta, args: &[&str]) -> Output {
 }
 
 fn executar_com_estado(pasta: &Pasta, args: &[&str], estado: EstadoDeBusca) -> Output {
-    let requisicoes = if matches!(estado, EstadoDeBusca::Paginas) && args.contains(&"--pagina") {
+    let requisicoes = if matches!(estado, EstadoDeBusca::Paginas | EstadoDeBusca::PaginasProcessuais)
+        && args.contains(&"--pagina") {
         4
     } else {
         3
@@ -543,3 +547,6 @@ fn processo_por_tipo_e_periodo_nao_reutiliza_resultado_de_outro_tipo() {
 
 #[path = "aies_documento_buscar_cli/paginacao.rs"]
 mod paginacao;
+
+#[path = "aies_documento_buscar_cli/processos.rs"]
+mod processos;

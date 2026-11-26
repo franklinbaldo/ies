@@ -91,10 +91,30 @@ pub(super) fn renderizar(
         linhas.push_str("</tr>");
     }
 
+    renderizar_lista(
+        pagina.pagina,
+        pagina.inicio,
+        pagina.fim,
+        pagina.total_declarado,
+        tamanho,
+        &linhas,
+    )
+}
+
+pub(super) fn renderizar_lista(
+    pagina: u32,
+    inicio: u64,
+    fim: u64,
+    total: u64,
+    tamanho: u64,
+    linhas: &str,
+) -> Result<String, Estado> {
     let mut links = String::new();
     for indice in 0..10u64 {
-        let deslocamento = indice * tamanho;
-        if deslocamento < pagina.total_declarado && indice + 1 != u64::from(pagina.pagina) {
+        let Some(deslocamento) = indice.checked_mul(tamanho) else {
+            break;
+        };
+        if deslocamento < total && indice + 1 != u64::from(pagina) {
             write!(
                 links,
                 "<a href=\"javascript:navegar('{deslocamento}')\">{}</a> ",
@@ -108,9 +128,9 @@ pub(super) fn renderizar(
          <div class='pesquisaBarraD'>Exibindo {} - {} de {}</div></div>\
          <table class='pesquisaResultado'>{linhas}</table>\
          <div class='pesquisaPaginas'><div class='pesquisaPaginaSelecionada'>{}</div>{links}</div>",
-        milhar(pagina.inicio),
-        milhar(pagina.fim),
-        milhar(pagina.total_declarado),
-        pagina.pagina
+        milhar(inicio),
+        milhar(fim),
+        milhar(total),
+        pagina
     ))
 }

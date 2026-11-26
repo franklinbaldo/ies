@@ -7,6 +7,7 @@ use iesei::instalacao::Instalacao;
 use rusqlite::Connection;
 
 mod paginas;
+mod processos;
 
 /// Consulta o numero solicitado pela CLI. Nao cria documento nem
 /// escolhe um ID arbitrario se a pesquisa encontra mais de um.
@@ -180,11 +181,13 @@ fn periodo_processual(
     ) else {
         return Resposta::nova(Estado::RequisicaoInvalida);
     };
+    let Some(deslocamento) = campo("hdnInicio").and_then(|s| s.parse::<u64>().ok()) else {
+        return Resposta::nova(Estado::RequisicaoInvalida);
+    };
     if (tipo.is_empty() && de.is_empty() && ate.is_empty())
         || campo("txtProtocoloPesquisa").as_deref() != Some("")
         || campo("q").as_deref() != Some("")
         || campo("chkSinConsiderarDocumentos").as_deref() != Some("")
-        || campo("hdnInicio").as_deref() != Some("0")
         || campo("selOrgaoPesquisa%5B%5D").as_deref() != Some("0")
         || [
             "hdnIdAssunto",
@@ -211,6 +214,19 @@ fn periodo_processual(
         de: &de,
         ate: &ate,
     };
+    match processos::pagina(banco, instalacao, cenario, unidade, periodo, deslocamento) {
+        Ok(Some(html)) => {
+            return Resposta::html(formulario_de_pesquisa(
+                unidade.as_str(),
+                "",
+                &html,
+                Some(periodo),
+                &tipos,
+            ));
+        }
+        Ok(None) if deslocamento == 0 => {}
+        _ => return Resposta::nova(Estado::DadosInsuficientes),
+    }
     match tem_resultado_negativo(banco, instalacao, cenario, unidade, periodo) {
         Ok(true) => Resposta::html(formulario_de_pesquisa(
             unidade.as_str(),
