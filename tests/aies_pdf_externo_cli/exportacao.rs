@@ -111,6 +111,7 @@ fn exportacao_zip_seletiva_documento_fora_do_processo_nao_gera_arquivo() {
     }
     assert_eq!(saidas[3].status.code(), Some(1));
     assert!(arquivo.is_none());
-    assert!(!eventos.iter().any(|e| e.starts_with("POST procedimento_gerar_zip")
-        || e.starts_with("GET exibir_arquivo")));
+    assert!(!eventos.iter().any(
+        |e| e.starts_with("POST procedimento_gerar_zip") || e.starts_with("GET exibir_arquivo")
+    ));
 }
