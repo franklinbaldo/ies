@@ -16,11 +16,20 @@ use iesei::processos::{Destino, ProcessoSimulado, guardar, ler};
 use rusqlite::Connection;
 
 #[test]
+fn formulario_real_do_ies_tramita_e_confere_estado_do_anti_ies() {
+    tramitar_e_reler(&["DESTINO"]);
+}
+
+#[test]
+fn formulario_real_do_ies_tramita_para_dois_destinos_e_rele_todos() {
+    tramitar_e_reler(&["DESTINO", "ARQUIVO"]);
+}
+
 #[expect(
     clippy::too_many_lines,
     reason = "um único ciclo SQLite, leitura da árvore, POST e releitura usando os consumidores reais"
 )]
-fn formulario_real_do_ies_tramita_e_confere_estado_do_anti_ies() {
+fn tramitar_e_reler(siglas: &[&str]) {
     let mut banco = Connection::open_in_memory().unwrap();
     iniciar(&banco).unwrap();
     let origem = OrigemSimulada::interpretar("https://sei.exemplo.gov.br/sei").unwrap();
@@ -39,11 +48,18 @@ fn formulario_real_do_ies_tramita_e_confere_estado_do_anti_ies() {
             unidade_origem: "ORIGEM".into(),
             aberto_em: vec!["ORIGEM".into()],
             anotacao_origem: Some("Anotação temporária".into()),
-            destinos: vec![Destino {
-                id: "2".into(),
-                sigla: "DESTINO".into(),
-                descricao: "DESTINO - Unidade de testes".into(),
-            }],
+            destinos: vec![
+                Destino {
+                    id: "2".into(),
+                    sigla: "DESTINO".into(),
+                    descricao: "DESTINO - Unidade de testes".into(),
+                },
+                Destino {
+                    id: "3".into(),
+                    sigla: "ARQUIVO".into(),
+                    descricao: "ARQUIVO - Seção".into(),
+                },
+            ],
         },
     )
     .unwrap();
@@ -94,27 +110,30 @@ fn formulario_real_do_ies_tramita_e_confere_estado_do_anti_ies() {
         html: &HtmlServido::de_teste(&formulario.corpo),
         codificacao: CodificacaoDaTela::Iso88591,
     };
-    let consulta = derivar_consulta_ajax(
-        &AUTOCOMPLETAR_UNIDADE,
-        &instalacao,
-        &servida,
-        &tela.autocompletar,
-        &campos_da_consulta(&tela, "DESTINO"),
-    )
-    .unwrap();
-    let caminho_ajax = format!("/sei/{}", consulta.url().split_once("/sei/").unwrap().1);
-    let corpo_ajax = String::from_utf8(consulta.corpo().to_vec()).unwrap();
-    let resposta_ajax = anti_ies::processo_envio::autocompletar(
-        "POST",
-        &caminho_ajax,
-        &corpo_ajax,
-        &banco,
-        &origem,
-        cenario,
-    );
-    let itens = itens_do_autocompletar(&HtmlServido::de_teste(&resposta_ajax.corpo)).unwrap();
-    let escolhido = escolher_destino("DESTINO", &itens).unwrap();
-    let campos = campos_do_envio(&tela, &escolhido, true, true);
+    let mut escolhidos = Vec::new();
+    for sigla in siglas {
+        let consulta = derivar_consulta_ajax(
+            &AUTOCOMPLETAR_UNIDADE,
+            &instalacao,
+            &servida,
+            &tela.autocompletar,
+            &campos_da_consulta(&tela, sigla),
+        )
+        .unwrap();
+        let caminho_ajax = format!("/sei/{}", consulta.url().split_once("/sei/").unwrap().1);
+        let corpo_ajax = String::from_utf8(consulta.corpo().to_vec()).unwrap();
+        let resposta_ajax = anti_ies::processo_envio::autocompletar(
+            "POST",
+            &caminho_ajax,
+            &corpo_ajax,
+            &banco,
+            &origem,
+            cenario,
+        );
+        let itens = itens_do_autocompletar(&HtmlServido::de_teste(&resposta_ajax.corpo)).unwrap();
+        escolhidos.push(escolher_destino(sigla, &itens).unwrap());
+    }
+    let campos = campos_do_envio(&tela, &escolhidos, true, true);
     let pares: Vec<_> = campos.iter().map(|(k, v)| (*k, v.as_str())).collect();
     let submissao =
         derivar_submissao(&ENVIAR_PROCESSO, &instalacao, &servida, None, &pares).unwrap();
@@ -130,7 +149,10 @@ fn formulario_real_do_ies_tramita_e_confere_estado_do_anti_ies() {
         id
     ));
     let depois = ler(&banco, &origem, cenario, id).unwrap().unwrap();
-    assert_eq!(depois.aberto_em, ["ORIGEM", "DESTINO"]);
+    let esperado = std::iter::once("ORIGEM")
+        .chain(siglas.iter().copied())
+        .collect::<Vec<_>>();
+    assert_eq!(depois.aberto_em, esperado);
     assert_eq!(depois.anotacao_origem.as_deref(), Some(""));
     let anotacao_depois =
         anti_ies::processo_envio::responder("GET", &caminho_anotacao, "", &banco, &origem, cenario);
@@ -153,7 +175,7 @@ fn formulario_real_do_ies_tramita_e_confere_estado_do_anti_ies() {
     };
     assert_eq!(
         unidades.into_iter().map(|u| u.sigla).collect::<Vec<_>>(),
-        ["ORIGEM", "DESTINO"]
+        esperado
     );
 }
 
