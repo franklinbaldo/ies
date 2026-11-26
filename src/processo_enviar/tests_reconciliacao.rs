@@ -214,10 +214,7 @@ fn leitura_que_falha_e_nao_confirmado_sem_retry() {
 
 #[test]
 fn dois_destinos_exigem_releitura_integral() {
-    for (depois, completo) in [
-        (&[DESTINO, "OUTRA"][..], true),
-        (&[DESTINO][..], false),
-    ] {
+    for (depois, completo) in [(&[DESTINO, "OUTRA"][..], true), (&[DESTINO][..], false)] {
         let amb = ambiente();
         let roteiro = com(
             abertura(arvore(&[UNIDADE], &enviar())),
@@ -295,5 +292,9 @@ fn segundo_destino_invalido_interrompe_sem_escrita() {
         resultado,
         Err(super::ErroEnviar::DestinoNaoOferecidoPeloSei { .. })
     ));
-    assert!(!pedidos.iter().any(|p| p.corpo.as_deref().is_some_and(|c| c.contains("hdnUnidades="))));
+    assert!(!pedidos.iter().any(|p| {
+        p.corpo
+            .as_deref()
+            .is_some_and(|c| c.contains("hdnUnidades="))
+    }));
 }
