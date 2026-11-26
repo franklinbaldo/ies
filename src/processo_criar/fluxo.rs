@@ -345,8 +345,11 @@ pub(crate) fn criar_com_contagem<V: EnvioDoControle>(
     if let Some(hipotese) = observado.hipotese_legal.as_deref() {
         campos.push(("selHipoteseLegal", hipotese));
     }
-    let codificados =
-        valor_da_lupa(interessados.iter().map(|(id, nome)| (id.as_str(), nome.as_str())));
+    let codificados = valor_da_lupa(
+        interessados
+            .iter()
+            .map(|(id, nome)| (id.as_str(), nome.as_str())),
+    );
     if !interessados.is_empty() {
         campos.push(("hdnInteressadosProcedimento", codificados.as_str()));
     }
