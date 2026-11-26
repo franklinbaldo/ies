@@ -560,7 +560,7 @@ fn colheita_do_controle_nao_muda_a_sequencia_e_guarda_o_link_da_pesquisa() {
 }
 
 // Hipótese sintética: a cassette UnB não comprova POST só com filtros.
-fn tela_com_filtros(html: String) -> String {
+fn tela_com_filtros(html: &str) -> String {
     html.replace(
         "<div id=\"conteudo\">",
         "<select name='selTipoProcedimentoPesquisa'><option value='73'>Administrativo</option></select>\
@@ -590,9 +590,9 @@ fn sem_protocolo_envia_tipo_e_data_nos_dois_posts() {
     };
     let mut roteiro = Roteiro::novo(vec![
         ok(controle_com_menu()),
-        ok(tela_com_filtros(tela_de_pesquisa())),
-        ok(tela_com_filtros(resultado("", 1, 10, "20"))),
-        ok(tela_com_filtros(resultado("", 11, 20, "20"))),
+        ok(tela_com_filtros(&tela_de_pesquisa())),
+        ok(tela_com_filtros(&resultado("", 1, 10, "20"))),
+        ok(tela_com_filtros(&resultado("", 11, 20, "20"))),
     ]);
     let busca = buscar_colhendo_filtrado::<EmProcessos, _>(
         &sessao,
