@@ -121,6 +121,16 @@ pub(crate) struct MarcadorDeResultado {
     pub(crate) classe: &'static str,
 }
 
+/// Valor do oculto reescrito pelo infraLupaSelect: IDs e rótulos na
+/// ordem selecionada, antes da codificação no charset do formulário.
+pub(crate) fn valor_da_lupa<'a>(itens: impl IntoIterator<Item = (&'a str, &'a str)>) -> String {
+    itens
+        .into_iter()
+        .map(|(id, nome)| format!("{id}±{nome}"))
+        .collect::<Vec<_>>()
+        .join("¥")
+}
+
 /// Charset declarado pela resposta que serviu a tela.
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub(crate) enum CodificacaoDaTela {

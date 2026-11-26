@@ -91,18 +91,29 @@ fn post_derivado_com_dois_destinos_no_mesmo_campo() {
             let campos = campos_do_envio(&tela, &[destino(), segundo], manter, false);
             let pares: Vec<(&str, &str)> = campos.iter().map(|(n, v)| (*n, v.as_str())).collect();
             let url = url_da_tela();
-            let servida = TelaServida {
-                url: &url,
-                html: &html,
-                codificacao: CodificacaoDaTela::Iso88591,
-            };
-            let s =
-                derivar_submissao(&ENVIAR_PROCESSO, &instalacao(), &servida, None, &pares).unwrap();
-            let esperado = format!(
-                "{}%A5110000003%B1TESTE_1_2+-+Se%E7%E3o",
-                corpo_do_envio(versao, manter)
-            );
-            assert_eq!(String::from_utf8(s.corpo().to_vec()).unwrap(), esperado);
+            let singular = corpo_do_envio(versao, manter);
+            for (codificacao, esperado) in [
+                (
+                    CodificacaoDaTela::Iso88591,
+                    format!("{singular}%A5110000003%B1TESTE_1_2+-+Se%E7%E3o"),
+                ),
+                (
+                    CodificacaoDaTela::Utf8,
+                    format!(
+                        "{}%C2%A5110000003%C2%B1TESTE_1_2+-+Se%C3%A7%C3%A3o",
+                        singular.replace("%B1", "%C2%B1")
+                    ),
+                ),
+            ] {
+                let servida = TelaServida {
+                    url: &url,
+                    html: &html,
+                    codificacao,
+                };
+                let s = derivar_submissao(&ENVIAR_PROCESSO, &instalacao(), &servida, None, &pares)
+                    .unwrap();
+                assert_eq!(String::from_utf8(s.corpo().to_vec()).unwrap(), esperado);
+            }
         }
     }
 }
