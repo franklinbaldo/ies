@@ -192,14 +192,6 @@ pub(crate) fn resolver<V: EnvioDoControle>(
     Ok(resultados)
 }
 
-pub(crate) fn valor_da_lupa(itens: &[(String, String)]) -> String {
-    itens
-        .iter()
-        .map(|(id, nome)| format!("{id}±{nome}"))
-        .collect::<Vec<_>>()
-        .join("¥")
-}
-
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -252,10 +244,7 @@ mod tests {
     #[test]
     fn codificacao_da_lupa_preserva_ids_e_nomes() {
         assert_eq!(
-            valor_da_lupa(&[
-                ("1".into(), "Pessoa A".into()),
-                ("2".into(), "Pessoa B".into())
-            ]),
+            crate::formulario_web::valor_da_lupa([("1", "Pessoa A"), ("2", "Pessoa B")]),
             "1±Pessoa A¥2±Pessoa B"
         );
     }

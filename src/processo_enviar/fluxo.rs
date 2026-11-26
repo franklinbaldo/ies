@@ -89,9 +89,24 @@ pub(crate) fn enviar_processo<V: EnvioDoProcesso>(
     } else {
         (None, None, None)
     };
-    let destino = consultar_destino(&mut rede, &cookie, &instalacao, &tela, pedido.para)?;
-    if aberto_em.contains(&destino.sigla) {
-        return Err(ErroEnviar::ProcessoJaAbertoNoDestino { aberto_em });
+    let mut destinos: Vec<Destino> = Vec::new();
+    for sigla in std::iter::once(pedido.para).chain(pedido.outros.iter().copied()) {
+        let destino = consultar_destino(&mut rede, &cookie, &instalacao, &tela, sigla)?;
+        if aberto_em.contains(&destino.sigla) {
+            return Err(ErroEnviar::ProcessoJaAbertoNoDestino { aberto_em });
+        }
+        if destinos.iter().any(|d| d.id_unidade == destino.id_unidade) {
+            continue;
+        }
+        if let Some(anterior) = destinos
+            .iter()
+            .find(|d| d.sigla.eq_ignore_ascii_case(&destino.sigla))
+        {
+            return Err(ErroEnviar::VariosDestinosComASigla {
+                candidatos: vec![anterior.descricao.clone(), destino.descricao],
+            });
+        }
+        destinos.push(destino);
     }
     let feito = ProcessoEnviado {
         nup: pedido.nup.as_str().to_owned(),
@@ -105,7 +120,7 @@ pub(crate) fn enviar_processo<V: EnvioDoProcesso>(
                 antes: lida.presente,
             }),
         anotacao_depois: None,
-        destino,
+        destinos,
         aberto_em,
         desfecho: DesfechoDoEnvio::Previa,
         requisicoes: rede.feitas(),
@@ -181,7 +196,7 @@ fn submeter_envio<V: EnvioDoProcesso>(
 ) -> Result<Option<FalhaDoEnvio>, ErroEnviar> {
     let campos = campos_do_envio(
         &tela.conferida,
-        &feito.destino,
+        &feito.destinos,
         pedido.manter_aberto,
         feito.metodo_remocao() == Some(MetodoRemocao::CheckboxNoEnvio),
     );
@@ -494,7 +509,11 @@ fn conciliar(
             verificacao: Box::new(verificacao),
         });
     };
-    if !depois.contains(&feito.destino.sigla) {
+    if !feito
+        .destinos
+        .iter()
+        .all(|destino| depois.contains(&destino.sigla))
+    {
         return Err(ErroEnviar::EnvioNaoAplicado {
             aberto_em: feito.aberto_em,
             depois,

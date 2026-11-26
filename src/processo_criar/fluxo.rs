@@ -4,7 +4,7 @@ use crate::acao_do_sei::AcaoDoSei;
 use crate::formulario_web::{
     ConferenciaDaUnidade, EfeitoAvaliado, EnvioDoFormulario, EstadoDeSessao, EstadoDoProcesso,
     OperacaoDeFormulario, RespostaDoEnvio, ResultadoDoEnvio, TelaServida, derivar_submissao,
-    enviar_submissao_via,
+    enviar_submissao_via, valor_da_lupa,
 };
 use crate::instalacao::Instalacao;
 use crate::pagina_do_controle::codificacao_da_tela;
@@ -12,7 +12,7 @@ use crate::processo_criar_cadastro::{
     ErroCadastro, conferir_cadastro, conferir_cadastro_com_ajax_pendente,
 };
 use crate::processo_criar_hipotese::{ErroHipotese, resolver as resolver_hipotese};
-use crate::processo_criar_interessados::{resolver as resolver_interessados, valor_da_lupa};
+use crate::processo_criar_interessados::resolver as resolver_interessados;
 use crate::processo_criar_lista::{ErroListaDeTipos, EscolhaDoTipo, tipo_na_lista};
 use crate::processo_criar_menu::link_de_iniciar;
 
@@ -345,7 +345,11 @@ pub(crate) fn criar_com_contagem<V: EnvioDoControle>(
     if let Some(hipotese) = observado.hipotese_legal.as_deref() {
         campos.push(("selHipoteseLegal", hipotese));
     }
-    let codificados = valor_da_lupa(&interessados);
+    let codificados = valor_da_lupa(
+        interessados
+            .iter()
+            .map(|(id, nome)| (id.as_str(), nome.as_str())),
+    );
     if !interessados.is_empty() {
         campos.push(("hdnInteressadosProcedimento", codificados.as_str()));
     }
