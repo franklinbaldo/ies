@@ -100,7 +100,7 @@ fn submissao(
     )?)
 }
 
-/// Forma literal observada em gerar_pdf_resposta.html; nunca executa script.
+/// Forma literal observada em `gerar_pdf_resposta.html`; nunca executa script.
 fn endereco_download(
     instalacao: &Instalacao,
     html: &HtmlServido,
@@ -159,30 +159,29 @@ fn gravar<R: Read>(
     let politica = Politica::exclusiva()
         .diretorio_do_usuario()
         .com_limite(limite.bytes());
-    let mut prefixo = [0u8; 5];
-    let n = match formato {
-        Formato::Pdf => 5,
-        Formato::Zip => 4,
+    let mut pdf = [0u8; 5];
+    let mut zip = [0u8; 4];
+    let prefixo: &mut [u8] = match formato {
+        Formato::Pdf => &mut pdf,
+        Formato::Zip => &mut zip,
     };
-    resposta.corpo.read_exact(&mut prefixo[..n])?;
-    ensure!(
-        formato.assinatura(&prefixo[..n]),
-        "AssinaturaDoDownloadDivergente"
-    );
+    resposta.corpo.read_exact(prefixo)?;
+    ensure!(formato.assinatura(prefixo), "AssinaturaDoDownloadDivergente");
     let mut parcial = Parcial::abrir(saida, politica)?;
     let mut hash = Sha256::new();
-    parcial.escrever(&prefixo[..n])?;
-    hash.update(&prefixo[..n]);
-    let mut tamanho = n as u64;
+    parcial.escrever(prefixo)?;
+    hash.update(prefixo);
+    let mut tamanho = u64::try_from(prefixo.len())?;
     let mut bloco = [0u8; 16 * 1024];
     loop {
         let lido = resposta.corpo.read(&mut bloco)?;
         if lido == 0 {
             break;
         }
-        parcial.escrever(&bloco[..lido])?;
-        hash.update(&bloco[..lido]);
-        tamanho += lido as u64;
+        let bytes = bloco.get(..lido).context("LeituraAcimaDoBloco")?;
+        parcial.escrever(bytes)?;
+        hash.update(bytes);
+        tamanho += u64::try_from(lido)?;
     }
     let comprimentos = resposta.valores("content-length");
     ensure!(
