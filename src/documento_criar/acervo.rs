@@ -1,6 +1,7 @@
 //! Replay offline do cadastro de documento no acervo público de Goiás (#246).
 //! ZIP, membro, origem e integridade são conferidos antes da classificação.
 //! Só imprime contagens: nunca HTML, URL assinada ou cookie.
+use super::texto_padrao::{ErroTextoPadrao, url_publicada};
 use super::{conferir_cadastro, tipos_oferecidos};
 use crate::cassette::acervo::gravacao;
 use crate::cassette::{ZipDoAcervo, conferir_cassette_ate, html_da_resposta};
@@ -30,17 +31,33 @@ fn tipo_do_cadastro(html: &str) -> Option<String> {
     (!tipo.is_empty()).then_some(tipo)
 }
 
-#[test]
-#[ignore = "wip #246: requer ZIP público conferido em IES_ACERVO_CACHE, sem rede"]
-fn replay_documento_criar_go() {
-    let raiz = Path::new(env!("CARGO_MANIFEST_DIR"));
-    let cache = std::env::var_os("IES_ACERVO_CACHE").map_or_else(
+fn oferece_texto_padrao(servido: &HtmlServido) -> bool {
+    let dom = crate::tela_html::arvore(servido);
+    dom.com_id("frmDocumentoCadastro").any(|form| {
+        form.elementos("input").any(|campo| {
+            campo.atributo("name") == Some("rdoTextoInicial")
+                && campo.atributo("type") == Some("radio")
+                && campo.atributo("value") == Some("T")
+                && !campo.presente("disabled")
+        })
+    })
+}
+
+fn cache_acervo() -> std::path::PathBuf {
+    std::env::var_os("IES_ACERVO_CACHE").map_or_else(
         || {
             let home = std::env::var_os("HOME").expect("HOME ou IES_ACERVO_CACHE");
             Path::new(&home).join(".cache/ies")
         },
         std::path::PathBuf::from,
-    );
+    )
+}
+
+#[test]
+#[ignore = "wip #246: requer ZIP público conferido em IES_ACERVO_CACHE, sem rede"]
+fn replay_documento_criar_go() {
+    let raiz = Path::new(env!("CARGO_MANIFEST_DIR"));
+    let cache = cache_acervo();
     let zip = ZipDoAcervo::ler(&cache.join("todos-sei-cassettes-go.zip"))
         .expect("ZIP de Goiás não está no cache do acervo");
     let mut lidas = 0usize;
@@ -85,17 +102,8 @@ fn replay_documento_criar_go() {
                     cadastros += 1;
                     // Censo independente da declaração literal do autocomplete:
                     // presença de T no formulário original não prova consulta.
-                    let dom = crate::tela_html::arvore(&servido);
-                    let oferecido = dom.com_id("frmDocumentoCadastro").any(|form| {
-                        form.elementos("input").any(|campo| {
-                            campo.atributo("name") == Some("rdoTextoInicial")
-                                && campo.atributo("type") == Some("radio")
-                                && campo.atributo("value") == Some("T")
-                                && !campo.presente("disabled")
-                        })
-                    });
+                    let oferecido = oferece_texto_padrao(&servido);
                     radio_t += usize::from(oferecido);
-                    use super::texto_padrao::{ErroTextoPadrao, url_publicada};
                     match url_publicada(&servido) {
                         Ok(_) => {
                             assert!(oferecido, "autocomplete sem rádio T no cadastro");
@@ -107,7 +115,10 @@ fn replay_documento_criar_go() {
                         Err(ErroTextoPadrao::AutocompletarNaoDeclarado) => {
                             script_recusado += 1;
                         }
-                        Err(_) => panic!("classe inesperada no leitor de cadastro"),
+                        Err(erro) => panic!(
+                            "classe inesperada no leitor de cadastro: {:?}",
+                            std::mem::discriminant(&erro)
+                        ),
                     }
                     true
                 }),

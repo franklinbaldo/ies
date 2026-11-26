@@ -215,6 +215,17 @@ fn executar_com_cena(
     executar_em(&pasta, comandos, resposta_incerta, duplicar_tipo)
 }
 
+fn acao_da_rota(rota: &str) -> &str {
+    rota.split_once('?')
+        .and_then(|(_, query)| {
+            query.split('&').find_map(|p| {
+                p.strip_prefix("acao=")
+                    .or_else(|| p.strip_prefix("acao_ajax="))
+            })
+        })
+        .unwrap_or("desconhecida")
+}
+
 fn executar_em(
     pasta: &Pasta,
     comandos: &[&[&str]],
@@ -264,15 +275,7 @@ fn executar_em(
             let metodo = primeira.split_whitespace().next().unwrap();
             let rota = primeira.split_whitespace().nth(1).unwrap();
             // Nunca registrar a URL: ela pode incluir credenciais de sessão.
-            let acao = rota
-                .split_once('?')
-                .and_then(|(_, query)| {
-                    query.split('&').find_map(|p| {
-                        p.strip_prefix("acao=")
-                            .or_else(|| p.strip_prefix("acao_ajax="))
-                    })
-                })
-                .unwrap_or("desconhecida");
+            let acao = acao_da_rota(rota);
             let mut backend = TcpStream::connect(destino).unwrap();
             backend.write_all(&bytes).unwrap();
             backend.shutdown(Shutdown::Write).unwrap();

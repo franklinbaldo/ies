@@ -62,5 +62,5 @@ fn confirmar_texto_padrao_ainda_recusa_antes_da_rede() {
         resultado,
         Err(ErroDocumentoCriar::ConfirmacaoDeTextoPadraoAindaNaoDisponivel)
     ));
-    assert!(pedidos.is_empty());
+    assert_eq!(pedidos, [] as [crate::processo_concluir::tests_apoio::Pedido; 0]);
 }
