@@ -160,11 +160,7 @@ fn executar(
     );
     let cookie = pasta.privado("cookie", "PHPSESSID=FICTICIO");
     let pdf = pasta.0.join("peticao.pdf");
-    fs::write(
-        &pdf,
-        pdf_de_teor.unwrap_or(b"%PDF-1.4\n1 0 obj\n%%EOF\n"),
-    )
-    .unwrap();
+    fs::write(&pdf, pdf_de_teor.unwrap_or(b"%PDF-1.4\n1 0 obj\n%%EOF\n")).unwrap();
 
     let escuta = TcpListener::bind(("127.0.0.1", 0)).unwrap();
     escuta.set_nonblocking(true).unwrap();
