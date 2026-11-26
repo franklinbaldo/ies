@@ -1,0 +1,173 @@
+//! Consulta de texto padrão publicado no cadastro; não cria documento.
+use crate::formulario_web::{
+    ConsultaAjax, EfeitoAvaliado, ErroSubmissaoFormulario, TelaServida, derivar_consulta_ajax,
+    localizar_formulario,
+};
+use crate::instalacao::Instalacao;
+use crate::resposta_ajax::{ErroXml, RespostaAjax};
+use crate::tela_html::HtmlServido;
+use crate::transporte::{FalhaTransporte, ler_limitado};
+use crate::visao_do_controle::EnvioDoControle;
+
+const PREFIXO: &str = "objAutoCompletarTextoPadrao = new infraAjaxAutoCompletar('hdnIdTextoPadrao','txtTextoPadrao','";
+const CONSULTA: ConsultaAjax = ConsultaAjax {
+    acao_ajax: crate::acao_do_sei::AcaoAjaxDoSei::TextoPadraoAutoCompletar,
+    campos: &["palavras_pesquisa"],
+    efeito: EfeitoAvaliado::ConsultaSemEfeitoObservado {
+        evidencia: "Todos documento_gerar.html: consulta de opções de texto padrão",
+    },
+};
+
+#[derive(Debug, serde::Serialize)]
+pub(crate) struct TextoPadrao {
+    pub(crate) id: String,
+    pub(crate) nome: String,
+}
+
+#[derive(Debug, thiserror::Error)]
+#[error("{self:?}")]
+pub(crate) enum ErroTextoPadrao {
+    ControlesNaoOferecidos,
+    AutocompletarNaoDeclarado,
+    Formulario(#[from] ErroSubmissaoFormulario),
+    Transporte(#[from] FalhaTransporte),
+    Corpo(#[from] crate::transporte::corpo::ErroCorpoHttp),
+    Xml(#[from] ErroXml),
+    RespostaNaoReconhecida,
+    NaoOferecido,
+    Ambiguo,
+}
+
+fn url_publicada(html: &HtmlServido) -> Result<String, ErroTextoPadrao> {
+    let dom = crate::tela_html::arvore(html);
+    let form = localizar_formulario(&dom, "frmDocumentoCadastro")?;
+    for (nome, tipo, valor) in [
+        ("rdoTextoInicial", "radio", Some("T")),
+        ("txtTextoPadrao", "text", None),
+        ("hdnIdTextoPadrao", "hidden", None),
+    ] {
+        let controles: Vec<_> = form
+            .elementos("input")
+            .filter(|campo| {
+                campo.atributo("name") == Some(nome)
+                    && campo.atributo("type") == Some(tipo)
+                    && valor.is_none_or(|v| campo.atributo("value") == Some(v))
+            })
+            .collect();
+        if !matches!(controles.as_slice(), [campo] if !campo.presente("disabled")) {
+            return Err(ErroTextoPadrao::ControlesNaoOferecidos);
+        }
+    }
+    let mut urls = Vec::new();
+    for script in dom.elementos("script") {
+        if script.presente("src")
+            || script
+                .atributo("type")
+                .is_some_and(|tipo| !tipo.trim().eq_ignore_ascii_case("text/javascript"))
+        {
+            continue;
+        }
+        let texto = script.texto();
+        urls.extend(
+            texto
+                .lines()
+                .filter_map(|linha| linha.trim().strip_prefix(PREFIXO))
+                .filter_map(|resto| resto.strip_suffix("');"))
+                .map(str::to_owned),
+        );
+    }
+    match urls.as_slice() {
+        [url] if url.starts_with("controlador_ajax.php?") => Ok(url.clone()),
+        _ => Err(ErroTextoPadrao::AutocompletarNaoDeclarado),
+    }
+}
+
+/// Nome exato, não busca parcial; mantém o ID e a descrição da mesma opção.
+fn selecionar(xml: &str, nome: &str) -> Result<TextoPadrao, ErroTextoPadrao> {
+    let resposta = RespostaAjax::ler(xml)?;
+    let raizes = resposta.elementos("itens");
+    let [raiz] = raizes.as_slice() else {
+        return Err(ErroTextoPadrao::RespostaNaoReconhecida);
+    };
+    let mut selecionado = None;
+    for item in raiz.descendentes("item") {
+        let (Some(id), Some(descricao)) = (item.atributo("id"), item.atributo("descricao")) else {
+            return Err(ErroTextoPadrao::RespostaNaoReconhecida);
+        };
+        if id.is_empty() || descricao.is_empty() {
+            return Err(ErroTextoPadrao::RespostaNaoReconhecida);
+        }
+        if descricao == nome {
+            if selecionado.is_some() {
+                return Err(ErroTextoPadrao::Ambiguo);
+            }
+            selecionado = Some(TextoPadrao {
+                id: id.to_owned(),
+                nome: descricao.to_owned(),
+            });
+        }
+    }
+    selecionado.ok_or(ErroTextoPadrao::NaoOferecido)
+}
+
+pub(super) fn resolver<V: EnvioDoControle>(
+    envio: &mut V,
+    instalacao: &Instalacao,
+    tela: &TelaServida<'_>,
+    cookie: &str,
+    nome: &str,
+) -> Result<TextoPadrao, ErroTextoPadrao> {
+    let url = url_publicada(tela.html)?;
+    // Hipótese WIP: mantém o charset da tela, como as demais consultas.
+    // A captura JS não prova os bytes efetivamente recebidos pelo SEI.
+    let consulta = derivar_consulta_ajax(
+        &CONSULTA,
+        instalacao,
+        tela,
+        &url,
+        &[("palavras_pesquisa", nome)],
+    )?;
+    let resposta = envio.post(consulta, cookie)?.resposta;
+    if resposta.status_code != 200 {
+        return Err(crate::transporte::recusar_status(resposta).into());
+    }
+    if !matches!(
+        resposta.mime.split(';').next().unwrap_or_default().trim(),
+        "application/xml" | "text/xml"
+    ) {
+        return Err(ErroTextoPadrao::RespostaNaoReconhecida);
+    }
+    let bytes = ler_limitado(resposta.corpo, crate::MAX_HTML_BYTES)?;
+    let xml = HtmlServido::do_corpo(&bytes, &resposta.mime)?;
+    selecionar(&xml, nome)
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn nome_exato_preserva_id_opaco_e_entidades() {
+        let xml = "<itens><item id='007' descricao='A &amp; B'/><item id='8' descricao='A'/></itens>";
+        let texto = selecionar(xml, "A & B").unwrap();
+        assert_eq!(texto.id, "007");
+        assert_eq!(texto.nome, "A & B");
+        assert!(matches!(
+            selecionar(xml, "B"),
+            Err(ErroTextoPadrao::NaoOferecido)
+        ));
+    }
+
+    #[test]
+    fn homonimos_e_resposta_sem_id_sao_recusados() {
+        let xml = "<itens><item id='1' descricao='A'/><item id='2' descricao='A'/></itens>";
+        assert!(matches!(
+            selecionar(xml, "A"),
+            Err(ErroTextoPadrao::Ambiguo)
+        ));
+        assert!(matches!(
+            selecionar("<itens><item descricao='A'/></itens>", "A"),
+            Err(ErroTextoPadrao::RespostaNaoReconhecida)
+        ));
+    }
+}

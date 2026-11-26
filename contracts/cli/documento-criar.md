@@ -31,6 +31,8 @@ campos e nível solicitado. A prévia não envia POST de criação. Uma
 eventual leitura por POST (`hdnFiltroSerie=T`) exige declaração de
 efeito separada e contagem; `documento_gerar_multiplo` não é leitura.
 
+WIP #872: `--texto-padrao NOME` apenas na prévia; seleção exata e única, JSON `texto_padrao` com `id` e `nome`. Charset e XML ainda não confrontados com cassettes originais. Incompatível com `--confirmar`.
+
 ## Confirmação
 
 Antes do primeiro POST de escrita, todas as recusas precisam estar

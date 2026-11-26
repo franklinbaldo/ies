@@ -98,6 +98,7 @@ fn executar(
             tipo: "Despacho",
             descricao: Some("Ensaio"),
             nivel: Some(crate::dominio::NivelDeAcesso::Publico),
+            texto_padrao: None,
         };
         executar_criacao(sessao, &pedido, indice, rede, confirmar)
     })
@@ -253,6 +254,7 @@ fn executar_com_cadastro_sintetico(
             tipo: "Despacho",
             descricao: Some("Ensaio"),
             nivel: Some(crate::dominio::NivelDeAcesso::Publico),
+            texto_padrao: None,
         };
         executar_criacao(sessao, &pedido, indice, rede, true)
     })
@@ -285,6 +287,7 @@ fn botao_salvar_sem_name_conserva_post_unico_e_releitura() {
             tipo: "Despacho",
             descricao: Some("Ensaio"),
             nivel: Some(crate::dominio::NivelDeAcesso::Publico),
+            texto_padrao: None,
         };
         executar_criacao(sessao, &pedido, indice, rede, true)
     });
@@ -373,6 +376,7 @@ fn incerteza_conserva_contagem_da_rede_externa() {
                 tipo: "Despacho",
                 descricao: Some("Ensaio"),
                 nivel: Some(crate::dominio::NivelDeAcesso::Publico),
+                texto_padrao: None,
             };
             let mut contagem = Contador::novo(envio);
             let resultado = executar_criacao(sessao, &pedido, indice, &mut contagem, true);
@@ -404,3 +408,6 @@ fn controle_salvar_e_formulario_servidos_nao_dependem_de_interpretar_js() {
     ));
     assert!(cadastro_oferece_salvar(&html));
 }
+
+#[path = "tests_texto_padrao.rs"]
+mod tests_texto_padrao;

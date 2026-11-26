@@ -24,6 +24,7 @@ pub(crate) fn tentar_criar(cli: &Cli) -> Option<anyhow::Result<()>> {
                 tipo,
                 descricao,
                 nivel,
+                texto_padrao,
                 confirmar,
             }),
         ..
@@ -50,6 +51,7 @@ pub(crate) fn tentar_criar(cli: &Cli) -> Option<anyhow::Result<()>> {
             tipo,
             descricao: descricao.as_deref(),
             nivel: *nivel,
+            texto_padrao: texto_padrao.as_deref(),
         };
         // A contagem externa sobrevive ao erro, inclusive depois do POST.
         let mut envio = EnvioHttps;
@@ -116,7 +118,7 @@ fn resultado_json(resultado: &ResultadoCriacao) -> serde_json::Value {
         EstadoCriacao::Previa => None,
         EstadoCriacao::Criado { numero_sei } => Some(numero_sei.as_str()),
     };
-    json!({
+    let mut saida = json!({
         "nup": resultado.nup,
         "tipo": resultado.tipo,
         "descricao": resultado.descricao,
@@ -127,7 +129,11 @@ fn resultado_json(resultado: &ResultadoCriacao) -> serde_json::Value {
         "alterado": numero_sei.is_some(),
         "numero_sei": numero_sei,
         "requisicoes": resultado.requisicoes
-    })
+    });
+    if let Some(texto) = &resultado.texto_padrao {
+        saida["texto_padrao"] = json!(texto);
+    }
+    saida
 }
 
 fn publicar_resultado(
@@ -167,6 +173,9 @@ fn publicar_resultado(
     if let Some(nivel) = resultado.nivel {
         println!("Nível: {}", nivel.como_texto());
     }
+    if let Some(texto) = &resultado.texto_padrao {
+        println!("Texto padrão: {} (ID {})", texto.nome, texto.id);
+    }
     if let Some(copia) = copia {
         println!("Cópia editável: {}", copia.arquivo);
         if let Some(orientacao) = copia.orientacao {
@@ -191,6 +200,7 @@ mod tests {
             descricao: Some("Ensaio de despacho".to_owned()),
             nivel: Some(crate::dominio::NivelDeAcesso::Publico),
             requisicoes: 5,
+            texto_padrao: None,
             estado: EstadoCriacao::Previa,
         };
         let saida = resultado_json(&resultado);

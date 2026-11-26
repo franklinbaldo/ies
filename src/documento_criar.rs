@@ -5,6 +5,7 @@ mod cadastro;
 mod confirmacao;
 pub(crate) use confirmacao::redirecionamento_do_mesmo_controlador;
 mod fluxo;
+mod texto_padrao;
 mod guarda_navegacao;
 mod guarda_script;
 pub(crate) use cadastro::conferir_cadastro;
