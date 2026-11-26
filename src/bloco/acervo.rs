@@ -239,21 +239,15 @@ fn conferir_derivacao_do_cadastro(
         html,
         codificacao,
     };
-    let submissao = crate::bloco_cli::criar::derivar_cadastro(
-        &origem,
-        &tela,
-        &unidade,
-        "Teste IES",
-        grupo,
-    )
-    .expect("derivação do cadastro original");
+    let submissao =
+        crate::bloco_cli::criar::derivar_cadastro(&origem, &tela, &unidade, "Teste IES", grupo)
+            .expect("derivação do cadastro original");
     for nome in [campo, "selGrupoBloco", "sbmCadastrarBloco"] {
         assert!(
             submissao.nomes_dos_campos().iter().any(|n| n == nome),
             "campo não derivado: {nome}"
         );
     }
-
 }
 
 // A testemunha anterior é a última lista GET antes do cadastro; a
