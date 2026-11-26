@@ -134,7 +134,7 @@ fn termo_alargado_e_o_ultimo_segmento_sem_o_numero() {
 #[test]
 fn filtro_pelo_orgao_acha_na_primeira_consulta() {
     let (r, feitos) = no_go(ABC, vec![da_abc()]);
-    assert_eq!(r.unwrap().destino, destino_abc());
+    assert_eq!(r.unwrap().destinos[0], destino_abc());
     assert_eq!(feitos, pedidos_da_busca(&[filtrada()]));
 }
 
@@ -148,7 +148,7 @@ fn alargado_no_orgao_e_a_segunda_consulta() {
     ]);
     for no_orgao in [vazia(), gecont_de_outros()] {
         let (r, feitos) = no_go(ABC, vec![no_orgao, com_a_abc.clone()]);
-        assert_eq!(r.unwrap().destino.id_unidade, "18141");
+        assert_eq!(r.unwrap().destinos[0].id_unidade, "18141");
         assert_eq!(feitos, pedidos_da_busca(&[filtrada(), filtrada_alargada()]));
     }
 }
@@ -156,7 +156,7 @@ fn alargado_no_orgao_e_a_segunda_consulta() {
 #[test]
 fn sem_a_sigla_no_orgao_volta_ao_orgao_da_tela() {
     let (r, feitos) = no_go(ABC, vec![vazia(), gecont_de_outros(), da_abc()]);
-    assert_eq!(r.unwrap().destino, destino_abc());
+    assert_eq!(r.unwrap().destinos[0], destino_abc());
     assert_eq!(
         feitos,
         pedidos_da_busca(&[filtrada(), filtrada_alargada(), inteira()])
@@ -171,7 +171,7 @@ fn quatro_consultas_no_maximo_e_so_a_sigla_exata() {
     ]);
     let quatro = pedidos_da_busca(&[filtrada(), filtrada_alargada(), inteira(), alargada()]);
     let (r, feitos) = no_go(ABC, vec![vazia(), vazia(), vazia(), com_a_abc]);
-    assert_eq!(r.unwrap().destino.id_unidade, "18141");
+    assert_eq!(r.unwrap().destinos[0].id_unidade, "18141");
     assert_eq!(feitos, quatro);
     // Inexistente (o `ABC/GECONT-18141` do GO, medido pelo Todos): não
     // oferecido, com a lista da última resposta (a alargada no da tela).
@@ -258,20 +258,20 @@ fn sem_orgao_do_prefixo_a_busca_e_no_orgao_da_tela() {
     let sigla = "CASACIVIL/GECONT-18148";
     let codificada = "CASACIVIL%2FGECONT-18148";
     let (r, feitos) = no_go(sigla, vec![gecont_de_outros()]);
-    assert_eq!(r.unwrap().destino.id_unidade, "18148");
+    assert_eq!(r.unwrap().destinos[0].id_unidade, "18148");
     assert_eq!(
         feitos,
         pedidos_da_busca(&[corpo_da_consulta_com(codificada, "")])
     );
     let (r, feitos) = no_go(sigla, vec![vazia(), gecont_de_outros()]);
-    assert_eq!(r.unwrap().destino.id_unidade, "18148");
+    assert_eq!(r.unwrap().destinos[0].id_unidade, "18148");
     assert_eq!(
         feitos,
         pedidos_da_busca(&[corpo_da_consulta_com(codificada, ""), alargada()])
     );
     let outra = resposta_xml(&[("12318", "CASACIVIL/COMSET-12318 - Outra")]);
     let (r, feitos) = no_go(sigla, vec![outra, gecont_de_outros()]);
-    assert_eq!(r.unwrap().destino.id_unidade, "18148");
+    assert_eq!(r.unwrap().destinos[0].id_unidade, "18148");
     assert_eq!(
         feitos,
         pedidos_da_busca(&[corpo_da_consulta_com(codificada, ""), alargada()])

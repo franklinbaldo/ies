@@ -17,6 +17,7 @@ use crate::consulta_do_controlador::ConsultaDoControlador;
 use crate::formulario_web::{
     ConferenciaDaUnidade, ConsultaAjax, EfeitoAvaliado, EnvioDoFormulario, EstadoDoProcesso,
     OperacaoDeFormulario, ResultadoDoEnvio, consulta_do_controlador, localizar_formulario,
+    valor_da_lupa,
 };
 
 pub(crate) const FORMULARIO_DE_ENVIO: &str = "frmAtividadeListar";
@@ -294,10 +295,11 @@ pub(crate) fn campos_da_consulta_no_orgao<'a>(
 
 /// Os pares do usuário e o `hdnUnidades` reescrito (a forma
 /// `ID±DESCRIÇÃO` do `infraLupaSelect`); o primitivo os põe na ordem do
-/// documento.
+/// documento. O Todos relata `¥` entre destinos no PEN1; o corpo original
+/// não foi capturado. A forma plural ainda precisa de ensaio Web.
 pub(crate) fn campos_do_envio(
     tela: &TelaDeEnvio,
-    destino: &Destino,
+    destinos: &[Destino],
     manter_aberto: bool,
     remover_anotacoes: bool,
 ) -> Vec<(&'static str, String)> {
@@ -314,7 +316,11 @@ pub(crate) fn campos_do_envio(
     campos.extend(tela.textos.iter().map(|texto| (*texto, String::new())));
     campos.push((
         UNIDADES,
-        format!("{}\u{b1}{}", destino.id_unidade, destino.descricao),
+        valor_da_lupa(
+            destinos
+                .iter()
+                .map(|destino| (destino.id_unidade.as_str(), destino.descricao.as_str())),
+        ),
     ));
     campos
 }
