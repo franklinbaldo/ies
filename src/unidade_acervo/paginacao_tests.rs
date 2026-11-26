@@ -169,3 +169,111 @@ fn paginador_reescreve_indice_e_preserva_ocultos_da_tela_atual() {
     let ausente = HtmlServido::de_teste(&html.as_str().replace("hdnInfraPaginaAtual", "outro"));
     assert!(formulario_da_pagina(&inst, &tela_iso(&url, &ausente), "U", 1).is_err());
 }
+
+
+#[derive(Debug, thiserror::Error)]
+#[error("{self:?}")]
+enum ErroEnvioPagina {
+    Submissao(#[from] ErroSubmissaoFormulario),
+    Redirecionamento,
+}
+
+/// Conserva a URL do POST e o MIME da resposta para a próxima derivação.
+/// Reutiliza todas as verificações do envio comum, sem repetir a requisição.
+fn enviar_pagina_via<R: std::io::Read>(
+    submissao: SubmissaoDerivada,
+    cookie: &crate::transporte::sessao::CookieDaSessao,
+    enviar: impl FnOnce(
+        SubmissaoDerivada,
+        &str,
+    ) -> Result<crate::formulario_web::RespostaDoPost<R>, crate::transporte::FalhaTransporte>,
+) -> Result<(String, String, HtmlServido), ErroEnvioPagina> {
+    use crate::formulario_web::{RespostaDoEnvio, enviar_submissao_via};
+    let url = submissao.url().to_owned();
+    let mut mime = String::new();
+    let resposta = enviar_submissao_via(submissao, cookie, |post, cookie| {
+        let resposta = enviar(post, cookie)?;
+        mime.clone_from(&resposta.resposta.mime);
+        Ok(resposta)
+    })?;
+    match resposta {
+        RespostaDoEnvio::Html(html) => Ok((url, mime, html)),
+        RespostaDoEnvio::Redirecionamento(_) => Err(ErroEnvioPagina::Redirecionamento),
+    }
+}
+
+#[test]
+fn dois_posts_usam_url_e_charset_da_resposta_imediatamente_anterior() {
+    use crate::formulario_web::tests::{HASH_TELA, instalacao, tela_iso};
+    use crate::transporte::sessao::CookieDaSessao;
+    use crate::transporte::testes_http::resposta_post;
+
+    let caminho = std::env::temp_dir().join(format!(
+        "ies-acervo-{}-{}",
+        std::process::id(),
+        std::time::SystemTime::now()
+            .duration_since(std::time::UNIX_EPOCH)
+            .unwrap()
+            .as_nanos()
+    ));
+    std::fs::write(&caminho, "PHPSESSID=SINTETICO").unwrap();
+    #[cfg(unix)]
+    {
+        use std::os::unix::fs::PermissionsExt;
+        std::fs::set_permissions(&caminho, std::fs::Permissions::from_mode(0o600)).unwrap();
+    }
+    let cookie = CookieDaSessao::ler(&caminho);
+    let inst = instalacao();
+    let form = |hash: &str, indice: usize| {
+        format!(
+            "<form id='frmEstatisticasLista' method='post' action='controlador.php?acao=estatisticas_detalhar_unidade&amp;infra_hash={hash}'>\
+             <input type='hidden' name='hdnInfraPaginaAtual' value='{indice}'>\
+             <input type='hidden' name='hdnFiltro' value='ação'></form>"
+        )
+    };
+    let hash1 = "b".repeat(64);
+    let hash2 = "c".repeat(64);
+    let url = format!(
+        "https://sei.exemplo.gov.br/sei/controlador.php?acao=estatisticas_detalhar_unidade&infra_hash={HASH_TELA}"
+    );
+    let html = HtmlServido::de_teste(&form(&hash1, 0));
+    let primeiro = formulario_da_pagina(&inst, &tela_iso(&url, &html), "U", 1).unwrap();
+    let (url1, mime1, html1) = enviar_pagina_via(primeiro, &cookie, |post, _| {
+        assert_eq!(post.referer(), url);
+        assert_eq!(post.corpo(), b"hdnInfraPaginaAtual=1&hdnFiltro=a%E7%E3o");
+        Ok(resposta_post(
+            200,
+            "text/html; charset=utf-8",
+            form(&hash2, 1).into_bytes(),
+            None,
+            None,
+        ))
+    })
+    .unwrap();
+    assert!(url1.ends_with(&hash1));
+    let tela = TelaServida {
+        url: &url1,
+        html: &html1,
+        codificacao: crate::pagina_do_controle::codificacao_da_tela(&mime1).unwrap(),
+    };
+    let segundo = formulario_da_pagina(&inst, &tela, "U", 2).unwrap();
+    let (url2, _, _) = enviar_pagina_via(segundo, &cookie, |post, _| {
+        assert_eq!(post.referer(), url1);
+        assert_eq!(post.corpo(), b"hdnInfraPaginaAtual=2&hdnFiltro=a%C3%A7%C3%A3o");
+        Ok(resposta_post(
+            200,
+            "text/html; charset=utf-8",
+            form(&hash2, 2).into_bytes(),
+            None,
+            None,
+        ))
+    })
+    .unwrap();
+    assert!(url2.ends_with(&hash2));
+    let terceiro = formulario_da_pagina(&inst, &tela, "U", 2).unwrap();
+    let recusa = enviar_pagina_via(terceiro, &cookie, |_, _| {
+        Ok(resposta_post(302, "text/html", Vec::new(), None, None))
+    });
+    assert!(matches!(recusa, Err(ErroEnvioPagina::Redirecionamento)));
+    std::fs::remove_file(caminho).unwrap();
+}
