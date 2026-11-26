@@ -137,6 +137,12 @@ fn preparar_banco() -> (Connection, Instalacao) {
     (banco, origem)
 }
 
+enum Leitura {
+    Nenhuma,
+    Pdf,
+    Zip,
+}
+
 #[expect(
     clippy::too_many_lines,
     reason = "Bancada E2E reúne proxy TLS, servidor HTTP e processos reais"
@@ -144,7 +150,7 @@ fn preparar_banco() -> (Connection, Instalacao) {
 fn executar(
     incerteza: bool,
     somente_previa: bool,
-    com_leitura: bool,
+    leitura: Leitura,
 ) -> (Vec<Output>, Vec<String>, usize, Option<Vec<u8>>) {
     let pasta = Pasta::nova();
     let (cert, identidade_tls) = identidade(&pasta.0, "sei.test");
@@ -254,9 +260,22 @@ fn executar(
         destino_str,
         "--sem-cache",
     ];
+    let exportado = destino_arquivo.join("processo.zip");
+    let exportar = [
+        "--json",
+        "processo",
+        "exportar",
+        NUP,
+        "--formato",
+        "zip",
+        "--saida",
+        exportado.to_str().unwrap(),
+    ];
     let mut comandos = vec![&incluir[..], &consultar[..]];
-    if com_leitura {
-        comandos.push(&ler_pdf);
+    match leitura {
+        Leitura::Nenhuma => {}
+        Leitura::Pdf => comandos.push(&ler_pdf),
+        Leitura::Zip => comandos.push(&exportar),
     }
     let saidas = comandos
         .iter()
@@ -284,7 +303,10 @@ fn executar(
     tunel.join().unwrap();
     let total = servidor.join().unwrap();
     let eventos = trilha.lock().unwrap().clone();
-    let arquivo = fs::read(destino_arquivo.join("050000001.pdf")).ok();
+    let arquivo = match leitura {
+        Leitura::Zip => fs::read(exportado).ok(),
+        _ => fs::read(destino_arquivo.join("050000001.pdf")).ok(),
+    };
     (saidas, eventos, total, arquivo)
 }
 
@@ -300,7 +322,7 @@ fn json(saida: &Output) -> Value {
 
 #[test]
 fn bdd_332_03_binario_confirma_upload_cadastro_e_releitura_independente() {
-    let (saidas, eventos, total, _) = executar(false, false, false);
+    let (saidas, eventos, total, _) = executar(false, false, Leitura::Nenhuma);
     assert_eq!(
         saidas[0].status.code(),
         Some(0),
@@ -346,7 +368,7 @@ fn bdd_332_03_binario_confirma_upload_cadastro_e_releitura_independente() {
 
 #[test]
 fn bdd_332_04_resposta_sem_autoria_falha_sem_repetir_post() {
-    let (saidas, eventos, total, _) = executar(true, false, false);
+    let (saidas, eventos, total, _) = executar(true, false, Leitura::Nenhuma);
     falha(&saidas[0], "TentativaNaoComprovada");
     assert_eq!(total, 1, "efeito existiu mesmo com resposta adulterada");
     assert_eq!(
@@ -369,7 +391,7 @@ fn bdd_332_04_resposta_sem_autoria_falha_sem_repetir_post() {
 /// mas nenhuma linha de upload nem documento definitivo pode surgir.
 #[test]
 fn bdd_332_02_binario_consulta_previa_sem_upload_ou_cadastro() {
-    let (saidas, eventos, total, _) = executar(false, true, false);
+    let (saidas, eventos, total, _) = executar(false, true, Leitura::Nenhuma);
     assert_eq!(
         saidas[0].status.code(),
         Some(0),
@@ -414,7 +436,7 @@ fn bdd_332_02_binario_consulta_previa_sem_upload_ou_cadastro() {
 fn bdd_60_03_cli_baixa_pdf_original_do_estado_compartilhado() {
     // BDD-60-03 pré-escrito na #60: o mesmo PDF cadastrado deve ser lido
     // pela CLI real e salvo byte a byte, sem transformar conteúdo em HTML.
-    let (saidas, eventos, documentos, arquivo) = executar(false, false, true);
+    let (saidas, eventos, documentos, arquivo) = executar(false, false, Leitura::Pdf);
     assert_eq!(documentos, 1, "um único documento definitivo");
     assert_eq!(
         saidas[2].status.code(),
@@ -441,4 +463,43 @@ fn bdd_60_03_cli_baixa_pdf_original_do_estado_compartilhado() {
         1,
         "o link assinado deve ser seguido uma só vez"
     );
+}
+
+#[test]
+fn exportacao_zip_preserva_documento_cadastrado_e_nao_repete_geracao() {
+    use sha2::Digest as _;
+    use std::io::Cursor;
+
+    // Hipótese de saída: o ZIP integral contém o PDF previamente cadastrado.
+    // O formulário e o link de download têm replay original separado.
+    let (saidas, eventos, documentos, arquivo) = executar(false, false, Leitura::Zip);
+    assert_eq!(documentos, 1, "exportar não cria novo documento");
+    assert_eq!(saidas[0].status.code(), Some(0), "cadastro: {eventos:?}");
+    assert_eq!(saidas[1].status.code(), Some(0), "releitura: {eventos:?}");
+    assert_eq!(
+        saidas[2].status.code(),
+        Some(0),
+        "exportação: stderr={} HTTP={eventos:?}",
+        String::from_utf8_lossy(&saidas[2].stderr)
+    );
+    let bytes = arquivo.expect("arquivo efetivamente produzido pela CLI");
+    let resultado = json(&saidas[2]);
+    assert_eq!(resultado["formato"], "zip");
+    assert_eq!(resultado["tamanho_bytes"], bytes.len());
+    assert_eq!(
+        resultado["sha256"],
+        hex::encode(sha2::Sha256::digest(&bytes))
+    );
+    let mut zip = zip::ZipArchive::new(Cursor::new(bytes)).unwrap();
+    assert_eq!(zip.len(), 1, "um único documento foi cadastrado");
+    let mut conteudo = Vec::new();
+    zip.by_index(0).unwrap().read_to_end(&mut conteudo).unwrap();
+    assert_eq!(conteudo, b"%PDF-1.4\n1 0 obj\n%%EOF\n");
+    for evento in ["POST procedimento_gerar_zip 200", "GET exibir_arquivo 200"] {
+        assert_eq!(
+            eventos.iter().filter(|e| e.as_str() == evento).count(),
+            1,
+            "{evento}: {eventos:?}"
+        );
+    }
 }
