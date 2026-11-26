@@ -510,3 +510,55 @@ fn pdf_nativo_publica_teor_com_e_sem_cache_sem_alterar_original() {
         "cada leitura do teor reutiliza o mesmo GET do original"
     );
 }
+
+// #873: ausência de texto recuperável não equivale a falha do motor.
+#[test]
+fn pdf_sem_texto_e_pdf_corrompido_preservam_original_e_estado_distinto() {
+    let marcador = b"NATIVO ALFA";
+    let mut vazio = PDF_NATIVO.to_vec();
+    let inicio = vazio
+        .windows(marcador.len())
+        .position(|janela| janela == marcador)
+        .unwrap();
+    vazio
+        .get_mut(inicio..inicio + marcador.len())
+        .unwrap()
+        .fill(b' ');
+    for (pdf, hash, estado) in [
+        (
+            vazio.as_slice(),
+            "23500893a3c396e9f3ab00fff6924f21ecf1a1b2ebaadbcd3bd039027648ddeb",
+            "sem_texto_nativo",
+        ),
+        (
+            b"%PDF-1.4\n1 0 obj\n%%EOF\n".as_slice(),
+            "49286c45c90723857946342e0610a2b28974f176218f77f79efacc34cc4567bc",
+            "falhou",
+        ),
+    ] {
+        let (saidas, eventos, documentos, arquivo) = executar(false, false, true, Some(pdf));
+        assert_eq!(documentos, 1);
+        assert_eq!(saidas.len(), 5);
+        assert_eq!(arquivo.as_deref(), Some(pdf));
+        for (i, saida) in saidas.iter().skip(2).enumerate() {
+            assert_eq!(saida.status.code(), Some(0), "{:?}", saida.stderr);
+            let lido = json(saida);
+            let doc = &lido["documentos"][0];
+            assert_eq!(doc["anexo"]["sha256"], hash);
+            assert!(doc.get("texto").is_none());
+            if i == 0 {
+                assert!(doc["anexo"].get("extracao_pdf").is_none());
+            } else {
+                assert_eq!(doc["anexo"]["extracao_pdf"], estado);
+                assert_eq!(doc.get("cache").is_some(), i == 2);
+            }
+        }
+        assert_eq!(
+            eventos
+                .iter()
+                .filter(|e| e.as_str() == "GET documento_download_anexo 200")
+                .count(),
+            3
+        );
+    }
+}
