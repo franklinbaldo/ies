@@ -171,4 +171,33 @@ mod tests {
             Err(ErroTextoPadrao::RespostaNaoReconhecida)
         ));
     }
+    #[test]
+    fn declaracao_de_autocomplete_inerte_nao_publica_url() {
+        let url = "controlador_ajax.php?acao_ajax=texto_padrao_auto_completar";
+        let declaracao = format!("{PREFIXO}{url}');");
+        let cadastro = |script: &str| {
+            HtmlServido::de_teste(&format!(
+                r#"<form id="frmDocumentoCadastro">
+                <input name="rdoTextoInicial" type="radio" value="T">
+                <input name="txtTextoPadrao" type="text">
+                <input name="hdnIdTextoPadrao" type="hidden">
+                </form><script>{script}</script>"#
+            ))
+        };
+        assert_eq!(url_publicada(&cadastro(&declaracao)).unwrap(), url);
+        // Sintético: uma declaração literal dentro de um callback continua
+        // candidata; o replay original é o oráculo de compatibilidade.
+        let callback = format!("function inicializar() {{\n{declaracao}\n}}");
+        assert_eq!(url_publicada(&cadastro(&callback)).unwrap(), url);
+        for inerte in [
+            format!("/*\n{declaracao}\n*/"),
+            format!("const exemplo = `\n{declaracao}\n`;"),
+            format!("if (false) {{\n{declaracao}\n}}"),
+        ] {
+            assert!(matches!(
+                url_publicada(&cadastro(&inerte)),
+                Err(ErroTextoPadrao::AutocompletarNaoDeclarado)
+            ));
+        }
+    }
 }
