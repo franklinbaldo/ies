@@ -44,3 +44,33 @@ fn bdd_246_03_cli_expande_lista_e_recusa_tipo_ambiguo_sem_escrita() {
         "não enviar escrita ao encontrar tipo ambíguo: {trilha:?}"
     );
 }
+
+#[test]
+fn texto_padrao_nao_oferecido_recusa_previa_sem_criar() {
+    let mut previa = criar(false);
+    previa.extend(["--texto-padrao", "Ofício"]);
+    let (saidas, trilha, quantidade) = executar(&[&previa], false);
+    falha_por(&saidas[0], "TentativaDeCriacao", "TextoPadrao");
+    assert_eq!(quantidade, 1);
+    assert!(
+        trilha
+            .iter()
+            .any(|pedido| pedido.starts_with("GET documento_gerar: 200")),
+        "a recusa precisa vir da tela de cadastro: {trilha:?}"
+    );
+    assert!(
+        !trilha
+            .iter()
+            .any(|pedido| pedido.starts_with("POST documento_gerar:"))
+    );
+}
+
+#[test]
+fn texto_padrao_com_confirmacao_recusa_antes_da_sessao() {
+    let mut confirmacao = criar(true);
+    confirmacao.extend(["--texto-padrao", "Ofício"]);
+    let (saidas, trilha, quantidade) = executar(&[&confirmacao], false);
+    assert_eq!(saidas[0].status.code(), Some(2));
+    assert!(trilha.is_empty());
+    assert_eq!(quantidade, 1);
+}
