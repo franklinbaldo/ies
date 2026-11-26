@@ -404,11 +404,9 @@ fn conferir_projecao_multissecao(html: &HtmlServido) {
         principal,
         novo,
     );
-    let relido = reabrir_apos_aceite(aceite, nova.get(), || {
-        ler_editor_anti_ies(&mut envio, &url)
-    })
-    .unwrap()
-    .unwrap();
+    let relido = reabrir_apos_aceite(aceite, nova.get(), || ler_editor_anti_ies(&mut envio, &url))
+        .unwrap()
+        .unwrap();
     assert_eq!(envio.posts, 1);
     let fresco = Protocolo::ler(&relido.html).unwrap();
     assert!(releitura::confere(&original, &fresco, nova.get(), novo));
