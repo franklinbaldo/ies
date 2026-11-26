@@ -142,6 +142,9 @@ pub fn registrar_pagina(
     {
         return Err(rusqlite::Error::InvalidQuery);
     }
+    let inicio = i64::try_from(pagina.inicio).map_err(|_| rusqlite::Error::InvalidQuery)?;
+    let fim = i64::try_from(pagina.fim).map_err(|_| rusqlite::Error::InvalidQuery)?;
+    let total = i64::try_from(pagina.total).map_err(|_| rusqlite::Error::InvalidQuery)?;
     let tx = banco.transaction()?;
     tx.execute(
         "INSERT INTO pesquisa_processo_pagina
@@ -155,9 +158,9 @@ pub fn registrar_pagina(
             criterios.de,
             criterios.ate,
             pagina.numero,
-            pagina.inicio,
-            pagina.fim,
-            pagina.total
+            inicio,
+            fim,
+            total
         ],
     )?;
     for (posicao, id) in pagina.ids.iter().enumerate() {
@@ -176,7 +179,7 @@ pub fn registrar_pagina(
                 criterios.de,
                 criterios.ate,
                 pagina.numero,
-                posicao,
+                i64::try_from(posicao).map_err(|_| rusqlite::Error::InvalidQuery)?,
                 id
             ],
         )?;
@@ -199,7 +202,8 @@ pub fn consultar_pagina(
     let inicio = deslocamento
         .checked_add(1)
         .ok_or(rusqlite::Error::InvalidQuery)?;
-    let dados: Option<(u32, u64, u64)> = banco
+    let inicio_sql = i64::try_from(inicio).map_err(|_| rusqlite::Error::InvalidQuery)?;
+    let dados: Option<(u32, i64, i64)> = banco
         .query_row(
             "SELECT pagina, fim, total FROM pesquisa_processo_pagina
              WHERE origem=?1 AND cenario=?2 AND unidade=?3 AND id_tipo=?4
@@ -211,7 +215,7 @@ pub fn consultar_pagina(
                 criterios.tipo_id,
                 criterios.de,
                 criterios.ate,
-                inicio
+                inicio_sql
             ],
             |r| Ok((r.get(0)?, r.get(1)?, r.get(2)?)),
         )
@@ -241,8 +245,8 @@ pub fn consultar_pagina(
     Ok(Some(Pagina {
         numero,
         inicio,
-        fim,
-        total,
+        fim: u64::try_from(fim).map_err(|_| rusqlite::Error::InvalidQuery)?,
+        total: u64::try_from(total).map_err(|_| rusqlite::Error::InvalidQuery)?,
         ids,
     }))
 }
@@ -301,6 +305,21 @@ mod tests {
             de: "01/01/2026",
             ate: "31/01/2026",
         };
+        let fora_sqlite = Pagina {
+            numero: 1,
+            inicio: 1,
+            fim: 1,
+            total: u64::MAX,
+            ids: vec![],
+        };
+        assert!(
+            registrar_pagina(&mut banco, &origem, "c", &unidade, criterios, &fora_sqlite).is_err()
+        );
+        assert!(consultar_pagina(&banco, &origem, "c", &unidade, criterios, u64::MAX).is_err());
+        assert!(
+            consultar_pagina(&banco, &origem, "c", &unidade, criterios, i64::MAX.unsigned_abs())
+                .is_err()
+        );
         let pagina = Pagina {
             numero: 1,
             inicio: 1,
