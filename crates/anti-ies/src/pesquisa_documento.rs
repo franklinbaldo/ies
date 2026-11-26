@@ -189,6 +189,15 @@ pub fn responder_pesquisa(
             let Some(deslocamento) = deslocamento_da_pesquisa(corpo) else {
                 return Resposta::nova(Estado::RequisicaoInvalida);
             };
+            let Ok(negativo) = iesei::pesquisa_documento::consultar(
+                banco,
+                instalacao,
+                cenario,
+                &controle.unidade,
+                &termo,
+            ) else {
+                return Resposta::nova(Estado::DadosInsuficientes);
+            };
             let pagina = iesei::pesquisa_documento::consultar_por_inicio(
                 banco,
                 instalacao,
@@ -228,22 +237,15 @@ pub fn responder_pesquisa(
                 }
                 Err(_) => Resposta::nova(Estado::DadosInsuficientes),
                 Ok(None) if deslocamento != 0 => Resposta::nova(Estado::DadosInsuficientes),
-                Ok(None) => match iesei::pesquisa_documento::consultar(
-                    banco,
-                    instalacao,
-                    cenario,
-                    &controle.unidade,
-                    &termo,
-                ) {
-                    Ok(Some(iesei::pesquisa_documento::Resultado::SemResultado)) => {
+                Ok(None) => match negativo {
+                    Some(iesei::pesquisa_documento::Resultado::SemResultado) => {
                         Resposta::html(formulario_de_pesquisa(
                             controle.unidade.as_str(),
                             &termo,
                             "<div class='pesquisaSemResultado'>Nenhum resultado encontrado.</div>",
                         ))
                     }
-                    Ok(None) => documento_exato(banco, instalacao, cenario, &termo),
-                    Err(_) => Resposta::nova(Estado::DadosInsuficientes),
+                    None => documento_exato(banco, instalacao, cenario, &termo),
                 },
             }
         }
