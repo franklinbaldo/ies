@@ -73,7 +73,7 @@ fn pedido(canal: &mut impl Read) -> (Vec<u8>, String, String) {
                 .then(|| valor.trim().parse::<usize>().unwrap())
         })
         .unwrap_or(0);
-    assert!(tamanho < 64_000, "PDF sintético deve ser pequeno");
+    assert!(tamanho < 3 * 1024 * 1024, "limite da bancada sintética");
     let mut corpo = vec![0; tamanho];
     canal.read_exact(&mut corpo).unwrap();
     cabecalho.extend(corpo);
@@ -137,6 +137,13 @@ fn preparar_banco() -> (Connection, Instalacao) {
     (banco, origem)
 }
 
+type ResultadoBancada = (Vec<Output>, Vec<String>, usize, Vec<Option<Vec<u8>>>);
+
+enum FalhaPrevia {
+    LimiteMenor(usize),
+    SemAnexos(usize),
+}
+
 #[derive(Clone, Copy)]
 enum Leitura {
     Nenhuma,
@@ -146,15 +153,26 @@ enum Leitura {
     ZipSelecao(&'static str),
 }
 
+fn executar(
+    cadastro_incerto: Option<usize>,
+    somente_previa: bool,
+    leitura: Leitura,
+    adicionais: &[&[u8]],
+) -> ResultadoBancada {
+    executar_com_falha_previa(cadastro_incerto, None, somente_previa, leitura, adicionais)
+}
+
 #[expect(
     clippy::too_many_lines,
     reason = "Bancada E2E reúne proxy TLS, servidor HTTP e processos reais"
 )]
-fn executar(
-    incerteza: bool,
+fn executar_com_falha_previa(
+    cadastro_incerto: Option<usize>,
+    falha_previa: Option<FalhaPrevia>,
     somente_previa: bool,
     leitura: Leitura,
-) -> (Vec<Output>, Vec<String>, usize, Option<Vec<u8>>) {
+    adicionais: &[&[u8]],
+) -> ResultadoBancada {
     let pasta = Pasta::nova();
     let (cert, identidade_tls) = identidade(&pasta.0, "sei.test");
     let origem = pasta.privado("origem", ORIGEM);
@@ -169,11 +187,22 @@ fn executar(
     let cookie = pasta.privado("cookie", "PHPSESSID=FICTICIO");
     let pdf = pasta.0.join("peticao.pdf");
     fs::write(&pdf, b"%PDF-1.4\n1 0 obj\n%%EOF\n").unwrap();
-
-    let outra_pasta = pasta.0.join("outro");
-    fs::create_dir(&outra_pasta).unwrap();
-    let outro_pdf = outra_pasta.join("peticao.pdf");
-    fs::write(&outro_pdf, b"%PDF-1.4\n2 0 obj\n%%EOF\n").unwrap();
+    let outros: Vec<_> = adicionais
+        .iter()
+        .enumerate()
+        .map(|(i, bytes)| {
+            let nome = ["segundo.pdf", "terceiro.pdf"][i];
+            let caminho = if matches!(leitura, Leitura::ZipSelecao(_)) {
+                let pasta_anexo = pasta.0.join(nome);
+                fs::create_dir(&pasta_anexo).unwrap();
+                pasta_anexo.join("peticao.pdf")
+            } else {
+                pasta.0.join(nome)
+            };
+            fs::write(&caminho, bytes).unwrap();
+            caminho
+        })
+        .collect();
 
     let escuta = TcpListener::bind(("127.0.0.1", 0)).unwrap();
     escuta.set_nonblocking(true).unwrap();
@@ -198,6 +227,8 @@ fn executar(
     let registro = Arc::clone(&trilha);
     let tunel = thread::spawn(move || {
         let tls = TlsAcceptor::new(identidade_tls).unwrap();
+        let mut cadastros = 0;
+        let mut previas = 0;
         while let Some(mut tcp) = aceitar(&proxy, &sinal_proxy) {
             let (connect, _, _) = pedido(&mut tcp);
             assert!(connect.starts_with(b"CONNECT sei.test:443 HTTP/1.1\r\n"));
@@ -218,15 +249,40 @@ fn executar(
             .nth(1)
             .unwrap()
             .to_owned();
+            if metodo == "POST" && acao == "documento_receber" && status == "200" {
+                previas += 1;
+                let troca = match falha_previa {
+                    Some(FalhaPrevia::LimiteMenor(n)) if n == previas => {
+                        Some(("tamanho : 10", "tamanho : 01"))
+                    }
+                    Some(FalhaPrevia::SemAnexos(n)) if n == previas => {
+                        Some(("name='hdnAnexos'", "name='hdnAusent'"))
+                    }
+                    _ => None,
+                };
+                if let Some((original, alterado)) = troca {
+                    // Mesmo comprimento: preserva o Content-Length da resposta.
+                    assert_eq!(original.len(), alterado.len());
+                    let texto = String::from_utf8(resposta).unwrap();
+                    assert_eq!(texto.matches(original).count(), 1);
+                    resposta = texto.replace(original, alterado).into_bytes();
+                }
+            }
             registro
                 .lock()
                 .unwrap()
                 .push(format!("{metodo} {acao} {status}"));
-            if incerteza && metodo == "POST" && acao == "documento_receber" && status == "302" {
-                resposta = String::from_utf8(resposta)
-                    .unwrap()
-                    .replace("id_documento=8000000000001", "id_documento=8000000000999")
-                    .into_bytes();
+            if metodo == "POST" && acao == "documento_receber" && status == "302" {
+                cadastros += 1;
+                if cadastro_incerto == Some(cadastros) {
+                    let texto = String::from_utf8(resposta).unwrap();
+                    let (_, resto) = texto.split_once("id_documento=").unwrap();
+                    let id: String = resto.chars().take_while(char::is_ascii_digit).collect();
+                    assert_ne!(id, "");
+                    resposta = texto
+                        .replace(&format!("id_documento={id}"), "id_documento=8000000000999")
+                        .into_bytes();
+                }
             }
             canal.write_all(&resposta).unwrap();
             canal.flush().unwrap();
@@ -246,12 +302,12 @@ fn executar(
     } else {
         "--confirmar"
     };
-    let incluir = [base.as_slice(), &[pdf_str, "--tipo", "Anexo", modo]].concat();
-    let incluir_outro = [
-        base.as_slice(),
-        &[outro_pdf.to_str().unwrap(), "--tipo", "Anexo", modo],
-    ]
-    .concat();
+    let mut incluir = [base.as_slice(), &[pdf_str, "--tipo", "Anexo", modo]].concat();
+    if !matches!(leitura, Leitura::ZipSelecao(_)) {
+        for caminho in &outros {
+            incluir.extend(["--arquivo", caminho.to_str().unwrap()]);
+        }
+    }
     let consultar = [
         "--json",
         "processo",
@@ -263,16 +319,28 @@ fn executar(
     let destino_arquivo = pasta.0.join("saida");
     fs::create_dir(&destino_arquivo).unwrap();
     let destino_str = destino_arquivo.to_str().unwrap();
-    let ler_pdf = [
-        "--json",
-        "documento",
-        "050000001",
-        "--processo",
-        NUP,
-        "--saida",
-        destino_str,
-        "--sem-cache",
-    ];
+    let numeros: Vec<_> = if matches!(leitura, Leitura::Pdf) {
+        (1..=1 + outros.len())
+            .map(|i| format!("{:09}", 50_000_000 + i))
+            .collect()
+    } else {
+        Vec::new()
+    };
+    let leituras: Vec<_> = numeros
+        .iter()
+        .map(|numero| {
+            [
+                "--json",
+                "documento",
+                numero.as_str(),
+                "--processo",
+                NUP,
+                "--saida",
+                destino_str,
+                "--sem-cache",
+            ]
+        })
+        .collect();
     let (formato, nome) = match leitura {
         Leitura::PdfProcesso => ("pdf", "processo.pdf"),
         _ => ("zip", "processo.zip"),
@@ -290,16 +358,23 @@ fn executar(
     ];
     let mut exportar_selecao = exportar.to_vec();
     let mut comandos = vec![&incluir[..]];
+    let incluir_outro;
     if let Leitura::ZipSelecao(documento) = leitura {
+        assert_eq!(outros.len(), 1);
+        incluir_outro = [
+            base.as_slice(),
+            &[outros[0].to_str().unwrap(), "--tipo", "Anexo", modo],
+        ]
+        .concat();
         comandos.push(&incluir_outro);
         exportar_selecao.extend(["--documentos", documento]);
     }
     comandos.push(&consultar);
+    comandos.extend(leituras.iter().map(<[&str; 8]>::as_slice));
     match leitura {
-        Leitura::Nenhuma => {}
-        Leitura::Pdf => comandos.push(&ler_pdf),
         Leitura::Zip | Leitura::PdfProcesso => comandos.push(&exportar),
         Leitura::ZipSelecao(_) => comandos.push(&exportar_selecao),
+        _ => {}
     }
     let saidas = comandos
         .iter()
@@ -327,11 +402,16 @@ fn executar(
     tunel.join().unwrap();
     let total = servidor.join().unwrap();
     let eventos = trilha.lock().unwrap().clone();
-    let arquivo = match leitura {
-        Leitura::Zip | Leitura::PdfProcesso | Leitura::ZipSelecao(_) => fs::read(exportado).ok(),
-        _ => fs::read(destino_arquivo.join("050000001.pdf")).ok(),
+    let arquivos = match leitura {
+        Leitura::Zip | Leitura::PdfProcesso | Leitura::ZipSelecao(_) => {
+            vec![fs::read(exportado).ok()]
+        }
+        _ => numeros
+            .iter()
+            .map(|numero| fs::read(destino_arquivo.join(format!("{numero}.pdf"))).ok())
+            .collect(),
     };
-    (saidas, eventos, total, arquivo)
+    (saidas, eventos, total, arquivos)
 }
 
 fn json(saida: &Output) -> Value {
@@ -344,150 +424,11 @@ fn json(saida: &Output) -> Value {
     })
 }
 
-#[test]
-fn bdd_332_03_binario_confirma_upload_cadastro_e_releitura_independente() {
-    let (saidas, eventos, total, _) = executar(false, false, Leitura::Nenhuma);
-    assert_eq!(
-        saidas[0].status.code(),
-        Some(0),
-        "stdout={} stderr={} eventos={eventos:?}",
-        String::from_utf8_lossy(&saidas[0].stdout),
-        String::from_utf8_lossy(&saidas[0].stderr)
-    );
-    let incluido = json(&saidas[0]);
-    assert_eq!(incluido["confirmado"], true);
-    assert_eq!(incluido["numero_sei"], "050000001");
-    assert_eq!(incluido["reconciliado_por_leitura"], true);
-    assert_eq!(
-        saidas[1].status.code(),
-        Some(0),
-        "leitura externa: {:?}",
-        saidas[1].stderr
-    );
-    assert!(
-        json(&saidas[1])["documentos"]
-            .to_string()
-            .contains("050000001")
-    );
-    assert_eq!(total, 1, "upload temporário não duplica o documento");
-    for acao in ["documento_upload_anexo", "documento_receber"] {
-        assert_eq!(
-            eventos
-                .iter()
-                .filter(|e| *e == &format!("POST {acao} 200") || *e == &format!("POST {acao} 302"))
-                .count(),
-            if acao == "documento_receber" { 2 } else { 1 },
-            "recarga de tipo, upload e cadastro não podem causar retry: {eventos:?}"
-        );
-    }
-    assert!(
-        eventos
-            .iter()
-            .rposition(|e| e.starts_with("GET procedimento_visualizar"))
-            > eventos
-                .iter()
-                .position(|e| e == "POST documento_receber 302")
-    );
-}
+#[path = "aies_pdf_externo_cli/singular.rs"]
+mod singular;
 
-#[test]
-fn bdd_332_04_resposta_sem_autoria_falha_sem_repetir_post() {
-    let (saidas, eventos, total, _) = executar(true, false, Leitura::Nenhuma);
-    falha(&saidas[0], "TentativaNaoComprovada");
-    assert_eq!(total, 1, "efeito existiu mesmo com resposta adulterada");
-    assert_eq!(
-        eventos
-            .iter()
-            .filter(|e| *e == "POST documento_upload_anexo 200")
-            .count(),
-        1
-    );
-    assert_eq!(
-        eventos
-            .iter()
-            .filter(|e| *e == "POST documento_receber 302")
-            .count(),
-        1
-    );
-}
-
-/// BDD-332-02: a prévia passa pelo binário e pelas rotas do anti-IES,
-/// mas nenhuma linha de upload nem documento definitivo pode surgir.
-#[test]
-fn bdd_332_02_binario_consulta_previa_sem_upload_ou_cadastro() {
-    let (saidas, eventos, total, _) = executar(false, true, Leitura::Nenhuma);
-    assert_eq!(
-        saidas[0].status.code(),
-        Some(0),
-        "stdout={} stderr={} eventos={eventos:?}",
-        String::from_utf8_lossy(&saidas[0].stdout),
-        String::from_utf8_lossy(&saidas[0].stderr)
-    );
-    let previa = json(&saidas[0]);
-    assert_eq!(previa["escopo"], "previa_web");
-    assert_eq!(previa["id_tipo"], "293");
-    assert_eq!(previa["tipo_solicitado"], "Anexo");
-    assert_eq!(previa["limite_pdf_bytes"], 10 * 1024 * 1024);
-    assert_eq!(previa["cadastro_sei_observado"], true);
-    assert_eq!(previa["previa_remota"], true);
-    assert_eq!(previa["confirmado"], false);
-    assert_eq!(previa["escrita_remota"], false);
-    assert_eq!(saidas[1].status.code(), Some(0));
-    assert_eq!(total, 0, "a prévia não deve registrar documento");
-    assert!(
-        !json(&saidas[1])["documentos"]
-            .to_string()
-            .contains("050000001")
-    );
-    assert_eq!(
-        eventos
-            .iter()
-            .filter(|evento| *evento == "POST documento_receber 200")
-            .count(),
-        1,
-        "a recarga do tipo é navegação, não cadastro: {eventos:?}"
-    );
-    assert!(
-        !eventos
-            .iter()
-            .any(|evento| evento.starts_with("POST documento_upload_anexo")
-                || evento == "POST documento_receber 302"),
-        "prévia nunca envia o PDF nem cadastra documento: {eventos:?}"
-    );
-}
-
-#[test]
-fn bdd_60_03_cli_baixa_pdf_original_do_estado_compartilhado() {
-    // BDD-60-03 pré-escrito na #60: o mesmo PDF cadastrado deve ser lido
-    // pela CLI real e salvo byte a byte, sem transformar conteúdo em HTML.
-    let (saidas, eventos, documentos, arquivo) = executar(false, false, Leitura::Pdf);
-    assert_eq!(documentos, 1, "um único documento definitivo");
-    assert_eq!(
-        saidas[2].status.code(),
-        Some(0),
-        "saída={} stderr={} HTTP={eventos:?}",
-        String::from_utf8_lossy(&saidas[2].stdout),
-        String::from_utf8_lossy(&saidas[2].stderr),
-    );
-    assert_eq!(
-        arquivo.as_deref(),
-        Some(b"%PDF-1.4\n1 0 obj\n%%EOF\n".as_slice()),
-        "o arquivo salvo deve ser o PDF original enviado, sem conversão"
-    );
-    let lido = json(&saidas[2]);
-    assert_eq!(lido["documentos"][0]["numero"], "050000001");
-    assert_eq!(lido["documentos"][0]["fonte"], "documento_download_anexo");
-    assert_eq!(lido["documentos"][0]["anexo"]["mime"], "application/pdf");
-    assert_eq!(lido["documentos"][0]["arquivo"]["nome"], "050000001.pdf");
-    assert_eq!(
-        eventos
-            .iter()
-            .filter(|e| e.as_str() == "GET documento_download_anexo 200")
-            .count(),
-        1,
-        "o link assinado deve ser seguido uma só vez"
-    );
-}
+#[path = "aies_pdf_externo_cli/lote.rs"]
+mod lote;
 
 #[path = "aies_pdf_externo_cli/exportacao.rs"]
 mod exportacao;
