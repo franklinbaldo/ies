@@ -42,6 +42,10 @@ fn catalogo_preserva_homonimos_e_isola_escopos() {
             [texto("007", nome)]
         );
     }
-    assert!(textos_padrao(&banco, &origem, "c", "U3").unwrap().is_empty());
+    assert!(
+        textos_padrao(&banco, &origem, "c", "U3")
+            .unwrap()
+            .is_empty()
+    );
     assert_eq!(banco.total_changes(), 5);
 }
