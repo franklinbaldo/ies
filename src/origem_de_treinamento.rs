@@ -46,6 +46,7 @@ pub(crate) enum Escrita {
     ProcessoComentar,
     ProcessoAcompanharDeixar,
     ProcessoEnviarRemovendoAnotacoes,
+    ProcessoEnviarMultiplos,
 }
 
 impl Escrita {

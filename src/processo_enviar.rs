@@ -53,6 +53,7 @@ pub(crate) struct PedidoDoEnvio<'a> {
     pub(crate) unidade: Option<&'a str>,
     /// A sigla de `--para`, já conferida pela CLI.
     pub(crate) para: &'a str,
+    pub(crate) outros: &'a [&'a str],
     pub(crate) manter_aberto: bool,
     pub(crate) remover_anotacoes: bool,
     pub(crate) confirmar: bool,
@@ -115,7 +116,7 @@ pub(crate) struct ProcessoEnviado {
     pub(crate) remocao: Option<RemocaoDaAnotacao>,
     /// Presença relida por GET após a escrita. Ausente só na prévia.
     pub(crate) anotacao_depois: Option<bool>,
-    pub(crate) destino: Destino,
+    pub(crate) destinos: Vec<Destino>,
     /// Siglas de `aberto_em` antes.
     pub(crate) aberto_em: Vec<String>,
     pub(crate) desfecho: DesfechoDoEnvio,
@@ -132,7 +133,7 @@ impl ProcessoEnviado {
             .filter(|sigla| self.manter_aberto || **sigla != self.unidade)
             .cloned()
             .collect();
-        esperado.push(self.destino.sigla.clone());
+        esperado.extend(self.destinos.iter().map(|destino| destino.sigla.clone()));
         esperado
     }
 

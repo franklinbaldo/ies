@@ -71,6 +71,7 @@ fn erro_da_releitura_de_anotacao_preserva_causa_sem_segundo_post() {
                     nup,
                     unidade: None,
                     para: DESTINO,
+                    outros: &[],
                     manter_aberto: false,
                     remover_anotacoes: true,
                     confirmar: true,

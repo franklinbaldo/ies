@@ -36,7 +36,7 @@ fn uso_invalido_sai_com_2_antes_da_configuracao() {
         vec!["processo", "enviar", NUP, "--para", " ", "--json"],
         vec!["processo", "enviar", NUP, "--para", "A\tB", "--json"],
         vec![
-            "processo", "enviar", NUP, "--para", "A", "--para", "B", "--json",
+            "processo", "enviar", NUP, "--para", "A", "--para", " ", "--json",
         ],
     ] {
         for confirmar in [false, true] {
@@ -102,4 +102,12 @@ fn bdd_remover_anotacoes_e_opcao_da_cli_sem_confirmacao_cega() {
     assert_eq!(saida.status.code(), Some(1));
     sem_arquivos_de_sessao(&saida);
     // Sem trava de ensaio: a confirmação segue para a sessão, que falta.
+}
+
+#[test]
+fn para_repetido_e_aceito_antes_da_sessao() {
+    let saida = sem_sessao(&[
+        "processo", "enviar", NUP, "--para", "A", "--para", "B", "--json",
+    ]);
+    sem_arquivos_de_sessao(&saida);
 }

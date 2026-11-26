@@ -15,11 +15,11 @@ fn previa() -> ProcessoEnviado {
         manter_aberto: false,
         remocao: None,
         anotacao_depois: None,
-        destino: Destino {
+        destinos: vec![Destino {
             sigla: "TESTE_1_1".into(),
             descricao: "TESTE_1_1 - Unidade 1.1".into(),
             id_unidade: "110000002".into(),
-        },
+        }],
         aberto_em: vec!["TESTE".into()],
         desfecho: DesfechoDoEnvio::Previa,
         requisicoes: 5,
@@ -131,6 +131,7 @@ fn sugestoes_guardadas_compoem_erro_web_sem_consulta_extra() {
                     nup,
                     unidade: None,
                     para: DESTINO,
+                    outros: &[],
                     manter_aberto: false,
                     remover_anotacoes: false,
                     confirmar,
@@ -196,4 +197,18 @@ fn bdd_previa_publica_opcao_somente_se_solicitada() {
     });
     assert_eq!(json_de_sucesso(&feito)["remover_anotacoes"], true);
     assert!(humano(&feito).contains("Remover anotações no envio: sim"));
+}
+
+#[test]
+fn previa_plural_publica_lista_sem_destino_singular() {
+    let mut feito = previa();
+    feito.destinos.push(Destino {
+        sigla: "OUTRA".into(),
+        descricao: "OUTRA - Outra unidade".into(),
+        id_unidade: "900".into(),
+    });
+    let valor = json_de_sucesso(&feito);
+    assert!(valor.get("destino").is_none());
+    assert_eq!(valor["destinos"][1]["id_unidade"], "900");
+    assert_eq!(valor["depois_esperado"], json!(["TESTE_1_1", "OUTRA"]));
 }

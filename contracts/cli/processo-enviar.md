@@ -9,7 +9,7 @@ implementation: partial
 
 # `ies processo enviar NUP --para SIGLA [--manter-aberto] [--remover-anotacoes] [--confirmar]` (Refs #173, #333)
 
-Envia (tramita) o processo da **unidade da sessão** a **uma** unidade de
+Envia (tramita) o processo da **unidade da sessão** a **uma ou mais** unidades de
 destino, uma vez e por pedido explícito, pelo link "Enviar Processo" que a
 barra do nó `PROCESSO` da árvore publica. Estrutura observada em
 [envio do processo](../../docs/como-o-sei-funciona/envio-do-processo.md);
@@ -27,10 +27,13 @@ da tela declara.
 
 - `NUP`: o de `ies processo NUP`; inválido sai com 2 (erro do clap)
   antes de qualquer arquivo ou requisição.
-- `--para SIGLA`: **uma** sigla de unidade, como o autocomplete da tela a
-  publica (`SIGLA - Nome`). Vazia, com caractere de controle ou com mais
-  de 100 caracteres: 2 (`sigla_de_destino_invalida`); `--para` repetido:
-  2 (`mais_de_um_destino_nao_suportado`). Antes de qualquer arquivo.
+- `--para SIGLA`: uma ou mais ocorrências, como o autocomplete da tela a
+  publica (`SIGLA - Nome`). Cada sigla vazia, com caractere de controle ou com mais
+  de 100 caracteres: 2, antes de qualquer arquivo. A confirmação com múltiplas
+  ocorrências permanece restrita ao treinamento até validação própria.
+  Resolver todos os destinos antes de qualquer escrita; deduplicar por ID.
+  Para dois ou mais destinos distintos, a saída usa `destinos` (lista);
+  para um único destino, mantém `destino` (objeto) e o formato legado.
 - `--manter-aberto`: marca "Manter processo aberto na unidade atual"
   (`chkSinManterAberto=on`). Sem ele, a caixa vai como servida (desmarcada).
 - `--remover-anotacoes`: na **prévia**, escolhe o checkbox real
@@ -127,7 +130,7 @@ da tela declara.
    repetição da limpeza. Se o campo já estava vazio, não há POST de
    salvamento. Após comprovar ausência, há **um único POST de envio**.
 9. **Verifica** por uma leitura nova (a de `ies processo NUP`, em geral
-   1 GET pelo link da árvore guardado na abertura): o destino tem de estar
+   1 GET pelo link da árvore guardado na abertura): todos os destinos têm de estar
    em `aberto_em`; a unidade da sessão, só com `--manter-aberto`.
    Com checkbox, outro GET de `anotacao_registrar` exige `txaDescricao`
    vazio e a mesma identidade de processo. Presença de texto após o
