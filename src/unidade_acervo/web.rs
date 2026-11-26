@@ -267,7 +267,9 @@ mod replay {
                 r.passo
             );
             assert!(
-                query.split('&').any(|p| p.strip_prefix("acao=") == Some(r.operacao)),
+                query
+                    .split('&')
+                    .any(|p| p.strip_prefix("acao=") == Some(r.operacao)),
                 "ação divergente no passo {}",
                 r.passo
             );
@@ -288,8 +290,7 @@ mod replay {
             &mut self,
             submissao: SubmissaoDerivada,
             cookie: &str,
-        ) -> Result<crate::formulario_web::RespostaDoPost<Self::Corpo>, FalhaTransporte>
-        {
+        ) -> Result<crate::formulario_web::RespostaDoPost<Self::Corpo>, FalhaTransporte> {
             assert!(cookie == "PHPSESSID=SINTETICO");
             Ok(self.proxima("POST", submissao.url()))
         }
@@ -365,9 +366,9 @@ mod replay {
             let mut envio = EnvioContado::novo(roteiro(&conferida.json, paginas));
 
             // URL inicial e cookie sintéticos, nunca enviados à rede.
+            let origem = inst.url_base();
             let url = format!(
-                "{}/controlador.php?acao=procedimento_controlar&infra_hash={}",
-                inst.url_base(),
+                "{origem}/controlador.php?acao=procedimento_controlar&infra_hash={}",
                 "a".repeat(64)
             );
             let pasta = std::env::temp_dir().join(format!(
@@ -381,7 +382,7 @@ mod replay {
             std::fs::create_dir(&pasta).unwrap();
             for (arquivo, valor) in [
                 ("url", url.as_str()),
-                ("origem", inst.url_base()),
+                ("origem", origem.as_str()),
                 ("cookie", "PHPSESSID=SINTETICO"),
             ] {
                 gravar(
