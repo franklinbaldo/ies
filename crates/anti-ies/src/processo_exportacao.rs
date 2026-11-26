@@ -120,6 +120,38 @@ document.getElementById('ifrDownload').src = '{download}';
     ))
 }
 
+fn selecionar_documentos(
+    alvo: &str,
+    docs: Vec<pdf_externo::Documento>,
+) -> Result<Vec<pdf_externo::Documento>, Estado> {
+    let query = alvo.split_once('?').map_or("", |(_, query)| query);
+    let mut campos = query
+        .split('&')
+        .filter(|parte| parte.split('=').next() == Some("documentos"));
+    let Some(campo) = campos.next() else {
+        return Ok(docs);
+    };
+    if campos.next().is_some() {
+        return Err(Estado::RequisicaoInvalida);
+    }
+    let (_, ids) = campo.split_once('=').ok_or(Estado::RequisicaoInvalida)?;
+    let mut selecionados = Vec::new();
+    for id in ids.split(',') {
+        let doc = docs
+            .iter()
+            .find(|doc| doc.id_publico() == id)
+            .ok_or(Estado::RequisicaoInvalida)?;
+        if selecionados
+            .iter()
+            .any(|d: &pdf_externo::Documento| d.id == doc.id)
+        {
+            return Err(Estado::RequisicaoInvalida);
+        }
+        selecionados.push(doc.clone());
+    }
+    Ok(selecionados)
+}
+
 pub(crate) fn responder(
     metodo: &str,
     alvo: &str,
@@ -193,23 +225,9 @@ pub(crate) fn responder(
             }
         }
         (Some("exibir_arquivo"), "GET") => {
-            let docs = if let Some(ids) = parametro_unico(alvo, "documentos") {
-                let mut selecionados = Vec::new();
-                for id in ids.split(',') {
-                    let Some(doc) = docs.iter().find(|doc| doc.id_publico() == id) else {
-                        return Resposta::nova(Estado::RequisicaoInvalida);
-                    };
-                    if selecionados
-                        .iter()
-                        .any(|d: &pdf_externo::Documento| d.id == doc.id)
-                    {
-                        return Resposta::nova(Estado::RequisicaoInvalida);
-                    }
-                    selecionados.push(doc.clone());
-                }
-                selecionados
-            } else {
-                docs
+            let docs = match selecionar_documentos(alvo, docs) {
+                Ok(docs) => docs,
+                Err(estado) => return Resposta::nova(estado),
             };
             match zip_do_processo(banco, origem, cenario, &docs) {
                 Ok(bytes) => Resposta {
