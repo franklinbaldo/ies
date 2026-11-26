@@ -36,9 +36,9 @@ impl ProcessoSimulado {
 }
 
 #[derive(Clone, Copy, Debug)]
-pub struct PedidoEnvio<'a> {
+pub struct PedidoEnvio<'a, D = &'a str> {
     pub id: &'a str,
-    pub id_destino: &'a str,
+    pub id_destino: D,
     pub manter_aberto: bool,
     pub remover_anotacoes: bool,
 }
@@ -241,7 +241,18 @@ pub fn enviar(
     cenario: &str,
     pedido: PedidoEnvio<'_>,
 ) -> Result<ProcessoSimulado, ErroProcessos> {
-    enviar_com_unidade(banco, instalacao, cenario, pedido, None)
+    enviar_com_unidade(
+        banco,
+        instalacao,
+        cenario,
+        PedidoEnvio {
+            id: pedido.id,
+            id_destino: &[pedido.id_destino],
+            manter_aberto: pedido.manter_aberto,
+            remover_anotacoes: pedido.remover_anotacoes,
+        },
+        None,
+    )
 }
 
 /// Envia a partir da unidade ativa no Controle R, não necessariamente a
@@ -256,6 +267,32 @@ pub fn enviar_da_unidade(
     pedido: PedidoEnvio<'_>,
     unidade: &str,
 ) -> Result<ProcessoSimulado, ErroProcessos> {
+    enviar_destinos_da_unidade(
+        banco,
+        instalacao,
+        cenario,
+        PedidoEnvio {
+            id: pedido.id,
+            id_destino: &[pedido.id_destino],
+            manter_aberto: pedido.manter_aberto,
+            remover_anotacoes: pedido.remover_anotacoes,
+        },
+        unidade,
+    )
+}
+
+/// Tramita para todos os destinos em uma única transação do simulador.
+///
+/// # Errors
+/// Recusa lista vazia, destinos repetidos, não oferecidos ou já abertos,
+/// origem fechada e falhas de SQLite, sem persistir efeito parcial.
+pub fn enviar_destinos_da_unidade(
+    banco: &Connection,
+    instalacao: &Instalacao,
+    cenario: &str,
+    pedido: PedidoEnvio<'_, &[&str]>,
+    unidade: &str,
+) -> Result<ProcessoSimulado, ErroProcessos> {
     enviar_com_unidade(banco, instalacao, cenario, pedido, Some(unidade))
 }
 
@@ -263,7 +300,7 @@ fn enviar_com_unidade(
     banco: &Connection,
     instalacao: &Instalacao,
     cenario: &str,
-    pedido: PedidoEnvio<'_>,
+    pedido: PedidoEnvio<'_, &[&str]>,
     unidade: Option<&str>,
 ) -> Result<ProcessoSimulado, ErroProcessos> {
     let tx = banco.unchecked_transaction()?;
@@ -273,13 +310,23 @@ fn enviar_com_unidade(
     if !processo.aberto_em.contains(&unidade_atual) {
         return Err(ErroProcessos::OrigemNaoAberta);
     }
-    let destino = processo
-        .destinos
-        .iter()
-        .find(|d| d.id == pedido.id_destino)
-        .ok_or(ErroProcessos::DestinoNaoOferecido)?;
-    if processo.aberto_em.contains(&destino.sigla) {
-        return Err(ErroProcessos::DestinoJaAberto);
+    if pedido.id_destino.is_empty() {
+        return Err(ErroProcessos::DadoInvalido);
+    }
+    let mut siglas = Vec::with_capacity(pedido.id_destino.len());
+    for id in pedido.id_destino {
+        let destino = processo
+            .destinos
+            .iter()
+            .find(|d| d.id == *id)
+            .ok_or(ErroProcessos::DestinoNaoOferecido)?;
+        if processo.aberto_em.contains(&destino.sigla) {
+            return Err(ErroProcessos::DestinoJaAberto);
+        }
+        if siglas.contains(&destino.sigla) {
+            return Err(ErroProcessos::DadoInvalido);
+        }
+        siglas.push(destino.sigla.clone());
     }
     if pedido.remover_anotacoes {
         if unidade_atual != processo.unidade_origem {
@@ -291,13 +338,12 @@ fn enviar_com_unidade(
             .ok_or(ErroProcessos::AnotacaoNaoObservada)?;
         anotacao.clear();
     }
-    let sigla = destino.sigla.clone();
     if !pedido.manter_aberto {
         processo
             .aberto_em
             .retain(|unidade| unidade != &unidade_atual);
     }
-    processo.aberto_em.push(sigla);
+    processo.aberto_em.extend(siglas);
     let origem = instalacao.url_base();
     tx.execute(
         "UPDATE processo_simulado SET anotacao_origem=?4

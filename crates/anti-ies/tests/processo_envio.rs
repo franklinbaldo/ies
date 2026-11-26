@@ -23,11 +23,18 @@ fn preparar() -> Connection {
             unidade_origem: "ORIGEM".into(),
             aberto_em: vec!["ORIGEM".into()],
             anotacao_origem: Some("Anotação temporária".into()),
-            destinos: vec![Destino {
-                id: "2".into(),
-                sigla: "DESTINO".into(),
-                descricao: "DESTINO - Unidade de testes".into(),
-            }],
+            destinos: vec![
+                Destino {
+                    id: "2".into(),
+                    sigla: "DESTINO".into(),
+                    descricao: "DESTINO - Unidade de testes".into(),
+                },
+                Destino {
+                    id: "3".into(),
+                    sigla: "ARQUIVO".into(),
+                    descricao: "ARQUIVO - Seção".into(),
+                },
+            ],
         },
     )
     .unwrap();
@@ -376,4 +383,74 @@ fn estado_sqlite_recusa_limpar_anotacao_depois_de_fechar_origem() {
         ler(&banco, &origem(), "cenario-a", "10").unwrap().unwrap(),
         antes
     );
+}
+
+// Hipótese de corpo plural PEN1, não replay do POST original.
+#[test]
+fn envio_plural_atomico_com_origem_e_charset_variaveis() {
+    for unidades in [
+        "2%B1DESTINO+-+Unidade+de+testes%A53%B1ARQUIVO+-+Se%E7%E3o",
+        "2%C2%B1DESTINO+-+Unidade+de+testes%C2%A53%C2%B1ARQUIVO+-+Se%C3%A7%C3%A3o",
+    ] {
+        for manter in [false, true] {
+            let banco = preparar();
+            let checkbox = if manter { "&chkSinManterAberto=on" } else { "" };
+            let corpo = format!("hdnIdProtocolos=10&hdnUnidades={unidades}{checkbox}");
+            let r = responder("POST", ENDERECO, &corpo, &banco, &origem(), "cenario-a");
+            assert_eq!(r.estado, Estado::Redirecionamento);
+            let depois = ler(&banco, &origem(), "cenario-a", "10").unwrap().unwrap();
+            let esperado = if manter {
+                vec!["ORIGEM", "DESTINO", "ARQUIVO"]
+            } else {
+                vec!["DESTINO", "ARQUIVO"]
+            };
+            assert_eq!(depois.aberto_em, esperado);
+            assert_eq!(
+                depois.anotacao_origem.as_deref(),
+                Some("Anotação temporária")
+            );
+        }
+    }
+}
+
+#[test]
+fn segundo_destino_invalido_nao_tramita_nem_limpa_anotacao() {
+    for unidades in [
+        "2%B1DESTINO+-+Unidade+de+testes%A5999%B1FALSO",
+        "2%B1DESTINO+-+Unidade+de+testes%A53%B1FALSO",
+        "2%B1DESTINO+-+Unidade+de+testes%A52%B1DESTINO",
+        "2%B1DESTINO+-+Unidade+de+testes%A5",
+    ] {
+        let banco = preparar();
+        let antes = ler(&banco, &origem(), "cenario-a", "10").unwrap();
+        let corpo = format!("hdnIdProtocolos=10&hdnUnidades={unidades}&chkSinRemoverAnotacoes=on");
+        let r = responder("POST", ENDERECO, &corpo, &banco, &origem(), "cenario-a");
+        assert_eq!(r.estado, Estado::RequisicaoInvalida, "{unidades}");
+        assert_eq!(ler(&banco, &origem(), "cenario-a", "10").unwrap(), antes);
+    }
+}
+
+#[test]
+fn segundo_destino_ja_aberto_nao_tramita_o_primeiro() {
+    let banco = preparar();
+    let r = responder(
+        "POST",
+        ENDERECO,
+        "hdnIdProtocolos=10&hdnUnidades=3%B1ARQUIVO&chkSinManterAberto=on",
+        &banco,
+        &origem(),
+        "cenario-a",
+    );
+    assert_eq!(r.estado, Estado::Redirecionamento);
+    let antes = ler(&banco, &origem(), "cenario-a", "10").unwrap();
+    let r = responder(
+        "POST",
+        ENDERECO,
+        "hdnIdProtocolos=10&hdnUnidades=2%B1DESTINO+-+Unidade%A53%B1ARQUIVO&chkSinRemoverAnotacoes=on",
+        &banco,
+        &origem(),
+        "cenario-a",
+    );
+    assert_eq!(r.estado, Estado::RequisicaoInvalida);
+    assert_eq!(ler(&banco, &origem(), "cenario-a", "10").unwrap(), antes);
 }
