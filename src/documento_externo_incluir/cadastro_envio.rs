@@ -61,6 +61,26 @@ pub(crate) fn preparar_cadastro_definitivo(
         .plano
         .linha_do_anexo(recibo)
         .map_err(FalhaCadastroEnvio::Anexo)?;
+    derivar_cadastro(instalacao, tela, unidade, &linha, dia).map_err(FalhaCadastroEnvio::Formulario)
+}
+
+/// Confere a tela sem inventar um recibo; valores dependentes do upload
+/// serão derivados novamente do recibo real. Nada é transmitido.
+pub(crate) fn prevalidar_cadastro(
+    instalacao: &Instalacao,
+    tela: &TelaServida<'_>,
+    unidade: &str,
+) -> Result<(), ErroSubmissaoFormulario> {
+    derivar_cadastro(instalacao, tela, unidade, "", "").map(|_| ())
+}
+
+fn derivar_cadastro(
+    instalacao: &Instalacao,
+    tela: &TelaServida<'_>,
+    unidade: &str,
+    linha: &str,
+    dia: &str,
+) -> Result<SubmissaoDerivada, ErroSubmissaoFormulario> {
     derivar_submissao(
         &CADASTRAR_EXTERNO,
         instalacao,
@@ -68,13 +88,12 @@ pub(crate) fn preparar_cadastro_definitivo(
         Some(unidade),
         &[
             ("hdnFlagDocumentoCadastro", "2"),
-            ("hdnAnexos", &linha),
+            ("hdnAnexos", linha),
             ("txtDataElaboracao", dia),
             ("rdoFormato", "N"),
             ("rdoNivelAcesso", "0"),
         ],
     )
-    .map_err(FalhaCadastroEnvio::Formulario)
 }
 
 #[cfg(test)]

@@ -8,7 +8,7 @@ pub(crate) enum DocumentoAcao {
         #[arg(long, required = true, value_name = "NUP", value_parser = crate::processo::NumeroProcesso::novo)]
         processo: crate::processo::NumeroProcesso,
         #[arg(long, required = true, value_name = "ARQUIVO.pdf")]
-        arquivo: std::path::PathBuf,
+        arquivo: Vec<std::path::PathBuf>,
         #[arg(long, required = true, value_name = "TIPO", value_parser = crate::documento_externo_incluir_cli::tipo_externo)]
         tipo: String,
         /// Consulta a lista e o cadastro externo no SEI (sem upload nem escrita).
