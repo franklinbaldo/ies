@@ -61,8 +61,8 @@ mod indice_local;
 mod instalacao;
 mod legenda;
 mod marcadores_processo;
-#[cfg(test)]
 mod marcadores_unidade;
+mod marcadores_unidade_cli;
 mod mime_web;
 mod nivel_de_detalhe;
 mod origem_de_treinamento;
@@ -180,6 +180,8 @@ enum Domain {
     Indice(Indice),
     /// Leitura de blocos de assinatura, internos e de reunião
     Bloco(Bloco),
+    /// Consulta o catálogo de marcadores da unidade
+    Marcador(MarcadorArgs),
     /// Diagnóstico da conexão (ainda não implementado)
     Status(StatusArgs),
     /// Configura a conexão (ainda não implementado)
@@ -268,6 +270,22 @@ enum BlocoAcao {
         /// Executa a inclusão (sem isso, só prévia)
         #[arg(long)]
         confirmar: bool,
+    },
+}
+
+#[derive(Debug, Args)]
+struct MarcadorArgs {
+    #[command(subcommand)]
+    acao: Option<MarcadorAcao>,
+}
+
+#[derive(Debug, Subcommand)]
+enum MarcadorAcao {
+    /// Lista marcadores da página de catálogo observada
+    Listar {
+        /// Seleciona inativos, sem alternar o filtro persistente do SEI
+        #[arg(long)]
+        inativos: bool,
     },
 }
 
@@ -441,6 +459,17 @@ fn run(cli: &Cli) -> anyhow::Result<()> {
     }
     match &cli.command {
         Domain::Bloco(bloco) => return bloco_cli::executar(cli, bloco),
+        Domain::Marcador(args) => {
+            return match &args.acao {
+                Some(MarcadorAcao::Listar { inativos }) => {
+                    marcadores_unidade_cli::listar(cli.unidade.as_deref(), cli.json, *inativos)
+                }
+                None => {
+                    esquema_cli::show_noun_help("marcador");
+                    Ok(())
+                }
+            };
+        }
         Domain::Credenciais(args) => return credenciais_cli::executar(args, cli.json),
         Domain::Wizard(args) => return wizard_cli::executar(args, cli.json),
         Domain::Esquema => {
@@ -489,6 +518,7 @@ fn run(cli: &Cli) -> anyhow::Result<()> {
         | Domain::Unidade(_)
         | Domain::Indice(_)
         | Domain::Bloco(_)
+        | Domain::Marcador(_)
         | Domain::Status(_)
         | Domain::Setup(_)
         | Domain::Login(_)

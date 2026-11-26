@@ -1,0 +1,152 @@
+//! Leitura GET do catálogo de marcadores publicado pelo Controle (#880).
+use crate::acao_do_sei::AcaoDoSei;
+use crate::colheita_do_controle::Colheita;
+use crate::consulta_do_controlador::{ConsultaDoControlador, menciona_acao};
+use crate::indice_local::{self, IndiceLocal};
+use crate::instalacao::Instalacao;
+use crate::marcadores_unidade::{self, ErroCatalogo, Estado};
+use crate::tela_html::{HtmlServido, arvore};
+use crate::transporte::{self, FalhaTransporte, sessao::ReferenciasDaSessao};
+use crate::url_observada::{UrlHttps, pasta};
+use crate::{configuracao, controle_reconhecido, relogin_cli};
+use serde::Serialize;
+
+#[derive(Debug, thiserror::Error)]
+#[error("{self:?}")]
+enum FalhaLeitura {
+    Transporte(#[from] FalhaTransporte),
+    Controle(#[from] crate::erro_web::ErroCaixa),
+    Catalogo(#[from] ErroCatalogo),
+    UnidadeInesperada,
+    LinkAusente,
+    LinkAmbiguo,
+    LinkInvalido,
+    Consulta(#[from] crate::consulta_do_controlador::ErroConsultaDoControlador),
+}
+
+impl FalhaLeitura {
+    fn sessao_encerrada(&self) -> bool {
+        matches!(self, Self::Transporte(erro) if erro.sessao_encerrada())
+    }
+}
+
+/// Só o link da ação publicado pelo Controle; nunca inventa hash ou rota.
+fn link_do_menu(
+    html: &HtmlServido,
+    servida: &str,
+    instalacao: &Instalacao,
+) -> Result<String, FalhaLeitura> {
+    let dom = arvore(html);
+    let mut links = dom
+        .elementos("a")
+        .filter_map(|no| no.atributo("href"))
+        .filter(|href| menciona_acao(href, AcaoDoSei::MarcadorListar));
+    let href = links.next().ok_or(FalhaLeitura::LinkAusente)?;
+    if links.next().is_some() {
+        return Err(FalhaLeitura::LinkAmbiguo);
+    }
+    let consulta = href
+        .strip_prefix("controlador.php?")
+        .ok_or(FalhaLeitura::LinkInvalido)?;
+    let consulta = ConsultaDoControlador::ler(consulta)?;
+    if consulta.acao() != Ok(AcaoDoSei::MarcadorListar.como_na_url())
+        || consulta.valores("acao_ajax").next().is_some()
+        || !consulta.sem_chaves_repetidas()
+        || !consulta.unico("infra_hash").is_ok_and(|hash| {
+            hash.len() == 64 && hash.bytes().all(|b| b.is_ascii_hexdigit())
+        })
+    {
+        return Err(FalhaLeitura::LinkInvalido);
+    }
+    let base = UrlHttps::interpretar(servida).ok_or(FalhaLeitura::LinkInvalido)?;
+    let dir = pasta(base.caminho).ok_or(FalhaLeitura::LinkInvalido)?;
+    let url = format!("https://{}/{dir}/{href}", base.host);
+    let alvo = UrlHttps::interpretar(&url).ok_or(FalhaLeitura::LinkInvalido)?;
+    if !instalacao.autoriza_controlador(alvo.host, alvo.caminho) {
+        return Err(FalhaLeitura::LinkInvalido);
+    }
+    Ok(url)
+}
+
+#[derive(Serialize)]
+struct Saida {
+    unidade: String,
+    origem: &'static str,
+    requisicoes: u8,
+    #[serde(flatten)]
+    selecao: marcadores_unidade::Selecao,
+}
+
+pub(super) fn listar(unidade: Option<&str>, json_mode: bool, inativos: bool) -> anyhow::Result<()> {
+    let estado = if inativos { Estado::Inativo } else { Estado::Ativo };
+    let arquivos = configuracao::arquivos_de_acesso()?;
+    let indice = IndiceLocal::da_configuracao(&arquivos);
+    let ((atual, selecao), nota) = relogin_cli::ler(
+        &arquivos,
+        &indice,
+        unidade,
+        FalhaLeitura::sessao_encerrada,
+        || {
+            let sessao = ReferenciasDaSessao::ler(
+                &arquivos.url_controle,
+                &arquivos.origem,
+                &arquivos.cookie,
+            )?;
+            let controle = transporte::envio_post::ler_tela_do_controle(&sessao)?;
+            let atual = controle_reconhecido::unidade_do_controle(&controle.html)?;
+            if unidade.is_some_and(|esperada| esperada != atual) {
+                return Err(FalhaLeitura::UnidadeInesperada);
+            }
+            Colheita::das_referencias(&indice, &sessao)
+                .colher(&controle.html, Some(&controle.mime));
+            let url = link_do_menu(&controle.html, &controle.url, &controle.instalacao)?;
+            let resposta = transporte::get_https(&url, sessao.cookie().valor()?)?;
+            let html = transporte::decodificar_resposta(resposta)?;
+            let selecao = marcadores_unidade::ler(&html)?.selecionar(estado);
+            Ok((atual, selecao))
+        },
+    )
+    .map_err(relogin_cli::subir)?;
+    let requisicoes = relogin_cli::somar(2, nota.as_ref());
+    if json_mode {
+        let mut valor = serde_json::to_value(Saida {
+            unidade: atual,
+            origem: "web",
+            requisicoes,
+            selecao,
+        })?;
+        relogin_cli::anotar(&mut valor, nota.as_ref());
+        indice_local::anexar_avisos(&mut valor, &indice);
+        println!("{valor}");
+    } else {
+        relogin_cli::avisar(false, nota.as_ref());
+        indice_local::avisar_no_texto(&indice);
+        println!(
+            "Marcadores da unidade {atual}: {} selecionado(s) de {} observado(s); {} declarados no catálogo; {requisicoes} requisição(ões).",
+            selecao.itens.len(),
+            selecao.total_observado,
+            selecao.total_declarado
+        );
+        for item in selecao.itens {
+            println!("{}#{} | {}", item.id, item.nome, item.cor);
+        }
+    }
+    Ok(())
+}
+
+#[cfg(test)]
+mod tests {
+    use clap::Parser;
+
+    #[test]
+    fn forma_publica_da_cli() {
+        for args in [
+            vec!["ies", "marcador"],
+            vec!["ies", "marcador", "listar"],
+            vec!["ies", "--json", "marcador", "listar", "--inativos"],
+        ] {
+            assert!(crate::Cli::try_parse_from(args).is_ok());
+        }
+        assert!(crate::Cli::try_parse_from(["ies", "marcador", "listar", "--confirmar"]).is_err());
+    }
+}

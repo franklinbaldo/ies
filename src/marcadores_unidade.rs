@@ -1,5 +1,5 @@
 //! Leitor da tela mista do catálogo da unidade (#880).
-//! WIP: forma do oráculo Todos caabe699; ainda sem ligação à CLI.
+//! Forma mista observada no oráculo Todos caabe699 e nas cassettes UnB/PEN1.
 use crate::legenda::{ErroLegenda, Faixa, ler_legenda};
 use crate::tela_html::{HtmlServido, arvore};
 use serde::Serialize;
