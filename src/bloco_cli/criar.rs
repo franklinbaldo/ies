@@ -379,6 +379,23 @@ mod tests {
             conferir_criacao(&antes, &depois, "42", "Mesmo  texto"),
             Some(&nova)
         );
+        // Cadastro vazio observado também é completo (0/0).
+        let vazio = lista(Vec::new());
+        assert_eq!(
+            conferir_criacao(&vazio, &depois, "42", "Mesmo texto"),
+            Some(&nova)
+        );
+
+        // A releitura só precisa mostrar a identidade procurada; não
+        // requer que todos os demais blocos estejam na mesma página.
+        let mut posterior_parcial = lista(vec![nova.clone()]);
+        posterior_parcial.total_declarado = 2;
+        posterior_parcial.faixa_observada = Some(crate::legenda::Faixa { inicio: 2, fim: 2 });
+        assert_eq!(
+            conferir_criacao(&antes, &posterior_parcial, "42", "Mesmo texto"),
+            Some(&nova)
+        );
+
         assert!(conferir_criacao(&antes, &depois, "41", "Mesmo texto").is_none());
         assert!(conferir_criacao(&antes, &depois, "43", "Mesmo texto").is_none());
         assert!(conferir_criacao(&antes, &depois, "42", "Outro texto").is_none());
