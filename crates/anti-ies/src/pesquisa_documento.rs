@@ -5,6 +5,7 @@ use iesei::documento_versoes::{ids_da_pesquisa_por_numero, ids_por_numero, ler a
 use iesei::documentos_simulados::ids_por_nup;
 use iesei::instalacao::Instalacao;
 use rusqlite::Connection;
+use std::fmt::Write as _;
 
 mod paginas;
 mod processos;
@@ -84,11 +85,12 @@ fn formulario_de_pesquisa(
         } else {
             ""
         };
-        opcoes.push_str(&format!(
+        let _ = write!(
+            opcoes,
             "<option value='{}'{selecionado}>{}</option>",
             crate::escapar(id),
             crate::escapar(nome)
-        ));
+        );
     }
     format!(
         r#"<html><head><script>
@@ -239,6 +241,103 @@ fn periodo_processual(
     }
 }
 
+fn pesquisa_documental(
+    corpo: &str,
+    banco: &Connection,
+    instalacao: &Instalacao,
+    cenario: &str,
+    unidade: &iesei::observacao::UnidadeExibida,
+    radio: Option<&str>,
+) -> Resposta {
+    let gerados = super::documentos::campo_formulario_unico(corpo, "chkSinDocumentosGerados");
+    let recebidos = super::documentos::campo_formulario_unico(corpo, "chkSinDocumentosRecebidos");
+    let Some(termo) = super::documentos::campo_formulario_unico(corpo, "txtProtocoloPesquisa")
+        .filter(|t| !t.trim().is_empty())
+    else {
+        return Resposta::nova(Estado::RequisicaoInvalida);
+    };
+    if radio != Some("D")
+        || (gerados.as_deref() != Some("S") && recebidos.as_deref() != Some("S"))
+    {
+        return Resposta::nova(Estado::RequisicaoInvalida);
+    }
+    // O estado documental ainda não distingue filtros por data.
+    if ["txtDataInicio", "txtDataFim"]
+        .iter()
+        .any(|nome| campo_opcional(corpo, nome).as_deref() != Some(""))
+    {
+        return Resposta::nova(Estado::DadosInsuficientes);
+    }
+    // O POST de navegar() repete o formulário, mudando só hdnInicio.
+    // Sem a página observada, não inferimos uma faixa pelo total.
+    let deslocamento = super::documentos::campo_formulario_unico(corpo, "hdnInicio")
+        .unwrap_or_else(|| "0".to_owned());
+    let Ok(deslocamento) = deslocamento.parse::<u64>() else {
+        return Resposta::nova(Estado::RequisicaoInvalida);
+    };
+    let pagina = iesei::pesquisa_documento::consultar_por_inicio(
+        banco,
+        instalacao,
+        cenario,
+        unidade,
+        &termo,
+        deslocamento,
+    );
+    match pagina {
+        Ok(Some(pagina)) => {
+            let tamanho = if pagina.pagina == 1 {
+                pagina.fim
+            } else {
+                let Ok(Some(primeira)) = iesei::pesquisa_documento::consultar_pagina(
+                    banco,
+                    instalacao,
+                    cenario,
+                    unidade,
+                    &termo,
+                    1,
+                ) else {
+                    return Resposta::nova(Estado::DadosInsuficientes);
+                };
+                if primeira.total_declarado != pagina.total_declarado {
+                    return Resposta::nova(Estado::DadosInsuficientes);
+                }
+                primeira.fim
+            };
+            match paginas::renderizar(banco, instalacao, cenario, &pagina, tamanho) {
+                Ok(html) => Resposta::html(formulario_de_pesquisa(
+                    unidade.as_str(),
+                    &termo,
+                    &html,
+                    None,
+                    &[],
+                )),
+                Err(estado) => Resposta::nova(estado),
+            }
+        }
+        Err(_) => Resposta::nova(Estado::DadosInsuficientes),
+        Ok(None) if deslocamento != 0 => Resposta::nova(Estado::DadosInsuficientes),
+        Ok(None) => match iesei::pesquisa_documento::consultar(
+            banco,
+            instalacao,
+            cenario,
+            unidade,
+            &termo,
+        ) {
+            Ok(Some(iesei::pesquisa_documento::Resultado::SemResultado)) => {
+                Resposta::html(formulario_de_pesquisa(
+                    unidade.as_str(),
+                    &termo,
+                    "<div class='pesquisaSemResultado'>Nenhum resultado encontrado.</div>",
+                    None,
+                    &[],
+                ))
+            }
+            Ok(None) => documento_exato(banco, instalacao, cenario, &termo),
+            Err(_) => Resposta::nova(Estado::DadosInsuficientes),
+        },
+    }
+}
+
 /// Pesquisa por protocolo na forma documento. Estado desconhecido retorna
 /// 503, nunca `sem_resultado` por omissão de registro no SQLite.
 #[must_use]
@@ -272,98 +371,18 @@ pub fn responder_pesquisa(
             ))
         }
         "POST" => {
-            let termo = super::documentos::campo_formulario_unico(corpo, "txtProtocoloPesquisa");
             let radio = super::documentos::campo_formulario_unico(corpo, "rdoPesquisarEm");
             if radio.as_deref() == Some("P") {
                 return periodo_processual(corpo, banco, instalacao, cenario, &controle.unidade);
             }
-            let gerados =
-                super::documentos::campo_formulario_unico(corpo, "chkSinDocumentosGerados");
-            let recebidos =
-                super::documentos::campo_formulario_unico(corpo, "chkSinDocumentosRecebidos");
-            let Some(termo) = termo.filter(|t| !t.trim().is_empty()) else {
-                return Resposta::nova(Estado::RequisicaoInvalida);
-            };
-            if radio.as_deref() != Some("D")
-                || (gerados.as_deref() != Some("S") && recebidos.as_deref() != Some("S"))
-            {
-                return Resposta::nova(Estado::RequisicaoInvalida);
-            }
-            // O estado documental ainda não distingue filtros por data.
-            if ["txtDataInicio", "txtDataFim"]
-                .iter()
-                .any(|nome| campo_opcional(corpo, nome).as_deref() != Some(""))
-            {
-                return Resposta::nova(Estado::DadosInsuficientes);
-            }
-            // O POST de navegar() repete o formulário, mudando só hdnInicio.
-            // Sem a página observada, não inferimos uma faixa pelo total.
-            let deslocamento = super::documentos::campo_formulario_unico(corpo, "hdnInicio")
-                .unwrap_or_else(|| "0".to_owned());
-            let Ok(deslocamento) = deslocamento.parse::<u64>() else {
-                return Resposta::nova(Estado::RequisicaoInvalida);
-            };
-            let pagina = iesei::pesquisa_documento::consultar_por_inicio(
+            pesquisa_documental(
+                corpo,
                 banco,
                 instalacao,
                 cenario,
                 &controle.unidade,
-                &termo,
-                deslocamento,
-            );
-            match pagina {
-                Ok(Some(pagina)) => {
-                    let tamanho = if pagina.pagina == 1 {
-                        pagina.fim
-                    } else {
-                        let Ok(Some(primeira)) = iesei::pesquisa_documento::consultar_pagina(
-                            banco,
-                            instalacao,
-                            cenario,
-                            &controle.unidade,
-                            &termo,
-                            1,
-                        ) else {
-                            return Resposta::nova(Estado::DadosInsuficientes);
-                        };
-                        if primeira.total_declarado != pagina.total_declarado {
-                            return Resposta::nova(Estado::DadosInsuficientes);
-                        }
-                        primeira.fim
-                    };
-                    match paginas::renderizar(banco, instalacao, cenario, &pagina, tamanho) {
-                        Ok(html) => Resposta::html(formulario_de_pesquisa(
-                            controle.unidade.as_str(),
-                            &termo,
-                            &html,
-                            None,
-                            &[],
-                        )),
-                        Err(estado) => Resposta::nova(estado),
-                    }
-                }
-                Err(_) => Resposta::nova(Estado::DadosInsuficientes),
-                Ok(None) if deslocamento != 0 => Resposta::nova(Estado::DadosInsuficientes),
-                Ok(None) => match iesei::pesquisa_documento::consultar(
-                    banco,
-                    instalacao,
-                    cenario,
-                    &controle.unidade,
-                    &termo,
-                ) {
-                    Ok(Some(iesei::pesquisa_documento::Resultado::SemResultado)) => {
-                        Resposta::html(formulario_de_pesquisa(
-                            controle.unidade.as_str(),
-                            &termo,
-                            "<div class='pesquisaSemResultado'>Nenhum resultado encontrado.</div>",
-                            None,
-                            &[],
-                        ))
-                    }
-                    Ok(None) => documento_exato(banco, instalacao, cenario, &termo),
-                    Err(_) => Resposta::nova(Estado::DadosInsuficientes),
-                },
-            }
+                radio.as_deref(),
+            )
         }
         _ => Resposta::nova(Estado::MetodoNaoPermitido),
     }
