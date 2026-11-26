@@ -28,18 +28,7 @@ pub(crate) fn ler_anexo_com_teor<R: Read>(
     extrair_pdf: bool,
 ) -> Result<AnexoLido, ErroAnexo> {
     if resposta.status != 200 {
-        // As mesmas recusas de status do transporte (corpo até 64 KiB).
-        let mime = resposta
-            .valores("content-type")
-            .first()
-            .map_or_else(String::new, |v| (*v).to_owned());
-        return Err(ErroAnexo::Transporte(recusar_status(RespostaWeb {
-            status_code: i32::from(resposta.status),
-            mime,
-            content_length: None,
-            localizacao: None,
-            corpo: resposta.corpo,
-        })));
+        return Err(recusar_anexo(resposta));
     }
     let mut conferido = conferir(&resposta, limite)?;
     let RespostaBinaria { corpo, .. } = resposta;
@@ -136,6 +125,21 @@ pub(crate) fn ler_anexo_com_teor<R: Read>(
         disposicao,
         conteudo,
     })
+}
+
+fn recusar_anexo<R: Read>(resposta: RespostaBinaria<R>) -> ErroAnexo {
+    // As mesmas recusas de status do transporte (corpo até 64 KiB).
+    let mime = resposta
+        .valores("content-type")
+        .first()
+        .map_or_else(String::new, |v| (*v).to_owned());
+    ErroAnexo::Transporte(recusar_status(RespostaWeb {
+        status_code: i32::from(resposta.status),
+        mime,
+        content_length: None,
+        localizacao: None,
+        corpo: resposta.corpo,
+    }))
 }
 
 fn conferir_html(bytes: &[u8], tipo: &str) -> Result<(), ErroAnexo> {
