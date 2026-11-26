@@ -38,7 +38,7 @@ pub(crate) enum ErroTextoPadrao {
     Ambiguo,
 }
 
-fn url_publicada(html: &HtmlServido) -> Result<String, ErroTextoPadrao> {
+pub(super) fn url_publicada(html: &HtmlServido) -> Result<String, ErroTextoPadrao> {
     let dom = crate::tela_html::arvore(html);
     let form = localizar_formulario(&dom, "frmDocumentoCadastro")?;
     for (nome, tipo, valor) in [
