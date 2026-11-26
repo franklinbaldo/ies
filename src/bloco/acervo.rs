@@ -103,12 +103,16 @@ fn replay_da_criacao_de_bloco_de_assinatura_no_acervo() {
             _ => return,
         };
         let respostas = gravacao::respostas(json);
-        let formulario = respostas
+        let post = respostas
             .iter()
             .find(|r| {
-                r.operacao == "bloco_assinatura_cadastrar" && r.metodo == "GET" && r.status == 200
+                r.operacao == "bloco_assinatura_cadastrar"
+                    && r.metodo == "POST"
+                    && r.status == 302
             })
-            .expect("GET do cadastro não gravado");
+            .expect("POST 302 de criação não gravado");
+        let formulario = formulario_da_criacao(&respostas, post.passo)
+            .expect("GET do cadastro que antecede o POST não gravado");
         let html = HtmlServido::de_teste(
             &html_da_resposta(formulario.interacao).expect("HTML do cadastro"),
         );
@@ -158,15 +162,6 @@ fn replay_da_criacao_de_bloco_de_assinatura_no_acervo() {
             grupo.as_deref().expect("grupo publicado"),
         );
 
-        let post = respostas
-            .iter()
-            .find(|r| {
-                r.passo > formulario.passo
-                    && r.operacao == "bloco_assinatura_cadastrar"
-                    && r.metodo == "POST"
-                    && r.status == 302
-            })
-            .expect("POST 302 de criação não gravado");
         let url = gravacao::url_sem_consulta(json, post.interacao);
         let id = gravacao::localizacao(post.interacao)
             .and_then(|local| crate::bloco_cli::criar::id_do_aceite(local, &url))
@@ -254,6 +249,22 @@ fn conferir_derivacao_do_cadastro(
     }
 }
 
+// A prévia e a confirmação podem abrir o mesmo cadastro separadamente.
+// Parear o GET mais recente com o POST, sem atravessar outra submissão.
+fn formulario_da_criacao<'a, 'j>(
+    respostas: &'a [gravacao::Resposta<'j>],
+    post: usize,
+) -> Option<&'a gravacao::Resposta<'j>> {
+    respostas
+        .iter()
+        .rev()
+        .filter(|r| r.passo < post)
+        .take_while(|r| r.metodo != "POST")
+        .find(|r| {
+            r.operacao == "bloco_assinatura_cadastrar" && r.metodo == "GET" && r.status == 200
+        })
+}
+
 // A testemunha anterior é a última lista GET antes do cadastro; a
 // posterior é a primeira lista GET antes de outra submissão. Não
 // atribuir à criação uma linha vista somente no fim de todo o roteiro.
@@ -312,6 +323,20 @@ fn testemunha_da_criacao_nao_pula_para_lista_depois_de_outra_escrita() {
     let (antes, depois) = listas_da_criacao(&respostas, 1, 2);
     assert_eq!(antes.map(|r| r.passo), Some(0));
     assert_eq!(depois.map(|r| r.passo), Some(3));
+
+    // O primeiro cadastro é a prévia; a lista anterior à confirmação
+    // pode ter cardinalidade distinta da lista que antecedeu a prévia.
+    let duas_aberturas = json!({"interactions": [lista.clone(), cadastro.clone(), lista.clone(), cadastro.clone(), post.clone(), lista.clone()]});
+    let respostas = gravacao::respostas(&duas_aberturas);
+    let formulario = formulario_da_criacao(&respostas, 4).unwrap();
+    assert_eq!(formulario.passo, 3);
+    let (antes, depois) = listas_da_criacao(&respostas, formulario.passo, 4);
+    assert_eq!(antes.map(|r| r.passo), Some(2));
+    assert_eq!(depois.map(|r| r.passo), Some(5));
+
+    let interrompido = json!({"interactions": [lista.clone(), cadastro.clone(), outro.clone(), post.clone(), lista.clone()]});
+    let respostas = gravacao::respostas(&interrompido);
+    assert!(formulario_da_criacao(&respostas, 3).is_none());
 
     let negativo = json!({"interactions": [lista.clone(), cadastro, post, outro, lista]});
     let respostas = gravacao::respostas(&negativo);
