@@ -3,8 +3,9 @@
 //! até a validação em treinamento e a confirmação segura do fluxo completo.
 use super::{
     PdfLocal,
-    confirmacao::{FotoProcesso, confirmar_sequencia},
-    fluxo::{ErroIncluirExterno, preparar_previa},
+    cadastro_envio::prevalidar_cadastro,
+    confirmacao::{FalhaConfirmacao, FotoProcesso, conferir_foto_inicial, confirmar_sequencia},
+    fluxo::{CadastroPreparado, ErroIncluirExterno, preparar_previa},
     recibo::{FalhaUpload, ReciboUpload},
 };
 use crate::acao_do_sei::AcaoDoSei;
@@ -173,27 +174,9 @@ where
     ) -> Result<ReciboUpload, FalhaUpload>,
 {
     let preparado = preparar_previa(sessao, nup, unidade_pedida, tipo, pdf, indice, envio)?;
-    // O recibo do upload nao deve ser criado se o cadastro ja mostrou
-    // faltar um dos campos que a submissao definitiva exigira.
-    if prevalidar {
-        for campo in CampoExigidoDoCadastro::TODOS {
-            if !preparado
-                .previa
-                .campos_oferecidos
-                .iter()
-                .any(|nome| nome == campo.nome_do_controle())
-            {
-                return Err(ErroIncluirExterno::CampoDoCadastroNaoOferecido(campo));
-            }
-        }
-    }
     let instalacao = Instalacao::interpretar(sessao.origem)
         .ok_or(ErroIncluirExterno::OrigemDaSessaoNaoInterpretada)?;
-    let destino = conferir_upload(
-        &instalacao,
-        preparado.cadastro.plano.url_upload(),
-        &preparado.foto_antes.id,
-    )?;
+    let destino = conferir_preparo(&instalacao, &preparado, prevalidar)?;
     let tela = TelaServida {
         url: &preparado.url_cadastro,
         html: &preparado.html_cadastro,
@@ -227,6 +210,66 @@ where
         numero_sei,
         unidade,
     })
+}
+
+fn conferir_preparo(
+    instalacao: &Instalacao,
+    preparado: &CadastroPreparado,
+    prevalidar: bool,
+) -> Result<String, ErroIncluirExterno> {
+    if prevalidar {
+        for campo in CampoExigidoDoCadastro::TODOS {
+            if !preparado
+                .previa
+                .campos_oferecidos
+                .iter()
+                .any(|nome| nome == campo.nome_do_controle())
+            {
+                return Err(ErroIncluirExterno::CampoDoCadastroNaoOferecido(campo));
+            }
+        }
+        prevalidar_cadastro(
+            instalacao,
+            &TelaServida {
+                url: &preparado.url_cadastro,
+                html: &preparado.html_cadastro,
+                codificacao: preparado.codificacao,
+            },
+            &preparado.previa.unidade,
+        )?;
+    }
+    conferir_upload(
+        instalacao,
+        preparado.cadastro.plano.url_upload(),
+        &preparado.foto_antes.id,
+    )
+}
+
+/// Prévia de confirmação: aplica os mesmos requisitos do fluxo individual,
+/// sem criar recibo nem transmitir o PDF.
+#[allow(clippy::too_many_arguments)]
+pub(crate) fn prevalidar_confirmacao<V: EnvioDoProcesso>(
+    sessao: &SessaoDoProcesso<'_>,
+    nup: &NumeroProcesso,
+    unidade_pedida: Option<&str>,
+    tipo: &str,
+    pdf: &PdfLocal,
+    indice: &IndiceLocal,
+    envio: &mut V,
+) -> Result<(), ErroIncluirExterno> {
+    let preparado = preparar_previa(sessao, nup, unidade_pedida, tipo, pdf, indice, envio)?;
+    let instalacao = Instalacao::interpretar(sessao.origem)
+        .ok_or(ErroIncluirExterno::OrigemDaSessaoNaoInterpretada)?;
+    conferir_preparo(&instalacao, &preparado, true)?;
+    conferir_foto_inicial(&preparado.foto_antes)?;
+    super::multipart::preparar_pdf(
+        &pdf.nome,
+        pdf.tamanho_bytes,
+        "----ies-prevalidacao",
+        preparado.codificacao,
+    )
+    .map_err(|erro| FalhaConfirmacao::UploadRecusado(FalhaUpload::PreparacaoMultipart(erro)))?;
+    Ok(())
 }
 
 /// Ponte real da sequência #332: o mesmo POST multipart único do transporte,

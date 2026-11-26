@@ -11,6 +11,24 @@ implementation: partial
 
 A capacidade está **PARCIAL**. Por padrão, `ies documento incluir-externo --processo NUP --arquivo ARQUIVO.pdf --tipo TIPO` inspeciona apenas o arquivo local (sem sessão nem rede). Com `--consultar-sei`, a CLI consulta o processo, escolhe o cadastro externo, recarrega o tipo (POST com sinalizador **1**, que não cadastra documento) e apresenta a prévia do limite/tipo e do PDF, sem upload. `--confirmar` envia o PDF (upload temporário) e cadastra o documento, uma única vez cada, sem retry, e só declara sucesso depois de reler a árvore e achar o externo novo (`Anexo (NNNNNNN)`, ícone PDF). Efeito não comprovado sai 1 com `Error: TentativaNaoComprovada { upload_tentado, requisicoes }` e, em `Caused by:`, o `ErroIncluirExterno` detectado (por exemplo `Confirmacao(UploadIncerto(..))`, `Confirmacao(CadastroIncerto(..))`, `Confirmacao(ReleituraIncerta(..))`); não repita `--confirmar` sem conferir o processo. **Validado ao vivo na UnB de treinamento em 09/11/2026** (saída 0, documento `0012273`, [relatório](../../docs/validacao-live/2026-11-09-documento-incluir-externo-unb.md)). Não há chave nem trava de ensaio. Aprovada em treinamento, a escrita vale também em produção, para uso dos usuários (decisão do proprietário de 10/11/2026; `src/origem_de_treinamento.rs`).
 
+## Lote de PDFs (#883, WIP de confirmação)
+
+A opção `--arquivo` pode ser repetida. Um único arquivo conserva a saída
+anterior. Para mais de um, a inspeção é integral antes da sessão e a
+prévia Web percorre todos os arquivos antes de apresentar o resultado.
+A prévia não envia upload nem cadastro. A confirmação de lote tem
+autorização própria, restrita ao treinamento; confere todos os cadastros
+antes do primeiro upload e reaproveita a confirmação individual com foto
+fresca. Para na primeira falha, sem retry ou rollback. Os itens confirmados
+conservam seus números SEI; o item interrompido indica se houve tentativa
+de upload, e os restantes são explicitamente não tentados. A falha sai 1,
+com stdout vazio (#695), resultado parcial JSON na primeira linha
+`Error: LoteInterrompido: ...` do stderr e a causa original encadeada.
+Saída JSON de lote: `escopo` é `inspecao_local_lote`, `previa_web_lote` ou
+`confirmacao_web_lote`, com `itens` na ordem de entrada.
+A confirmação em lote ainda depende de CI, replay aplicável e validação
+de treinamento; não herda promoção da operação singular.
+
 ## Contrato atual do núcleo local
 
 - O NUP é validado pelo tipo `NumeroProcesso`. O tipo solicitado é texto opaco não vazio, sem caracteres de controle; não é declarado como existente no SEI.
