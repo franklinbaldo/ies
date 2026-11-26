@@ -145,3 +145,86 @@ fn formulario_classico(hash: &str) -> HtmlServido {
          <script>CKEDITOR.replace('txaEditor_12', {{\"readOnly\":false}});</script>"
     ))
 }
+
+#[test]
+fn formulario_classico_anti_ies_usa_leitor_e_post_nativos() {
+    use anti_ies::{Estado, editor_documento::responder};
+    use iesei::documento_versoes::{DocumentoSimulado, Revisao, guardar, ler};
+    use iesei::editor_documento::{Oferta, registrar_oferta};
+    use rusqlite::Connection;
+    use std::num::NonZeroU32;
+
+    let instalacao = Instalacao::interpretar("https://sei.exemplo.gov.br/sei").unwrap();
+    let mut banco = Connection::open_in_memory().unwrap();
+    iesei::banco_cassettes::iniciar(&banco).unwrap();
+    guardar(
+        &mut banco,
+        "ensaio",
+        &DocumentoSimulado {
+            instalacao: instalacao.clone(),
+            id_documento: "21".into(),
+            id_procedimento: "10".into(),
+            numero_processo: "00001.000001/2026-01".into(),
+            numero: "0000101".into(),
+            tipo: "Despacho".into(),
+            revisoes: vec![Revisao {
+                versao: NonZeroU32::new(1).unwrap(),
+                usuario: "Teste".into(),
+                unidade: "TESTE".into(),
+                modificacao: "26/11/2026".into(),
+                html_corpo: "<p>Antes</p>".into(),
+            }],
+        },
+    )
+    .unwrap();
+    registrar_oferta(
+        &banco,
+        &instalacao,
+        "ensaio",
+        "21",
+        Oferta {
+            editavel: true,
+            assinaturas: 0,
+        },
+    )
+    .unwrap();
+    let rota = "/sei/controlador.php?acao=editor_montar&id_procedimento=10&id_documento=21";
+    let montagem = responder("GET", rota, "", &banco, &instalacao, "ensaio");
+    assert_eq!(montagem.estado, Estado::Ok);
+    let html = HtmlServido::de_teste(&montagem.corpo);
+    let protocolo = Protocolo::ler(&html).unwrap();
+    assert_eq!(protocolo.principal(), Some("txaEditor_1"));
+    assert_eq!(protocolo.versao().unwrap().numero(), 1);
+    assert_eq!(protocolo.secoes()[0].html, "<p>Antes</p>");
+
+    let url = format!("https://sei.exemplo.gov.br{rota}");
+    let submissao = derivar_submissao(
+        &EDITAR,
+        &instalacao,
+        &TelaServida {
+            url: &url,
+            html: &html,
+            codificacao: crate::formulario_web::CodificacaoDaTela::Utf8,
+        },
+        None,
+        &[("txaEditor_1", "<p>Depois</p>")],
+    )
+    .unwrap();
+    let destino = submissao
+        .url()
+        .strip_prefix("https://sei.exemplo.gov.br")
+        .unwrap();
+    assert!(destino.contains("id_procedimento=10"));
+    let corpo = std::str::from_utf8(submissao.corpo()).unwrap();
+    let aceite = responder("POST", destino, corpo, &banco, &instalacao, "ensaio");
+    assert_eq!(aceite.estado, Estado::Ok);
+    assert_eq!(aceite.corpo, "OK 2");
+    let relida = responder("GET", rota, "", &banco, &instalacao, "ensaio");
+    let protocolo = Protocolo::ler(&HtmlServido::de_teste(&relida.corpo)).unwrap();
+    assert_eq!(protocolo.versao().unwrap().numero(), 2);
+    assert_eq!(protocolo.secoes()[0].html, "<p>Depois</p>");
+    let documento = ler(&banco, &instalacao, "ensaio", "21").unwrap().unwrap();
+    assert_eq!(documento.revisoes.len(), 2);
+    assert_eq!(documento.revisoes[0].html_corpo, "<p>Antes</p>");
+    assert_eq!(documento.revisoes[1].html_corpo, "<p>Depois</p>");
+}
