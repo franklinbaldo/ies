@@ -173,10 +173,6 @@ pub(crate) fn tentar_incluir(cli: &Cli) -> Option<anyhow::Result<()>> {
     Some(Ok(()))
 }
 
-#[derive(Debug, thiserror::Error)]
-#[error("ConfirmacaoEmLotePendente: nenhuma escrita foi tentada")]
-struct ConfirmacaoEmLotePendente;
-
 fn incluir_lote(
     cli: &Cli,
     processo: &crate::processo::NumeroProcesso,
@@ -190,7 +186,7 @@ fn incluir_lote(
         .map(|caminho| inspecionar_pdf(caminho, None))
         .collect::<Result<Vec<_>, _>>()?;
     if confirmar {
-        return Err(ConfirmacaoEmLotePendente.into());
+        return confirmar_remoto::executar_lote(cli, processo, tipo, &pdfs, caminhos);
     }
     if consultar_sei {
         return com_sessao(cli, |sessao, indice| {
