@@ -41,10 +41,17 @@ efetivo; a ausência de critério é saída 2 antes de configuração. Texto
 vazio ou com controles também é recusado na borda. JSON conserva `termo`
 (vazio se omitido) e acrescenta `texto` quando solicitado.
 
-A derivação reutiliza o mesmo formulário e os filtros na paginação. A
-primeira implementação ainda não está homologada: falta confronto com o
-original GO, validação de paginação e estado independente no anti-IES.
-A fixture sintética de formulário já inclui `q`; ela não prova o POST real.
+A derivação reutiliza o mesmo formulário e os filtros na paginação.
+O replay do formulário e da resposta original GO (dois resultados) passou
+na CI diagnóstica do SHA `42c84338`. O corpo original do POST não foi
+preservado: o termo pesquisado não é conhecido. Os testes com `q` e
+paginação usam critérios sintéticos; não demonstram paridade do POST real.
+
+No anti-IES, enquanto o estado SQLite só identifica protocolo, uma busca
+com `q` não vazio é desconhecida (503), inclusive quando o mesmo protocolo
+já tem zero observado, redirecionamento ou página de resultados. Não se
+infere resultado textual nem ausência a partir de observação de protocolo.
+A persistência de critérios textuais e o E2E positivo ainda estão pendentes.
 
 ## Fluxo e orçamento
 
