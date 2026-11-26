@@ -121,6 +121,7 @@ fn processar_tunel(
     tls: &TlsAcceptor,
     destino: std::net::SocketAddr,
     registro: &Mutex<Vec<String>>,
+    perder_resposta: bool,
 ) {
     assert!(cabecalho(&mut tcp).starts_with(b"CONNECT sei.test:443 HTTP/1.1\r\n"));
     tcp.write_all(b"HTTP/1.1 200 Connection established\r\n\r\n")
@@ -152,6 +153,11 @@ fn processar_tunel(
         .lock()
         .unwrap()
         .push(format!("{metodo} {acao} {status}"));
+    // Hipótese sintética: o banco aplica o POST, mas a CLI perde a resposta.
+    if perder_resposta && metodo == "POST" && acao == "procedimento_gerar" {
+        assert_eq!(status, "302");
+        return;
+    }
     canal.write_all(&resposta).unwrap();
     canal.flush().unwrap();
 }
@@ -159,6 +165,7 @@ fn processar_tunel(
 fn executar_com_releitura(
     args: &[&str],
     reler: bool,
+    perder_resposta: bool,
 ) -> (Output, Option<Output>, Vec<String>, (i64, i64), usize) {
     let pasta = Pasta::nova();
     let (cert, identidade) = identidade(&pasta.0, "sei.test");
@@ -200,7 +207,7 @@ fn executar_com_releitura(
     let tunel = thread::spawn(move || {
         let tls = TlsAcceptor::new(identidade).unwrap();
         while let Some(tcp) = aceitar(&proxy, &parar_proxy) {
-            processar_tunel(tcp, &tls, destino, &registro);
+            processar_tunel(tcp, &tls, destino, &registro, perder_resposta);
         }
     });
 
@@ -246,7 +253,7 @@ fn executar_com_releitura(
 }
 
 fn executar(args: &[&str]) -> (Output, Vec<String>, (i64, i64), usize) {
-    let (saida, _, pedidos, contagens, tipos) = executar_com_releitura(args, false);
+    let (saida, _, pedidos, contagens, tipos) = executar_com_releitura(args, false, false);
     (saida, pedidos, contagens, tipos)
 }
 
@@ -303,6 +310,7 @@ fn criacao_unica_e_releitura_independente_via_cli_real() {
             "--confirmar",
         ],
         true,
+        false,
     );
     assert_eq!(
         saida.status.code(),
@@ -390,11 +398,7 @@ fn confirmacao_recusa_especificacao_acima_do_limite_servido() {
         "--confirmar",
     ]);
     assert_eq!(saida.status.code(), Some(1), "pedidos={pedidos:?}");
-    assert!(
-        pedidos
-            .iter()
-            .any(|p| p == "GET procedimento_gerar 200")
-    );
+    assert!(pedidos.iter().any(|p| p == "GET procedimento_gerar 200"));
     assert!(
         pedidos
             .iter()
@@ -402,4 +406,48 @@ fn confirmacao_recusa_especificacao_acima_do_limite_servido() {
     );
     assert_eq!(contagens, (0, 0));
     assert_eq!(tipos, 1);
+}
+
+#[test]
+fn resposta_perdida_preserva_residuo_sem_confirmar_nem_repetir() {
+    let (saida, _, pedidos, contagens, tipos) = executar_com_releitura(
+        &[
+            "--json",
+            "processo",
+            "criar",
+            "--tipo",
+            TIPO,
+            "--especificacao",
+            "Cadastro com resposta perdida",
+            "--confirmar",
+        ],
+        false,
+        true,
+    );
+    assert_eq!(
+        saida.status.code(),
+        Some(1),
+        "stdout={} stderr={} pedidos={pedidos:?}",
+        String::from_utf8_lossy(&saida.stdout),
+        String::from_utf8_lossy(&saida.stderr),
+    );
+    assert_eq!(contagens, (0, 1), "a escrita chegou ao SQLite");
+    assert_eq!(tipos, 1);
+    assert_eq!(
+        pedidos
+            .iter()
+            .filter(|p| p.starts_with("POST procedimento_gerar "))
+            .count(),
+        1,
+        "a perda da resposta não permite retry",
+    );
+    let depois = pedidos
+        .iter()
+        .skip_while(|p| *p != "POST procedimento_gerar 302")
+        .skip(1)
+        .collect::<Vec<_>>();
+    assert!(depois.iter().any(|p| *p == "GET procedimento_controlar 200"));
+    // O processo recém-criado precisa aparecer em Gerados com link servido.
+    // A leitura das propriedades não pode transformar coincidência em autoria.
+    assert!(depois.iter().any(|p| *p == "GET procedimento_alterar 200"));
 }
