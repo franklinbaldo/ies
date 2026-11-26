@@ -81,9 +81,15 @@ no charset declarado ou UTF-8 estrito, controles trocados por `�`;
 nativo recuperado localmente pelo executável `pdftotext` (Poppler, instalado
 pela pessoa, sem download implícito). Em PDF, `anexo.extracao_pdf` indica
 `nativo_parcial`, `nativo_com_diagnostico`, `sem_texto_nativo`, `motor_ausente`
-ou `falhou`. Não certifica teor integral nem executa OCR nesta fatia. Ausência
-de texto nativo não prova página em branco. O motor tem prazo de 30 segundos
-e saída limitada a 8 MB; diagnóstico bruto não é publicado. Com `--saida`,
+ou `falhou`. Páginas sem texto nativo são renderizadas localmente pelo
+`pdftoppm` (até 2000 pixels por lado) e submetidas ao Tesseract com idioma
+`por`, instalados pela pessoa. Texto recuperado em ordem de páginas recebe
+`misto_parcial` ou `ocr_parcial`; falhas em outras páginas resultam em
+`misto_com_diagnostico` ou `ocr_com_diagnostico`. Sem texto nativo e com OCR
+indisponível ou malsucedido, `ocr_indisponivel`. Páginas com texto nativo
+não passam por OCR, ainda que tenham imagens; ausência de texto não prova
+página em branco. Nenhum estado certifica teor integral. Prazo compartilhado
+de 30 segundos e saída limitada a 8 MB; diagnóstico bruto não é publicado. Com `--saida`,
 não se executa a extração. A leitura sem cache usa parcial privado efêmero.
 Bytes binários nunca vão para a saída padrão. Sem `--json`, a linha do documento, a linha do anexo e o texto
 (se houver).

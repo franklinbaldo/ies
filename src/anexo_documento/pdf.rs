@@ -1,6 +1,6 @@
-//! Primeira fatia local: texto nativo de PDF, sem afirmar cobertura de OCR.
+//! Texto de PDF local, OCR nas páginas sem texto nativo; cobertura parcial.
 use super::{ErroAnexo, conferir_token};
-use std::io::{self, Read};
+use std::io::{self, Read, Write};
 use std::path::Path;
 use std::process::{Command, Stdio};
 use std::time::{Duration, Instant};
@@ -9,7 +9,12 @@ use std::time::{Duration, Instant};
 pub(crate) enum ExtracaoPdf {
     NativoParcial(String),
     NativoComDiagnostico(String),
+    MistoParcial(String),
+    OcrParcial(String),
+    MistoComDiagnostico(String),
+    OcrComDiagnostico(String),
     SemTextoNativo,
+    OcrIndisponivel,
     MotorAusente,
     Falhou,
 }
@@ -17,8 +22,13 @@ pub(crate) enum ExtracaoPdf {
 impl ExtracaoPdf {
     pub(crate) fn texto(&self) -> Option<&str> {
         match self {
-            Self::NativoParcial(texto) | Self::NativoComDiagnostico(texto) => Some(texto),
-            Self::SemTextoNativo | Self::MotorAusente | Self::Falhou => None,
+            Self::NativoParcial(texto)
+            | Self::NativoComDiagnostico(texto)
+            | Self::MistoParcial(texto)
+            | Self::OcrParcial(texto)
+            | Self::MistoComDiagnostico(texto)
+            | Self::OcrComDiagnostico(texto) => Some(texto),
+            Self::SemTextoNativo | Self::OcrIndisponivel | Self::MotorAusente | Self::Falhou => None,
         }
     }
 
@@ -26,7 +36,12 @@ impl ExtracaoPdf {
         match self {
             Self::NativoParcial(_) => "nativo_parcial",
             Self::NativoComDiagnostico(_) => "nativo_com_diagnostico",
+            Self::MistoParcial(_) => "misto_parcial",
+            Self::OcrParcial(_) => "ocr_parcial",
+            Self::MistoComDiagnostico(_) => "misto_com_diagnostico",
+            Self::OcrComDiagnostico(_) => "ocr_com_diagnostico",
             Self::SemTextoNativo => "sem_texto_nativo",
+            Self::OcrIndisponivel => "ocr_indisponivel",
             Self::MotorAusente => "motor_ausente",
             Self::Falhou => "falhou",
         }
@@ -34,10 +49,122 @@ impl ExtracaoPdf {
 }
 
 pub(super) fn extrair(caminho: &Path) -> Result<ExtracaoPdf, ErroAnexo> {
-    let mut filho = match Command::new("pdftotext")
-        .args(["-enc", "UTF-8"])
-        .arg(caminho)
-        .arg("-")
+    let prazo = Instant::now() + Duration::from_secs(30);
+    let limite = crate::MAX_HTML_BYTES;
+    let mut comando = Command::new("pdftotext");
+    comando.args(["-enc", "UTF-8"]).arg(caminho).arg("-");
+    let (bytes, diagnostico) = match executar(&mut comando, &[], limite, prazo) {
+        Ok(saida) => saida,
+        Err(ExtracaoPdf::MotorAusente) => return Ok(ExtracaoPdf::MotorAusente),
+        Err(_) => return Ok(ExtracaoPdf::Falhou),
+    };
+    let nativo = classificar(&bytes, diagnostico)?;
+    if matches!(
+        nativo,
+        ExtracaoPdf::Falhou | ExtracaoPdf::NativoComDiagnostico(_)
+    ) {
+        return Ok(nativo);
+    }
+    let Ok(texto) = std::str::from_utf8(&bytes) else {
+        return Ok(nativo);
+    };
+    complementar(caminho, texto, nativo, prazo)
+}
+
+fn complementar(
+    caminho: &Path,
+    texto: &str,
+    nativo: ExtracaoPdf,
+    prazo: Instant,
+) -> Result<ExtracaoPdf, ErroAnexo> {
+    let mut recuperado = String::new();
+    let mut houve_ocr = false;
+    let mut incompleto = false;
+    for (indice, pagina) in texto.split_terminator('\u{c}').enumerate() {
+        let parte = if pagina.trim().is_empty() {
+            if Instant::now() >= prazo {
+                incompleto = true;
+                continue;
+            }
+            match ocr(caminho, indice + 1, prazo) {
+                Ok(bytes) => match classificar(&bytes, false)? {
+                    ExtracaoPdf::NativoParcial(texto) => {
+                        houve_ocr = true;
+                        texto
+                    }
+                    ExtracaoPdf::SemTextoNativo => continue,
+                    _ => {
+                        incompleto = true;
+                        continue;
+                    }
+                },
+                Err(_) => {
+                    incompleto = true;
+                    continue;
+                }
+            }
+        } else {
+            pagina.trim().to_owned()
+        };
+        if recuperado.len().saturating_add(parte.len()).saturating_add(1) > crate::MAX_HTML_BYTES {
+            return Ok(ExtracaoPdf::Falhou);
+        }
+        recuperado.push_str(&parte);
+        recuperado.push('\n');
+    }
+    if !houve_ocr {
+        return Ok(match (nativo, incompleto) {
+            (ExtracaoPdf::SemTextoNativo, true) => ExtracaoPdf::OcrIndisponivel,
+            (ExtracaoPdf::NativoParcial(texto), true) => ExtracaoPdf::NativoComDiagnostico(texto),
+            (estado, _) => estado,
+        });
+    }
+    let ExtracaoPdf::NativoParcial(recuperado) = classificar(recuperado.as_bytes(), false)? else {
+        return Ok(ExtracaoPdf::Falhou);
+    };
+    Ok(match (nativo.texto().is_some(), incompleto) {
+        (true, false) => ExtracaoPdf::MistoParcial(recuperado),
+        (false, false) => ExtracaoPdf::OcrParcial(recuperado),
+        (true, true) => ExtracaoPdf::MistoComDiagnostico(recuperado),
+        (false, true) => ExtracaoPdf::OcrComDiagnostico(recuperado),
+    })
+}
+
+fn ocr(caminho: &Path, pagina: usize, prazo: Instant) -> Result<Vec<u8>, ExtracaoPdf> {
+    let numero = pagina.to_string();
+    let mut raster = Command::new("pdftoppm");
+    raster
+        .args([
+            "-f",
+            &numero,
+            "-l",
+            &numero,
+            "-singlefile",
+            "-gray",
+            "-scale-to",
+            "2000",
+        ])
+        .arg(caminho);
+    let (imagem, diagnostico) = executar(&mut raster, &[], crate::MAX_HTML_BYTES, prazo)?;
+    if diagnostico || imagem.is_empty() {
+        return Err(ExtracaoPdf::Falhou);
+    }
+    let mut motor = Command::new("tesseract");
+    motor.args(["stdin", "stdout", "-l", "por"]);
+    let (texto, _) = executar(&mut motor, &imagem, crate::MAX_HTML_BYTES, prazo)?;
+    Ok(texto)
+}
+
+fn executar(
+    comando: &mut Command,
+    entrada: &[u8],
+    limite: usize,
+    prazo: Instant,
+) -> Result<(Vec<u8>, bool), ExtracaoPdf> {
+    if Instant::now() >= prazo {
+        return Err(ExtracaoPdf::Falhou);
+    }
+    let mut filho = match comando
         .stdin(Stdio::piped())
         .stdout(Stdio::piped())
         .stderr(Stdio::piped())
@@ -45,20 +172,19 @@ pub(super) fn extrair(caminho: &Path) -> Result<ExtracaoPdf, ErroAnexo> {
     {
         Ok(filho) => filho,
         Err(erro) if erro.kind() == io::ErrorKind::NotFound => {
-            return Ok(ExtracaoPdf::MotorAusente);
+            return Err(ExtracaoPdf::MotorAusente);
         }
-        Err(_) => return Ok(ExtracaoPdf::Falhou),
+        Err(_) => return Err(ExtracaoPdf::Falhou),
     };
-    // O motor recebe EOF, nunca o stdin da CLI.
-    drop(filho.stdin.take());
-    let (Some(stdout), Some(mut stderr)) = (filho.stdout.take(), filho.stderr.take()) else {
+    let (Some(mut stdin), Some(stdout), Some(mut stderr)) =
+        (filho.stdin.take(), filho.stdout.take(), filho.stderr.take())
+    else {
         let _ = filho.kill();
         let _ = filho.wait();
-        return Ok(ExtracaoPdf::Falhou);
+        return Err(ExtracaoPdf::Falhou);
     };
-    let limite = crate::MAX_HTML_BYTES;
-    let prazo = Instant::now() + Duration::from_secs(30);
     let resultado = std::thread::scope(|escopo| {
+        let escrita = escopo.spawn(move || stdin.write_all(entrada));
         let texto = escopo.spawn(move || {
             let mut bytes = Vec::new();
             stdout
@@ -80,17 +206,18 @@ pub(super) fn extrair(caminho: &Path) -> Result<ExtracaoPdf, ErroAnexo> {
                 }
             }
         };
+        escrita.join().ok()?.ok()?;
         let bytes = texto.join().ok()?.ok()?;
         let diagnostico = diagnostico.join().ok()?.ok()? > 0;
         Some((status?, bytes, diagnostico))
     });
     let Some((status, bytes, diagnostico)) = resultado else {
-        return Ok(ExtracaoPdf::Falhou);
+        return Err(ExtracaoPdf::Falhou);
     };
     if !status.success() || bytes.len() > limite {
-        return Ok(ExtracaoPdf::Falhou);
+        return Err(ExtracaoPdf::Falhou);
     }
-    classificar(&bytes, diagnostico)
+    Ok((bytes, diagnostico))
 }
 
 fn classificar(bytes: &[u8], diagnostico: bool) -> Result<ExtracaoPdf, ErroAnexo> {

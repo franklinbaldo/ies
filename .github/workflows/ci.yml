@@ -45,11 +45,12 @@ jobs:
       - name: Install cargo-deny
         run: cargo install --locked cargo-deny@0.20.2
 
-      - name: Install PDF text engine for E2E
+      - name: Install PDF text and OCR engines for E2E
         run: |
           sudo apt-get update
-          sudo apt-get install -y --no-install-recommends poppler-utils
+          sudo apt-get install -y --no-install-recommends poppler-utils tesseract-ocr tesseract-ocr-por
           pdftotext -v
+          tesseract --list-langs
 
       - name: Run canonical prek pre-push gates
         run: uvx --from prek==0.5.7 prek run --hook-stage pre-push --all-files
