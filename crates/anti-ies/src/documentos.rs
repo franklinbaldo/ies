@@ -222,7 +222,8 @@ fn cadastro(
     let Ok(Some(controle)) = iesei::banco_cassettes::ler(banco, origem, cenario) else {
         return resposta;
     };
-    let Ok(textos) = modelo::textos_padrao(banco, origem, cenario, controle.unidade.as_str()) else {
+    let Ok(textos) = modelo::textos_padrao(banco, origem, cenario, controle.unidade.as_str())
+    else {
         return Resposta::nova(Estado::DadosInsuficientes);
     };
     if !textos.is_empty() {
@@ -258,15 +259,16 @@ pub(crate) fn autocompletar(
     if metodo != "POST" {
         return Resposta::nova(Estado::MetodoNaoPermitido);
     }
-    let Some(termo) = campo_formulario_unico(corpo, "palavras_pesquisa")
-        .filter(|texto| !texto.trim().is_empty())
+    let Some(termo) =
+        campo_formulario_unico(corpo, "palavras_pesquisa").filter(|texto| !texto.trim().is_empty())
     else {
         return Resposta::nova(Estado::RequisicaoInvalida);
     };
     let Ok(Some(controle)) = iesei::banco_cassettes::ler(banco, origem, cenario) else {
         return Resposta::nova(Estado::DadosInsuficientes);
     };
-    let Ok(textos) = modelo::textos_padrao(banco, origem, cenario, controle.unidade.as_str()) else {
+    let Ok(textos) = modelo::textos_padrao(banco, origem, cenario, controle.unidade.as_str())
+    else {
         return Resposta::nova(Estado::DadosInsuficientes);
     };
     let termo = termo.to_lowercase();
