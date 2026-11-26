@@ -63,7 +63,7 @@ fn enviar(
     remover_anotacoes: bool,
     confirmar: bool,
 ) -> anyhow::Result<()> {
-    let (primeiro, outros) = para.split_first().expect("Clap exige --para");
+    let (primeiro, outros) = para.split_first().ok_or(SiglaDeDestinoInvalida)?;
     let outros: Vec<&str> = outros.iter().map(String::as_str).collect();
     com_sessao(cli, |sessao, indice| {
         if confirmar && !outros.is_empty() {
@@ -207,7 +207,10 @@ fn resultado_envio(feito: &ProcessoEnviado) -> ResultadoEnvio<'_> {
         anotacao_antes: feito.anotacao_antes(),
         anotacao_depois: feito.anotacao_depois(),
         metodo_remocao: feito.metodo_remocao(),
-        destino: (feito.destinos.len() == 1).then(|| destino_publico(&feito.destinos[0])),
+        destino: match feito.destinos.as_slice() {
+            [destino] => Some(destino_publico(destino)),
+            _ => None,
+        },
         destinos: (feito.destinos.len() > 1)
             .then(|| feito.destinos.iter().map(destino_publico).collect()),
         aberto_em: &feito.aberto_em,
