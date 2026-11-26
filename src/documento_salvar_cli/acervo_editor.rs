@@ -14,7 +14,10 @@ fn contar_secoes_classicas(html: &HtmlServido) -> Option<(usize, usize)> {
     let form = crate::formulario_web::localizar_formulario(&dom, "frmEditor").ok()?;
     let mut total = 0;
     let mut vazias = 0;
-    for campo in form.elementos("textarea").filter(|c| !c.presente("disabled")) {
+    for campo in form
+        .elementos("textarea")
+        .filter(|c| !c.presente("disabled"))
+    {
         let nome = campo.atributo("name")?;
         if !nome.starts_with("txaEditor_") {
             continue;
