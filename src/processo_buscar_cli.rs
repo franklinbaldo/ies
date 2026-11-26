@@ -188,6 +188,7 @@ pub(crate) fn tentar_buscar(cli: &Cli) -> Option<anyhow::Result<()>> {
             assunto: assunto.as_deref(),
             de: *de,
             ate: *ate,
+            ..Default::default()
         },
     ))
 }
