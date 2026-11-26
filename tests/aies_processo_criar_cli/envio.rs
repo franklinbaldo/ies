@@ -152,7 +152,7 @@ fn destino_inexistente_recusa_antes_de_qualquer_escrita() {
         observar,
     );
     assert_eq!(saida.status.code(), Some(1), "pedidos={pedidos:?}");
-    assert!(saida.stdout.is_empty());
+    assert_eq!(saida.stdout, [] as [u8; 0]);
     assert!(
         String::from_utf8_lossy(&saida.stderr).contains("DestinoNaoOferecidoPeloSei"),
         "stderr={} pedidos={pedidos:?}",
