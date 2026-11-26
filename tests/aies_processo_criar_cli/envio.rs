@@ -3,7 +3,7 @@
 use super::{CENARIO, ORIGEM, executar_em_bancada};
 use iesei::banco_cassettes::{self, ControleResumido, Linha};
 use iesei::instalacao::Instalacao;
-use iesei::observacao::{TabelaObservada, UnidadeExibida};
+use iesei::observacao::{FaixaObservada, TabelaObservada, UnidadeExibida};
 use iesei::processos::{self, Destino, ProcessoSimulado};
 use rusqlite::Connection;
 use serde_json::Value;
@@ -22,7 +22,7 @@ fn preparar() -> (Connection, Instalacao) {
             unidade: UnidadeExibida::nova("TESTE").unwrap(),
             recebidos: TabelaObservada::nova(
                 Some(1),
-                None,
+                FaixaObservada::nova(1, 1),
                 vec![Linha {
                     id: "10".into(),
                     numero: NUP.into(),
@@ -73,8 +73,17 @@ fn observar(banco: &Connection, instalacao: &Instalacao) -> ProcessoSimulado {
 fn envio_plural_confirma_uma_submissao_e_estado_sqlite() {
     for manter in [false, true] {
         let mut args = vec![
-            "--json", "processo", "enviar", NUP, "--para", "DESTINO", "--para",
-            "ARQUIVO", "--para", "DESTINO", "--confirmar",
+            "--json",
+            "processo",
+            "enviar",
+            NUP,
+            "--para",
+            "DESTINO",
+            "--para",
+            "ARQUIVO",
+            "--para",
+            "DESTINO",
+            "--confirmar",
         ];
         if manter {
             args.push("--manter-aberto");
@@ -126,8 +135,16 @@ fn envio_plural_confirma_uma_submissao_e_estado_sqlite() {
 fn destino_inexistente_recusa_antes_de_qualquer_escrita() {
     let (saida, _, pedidos, antes, depois) = executar_em_bancada(
         &[
-            "--json", "processo", "enviar", NUP, "--para", "DESTINO", "--para",
-            "INEXISTENTE", "--remover-anotacoes", "--confirmar",
+            "--json",
+            "processo",
+            "enviar",
+            NUP,
+            "--para",
+            "DESTINO",
+            "--para",
+            "INEXISTENTE",
+            "--remover-anotacoes",
+            "--confirmar",
         ],
         false,
         false,
