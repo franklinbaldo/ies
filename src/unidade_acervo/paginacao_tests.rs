@@ -170,7 +170,6 @@ fn paginador_reescreve_indice_e_preserva_ocultos_da_tela_atual() {
     assert!(formulario_da_pagina(&inst, &tela_iso(&url, &ausente), "U", 1).is_err());
 }
 
-
 #[derive(Debug, thiserror::Error)]
 #[error("{self:?}")]
 enum ErroEnvioPagina {
@@ -186,7 +185,10 @@ fn enviar_pagina_via<R: std::io::Read>(
     enviar: impl FnOnce(
         SubmissaoDerivada,
         &str,
-    ) -> Result<crate::formulario_web::RespostaDoPost<R>, crate::transporte::FalhaTransporte>,
+    ) -> Result<
+        crate::formulario_web::RespostaDoPost<R>,
+        crate::transporte::FalhaTransporte,
+    >,
 ) -> Result<(String, String, HtmlServido), ErroEnvioPagina> {
     use crate::formulario_web::{RespostaDoEnvio, enviar_submissao_via};
     let url = submissao.url().to_owned();
@@ -259,7 +261,10 @@ fn dois_posts_usam_url_e_charset_da_resposta_imediatamente_anterior() {
     let segundo = formulario_da_pagina(&inst, &tela, "U", 2).unwrap();
     let (url2, _, _) = enviar_pagina_via(segundo, &cookie, |post, _| {
         assert_eq!(post.referer(), url1);
-        assert_eq!(post.corpo(), b"hdnInfraPaginaAtual=2&hdnFiltro=a%C3%A7%C3%A3o");
+        assert_eq!(
+            post.corpo(),
+            b"hdnInfraPaginaAtual=2&hdnFiltro=a%C3%A7%C3%A3o"
+        );
         Ok(resposta_post(
             200,
             "text/html; charset=utf-8",
