@@ -88,13 +88,16 @@ fn total_do_resultado(html: &HtmlServido) -> Result<(usize, String), ErroAcervo>
 
 #[test]
 fn data_iso_reusa_calendario_civil() {
-    assert_eq!(
-        data_da_cli("2024-02-29").unwrap().to_string(),
-        "29/02/2024"
-    );
+    assert_eq!(data_da_cli("2024-02-29").unwrap().to_string(), "29/02/2024");
     for s in [
-        "2026-02-29", "2026-04-31", "2026-13-01", "2026-11-00", "20/11/2026",
-        "2026-1-01", "2026-01-1", "0000-01-01",
+        "2026-02-29",
+        "2026-04-31",
+        "2026-13-01",
+        "2026-11-00",
+        "20/11/2026",
+        "2026-1-01",
+        "2026-01-1",
+        "0000-01-01",
     ] {
         assert!(data_da_cli(s).is_none(), "{s}");
     }
@@ -113,7 +116,8 @@ fn resultado_seleciona_total_e_nao_tipo() {
     assert_eq!(total, 1234);
     for alterada in [
         tela.as_str().replace("4');", "1');"),
-        tela.as_str().replace("4');", "4&amp;id_tipo_procedimento=1');"),
+        tela.as_str()
+            .replace("4');", "4&amp;id_tipo_procedimento=1');"),
         tela.as_str().replace("1.234", "ilegível"),
     ] {
         assert!(total_do_resultado(&HtmlServido::de_teste(&alterada)).is_err());
@@ -290,7 +294,10 @@ fn travessia_exige_cobertura_sem_deduplicar() {
         assert_eq!(reunir(paginas), Err(ErroAcervo::FaixaIncompleta));
     }
     let zero = || Pagina {
-        legenda: Legenda { total: 0, faixa: None },
+        legenda: Legenda {
+            total: 0,
+            faixa: None,
+        },
         processos: Vec::new(),
     };
     assert!(reunir([zero()]).unwrap().is_empty());
@@ -329,7 +336,10 @@ fn acervo_detalhe_original() {
         let mut recusados = 0;
         let mut total_anterior = None;
         for resposta in gravacao::respostas(&conferida.json) {
-            if resposta.operacao == "gerar_estatisticas_unidade" && resposta.status == 200 && lidas.is_empty() {
+            if resposta.operacao == "gerar_estatisticas_unidade"
+                && resposta.status == 200
+                && lidas.is_empty()
+            {
                 let html = html_da_resposta(resposta.interacao).expect("HTML original");
                 let tela = HtmlServido::de_teste(&html);
                 if let Ok((n, _)) = total_do_resultado(&tela) {
@@ -359,7 +369,11 @@ fn acervo_detalhe_original() {
             }
         }
         assert_eq!(recusados, 0, "{instalacao}: detalhes recusados");
-        assert_eq!(total_anterior, Some(total), "{instalacao}: total do relatório");
+        assert_eq!(
+            total_anterior,
+            Some(total),
+            "{instalacao}: total do relatório"
+        );
         // Os originais PEN1/PEN2 voltam à primeira página depois do fim.
         // Essa navegação não pertence à travessia de coleta.
         assert_eq!(lidas.len(), paginas + retornos, "{instalacao}");
