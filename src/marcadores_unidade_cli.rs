@@ -30,6 +30,17 @@ impl FalhaLeitura {
     }
 }
 
+/// A janela derivada pode omitir a barra; se a publicar, deve confirmar a unidade.
+fn conferir_unidade_da_lista(html: &HtmlServido, esperada: &str) -> Result<(), FalhaLeitura> {
+    let dom = arvore(html);
+    if dom.com_id("lnkInfraUnidade").next().is_some()
+        && crate::controle_contexto::unidade_html(&dom)?.as_deref() != Some(esperada)
+    {
+        return Err(FalhaLeitura::UnidadeInesperada);
+    }
+    Ok(())
+}
+
 /// Só o link da ação publicado pelo Controle; nunca inventa hash ou rota.
 fn link_do_menu(
     html: &HtmlServido,
@@ -106,6 +117,7 @@ pub(super) fn listar(unidade: Option<&str>, json_mode: bool, inativos: bool) -> 
             let url = link_do_menu(&controle.html, &controle.url, &controle.instalacao)?;
             let resposta = transporte::get_https(&url, sessao.cookie().valor()?)?;
             let html = transporte::decodificar_resposta(resposta)?;
+            conferir_unidade_da_lista(&html, &atual)?;
             let selecao = marcadores_unidade::ler(&html)?.selecionar(estado);
             Ok((atual, selecao))
         },
@@ -169,6 +181,33 @@ mod tests {
                 "<a href='https://outra.example/sei/{href}'>Marcadores</a>"
             )),
             Err(FalhaLeitura::LinkInvalido)
+        ));
+    }
+
+    #[test]
+    fn contexto_publicado_da_lista_confirma_unidade_do_controle() {
+        let conferir = |html: &str| conferir_unidade_da_lista(&HtmlServido::de_teste(html), "A");
+        for html in [
+            "<p>Janela sem barra</p>",
+            "<a id='lnkInfraUnidade'>A</a>",
+            "<div id='divInfraBarraSistemaMovel'><a id='lnkInfraUnidade' href='#'>A</a></div>\
+             <div id='divInfraBarraSistemaPadrao'><a id='lnkInfraUnidade' href='#'>A</a></div>",
+        ] {
+            assert!(conferir(html).is_ok(), "{html}");
+        }
+        for html in [
+            "<a id='lnkInfraUnidade'>B</a>",
+            "<a id='lnkInfraUnidade'> </a>",
+            "<span id='lnkInfraUnidade'>A</span>",
+        ] {
+            assert!(matches!(
+                conferir(html),
+                Err(FalhaLeitura::UnidadeInesperada)
+            ));
+        }
+        assert!(matches!(
+            conferir("<a id='lnkInfraUnidade'>A</a><a id='lnkInfraUnidade'>A</a>"),
+            Err(FalhaLeitura::Controle(_))
         ));
     }
 
