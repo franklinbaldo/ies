@@ -138,14 +138,30 @@ fn preparar_banco() -> (Connection, Instalacao) {
     (banco, origem)
 }
 
+#[derive(Clone, Copy)]
+enum Leitura {
+    Nenhuma,
+    Pdf,
+    Zip,
+    PdfProcesso,
+}
+
+fn executar(
+    incerteza: bool,
+    somente_previa: bool,
+    leitura: Leitura,
+) -> (Vec<Output>, Vec<String>, usize, Option<Vec<u8>>) {
+    executar_com_teor(incerteza, somente_previa, leitura, None, None)
+}
+
 #[expect(
     clippy::too_many_lines,
     reason = "Bancada E2E reúne proxy TLS, servidor HTTP e processos reais"
 )]
-fn executar(
+fn executar_com_teor(
     incerteza: bool,
     somente_previa: bool,
-    com_leitura: bool,
+    leitura: Leitura,
     pdf_de_teor: Option<&[u8]>,
     caminho_motor: Option<&Path>,
 ) -> (Vec<Output>, Vec<String>, usize, Option<Vec<u8>>) {
@@ -266,9 +282,26 @@ fn executar(
         NUP,
         "--sem-cache",
     ];
+    let (formato, nome) = match leitura {
+        Leitura::PdfProcesso => ("pdf", "processo.pdf"),
+        _ => ("zip", "processo.zip"),
+    };
+    let exportado = destino_arquivo.join(nome);
+    let exportar = [
+        "--json",
+        "processo",
+        "exportar",
+        NUP,
+        "--formato",
+        formato,
+        "--saida",
+        exportado.to_str().unwrap(),
+    ];
     let mut comandos = vec![&incluir[..], &consultar[..]];
-    if com_leitura {
-        comandos.push(&ler_pdf);
+    match leitura {
+        Leitura::Nenhuma => {}
+        Leitura::Pdf => comandos.push(&ler_pdf),
+        Leitura::Zip | Leitura::PdfProcesso => comandos.push(&exportar),
     }
     if pdf_de_teor.is_some() {
         comandos.extend([ler_teor_sem_cache.as_slice(), ler_teor_cache.as_slice()]);
@@ -306,7 +339,10 @@ fn executar(
     tunel.join().unwrap();
     let total = servidor.join().unwrap();
     let eventos = trilha.lock().unwrap().clone();
-    let arquivo = fs::read(destino_arquivo.join("050000001.pdf")).ok();
+    let arquivo = match leitura {
+        Leitura::Zip | Leitura::PdfProcesso => fs::read(exportado).ok(),
+        _ => fs::read(destino_arquivo.join("050000001.pdf")).ok(),
+    };
     (saidas, eventos, total, arquivo)
 }
 
@@ -322,7 +358,7 @@ fn json(saida: &Output) -> Value {
 
 #[test]
 fn bdd_332_03_binario_confirma_upload_cadastro_e_releitura_independente() {
-    let (saidas, eventos, total, _) = executar(false, false, false, None, None);
+    let (saidas, eventos, total, _) = executar(false, false, Leitura::Nenhuma);
     assert_eq!(
         saidas[0].status.code(),
         Some(0),
@@ -368,7 +404,7 @@ fn bdd_332_03_binario_confirma_upload_cadastro_e_releitura_independente() {
 
 #[test]
 fn bdd_332_04_resposta_sem_autoria_falha_sem_repetir_post() {
-    let (saidas, eventos, total, _) = executar(true, false, false, None, None);
+    let (saidas, eventos, total, _) = executar(true, false, Leitura::Nenhuma);
     falha(&saidas[0], "TentativaNaoComprovada");
     assert_eq!(total, 1, "efeito existiu mesmo com resposta adulterada");
     assert_eq!(
@@ -391,7 +427,7 @@ fn bdd_332_04_resposta_sem_autoria_falha_sem_repetir_post() {
 /// mas nenhuma linha de upload nem documento definitivo pode surgir.
 #[test]
 fn bdd_332_02_binario_consulta_previa_sem_upload_ou_cadastro() {
-    let (saidas, eventos, total, _) = executar(false, true, false, None, None);
+    let (saidas, eventos, total, _) = executar(false, true, Leitura::Nenhuma);
     assert_eq!(
         saidas[0].status.code(),
         Some(0),
@@ -436,7 +472,7 @@ fn bdd_332_02_binario_consulta_previa_sem_upload_ou_cadastro() {
 fn bdd_60_03_cli_baixa_pdf_original_do_estado_compartilhado() {
     // BDD-60-03 pré-escrito na #60: o mesmo PDF cadastrado deve ser lido
     // pela CLI real e salvo byte a byte, sem transformar conteúdo em HTML.
-    let (saidas, eventos, documentos, arquivo) = executar(false, false, true, None, None);
+    let (saidas, eventos, documentos, arquivo) = executar(false, false, Leitura::Pdf);
     assert_eq!(documentos, 1, "um único documento definitivo");
     assert_eq!(
         saidas[2].status.code(),
@@ -464,6 +500,9 @@ fn bdd_60_03_cli_baixa_pdf_original_do_estado_compartilhado() {
         "o link assinado deve ser seguido uma só vez"
     );
 }
+
+#[path = "aies_pdf_externo_cli/exportacao.rs"]
+mod exportacao;
 
 #[path = "aies_pdf_externo_cli/teor.rs"]
 mod teor;

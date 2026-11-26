@@ -1,4 +1,4 @@
-use super::{Pasta, executar, json};
+use super::{Leitura, Pasta, executar_com_teor, json};
 use std::fs;
 
 // #873: PDF sintético válido, com offsets xref conferidos pelo Poppler.
@@ -21,7 +21,7 @@ fn pdf_nativo_publica_teor_com_e_sem_cache_sem_alterar_original() {
     // Hipótese sintética: o PDF é semeado via bancada já existente. Não é
     // evidência de paridade com uma cassette original do SEI.
     let (saidas, eventos, documentos, arquivo) =
-        executar(false, false, true, Some(PDF_NATIVO), None);
+        executar_com_teor(false, false, Leitura::Pdf, Some(PDF_NATIVO), None);
     assert_eq!(documentos, 1);
     assert_eq!(saidas.len(), 5);
     assert_eq!(arquivo.as_deref(), Some(PDF_NATIVO));
@@ -80,7 +80,8 @@ fn pdf_sem_texto_e_pdf_corrompido_preservam_original_e_estado_distinto() {
             "falhou",
         ),
     ] {
-        let (saidas, eventos, documentos, arquivo) = executar(false, false, true, Some(pdf), None);
+        let (saidas, eventos, documentos, arquivo) =
+            executar_com_teor(false, false, Leitura::Pdf, Some(pdf), None);
         assert_eq!(documentos, 1);
         assert_eq!(saidas.len(), 5);
         assert_eq!(arquivo.as_deref(), Some(pdf));
@@ -113,7 +114,7 @@ fn pdf_motor_ausente_preserva_original_e_indica_limite() {
     let sem_motor = pasta.0.join("sem-motor");
     fs::create_dir(&sem_motor).unwrap();
     let (saidas, eventos, documentos, arquivo) =
-        executar(false, false, true, Some(PDF_NATIVO), Some(&sem_motor));
+        executar_com_teor(false, false, Leitura::Pdf, Some(PDF_NATIVO), Some(&sem_motor));
     assert_eq!(documentos, 1);
     assert_eq!(saidas.len(), 5);
     assert_eq!(arquivo.as_deref(), Some(PDF_NATIVO));
@@ -164,7 +165,7 @@ const PDF_MISTO: &[u8] = concat!(
 #[test]
 fn pdf_misto_recupera_texto_em_ordem_sem_alterar_original() {
     let (saidas, eventos, documentos, arquivo) =
-        executar(false, false, true, Some(PDF_MISTO), None);
+        executar_com_teor(false, false, Leitura::Pdf, Some(PDF_MISTO), None);
     assert_eq!(documentos, 1);
     assert_eq!(saidas.len(), 5);
     assert_eq!(arquivo.as_deref(), Some(PDF_MISTO));
@@ -217,7 +218,8 @@ fn conferir_pdf_ocr(
 ) {
     use sha2::{Digest, Sha256};
 
-    let (saidas, eventos, documentos, arquivo) = executar(false, false, true, Some(pdf), caminho);
+    let (saidas, eventos, documentos, arquivo) =
+        executar_com_teor(false, false, Leitura::Pdf, Some(pdf), caminho);
     assert_eq!(documentos, 1);
     assert_eq!(saidas.len(), 5);
     assert_eq!(arquivo.as_deref(), Some(pdf));
