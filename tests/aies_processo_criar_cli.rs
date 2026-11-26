@@ -346,3 +346,60 @@ fn criacao_unica_e_releitura_independente_via_cli_real() {
     assert_eq!(contagens, (0, 1), "um único processo antes/depois");
     assert_eq!(tipos, 1, "cadastro de tipos permanece");
 }
+
+#[test]
+fn confirmacao_recusa_tipo_ausente_sem_criar() {
+    let (saida, pedidos, contagens, tipos) = executar(&[
+        "--json",
+        "processo",
+        "criar",
+        "--tipo",
+        "Tipo não cadastrado no cenário",
+        "--especificacao",
+        "Não deve criar",
+        "--confirmar",
+    ]);
+    assert_eq!(saida.status.code(), Some(1), "pedidos={pedidos:?}");
+    assert!(
+        pedidos
+            .iter()
+            .any(|p| p.starts_with("GET procedimento_escolher_tipo "))
+    );
+    assert!(
+        pedidos
+            .iter()
+            .all(|p| !p.starts_with("POST procedimento_gerar "))
+    );
+    assert_eq!(contagens, (0, 0));
+    assert_eq!(tipos, 1);
+}
+
+#[test]
+fn confirmacao_recusa_especificacao_acima_do_limite_servido() {
+    // O cadastro sintético publica 250 unidades UTF-16, não um limite
+    // universal do SEI. 126 caracteres suplementares ocupam 252 unidades.
+    let especificacao = "😀".repeat(126);
+    let (saida, pedidos, contagens, tipos) = executar(&[
+        "--json",
+        "processo",
+        "criar",
+        "--tipo",
+        TIPO,
+        "--especificacao",
+        &especificacao,
+        "--confirmar",
+    ]);
+    assert_eq!(saida.status.code(), Some(1), "pedidos={pedidos:?}");
+    assert!(
+        pedidos
+            .iter()
+            .any(|p| p == "GET procedimento_gerar 200")
+    );
+    assert!(
+        pedidos
+            .iter()
+            .all(|p| !p.starts_with("POST procedimento_gerar "))
+    );
+    assert_eq!(contagens, (0, 0));
+    assert_eq!(tipos, 1);
+}
