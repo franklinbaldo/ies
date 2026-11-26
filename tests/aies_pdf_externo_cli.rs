@@ -170,7 +170,9 @@ fn executar(
     let pdf = pasta.0.join("peticao.pdf");
     fs::write(&pdf, b"%PDF-1.4\n1 0 obj\n%%EOF\n").unwrap();
 
-    let outro_pdf = pasta.0.join("segundo.pdf");
+    let outra_pasta = pasta.0.join("outro");
+    fs::create_dir(&outra_pasta).unwrap();
+    let outro_pdf = outra_pasta.join("peticao.pdf");
     fs::write(&outro_pdf, b"%PDF-1.4\n2 0 obj\n%%EOF\n").unwrap();
 
     let escuta = TcpListener::bind(("127.0.0.1", 0)).unwrap();

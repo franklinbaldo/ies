@@ -1,4 +1,4 @@
-use super::{Leitura, executar, json};
+use super::{Leitura, executar, falha, json};
 
 #[test]
 fn exportacao_zip_preserva_documento_cadastrado_e_nao_repete_geracao() {
@@ -77,8 +77,8 @@ fn exportacao_pdf_de_um_unico_anexo_preserva_bytes_e_nao_repete_geracao() {
 fn exportacao_zip_seletiva_inclui_so_o_segundo_anexo() {
     use std::io::{Cursor, Read};
 
-    // Hipótese de saída, não replay de corpo original: dois anexos distintos
-    // persistidos; somente o segundo deve chegar ao arquivo.
+    // Hipótese de saída, não replay de corpo original: anexos com o mesmo
+    // nome e tipo, mas números e bytes distintos; só o segundo deve sair.
     let (saidas, eventos, documentos, arquivo) =
         executar(false, false, Leitura::ZipSelecao("050000002"));
     assert_eq!(documentos, 2);
@@ -89,6 +89,12 @@ fn exportacao_zip_seletiva_inclui_so_o_segundo_anexo() {
             String::from_utf8_lossy(&saida.stderr)
         );
     }
+    let arvore = json(&saidas[2]);
+    let docs = arvore["documentos"].as_array().unwrap();
+    assert_eq!(docs.len(), 2);
+    assert_eq!(docs[0]["numero_sei"], "050000001");
+    assert_eq!(docs[1]["numero_sei"], "050000002");
+    assert_ne!(docs[0]["id_documento"], docs[1]["id_documento"]);
     let mut zip = zip::ZipArchive::new(Cursor::new(arquivo.unwrap())).unwrap();
     assert_eq!(zip.len(), 1);
     let mut membro = zip.by_index(0).unwrap();
@@ -109,7 +115,7 @@ fn exportacao_zip_seletiva_documento_fora_do_processo_nao_gera_arquivo() {
     for saida in &saidas[..3] {
         assert!(saida.status.success(), "HTTP={eventos:?}");
     }
-    assert_eq!(saidas[3].status.code(), Some(1));
+    falha(&saidas[3], "DocumentoSelecionadoForaDaArvore");
     assert!(arquivo.is_none());
     assert!(!eventos.iter().any(
         |e| e.starts_with("POST procedimento_gerar_zip") || e.starts_with("GET exibir_arquivo")
