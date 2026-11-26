@@ -185,6 +185,7 @@ pub(super) struct ArvoreAberta {
     pub(super) lista_ciencias:
         Result<Option<EnderecoDeEscrita>, crate::arvore_processo::ErroCienciaNaArvore>,
     pub(super) anexar: Result<Option<EnderecoDeEscrita>, ErroAnexarNaBarra>,
+    pub(super) exportacao: crate::arvore_processo::LinksExportacao,
     /// O link de atribuição, só examinado pelo comando atribuir.
     pub(super) atribuir: Result<Option<EnderecoDeEscrita>, ErroAtribuirNaBarra>,
     /// Link do formulário de Atualizar Andamento, quando publicado.
@@ -274,6 +275,7 @@ pub(super) fn ler_arvore_da_pagina_com_modo(
         andamento,
         atribuir,
         anexar,
+        exportacao: crate::arvore_processo::ler_exportacao_da_barra(instalacao, html, id),
     })
 }
 
