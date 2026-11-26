@@ -77,7 +77,10 @@ fn lista_publica_total_faixa_e_numeros() {
 
 #[test]
 fn sem_resultado_publica_total_zero_sem_faixa() {
-    let valor = json_da_busca(termo().as_str(), &busca(RespostaDaPesquisa::SemResultado, 3));
+    let valor = json_da_busca(
+        termo().as_str(),
+        &busca(RespostaDaPesquisa::SemResultado, 3),
+    );
     assert_eq!(
         valor,
         json!({
