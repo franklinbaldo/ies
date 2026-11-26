@@ -40,7 +40,7 @@ fn formatos_validos_sem_sessao_falham_antes_de_rede() {
             "--json",
         ]);
         assert_eq!(resultado.status.code(), Some(1));
-        assert!(resultado.stdout.is_empty());
+        assert_eq!(resultado.stdout, Vec::<u8>::new());
     }
 }
 
@@ -56,5 +56,5 @@ fn formato_invalido_e_erro_de_uso() {
         "processo.teste",
     ]);
     assert_eq!(resultado.status.code(), Some(2));
-    assert!(resultado.stdout.is_empty());
+    assert_eq!(resultado.stdout, Vec::<u8>::new());
 }
