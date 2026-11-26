@@ -14,9 +14,7 @@ fn controle() -> String {
 }
 
 fn catalogo(unidade: Option<&str>) -> String {
-    let barra = unidade.map_or_else(String::new, |u| {
-        format!("<a id='lnkInfraUnidade'>{u}</a>")
-    });
+    let barra = unidade.map_or_else(String::new, |u| format!("<a id='lnkInfraUnidade'>{u}</a>"));
     format!(
         "<html><body>{barra}<table summary='Tabela de Marcadores.'>\
          <caption>Lista de Marcadores (1 registro):</caption>\
