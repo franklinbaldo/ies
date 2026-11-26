@@ -1,4 +1,4 @@
-//! Tipos oferecidos e observação negativa por critérios da pesquisa processual.
+//! Tipos oferecidos e páginas observadas por critérios da pesquisa processual.
 use crate::instalacao::Instalacao;
 use crate::observacao::UnidadeExibida;
 use rusqlite::{Connection, OptionalExtension, params};
@@ -66,9 +66,11 @@ pub fn registrar_sem_resultado(
     criterios: Criterios<'_>,
 ) -> rusqlite::Result<()> {
     banco.execute(
-        "INSERT INTO pesquisa_processo_periodo_vazio
-         (origem, cenario, unidade, id_tipo, data_inicio, data_fim)
-         VALUES (?1, ?2, ?3, ?4, ?5, ?6) ON CONFLICT DO NOTHING",
+        "INSERT INTO pesquisa_processo_pagina
+         (origem, cenario, unidade, id_tipo, data_inicio, data_fim, pagina, inicio, fim, total)
+         VALUES (?1, ?2, ?3, ?4, ?5, ?6, 1, 1, 0, 0)
+         ON CONFLICT(origem, cenario, unidade, id_tipo, data_inicio, data_fim, pagina)
+         DO UPDATE SET total=excluded.total",
         params![
             instalacao.url_base(),
             cenario,
@@ -94,8 +96,9 @@ pub fn tem_resultado_negativo(
 ) -> rusqlite::Result<bool> {
     let registro: Option<i64> = banco
         .query_row(
-            "SELECT 1 FROM pesquisa_processo_periodo_vazio
-             WHERE origem=?1 AND cenario=?2 AND unidade=?3 AND id_tipo=?4 AND data_inicio=?5 AND data_fim=?6",
+            "SELECT 1 FROM pesquisa_processo_pagina
+             WHERE origem=?1 AND cenario=?2 AND unidade=?3 AND id_tipo=?4
+             AND data_inicio=?5 AND data_fim=?6 AND pagina=1 AND total=0",
             params![
                 instalacao.url_base(),
                 cenario,
@@ -108,6 +111,140 @@ pub fn tem_resultado_negativo(
         )
         .optional()?;
     Ok(registro.is_some())
+}
+
+/// Faixa publicada e identidades das linhas efetivamente observadas.
+#[derive(Debug, PartialEq, Eq)]
+pub struct Pagina {
+    pub numero: u32,
+    pub inicio: u64,
+    pub fim: u64,
+    pub total: u64,
+    pub ids: Vec<String>,
+}
+
+/// Persiste uma página positiva sem inventar processos ausentes da faixa.
+///
+/// # Errors
+/// Propaga falhas SQLite e recusa faixa ou identidade inconsistente.
+pub fn registrar_pagina(
+    banco: &mut Connection,
+    instalacao: &Instalacao,
+    cenario: &str,
+    unidade: &UnidadeExibida,
+    criterios: Criterios<'_>,
+    pagina: &Pagina,
+) -> rusqlite::Result<()> {
+    if pagina.total == 0
+        || pagina.inicio == 0
+        || pagina.fim < pagina.inicio
+        || pagina.ids.len() as u64 > pagina.fim - pagina.inicio + 1
+    {
+        return Err(rusqlite::Error::InvalidQuery);
+    }
+    let tx = banco.transaction()?;
+    tx.execute(
+        "INSERT INTO pesquisa_processo_pagina
+         (origem, cenario, unidade, id_tipo, data_inicio, data_fim, pagina, inicio, fim, total)
+         VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7, ?8, ?9, ?10)",
+        params![
+            instalacao.url_base(),
+            cenario,
+            unidade.as_str(),
+            criterios.tipo_id,
+            criterios.de,
+            criterios.ate,
+            pagina.numero,
+            pagina.inicio,
+            pagina.fim,
+            pagina.total
+        ],
+    )?;
+    for (posicao, id) in pagina.ids.iter().enumerate() {
+        if crate::documentos_simulados::ler_processo(&tx, instalacao, cenario, id)?.is_none() {
+            return Err(rusqlite::Error::QueryReturnedNoRows);
+        }
+        tx.execute(
+            "INSERT INTO pesquisa_processo_pagina_linha
+             (origem, cenario, unidade, id_tipo, data_inicio, data_fim, pagina, posicao, id_procedimento)
+             VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7, ?8, ?9)",
+            params![
+                instalacao.url_base(),
+                cenario,
+                unidade.as_str(),
+                criterios.tipo_id,
+                criterios.de,
+                criterios.ate,
+                pagina.numero,
+                posicao,
+                id
+            ],
+        )?;
+    }
+    tx.commit()
+}
+
+/// Recupera apenas a faixa positiva registrada para o deslocamento solicitado.
+///
+/// # Errors
+/// Propaga a falha SQLite.
+pub fn consultar_pagina(
+    banco: &Connection,
+    instalacao: &Instalacao,
+    cenario: &str,
+    unidade: &UnidadeExibida,
+    criterios: Criterios<'_>,
+    deslocamento: u64,
+) -> rusqlite::Result<Option<Pagina>> {
+    let inicio = deslocamento
+        .checked_add(1)
+        .ok_or(rusqlite::Error::InvalidQuery)?;
+    let dados: Option<(u32, u64, u64)> = banco
+        .query_row(
+            "SELECT pagina, fim, total FROM pesquisa_processo_pagina
+             WHERE origem=?1 AND cenario=?2 AND unidade=?3 AND id_tipo=?4
+             AND data_inicio=?5 AND data_fim=?6 AND inicio=?7 AND total>0",
+            params![
+                instalacao.url_base(),
+                cenario,
+                unidade.as_str(),
+                criterios.tipo_id,
+                criterios.de,
+                criterios.ate,
+                inicio
+            ],
+            |r| Ok((r.get(0)?, r.get(1)?, r.get(2)?)),
+        )
+        .optional()?;
+    let Some((numero, fim, total)) = dados else {
+        return Ok(None);
+    };
+    let mut consulta = banco.prepare(
+        "SELECT id_procedimento FROM pesquisa_processo_pagina_linha
+         WHERE origem=?1 AND cenario=?2 AND unidade=?3 AND id_tipo=?4
+         AND data_inicio=?5 AND data_fim=?6 AND pagina=?7 ORDER BY posicao",
+    )?;
+    let ids = consulta
+        .query_map(
+            params![
+                instalacao.url_base(),
+                cenario,
+                unidade.as_str(),
+                criterios.tipo_id,
+                criterios.de,
+                criterios.ate,
+                numero
+            ],
+            |r| r.get(0),
+        )?
+        .collect::<rusqlite::Result<Vec<String>>>()?;
+    Ok(Some(Pagina {
+        numero,
+        inicio,
+        fim,
+        total,
+        ids,
+    }))
 }
 
 #[cfg(test)]
@@ -151,5 +288,56 @@ mod tests {
             )
             .unwrap()
         );
+    }
+
+    #[test]
+    fn pagina_parcial_preserva_faixa_e_identidade() {
+        let mut banco = Connection::open_in_memory().unwrap();
+        crate::banco_cassettes::iniciar(&banco).unwrap();
+        let origem = Instalacao::interpretar("https://sei.test/sei").unwrap();
+        let unidade = UnidadeExibida::nova("TESTE").unwrap();
+        let criterios = Criterios {
+            tipo_id: "73",
+            de: "01/01/2026",
+            ate: "31/01/2026",
+        };
+        let pagina = Pagina {
+            numero: 1,
+            inicio: 1,
+            fim: 2,
+            total: 4,
+            ids: vec!["7".into()],
+        };
+        assert!(
+            registrar_pagina(&mut banco, &origem, "c", &unidade, criterios, &pagina).is_err()
+        );
+        assert!(
+            consultar_pagina(&banco, &origem, "c", &unidade, criterios, 0)
+                .unwrap()
+                .is_none()
+        );
+        crate::documentos_simulados::registrar_processo(
+            &banco,
+            &origem,
+            "c",
+            &crate::documentos_simulados::Processo {
+                id: "7".into(),
+                nup: "00001.000007/2026-00".into(),
+                unidade: "TESTE".into(),
+            },
+        )
+        .unwrap();
+        registrar_pagina(&mut banco, &origem, "c", &unidade, criterios, &pagina).unwrap();
+        assert_eq!(
+            consultar_pagina(&banco, &origem, "c", &unidade, criterios, 0).unwrap(),
+            Some(pagina)
+        );
+        assert!(
+            consultar_pagina(&banco, &origem, "c", &unidade, criterios, 2)
+                .unwrap()
+                .is_none()
+        );
+        assert!(registrar_sem_resultado(&banco, &origem, "c", &unidade, criterios).is_err());
+        assert!(!tem_resultado_negativo(&banco, &origem, "c", &unidade, criterios).unwrap());
     }
 }
