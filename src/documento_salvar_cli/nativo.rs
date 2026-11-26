@@ -35,6 +35,10 @@ mod ckeditor;
 mod copia_renderizada;
 use copia_renderizada::Secao;
 
+#[path = "nativo_releitura.rs"]
+mod releitura;
+use releitura::{RespostaDoPost, classificar_resposta_do_post, reabrir_apos_aceite};
+
 const EDITAR: OperacaoDeFormulario = OperacaoDeFormulario {
     acao: AcaoDoSei::EditorSalvar,
     formulario: "frmEditor",
@@ -363,42 +367,6 @@ fn enviar_classico(
     }
 }
 
-/// Falha do transporte ou da decodificação após a tentativa de POST
-/// NÃO comprova ausência de gravação. Recusas de forma anteriores ao
-/// envio continuam sendo erros determinísticos.
-enum RespostaDoPost {
-    Aceite(Option<VersaoDocumento>),
-    Incerta,
-}
-
-fn classificar_resposta_do_post(
-    resposta: Result<Option<VersaoDocumento>, ErroEditorNativo>,
-) -> Result<RespostaDoPost, ErroEditorNativo> {
-    match resposta {
-        Ok(versao) => Ok(RespostaDoPost::Aceite(versao)),
-        Err(
-            ErroEditorNativo::EnvioSemAceite(_)
-            | ErroEditorNativo::Tela(_)
-            | ErroEditorNativo::JsonDoEditor(_),
-        ) => Ok(RespostaDoPost::Incerta),
-        Err(erro) => Err(erro),
-    }
-}
-
-/// Releitura do editor pode emitir vários GETs (inclusive assinatura).
-/// Só a realiza quando o POST recebeu aceite da versão esperada.
-/// Um erro ou aceite inconclusivo não justifica GET descartado.
-fn reabrir_apos_aceite<T>(
-    aceite: Result<Option<VersaoDocumento>, ErroEditorNativo>,
-    esperada: u32,
-    reler: impl FnOnce() -> T,
-) -> Result<Option<T>, ErroEditorNativo> {
-    if aceite?.map(VersaoDocumento::numero) != Some(esperada) {
-        return Ok(None);
-    }
-    Ok(Some(reler()))
-}
-
 #[cfg(test)]
 #[path = "nativo_testes.rs"]
 mod testes_releitura_condicional;
@@ -480,16 +448,7 @@ pub(super) fn executar(
     let Ok(persistido) = Protocolo::ler(&persistido.html) else {
         return Ok(Resultado::Incerto);
     };
-    if persistido.versao().map(VersaoDocumento::numero) != Some(nova)
-        || persistido.principal() != Some(principal)
-    {
-        return Ok(Resultado::Incerto);
-    }
-    if !persistido
-        .secoes()
-        .iter()
-        .any(|s| s.nome == principal && s.html == editado.as_str())
-    {
+    if !releitura::confere(&protocolo, &persistido, nova, &editado) {
         // O POST pode ter gravado outra versão/conteúdo; não sugerir retry.
         return Ok(Resultado::Incerto);
     }
