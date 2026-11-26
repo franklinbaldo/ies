@@ -102,6 +102,9 @@ mod testes {
     fn confirma_versao_e_todas_as_secoes_transportadas() {
         let anterior = protocolo(1, &ANTERIOR);
         assert!(confere(&anterior, &protocolo(2, &NOVA), 2, EDITADO));
+        let mut reordenada = NOVA;
+        reordenada.reverse();
+        assert!(confere(&anterior, &protocolo(2, &reordenada), 2, EDITADO));
         assert!(!confere(&anterior, &protocolo(3, &NOVA), 2, EDITADO));
     }
 
@@ -141,14 +144,6 @@ mod testes {
     fn confere_todas_as_secoes_tambem_no_ckeditor() {
         let anterior = protocolo_json(1, &ANTERIOR);
         assert!(confere(&anterior, &protocolo_json(2, &NOVA), 2, EDITADO));
-        let mut reordenada = NOVA;
-        reordenada.reverse();
-        assert!(confere(
-            &anterior,
-            &protocolo_json(2, &reordenada),
-            2,
-            EDITADO
-        ));
         let mut divergente = NOVA;
         divergente[0].1 = "&lt;h1&gt;Outro&lt;/h1&gt;";
         assert!(!confere(
@@ -164,11 +159,6 @@ mod testes {
             2,
             EDITADO
         ));
-        assert!(!confere(
-            &anterior,
-            &protocolo_json(3, &NOVA),
-            2,
-            EDITADO
-        ));
+        assert!(!confere(&anterior, &protocolo_json(3, &NOVA), 2, EDITADO));
     }
 }
