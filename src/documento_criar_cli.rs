@@ -130,8 +130,8 @@ fn resultado_json(resultado: &ResultadoCriacao) -> serde_json::Value {
         "numero_sei": numero_sei,
         "requisicoes": resultado.requisicoes
     });
-    if let Some(texto) = &resultado.texto_padrao {
-        saida["texto_padrao"] = json!(texto);
+    if let (Some(texto), Some(objeto)) = (&resultado.texto_padrao, saida.as_object_mut()) {
+        objeto.insert("texto_padrao".to_owned(), json!(texto));
     }
     saida
 }
