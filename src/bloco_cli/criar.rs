@@ -225,8 +225,16 @@ mod tests {
         let action = format!("controlador.php?acao=bloco_assinatura_cadastrar&infra_hash={hash}");
         let url = format!("{origem}/{action}");
         let casos = [
-            ("txtDescricao", CodificacaoDaTela::Iso88591, "A%E7%E3o+%26+B"),
-            ("txaDescricao", CodificacaoDaTela::Utf8, "A%C3%A7%C3%A3o+%26+B"),
+            (
+                "txtDescricao",
+                CodificacaoDaTela::Iso88591,
+                "A%E7%E3o+%26+B",
+            ),
+            (
+                "txaDescricao",
+                CodificacaoDaTela::Utf8,
+                "A%C3%A7%C3%A3o+%26+B",
+            ),
         ];
         for (campo, codificacao, codificado) in casos {
             let html = HtmlServido::de_teste(&format!(
@@ -245,7 +253,9 @@ mod tests {
                 derivar_cadastro(&instalacao, &tela, "TESTE", "Ação & B", "null").unwrap();
             assert_eq!(
                 std::str::from_utf8(submissao.corpo()).unwrap(),
-                format!("hdnExemplo=original&{campo}={codificado}&selGrupoBloco=null&sbmCadastrarBloco=Salvar")
+                format!(
+                    "hdnExemplo=original&{campo}={codificado}&selGrupoBloco=null&sbmCadastrarBloco=Salvar"
+                )
             );
             assert_eq!(submissao.url(), url);
         }

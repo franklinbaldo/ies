@@ -223,17 +223,15 @@ fn conferir_derivacao_do_cadastro(
                 && r.status == 200
         })
         .expect("Controle anterior ao cadastro");
-    let html_controle = HtmlServido::de_teste(
-        &html_da_resposta(controle.interacao).expect("HTML do Controle"),
-    );
+    let html_controle =
+        HtmlServido::de_teste(&html_da_resposta(controle.interacao).expect("HTML do Controle"));
     let unidade = crate::controle_reconhecido::unidade_do_controle(&html_controle)
         .expect("unidade do Controle original");
     let origem = gravacao::instalacao(json).expect("instalação da cassette");
     let url_cadastro = gravacao::url_sem_consulta(json, formulario.interacao);
-    let codificacao = crate::pagina_do_controle::codificacao_da_tela(
-        &gravacao::mime(formulario.interacao),
-    )
-    .expect("charset do cadastro");
+    let codificacao =
+        crate::pagina_do_controle::codificacao_da_tela(&gravacao::mime(formulario.interacao))
+            .expect("charset do cadastro");
     let tela = crate::formulario_web::TelaServida {
         url: &url_cadastro,
         html,
