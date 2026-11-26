@@ -115,9 +115,10 @@ fn confirmar(corpo: &str, banco: &Connection, instalacao: &Instalacao, cenario: 
     ) else {
         return Resposta::nova(Estado::RequisicaoInvalida);
     };
-    if campos.iter().any(|(nome, valor)| {
-        nome == "hdnInteressadosProcedimento" && !valor.is_empty()
-    }) {
+    if campos
+        .iter()
+        .any(|(nome, valor)| nome == "hdnInteressadosProcedimento" && !valor.is_empty())
+    {
         // Resolucao de interessados nao faz parte desta fatia.
         return Resposta::nova(Estado::RequisicaoInvalida);
     }
@@ -138,8 +139,12 @@ fn confirmar(corpo: &str, banco: &Connection, instalacao: &Instalacao, cenario: 
             "controlador.php?acao=procedimento_trabalhar&id_procedimento={}&infra_hash={HASH}",
             criado.id_procedimento
         )),
-        Err(criacao_processo::ErroCriacaoProcesso::DadoInvalido) => Resposta::nova(Estado::RequisicaoInvalida),
-        Err(criacao_processo::ErroCriacaoProcesso::Sqlite(_)) => Resposta::nova(Estado::DadosInsuficientes),
+        Err(criacao_processo::ErroCriacaoProcesso::DadoInvalido) => {
+            Resposta::nova(Estado::RequisicaoInvalida)
+        }
+        Err(criacao_processo::ErroCriacaoProcesso::Sqlite(_)) => {
+            Resposta::nova(Estado::DadosInsuficientes)
+        }
     }
 }
 

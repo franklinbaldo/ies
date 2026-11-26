@@ -145,7 +145,8 @@ pub fn criar(
         return Err(ErroCriacaoProcesso::DadoInvalido);
     }
     let tx = banco.unchecked_transaction()?;
-    let tipo = consultar(&tx, instalacao, cenario, id_tipo)?.ok_or(ErroCriacaoProcesso::DadoInvalido)?;
+    let tipo =
+        consultar(&tx, instalacao, cenario, id_tipo)?.ok_or(ErroCriacaoProcesso::DadoInvalido)?;
     let origem = instalacao.url_base();
     tx.execute(
         "INSERT INTO processo_criado
