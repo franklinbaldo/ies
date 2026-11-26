@@ -3,7 +3,8 @@
 use crate::{Estado, Resposta, despachar};
 use iesei::instalacao::Instalacao;
 use iesei::processos::{
-    ErroProcessos, PedidoEnvio, ProcessoSimulado, enviar_da_unidade, ler, registrar_anotacao,
+    ErroProcessos, PedidoEnvio, ProcessoSimulado, enviar_destinos_da_unidade, ler,
+    registrar_anotacao,
 };
 use rusqlite::Connection;
 use std::fmt::Write;
@@ -65,7 +66,7 @@ pub(crate) fn pares(corpo: &str) -> Option<Vec<(&str, &str)>> {
         .collect::<Option<Vec<_>>>()
 }
 
-pub(crate) fn campo_unico<'a>(campos: &'a [(&str, &str)], chave: &str) -> Option<&'a str> {
+pub(crate) fn campo_unico<'a>(campos: &[(&str, &'a str)], chave: &str) -> Option<&'a str> {
     let mut valores = campos.iter().filter(|(k, _)| *k == chave).map(|(_, v)| *v);
     let valor = valores.next()?;
     valores.next().is_none().then_some(valor)
@@ -79,13 +80,33 @@ fn checar_checkbox(campos: &[(&str, &str)], chave: &str) -> Option<bool> {
     }
 }
 
-fn destino_indicado(campos: &[(&str, &str)], processo: &ProcessoSimulado) -> Option<String> {
+fn destinos_indicados<'a>(
+    campos: &[(&str, &'a str)],
+    processo: &ProcessoSimulado,
+) -> Option<Vec<&'a str>> {
     let unidades = campo_unico(campos, "hdnUnidades")?;
+    // Hipótese plural baseada no relato PEN1. Separar a lista antes
+    // da descrição impede que o segundo destino vire parte do nome.
+    let separador = if unidades.contains("%C2%A5") {
+        "%C2%A5"
+    } else {
+        "%A5"
+    };
+    unidades
+        .split(separador)
+        .map(|item| destino_indicado(item, processo))
+        .collect()
+}
+
+fn destino_indicado<'a>(item: &'a str, processo: &ProcessoSimulado) -> Option<&'a str> {
     // O sufixo %B1 está contido em %C2%B1: testar UTF-8 primeiro evita
     // interpretar "2%C2" como identificador do destino.
-    let (id, descricao) = unidades
+    let (id, descricao) = item
         .split_once("%C2%B1")
-        .or_else(|| unidades.split_once("%B1"))?;
+        .or_else(|| item.split_once("%B1"))?;
+    if descricao.contains("%A5") {
+        return None;
+    }
     if id.is_empty() || !id.bytes().all(|b| b.is_ascii_digit()) {
         return None;
     }
@@ -101,7 +122,7 @@ fn destino_indicado(campos: &[(&str, &str)], processo: &ProcessoSimulado) -> Opt
         .destinos
         .iter()
         .any(|destino| destino.id == id && destino.sigla == sigla)
-        .then(|| id.to_owned())
+        .then_some(id)
 }
 
 fn resposta_html(corpo: String) -> Resposta {
@@ -210,20 +231,20 @@ pub fn responder(
     if campo_unico(&campos, "hdnIdProtocolos") != Some(id) {
         return Resposta::nova(Estado::RequisicaoInvalida);
     }
-    let (Some(id_destino), Some(manter_aberto), Some(remover_anotacoes)) = (
-        destino_indicado(&campos, &processo),
+    let (Some(ids), Some(manter_aberto), Some(remover_anotacoes)) = (
+        destinos_indicados(&campos, &processo),
         checar_checkbox(&campos, "chkSinManterAberto"),
         checar_checkbox(&campos, "chkSinRemoverAnotacoes"),
     ) else {
         return Resposta::nova(Estado::RequisicaoInvalida);
     };
-    match enviar_da_unidade(
+    match enviar_destinos_da_unidade(
         banco,
         instalacao,
         cenario,
         PedidoEnvio {
             id,
-            id_destino: &id_destino,
+            id_destino: &ids,
             manter_aberto,
             remover_anotacoes,
         },
