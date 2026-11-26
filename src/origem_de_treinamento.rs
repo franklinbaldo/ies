@@ -36,6 +36,7 @@ pub(crate) enum Escrita {
     BlocoIncluirDocumento,
     BlocoCriar,
     DocumentoIncluirExterno,
+    DocumentoIncluirExternoLote,
     DocumentoSalvar,
     ProcessoPrazo,
     ProcessoRelacionar,
@@ -123,6 +124,19 @@ mod tests {
                 "{origem}"
             );
         }
+    }
+
+    #[test]
+    fn lote_externo_nao_herda_promocao_singular() {
+        for origem in ORIGENS {
+            assert!(exigir(Escrita::DocumentoIncluirExternoLote, origem).is_ok());
+        }
+        let producao = "https://sei.exemplo.gov.br/sei";
+        assert!(exigir(Escrita::DocumentoIncluirExterno, producao).is_ok());
+        assert_eq!(
+            exigir(Escrita::DocumentoIncluirExternoLote, producao),
+            Err(CausaDaOrigem::OrigemForaDoTreinamento)
+        );
     }
 
     #[test]
