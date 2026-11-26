@@ -310,7 +310,7 @@ fn htmls_para_post(secoes: &[Secao], principal: &str, editado: &str) -> Vec<Stri
 }
 
 fn enviar_classico(
-    envio: &mut EnvioHttps,
+    envio: &mut impl EnvioDoControle,
     alvo: &AlvoDaEdicao<'_>,
     editor: &Editor,
     secoes: &[Secao],
