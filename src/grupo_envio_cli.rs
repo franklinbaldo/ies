@@ -1,6 +1,6 @@
 //! Leitura de grupos de envio por identidade publicada na unidade atual.
 //! Forma de tela: Todos @caabe699, `src/todos/grupos_envio.py`; PEN1 4.0.12.
-//! Lista integral; paginação Infra ainda depende de validação em grupos.
+//! Página observada; paginação Infra ainda é hipótese para grupos.
 use crate::acao_do_sei::AcaoDoSei;
 use crate::consulta_do_controlador::{ConsultaDoControlador, menciona_acao};
 use crate::tela_html::{Elemento, HtmlServido, arvore};
@@ -15,8 +15,11 @@ mod paginacao;
 #[derive(Debug, clap::Subcommand)]
 pub(crate) enum Acao {
     /// Lista grupos da unidade.
-    Listar,
-    /// Consulta o grupo pelo ID publicado na lista.
+    Listar {
+        #[arg(long, value_parser = clap::value_parser!(u32).range(1..))]
+        pagina: Option<u32>,
+    },
+    /// Consulta o grupo pelo ID publicado na página observada.
     Obter { id: String },
 }
 
@@ -32,7 +35,8 @@ enum ErroGrupo {
     ListaInesperada,
     ListaIncompleta,
     IdentidadeAmbigua,
-    GrupoAusente,
+    GrupoNaoEncontradoNaPagina,
+    PaginaNaoOferecida,
     ConsultaNaoOferecida,
     ConsultaInesperada,
     UnidadeInesperada,
@@ -304,8 +308,9 @@ fn ler_grupo(html: &HtmlServido, id: &str) -> Result<Grupo, ErroGrupo> {
 fn listar_via<V: EnvioDoControle>(
     sessao: &ReferenciasDaSessao,
     unidade_esperada: Option<&str>,
+    pagina: Option<u32>,
     envio: &mut V,
-) -> anyhow::Result<(String, String, Vec<Linha>)> {
+) -> anyhow::Result<(String, String, crate::legenda::Legenda, Vec<Linha>)> {
     let controle = transporte::envio_post::ler_tela_via(
         sessao.url_do_controle(),
         sessao.cookie(),
@@ -326,30 +331,30 @@ fn listar_via<V: EnvioDoControle>(
     let resposta = envio.get(&url, cookie)?;
     let codificacao = crate::pagina_do_controle::codificacao_da_tela(&resposta.mime);
     let html = transporte::decodificar_resposta(resposta)?;
-    let linhas = paginacao::ler_todas(
+    let (url, legenda, linhas) = paginacao::ler_observada(
         html,
-        url.clone(),
+        url,
         codificacao,
         sessao,
         &controle.instalacao,
+        pagina,
         envio,
     )?;
-    Ok((unidade, url, linhas))
+    Ok((unidade, url, legenda, linhas))
 }
 
-/// Consulta tipada para a CLI e a expansão de grupos na tramitação (#875).
-/// Somente leitura; não resolve por nome nem envia processo.
+/// Consulta tipada pelo link publicado na página observada.
 pub(crate) fn obter_via<V: EnvioDoControle>(
     sessao: &ReferenciasDaSessao,
     unidade_esperada: Option<&str>,
     id: &str,
     envio: &mut V,
 ) -> anyhow::Result<(String, Grupo)> {
-    let (unidade, url, linhas) = listar_via(sessao, unidade_esperada, envio)?;
+    let (unidade, url, _, linhas) = listar_via(sessao, unidade_esperada, None, envio)?;
     let linha = linhas
         .iter()
         .find(|l| l.item.id == id)
-        .ok_or(ErroGrupo::GrupoAusente)?;
+        .ok_or(ErroGrupo::GrupoNaoEncontradoNaPagina)?;
     let consulta = consulta_da_linha(linha, &url, sessao.origem())?;
     let cookie = sessao.cookie().valor()?;
     let html = transporte::decodificar_resposta(envio.get(&consulta, cookie)?)?;
@@ -363,12 +368,11 @@ fn ler_via<V: EnvioDoControle>(
     envio: &mut V,
 ) -> anyhow::Result<serde_json::Value> {
     match acao {
-        Acao::Listar => {
-            let (unidade, _, linhas) = listar_via(sessao, unidade_esperada, envio)?;
+        Acao::Listar { pagina } => {
+            let (unidade, _, legenda, linhas) =
+                listar_via(sessao, unidade_esperada, *pagina, envio)?;
             let itens: Vec<_> = linhas.into_iter().map(|linha| linha.item).collect();
-            Ok(
-                serde_json::json!({"unidade": unidade, "origem": "web", "total": itens.len(), "itens": itens}),
-            )
+            Ok(paginacao::saida(unidade, legenda, itens))
         }
         Acao::Obter { id } => {
             let (unidade, grupo) = obter_via(sessao, unidade_esperada, id, envio)?;
