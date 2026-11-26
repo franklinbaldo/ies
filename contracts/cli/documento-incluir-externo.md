@@ -22,7 +22,8 @@ antes do primeiro upload e reaproveita a confirmação individual com foto
 fresca. Para na primeira falha, sem retry ou rollback. Os itens confirmados
 conservam seus números SEI; o item interrompido indica se houve tentativa
 de upload, e os restantes são explicitamente não tentados. A falha sai 1,
-com o resultado parcial no stdout e a causa original no stderr.
+com stdout vazio (#695), resultado parcial JSON na primeira linha
+`Error: LoteInterrompido: ...` do stderr e a causa original encadeada.
 Saída JSON de lote: `escopo` é `inspecao_local_lote`, `previa_web_lote` ou
 `confirmacao_web_lote`, com `itens` na ordem de entrada.
 A confirmação em lote ainda depende de CI, replay aplicável e validação

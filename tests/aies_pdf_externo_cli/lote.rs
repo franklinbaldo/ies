@@ -76,8 +76,13 @@ fn lote_segundo_cadastro_incerto_preserva_primeiro_e_nao_tenta_terceiro() {
         false,
         &[b"%PDF-1.4\n2 0 obj\n%%EOF\n", b"%PDF-1.4\n3 0 obj\n%%EOF\n"],
     );
-    falha(&saidas[0], "TentativaNaoComprovada");
-    let lote = json(&saidas[0]);
+    falha(&saidas[0], "LoteInterrompido");
+    let stderr = String::from_utf8_lossy(&saidas[0].stderr);
+    let linha = stderr.lines().next().unwrap();
+    let lote: Value =
+        serde_json::from_str(linha.strip_prefix("Error: LoteInterrompido: ").unwrap()).unwrap();
+    assert!(stderr.contains("TentativaNaoComprovada"));
+    assert!(stderr.contains("Confirmacao("));
     assert_eq!(lote["confirmado"], false);
     assert_eq!(lote["itens"][0]["estado"], "confirmado");
     assert_eq!(lote["itens"][0]["numero_sei"], "050000001");

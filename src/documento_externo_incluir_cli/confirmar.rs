@@ -3,7 +3,8 @@
 use super::arquivo_json;
 use crate::Cli;
 use crate::documento_externo_incluir::{
-    PdfLocal, fluxo_confirmar::{executar_confirmacao_https, prevalidar_confirmacao},
+    PdfLocal,
+    fluxo_confirmar::{executar_confirmacao_https, prevalidar_confirmacao},
 };
 use crate::processo::NumeroProcesso;
 use crate::processo_concluir::escrita::Contador;
@@ -156,43 +157,49 @@ pub(super) fn executar_lote(
                         "arquivo": arquivo_json(restante),
                         "estado": "nao_tentado"
                     })));
-                    apresentar_lote(cli, processo, tipo, &itens, false);
-                    return Err(anyhow::Error::from(erro).context(TentativaNaoComprovada {
-                        upload_tentado,
-                        requisicoes,
-                    }));
+                    return Err(anyhow::Error::from(erro)
+                        .context(TentativaNaoComprovada {
+                            upload_tentado,
+                            requisicoes,
+                        })
+                        .context(LoteInterrompido {
+                            resultado: resultado_lote(processo, tipo, &itens, false),
+                        }));
                 }
             }
         }
-        apresentar_lote(cli, processo, tipo, &itens, true);
+        if cli.json {
+            let mut valor = resultado_lote(processo, tipo, &itens, true);
+            crate::indice_local::anexar_avisos(&mut valor, indice);
+            println!("{valor}");
+        } else {
+            for item in &itens {
+                println!("{}: documento SEI {}", item["arquivo"]["nome"], item["numero_sei"]);
+            }
+        }
         Ok(())
     })
 }
 
-fn apresentar_lote(
-    cli: &Cli,
+/// A falha conserva stdout vazio (#695); o resultado parcial acompanha o
+/// erro contextualizado no stderr, sem apagar sua causa tipada.
+#[derive(Debug, thiserror::Error)]
+#[error("LoteInterrompido: {resultado}")]
+struct LoteInterrompido {
+    resultado: serde_json::Value,
+}
+
+fn resultado_lote(
     processo: &NumeroProcesso,
     tipo: &str,
     itens: &[serde_json::Value],
     confirmado: bool,
-) {
-    if cli.json {
-        println!("{}", json!({
-            "escopo": "confirmacao_web_lote",
-            "processo": processo.as_str(),
-            "tipo_solicitado": tipo,
-            "itens": itens,
-            "confirmado": confirmado
-        }));
-    } else {
-        for item in itens {
-            println!("{}: {}", item["arquivo"]["nome"], item["estado"]);
-            if let Some(numero) = item["numero_sei"].as_str() {
-                println!("Documento SEI: {numero}");
-            }
-        }
-        if !confirmado {
-            println!("Lote interrompido. Não repita sem conferir o processo.");
-        }
-    }
+) -> serde_json::Value {
+    json!({
+        "escopo": "confirmacao_web_lote",
+        "processo": processo.as_str(),
+        "tipo_solicitado": tipo,
+        "itens": itens,
+        "confirmado": confirmado
+    })
 }
