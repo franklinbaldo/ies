@@ -163,12 +163,31 @@ fn processar_tunel(
     canal.flush().unwrap();
 }
 
-fn executar_com_releitura(
+fn executar_em_bancada<T: Send + 'static>(
     args: &[&str],
     reler: bool,
     perder_resposta: bool,
-    concorrente: bool,
-) -> (Output, Option<Output>, Vec<String>, (i64, i64), usize) {
+    preparar: fn() -> (Connection, Instalacao),
+    observar: fn(&Connection, &Instalacao) -> T,
+) -> (Output, Option<Output>, Vec<String>, T, T) {
+    executar_em_bancada_com_interferencia(
+        args,
+        reler,
+        perder_resposta,
+        preparar,
+        observar,
+        |_, _| {},
+    )
+}
+
+fn executar_em_bancada_com_interferencia<T: Send + 'static>(
+    args: &[&str],
+    reler: bool,
+    perder_resposta: bool,
+    preparar: fn() -> (Connection, Instalacao),
+    observar: fn(&Connection, &Instalacao) -> T,
+    interferir: impl Fn(&Connection, &Instalacao) + Send + 'static,
+) -> (Output, Option<Output>, Vec<String>, T, T) {
     let pasta = Pasta::nova();
     let (cert, identidade) = identidade(&pasta.0, "sei.test");
     let origem = pasta.privado("origem", ORIGEM);
@@ -188,29 +207,13 @@ fn executar_com_releitura(
     let parar = Arc::new(AtomicBool::new(false));
     let parar_sim = Arc::clone(&parar);
     let simulador = thread::spawn(move || {
-        let (banco, instalacao) = banco();
-        let antes = quantidade(&banco);
+        let (banco, instalacao) = preparar();
+        let antes = observar(&banco, &instalacao);
         while let Some(mut cliente) = aceitar(&escuta, &parar_sim) {
             atender_http(&mut cliente, Some((&banco, &instalacao, CENARIO))).unwrap();
-            // Outro ator cria no mesmo banco após o POST e antes da releitura.
-            // A injeção é sintética e não conta como requisição da CLI sob teste.
-            if concorrente && quantidade(&banco) == 1 {
-                criacao_processo::criar(
-                    &banco,
-                    &instalacao,
-                    CENARIO,
-                    "12",
-                    ESPECIFICACAO_PERDIDA,
-                    "TESTE",
-                )
-                .unwrap();
-            }
+            interferir(&banco, &instalacao);
         }
-        let tipos = criacao_processo::listar(&banco, &instalacao, CENARIO)
-            .unwrap()
-            .unwrap()
-            .len();
-        ((antes, quantidade(&banco)), tipos)
+        (antes, observar(&banco, &instalacao))
     });
 
     let proxy = TcpListener::bind(("127.0.0.1", 0)).unwrap();
@@ -262,10 +265,52 @@ fn executar_com_releitura(
     };
     parar.store(true, Ordering::SeqCst);
     tunel.join().unwrap();
-    let (contagens, tipos) = simulador.join().unwrap();
+    let (antes, depois) = simulador.join().unwrap();
     let pedidos = trilha.lock().unwrap().clone();
-    (saida, leitura, pedidos, contagens, tipos)
+    (saida, leitura, pedidos, antes, depois)
 }
+
+fn observar_criacao(banco: &Connection, instalacao: &Instalacao) -> (i64, usize) {
+    let tipos = criacao_processo::listar(banco, instalacao, CENARIO)
+        .unwrap()
+        .unwrap()
+        .len();
+    (quantidade(banco), tipos)
+}
+
+fn executar_com_releitura(
+    args: &[&str],
+    reler: bool,
+    perder_resposta: bool,
+    concorrente: bool,
+) -> (Output, Option<Output>, Vec<String>, (i64, i64), usize) {
+    let (saida, leitura, pedidos, antes, depois) = executar_em_bancada_com_interferencia(
+        args,
+        reler,
+        perder_resposta,
+        banco,
+        observar_criacao,
+        move |banco, instalacao| {
+            // Outro ator cria depois do POST e antes da releitura, no mesmo banco.
+            // A injeção é sintética e não conta como requisição da CLI sob teste.
+            if concorrente && quantidade(banco) == 1 {
+                criacao_processo::criar(
+                    banco,
+                    instalacao,
+                    CENARIO,
+                    "12",
+                    ESPECIFICACAO_PERDIDA,
+                    "TESTE",
+                )
+                .unwrap();
+            }
+        },
+    );
+    (saida, leitura, pedidos, (antes.0, depois.0), depois.1)
+}
+
+#[path = "aies_processo_criar_cli/envio.rs"]
+mod envio;
 
 fn executar(args: &[&str]) -> (Output, Vec<String>, (i64, i64), usize) {
     let (saida, _, pedidos, contagens, tipos) = executar_com_releitura(args, false, false, false);
