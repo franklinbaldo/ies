@@ -166,7 +166,10 @@ fn gravar<R: Read>(
         Formato::Zip => &mut zip,
     };
     resposta.corpo.read_exact(prefixo)?;
-    ensure!(formato.assinatura(prefixo), "AssinaturaDoDownloadDivergente");
+    ensure!(
+        formato.assinatura(prefixo),
+        "AssinaturaDoDownloadDivergente"
+    );
     let mut parcial = Parcial::abrir(saida, politica)?;
     let mut hash = Sha256::new();
     parcial.escrever(prefixo)?;
