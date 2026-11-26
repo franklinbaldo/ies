@@ -106,9 +106,7 @@ fn replay_da_criacao_de_bloco_de_assinatura_no_acervo() {
         let post = respostas
             .iter()
             .find(|r| {
-                r.operacao == "bloco_assinatura_cadastrar"
-                    && r.metodo == "POST"
-                    && r.status == 302
+                r.operacao == "bloco_assinatura_cadastrar" && r.metodo == "POST" && r.status == 302
             })
             .expect("POST 302 de criação não gravado");
         let formulario = formulario_da_criacao(&respostas, post.passo)
