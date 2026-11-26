@@ -46,8 +46,7 @@ pub(crate) fn tentar_enviar(cli: &Cli) -> Option<anyhow::Result<()>> {
 #[error("{self:?}")]
 pub(crate) struct SiglaDeDestinoInvalida;
 
-/// A sigla de `--para`, aparada; o clap recusa a inválida (saída 2) e
-/// também `--para` repetido.
+/// O clap valida e apara cada ocorrência de `--para` (saída 2 se inválida).
 pub(crate) fn sigla_de_destino(para: &str) -> Result<String, SiglaDeDestinoInvalida> {
     let sigla = para.trim();
     if sigla.is_empty() || sigla.chars().count() > 100 || sigla.chars().any(char::is_control) {
@@ -59,12 +58,20 @@ pub(crate) fn sigla_de_destino(para: &str) -> Result<String, SiglaDeDestinoInval
 fn enviar(
     cli: &Cli,
     nup: &NumeroProcesso,
-    para: &str,
+    para: &[String],
     manter_aberto: bool,
     remover_anotacoes: bool,
     confirmar: bool,
 ) -> anyhow::Result<()> {
+    let (primeiro, outros) = para.split_first().ok_or(SiglaDeDestinoInvalida)?;
+    let outros: Vec<&str> = outros.iter().map(String::as_str).collect();
     com_sessao(cli, |sessao, indice| {
+        if confirmar && !outros.is_empty() {
+            crate::origem_de_treinamento::exigir(
+                crate::origem_de_treinamento::Escrita::ProcessoEnviarMultiplos,
+                sessao.origem,
+            )?;
+        }
         // Aprovada nas sete instalações (10/11/2026): grava também em produção.
         if remover_anotacoes
             && confirmar
@@ -78,13 +85,18 @@ fn enviar(
         let pedido = PedidoDoEnvio {
             nup,
             unidade: cli.unidade.as_deref(),
-            para,
+            para: primeiro,
+            outros: &outros,
             manter_aberto,
             remover_anotacoes,
             confirmar,
         };
         let feito = enviar_processo(sessao, &pedido, indice, &mut EnvioHttps).map_err(|erro| {
-            let sugestoes = sugestoes_guardadas(&erro, sessao, indice, para);
+            let sugestoes = if outros.is_empty() {
+                sugestoes_guardadas(&erro, sessao, indice, primeiro)
+            } else {
+                Vec::new()
+            };
             let erro = anyhow::Error::from(erro);
             if sugestoes.is_empty() {
                 erro
@@ -151,7 +163,10 @@ struct ResultadoEnvio<'a> {
     #[serde(skip_serializing_if = "Option::is_none")]
     depois: Option<&'a [String]>,
     depois_esperado: Vec<String>,
-    destino: DestinoPublico<'a>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    destino: Option<DestinoPublico<'a>>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    destinos: Option<Vec<DestinoPublico<'a>>>,
     #[serde(skip_serializing_if = "Option::is_none")]
     falha_do_envio: Option<String>,
     id_procedimento: &'a str,
@@ -171,6 +186,14 @@ struct ResultadoEnvio<'a> {
     unidade: &'a str,
 }
 
+fn destino_publico(destino: &crate::processo_enviar::Destino) -> DestinoPublico<'_> {
+    DestinoPublico {
+        sigla: &destino.sigla,
+        descricao: &destino.descricao,
+        id_unidade: &destino.id_unidade,
+    }
+}
+
 fn resultado_envio(feito: &ProcessoEnviado) -> ResultadoEnvio<'_> {
     ResultadoEnvio {
         nup: &feito.nup,
@@ -184,11 +207,12 @@ fn resultado_envio(feito: &ProcessoEnviado) -> ResultadoEnvio<'_> {
         anotacao_antes: feito.anotacao_antes(),
         anotacao_depois: feito.anotacao_depois(),
         metodo_remocao: feito.metodo_remocao(),
-        destino: DestinoPublico {
-            sigla: &feito.destino.sigla,
-            descricao: &feito.destino.descricao,
-            id_unidade: &feito.destino.id_unidade,
+        destino: match feito.destinos.as_slice() {
+            [destino] => Some(destino_publico(destino)),
+            _ => None,
         },
+        destinos: (feito.destinos.len() > 1)
+            .then(|| feito.destinos.iter().map(destino_publico).collect()),
         aberto_em: &feito.aberto_em,
         depois_esperado: feito.depois_esperado(),
         depois: feito.depois(),

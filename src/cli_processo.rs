@@ -124,14 +124,14 @@ pub(crate) enum ProcessoAcao {
         )]
         ate: Option<crate::unidade_retornos::DataCivil>,
     },
-    /// Envia o processo a uma unidade (prévia; com --confirmar, um POST e a
+    /// Envia o processo a unidades (prévia; com --confirmar, um POST e a
     /// verificação por leitura)
     Enviar {
         #[arg(value_parser = crate::processo::NumeroProcesso::novo)]
         numero: crate::processo::NumeroProcesso,
-        /// Sigla da unidade de destino, como o SEI a oferece
-        #[arg(long, value_parser = crate::processo_enviar_cli::sigla_de_destino)]
-        para: String,
+        /// Sigla de destino, como o SEI a oferece (repetível)
+        #[arg(long, required = true, value_parser = crate::processo_enviar_cli::sigla_de_destino)]
+        para: Vec<String>,
         /// Marca "Manter processo aberto na unidade atual"
         #[arg(long)]
         manter_aberto: bool,
