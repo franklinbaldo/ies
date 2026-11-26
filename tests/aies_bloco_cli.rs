@@ -336,7 +336,13 @@ fn executar(interno: bool, numero: Option<&str>, previa: bool) -> (Output, Vec<S
     let tunel = iniciar_tunel(proxy, identidade, endereco, esperados);
 
     let argumentos: Vec<&str> = if previa {
-        vec!["--json", "bloco", "criar", "--descricao", "Despachos de teste"]
+        vec![
+            "--json",
+            "bloco",
+            "criar",
+            "--descricao",
+            "Despachos de teste",
+        ]
     } else if let Some(numero) = numero {
         vec!["--json", "bloco", numero]
     } else if interno {
