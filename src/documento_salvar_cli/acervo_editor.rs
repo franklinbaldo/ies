@@ -6,6 +6,50 @@ use crate::cassette::{ZipDoAcervo, archive_filename, conferir_cassette_ate, html
 use crate::tela_html::HtmlServido;
 use std::path::{Path, PathBuf};
 
+// Censo estrutural independente do localizador da foto. Não imprime
+// nomes, HTML, identificadores ou URLs. O DOM pode normalizar o primeiro LF
+// de textarea, portanto a contagem literal vem do texto original.
+fn contar_secoes_classicas(html: &HtmlServido) -> Option<(usize, usize)> {
+    let dom = crate::tela_html::arvore(html);
+    let form = crate::formulario_web::localizar_formulario(&dom, "frmEditor").ok()?;
+    let mut total = 0;
+    let mut vazias = 0;
+    for campo in form.elementos("textarea").filter(|c| !c.presente("disabled")) {
+        let nome = campo.atributo("name")?;
+        if !nome.starts_with("txaEditor_") {
+            continue;
+        }
+        let dupla = format!("name=\"{nome}\"");
+        let simples = format!("name='{nome}'");
+        let mut fontes = html.split("<textarea").skip(1).filter_map(|trecho| {
+            let (atributos, resto) = trecho.split_once('>')?;
+            if !atributos.contains(&dupla) && !atributos.contains(&simples) {
+                return None;
+            }
+            resto.split_once("</textarea>").map(|(texto, _)| texto)
+        });
+        let fonte = fontes.next()?;
+        if fontes.next().is_some() {
+            return None;
+        }
+        total += 1;
+        if fonte.is_empty() {
+            vazias += 1;
+        }
+    }
+    (total != 0).then_some((total, vazias))
+}
+
+#[test]
+fn censo_classico_distingue_vazio_de_quebra_de_linha() {
+    let html = HtmlServido::de_teste(
+        "<form id='frmEditor'><textarea name='txaEditor_1'></textarea>\
+         <textarea name='txaEditor_2'>\n</textarea>\
+         <textarea name='txaEditor_3' disabled></textarea></form>",
+    );
+    assert_eq!(contar_secoes_classicas(&html), Some((2, 1)));
+}
+
 fn conferir_recusa_no_original(card_relativo: &str) {
     let raiz = Path::new(env!("CARGO_MANIFEST_DIR"));
     let card = raiz.join(card_relativo);
@@ -37,6 +81,17 @@ fn conferir_recusa_no_original(card_relativo: &str) {
             assert!(nativo::reconhece_classico(&html));
         } else if captura.instalacao == "go" {
             assert!(nativo::reconhece_ckeditor(&html));
+        }
+        if let Some((total, vazias)) = contar_secoes_classicas(&html) {
+            println!(
+                "editor clássico: instalação={}, passo={}, seções={}, vazias literais={}",
+                captura.instalacao, resposta.passo, total, vazias
+            );
+        } else {
+            println!(
+                "censo clássico indisponível: instalação={}, passo={}",
+                captura.instalacao, resposta.passo
+            );
         }
         observados += 1;
     }
