@@ -46,8 +46,7 @@ pub(crate) fn tentar_enviar(cli: &Cli) -> Option<anyhow::Result<()>> {
 #[error("{self:?}")]
 pub(crate) struct SiglaDeDestinoInvalida;
 
-/// A sigla de `--para`, aparada; o clap recusa a inválida (saída 2) e
-/// cada ocorrência de `--para`.
+/// O clap valida e apara cada ocorrência de `--para` (saída 2 se inválida).
 pub(crate) fn sigla_de_destino(para: &str) -> Result<String, SiglaDeDestinoInvalida> {
     let sigla = para.trim();
     if sigla.is_empty() || sigla.chars().count() > 100 || sigla.chars().any(char::is_control) {

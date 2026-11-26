@@ -10,8 +10,18 @@ pub(crate) fn humano(feito: &ProcessoEnviado) -> String {
         format!("Aberto em: {}", refs(&feito.aberto_em)),
         format!(
             "{}: {}",
-            if feito.destinos.len() == 1 { "Destino" } else { "Destinos" },
-            lista_humana(&feito.destinos.iter().map(|d| d.descricao.as_str()).collect::<Vec<_>>())
+            if feito.destinos.len() == 1 {
+                "Destino"
+            } else {
+                "Destinos"
+            },
+            lista_humana(
+                &feito
+                    .destinos
+                    .iter()
+                    .map(|d| d.descricao.as_str())
+                    .collect::<Vec<_>>()
+            )
         ),
         format!(
             "Manter aberto na unidade atual: {}",

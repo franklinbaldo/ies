@@ -137,6 +137,15 @@ mod tests {
     }
 
     #[test]
+    fn envio_multiplo_ainda_restrito_ao_treinamento() {
+        assert!(exigir(Escrita::ProcessoEnviarMultiplos, "https://sei.test/sei").is_ok());
+        assert_eq!(
+            exigir(Escrita::ProcessoEnviarMultiplos, "https://sei.unb.br/sei"),
+            Err(CausaDaOrigem::OrigemForaDoTreinamento)
+        );
+    }
+
+    #[test]
     fn comentarios_sao_restritos_a_treinamento() {
         assert!(exigir(Escrita::ProcessoComentar, "https://sei.test/sei").is_ok());
         assert!(matches!(

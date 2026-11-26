@@ -98,7 +98,10 @@ pub(crate) fn enviar_processo<V: EnvioDoProcesso>(
         if destinos.iter().any(|d| d.id_unidade == destino.id_unidade) {
             continue;
         }
-        if let Some(anterior) = destinos.iter().find(|d| d.sigla.eq_ignore_ascii_case(&destino.sigla)) {
+        if let Some(anterior) = destinos
+            .iter()
+            .find(|d| d.sigla.eq_ignore_ascii_case(&destino.sigla))
+        {
             return Err(ErroEnviar::VariosDestinosComASigla {
                 candidatos: vec![anterior.descricao.clone(), destino.descricao],
             });
@@ -506,7 +509,11 @@ fn conciliar(
             verificacao: Box::new(verificacao),
         });
     };
-    if !feito.destinos.iter().all(|destino| depois.contains(&destino.sigla)) {
+    if !feito
+        .destinos
+        .iter()
+        .all(|destino| depois.contains(&destino.sigla))
+    {
         return Err(ErroEnviar::EnvioNaoAplicado {
             aberto_em: feito.aberto_em,
             depois,
