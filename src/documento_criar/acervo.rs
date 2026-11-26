@@ -47,6 +47,11 @@ fn replay_documento_criar_go() {
     let mut recusadas = 0usize;
     let mut nao_aplicaveis = 0usize;
     let mut respostas_alvo = 0usize;
+    let mut cadastros = 0usize;
+    let mut radio_t = 0usize;
+    let mut autocomplete_lido = 0usize;
+    let mut controles_recusados = 0usize;
+    let mut script_recusado = 0usize;
     for card in CARDS {
         let caminho = raiz.join("cassettes/go").join(card);
         let cassette = conferir_cassette_ate(&caminho, &zip, 120_000_000)
@@ -73,7 +78,38 @@ fn replay_documento_criar_go() {
                     tipos_oferecidos(&HtmlServido::de_teste(&html)).is_ok()
                 }
                 "documento_gerar" => tipo_do_cadastro(&html).is_some_and(|tipo| {
-                    conferir_cadastro(&HtmlServido::de_teste(&html), &tipo, None, None).is_ok()
+                    let servido = HtmlServido::de_teste(&html);
+                    if conferir_cadastro(&servido, &tipo, None, None).is_err() {
+                        return false;
+                    }
+                    cadastros += 1;
+                    // Censo independente da declaração literal do autocomplete:
+                    // presença de T no formulário original não prova consulta.
+                    let dom = crate::tela_html::arvore(&servido);
+                    let oferecido = dom.com_id("frmDocumentoCadastro").any(|form| {
+                        form.elementos("input").any(|campo| {
+                            campo.atributo("name") == Some("rdoTextoInicial")
+                                && campo.atributo("type") == Some("radio")
+                                && campo.atributo("value") == Some("T")
+                                && !campo.presente("disabled")
+                        })
+                    });
+                    radio_t += usize::from(oferecido);
+                    use super::texto_padrao::{ErroTextoPadrao, url_publicada};
+                    match url_publicada(&servido) {
+                        Ok(_) => {
+                            assert!(oferecido, "autocomplete sem rádio T no cadastro");
+                            autocomplete_lido += 1;
+                        }
+                        Err(ErroTextoPadrao::ControlesNaoOferecidos) => {
+                            controles_recusados += 1;
+                        }
+                        Err(ErroTextoPadrao::AutocompletarNaoDeclarado) => {
+                            script_recusado += 1;
+                        }
+                        Err(_) => panic!("classe inesperada no leitor de cadastro"),
+                    }
+                    true
                 }),
                 _ => unreachable!(),
             };
@@ -100,6 +136,14 @@ fn replay_documento_criar_go() {
     assert_eq!(nao_aplicaveis, 7, "mudou a classe não aplicável");
     println!(
         "documento.criar GO: {respostas_alvo} respostas; {lidas} lidas, {recusadas} recusadas, {nao_aplicaveis} não aplicáveis"
+    );
+    assert!(cadastros > 0, "nenhum cadastro original para texto padrão");
+    assert_eq!(
+        cadastros,
+        autocomplete_lido + controles_recusados + script_recusado
+    );
+    println!(
+        "texto padrão GO (somente cadastro): {cadastros} telas, {radio_t} rádio T, {autocomplete_lido} autocomplete reconhecido, {controles_recusados} controles recusados, {script_recusado} script recusado"
     );
     conferir_css_no_documento_gerado(raiz, &zip);
 }
