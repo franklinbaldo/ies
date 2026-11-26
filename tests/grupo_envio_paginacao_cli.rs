@@ -120,7 +120,6 @@ fn preparar_sessao() -> (
     (pasta, cert, tls_id, origem, controle, cookie)
 }
 
-
 fn controle() -> String {
     format!(
         "<html><body><a id='lnkInfraUnidade'>TESTE</a>\
@@ -211,7 +210,13 @@ fn pagina_observada_opt_in_e_estado_lembrado_sem_restaurar() {
                 }
                 "GET grupo_unidade_consultar" => {
                     assert_eq!(indice, 0);
-                    assert!(texto.lines().next().unwrap().contains("id_grupo_unidade=004"));
+                    assert!(
+                        texto
+                            .lines()
+                            .next()
+                            .unwrap()
+                            .contains("id_grupo_unidade=004")
+                    );
                     consulta().to_owned()
                 }
                 _ => panic!("pedido inesperado: {evento}"),
