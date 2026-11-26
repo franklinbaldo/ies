@@ -111,4 +111,11 @@ fn replay_de_processo_exportar_no_acervo() {
         "procedimento_gerar_zip",
         "frmProcedimentoZip",
     );
+    // A captura seletiva acima de 100 é uma fonte independente do ZIP integral.
+    replay(
+        Formato::Zip,
+        &["processo-arquivo-apenas-alem-de-100-unb--dff8c4a20a0d.md"],
+        "procedimento_gerar_zip",
+        "frmProcedimentoZip",
+    );
 }
