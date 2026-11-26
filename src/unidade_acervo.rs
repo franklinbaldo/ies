@@ -1,5 +1,5 @@
 //! Primeiro núcleo de leitura de acervo histórico (#878).
-//! Forma de detalhe confrontada com UnB, PEN1 e PEN2 na CI 45745032222.
+//! Forma de detalhe confrontada com `UnB`, PEN1 e PEN2 na CI 45745032222.
 use crate::legenda::{ErroLegenda, Legenda, ler_legenda};
 use crate::tela_html::{Elemento, HtmlServido, arvore};
 
@@ -80,6 +80,7 @@ fn total_do_resultado(html: &HtmlServido) -> Result<(usize, String), ErroAcervo>
 fn formulario_do_acervo(
     instalacao: &crate::instalacao::Instalacao,
     tela: &crate::formulario_web::TelaServida<'_>,
+    unidade: &str,
     data: crate::unidade_retornos::DataCivil,
 ) -> Result<crate::formulario_web::SubmissaoDerivada, crate::formulario_web::ErroSubmissaoFormulario>
 {
@@ -106,7 +107,7 @@ fn formulario_do_acervo(
         &CONSULTAR,
         instalacao,
         tela,
-        None,
+        Some(unidade),
         &[
             ("selOrgao", ""),
             ("txtPeriodoDe", &data),
@@ -122,13 +123,13 @@ fn formulario_sintetico_envia_orgao_vazio_e_um_dia() {
         "https://sei.exemplo.gov.br/sei/controlador.php?acao=gerar_estatisticas_unidade&infra_hash={HASH_TELA}"
     );
     let html = HtmlServido::de_teste(&format!(
-        "<form id='frmEstatisticas' method='post' action='controlador.php?acao=gerar_estatisticas_unidade&amp;infra_hash={HASH_TELA}'>\
+        "<a id='lnkInfraUnidade'>U</a><form id='frmEstatisticas' method='post' action='controlador.php?acao=gerar_estatisticas_unidade&amp;infra_hash={HASH_TELA}'>\
          <select name='selOrgao'><option value='null' selected>Todos</option></select>\
          <input name='txtPeriodoDe'><input name='txtPeriodoA'>\
          <input type='submit' name='sbmPesquisar' value='Pesquisar'></form>"
     ));
     let data = crate::cli_unidade_aux::data_do_acervo("2024-02-29").unwrap();
-    let post = formulario_do_acervo(&instalacao(), &tela_iso(&url, &html), data).unwrap();
+    let post = formulario_do_acervo(&instalacao(), &tela_iso(&url, &html), "U", data).unwrap();
     assert_eq!(
         post.nomes_dos_campos(),
         ["selOrgao", "txtPeriodoDe", "txtPeriodoA", "sbmPesquisar"]
@@ -138,7 +139,11 @@ fn formulario_sintetico_envia_orgao_vazio_e_um_dia() {
         "selOrgao=&txtPeriodoDe=29%2F02%2F2024&txtPeriodoA=29%2F02%2F2024&sbmPesquisar=Pesquisar"
     );
     let ausente = HtmlServido::de_teste(&html.as_str().replace("txtPeriodoA", "outro"));
-    assert!(formulario_do_acervo(&instalacao(), &tela_iso(&url, &ausente), data).is_err());
+    assert!(formulario_do_acervo(&instalacao(), &tela_iso(&url, &ausente), "U", data).is_err());
+    assert_eq!(
+        formulario_do_acervo(&instalacao(), &tela_iso(&url, &html), "OUTRA", data).unwrap_err(),
+        crate::formulario_web::ErroSubmissaoFormulario::UnidadeDaTelaDiferenteDaSolicitada
+    );
 }
 
 #[test]
@@ -359,7 +364,7 @@ fn travessia_exige_cobertura_sem_deduplicar() {
         },
         processos: Vec::new(),
     };
-    assert!(reunir([zero()]).unwrap().is_empty());
+    assert_eq!(reunir([zero()]).unwrap(), [] as [ProcessoDoAcervo; 0]);
     assert_eq!(reunir([zero(), zero()]), Err(ErroAcervo::FaixaIncompleta));
     assert_eq!(reunir([]), Err(ErroAcervo::FaixaIncompleta));
 }
@@ -392,11 +397,18 @@ fn acervo_detalhe_original() {
             conferir_cassette_ate(&card, &zip, 120_000_000).expect("integridade do original");
         assert_eq!(conferida.instalacao, instalacao);
         let mut lidas = Vec::new();
-        let mut recusados = 0;
         let mut formulario_derivado = false;
         let instalacao_gravada = gravacao::instalacao(&conferida.json).expect("instalacao gravada");
         let mut total_anterior = None;
+        let mut unidade = None;
         for resposta in gravacao::respostas(&conferida.json) {
+            if resposta.operacao == "procedimento_controlar" && resposta.status == 200 {
+                let html = html_da_resposta(resposta.interacao).expect("Controle original");
+                unidade = Some(
+                    crate::controle_contexto::unidade_exibida_no_controle(&html)
+                        .expect("unidade do Controle original"),
+                );
+            }
             if resposta.operacao == "gerar_estatisticas_unidade"
                 && resposta.status == 200
                 && lidas.is_empty()
@@ -418,8 +430,13 @@ fn acervo_detalhe_original() {
                             codificacao,
                         };
                         let data = crate::cli_unidade_aux::data_do_acervo("2024-02-29").unwrap();
-                        let post = formulario_do_acervo(&instalacao_gravada, &servida, data)
-                            .expect("derivacao do formulario original");
+                        let post = formulario_do_acervo(
+                            &instalacao_gravada,
+                            &servida,
+                            unidade.as_deref().expect("unidade do Controle anterior"),
+                            data,
+                        )
+                        .expect("derivacao do formulario original");
                         for nome in ["selOrgao", "txtPeriodoDe", "txtPeriodoA", "sbmPesquisar"] {
                             assert_eq!(
                                 post.nomes_dos_campos()
@@ -434,29 +451,15 @@ fn acervo_detalhe_original() {
                 }
                 if let Ok((n, _)) = total_do_resultado(&tela) {
                     total_anterior = Some(n);
-                    println!("{instalacao}: resultado passo={} total={n}", resposta.passo);
                 }
             }
             if resposta.operacao != "estatisticas_detalhar_unidade" || resposta.status != 200 {
                 continue;
             }
             let html = html_da_resposta(resposta.interacao).expect("HTML original");
-            if let Ok(p) = detalhe(&HtmlServido::de_teste(&html)) {
-                println!(
-                    "{instalacao}: detalhe passo={} total={} linhas={} faixa={:?}",
-                    resposta.passo,
-                    p.legenda.total,
-                    p.processos.len(),
-                    p.legenda.faixa
-                );
-                lidas.push(p);
-            } else {
-                recusados += 1;
-                println!("{instalacao}: detalhe passo={} recusado", resposta.passo);
-            }
+            lidas.push(detalhe(&HtmlServido::de_teste(&html)).expect("detalhe original"));
         }
         assert!(formulario_derivado, "{instalacao}: formulario GET ausente");
-        assert_eq!(recusados, 0, "{instalacao}: detalhes recusados");
         assert_eq!(
             total_anterior,
             Some(total),
