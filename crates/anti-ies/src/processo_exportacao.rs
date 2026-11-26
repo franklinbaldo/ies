@@ -51,8 +51,8 @@ fn zip_do_processo(
     docs: &[pdf_externo::Documento],
 ) -> Result<Vec<u8>, Estado> {
     let mut zip = zip::ZipWriter::new(Cursor::new(Vec::new()));
-    let opcoes = zip::write::SimpleFileOptions::default()
-        .compression_method(zip::CompressionMethod::Stored);
+    let opcoes =
+        zip::write::SimpleFileOptions::default().compression_method(zip::CompressionMethod::Stored);
     for doc in docs {
         let bytes = pdf_externo::conteudo_do_anexo(banco, origem, cenario, &doc.id.to_string())
             .map_err(|_| Estado::DadosInsuficientes)?
@@ -96,7 +96,10 @@ pub(crate) fn responder(
             ))
         }
         (Some("procedimento_gerar_zip"), "POST") => {
-            if !matches!(corpo, "rdoTipo=T&hdnFlagGerar=1" | "hdnFlagGerar=1&rdoTipo=T") {
+            if !matches!(
+                corpo,
+                "rdoTipo=T&hdnFlagGerar=1" | "hdnFlagGerar=1&rdoTipo=T"
+            ) {
                 return Resposta::nova(Estado::RequisicaoInvalida);
             }
             let download = url("exibir_arquivo", id);
@@ -106,18 +109,16 @@ document.getElementById('ifrDownload').src = '{download}';
 </script></body></html>"#
             ))
         }
-        (Some("exibir_arquivo"), "GET") => {
-            match zip_do_processo(banco, origem, cenario, &docs) {
-                Ok(bytes) => Resposta {
-                    estado: Estado::Ok,
-                    tipo_conteudo: "application/zip",
-                    corpo: String::new(),
-                    localizacao: None,
-                    corpo_binario: Some(bytes),
-                },
-                Err(estado) => Resposta::nova(estado),
-            }
-        }
+        (Some("exibir_arquivo"), "GET") => match zip_do_processo(banco, origem, cenario, &docs) {
+            Ok(bytes) => Resposta {
+                estado: Estado::Ok,
+                tipo_conteudo: "application/zip",
+                corpo: String::new(),
+                localizacao: None,
+                corpo_binario: Some(bytes),
+            },
+            Err(estado) => Resposta::nova(estado),
+        },
         _ => Resposta::nova(Estado::MetodoNaoPermitido),
     }
 }
