@@ -66,7 +66,7 @@ pub(crate) fn pares(corpo: &str) -> Option<Vec<(&str, &str)>> {
         .collect::<Option<Vec<_>>>()
 }
 
-pub(crate) fn campo_unico<'a>(campos: &'a [(&str, &str)], chave: &str) -> Option<&'a str> {
+pub(crate) fn campo_unico<'a>(campos: &[(&str, &'a str)], chave: &str) -> Option<&'a str> {
     let mut valores = campos.iter().filter(|(k, _)| *k == chave).map(|(_, v)| *v);
     let valor = valores.next()?;
     valores.next().is_none().then_some(valor)
