@@ -152,6 +152,49 @@ fn replay_da_criacao_de_bloco_de_assinatura_no_acervo() {
         };
         grupos.insert(instalacao.to_owned(), classe_grupo);
 
+        // Exercita o construtor real sobre a tela original, com descrição
+        // sintética: os cards não atestam o corpo histórico da requisição.
+        let controle = respostas
+            .iter()
+            .rev()
+            .find(|r| {
+                r.passo < formulario.passo
+                    && r.operacao == "procedimento_controlar"
+                    && r.metodo == "GET"
+                    && r.status == 200
+            })
+            .expect("Controle anterior ao cadastro");
+        let html_controle = HtmlServido::de_teste(
+            &html_da_resposta(controle.interacao).expect("HTML do Controle"),
+        );
+        let unidade = crate::controle_reconhecido::unidade_do_controle(&html_controle)
+            .expect("unidade do Controle original");
+        let origem = gravacao::instalacao(json).expect("instalação da cassette");
+        let url_cadastro = gravacao::url_sem_consulta(json, formulario.interacao);
+        let codificacao = crate::pagina_do_controle::codificacao_da_tela(
+            &gravacao::mime(formulario.interacao),
+        )
+        .expect("charset do cadastro");
+        let tela = crate::formulario_web::TelaServida {
+            url: &url_cadastro,
+            html: &html,
+            codificacao,
+        };
+        let submissao = crate::bloco_cli::criar::derivar_cadastro(
+            &origem,
+            &tela,
+            &unidade,
+            "Teste IES",
+            grupo.as_deref().expect("grupo publicado"),
+        )
+        .expect("derivação do cadastro original");
+        for nome in [campo, "selGrupoBloco", "sbmCadastrarBloco"] {
+            assert!(
+                submissao.nomes_dos_campos().iter().any(|n| n == nome),
+                "{instalacao}: campo não derivado: {nome}"
+            );
+        }
+
         let post = respostas
             .iter()
             .find(|r| {

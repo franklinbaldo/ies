@@ -1,9 +1,15 @@
-//! Prévia Web de criação de bloco de assinatura; nenhuma submissão.
+//! Prévia Web de criação de bloco de assinatura; deriva o POST sem enviá-lo.
 use super::{EnvioDoControle, EnvioHttps, FalhaLeitura, ReferenciasDaSessao};
 use crate::Cli;
 use crate::acao_do_sei::AcaoDoSei;
 use crate::bloco::{self, TipoBloco};
-use crate::formulario_web::localizar_formulario;
+use crate::formulario_web::{
+    ConferenciaDaUnidade, EfeitoAvaliado, EnvioDoFormulario, EstadoDoProcesso,
+    OperacaoDeFormulario, ResultadoDoEnvio, SubmissaoDerivada, TelaServida, derivar_submissao,
+    localizar_formulario,
+};
+use crate::instalacao::Instalacao;
+use crate::pagina_do_controle::codificacao_da_tela;
 use crate::tela_html::{HtmlServido, arvore};
 use crate::transporte::{self, envio_post::ler_tela_via};
 
@@ -73,6 +79,38 @@ pub(crate) fn grupo_padrao(html: &HtmlServido) -> Result<Option<String>, FalhaLe
     }))
 }
 
+const CRIAR_BLOCO: OperacaoDeFormulario = OperacaoDeFormulario {
+    acao: AcaoDoSei::BlocoAssinaturaCadastrar,
+    formulario: "frmBlocoCadastro",
+    envio: EnvioDoFormulario::BotaoDeEnvio("sbmCadastrarBloco"),
+    campos_ocultos_exigidos: &[],
+    campos_ocultos_reescritos: &[],
+    campos_usuario: &["txtDescricao", "txaDescricao", "selGrupoBloco"],
+    resultado: ResultadoDoEnvio::ConferidoPorLeituraPosterior,
+    unidade: ConferenciaDaUnidade::NaTelaDeOrigemDoLink,
+    efeito: EfeitoAvaliado::AlteraEstadoDoProcesso {
+        o_que: EstadoDoProcesso::BlocoCriadoNaUnidade,
+    },
+};
+
+/// Projeta os campos observados pelo construtor comum, sem tocar na rede.
+pub(crate) fn derivar_cadastro(
+    instalacao: &Instalacao,
+    tela: &TelaServida<'_>,
+    unidade: &str,
+    descricao: &str,
+    grupo: &str,
+) -> Result<SubmissaoDerivada, FalhaLeitura> {
+    let campo = campo_descricao(tela.html)?;
+    Ok(derivar_submissao(
+        &CRIAR_BLOCO,
+        instalacao,
+        tela,
+        Some(unidade),
+        &[(campo, descricao), ("selGrupoBloco", grupo)],
+    )?)
+}
+
 fn previa_via<V: EnvioDoControle>(
     sessao: &ReferenciasDaSessao,
     unidade_esperada: Option<&str>,
@@ -106,9 +144,25 @@ fn previa_via<V: EnvioDoControle>(
         AcaoDoSei::BlocoAssinaturaCadastrar,
         None,
     )?;
-    let cadastro = transporte::decodificar_resposta(envio.get(&url, cookie)?)?;
-    campo_descricao(&cadastro)?;
+    let resposta = envio.get(&url, cookie)?;
+    let codificacao =
+        codificacao_da_tela(&resposta.mime).ok_or(FalhaLeitura::HtmlDeBlocosInvalido)?;
+    let cadastro = transporte::decodificar_resposta(resposta)?;
     let grupo = grupo_padrao(&cadastro)?.ok_or(FalhaLeitura::HtmlDeBlocosInvalido)?;
+    let tela = TelaServida {
+        url: &url,
+        html: &cadastro,
+        codificacao,
+    };
+    // A prévia também confronta a action, o charset e os controles servidos.
+    // A submissão derivada é descartada; nenhum POST nesta fatia.
+    drop(derivar_cadastro(
+        &controle.instalacao,
+        &tela,
+        &unidade,
+        descricao,
+        &grupo,
+    )?);
     Ok(serde_json::json!({
         "unidade": unidade,
         "tipo_bloco": TipoBloco::Assinatura,
@@ -158,6 +212,41 @@ mod tests {
             let html =
                 HtmlServido::de_teste(&format!("<form id='frmBlocoCadastro'>{controles}</form>"));
             assert_eq!(grupo_padrao(&html).unwrap().as_deref(), esperado);
+        }
+    }
+
+    #[test]
+    fn derivacao_preserva_campo_da_versao_grupo_oculto_e_charset() {
+        use crate::formulario_web::CodificacaoDaTela;
+
+        let origem = "https://sei.exemplo.gov.br/sei";
+        let instalacao = Instalacao::interpretar(origem).unwrap();
+        let hash = "a".repeat(64);
+        let action = format!("controlador.php?acao=bloco_assinatura_cadastrar&infra_hash={hash}");
+        let url = format!("{origem}/{action}");
+        let casos = [
+            ("txtDescricao", CodificacaoDaTela::Iso88591, "A%E7%E3o+%26+B"),
+            ("txaDescricao", CodificacaoDaTela::Utf8, "A%C3%A7%C3%A3o+%26+B"),
+        ];
+        for (campo, codificacao, codificado) in casos {
+            let html = HtmlServido::de_teste(&format!(
+                "<form id='frmBlocoCadastro' method='post' action='{action}'>\
+                <input type='hidden' name='hdnExemplo' value='original'>\
+                <textarea name='{campo}'></textarea>\
+                <select name='selGrupoBloco'><option value='null'>Nenhum</option></select>\
+                <button type='submit' name='sbmCadastrarBloco' value='Salvar'>Salvar</button></form>"
+            ));
+            let tela = TelaServida {
+                url: &url,
+                html: &html,
+                codificacao,
+            };
+            let submissao = derivar_cadastro(&instalacao, &tela, "TESTE", "Ação & B", "null").unwrap();
+            assert_eq!(
+                std::str::from_utf8(submissao.corpo()).unwrap(),
+                format!("hdnExemplo=original&{campo}={codificado}&selGrupoBloco=null&sbmCadastrarBloco=Salvar")
+            );
+            assert_eq!(submissao.url(), url);
         }
     }
 
