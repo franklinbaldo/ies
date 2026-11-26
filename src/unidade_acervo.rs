@@ -25,10 +25,99 @@ enum ErroAcervo {
     TelaDesconhecida,
     Legenda(#[from] ErroLegenda),
     FaixaIncompleta,
+    ResultadoSemTotal,
 }
 
 fn texto(no: Elemento<'_>) -> String {
     no.texto().split_whitespace().collect::<Vec<_>>().join(" ")
+}
+
+/// O período da CLI é civil; o formulário recebe DD/MM/AAAA.
+fn data_da_cli(s: &str) -> Option<crate::unidade_retornos::DataCivil> {
+    let (mes_ano, dia) = s.rsplit_once('-')?;
+    let mes_ano = crate::unidade_retornos::MesAno::ler_cli(mes_ano)?;
+    if dia.len() != 2 || !dia.bytes().all(|b| b.is_ascii_digit()) {
+        return None;
+    }
+    crate::unidade_retornos::DataCivil::new(mes_ano.ano(), mes_ano.mes(), dia.parse().ok()?)
+}
+
+const ANDAMENTO_ABERTO: &str = "Processos com andamento aberto na unidade ao final do período";
+
+/// Seleciona o TOTAL da tabela 4, não um tipo ou outra estatística.
+/// O link ainda é apenas texto observado: não autoriza transporte.
+fn total_do_resultado(html: &HtmlServido) -> Result<(usize, String), ErroAcervo> {
+    use crate::consulta_do_controlador::ConsultaDoControlador;
+    let dom = arvore(html);
+    let mut tabelas = dom.elementos("table").filter(|t| {
+        t.elementos("caption")
+            .any(|c| texto(c).trim_end_matches(':') == ANDAMENTO_ABERTO)
+    });
+    let tabela = tabelas.next().ok_or(ErroAcervo::ResultadoSemTotal)?;
+    if tabelas.next().is_some() {
+        return Err(ErroAcervo::ResultadoSemTotal);
+    }
+    let mut linhas = tabela.elementos("tr").filter(|tr| {
+        tr.atributo("class")
+            .is_some_and(|c| c.split_whitespace().any(|v| v == "totalEstatisticas"))
+    });
+    let linha = linhas.next().ok_or(ErroAcervo::ResultadoSemTotal)?;
+    if linhas.next().is_some() {
+        return Err(ErroAcervo::ResultadoSemTotal);
+    }
+    let mut links = linha.elementos("a").filter_map(|a| {
+        let (_, resto) = a.atributo("onclick")?.split_once("abrirDetalhe('")?;
+        let (url, _) = resto.split_once('\'')?;
+        Some((texto(a), url.replace("&amp;", "&")))
+    });
+    let (numero, url) = links.next().ok_or(ErroAcervo::ResultadoSemTotal)?;
+    if links.next().is_some() {
+        return Err(ErroAcervo::ResultadoSemTotal);
+    }
+    let (_, query) = url.split_once('?').ok_or(ErroAcervo::ResultadoSemTotal)?;
+    let consulta = ConsultaDoControlador::ler(query).map_err(|_| ErroAcervo::ResultadoSemTotal)?;
+    if consulta.acao().ok() != Some("estatisticas_detalhar_unidade")
+        || consulta.unico("tabela_estatisticas").ok() != Some("4")
+        || consulta.valores("id_tipo_procedimento").next().is_some()
+    {
+        return Err(ErroAcervo::ResultadoSemTotal);
+    }
+    let total = ler_legenda(&format!("{numero} registros:"))?.total;
+    Ok((total, url))
+}
+
+#[test]
+fn data_iso_reusa_calendario_civil() {
+    assert_eq!(
+        data_da_cli("2024-02-29").unwrap().to_string(),
+        "29/02/2024"
+    );
+    for s in [
+        "2026-02-29", "2026-04-31", "2026-13-01", "2026-11-00", "20/11/2026",
+        "2026-1-01", "2026-01-1", "0000-01-01",
+    ] {
+        assert!(data_da_cli(s).is_none(), "{s}");
+    }
+}
+
+#[test]
+fn resultado_seleciona_total_e_nao_tipo() {
+    let tela = HtmlServido::de_teste(
+        "<table><caption>Processos gerados no período:</caption>\
+         <tr class='totalEstatisticas'><td>TOTAL:</td><td>99</td></tr></table>\
+         <table><caption>Processos com andamento aberto na unidade ao final do período:</caption>\
+         <tr><td>Tipo</td><td><a onclick=\"abrirDetalhe('controlador.php?acao=estatisticas_detalhar_unidade&amp;tabela_estatisticas=4&amp;id_tipo_procedimento=1');\">7</a></td></tr>\
+         <tr class='totalEstatisticas'><td>TOTAL:</td><td><a onclick=\"abrirDetalhe('controlador.php?acao=estatisticas_detalhar_unidade&amp;tabela_estatisticas=4');\">1.234</a></td></tr></table>",
+    );
+    let (total, _) = total_do_resultado(&tela).unwrap();
+    assert_eq!(total, 1234);
+    for alterada in [
+        tela.as_str().replace("4');", "1');"),
+        tela.as_str().replace("4');", "4&amp;id_tipo_procedimento=1');"),
+        tela.as_str().replace("1.234", "ilegível"),
+    ] {
+        assert!(total_do_resultado(&HtmlServido::de_teste(&alterada)).is_err());
+    }
 }
 
 fn detalhe(html: &HtmlServido) -> Result<Pagina, ErroAcervo> {
@@ -238,7 +327,16 @@ fn acervo_detalhe_original() {
         assert_eq!(conferida.instalacao, instalacao);
         let mut lidas = Vec::new();
         let mut recusados = 0;
+        let mut total_anterior = None;
         for resposta in gravacao::respostas(&conferida.json) {
+            if resposta.operacao == "gerar_estatisticas_unidade" && resposta.status == 200 && lidas.is_empty() {
+                let html = html_da_resposta(resposta.interacao).expect("HTML original");
+                let tela = HtmlServido::de_teste(&html);
+                if let Ok((n, _)) = total_do_resultado(&tela) {
+                    total_anterior = Some(n);
+                    println!("{instalacao}: resultado passo={} total={n}", resposta.passo);
+                }
+            }
             if resposta.operacao != "estatisticas_detalhar_unidade" || resposta.status != 200 {
                 continue;
             }
@@ -261,6 +359,7 @@ fn acervo_detalhe_original() {
             }
         }
         assert_eq!(recusados, 0, "{instalacao}: detalhes recusados");
+        assert_eq!(total_anterior, Some(total), "{instalacao}: total do relatório");
         // Os originais PEN1/PEN2 voltam à primeira página depois do fim.
         // Essa navegação não pertence à travessia de coleta.
         assert_eq!(lidas.len(), paginas + retornos, "{instalacao}");
