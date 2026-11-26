@@ -402,8 +402,16 @@ mod tests {
             ("q&q=", "q", None),
             ("hdnInicio=10&hdnInicio", "hdnInicio", None),
             ("hdnInicio&hdnInicio=10", "hdnInicio", None),
-            ("txtDataInicio=01%2F01%2F2026", "txtDataInicio", Some("01/01/2026")),
-            ("txtDataInicio=01%2F01%2F2026&txtDataInicio", "txtDataInicio", None),
+            (
+                "txtDataInicio=01%2F01%2F2026",
+                "txtDataInicio",
+                Some("01/01/2026"),
+            ),
+            (
+                "txtDataInicio=01%2F01%2F2026&txtDataInicio",
+                "txtDataInicio",
+                None,
+            ),
         ] {
             assert_eq!(campo_opcional(corpo, nome).as_deref(), esperado, "{corpo}");
         }
@@ -439,7 +447,8 @@ mod tests {
         assert_eq!(tela.estado, Estado::Ok);
         assert!(tela.corpo.contains("frmPesquisaProtocolo"));
         assert!(tela.corpo.contains("optDocumentos"));
-        let base = "rdoPesquisarEm=P&txtDataInicio=01%2F01%2F2026&hdnInicio=0&selOrgaoPesquisa%5B%5D=0";
+        let base =
+            "rdoPesquisarEm=P&txtDataInicio=01%2F01%2F2026&hdnInicio=0&selOrgaoPesquisa%5B%5D=0";
         for extra in ["", "&q=&q", "&q&q=", "&hdnInicio", "&txtDataInicio"] {
             let resposta = responder_pesquisa(
                 "POST",
