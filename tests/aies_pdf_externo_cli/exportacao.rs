@@ -98,7 +98,7 @@ fn exportacao_zip_seletiva_inclui_so_o_segundo_anexo() {
     let mut zip = zip::ZipArchive::new(Cursor::new(arquivo.unwrap())).unwrap();
     assert_eq!(zip.len(), 1);
     let mut membro = zip.by_index(0).unwrap();
-    assert_eq!(membro.name(), "050000002.pdf");
+    assert_eq!(membro.name().unwrap().as_ref(), "050000002.pdf");
     let mut bytes = Vec::new();
     membro.read_to_end(&mut bytes).unwrap();
     assert_eq!(bytes, b"%PDF-1.4\n2 0 obj\n%%EOF\n");
