@@ -54,9 +54,8 @@ pub(super) fn observar_formularios(
     if instalacao != "unb" {
         use crate::cassette::acervo::gravacao as fonte;
         let url = fonte::url_sem_consulta(gravacao, interacao);
-        let codificacao =
-            crate::pagina_do_controle::codificacao_da_tela(&fonte::mime(interacao))
-                .expect("charset original");
+        let codificacao = crate::pagina_do_controle::codificacao_da_tela(&fonte::mime(interacao))
+            .expect("charset original");
         let tela = TelaServida {
             url: &url,
             html,
@@ -118,7 +117,10 @@ fn paginador_reescreve_indice_e_preserva_ocultos_da_tela_atual() {
     ));
     let inst = instalacao();
     let post = formulario_da_pagina(&inst, &tela_iso(&url, &html), "U", 1).unwrap();
-    assert_eq!(post.nomes_dos_campos(), ["hdnInfraPaginaAtual", "hdnFiltro"]);
+    assert_eq!(
+        post.nomes_dos_campos(),
+        ["hdnInfraPaginaAtual", "hdnFiltro"]
+    );
     assert_eq!(post.corpo(), b"hdnInfraPaginaAtual=1&hdnFiltro=a%2Bb");
     let segunda = HtmlServido::de_teste(
         &html
