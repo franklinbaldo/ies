@@ -211,7 +211,7 @@ pub(super) fn candidatos(html: &crate::tela_html::HtmlServido, acao: AcaoDoSei) 
 }
 
 /// Resolve URL publicada, com ação única e hash hexadecimal; nunca gera hash.
-fn destino_de_candidatos(
+pub(crate) fn destino_de_candidatos(
     candidatos: Vec<String>,
     url_da_tela: &str,
     origem: &str,
@@ -247,7 +247,7 @@ fn destino_de_candidatos(
     }
 }
 
-pub(super) fn destino(
+pub(crate) fn destino(
     html: &crate::tela_html::HtmlServido,
     url_da_tela: &str,
     origem: &str,
