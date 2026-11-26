@@ -33,6 +33,7 @@ enum EstadoDeBusca {
     Paginas,
     PeriodoProcessual,
     PaginasProcessuais,
+    CoorteProcessualContraditoria(bool),
 }
 
 struct Pasta(PathBuf);
@@ -243,6 +244,8 @@ fn preparar_estado(banco: &mut Connection, instalacao: &Instalacao, estado: Esta
         }
     } else if matches!(estado, EstadoDeBusca::PaginasProcessuais) {
         processos::preparar_paginas(banco, instalacao);
+    } else if let EstadoDeBusca::CoorteProcessualContraditoria(zero_primeiro) = estado {
+        processos::preparar_coorte_contraditoria(banco, instalacao, zero_primeiro);
     } else {
         preparar_paginas(banco, instalacao);
     }

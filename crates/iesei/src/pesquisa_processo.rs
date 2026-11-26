@@ -83,34 +83,48 @@ pub fn registrar_sem_resultado(
     Ok(())
 }
 
-/// A ausência da chave indica desconhecimento, não uma busca vazia.
-///
+/// Estado observado da chave completa, independentemente da página solicitada.
+#[derive(Debug, PartialEq, Eq)]
+pub enum Coorte {
+    Desconhecida,
+    Vazia,
+    Positiva,
+    Contraditoria,
+}
+
+/// Classifica a coorte sem apagar observações.
 /// # Errors
 /// Propaga a falha SQLite.
-pub fn tem_resultado_negativo(
+pub fn coorte(
     banco: &Connection,
     instalacao: &Instalacao,
     cenario: &str,
     unidade: &UnidadeExibida,
     criterios: Criterios<'_>,
-) -> rusqlite::Result<bool> {
-    let registro: Option<i64> = banco
-        .query_row(
-            "SELECT 1 FROM pesquisa_processo_pagina
-             WHERE origem=?1 AND cenario=?2 AND unidade=?3 AND id_tipo=?4
-             AND data_inicio=?5 AND data_fim=?6 AND pagina=1 AND total=0",
-            params![
-                instalacao.url_base(),
-                cenario,
-                unidade.as_str(),
-                criterios.tipo_id,
-                criterios.de,
-                criterios.ate
-            ],
-            |linha| linha.get(0),
-        )
-        .optional()?;
-    Ok(registro.is_some())
+) -> rusqlite::Result<Coorte> {
+    let (zero, positiva): (bool, bool) = banco.query_row(
+        "SELECT EXISTS(SELECT 1 FROM pesquisa_processo_pagina
+         WHERE origem=?1 AND cenario=?2 AND unidade=?3 AND id_tipo=?4
+         AND data_inicio=?5 AND data_fim=?6 AND pagina=1 AND total=0),
+         EXISTS(SELECT 1 FROM pesquisa_processo_pagina
+         WHERE origem=?1 AND cenario=?2 AND unidade=?3 AND id_tipo=?4
+         AND data_inicio=?5 AND data_fim=?6 AND total>0)",
+        params![
+            instalacao.url_base(),
+            cenario,
+            unidade.as_str(),
+            criterios.tipo_id,
+            criterios.de,
+            criterios.ate
+        ],
+        |linha| Ok((linha.get(0)?, linha.get(1)?)),
+    )?;
+    Ok(match (zero, positiva) {
+        (false, false) => Coorte::Desconhecida,
+        (true, false) => Coorte::Vazia,
+        (false, true) => Coorte::Positiva,
+        (true, true) => Coorte::Contraditoria,
+    })
 }
 
 /// Faixa publicada e identidades das linhas efetivamente observadas.
@@ -267,9 +281,15 @@ mod tests {
             de: "01/01/2026",
             ate: "31/01/2026",
         };
-        assert!(!tem_resultado_negativo(&banco, &origem, "c", &unidade, periodo).unwrap());
+        assert_eq!(
+            coorte(&banco, &origem, "c", &unidade, periodo).unwrap(),
+            Coorte::Desconhecida
+        );
         registrar_sem_resultado(&banco, &origem, "c", &unidade, periodo).unwrap();
-        assert!(tem_resultado_negativo(&banco, &origem, "c", &unidade, periodo).unwrap());
+        assert_eq!(
+            coorte(&banco, &origem, "c", &unidade, periodo).unwrap(),
+            Coorte::Vazia
+        );
         for outro in [
             Criterios {
                 tipo_id: "73",
@@ -281,17 +301,21 @@ mod tests {
                 ..periodo
             },
         ] {
-            assert!(!tem_resultado_negativo(&banco, &origem, "c", &unidade, outro).unwrap());
+            assert_eq!(
+            coorte(&banco, &origem, "c", &unidade, outro).unwrap(),
+            Coorte::Desconhecida
+        );
         }
-        assert!(
-            !tem_resultado_negativo(
+        assert_eq!(
+            coorte(
                 &banco,
                 &origem,
                 "c",
                 &UnidadeExibida::nova("OUTRA").unwrap(),
                 periodo
             )
-            .unwrap()
+            .unwrap(),
+            Coorte::Desconhecida
         );
     }
 
@@ -363,6 +387,56 @@ mod tests {
                 .is_none()
         );
         assert!(registrar_sem_resultado(&banco, &origem, "c", &unidade, criterios).is_err());
-        assert!(!tem_resultado_negativo(&banco, &origem, "c", &unidade, criterios).unwrap());
+        assert_eq!(
+            coorte(&banco, &origem, "c", &unidade, criterios).unwrap(),
+            Coorte::Positiva
+        );
+    }
+
+    #[test]
+    fn coorte_contraditoria_preserva_observacoes_e_isola_chave() {
+        for zero_primeiro in [true, false] {
+            let mut banco = Connection::open_in_memory().unwrap();
+            crate::banco_cassettes::iniciar(&banco).unwrap();
+            let origem = Instalacao::interpretar("https://sei.test/sei").unwrap();
+            let unidade = UnidadeExibida::nova("TESTE").unwrap();
+            let criterios = Criterios {
+                tipo_id: "73",
+                de: "01/01/2026",
+                ate: "31/01/2026",
+            };
+            let pagina = Pagina {
+                numero: 2,
+                inicio: 3,
+                fim: 4,
+                total: 4,
+                ids: vec![],
+            };
+            if zero_primeiro {
+                registrar_sem_resultado(&banco, &origem, "c", &unidade, criterios).unwrap();
+            }
+            registrar_pagina(&mut banco, &origem, "c", &unidade, criterios, &pagina).unwrap();
+            if !zero_primeiro {
+                registrar_sem_resultado(&banco, &origem, "c", &unidade, criterios).unwrap();
+            }
+            assert_eq!(
+                coorte(&banco, &origem, "c", &unidade, criterios).unwrap(),
+                Coorte::Contraditoria
+            );
+            assert_eq!(
+                consultar_pagina(&banco, &origem, "c", &unidade, criterios, 2).unwrap(),
+                Some(pagina)
+            );
+            for (o, c, u, crit) in [
+                (Instalacao::interpretar("https://outro.test/sei").unwrap(), "c", unidade.clone(), criterios),
+                (origem.clone(), "outro", unidade.clone(), criterios),
+                (origem.clone(), "c", UnidadeExibida::nova("OUTRA").unwrap(), criterios),
+                (origem.clone(), "c", unidade.clone(), Criterios { tipo_id: "74", ..criterios }),
+                (origem.clone(), "c", unidade.clone(), Criterios { de: "", ..criterios }),
+                (origem.clone(), "c", unidade.clone(), Criterios { ate: "", ..criterios }),
+            ] {
+                assert_eq!(coorte(&banco, &o, c, &u, crit).unwrap(), Coorte::Desconhecida);
+            }
+        }
     }
 }

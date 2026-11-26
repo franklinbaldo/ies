@@ -174,7 +174,7 @@ fn periodo_processual(
     cenario: &str,
     unidade: &iesei::observacao::UnidadeExibida,
 ) -> Resposta {
-    use iesei::pesquisa_processo::{Criterios, tem_resultado_negativo, tipos};
+    use iesei::pesquisa_processo::{Coorte, Criterios, coorte, tipos};
     let campo = |nome: &str| campo_opcional(corpo, nome);
     let (Some(de), Some(ate), Some(tipo)) = (
         campo("txtDataInicio"),
@@ -216,28 +216,27 @@ fn periodo_processual(
         de: &de,
         ate: &ate,
     };
-    match processos::pagina(banco, instalacao, cenario, unidade, periodo, deslocamento) {
-        Ok(Some(html)) => {
-            return Resposta::html(formulario_de_pesquisa(
-                unidade.as_str(),
-                "",
-                &html,
-                Some(periodo),
-                &tipos,
-            ));
+    match coorte(banco, instalacao, cenario, unidade, periodo) {
+        Ok(Coorte::Positiva) => {
+            match processos::pagina(banco, instalacao, cenario, unidade, periodo, deslocamento) {
+                Ok(Some(html)) => Resposta::html(formulario_de_pesquisa(
+                    unidade.as_str(),
+                    "",
+                    &html,
+                    Some(periodo),
+                    &tipos,
+                )),
+                _ => Resposta::nova(Estado::DadosInsuficientes),
+            }
         }
-        Ok(None) if deslocamento == 0 => {}
-        _ => return Resposta::nova(Estado::DadosInsuficientes),
-    }
-    match tem_resultado_negativo(banco, instalacao, cenario, unidade, periodo) {
-        Ok(true) => Resposta::html(formulario_de_pesquisa(
+        Ok(Coorte::Vazia) if deslocamento == 0 => Resposta::html(formulario_de_pesquisa(
             unidade.as_str(),
             "",
             "<div class='pesquisaSemResultado'>Nenhum resultado encontrado.</div>",
             Some(periodo),
             &tipos,
         )),
-        Ok(false) | Err(_) => Resposta::nova(Estado::DadosInsuficientes),
+        _ => Resposta::nova(Estado::DadosInsuficientes),
     }
 }
 
@@ -382,6 +381,8 @@ pub fn responder_pesquisa(
 #[cfg(test)]
 mod tests {
     use super::*;
+    #[path = "coorte_processual.rs"]
+    mod coorte_processual;
     use iesei::banco_cassettes::{self, ControleResumido, Linha};
     use iesei::observacao::{TabelaObservada, UnidadeExibida};
 
