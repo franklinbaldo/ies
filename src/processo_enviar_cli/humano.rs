@@ -8,7 +8,21 @@ pub(crate) fn humano(feito: &ProcessoEnviado) -> String {
     let mut linhas = vec![
         format!("Processo {} na unidade {}", feito.nup, feito.unidade),
         format!("Aberto em: {}", refs(&feito.aberto_em)),
-        format!("Destino: {}", feito.destino.descricao),
+        format!(
+            "{}: {}",
+            if feito.destinos.len() == 1 {
+                "Destino"
+            } else {
+                "Destinos"
+            },
+            lista_humana(
+                &feito
+                    .destinos
+                    .iter()
+                    .map(|d| d.descricao.as_str())
+                    .collect::<Vec<_>>()
+            )
+        ),
         format!(
             "Manter aberto na unidade atual: {}",
             if feito.manter_aberto { "sim" } else { "não" }

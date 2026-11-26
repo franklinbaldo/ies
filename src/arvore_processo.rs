@@ -22,6 +22,7 @@ mod conteudo;
 pub(crate) mod endereco;
 mod enviar;
 mod erro;
+mod exportar;
 mod literais;
 mod movidos;
 mod natureza;
@@ -112,6 +113,7 @@ pub(crate) use conteudo::{
 pub(crate) use endereco::conferir_endereco_relativo;
 pub(crate) use enviar::{ErroEnviarNaBarra, ler_enviar_da_barra};
 pub(crate) use erro::ErroArvore;
+pub(crate) use exportar::{LinksExportacao, ler_exportacao_da_barra};
 use literais::{Literal, ler_barra, ler_declaracao, ler_protocolos};
 pub(crate) use movidos::ler_destinos_dos_movidos;
 use movidos::{MovidoLido, conferir_movidos, ler_movido};

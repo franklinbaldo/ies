@@ -2,7 +2,8 @@ use super::*;
 
 #[test]
 fn lote_previa_de_dois_pdfs_nao_escreve() {
-    let (saidas, eventos, total, _) = executar(None, true, false, &[b"%PDF-1.4\n2 0 obj\n%%EOF\n"]);
+    let (saidas, eventos, total, _) =
+        executar(None, true, Leitura::Nenhuma, &[b"%PDF-1.4\n2 0 obj\n%%EOF\n"]);
     assert_eq!(saidas[0].status.code(), Some(0), "{:?}", saidas[0].stderr);
     let previa = json(&saidas[0]);
     assert_eq!(previa["escopo"], "previa_web_lote");
@@ -23,7 +24,7 @@ fn lote_previa_de_dois_pdfs_nao_escreve() {
 
 #[test]
 fn lote_segundo_pdf_invalido_nao_abre_previa() {
-    let (saidas, eventos, total, _) = executar(None, true, false, &[b"nao e pdf"]);
+    let (saidas, eventos, total, _) = executar(None, true, Leitura::Nenhuma, &[b"nao e pdf"]);
     falha(&saidas[0], "Conteudo");
     assert_eq!(total, 0);
     assert!(
@@ -37,7 +38,7 @@ fn lote_segundo_pdf_invalido_nao_abre_previa() {
 #[test]
 fn lote_confirma_dois_pdfs_em_ordem_sem_retry() {
     let segundo_pdf = b"%PDF-1.4\n2 0 obj\n%%EOF\n";
-    let (saidas, eventos, total, arquivos) = executar(None, false, true, &[segundo_pdf]);
+    let (saidas, eventos, total, arquivos) = executar(None, false, Leitura::Pdf, &[segundo_pdf]);
     assert_eq!(saidas[0].status.code(), Some(0), "{:?}", saidas[0].stderr);
     let lote = json(&saidas[0]);
     assert_eq!(lote["escopo"], "confirmacao_web_lote");
@@ -97,7 +98,7 @@ fn lote_segundo_cadastro_incerto_preserva_primeiro_e_nao_tenta_terceiro() {
     let (saidas, eventos, total, _) = executar(
         Some(2),
         false,
-        false,
+        Leitura::Nenhuma,
         &[b"%PDF-1.4\n2 0 obj\n%%EOF\n", b"%PDF-1.4\n3 0 obj\n%%EOF\n"],
     );
     falha(&saidas[0], "LoteInterrompido");
@@ -133,7 +134,7 @@ fn lote_segunda_previa_remota_recusada_impede_toda_escrita() {
         None,
         Some(FalhaPrevia::LimiteMenor(2)),
         false,
-        false,
+        Leitura::Nenhuma,
         &[&segundo],
     );
     falha(&saidas[0], "CadastroNaoConferido");
@@ -167,7 +168,7 @@ fn lote_segunda_previa_sem_hdn_anexos_impede_toda_escrita() {
         None,
         Some(FalhaPrevia::SemAnexos(2)),
         false,
-        false,
+        Leitura::Nenhuma,
         &[b"%PDF-1.4\n2 0 obj\n%%EOF\n"],
     );
     falha(&saidas[0], "Formulario");

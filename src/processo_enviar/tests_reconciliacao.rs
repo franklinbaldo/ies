@@ -67,6 +67,7 @@ fn indice_aquecido_nao_autoriza_envio_sem_situacao_remota() {
             nup,
             unidade: None,
             para: DESTINO,
+            outros: &[],
             manter_aberto: false,
             remover_anotacoes: false,
             confirmar: true,
@@ -209,4 +210,91 @@ fn leitura_que_falha_e_nao_confirmado_sem_retry() {
         "{erro:?}"
     );
     assert_eq!(feitos, pedidos_da_escrita(Versao::V41, false));
+}
+
+#[test]
+fn dois_destinos_exigem_releitura_integral() {
+    for (depois, completo) in [(&[DESTINO, "OUTRA"][..], true), (&[DESTINO][..], false)] {
+        let amb = ambiente();
+        let roteiro = com(
+            abertura(arvore(&[UNIDADE], &enviar())),
+            vec![
+                ok(tela_de_envio(Versao::V41, ID)),
+                ok(um_destino()),
+                ok(resposta_xml(&[("900", "OUTRA - Outra unidade")])),
+                r302(&volta_a_arvore_do_envio()),
+                ok(arvore(depois, &[])),
+            ],
+        );
+        let (resultado, pedidos) = rodar_com(&amb, roteiro, |sessao, nup, indice, rede| {
+            let pedido = super::PedidoDoEnvio {
+                nup,
+                unidade: None,
+                para: DESTINO,
+                outros: &["OUTRA"],
+                manter_aberto: false,
+                remover_anotacoes: false,
+                confirmar: true,
+            };
+            super::enviar_processo(sessao, &pedido, indice, rede)
+        });
+        if completo {
+            let feito = resultado.unwrap();
+            assert_eq!(feito.depois_esperado(), siglas(&[DESTINO, "OUTRA"]));
+            assert_eq!(feito.depois(), Some(siglas(depois).as_slice()));
+        } else {
+            assert!(matches!(
+                resultado,
+                Err(super::ErroEnviar::EnvioNaoAplicado { .. })
+            ));
+        }
+        let escritas: Vec<_> = pedidos
+            .iter()
+            .filter_map(|p| p.corpo.as_deref())
+            .filter(|corpo| corpo.contains("hdnUnidades="))
+            .collect();
+        assert_eq!(escritas.len(), 1);
+        assert_eq!(
+            escritas[0],
+            format!(
+                "{}%A5900%B1OUTRA+-+Outra+unidade",
+                corpo_do_envio(Versao::V41, false)
+            )
+        );
+        assert_eq!(pedidos.last(), Some(&get(&url_arvore())));
+    }
+}
+
+#[test]
+fn segundo_destino_invalido_interrompe_sem_escrita() {
+    let amb = ambiente();
+    let roteiro = com(
+        abertura(arvore(&[UNIDADE], &enviar())),
+        vec![
+            ok(tela_de_envio(Versao::V41, ID)),
+            ok(um_destino()),
+            ok(resposta_xml(&[])),
+        ],
+    );
+    let (resultado, pedidos) = rodar_com(&amb, roteiro, |sessao, nup, indice, rede| {
+        let pedido = super::PedidoDoEnvio {
+            nup,
+            unidade: None,
+            para: DESTINO,
+            outros: &["OUTRA"],
+            manter_aberto: false,
+            remover_anotacoes: false,
+            confirmar: true,
+        };
+        super::enviar_processo(sessao, &pedido, indice, rede)
+    });
+    assert!(matches!(
+        resultado,
+        Err(super::ErroEnviar::DestinoNaoOferecidoPeloSei { .. })
+    ));
+    assert!(!pedidos.iter().any(|p| {
+        p.corpo
+            .as_deref()
+            .is_some_and(|c| c.contains("hdnUnidades="))
+    }));
 }

@@ -144,17 +144,25 @@ enum FalhaPrevia {
     SemAnexos(usize),
 }
 
+#[derive(Clone, Copy)]
+enum Leitura {
+    Nenhuma,
+    Pdf,
+    Zip,
+    PdfProcesso,
+}
+
 fn executar(
     cadastro_incerto: Option<usize>,
     somente_previa: bool,
-    com_leitura: bool,
+    leitura: Leitura,
     adicionais: &[&[u8]],
 ) -> ResultadoBancada {
     executar_com_falha_previa(
         cadastro_incerto,
         None,
         somente_previa,
-        com_leitura,
+        leitura,
         adicionais,
     )
 }
@@ -167,7 +175,7 @@ fn executar_com_falha_previa(
     cadastro_incerto: Option<usize>,
     falha_previa: Option<FalhaPrevia>,
     somente_previa: bool,
-    com_leitura: bool,
+    leitura: Leitura,
     adicionais: &[&[u8]],
 ) -> ResultadoBancada {
     let pasta = Pasta::nova();
@@ -308,7 +316,7 @@ fn executar_com_falha_previa(
     let destino_arquivo = pasta.0.join("saida");
     fs::create_dir(&destino_arquivo).unwrap();
     let destino_str = destino_arquivo.to_str().unwrap();
-    let numeros: Vec<_> = if com_leitura {
+    let numeros: Vec<_> = if matches!(leitura, Leitura::Pdf) {
         (1..=1 + outros.len())
             .map(|i| format!("{:09}", 50_000_000 + i))
             .collect()
@@ -330,8 +338,26 @@ fn executar_com_falha_previa(
             ]
         })
         .collect();
+    let (formato, nome) = match leitura {
+        Leitura::PdfProcesso => ("pdf", "processo.pdf"),
+        _ => ("zip", "processo.zip"),
+    };
+    let exportado = destino_arquivo.join(nome);
+    let exportar = [
+        "--json",
+        "processo",
+        "exportar",
+        NUP,
+        "--formato",
+        formato,
+        "--saida",
+        exportado.to_str().unwrap(),
+    ];
     let mut comandos = vec![&incluir[..], &consultar[..]];
     comandos.extend(leituras.iter().map(<[&str; 8]>::as_slice));
+    if matches!(leitura, Leitura::Zip | Leitura::PdfProcesso) {
+        comandos.push(&exportar);
+    }
     let saidas = comandos
         .iter()
         .map(|args| {
@@ -358,10 +384,13 @@ fn executar_com_falha_previa(
     tunel.join().unwrap();
     let total = servidor.join().unwrap();
     let eventos = trilha.lock().unwrap().clone();
-    let arquivos = numeros
-        .iter()
-        .map(|numero| fs::read(destino_arquivo.join(format!("{numero}.pdf"))).ok())
-        .collect();
+    let arquivos = match leitura {
+        Leitura::Zip | Leitura::PdfProcesso => vec![fs::read(exportado).ok()],
+        _ => numeros
+            .iter()
+            .map(|numero| fs::read(destino_arquivo.join(format!("{numero}.pdf"))).ok())
+            .collect(),
+    };
     (saidas, eventos, total, arquivos)
 }
 
@@ -377,7 +406,7 @@ fn json(saida: &Output) -> Value {
 
 #[test]
 fn bdd_332_03_binario_confirma_upload_cadastro_e_releitura_independente() {
-    let (saidas, eventos, total, _) = executar(None, false, false, &[]);
+    let (saidas, eventos, total, _) = executar(None, false, Leitura::Nenhuma, &[]);
     assert_eq!(
         saidas[0].status.code(),
         Some(0),
@@ -423,7 +452,7 @@ fn bdd_332_03_binario_confirma_upload_cadastro_e_releitura_independente() {
 
 #[test]
 fn bdd_332_04_resposta_sem_autoria_falha_sem_repetir_post() {
-    let (saidas, eventos, total, _) = executar(Some(1), false, false, &[]);
+    let (saidas, eventos, total, _) = executar(Some(1), false, Leitura::Nenhuma, &[]);
     falha(&saidas[0], "TentativaNaoComprovada");
     assert_eq!(total, 1, "efeito existiu mesmo com resposta adulterada");
     assert_eq!(
@@ -446,7 +475,7 @@ fn bdd_332_04_resposta_sem_autoria_falha_sem_repetir_post() {
 /// mas nenhuma linha de upload nem documento definitivo pode surgir.
 #[test]
 fn bdd_332_02_binario_consulta_previa_sem_upload_ou_cadastro() {
-    let (saidas, eventos, total, _) = executar(None, true, false, &[]);
+    let (saidas, eventos, total, _) = executar(None, true, Leitura::Nenhuma, &[]);
     assert_eq!(
         saidas[0].status.code(),
         Some(0),
@@ -491,7 +520,7 @@ fn bdd_332_02_binario_consulta_previa_sem_upload_ou_cadastro() {
 fn bdd_60_03_cli_baixa_pdf_original_do_estado_compartilhado() {
     // BDD-60-03 pré-escrito na #60: o mesmo PDF cadastrado deve ser lido
     // pela CLI real e salvo byte a byte, sem transformar conteúdo em HTML.
-    let (saidas, eventos, documentos, arquivo) = executar(None, false, true, &[]);
+    let (saidas, eventos, documentos, arquivo) = executar(None, false, Leitura::Pdf, &[]);
     assert_eq!(documentos, 1, "um único documento definitivo");
     assert_eq!(
         saidas[2].status.code(),
@@ -522,3 +551,6 @@ fn bdd_60_03_cli_baixa_pdf_original_do_estado_compartilhado() {
 
 #[path = "aies_pdf_externo_cli/lote.rs"]
 mod lote;
+
+#[path = "aies_pdf_externo_cli/exportacao.rs"]
+mod exportacao;

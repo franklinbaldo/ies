@@ -61,8 +61,7 @@ pub(crate) fn preparar_cadastro_definitivo(
         .plano
         .linha_do_anexo(recibo)
         .map_err(FalhaCadastroEnvio::Anexo)?;
-    derivar_cadastro(instalacao, tela, unidade, &linha, dia)
-        .map_err(FalhaCadastroEnvio::Formulario)
+    derivar_cadastro(instalacao, tela, unidade, &linha, dia).map_err(FalhaCadastroEnvio::Formulario)
 }
 
 /// Confere a tela sem inventar um recibo; valores dependentes do upload
