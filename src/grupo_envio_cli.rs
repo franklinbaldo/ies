@@ -83,6 +83,30 @@ fn ler_lista(html: &HtmlServido) -> Result<Vec<Linha>, ErroGrupo> {
         .elementos("table")
         .filter(|t| t.elementos("th").any(|th| texto(th) == "Nome"))
         .collect();
+    // Forma de vazio observada em outras listagens Infra (Todos @caabe699,
+    // sei/menu.py). Para grupos, ainda é hipótese: exigir o formulário próprio.
+    if tabelas.is_empty() {
+        let areas: Vec<_> = form
+            .elementos("div")
+            .filter(|n| n.atributo("id") == Some("divInfraAreaTabela"))
+            .collect();
+        if let [area] = areas.as_slice()
+            && area.elementos("table").next().is_none()
+        {
+            let aviso = texto(*area);
+            let contadores: Vec<_> = form
+                .elementos("input")
+                .filter(|n| n.atributo("name") == Some("hdnInfraNroItens"))
+                .map(|n| n.atributo("value"))
+                .collect();
+            if (aviso == "Nenhum registro encontrado."
+                && (contadores.is_empty() || contadores == [Some("0")]))
+                || (aviso.is_empty() && contadores == [Some("0")])
+            {
+                return Ok(Vec::new());
+            }
+        }
+    }
     let [tabela] = tabelas.as_slice() else {
         return Err(ErroGrupo::ListaInesperada);
     };
@@ -379,6 +403,28 @@ mod tests {
             ler_grupo(&HtmlServido::de_teste(&repetido), "6"),
             Err(ErroGrupo::IdentidadeAmbigua)
         );
+    }
+
+    #[test]
+    fn lista_vazia_exige_evidencia_no_formulario_proprio() {
+        let aviso = "<form id='frmGrupoUnidadeLista'><div id='divInfraAreaTabela'><label>Nenhum registro encontrado.</label></div></form>";
+        let contador = "<form id='frmGrupoUnidadeLista'><input name='hdnInfraNroItens' value='0'><div id='divInfraAreaTabela'></div></form>";
+        for html in [aviso, contador] {
+            assert!(ler_lista(&HtmlServido::de_teste(html)).unwrap().is_empty());
+        }
+
+        for html in [
+            aviso.replace("frmGrupoUnidadeLista", "outro"),
+            aviso.replace("Nenhum registro encontrado.", "Acesso negado"),
+            aviso.replace("</label>", "</label><table></table>"),
+            aviso.replace("</form>", "<select id='selInfraPaginacaoSuperior'></select></form>"),
+            aviso.replace("</form>", "<input name='hdnInfraNroItens' value='1'></form>"),
+            contador.replace("value='0'", "value='2'"),
+            contador.replace("value='0'", "value='0'><input name='hdnInfraNroItens' value='0'"),
+            contador.replace("<div id='divInfraAreaTabela'></div>", ""),
+        ] {
+            assert!(ler_lista(&HtmlServido::de_teste(&html)).is_err());
+        }
     }
 
     #[test]
