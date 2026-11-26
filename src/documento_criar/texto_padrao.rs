@@ -187,7 +187,7 @@ mod tests {
         assert_eq!(url_publicada(&cadastro(&declaracao)).unwrap(), url);
         // Sintético: uma declaração literal dentro de um callback continua
         // candidata; o replay original é o oráculo de compatibilidade.
-        let callback = format!("function inicializar() {{\n{declaracao}\n}}");
+        let callback = format!("function inicializar() {{\n{declaracao}\n}}\ninicializar();");
         assert_eq!(url_publicada(&cadastro(&callback)).unwrap(), url);
         for inerte in [
             format!("/*\n{declaracao}\n*/"),
