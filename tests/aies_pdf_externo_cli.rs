@@ -137,6 +137,7 @@ fn preparar_banco() -> (Connection, Instalacao) {
     (banco, origem)
 }
 
+#[derive(Clone, Copy)]
 enum Leitura {
     Nenhuma,
     Pdf,

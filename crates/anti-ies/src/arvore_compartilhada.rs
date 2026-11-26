@@ -159,6 +159,11 @@ pub(crate) fn responder(
             Err(estado) => return Resposta::nova(estado),
         }
     };
+    // Fatia ZIP: apenas processos cujo acervo conhecido consiste em PDFs externos.
+    if tem_nos && inicio == 1 {
+        let link = crate::processo_exportacao::link_da_barra(id_processo);
+        pagina = pagina.replacen("Nos[0].acoes = '", &format!("Nos[0].acoes = '{link}"), 1);
+    }
     for (deslocamento, documento) in externos.into_iter().enumerate() {
         // Espaço numérico separado: rowids internos e externos são independentes.
         let id = documento.id_publico();
