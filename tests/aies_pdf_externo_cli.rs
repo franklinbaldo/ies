@@ -137,6 +137,14 @@ fn preparar_banco() -> (Connection, Instalacao) {
     (banco, origem)
 }
 
+#[derive(Clone, Copy)]
+enum Leitura {
+    Nenhuma,
+    Pdf,
+    Zip,
+    PdfProcesso,
+}
+
 #[expect(
     clippy::too_many_lines,
     reason = "Bancada E2E reúne proxy TLS, servidor HTTP e processos reais"
@@ -144,7 +152,7 @@ fn preparar_banco() -> (Connection, Instalacao) {
 fn executar(
     incerteza: bool,
     somente_previa: bool,
-    com_leitura: bool,
+    leitura: Leitura,
 ) -> (Vec<Output>, Vec<String>, usize, Option<Vec<u8>>) {
     let pasta = Pasta::nova();
     let (cert, identidade_tls) = identidade(&pasta.0, "sei.test");
@@ -254,9 +262,26 @@ fn executar(
         destino_str,
         "--sem-cache",
     ];
+    let (formato, nome) = match leitura {
+        Leitura::PdfProcesso => ("pdf", "processo.pdf"),
+        _ => ("zip", "processo.zip"),
+    };
+    let exportado = destino_arquivo.join(nome);
+    let exportar = [
+        "--json",
+        "processo",
+        "exportar",
+        NUP,
+        "--formato",
+        formato,
+        "--saida",
+        exportado.to_str().unwrap(),
+    ];
     let mut comandos = vec![&incluir[..], &consultar[..]];
-    if com_leitura {
-        comandos.push(&ler_pdf);
+    match leitura {
+        Leitura::Nenhuma => {}
+        Leitura::Pdf => comandos.push(&ler_pdf),
+        Leitura::Zip | Leitura::PdfProcesso => comandos.push(&exportar),
     }
     let saidas = comandos
         .iter()
@@ -284,7 +309,10 @@ fn executar(
     tunel.join().unwrap();
     let total = servidor.join().unwrap();
     let eventos = trilha.lock().unwrap().clone();
-    let arquivo = fs::read(destino_arquivo.join("050000001.pdf")).ok();
+    let arquivo = match leitura {
+        Leitura::Zip | Leitura::PdfProcesso => fs::read(exportado).ok(),
+        _ => fs::read(destino_arquivo.join("050000001.pdf")).ok(),
+    };
     (saidas, eventos, total, arquivo)
 }
 
@@ -300,7 +328,7 @@ fn json(saida: &Output) -> Value {
 
 #[test]
 fn bdd_332_03_binario_confirma_upload_cadastro_e_releitura_independente() {
-    let (saidas, eventos, total, _) = executar(false, false, false);
+    let (saidas, eventos, total, _) = executar(false, false, Leitura::Nenhuma);
     assert_eq!(
         saidas[0].status.code(),
         Some(0),
@@ -346,7 +374,7 @@ fn bdd_332_03_binario_confirma_upload_cadastro_e_releitura_independente() {
 
 #[test]
 fn bdd_332_04_resposta_sem_autoria_falha_sem_repetir_post() {
-    let (saidas, eventos, total, _) = executar(true, false, false);
+    let (saidas, eventos, total, _) = executar(true, false, Leitura::Nenhuma);
     falha(&saidas[0], "TentativaNaoComprovada");
     assert_eq!(total, 1, "efeito existiu mesmo com resposta adulterada");
     assert_eq!(
@@ -369,7 +397,7 @@ fn bdd_332_04_resposta_sem_autoria_falha_sem_repetir_post() {
 /// mas nenhuma linha de upload nem documento definitivo pode surgir.
 #[test]
 fn bdd_332_02_binario_consulta_previa_sem_upload_ou_cadastro() {
-    let (saidas, eventos, total, _) = executar(false, true, false);
+    let (saidas, eventos, total, _) = executar(false, true, Leitura::Nenhuma);
     assert_eq!(
         saidas[0].status.code(),
         Some(0),
@@ -414,7 +442,7 @@ fn bdd_332_02_binario_consulta_previa_sem_upload_ou_cadastro() {
 fn bdd_60_03_cli_baixa_pdf_original_do_estado_compartilhado() {
     // BDD-60-03 pré-escrito na #60: o mesmo PDF cadastrado deve ser lido
     // pela CLI real e salvo byte a byte, sem transformar conteúdo em HTML.
-    let (saidas, eventos, documentos, arquivo) = executar(false, false, true);
+    let (saidas, eventos, documentos, arquivo) = executar(false, false, Leitura::Pdf);
     assert_eq!(documentos, 1, "um único documento definitivo");
     assert_eq!(
         saidas[2].status.code(),
@@ -442,3 +470,6 @@ fn bdd_60_03_cli_baixa_pdf_original_do_estado_compartilhado() {
         "o link assinado deve ser seguido uma só vez"
     );
 }
+
+#[path = "aies_pdf_externo_cli/exportacao.rs"]
+mod exportacao;
