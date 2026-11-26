@@ -206,7 +206,10 @@ fn preparar_estado(banco: &mut Connection, instalacao: &Instalacao, estado: Esta
         // Hipótese sintética, não resposta original do SEI.
         let unidade = UnidadeExibida::nova("TESTE").unwrap();
         for (id, nome) in [("73", "Administrativo"), ("74", "Judicial")] {
-            iesei::pesquisa_processo::registrar_tipo(banco, instalacao, CENARIO, &unidade, id, nome).unwrap();
+            iesei::pesquisa_processo::registrar_tipo(
+                banco, instalacao, CENARIO, &unidade, id, nome,
+            )
+            .unwrap();
         }
         iesei::pesquisa_processo::registrar_sem_resultado(
             banco,
