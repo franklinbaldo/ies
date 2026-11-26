@@ -317,8 +317,15 @@ mod tests {
         );
         assert!(consultar_pagina(&banco, &origem, "c", &unidade, criterios, u64::MAX).is_err());
         assert!(
-            consultar_pagina(&banco, &origem, "c", &unidade, criterios, i64::MAX.unsigned_abs())
-                .is_err()
+            consultar_pagina(
+                &banco,
+                &origem,
+                "c",
+                &unidade,
+                criterios,
+                i64::MAX.unsigned_abs()
+            )
+            .is_err()
         );
         let pagina = Pagina {
             numero: 1,
