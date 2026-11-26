@@ -77,6 +77,62 @@ mod tests {
     use super::*;
 
     #[test]
+    fn coorte_contraditoria_respeita_todas_as_dimensoes_da_chave() {
+        let origem = Instalacao::interpretar("https://sei.test/sei").unwrap();
+        let outra_origem = Instalacao::interpretar("https://outro.test/sei").unwrap();
+        let unidade = UnidadeExibida::nova("TESTE").unwrap();
+        let outra_unidade = UnidadeExibida::nova("OUTRA").unwrap();
+        for negativo_primeiro in [true, false] {
+            for numero in [1, 2] {
+                let mut banco = Connection::open_in_memory().unwrap();
+                crate::banco_cassettes::iniciar(&banco).unwrap();
+                let negativo = |banco: &Connection| {
+                    registrar_sem_resultado(banco, &origem, "cenario", &unidade, "termo")
+                        .unwrap();
+                };
+                if negativo_primeiro {
+                    negativo(&banco);
+                }
+                let inicio = u64::from(numero - 1) * 10 + 1;
+                registrar_pagina(
+                    &mut banco,
+                    &origem,
+                    "cenario",
+                    &unidade,
+                    "termo",
+                    &PaginaObservada {
+                        pagina: numero,
+                        inicio,
+                        fim: inicio + 9,
+                        total_declarado: 20,
+                        linhas: vec![],
+                    },
+                )
+                .unwrap();
+                if !negativo_primeiro {
+                    negativo(&banco);
+                }
+                assert!(matches!(
+                    consultar(&banco, &origem, "cenario", &unidade, "termo"),
+                    Err(ErroPesquisaDocumento::CoorteContraditoria)
+                ));
+                for (o, c, u, t) in [
+                    (&outra_origem, "cenario", &unidade, "termo"),
+                    (&origem, "outro", &unidade, "termo"),
+                    (&origem, "cenario", &outra_unidade, "termo"),
+                    (&origem, "cenario", &unidade, "outro"),
+                ] {
+                    registrar_sem_resultado(&banco, o, c, u, t).unwrap();
+                    assert_eq!(
+                        consultar(&banco, o, c, u, t).unwrap(),
+                        Some(Resultado::SemResultado)
+                    );
+                }
+            }
+        }
+    }
+
+    #[test]
     fn registro_idempotente_e_ausencia_nao_inferida() {
         let banco = Connection::open_in_memory().unwrap();
         crate::banco_cassettes::iniciar(&banco).unwrap();
