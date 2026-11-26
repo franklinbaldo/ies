@@ -149,25 +149,87 @@ fn replay_da_criacao_de_bloco_de_assinatura_no_acervo() {
         let id = consulta.unico("id_bloco").expect("id do bloco no Location");
         assert!(!id.is_empty() && id.bytes().all(|b| b.is_ascii_digit()));
 
-        let relido = respostas.iter().any(|r| {
-            if r.passo <= post.passo
-                || r.operacao != "bloco_assinatura_listar"
-                || r.metodo != "GET"
-                || r.status != 200
-            {
-                return false;
-            }
-            let html = html_da_resposta(r.interacao).expect("HTML da lista");
-            let lista = ler_lista(&HtmlServido::de_teste(&html), TipoBloco::Assinatura)
-                .expect("lista de assinatura");
-            lista.lista.itens.iter().any(|b| b.numero == id)
-        });
+        let (antes, depois) = listas_da_criacao(&respostas, formulario.passo, post.passo);
+        let antes = ler_lista_gravada(antes.expect("lista anterior ao cadastro"));
         assert!(
-            relido,
-            "{instalacao}: identidade não observada após criação"
+            !antes.itens.iter().any(|b| b.numero == id),
+            "{instalacao}: identidade já observada antes da criação"
+        );
+        let depois = ler_lista_gravada(depois.expect("lista após POST, antes de outro POST"));
+        assert!(
+            depois.itens.iter().any(|b| {
+                b.numero == id && b.estado == crate::bloco_estado::EstadoDoBloco::Gerado
+            }),
+            "{instalacao}: identidade e estado Gerado não observados após criação"
         );
         *vistos.entry(instalacao.to_owned()).or_insert(0usize) += 1;
     });
     assert_eq!(vistos.get("ufrj"), Some(&1));
     assert_eq!(vistos.get("pen3"), Some(&1));
+}
+
+// A testemunha anterior é a última lista GET antes do cadastro; a
+// posterior é a primeira lista GET antes de outra submissão. Não
+// atribuir à criação uma linha vista somente no fim de todo o roteiro.
+fn listas_da_criacao<'a, 'j>(
+    respostas: &'a [gravacao::Resposta<'j>],
+    cadastro: usize,
+    post: usize,
+) -> (
+    Option<&'a gravacao::Resposta<'j>>,
+    Option<&'a gravacao::Resposta<'j>>,
+) {
+    let e_lista = |r: &&gravacao::Resposta<'_>| {
+        r.operacao == "bloco_assinatura_listar" && r.metodo == "GET" && r.status == 200
+    };
+    let antes = respostas
+        .iter()
+        .rev()
+        .filter(|r| r.passo < cadastro)
+        .find(e_lista);
+    let depois = respostas
+        .iter()
+        .filter(|r| r.passo > post)
+        .take_while(|r| r.metodo != "POST")
+        .find(e_lista);
+    (antes, depois)
+}
+
+fn ler_lista_gravada(r: &gravacao::Resposta<'_>) -> super::ListaDeBlocos {
+    let html = html_da_resposta(r.interacao).expect("HTML da lista");
+    ler_lista(&HtmlServido::de_teste(&html), TipoBloco::Assinatura)
+        .expect("lista de assinatura")
+        .lista
+}
+
+#[test]
+fn testemunha_da_criacao_nao_pula_para_lista_depois_de_outra_escrita() {
+    use serde_json::json;
+    let lista = json!({
+        "request": {"operation": "bloco_assinatura_listar", "method": "GET"},
+        "response": {"status_code": 200}
+    });
+    let cadastro = json!({
+        "request": {"operation": "bloco_assinatura_cadastrar", "method": "GET"},
+        "response": {"status_code": 200}
+    });
+    let post = json!({
+        "request": {"operation": "bloco_assinatura_cadastrar", "method": "POST"},
+        "response": {"status_code": 302}
+    });
+    let outro = json!({
+        "request": {"operation": "bloco_excluir", "method": "POST"},
+        "response": {"status_code": 302}
+    });
+    let positivo = json!({"interactions": [lista.clone(), cadastro.clone(), post.clone(), lista.clone(), outro.clone(), lista.clone()]});
+    let respostas = gravacao::respostas(&positivo);
+    let (antes, depois) = listas_da_criacao(&respostas, 1, 2);
+    assert_eq!(antes.map(|r| r.passo), Some(0));
+    assert_eq!(depois.map(|r| r.passo), Some(3));
+
+    let negativo = json!({"interactions": [lista.clone(), cadastro, post, outro, lista]});
+    let respostas = gravacao::respostas(&negativo);
+    let (antes, depois) = listas_da_criacao(&respostas, 1, 2);
+    assert_eq!(antes.map(|r| r.passo), Some(0));
+    assert!(depois.is_none());
 }
