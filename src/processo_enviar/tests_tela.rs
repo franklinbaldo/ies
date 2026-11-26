@@ -59,7 +59,7 @@ fn post_derivado_pelo_primitivo_na_ordem_do_documento() {
         for manter in [false, true] {
             let html = tela_de_envio(versao, ID);
             let tela = conferir_tela_de_envio(&HtmlServido::de_teste(&html), ID).unwrap();
-            let campos = campos_do_envio(&tela, &destino(), manter, false);
+            let campos = campos_do_envio(&tela, &[destino()], manter, false);
             let pares: Vec<(&str, &str)> = campos.iter().map(|(n, v)| (*n, v.as_str())).collect();
             let url = url_da_tela();
             let servida = TelaServida {
@@ -73,6 +73,47 @@ fn post_derivado_pelo_primitivo_na_ordem_do_documento() {
                 String::from_utf8(s.corpo().to_vec()).unwrap(),
                 corpo_do_envio(versao, manter)
             );
+        }
+    }
+}
+
+/// Forma plural relatada pelo Todos; teste sintético do corpo, não replay.
+#[test]
+fn post_derivado_com_dois_destinos_no_mesmo_campo() {
+    for versao in [Versao::V40, Versao::V41] {
+        for manter in [false, true] {
+            let html = HtmlServido::de_teste(&tela_de_envio(versao, ID));
+            let tela = conferir_tela_de_envio(&html, ID).unwrap();
+            let mut segundo = destino();
+            segundo.id_unidade = "110000003".into();
+            segundo.sigla = "TESTE_1_2".into();
+            segundo.descricao = "TESTE_1_2 - Seção".into();
+            let campos = campos_do_envio(&tela, &[destino(), segundo], manter, false);
+            let pares: Vec<(&str, &str)> = campos.iter().map(|(n, v)| (*n, v.as_str())).collect();
+            let url = url_da_tela();
+            let singular = corpo_do_envio(versao, manter);
+            for (codificacao, esperado) in [
+                (
+                    CodificacaoDaTela::Iso88591,
+                    format!("{singular}%A5110000003%B1TESTE_1_2+-+Se%E7%E3o"),
+                ),
+                (
+                    CodificacaoDaTela::Utf8,
+                    format!(
+                        "{}%C2%A5110000003%C2%B1TESTE_1_2+-+Se%C3%A7%C3%A3o",
+                        singular.replace("%B1", "%C2%B1")
+                    ),
+                ),
+            ] {
+                let servida = TelaServida {
+                    url: &url,
+                    html: &html,
+                    codificacao,
+                };
+                let s = derivar_submissao(&ENVIAR_PROCESSO, &instalacao(), &servida, None, &pares)
+                    .unwrap();
+                assert_eq!(String::from_utf8(s.corpo().to_vec()).unwrap(), esperado);
+            }
         }
     }
 }
@@ -258,7 +299,7 @@ fn bdd_remover_anotacoes_deriva_checkbox_do_formulario_servido() {
         for manter_aberto in [false, true] {
             let html = tela_de_envio(versao, ID);
             let tela = conferir_tela_de_envio(&HtmlServido::de_teste(&html), ID).unwrap();
-            let campos = campos_do_envio(&tela, &destino(), manter_aberto, true);
+            let campos = campos_do_envio(&tela, &[destino()], manter_aberto, true);
             let pares: Vec<(&str, &str)> = campos.iter().map(|(n, v)| (*n, v.as_str())).collect();
             let url = url_da_tela();
             let servida = TelaServida {
