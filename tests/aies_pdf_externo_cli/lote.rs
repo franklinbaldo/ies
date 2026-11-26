@@ -131,7 +131,12 @@ fn lote_segunda_previa_remota_recusada_impede_toda_escrita() {
     segundo.extend_from_slice(b"\n%%EOF\n");
     let (saidas, eventos, total, _) =
         executar_com_falha_previa(None, Some(2), false, false, &[&segundo]);
-    falha(&saidas[0], "PdfAcimaDoLimite");
+    falha(&saidas[0], "CadastroNaoConferido");
+    let stderr = String::from_utf8_lossy(&saidas[0].stderr);
+    assert!(
+        stderr.lines().any(|linha| linha.trim() == "PdfAcimaDoLimite"),
+        "a causa tipada deve ser o limite observado: {stderr}"
+    );
     assert_eq!(
         eventos
             .iter()
