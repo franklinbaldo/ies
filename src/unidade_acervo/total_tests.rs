@@ -30,4 +30,3 @@ fn resultado_seleciona_total_e_nao_tipo() {
         assert!(total_do_resultado(&HtmlServido::de_teste(&alterada), &inst).is_err());
     }
 }
-
