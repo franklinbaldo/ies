@@ -21,7 +21,7 @@ fn ajuda_de_exportacao_publica_formatos_e_destino() {
     let resultado = sem_sessao(&["processo", "exportar", "--help"]);
     assert!(resultado.status.success());
     let ajuda = String::from_utf8_lossy(&resultado.stdout);
-    for campo in ["--formato", "--saida", "pdf", "zip"] {
+    for campo in ["--formato", "--saida", "--documentos", "pdf", "zip"] {
         assert!(ajuda.contains(campo), "{campo}: {ajuda}");
     }
 }

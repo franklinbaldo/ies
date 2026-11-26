@@ -141,3 +141,38 @@ fn download_sintetico_publica_bytes_e_recusa_respostas_divergentes() {
     }
     fs::remove_dir(&pasta).unwrap();
 }
+
+#[test]
+fn selecao_por_identidade_lexical_e_nao_por_titulo() {
+    use super::{ErroSelecao, selecao_da_arvore};
+    use crate::arvore_processo::{Cancelamento, DocumentoNaArvore, NaturezaDoDocumento};
+
+    let doc = |id: &str, numero: &str| DocumentoNaArvore {
+        id: id.into(),
+        rotulo: format!("Anexo ({numero})"),
+        numero_sei: Some(numero.into()),
+        pasta: None,
+        natureza: NaturezaDoDocumento {
+            icone: "documento_pdf".into(),
+            cancelamento: Cancelamento::Ativo,
+            dica: None,
+        },
+    };
+    let docs = [doc("11", "0001"), doc("22", "0002")];
+    assert_eq!(
+        selecao_da_arvore(&docs, &["0002".into(), "11".into()]).unwrap(),
+        "22±0002 - Anexo ¥11±0001 - Anexo "
+    );
+    assert!(matches!(
+        selecao_da_arvore(&docs, &["2".into()]),
+        Err(ErroSelecao::DocumentoSelecionadoForaDaArvore)
+    ));
+    assert!(matches!(
+        selecao_da_arvore(&docs, &["22".into(), "0002".into()]),
+        Err(ErroSelecao::DocumentoSelecionadoRepetido)
+    ));
+    assert!(matches!(
+        selecao_da_arvore(&[doc("11", "0001"), doc("22", "11")], &["11".into()]),
+        Err(ErroSelecao::IdentidadeDocumentalAmbigua)
+    ));
+}

@@ -65,6 +65,13 @@ fn replay(formato: Formato, nomes: &[&str], acao: &str, formulario: &str) {
                         && e.presente("multiple")
                 });
                 if apenas && oculto && lista {
+                    // Derivação sobre o formulário original, com escolha fictícia.
+                    let post = submissao(&origem, &tela, &id, formato, None, Some("123±Anexo"))
+                        .expect("modalidade A sobre HTML original");
+                    let corpo = String::from_utf8_lossy(post.corpo());
+                    assert!(corpo.contains("rdoTipo=A"));
+                    assert!(corpo.contains("hdnDocumentosApenas=123%B1Anexo")
+                        || corpo.contains("hdnDocumentosApenas=123%C2%B1Anexo"));
                     selecao += 1;
                 }
                 formularios += 1;

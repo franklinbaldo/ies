@@ -238,7 +238,10 @@ fn selecao_da_arvore(
         if selecionados.iter().any(|(id, _)| *id == doc.id.as_str()) {
             return Err(ErroSelecao::DocumentoSelecionadoRepetido);
         }
-        let numero = doc.numero_sei.as_deref().ok_or(ErroSelecao::NumeroSeiAusente)?;
+        let numero = doc
+            .numero_sei
+            .as_deref()
+            .ok_or(ErroSelecao::NumeroSeiAusente)?;
         // Hipótese de título da lupa baseada no oráculo Todos; não é POST capturado.
         let sufixo = format!(" ({numero})");
         let tipo = doc.rotulo.strip_suffix(&sufixo).unwrap_or(&doc.rotulo);

@@ -130,15 +130,20 @@ pub(crate) fn responder(
             ))
         }
         (Some("procedimento_gerar_zip" | "procedimento_gerar_pdf"), "POST") => {
-            let pares: Vec<_> = corpo.split('&').filter_map(|p| p.split_once('=')).collect();
+            let Some(pares): Option<Vec<_>> = corpo.split('&').map(|p| p.split_once('=')).collect()
+            else {
+                return Resposta::nova(Estado::RequisicaoInvalida);
+            };
             let campo = |nome| crate::processo_envio::campo_unico(&pares, nome);
             if campo("hdnFlagGerar") != Some("1") {
                 return Resposta::nova(Estado::RequisicaoInvalida);
             }
             let mut download = format!("{}&formato={formato}", url("exibir_arquivo", id));
             match campo("rdoTipo") {
-                Some("T") if campo("hdnDocumentosApenas").is_none_or(str::is_empty) => {}
-                Some("A") if formato == "zip" => {
+                Some("T")
+                    if pares.len() == 2
+                        || (pares.len() == 3 && campo("hdnDocumentosApenas") == Some("")) => {}
+                Some("A") if formato == "zip" && pares.len() == 3 => {
                     let Some(valor) = campo("hdnDocumentosApenas")
                         .and_then(crate::processo_envio::decodificar_formulario)
                     else {
@@ -191,7 +196,10 @@ document.getElementById('ifrDownload').src = '{download}';
                     let Some(doc) = docs.iter().find(|doc| doc.id_publico() == id) else {
                         return Resposta::nova(Estado::RequisicaoInvalida);
                     };
-                    if selecionados.iter().any(|d: &pdf_externo::Documento| d.id == doc.id) {
+                    if selecionados
+                        .iter()
+                        .any(|d: &pdf_externo::Documento| d.id == doc.id)
+                    {
                         return Resposta::nova(Estado::RequisicaoInvalida);
                     }
                     selecionados.push(doc.clone());
