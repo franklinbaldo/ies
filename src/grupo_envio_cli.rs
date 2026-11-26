@@ -417,10 +417,19 @@ mod tests {
             aviso.replace("frmGrupoUnidadeLista", "outro"),
             aviso.replace("Nenhum registro encontrado.", "Acesso negado"),
             aviso.replace("</label>", "</label><table></table>"),
-            aviso.replace("</form>", "<select id='selInfraPaginacaoSuperior'></select></form>"),
-            aviso.replace("</form>", "<input name='hdnInfraNroItens' value='1'></form>"),
+            aviso.replace(
+                "</form>",
+                "<select id='selInfraPaginacaoSuperior'></select></form>",
+            ),
+            aviso.replace(
+                "</form>",
+                "<input name='hdnInfraNroItens' value='1'></form>",
+            ),
             contador.replace("value='0'", "value='2'"),
-            contador.replace("value='0'", "value='0'><input name='hdnInfraNroItens' value='0'"),
+            contador.replace(
+                "value='0'",
+                "value='0'><input name='hdnInfraNroItens' value='0'",
+            ),
             contador.replace("<div id='divInfraAreaTabela'></div>", ""),
         ] {
             assert!(ler_lista(&HtmlServido::de_teste(&html)).is_err());
