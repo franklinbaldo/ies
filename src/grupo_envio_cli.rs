@@ -1,5 +1,5 @@
 //! Leitura de grupos de envio por identidade publicada na unidade atual.
-//! Forma de tela: Todos @caabe699, src/todos/grupos_envio.py; PEN1 4.0.12.
+//! Forma de tela: Todos @caabe699, `src/todos/grupos_envio.py`; PEN1 4.0.12.
 //! Primeira fatia: lista completa de uma página; paginação ainda não suportada.
 use crate::acao_do_sei::AcaoDoSei;
 use crate::consulta_do_controlador::{ConsultaDoControlador, menciona_acao};
@@ -116,6 +116,18 @@ fn ler_lista(html: &HtmlServido) -> Result<Vec<Linha>, ErroGrupo> {
     };
     let contagem =
         crate::legenda::ler_legenda(&texto(*legenda)).map_err(|_| ErroGrupo::ListaInesperada)?;
+    let linhas = ler_linhas(*tabela)?;
+    if linhas.len() != contagem.total
+        || contagem
+            .faixa
+            .is_some_and(|f| f.inicio != 1 || f.fim != contagem.total)
+    {
+        return Err(ErroGrupo::ListaIncompleta);
+    }
+    Ok(linhas)
+}
+
+fn ler_linhas(tabela: Elemento<'_>) -> Result<Vec<Linha>, ErroGrupo> {
     let mut colunas = None;
     let mut linhas = Vec::new();
     let mut ids = HashSet::new();
@@ -192,13 +204,6 @@ fn ler_lista(html: &HtmlServido) -> Result<Vec<Linha>, ErroGrupo> {
     }
     if colunas.is_none() {
         return Err(ErroGrupo::ListaInesperada);
-    }
-    if linhas.len() != contagem.total
-        || contagem
-            .faixa
-            .is_some_and(|f| f.inicio != 1 || f.fim != contagem.total)
-    {
-        return Err(ErroGrupo::ListaIncompleta);
     }
     Ok(linhas)
 }
