@@ -605,7 +605,13 @@ fn sem_protocolo_envia_tipo_e_data_nos_dois_posts() {
     let RespostaDaPesquisa::Lista(lista) = busca.resposta else {
         panic!("esperada lista");
     };
-    assert_eq!(lista.faixa, FaixaDaPesquisa { inicio: 11, fim: 20 });
+    assert_eq!(
+        lista.faixa,
+        FaixaDaPesquisa {
+            inicio: 11,
+            fim: 20
+        }
+    );
     let posts: Vec<_> = roteiro
         .pedidos
         .iter()
