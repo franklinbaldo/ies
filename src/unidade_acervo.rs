@@ -32,16 +32,6 @@ fn texto(no: Elemento<'_>) -> String {
     no.texto().split_whitespace().collect::<Vec<_>>().join(" ")
 }
 
-/// O período da CLI é civil; o formulário recebe DD/MM/AAAA.
-fn data_da_cli(s: &str) -> Option<crate::unidade_retornos::DataCivil> {
-    let (mes_ano, dia) = s.rsplit_once('-')?;
-    let mes_ano = crate::unidade_retornos::MesAno::ler_cli(mes_ano)?;
-    if dia.len() != 2 || !dia.bytes().all(|b| b.is_ascii_digit()) {
-        return None;
-    }
-    crate::unidade_retornos::DataCivil::new(mes_ano.ano(), mes_ano.mes(), dia.parse().ok()?)
-}
-
 const ANDAMENTO_ABERTO: &str = "Processos com andamento aberto na unidade ao final do período";
 
 /// Seleciona o TOTAL da tabela 4, não um tipo ou outra estatística.
@@ -88,7 +78,11 @@ fn total_do_resultado(html: &HtmlServido) -> Result<(usize, String), ErroAcervo>
 
 #[test]
 fn data_iso_reusa_calendario_civil() {
-    assert_eq!(data_da_cli("2024-02-29").unwrap().to_string(), "29/02/2024");
+    use crate::cli_unidade_aux::data_do_acervo;
+    assert_eq!(
+        data_do_acervo("2024-02-29").unwrap().to_string(),
+        "29/02/2024"
+    );
     for s in [
         "2026-02-29",
         "2026-04-31",
@@ -99,7 +93,7 @@ fn data_iso_reusa_calendario_civil() {
         "2026-01-1",
         "0000-01-01",
     ] {
-        assert!(data_da_cli(s).is_none(), "{s}");
+        assert!(data_do_acervo(s).is_err(), "{s}");
     }
 }
 

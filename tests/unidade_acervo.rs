@@ -29,6 +29,8 @@ fn datas_civis_invalidas_sao_erros_de_uso() {
         "2026-11-00",
         "20/11/2026",
         "2026-1-01",
+        "2026-01-1",
+        "0000-01-01",
     ] {
         let saida = ies(&["--json", "unidade", "acervo", "--em", data]);
         assert_eq!(saida.status.code(), Some(2), "{data}");
@@ -37,4 +39,16 @@ fn datas_civis_invalidas_sao_erros_de_uso() {
         assert!(erro.contains("--em"), "{data}: {erro}");
         assert!(erro.contains(data), "{data}: {erro}");
     }
+}
+
+// A data válida atravessa o parser. Enquanto o fluxo Web não existe, a
+// CLI falha explicitamente em vez de publicar uma lista vazia.
+#[test]
+fn data_valida_alcanca_o_recorte_wip_sem_saida_de_acervo() {
+    let saida = ies(&["--json", "unidade", "acervo", "--em", "2024-02-29"]);
+    assert_eq!(saida.status.code(), Some(1));
+    assert!(saida.stdout.is_empty());
+    let erro = String::from_utf8_lossy(&saida.stderr);
+    assert!(erro.contains("ComandoSemImplementacaoNoSei"), "{erro}");
+    assert!(erro.contains("29/02/2024"), "{erro}");
 }
