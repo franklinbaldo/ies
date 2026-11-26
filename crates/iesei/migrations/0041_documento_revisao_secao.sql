@@ -13,9 +13,17 @@ CREATE TABLE documento_revisao_secao (
     UNIQUE (origem, cenario, id_documento, versao, posicao),
     FOREIGN KEY (origem, cenario, id_documento, versao)
         REFERENCES documento_revisao(origem, cenario, id_documento, versao)
-        ON DELETE CASCADE
 ) STRICT;
 CREATE UNIQUE INDEX documento_revisao_secao_principal
     ON documento_revisao_secao(origem, cenario, id_documento, versao)
     WHERE principal = 1;
+-- O banco efêmero também é aberto por clientes SQLite com FK desativada.
+-- A reimportação de uma revisão divergente remove sua estrutura antiga.
+CREATE TRIGGER documento_revisao_limpar_secoes
+    AFTER DELETE ON documento_revisao
+    BEGIN
+        DELETE FROM documento_revisao_secao
+        WHERE origem=OLD.origem AND cenario=OLD.cenario
+          AND id_documento=OLD.id_documento AND versao=OLD.versao;
+    END;
 PRAGMA user_version = 41;
