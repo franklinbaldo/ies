@@ -256,8 +256,7 @@ fn pesquisa_documental(
     else {
         return Resposta::nova(Estado::RequisicaoInvalida);
     };
-    if radio != Some("D")
-        || (gerados.as_deref() != Some("S") && recebidos.as_deref() != Some("S"))
+    if radio != Some("D") || (gerados.as_deref() != Some("S") && recebidos.as_deref() != Some("S"))
     {
         return Resposta::nova(Estado::RequisicaoInvalida);
     }
@@ -289,12 +288,7 @@ fn pesquisa_documental(
                 pagina.fim
             } else {
                 let Ok(Some(primeira)) = iesei::pesquisa_documento::consultar_pagina(
-                    banco,
-                    instalacao,
-                    cenario,
-                    unidade,
-                    &termo,
-                    1,
+                    banco, instalacao, cenario, unidade, &termo, 1,
                 ) else {
                     return Resposta::nova(Estado::DadosInsuficientes);
                 };
@@ -316,25 +310,22 @@ fn pesquisa_documental(
         }
         Err(_) => Resposta::nova(Estado::DadosInsuficientes),
         Ok(None) if deslocamento != 0 => Resposta::nova(Estado::DadosInsuficientes),
-        Ok(None) => match iesei::pesquisa_documento::consultar(
-            banco,
-            instalacao,
-            cenario,
-            unidade,
-            &termo,
-        ) {
-            Ok(Some(iesei::pesquisa_documento::Resultado::SemResultado)) => {
-                Resposta::html(formulario_de_pesquisa(
-                    unidade.as_str(),
-                    &termo,
-                    "<div class='pesquisaSemResultado'>Nenhum resultado encontrado.</div>",
-                    None,
-                    &[],
-                ))
+        Ok(None) => {
+            match iesei::pesquisa_documento::consultar(banco, instalacao, cenario, unidade, &termo)
+            {
+                Ok(Some(iesei::pesquisa_documento::Resultado::SemResultado)) => {
+                    Resposta::html(formulario_de_pesquisa(
+                        unidade.as_str(),
+                        &termo,
+                        "<div class='pesquisaSemResultado'>Nenhum resultado encontrado.</div>",
+                        None,
+                        &[],
+                    ))
+                }
+                Ok(None) => documento_exato(banco, instalacao, cenario, &termo),
+                Err(_) => Resposta::nova(Estado::DadosInsuficientes),
             }
-            Ok(None) => documento_exato(banco, instalacao, cenario, &termo),
-            Err(_) => Resposta::nova(Estado::DadosInsuficientes),
-        },
+        }
     }
 }
 
