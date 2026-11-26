@@ -24,6 +24,7 @@ mod processo_ciencia;
 mod processo_comentarios;
 mod processo_criacao;
 pub mod processo_envio;
+mod processo_exportacao;
 mod processo_marcadores;
 mod processo_relacionar;
 mod processo_sobrestamento;
@@ -509,10 +510,12 @@ pub fn atender_http(
         .as_ref()
         .map_or_else(String::new, |valor| format!("Location: {valor}\r\n"));
     // Só o PDF do download é corpo binário; o SEI o serve como anexo.
-    let disposicao = if resposta.corpo_binario.is_some() {
-        "Content-Disposition: attachment; filename=\"anexo.pdf\"\r\n"
-    } else {
-        ""
+    let disposicao = match (&resposta.corpo_binario, resposta.tipo_conteudo) {
+        (Some(_), "application/zip") => {
+            "Content-Disposition: attachment; filename=\"processo.zip\"\r\n"
+        }
+        (Some(_), _) => "Content-Disposition: attachment; filename=\"anexo.pdf\"\r\n",
+        (None, _) => "",
     };
     let bytes = resposta
         .corpo_binario
