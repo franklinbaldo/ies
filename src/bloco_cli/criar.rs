@@ -187,8 +187,7 @@ fn criar_via<V: EnvioDoControle>(
         html: &cadastro,
         codificacao,
     };
-    let submissao =
-        derivar_cadastro(&controle.instalacao, &tela, &unidade, descricao, &grupo)?;
+    let submissao = derivar_cadastro(&controle.instalacao, &tela, &unidade, descricao, &grupo)?;
     if confirmar {
         let antes = bloco::ler_lista(&lista, TipoBloco::Assinatura)?.lista;
         let resposta = enviar_submissao_via(submissao, sessao.cookie(), |sub, cookie| {
@@ -200,14 +199,21 @@ fn criar_via<V: EnvioDoControle>(
         let id = r
             .localizacao()
             .and_then(|l| id_do_aceite(l, r.url_do_envio()));
-        let relido = ler_tipado_via(sessao, Some(&unidade), TipoBloco::Assinatura, None, None, envio)
-            .map_err(|_| FalhaLeitura::NaoConfirmado)?;
+        let relido = ler_tipado_via(
+            sessao,
+            Some(&unidade),
+            TipoBloco::Assinatura,
+            None,
+            None,
+            envio,
+        )
+        .map_err(|_| FalhaLeitura::NaoConfirmado)?;
         let Leitura::Lista(depois) = relido.leitura else {
             return Err(FalhaLeitura::NaoConfirmado);
         };
         let id = id.ok_or(FalhaLeitura::NaoConfirmado)?;
-        let bloco = conferir_criacao(&antes, &depois, id, descricao)
-            .ok_or(FalhaLeitura::NaoConfirmado)?;
+        let bloco =
+            conferir_criacao(&antes, &depois, id, descricao).ok_or(FalhaLeitura::NaoConfirmado)?;
         return Ok(serde_json::json!({
             "unidade": unidade,
             "tipo_bloco": TipoBloco::Assinatura,
@@ -239,7 +245,13 @@ pub(super) fn executar(cli: &Cli, descricao: &str, confirmar: bool) -> anyhow::R
             sessao.origem(),
         )?;
     }
-    let previa = criar_via(&sessao, cli.unidade.as_deref(), descricao, confirmar, &mut EnvioHttps)?;
+    let previa = criar_via(
+        &sessao,
+        cli.unidade.as_deref(),
+        descricao,
+        confirmar,
+        &mut EnvioHttps,
+    )?;
     if cli.json {
         println!("{}", serde_json::to_string_pretty(&previa)?);
     } else if confirmar {
@@ -328,7 +340,10 @@ mod tests {
     fn aceite_publica_identidade_unica_na_lista_da_mesma_origem() {
         let url = "https://sei.exemplo.gov.br/sei/controlador.php?acao=bloco_assinatura_cadastrar";
         assert_eq!(
-            id_do_aceite("controlador.php?acao=bloco_assinatura_listar&id_bloco=42", url),
+            id_do_aceite(
+                "controlador.php?acao=bloco_assinatura_listar&id_bloco=42",
+                url
+            ),
             Some("42")
         );
         for local in [
