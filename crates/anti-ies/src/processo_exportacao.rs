@@ -5,6 +5,7 @@ use crate::{Estado, Resposta, parametro_unico};
 use iesei::instalacao::Instalacao;
 use iesei::pdf_externo;
 use rusqlite::Connection;
+use std::fmt::Write as _;
 use std::io::{Cursor, Write as _};
 
 fn url(acao: &str, id: &str) -> String {
@@ -19,7 +20,7 @@ pub(crate) fn links_da_barra(id: &str, anexo_unico: bool) -> String {
     let mut links = format!(r#"<a href="{zip}">Gerar ZIP do processo</a>"#);
     if anexo_unico {
         let pdf = crate::escapar(&url("procedimento_gerar_pdf", id));
-        links.push_str(&format!(r#"<a href="{pdf}">Gerar PDF do processo</a>"#));
+        let _ = write!(links, r#"<a href="{pdf}">Gerar PDF do processo</a>"#);
     }
     links
 }
