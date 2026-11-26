@@ -142,6 +142,74 @@ pub(super) fn listar(unidade: Option<&str>, json_mode: bool, inativos: bool) -> 
 mod tests {
     use clap::Parser;
 
+    use super::*;
+
+    #[test]
+    fn menu_ausente_ambiguo_e_origem_alheia() {
+        let origem = "https://sei.example/sei";
+        let instalacao = Instalacao::interpretar(origem).unwrap();
+        let servida = format!("{origem}/controlador.php?acao=procedimento_controlar");
+        let href = format!(
+            "controlador.php?acao=marcador_listar&infra_hash={}",
+            "a".repeat(64)
+        );
+        let link = format!("<a href='{href}'>Marcadores</a>");
+        let ler = |html: &str| link_do_menu(&HtmlServido::de_teste(html), &servida, &instalacao);
+        assert_eq!(ler(&link).unwrap(), format!("{origem}/{href}"));
+        assert!(matches!(
+            ler("<p>Controle</p>"),
+            Err(FalhaLeitura::LinkAusente)
+        ));
+        assert!(matches!(
+            ler(&format!("{link}{link}")),
+            Err(FalhaLeitura::LinkAmbiguo)
+        ));
+        assert!(matches!(
+            ler(&format!("<a href='https://outra.example/sei/{href}'>Marcadores</a>")),
+            Err(FalhaLeitura::LinkInvalido)
+        ));
+    }
+
+    // Diagnóstico da navegação na mesma fonte que já validou o leitor.
+    // Não imprime URL, hash, HTML ou cookie da gravação.
+    #[test]
+    #[ignore = "ZIPs originais no IES_ACERVO_CACHE; offline"]
+    fn cassette_menu_catalogo_unb_pen1() {
+        use crate::cassette::acervo::gravacao;
+        use crate::cassette::{
+            ZipDoAcervo, archive_filename, conferir_cassette_ate, html_da_resposta,
+        };
+        let cache = std::env::var_os("IES_ACERVO_CACHE").map_or_else(
+            || std::path::PathBuf::from(std::env::var("HOME").unwrap()).join(".cache/ies"),
+            std::path::PathBuf::from,
+        );
+        for caminho in [
+            "cassettes/unb/marcador-listar-estados-unb--c47ad7e28f89.md",
+            "cassettes/pen1/marcador-listar-estados-pen1--8358611b6263.md",
+        ] {
+            let card = std::path::Path::new(env!("CARGO_MANIFEST_DIR")).join(caminho);
+            let zip = ZipDoAcervo::ler(&cache.join(archive_filename(&card).unwrap())).unwrap();
+            let captura = conferir_cassette_ate(&card, &zip, 120_000_000).unwrap();
+            let instalacao = gravacao::instalacao(&captura.json).unwrap();
+            let mut controles = 0;
+            for r in gravacao::respostas(&captura.json) {
+                if r.operacao != "procedimento_controlar" || r.metodo != "GET" || r.status != 200 {
+                    continue;
+                }
+                let html = HtmlServido::de_teste(&html_da_resposta(r.interacao).unwrap());
+                let servida = gravacao::url_sem_consulta(&captura.json, r.interacao);
+                let resultado = link_do_menu(&html, &servida, &instalacao);
+                assert!(
+                    resultado.is_ok(),
+                    "{caminho}: passo {} sem link utilizável",
+                    r.passo
+                );
+                controles += 1;
+            }
+            assert!(controles > 0, "{caminho}: nenhum Controle original");
+        }
+    }
+
     #[test]
     fn forma_publica_da_cli() {
         for args in [
