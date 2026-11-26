@@ -1,0 +1,7 @@
+cassettes/unb/marcador-listar-estados-unb--c47ad7e28f89.md
+cassettes/go/marcador-listar-estados-go--dccec894637f.md
+cassettes/pen1/marcador-listar-estados-pen1--8358611b6263.md
+cassettes/pen2/marcador-listar-estados-pen2--cf33cf534827.md
+cassettes/pen3/marcador-listar-estados-pen3--bec8c23594cc.md
+cassettes/pen4/marcador-listar-estados-pen4--96cf765a9c69.md
+cassettes/ufrj/marcador-listar-estados-ufrj--2957966bf6ab.md
