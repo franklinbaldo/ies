@@ -400,6 +400,15 @@ fn cassette_pen1_grupos_envio_preservam_ids() {
             .collect::<Vec<_>>(),
         ["110000002", "110000003"]
     );
+    let antes = ler_lista(&tela("grupo_unidade_listar", 0)).unwrap();
+    assert_eq!(
+        antes.iter().map(|l| l.item.id.as_str()).collect::<Vec<_>>(),
+        ["4"]
+    );
     let depois = ler_lista(&tela("grupo_unidade_listar", 13)).unwrap();
-    assert!(depois.iter().all(|l| l.item.id != "6"));
+    // A exclusão do grupo 6 não deve apagar nem modificar o grupo preexistente.
+    assert_eq!(
+        depois.iter().map(|l| &l.item).collect::<Vec<_>>(),
+        antes.iter().map(|l| &l.item).collect::<Vec<_>>()
+    );
 }
