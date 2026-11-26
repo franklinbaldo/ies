@@ -87,7 +87,14 @@ pub(crate) fn tentar_incluir(cli: &Cli) -> Option<anyhow::Result<()>> {
     };
     let processo = processo.clone();
     let [arquivo] = arquivo.as_slice() else {
-        return Some(incluir_lote(cli, &processo, tipo, arquivo, *consultar_sei, *confirmar));
+        return Some(incluir_lote(
+            cli,
+            &processo,
+            tipo,
+            arquivo,
+            *consultar_sei,
+            *confirmar,
+        ));
     };
     // Inspeção local antes de qualquer sessão: nenhuma requisição na recusa.
     let pdf = match inspecionar_pdf(Path::new(arquivo), None) {
@@ -221,9 +228,21 @@ fn incluir_lote(
                 crate::indice_local::anexar_avisos(&mut valor, indice);
                 println!("{valor}");
             } else {
-                println!("Prévia Web de {} PDFs como {} no processo {}.", pdfs.len(), tipo, processo.as_str());
+                println!(
+                    "Prévia Web de {} PDFs como {} no processo {}.",
+                    pdfs.len(),
+                    tipo,
+                    processo.as_str()
+                );
                 for (pdf, item) in pdfs.iter().zip(&itens) {
-                    println!("{} ({} bytes, SHA-256 {}); unidade: {}, limite: {} bytes.", pdf.nome, pdf.tamanho_bytes, pdf.sha256, item["unidade"], item["limite_pdf_bytes"]);
+                    println!(
+                        "{} ({} bytes, SHA-256 {}); unidade: {}, limite: {} bytes.",
+                        pdf.nome,
+                        pdf.tamanho_bytes,
+                        pdf.sha256,
+                        item["unidade"],
+                        item["limite_pdf_bytes"]
+                    );
                 }
                 println!("Nenhum arquivo enviado; nenhum documento cadastrado.");
             }
@@ -231,15 +250,18 @@ fn incluir_lote(
         });
     }
     if cli.json {
-        println!("{}", json!({
-            "escopo": "inspecao_local_lote",
-            "processo": processo.as_str(),
-            "tipo_solicitado": tipo,
-            "itens": pdfs.iter().map(arquivo_json).collect::<Vec<_>>(),
-            "confirmado": false,
-            "escrita_remota": false,
-            "requisicoes": 0
-        }));
+        println!(
+            "{}",
+            json!({
+                "escopo": "inspecao_local_lote",
+                "processo": processo.as_str(),
+                "tipo_solicitado": tipo,
+                "itens": pdfs.iter().map(arquivo_json).collect::<Vec<_>>(),
+                "confirmado": false,
+                "escrita_remota": false,
+                "requisicoes": 0
+            })
+        );
     } else {
         for pdf in &pdfs {
             apresentar_inspecao_local(cli, processo, tipo, pdf);

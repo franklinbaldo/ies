@@ -451,23 +451,5 @@ fn bdd_60_03_cli_baixa_pdf_original_do_estado_compartilhado() {
     );
 }
 
-#[test]
-fn lote_previa_de_dois_pdfs_nao_escreve() {
-    let (saidas, eventos, total, _) = executar(false, true, false, Some(b"%PDF-1.4\n2 0 obj\n%%EOF\n"));
-    assert_eq!(saidas[0].status.code(), Some(0), "{:?}", saidas[0].stderr);
-    let previa = json(&saidas[0]);
-    assert_eq!(previa["escopo"], "previa_web_lote");
-    assert_eq!(previa["itens"][0]["arquivo"]["nome"], "peticao.pdf");
-    assert_eq!(previa["itens"][1]["arquivo"]["nome"], "segundo.pdf");
-    assert_ne!(previa["itens"][0]["arquivo"]["sha256"], previa["itens"][1]["arquivo"]["sha256"]);
-    assert_eq!(total, 0);
-    assert!(!eventos.iter().any(|evento| evento.starts_with("POST documento_upload_anexo") || evento == "POST documento_receber 302"));
-}
-
-#[test]
-fn lote_segundo_pdf_invalido_nao_abre_previa() {
-    let (saidas, eventos, total, _) = executar(false, true, false, Some(b"nao e pdf"));
-    falha(&saidas[0], "Conteudo");
-    assert_eq!(total, 0);
-    assert!(!eventos.iter().any(|evento| evento.starts_with("POST documento_receber") || evento.starts_with("POST documento_upload_anexo")));
-}
+#[path = "aies_pdf_externo_cli/lote.rs"]
+mod lote;

@@ -1,0 +1,69 @@
+use super::*;
+
+#[test]
+fn lote_previa_de_dois_pdfs_nao_escreve() {
+    let (saidas, eventos, total, _) =
+        executar(false, true, false, Some(b"%PDF-1.4\n2 0 obj\n%%EOF\n"));
+    assert_eq!(saidas[0].status.code(), Some(0), "{:?}", saidas[0].stderr);
+    let previa = json(&saidas[0]);
+    assert_eq!(previa["escopo"], "previa_web_lote");
+    assert_eq!(previa["itens"][0]["arquivo"]["nome"], "peticao.pdf");
+    assert_eq!(previa["itens"][1]["arquivo"]["nome"], "segundo.pdf");
+    assert_ne!(
+        previa["itens"][0]["arquivo"]["sha256"],
+        previa["itens"][1]["arquivo"]["sha256"]
+    );
+    assert_eq!(total, 0);
+    assert!(
+        !eventos
+            .iter()
+            .any(|evento| evento.starts_with("POST documento_upload_anexo")
+                || evento == "POST documento_receber 302")
+    );
+}
+
+#[test]
+fn lote_segundo_pdf_invalido_nao_abre_previa() {
+    let (saidas, eventos, total, _) = executar(false, true, false, Some(b"nao e pdf"));
+    falha(&saidas[0], "Conteudo");
+    assert_eq!(total, 0);
+    assert!(
+        !eventos
+            .iter()
+            .any(|evento| evento.starts_with("POST documento_receber")
+                || evento.starts_with("POST documento_upload_anexo"))
+    );
+}
+
+#[test]
+fn lote_confirma_dois_pdfs_em_ordem_sem_retry() {
+    let (saidas, eventos, total, _) =
+        executar(false, false, false, Some(b"%PDF-1.4\n2 0 obj\n%%EOF\n"));
+    assert_eq!(saidas[0].status.code(), Some(0), "{:?}", saidas[0].stderr);
+    let lote = json(&saidas[0]);
+    assert_eq!(lote["escopo"], "confirmacao_web_lote");
+    assert_eq!(lote["itens"][0]["arquivo"]["nome"], "peticao.pdf");
+    assert_eq!(lote["itens"][1]["arquivo"]["nome"], "segundo.pdf");
+    assert_eq!(lote["itens"][0]["numero_sei"], "050000001");
+    let segundo = lote["itens"][1]["numero_sei"].as_str().unwrap();
+    assert_ne!(segundo, "050000001");
+    assert_eq!(total, 2);
+    let primeira_escrita = eventos
+        .iter()
+        .position(|e| e == "POST documento_upload_anexo 200")
+        .expect("primeiro upload");
+    assert!(
+        eventos[..primeira_escrita]
+            .iter()
+            .filter(|e| *e == "POST documento_receber 200")
+            .count()
+            >= 2,
+        "todas as prévias precedem o primeiro upload"
+    );
+    for evento in ["POST documento_upload_anexo 200", "POST documento_receber 302"] {
+        assert_eq!(eventos.iter().filter(|e| e.as_str() == evento).count(), 2);
+    }
+    let arvore = json(&saidas[1])["documentos"].to_string();
+    assert!(arvore.contains("050000001"));
+    assert!(arvore.contains(segundo));
+}
