@@ -177,10 +177,10 @@ fn data_iso_reusa_calendario_civil() {
     }
 }
 
-#[path = "unidade_acervo/total_tests.rs"]
-mod total_tests;
 #[path = "unidade_acervo/paginacao_tests.rs"]
 mod paginacao_tests;
+#[path = "unidade_acervo/total_tests.rs"]
+mod total_tests;
 
 fn detalhe(html: &HtmlServido) -> Result<Pagina, ErroAcervo> {
     let dom = arvore(html);
@@ -472,20 +472,30 @@ fn acervo_detalhe_original() {
             Some(total),
             "{instalacao}: total do relatório"
         );
-        // Os originais PEN1/PEN2 voltam à primeira página depois do fim.
-        // Essa navegação não pertence à travessia de coleta.
-        assert_eq!(lidas.len(), paginas + retornos, "{instalacao}");
-        let voltas = lidas.split_off(paginas);
-        for volta in voltas {
-            assert_eq!(volta.legenda, lidas[0].legenda, "{instalacao}");
-        }
-        let processos = reunir(lidas).expect("cobertura integral da primeira travessia");
-        assert_eq!(processos.len(), total, "{instalacao}");
-        let distintos = processos
-            .iter()
-            .map(|p| p.processo.as_str())
-            .collect::<std::collections::HashSet<_>>()
-            .len();
-        println!("{instalacao}: cobertura={total} NUPs_distintos={distintos}");
+        conferir_travessia_original(instalacao, lidas, total, paginas, retornos);
     }
+}
+
+fn conferir_travessia_original(
+    instalacao: &str,
+    mut lidas: Vec<Pagina>,
+    total: usize,
+    paginas: usize,
+    retornos: usize,
+) {
+    // Os originais PEN1/PEN2 voltam à primeira página depois do fim.
+    // Essa navegação não pertence à travessia de coleta.
+    assert_eq!(lidas.len(), paginas + retornos, "{instalacao}");
+    let voltas = lidas.split_off(paginas);
+    for volta in voltas {
+        assert_eq!(volta.legenda, lidas[0].legenda, "{instalacao}");
+    }
+    let processos = reunir(lidas).expect("cobertura integral da primeira travessia");
+    assert_eq!(processos.len(), total, "{instalacao}");
+    let distintos = processos
+        .iter()
+        .map(|p| p.processo.as_str())
+        .collect::<std::collections::HashSet<_>>()
+        .len();
+    println!("{instalacao}: cobertura={total} NUPs_distintos={distintos}");
 }
