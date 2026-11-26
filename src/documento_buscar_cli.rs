@@ -148,7 +148,7 @@ fn buscar(
     // O formato das datas e os textos já foram conferidos pelo clap.
     if termo.is_empty()
         && filtros.texto.is_none()
-        && !filtros.tipo.is_some_and(|tipo| !tipo.trim().is_empty())
+        && filtros.tipo.is_none_or(|tipo| tipo.trim().is_empty())
         && filtros.de.is_none()
         && filtros.ate.is_none()
     {
@@ -201,8 +201,8 @@ fn buscar(
     busca.requisicoes = relogin_cli::somar(busca.requisicoes, nota.as_ref());
     if cli.json {
         let mut valor = json_da_busca(termo, &busca);
-        if let Some(texto) = filtros.texto {
-            valor["texto"] = json!(texto);
+        if let (Some(objeto), Some(texto)) = (valor.as_object_mut(), filtros.texto) {
+            objeto.insert("texto".to_owned(), json!(texto));
         }
         relogin_cli::anotar(&mut valor, nota.as_ref());
         indice_local::anexar_avisos(&mut valor, &indice);
