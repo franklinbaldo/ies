@@ -137,12 +137,14 @@ fn preparar_banco() -> (Connection, Instalacao) {
     (banco, origem)
 }
 
+type ResultadoBancada = (Vec<Output>, Vec<String>, usize, Vec<Option<Vec<u8>>>);
+
 fn executar(
     cadastro_incerto: Option<usize>,
     somente_previa: bool,
     com_leitura: bool,
     adicionais: &[&[u8]],
-) -> (Vec<Output>, Vec<String>, usize, Vec<Option<Vec<u8>>>) {
+) -> ResultadoBancada {
     executar_com_falha_previa(
         cadastro_incerto,
         None,
@@ -162,7 +164,7 @@ fn executar_com_falha_previa(
     somente_previa: bool,
     com_leitura: bool,
     adicionais: &[&[u8]],
-) -> (Vec<Output>, Vec<String>, usize, Vec<Option<Vec<u8>>>) {
+) -> ResultadoBancada {
     let pasta = Pasta::nova();
     let (cert, identidade_tls) = identidade(&pasta.0, "sei.test");
     let origem = pasta.privado("origem", ORIGEM);
@@ -315,7 +317,7 @@ fn executar_com_falha_previa(
         })
         .collect();
     let mut comandos = vec![&incluir[..], &consultar[..]];
-    comandos.extend(leituras.iter().map(|args| args.as_slice()));
+    comandos.extend(leituras.iter().map(<[&str; 8]>::as_slice));
     let saidas = comandos
         .iter()
         .map(|args| {
