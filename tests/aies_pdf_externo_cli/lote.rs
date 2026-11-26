@@ -2,8 +2,7 @@ use super::*;
 
 #[test]
 fn lote_previa_de_dois_pdfs_nao_escreve() {
-    let (saidas, eventos, total, _) =
-        executar(None, true, false, &[b"%PDF-1.4\n2 0 obj\n%%EOF\n"]);
+    let (saidas, eventos, total, _) = executar(None, true, false, &[b"%PDF-1.4\n2 0 obj\n%%EOF\n"]);
     assert_eq!(saidas[0].status.code(), Some(0), "{:?}", saidas[0].stderr);
     let previa = json(&saidas[0]);
     assert_eq!(previa["escopo"], "previa_web_lote");
@@ -60,7 +59,10 @@ fn lote_confirma_dois_pdfs_em_ordem_sem_retry() {
             >= 2,
         "todas as prévias precedem o primeiro upload"
     );
-    for evento in ["POST documento_upload_anexo 200", "POST documento_receber 302"] {
+    for evento in [
+        "POST documento_upload_anexo 200",
+        "POST documento_receber 302",
+    ] {
         assert_eq!(eventos.iter().filter(|e| e.as_str() == evento).count(), 2);
     }
     let arvore = json(&saidas[1])["documentos"].to_string();
@@ -90,7 +92,10 @@ fn lote_segundo_cadastro_incerto_preserva_primeiro_e_nao_tenta_terceiro() {
     assert_eq!(lote["itens"][1]["upload_tentado"], true);
     assert_eq!(lote["itens"][2]["estado"], "nao_tentado");
     assert_eq!(total, 2, "segundo efeito existiu, terceiro não foi tentado");
-    for evento in ["POST documento_upload_anexo 200", "POST documento_receber 302"] {
+    for evento in [
+        "POST documento_upload_anexo 200",
+        "POST documento_receber 302",
+    ] {
         assert_eq!(eventos.iter().filter(|e| e.as_str() == evento).count(), 2);
     }
 }

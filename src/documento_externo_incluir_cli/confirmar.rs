@@ -120,7 +120,9 @@ pub(super) fn executar_lote(
         // Reconfere todos os arquivos antes da primeira escrita; a sequência
         // individual ainda reabre e confere o descritor efetivamente enviado.
         for (pdf, caminho) in pdfs.iter().zip(caminhos) {
-            drop(crate::documento_externo_incluir::abrir_pdf_para_envio(caminho, pdf)?);
+            drop(crate::documento_externo_incluir::abrir_pdf_para_envio(
+                caminho, pdf,
+            )?);
         }
         let mut itens = Vec::new();
         for (posicao, (pdf, caminho)) in pdfs.iter().zip(caminhos).enumerate() {
@@ -153,10 +155,12 @@ pub(super) fn executar_lote(
                         "upload_tentado": upload_tentado,
                         "requisicoes": requisicoes
                     }));
-                    itens.extend(pdfs[posicao + 1..].iter().map(|restante| json!({
-                        "arquivo": arquivo_json(restante),
-                        "estado": "nao_tentado"
-                    })));
+                    itens.extend(pdfs[posicao + 1..].iter().map(|restante| {
+                        json!({
+                            "arquivo": arquivo_json(restante),
+                            "estado": "nao_tentado"
+                        })
+                    }));
                     return Err(anyhow::Error::from(erro)
                         .context(TentativaNaoComprovada {
                             upload_tentado,
@@ -174,7 +178,10 @@ pub(super) fn executar_lote(
             println!("{valor}");
         } else {
             for item in &itens {
-                println!("{}: documento SEI {}", item["arquivo"]["nome"], item["numero_sei"]);
+                println!(
+                    "{}: documento SEI {}",
+                    item["arquivo"]["nome"], item["numero_sei"]
+                );
             }
         }
         Ok(())
