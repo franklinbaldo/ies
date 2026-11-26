@@ -1,5 +1,5 @@
 //! Primeiro núcleo de leitura de acervo histórico (#878).
-//! Forma derivada do Todos estatisticas.py; confronto original ainda pendente.
+//! Forma de detalhe confrontada com UnB, PEN1 e PEN2 na CI 45745032222.
 use crate::legenda::{ErroLegenda, Legenda, ler_legenda};
 use crate::tela_html::{Elemento, HtmlServido, arvore};
 
@@ -106,6 +106,39 @@ fn detalhe(html: &HtmlServido) -> Result<Pagina, ErroAcervo> {
     Ok(Pagina { legenda, processos })
 }
 
+/// Reúne uma única travessia da lista; a legenda local não basta para
+/// provar ausência de páginas repetidas, puladas ou de outro total.
+/// Mantém a multiplicidade das linhas antes de qualquer deduplicação.
+fn reunir(paginas: impl IntoIterator<Item = Pagina>) -> Result<Vec<ProcessoDoAcervo>, ErroAcervo> {
+    let mut paginas = paginas.into_iter();
+    let primeira = paginas.next().ok_or(ErroAcervo::FaixaIncompleta)?;
+    let total = primeira.legenda.total;
+    let mut processos = Vec::new();
+    for (i, pagina) in std::iter::once(primeira).chain(paginas).enumerate() {
+        if pagina.legenda.total != total || (i > 0 && processos.len() == total) {
+            return Err(ErroAcervo::FaixaIncompleta);
+        }
+        let linhas = pagina.processos.len();
+        let coerente = match pagina.legenda.faixa {
+            Some(f) => {
+                f.inicio.checked_sub(1) == Some(processos.len())
+                    && f.fim.checked_sub(processos.len()) == Some(linhas)
+                    && f.fim <= total
+                    && linhas > 0
+            }
+            None => processos.is_empty() && linhas == total,
+        };
+        if !coerente {
+            return Err(ErroAcervo::FaixaIncompleta);
+        }
+        processos.extend(pagina.processos);
+    }
+    if processos.len() != total {
+        return Err(ErroAcervo::FaixaIncompleta);
+    }
+    Ok(processos)
+}
+
 #[test]
 fn detalhe_preserva_identidade_e_faixa() {
     let tela = HtmlServido::de_teste(
@@ -135,6 +168,47 @@ fn tela_ausente_nao_e_zero() {
     );
 }
 
+#[test]
+fn travessia_exige_cobertura_sem_deduplicar() {
+    use crate::legenda::Faixa;
+    let pagina = |total, inicio, fim| Pagina {
+        legenda: Legenda {
+            total,
+            faixa: Some(Faixa { inicio, fim }),
+        },
+        processos: (inicio..=fim)
+            .map(|_| ProcessoDoAcervo {
+                processo: "A".into(),
+                tipo: "T".into(),
+                orgao: "O".into(),
+                unidade: "U".into(),
+                mes: "10".into(),
+                ano: "2024".into(),
+            })
+            .collect(),
+    };
+    let resultado = reunir([pagina(3, 1, 2), pagina(3, 3, 3)]).unwrap();
+    assert_eq!(resultado.len(), 3);
+    assert_eq!(resultado[0], resultado[2]);
+    for paginas in [
+        vec![pagina(3, 1, 2)],
+        vec![pagina(3, 1, 2), pagina(3, 1, 2)],
+        vec![pagina(3, 1, 1), pagina(3, 3, 3)],
+        vec![pagina(3, 1, 2), pagina(4, 3, 4)],
+        vec![pagina(3, 1, 3), pagina(3, 1, 3)],
+        vec![pagina(3, 2, 3)],
+    ] {
+        assert_eq!(reunir(paginas), Err(ErroAcervo::FaixaIncompleta));
+    }
+    let zero = || Pagina {
+        legenda: Legenda { total: 0, faixa: None },
+        processos: Vec::new(),
+    };
+    assert!(reunir([zero()]).unwrap().is_empty());
+    assert_eq!(reunir([zero(), zero()]), Err(ErroAcervo::FaixaIncompleta));
+    assert_eq!(reunir([]), Err(ErroAcervo::FaixaIncompleta));
+}
+
 /// Somente diagnóstico do leitor de detalhe, não execução da CLI nem prova
 /// de que todas as respostas pertencem à mesma fotografia do acervo.
 #[test]
@@ -149,10 +223,10 @@ fn acervo_detalhe_original() {
         || PathBuf::from(std::env::var_os("HOME").expect("HOME")).join(".cache/ies"),
         PathBuf::from,
     );
-    for (instalacao, revisao) in [
-        ("unb", "74b641c4a8a1"),
-        ("pen1", "5c557e93a6ce"),
-        ("pen2", "c64c576f9a9a"),
+    for (instalacao, revisao, total, paginas, retornos) in [
+        ("unb", "74b641c4a8a1", 21, 1, 0),
+        ("pen1", "5c557e93a6ce", 305, 7, 1),
+        ("pen2", "c64c576f9a9a", 685, 14, 1),
     ] {
         let card = raiz.join(instalacao).join(format!(
             "unidade-estatisticas-acervo-{instalacao}--{revisao}.md"
@@ -162,7 +236,7 @@ fn acervo_detalhe_original() {
         let conferida =
             conferir_cassette_ate(&card, &zip, 120_000_000).expect("integridade do original");
         assert_eq!(conferida.instalacao, instalacao);
-        let mut lidos = 0;
+        let mut lidas = Vec::new();
         let mut recusados = 0;
         for resposta in gravacao::respostas(&conferida.json) {
             if resposta.operacao != "estatisticas_detalhar_unidade" || resposta.status != 200 {
@@ -171,7 +245,6 @@ fn acervo_detalhe_original() {
             let html = html_da_resposta(resposta.interacao).expect("HTML original");
             match detalhe(&HtmlServido::de_teste(&html)) {
                 Ok(p) => {
-                    lidos += 1;
                     println!(
                         "{instalacao}: detalhe passo={} total={} linhas={} faixa={:?}",
                         resposta.passo,
@@ -179,6 +252,7 @@ fn acervo_detalhe_original() {
                         p.processos.len(),
                         p.legenda.faixa
                     );
+                    lidas.push(p);
                 }
                 Err(_) => {
                     recusados += 1;
@@ -186,7 +260,21 @@ fn acervo_detalhe_original() {
                 }
             }
         }
-        assert!(lidos > 0, "{instalacao}: nenhum detalhe reconhecido");
         assert_eq!(recusados, 0, "{instalacao}: detalhes recusados");
+        // Os originais PEN1/PEN2 voltam à primeira página depois do fim.
+        // Essa navegação não pertence à travessia de coleta.
+        assert_eq!(lidas.len(), paginas + retornos, "{instalacao}");
+        let voltas = lidas.split_off(paginas);
+        for volta in voltas {
+            assert_eq!(volta.legenda, lidas[0].legenda, "{instalacao}");
+        }
+        let processos = reunir(lidas).expect("cobertura integral da primeira travessia");
+        assert_eq!(processos.len(), total, "{instalacao}");
+        let distintos = processos
+            .iter()
+            .map(|p| p.processo.as_str())
+            .collect::<std::collections::HashSet<_>>()
+            .len();
+        println!("{instalacao}: cobertura={total} NUPs_distintos={distintos}");
     }
 }
