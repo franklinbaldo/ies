@@ -13,18 +13,22 @@ fn controle() -> String {
     )
 }
 
-fn catalogo(unidade: Option<&str>) -> String {
+fn catalogo(unidade: Option<&str>, legenda: &str) -> String {
     let barra = unidade.map_or_else(String::new, |u| format!("<a id='lnkInfraUnidade'>{u}</a>"));
     format!(
         "<html><body>{barra}<table summary='Tabela de Marcadores.'>\
-         <caption>Lista de Marcadores (1 registro):</caption>\
+         <caption>Lista de Marcadores ({legenda}):</caption>\
          <tr><th>ID</th><th>Nome</th><th>Ícone</th><th>Ações</th></tr>\
          <tr><td>501</td><td>Revisão</td><td><img title='Branco'></td>\
          <td><img title='Desativar Marcador'></td></tr></table></body></html>"
     )
 }
 
-fn executar_catalogo(unidade: Option<&'static str>) -> (Output, Vec<String>) {
+fn executar_catalogo(
+    unidade: Option<&'static str>,
+    legenda: &'static str,
+    argumentos: &[&str],
+) -> (Output, Vec<String>) {
     let (pasta, cert, tls_id, origem, controle_arquivo, cookie) = preparar_sessao();
     let proxy = TcpListener::bind(("127.0.0.1", 0)).unwrap();
     proxy.set_nonblocking(true).unwrap();
@@ -43,7 +47,7 @@ fn executar_catalogo(unidade: Option<&'static str>) -> (Output, Vec<String>) {
             let (_, evento) = pedido_http(&mut canal);
             let html = match evento.as_str() {
                 "GET procedimento_controlar" => controle(),
-                "GET marcador_listar" => catalogo(unidade),
+                "GET marcador_listar" => catalogo(unidade, legenda),
                 _ => panic!("pedido inesperado: {evento}"),
             };
             pedidos.push(evento);
@@ -66,7 +70,7 @@ fn executar_catalogo(unidade: Option<&'static str>) -> (Output, Vec<String>) {
             cert.as_path(),
         ],
         porta,
-        &["--json", "marcador", "listar"],
+        argumentos,
     );
     parar.store(true, Ordering::SeqCst);
     (saida, tunel.join().unwrap())
@@ -76,7 +80,8 @@ fn executar_catalogo(unidade: Option<&'static str>) -> (Output, Vec<String>) {
 fn catalogo_publicado_de_outra_unidade_nao_sai_como_unidade_do_controle() {
     // A mesma tabela válida, mudando exclusivamente a barra de unidade.
     for unidade in [None, Some("TESTE"), Some("OUTRA")] {
-        let (saida, pedidos) = executar_catalogo(unidade);
+        let (saida, pedidos) =
+            executar_catalogo(unidade, "1 registro", &["--json", "marcador", "listar"]);
         assert!(pedidos.iter().any(|p| p == "GET procedimento_controlar"));
         assert!(pedidos.iter().any(|p| p == "GET marcador_listar"));
         assert!(!pedidos.iter().any(|p| p.starts_with("POST ")));
@@ -90,5 +95,37 @@ fn catalogo_publicado_de_outra_unidade_nao_sai_como_unidade_do_controle() {
             assert_eq!(json["itens"][0]["id"], "501");
             assert_eq!(json["itens"][0]["estado"], "ativo");
         }
+    }
+}
+
+#[test]
+fn texto_distingue_faixa_e_estado_mesmo_sem_itens_selecionados() {
+    for (legenda, faixa, argumentos, estado) in [
+        (
+            "4 registros - 2 a 2",
+            "2 a 2",
+            &["marcador", "listar", "--inativos"][..],
+            "inativo",
+        ),
+        (
+            "4 registros - 3 a 3",
+            "3 a 3",
+            &["marcador", "listar", "--inativos"][..],
+            "inativo",
+        ),
+        (
+            "4 registros - 2 a 2",
+            "2 a 2",
+            &["marcador", "listar"][..],
+            "ativo",
+        ),
+    ] {
+        let (saida, pedidos) = executar_catalogo(None, legenda, argumentos);
+        assert_eq!(saida.status.code(), Some(0));
+        assert!(!pedidos.iter().any(|p| p.starts_with("POST ")));
+        let texto = String::from_utf8(saida.stdout).unwrap();
+        assert!(texto.contains(&format!("Estado solicitado: {estado}")));
+        assert!(texto.contains(&format!("Faixa observada: {faixa}")));
+        assert_eq!(texto.contains("501#Revisão"), estado == "ativo");
     }
 }

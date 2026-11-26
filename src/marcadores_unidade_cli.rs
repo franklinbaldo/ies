@@ -143,6 +143,14 @@ pub(super) fn listar(unidade: Option<&str>, json_mode: bool, inativos: bool) -> 
             selecao.total_observado,
             selecao.total_declarado
         );
+        let estado = match selecao.estado {
+            Estado::Ativo => "ativo",
+            Estado::Inativo => "inativo",
+        };
+        println!("Estado solicitado: {estado}");
+        if let Some(faixa) = &selecao.faixa_observada {
+            println!("Faixa observada: {} a {}", faixa.inicio, faixa.fim);
+        }
         for item in selecao.itens {
             println!("{}#{} | {}", item.id, item.nome, item.cor);
         }
