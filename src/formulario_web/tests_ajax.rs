@@ -190,8 +190,10 @@ fn texto_padrao_contrasta_charset_da_tela_com_encode_uri_component() {
 
 #[test]
 fn texto_padrao_nao_aceita_acao_de_contato_nem_campo_de_cadastro() {
-    let outra = texto_padrao_declarada()
-        .replace("texto_padrao_auto_completar", "contato_auto_completar_contexto_RI1225");
+    let outra = texto_padrao_declarada().replace(
+        "texto_padrao_auto_completar",
+        "contato_auto_completar_contexto_RI1225",
+    );
     assert_eq!(
         derivar(&TEXTO_PADRAO, &outra, &[("palavras_pesquisa", "Oficio")]).map(|_| ()),
         Err(ErroSubmissaoFormulario::AcaoDoFormularioDiferenteDaOperacao)
