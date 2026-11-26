@@ -148,11 +148,13 @@ fn replay_documento_criar_go() {
     println!(
         "documento.criar GO: {respostas_alvo} respostas; {lidas} lidas, {recusadas} recusadas, {nao_aplicaveis} não aplicáveis"
     );
-    assert!(cadastros > 0, "nenhum cadastro original para texto padrão");
-    assert_eq!(
-        cadastros,
-        autocomplete_lido + controles_recusados + script_recusado
-    );
+    // Censo nominal do replay original 45815210177: não permitir que
+    // uma regressão no leitor recuse todas as telas e deixe o replay verde.
+    assert_eq!(cadastros, 3);
+    assert_eq!(radio_t, 3);
+    assert_eq!(autocomplete_lido, 3);
+    assert_eq!(controles_recusados, 0);
+    assert_eq!(script_recusado, 0);
     println!(
         "texto padrão GO (somente cadastro): {cadastros} telas, {radio_t} rádio T, {autocomplete_lido} autocomplete reconhecido, {controles_recusados} controles recusados, {script_recusado} script recusado"
     );
