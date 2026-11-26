@@ -4,7 +4,7 @@ use super::arquivo_json;
 use crate::Cli;
 use crate::documento_externo_incluir::{
     PdfLocal,
-    fluxo_confirmar::{executar_confirmacao_https, prevalidar_confirmacao},
+    fluxo_confirmar::{InclusaoComprovada, executar_confirmacao_https, prevalidar_confirmacao},
 };
 use crate::processo::NumeroProcesso;
 use crate::processo_concluir::escrita::Contador;
@@ -124,7 +124,7 @@ pub(super) fn executar_lote(
                 caminho, pdf,
             )?);
         }
-        let mut itens = Vec::new();
+        let mut confirmados = Vec::new();
         for (posicao, (pdf, caminho)) in pdfs.iter().zip(caminhos).enumerate() {
             let mut contagem = Contador::novo(&mut envio);
             let mut upload_tentado = false;
@@ -141,21 +141,20 @@ pub(super) fn executar_lote(
             );
             let requisicoes = contagem.feitas().saturating_add(u8::from(upload_tentado));
             match resultado {
-                Ok(feito) => itens.push(json!({
-                    "arquivo": arquivo_json(pdf),
-                    "estado": "confirmado",
-                    "numero_sei": feito.numero_sei,
-                    "unidade": feito.unidade,
-                    "requisicoes": requisicoes
-                })),
+                Ok(feito) => confirmados.push(Confirmado {
+                    pdf,
+                    feito,
+                    requisicoes,
+                }),
                 Err(erro) => {
+                    let mut itens: Vec<_> = confirmados.iter().map(Confirmado::json).collect();
                     itens.push(json!({
                         "arquivo": arquivo_json(pdf),
                         "estado": if upload_tentado { "nao_comprovado" } else { "sem_upload" },
                         "upload_tentado": upload_tentado,
                         "requisicoes": requisicoes
                     }));
-                    itens.extend(pdfs[posicao + 1..].iter().map(|restante| {
+                    itens.extend(pdfs.iter().skip(posicao + 1).map(|restante| {
                         json!({
                             "arquivo": arquivo_json(restante),
                             "estado": "nao_tentado"
@@ -173,19 +172,35 @@ pub(super) fn executar_lote(
             }
         }
         if cli.json {
+            let itens: Vec<_> = confirmados.iter().map(Confirmado::json).collect();
             let mut valor = resultado_lote(processo, tipo, &itens, true);
             crate::indice_local::anexar_avisos(&mut valor, indice);
             println!("{valor}");
         } else {
-            for item in &itens {
-                println!(
-                    "{}: documento SEI {}",
-                    item["arquivo"]["nome"], item["numero_sei"]
-                );
+            for item in &confirmados {
+                println!("{}: documento SEI {}", item.pdf.nome, item.feito.numero_sei);
             }
         }
         Ok(())
     })
+}
+
+struct Confirmado<'a> {
+    pdf: &'a PdfLocal,
+    feito: InclusaoComprovada,
+    requisicoes: u8,
+}
+
+impl Confirmado<'_> {
+    fn json(&self) -> serde_json::Value {
+        json!({
+            "arquivo": arquivo_json(self.pdf),
+            "estado": "confirmado",
+            "numero_sei": self.feito.numero_sei,
+            "unidade": self.feito.unidade,
+            "requisicoes": self.requisicoes
+        })
+    }
 }
 
 /// A falha conserva stdout vazio (#695); o resultado parcial acompanha o

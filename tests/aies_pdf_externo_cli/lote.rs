@@ -99,3 +99,31 @@ fn lote_segundo_cadastro_incerto_preserva_primeiro_e_nao_tenta_terceiro() {
         assert_eq!(eventos.iter().filter(|e| e.as_str() == evento).count(), 2);
     }
 }
+
+#[test]
+fn lote_segunda_previa_remota_recusada_impede_toda_escrita() {
+    let (saidas, eventos, total, _) = executar_com_falha_previa(
+        None,
+        Some(2),
+        false,
+        false,
+        &[b"%PDF-1.4\n2 0 obj\n%%EOF\n"],
+    );
+    assert_ne!(saidas[0].status.code(), Some(0));
+    assert_eq!(saidas[0].stdout, b"");
+    assert_eq!(
+        eventos
+            .iter()
+            .filter(|e| e.as_str() == "POST documento_receber 500")
+            .count(),
+        1
+    );
+    assert_eq!(total, 0);
+    assert!(
+        !eventos
+            .iter()
+            .any(|e| e.starts_with("POST documento_upload_anexo")
+                || e == "POST documento_receber 302"),
+        "falha na segunda prévia não permite escrita: {eventos:?}"
+    );
+}

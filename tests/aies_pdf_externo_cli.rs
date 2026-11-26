@@ -137,12 +137,28 @@ fn preparar_banco() -> (Connection, Instalacao) {
     (banco, origem)
 }
 
+fn executar(
+    cadastro_incerto: Option<usize>,
+    somente_previa: bool,
+    com_leitura: bool,
+    adicionais: &[&[u8]],
+) -> (Vec<Output>, Vec<String>, usize, Option<Vec<u8>>) {
+    executar_com_falha_previa(
+        cadastro_incerto,
+        None,
+        somente_previa,
+        com_leitura,
+        adicionais,
+    )
+}
+
 #[expect(
     clippy::too_many_lines,
     reason = "Bancada E2E reúne proxy TLS, servidor HTTP e processos reais"
 )]
-fn executar(
+fn executar_com_falha_previa(
     cadastro_incerto: Option<usize>,
+    previa_recusada: Option<usize>,
     somente_previa: bool,
     com_leitura: bool,
     adicionais: &[&[u8]],
@@ -196,6 +212,7 @@ fn executar(
     let tunel = thread::spawn(move || {
         let tls = TlsAcceptor::new(identidade_tls).unwrap();
         let mut cadastros = 0;
+        let mut previas = 0;
         while let Some(mut tcp) = aceitar(&proxy, &sinal_proxy) {
             let (connect, _, _) = pedido(&mut tcp);
             assert!(connect.starts_with(b"CONNECT sei.test:443 HTTP/1.1\r\n"));
@@ -208,7 +225,7 @@ fn executar(
             backend.shutdown(Shutdown::Write).unwrap();
             let mut resposta = Vec::new();
             backend.read_to_end(&mut resposta).unwrap();
-            let status = std::str::from_utf8(
+            let mut status = std::str::from_utf8(
                 &resposta[..resposta.iter().position(|b| *b == b'\r').unwrap()],
             )
             .unwrap()
@@ -216,6 +233,13 @@ fn executar(
             .nth(1)
             .unwrap()
             .to_owned();
+            if metodo == "POST" && acao == "documento_receber" && status == "200" {
+                previas += 1;
+                if previa_recusada == Some(previas) {
+                    resposta = b"HTTP/1.1 500 Internal Server Error\r\nContent-Length: 0\r\nConnection: close\r\n\r\n".to_vec();
+                    status = "500".to_owned();
+                }
+            }
             registro
                 .lock()
                 .unwrap()
@@ -226,7 +250,7 @@ fn executar(
                     let texto = String::from_utf8(resposta).unwrap();
                     let (_, resto) = texto.split_once("id_documento=").unwrap();
                     let id: String = resto.chars().take_while(char::is_ascii_digit).collect();
-                    assert!(!id.is_empty());
+                    assert_ne!(id, "");
                     resposta = texto
                         .replace(&format!("id_documento={id}"), "id_documento=8000000000999")
                         .into_bytes();
