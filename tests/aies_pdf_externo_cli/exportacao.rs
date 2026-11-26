@@ -3,7 +3,7 @@ use super::{Leitura, executar, json};
 #[test]
 fn exportacao_zip_preserva_documento_cadastrado_e_nao_repete_geracao() {
     use sha2::Digest as _;
-    use std::io::Cursor;
+    use std::io::{Cursor, Read};
 
     // Hipótese de saída: o ZIP integral contém o PDF previamente cadastrado.
     // O formulário e o link de download têm replay original separado.
