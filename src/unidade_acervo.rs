@@ -462,7 +462,14 @@ fn acervo_detalhe_original() {
             );
             let tela = HtmlServido::de_teste(&html);
             if lidas.is_empty() {
-                paginacao_tests::observar_formularios(instalacao, &tela);
+                paginacao_tests::observar_formularios(
+                    instalacao,
+                    &tela,
+                    &conferida.json,
+                    resposta.interacao,
+                    &instalacao_gravada,
+                    unidade.as_deref().expect("unidade do Controle anterior"),
+                );
             }
             lidas.push(detalhe(&tela).expect("detalhe original"));
         }
