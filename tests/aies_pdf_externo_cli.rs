@@ -160,7 +160,11 @@ fn executar(
     );
     let cookie = pasta.privado("cookie", "PHPSESSID=FICTICIO");
     let pdf = pasta.0.join("peticao.pdf");
-    fs::write(&pdf, pdf_de_teor.unwrap_or(b"%PDF-1.4\n1 0 obj\n%%EOF\n")).unwrap();
+    fs::write(
+        &pdf,
+        pdf_de_teor.unwrap_or(b"%PDF-1.4\n1 0 obj\n%%EOF\n"),
+    )
+    .unwrap();
 
     let escuta = TcpListener::bind(("127.0.0.1", 0)).unwrap();
     escuta.set_nonblocking(true).unwrap();
@@ -257,7 +261,12 @@ fn executar(
     ];
     let ler_teor_cache = ["--json", "documento", "050000001", "--processo", NUP];
     let ler_teor_sem_cache = [
-        "--json", "documento", "050000001", "--processo", NUP, "--sem-cache",
+        "--json",
+        "documento",
+        "050000001",
+        "--processo",
+        NUP,
+        "--sem-cache",
     ];
     let mut comandos = vec![&incluir[..], &consultar[..]];
     if com_leitura {
@@ -474,6 +483,7 @@ fn pdf_nativo_publica_teor_com_e_sem_cache_sem_alterar_original() {
     // evidência de paridade com uma cassette original do SEI.
     let (saidas, eventos, documentos, arquivo) = executar(false, false, true, Some(PDF_NATIVO));
     assert_eq!(documentos, 1);
+    assert_eq!(saidas.len(), 5);
     assert_eq!(arquivo.as_deref(), Some(PDF_NATIVO));
     assert_eq!(saidas[2].status.code(), Some(0));
     let original = json(&saidas[2]);
@@ -489,7 +499,10 @@ fn pdf_nativo_publica_teor_com_e_sem_cache_sem_alterar_original() {
         assert_eq!(doc["texto"].as_str().map(str::trim), Some("NATIVO ALFA"));
     }
     assert_eq!(
-        eventos.iter().filter(|e| e.as_str() == "GET documento_download_anexo 200").count(),
+        eventos
+            .iter()
+            .filter(|e| e.as_str() == "GET documento_download_anexo 200")
+            .count(),
         3,
         "cada leitura do teor reutiliza o mesmo GET do original"
     );
