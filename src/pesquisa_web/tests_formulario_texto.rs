@@ -76,3 +76,49 @@ fn texto_livre_nao_sai_se_a_tela_nao_publica_q() {
         ) if campo == "q"
     ));
 }
+
+#[test]
+fn texto_livre_utf8_preserva_identidade_nas_duas_paginas() {
+    let url = url_servida();
+    let html = HtmlServido::de_teste(&observado());
+    let mut tela = tela_iso(&url, &html);
+    tela.codificacao = crate::formulario_web::CodificacaoDaTela::Utf8;
+    // As duas sequências Unicode são distintas, mesmo se uma delas parecer
+    // texto mal decodificado. O simulador anuncia UTF-8.
+    for (texto, esperado) in [
+        ("é +&", "q=%C3%A9+%2B%26"),
+        ("Ã© +&", "q=%C3%83%C2%A9+%2B%26"),
+    ] {
+        let filtros = FiltrosDaPesquisa {
+            texto: Some(texto),
+            ..Default::default()
+        };
+        let inicial = derivar_pesquisa_em_filtrada(
+            PesquisarEm::Documentos,
+            &instalacao(),
+            &tela,
+            ("UNIDADE TESTE", ""),
+            filtros,
+        )
+        .unwrap();
+        let seguinte = derivar_pagina_em_filtrada(
+            PesquisarEm::Documentos,
+            &instalacao(),
+            &tela,
+            ("UNIDADE TESTE", ""),
+            10,
+            filtros,
+        )
+        .unwrap();
+        for (envio, inicio) in [(inicial, "hdnInicio=0"), (seguinte, "hdnInicio=10")] {
+            let corpo = String::from_utf8(envio.corpo().to_vec()).unwrap();
+            let pares: Vec<_> = corpo
+                .split('&')
+                .filter(|par| par.starts_with("q="))
+                .collect();
+            assert_eq!(pares, [esperado]);
+            assert!(corpo.split('&').any(|par| par == inicio));
+            assert!(corpo.split('&').any(|par| par == "txtProtocoloPesquisa="));
+        }
+    }
+}
