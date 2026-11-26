@@ -168,3 +168,169 @@ fn unidade_publicada_distingue_ausencia_de_barra_invalida() {
         assert!(conferir_unidade_publicada(&HtmlServido::de_teste(&html), "UNIDADE A").is_err());
     }
 }
+
+mod fluxo {
+    use super::*;
+    use crate::formulario_web::{RespostaDoPost, SubmissaoDerivada};
+    use crate::transporte::{FalhaTransporte, RespostaWeb};
+    use std::collections::VecDeque;
+    use std::io::Cursor;
+
+    const ORIGEM: &str = "https://sei.exemplo.gov.br/sei";
+    const HASH: &str = "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa";
+    const A: &str = "<a id='lnkInfraUnidade' href='#'>UNIDADE A</a>";
+    const B: &str = "<a id='lnkInfraUnidade' href='#'>UNIDADE B</a>";
+
+    fn controle() -> String {
+        format!(
+            "<html><body>{A}<a href='controlador.php?acao=grupo_unidade_listar&amp;infra_hash={HASH}'>Grupos</a>\
+             <table id='tblProcessosRecebidos'><caption>0 registros:</caption></table>\
+             <table id='tblProcessosGerados'><caption>0 registros:</caption></table></body></html>"
+        )
+    }
+
+    fn lista(barra: &str, indice: usize) -> String {
+        let pos = indice + 1;
+        format!(
+            "<html><body>{barra}<form id='frmGrupoUnidadeLista' method='post' \
+             action='controlador.php?acao=grupo_unidade_listar&amp;infra_hash={HASH}'>\
+             <input type='hidden' name='hdnInfraPaginaAtual' value='{indice}'>\
+             <select id='selInfraPaginacaoSuperior' name='selInfraPaginacaoSuperior'>\
+             <option value='0'>1</option><option value='1'>2</option></select>\
+             <table><caption>Grupos de Envio (2 registros - {pos} a {pos}):</caption>\
+             <tr><th></th><th>Nome</th><th>Acoes</th></tr>\
+             <tr><td><input type='checkbox' value='6'></td><td>Grupo</td>\
+             <td><a href='controlador.php?acao=grupo_unidade_consultar&amp;id_grupo_unidade=6&amp;infra_hash={HASH}'>Consultar</a></td></tr>\
+             </table></form></body></html>"
+        )
+    }
+
+    struct Envio {
+        respostas: VecDeque<String>,
+        registro: Vec<&'static str>,
+    }
+
+    impl Envio {
+        fn proxima(&mut self) -> RespostaWeb<Cursor<Vec<u8>>> {
+            let corpo = self.respostas.pop_front().expect("requisição inesperada");
+            crate::transporte::testes_http::resposta(
+                200,
+                "text/html; charset=utf-8",
+                corpo.into_bytes(),
+                None,
+            )
+        }
+    }
+
+    impl EnvioDoControle for Envio {
+        type Corpo = Cursor<Vec<u8>>;
+
+        fn get(
+            &mut self,
+            _: &str,
+            _: &str,
+        ) -> Result<RespostaWeb<Self::Corpo>, FalhaTransporte> {
+            self.registro.push("GET");
+            Ok(self.proxima())
+        }
+
+        fn post(
+            &mut self,
+            submissao: SubmissaoDerivada,
+            _: &str,
+        ) -> Result<RespostaDoPost<Self::Corpo>, FalhaTransporte> {
+            assert!(submissao.url().contains("acao=grupo_unidade_listar"));
+            self.registro.push("POST");
+            Ok(RespostaDoPost {
+                resposta: self.proxima(),
+                localizacao: None,
+            })
+        }
+    }
+
+    #[test]
+    fn fluxo_confere_unidade_no_get_e_post_sem_retry() {
+        let pasta =
+            std::env::temp_dir().join(format!("ies-grupo-unidade-{}", std::process::id()));
+        std::fs::create_dir_all(&pasta).unwrap();
+        let url = pasta.join("url");
+        let origem = pasta.join("origem");
+        let cookie = pasta.join("cookie");
+        for (arquivo, valor) in [
+            (
+                &url,
+                format!("{ORIGEM}/controlador.php?acao=procedimento_controlar&infra_hash={HASH}"),
+            ),
+            (&origem, ORIGEM.to_owned()),
+            (&cookie, "PHPSESSID=SINTETICO".to_owned()),
+        ] {
+            std::fs::write(arquivo, valor).unwrap();
+            #[cfg(unix)]
+            {
+                use std::os::unix::fs::PermissionsExt;
+                std::fs::set_permissions(arquivo, std::fs::Permissions::from_mode(0o600))
+                    .unwrap();
+            }
+        }
+        let sessao = ReferenciasDaSessao::ler(&url, &origem, &cookie).unwrap();
+        let _ = std::fs::remove_dir_all(&pasta);
+
+        // A divergência no GET deve vencer antes de qualquer POST.
+        let mut envio = Envio {
+            respostas: [controle(), lista(B, 0)].into(),
+            registro: Vec::new(),
+        };
+        let erro = ler_via(&sessao, None, &Acao::Listar { pagina: Some(2) }, &mut envio)
+            .unwrap_err();
+        assert_eq!(erro.downcast_ref::<ErroGrupo>(), Some(&ErroGrupo::UnidadeInesperada));
+        assert_eq!(envio.registro, ["GET", "GET"]);
+
+        for (barra, esperada) in [(A, true), ("", true), (B, false)] {
+            let mut envio = Envio {
+                respostas: [controle(), lista(barra, 0)].into(),
+                registro: Vec::new(),
+            };
+            let resultado = ler_via(&sessao, None, &Acao::Listar { pagina: None }, &mut envio);
+            assert_eq!(resultado.is_ok(), esperada, "{resultado:?}");
+            assert_eq!(envio.registro, ["GET", "GET"]);
+            if !esperada {
+                assert_eq!(
+                    resultado.unwrap_err().downcast_ref::<ErroGrupo>(),
+                    Some(&ErroGrupo::UnidadeInesperada)
+                );
+            }
+        }
+        for (barra, esperada) in [(A, true), ("", true), (B, false)] {
+            let mut envio = Envio {
+                respostas: [controle(), lista(A, 0), lista(barra, 1)].into(),
+                registro: Vec::new(),
+            };
+            let resultado = ler_via(&sessao, None, &Acao::Listar { pagina: Some(2) }, &mut envio);
+            assert_eq!(resultado.is_ok(), esperada, "{resultado:?}");
+            assert_eq!(envio.registro, ["GET", "GET", "POST"]);
+            if !esperada {
+                assert_eq!(
+                    resultado.unwrap_err().downcast_ref::<ErroGrupo>(),
+                    Some(&ErroGrupo::UnidadeInesperada)
+                );
+            }
+        }
+        for (barra, esperada) in [(A, true), ("", true), (B, false)] {
+            let consulta = format!("<html><body>{barra}{GRUPO}</body></html>");
+            let mut envio = Envio {
+                respostas: [controle(), lista(A, 0), consulta].into(),
+                registro: Vec::new(),
+            };
+            let resultado =
+                ler_via(&sessao, None, &Acao::Obter { id: "6".to_owned() }, &mut envio);
+            assert_eq!(resultado.is_ok(), esperada, "{resultado:?}");
+            assert_eq!(envio.registro, ["GET", "GET", "GET"]);
+            if !esperada {
+                assert_eq!(
+                    resultado.unwrap_err().downcast_ref::<ErroGrupo>(),
+                    Some(&ErroGrupo::UnidadeInesperada)
+                );
+            }
+        }
+    }
+}
