@@ -61,6 +61,8 @@ mod indice_local;
 mod instalacao;
 mod legenda;
 mod marcadores_processo;
+#[cfg(test)]
+mod marcadores_unidade;
 mod mime_web;
 mod nivel_de_detalhe;
 mod origem_de_treinamento;
