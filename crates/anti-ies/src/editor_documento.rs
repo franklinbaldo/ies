@@ -44,8 +44,8 @@ pub(crate) fn consulta_assinatura(
     if metodo != "GET" {
         return Resposta::nova(Estado::MetodoNaoPermitido);
     }
-    let Some(id) = parametro_unico(alvo, "id_documento")
-        .filter(|id| id.bytes().all(|b| b.is_ascii_digit()))
+    let Some(id) =
+        parametro_unico(alvo, "id_documento").filter(|id| id.bytes().all(|b| b.is_ascii_digit()))
     else {
         return Resposta::nova(Estado::RequisicaoInvalida);
     };
@@ -363,7 +363,8 @@ mod testes_assinatura {
             }],
         };
         guardar(&mut banco, "ensaio", &documento).unwrap();
-        let alvo = "/sei/controlador_ajax.php?acao_ajax=documento_verificar_assinatura&id_documento=21";
+        let alvo =
+            "/sei/controlador_ajax.php?acao_ajax=documento_verificar_assinatura&id_documento=21";
         let pedir = |metodo, alvo, cenario| {
             crate::rotas::responder(metodo, alvo, b"", &banco, &origem, cenario)
         };
@@ -388,7 +389,9 @@ mod testes_assinatura {
             assert_eq!(resposta.tipo_conteudo, "text/xml; charset=utf-8");
             assert_eq!(
                 resposta.corpo,
-                format!("<resposta><complemento nome='SinAssinado'>{sinal}</complemento></resposta>")
+                format!(
+                    "<resposta><complemento nome='SinAssinado'>{sinal}</complemento></resposta>"
+                )
             );
             assert_eq!(
                 ler(&banco, &origem, "ensaio", "21").unwrap(),
