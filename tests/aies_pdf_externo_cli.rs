@@ -142,6 +142,7 @@ enum Leitura {
     Nenhuma,
     Pdf,
     Zip,
+    PdfProcesso,
 }
 
 #[expect(
@@ -261,14 +262,18 @@ fn executar(
         destino_str,
         "--sem-cache",
     ];
-    let exportado = destino_arquivo.join("processo.zip");
+    let (formato, nome) = match leitura {
+        Leitura::PdfProcesso => ("pdf", "processo.pdf"),
+        _ => ("zip", "processo.zip"),
+    };
+    let exportado = destino_arquivo.join(nome);
     let exportar = [
         "--json",
         "processo",
         "exportar",
         NUP,
         "--formato",
-        "zip",
+        formato,
         "--saida",
         exportado.to_str().unwrap(),
     ];
@@ -276,7 +281,7 @@ fn executar(
     match leitura {
         Leitura::Nenhuma => {}
         Leitura::Pdf => comandos.push(&ler_pdf),
-        Leitura::Zip => comandos.push(&exportar),
+        Leitura::Zip | Leitura::PdfProcesso => comandos.push(&exportar),
     }
     let saidas = comandos
         .iter()
@@ -305,7 +310,7 @@ fn executar(
     let total = servidor.join().unwrap();
     let eventos = trilha.lock().unwrap().clone();
     let arquivo = match leitura {
-        Leitura::Zip => fs::read(exportado).ok(),
+        Leitura::Zip | Leitura::PdfProcesso => fs::read(exportado).ok(),
         _ => fs::read(destino_arquivo.join("050000001.pdf")).ok(),
     };
     (saidas, eventos, total, arquivo)
@@ -466,41 +471,5 @@ fn bdd_60_03_cli_baixa_pdf_original_do_estado_compartilhado() {
     );
 }
 
-#[test]
-fn exportacao_zip_preserva_documento_cadastrado_e_nao_repete_geracao() {
-    use sha2::Digest as _;
-    use std::io::Cursor;
-
-    // Hipótese de saída: o ZIP integral contém o PDF previamente cadastrado.
-    // O formulário e o link de download têm replay original separado.
-    let (saidas, eventos, documentos, arquivo) = executar(false, false, Leitura::Zip);
-    assert_eq!(documentos, 1, "exportar não cria novo documento");
-    assert_eq!(saidas[0].status.code(), Some(0), "cadastro: {eventos:?}");
-    assert_eq!(saidas[1].status.code(), Some(0), "releitura: {eventos:?}");
-    assert_eq!(
-        saidas[2].status.code(),
-        Some(0),
-        "exportação: stderr={} HTTP={eventos:?}",
-        String::from_utf8_lossy(&saidas[2].stderr)
-    );
-    let bytes = arquivo.expect("arquivo efetivamente produzido pela CLI");
-    let resultado = json(&saidas[2]);
-    assert_eq!(resultado["formato"], "zip");
-    assert_eq!(resultado["tamanho_bytes"], bytes.len());
-    assert_eq!(
-        resultado["sha256"],
-        hex::encode(sha2::Sha256::digest(&bytes))
-    );
-    let mut zip = zip::ZipArchive::new(Cursor::new(bytes)).unwrap();
-    assert_eq!(zip.len(), 1, "um único documento foi cadastrado");
-    let mut conteudo = Vec::new();
-    zip.by_index(0).unwrap().read_to_end(&mut conteudo).unwrap();
-    assert_eq!(conteudo, b"%PDF-1.4\n1 0 obj\n%%EOF\n");
-    for evento in ["POST procedimento_gerar_zip 200", "GET exibir_arquivo 200"] {
-        assert_eq!(
-            eventos.iter().filter(|e| e.as_str() == evento).count(),
-            1,
-            "{evento}: {eventos:?}"
-        );
-    }
-}
+#[path = "aies_pdf_externo_cli/exportacao.rs"]
+mod exportacao;
