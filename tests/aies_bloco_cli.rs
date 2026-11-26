@@ -364,7 +364,11 @@ fn executar(interno: bool, numero: Option<&str>, previa: bool) -> (Output, Vec<S
         .output()
         .expect("binário ies");
     if previa {
-        assert!(saida.status.success(), "{}", String::from_utf8_lossy(&saida.stderr));
+        assert!(
+            saida.status.success(),
+            "{}",
+            String::from_utf8_lossy(&saida.stderr)
+        );
     }
     let pedidos = tunel.join().expect("GET HTTPS");
     simulador.join().expect("GET anti-IES");
