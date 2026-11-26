@@ -287,9 +287,9 @@ fn iniciar_tunel(
     })
 }
 
-fn executar(interno: bool, numero: Option<&str>) -> (Output, Vec<String>) {
+fn executar(interno: bool, numero: Option<&str>, previa: bool) -> (Output, Vec<String>) {
     let detalhe = numero == Some("2195");
-    let esperados = if interno || detalhe { 3usize } else { 2usize };
+    let esperados = if interno || detalhe || previa { 3 } else { 2 };
     let pasta = Pasta::nova();
     let (cert, identidade) = certificado(&pasta.0);
     let origem = pasta.privado("origem", ORIGEM);
@@ -321,9 +321,13 @@ fn executar(interno: bool, numero: Option<&str>) -> (Output, Vec<String>) {
         )
         .unwrap();
         registrar_blocos(&mut banco, &instalacao, interno, detalhe);
+        let antes = banco.total_changes();
         for _ in 0..esperados {
             let mut fluxo = aceitar(&servidor);
             atender_http(&mut fluxo, Some((&banco, &instalacao, CENARIO))).unwrap();
+        }
+        if previa {
+            assert_eq!(banco.total_changes(), antes);
         }
     });
 
@@ -331,7 +335,9 @@ fn executar(interno: bool, numero: Option<&str>) -> (Output, Vec<String>) {
     let porta = proxy.local_addr().unwrap().port();
     let tunel = iniciar_tunel(proxy, identidade, endereco, esperados);
 
-    let argumentos: Vec<&str> = if let Some(numero) = numero {
+    let argumentos: Vec<&str> = if previa {
+        vec!["--json", "bloco", "criar", "--descricao", "Despachos de teste"]
+    } else if let Some(numero) = numero {
         vec!["--json", "bloco", numero]
     } else if interno {
         vec![
@@ -357,12 +363,15 @@ fn executar(interno: bool, numero: Option<&str>) -> (Output, Vec<String>) {
         .env_remove("IES_CREDENCIAIS_FILE")
         .output()
         .expect("binário ies");
+    if previa {
+        assert!(saida.status.success(), "{}", String::from_utf8_lossy(&saida.stderr));
+    }
     let pedidos = tunel.join().expect("GET HTTPS");
     simulador.join().expect("GET anti-IES");
     assert_eq!(pedidos.len(), esperados);
     assert_eq!(
         pedidos.iter().filter(|p| p.starts_with("GET ")).count(),
-        if detalhe { 3 } else { 2 }
+        if detalhe || previa { 3 } else { 2 }
     );
     assert_eq!(
         pedidos.iter().filter(|p| p.starts_with("POST ")).count(),
@@ -376,6 +385,9 @@ fn executar(interno: bool, numero: Option<&str>) -> (Output, Vec<String>) {
     }));
     if interno {
         assert!(pedidos[2].contains("acao=bloco_interno_listar"));
+    }
+    if previa {
+        assert!(pedidos[2].contains("acao=bloco_assinatura_cadastrar"));
     }
     if detalhe {
         assert!(pedidos[2].contains("acao=rel_bloco_protocolo_listar"));
@@ -396,7 +408,7 @@ fn json(saida: &Output) -> Value {
 // Expectativas sobre o contrato da CLI, nao geradas a partir do HTML do servidor.
 #[test]
 fn bdd_256_01_cli_real_lista_somente_pagina_observada_no_sqlite() {
-    let (saida, pedidos) = executar(false, None);
+    let (saida, pedidos) = executar(false, None, false);
     assert_eq!(
         saida.status.code(),
         Some(0),
@@ -431,7 +443,7 @@ fn bdd_256_01_cli_real_lista_somente_pagina_observada_no_sqlite() {
 /// A expectativa nao e derivada do HTML gerado pelo anti-IES.
 #[test]
 fn bdd_256_02_cli_real_pagina_2_interna_sqlite() {
-    let (saida, pedidos) = executar(true, None);
+    let (saida, pedidos) = executar(true, None, false);
     assert_eq!(
         saida.status.code(),
         Some(0),
@@ -462,7 +474,7 @@ fn bdd_256_02_cli_real_pagina_2_interna_sqlite() {
 /// Expectativas definidas independentemente do HTML gerado pelo simulador.
 #[test]
 fn bdd_256_03_cli_real_detalhe_assinatura_com_estado_e_itens() {
-    let (saida, pedidos) = executar(false, Some("2195"));
+    let (saida, pedidos) = executar(false, Some("2195"), false);
     assert_eq!(
         saida.status.code(),
         Some(0),
@@ -496,8 +508,11 @@ fn bdd_256_03_cli_real_detalhe_assinatura_com_estado_e_itens() {
 /// O numero nao visto nesta pagina nao pode virar inexistencia global.
 #[test]
 fn bdd_256_03_bloco_ausente_da_pagina_recusa_sem_terceiro_get() {
-    let (saida, pedidos) = executar(false, Some("9999"));
+    let (saida, pedidos) = executar(false, Some("9999"), false);
     falha(&saida, "Bloco");
     assert_eq!(pedidos.len(), 2);
     assert!(!String::from_utf8_lossy(&saida.stderr).contains("infra_hash"));
 }
+
+#[path = "aies_bloco_cli/criar.rs"]
+mod criar;
