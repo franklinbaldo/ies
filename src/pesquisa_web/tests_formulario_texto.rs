@@ -20,6 +20,10 @@ fn texto_livre_e_protocolo_sao_controles_distintos() {
         .unwrap();
         let corpo = String::from_utf8(envio.corpo().to_vec()).unwrap();
         assert!(corpo.split('&').any(|par| par == "q=contrato"));
-        assert!(corpo.split('&').any(|par| par.split_once('=') == Some(("txtProtocoloPesquisa", termo))));
+        assert!(
+            corpo
+                .split('&')
+                .any(|par| par.split_once('=') == Some(("txtProtocoloPesquisa", termo)))
+        );
     }
 }
