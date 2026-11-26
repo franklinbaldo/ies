@@ -20,15 +20,21 @@ pub(super) fn observar_formularios(instalacao: &str, html: &HtmlServido) {
             if campo.atributo("type") != Some("hidden") {
                 continue;
             }
-            let Some(nome) = campo.atributo("name").filter(|n| {
-                n.starts_with("hdn") && n.ends_with("PaginaAtual") && identificador(n)
-            }) else {
+            let Some(nome) = campo
+                .atributo("name")
+                .filter(|n| n.starts_with("hdn") && n.ends_with("PaginaAtual") && identificador(n))
+            else {
                 continue;
             };
             candidatos += 1;
             let zero = campo.atributo("value") == Some("0");
+            assert_eq!(id, "frmEstatisticasLista", "{instalacao}");
+            assert!(post, "{instalacao}: formulario deve usar POST");
+            assert_eq!(nome, "hdnInfraPaginaAtual", "{instalacao}");
+            assert!(zero, "{instalacao}: indice inicial deve ser zero");
             println!("{instalacao}: form={id} post={post} campo={nome} indice_zero={zero}");
         }
     }
+    assert_eq!(candidatos, 1, "{instalacao}: campos de paginacao");
     println!("{instalacao}: campos candidatos de paginacao={candidatos}");
 }
