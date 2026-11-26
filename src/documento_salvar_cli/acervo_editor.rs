@@ -80,12 +80,20 @@ fn conferir_recusa_no_original(card_relativo: &str) {
             captura.instalacao,
             resposta.passo
         );
-        if captura.instalacao == "unb" {
-            assert!(nativo::reconhece_classico(&html));
+        let censo = contar_secoes_classicas(&html);
+        if matches!(captura.instalacao.as_str(), "unb" | "ufrj") {
+            assert!(censo.is_some(), "formulário clássico original");
+            assert_eq!(
+                nativo::censo_do_classico(&html),
+                censo,
+                "{}: leitor nativo diverge do censo independente no passo {}",
+                captura.instalacao,
+                resposta.passo
+            );
         } else if captura.instalacao == "go" {
             assert!(nativo::reconhece_ckeditor(&html));
         }
-        if let Some((total, vazias)) = contar_secoes_classicas(&html) {
+        if let Some((total, vazias)) = censo {
             println!(
                 "editor clássico: instalação={}, passo={}, seções={}, vazias literais={}",
                 captura.instalacao, resposta.passo, total, vazias
