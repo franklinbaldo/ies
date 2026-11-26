@@ -299,7 +299,7 @@ fn bdd_remover_anotacoes_deriva_checkbox_do_formulario_servido() {
         for manter_aberto in [false, true] {
             let html = tela_de_envio(versao, ID);
             let tela = conferir_tela_de_envio(&HtmlServido::de_teste(&html), ID).unwrap();
-            let campos = campos_do_envio(&tela, &destino(), manter_aberto, true);
+            let campos = campos_do_envio(&tela, &[destino()], manter_aberto, true);
             let pares: Vec<(&str, &str)> = campos.iter().map(|(n, v)| (*n, v.as_str())).collect();
             let url = url_da_tela();
             let servida = TelaServida {
