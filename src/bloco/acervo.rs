@@ -139,9 +139,11 @@ fn replay_da_criacao_de_bloco_de_assinatura_no_acervo() {
         // O builder Rust só emite campos de usuário que a operação fornece.
         // Observar o default do grupo antes de projetar a submissão.
         let grupo = grupo_padrao_do_cadastro(*form);
-        if instalacao == "ufrj" {
-            assert_eq!(grupo.as_deref(), Some("null"));
-        }
+        assert_eq!(grupo.as_deref(), Some("null"), "{instalacao}");
+        assert_eq!(
+            crate::bloco_cli::criar::grupo_padrao(&html).expect("leitor de produção"),
+            grupo
+        );
         let classe_grupo = match grupo.as_deref() {
             None => "ausente",
             Some("") => "vazio",
