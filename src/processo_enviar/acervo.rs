@@ -134,7 +134,7 @@ fn verificacao(
     };
     let derivado = tela.map_or("sem tela", |tela| {
         let manter = depois.contains(unidade);
-        let campos = campos_do_envio(&tela.conferida, &destino, manter, false);
+        let campos = campos_do_envio(&tela.conferida, &[destino], manter, false);
         let pares: Vec<(&str, &str)> = campos.iter().map(|(n, v)| (*n, v.as_str())).collect();
         match derivar_submissao(&ENVIAR_PROCESSO, inst, &tela_servida(tela), None, &pares) {
             Ok(_) => "POST derivado",
@@ -152,7 +152,8 @@ fn verificacao(
 #[ignore = "lê os ZIPs do acervo em IES_ACERVO_CACHE (padrão ~/.cache/ies); sem rede"]
 fn replay_de_processo_enviar_no_acervo() {
     let mut contagem = Contagem::new();
-    let lidos = percorrer(&["procedimento_enviar"], |_, nome, json| {
+    let mut observacoes_grupo = Vec::new();
+    let lidos = percorrer(&["procedimento_enviar"], |card, nome, json| {
         let Some(inst) = gravacao::instalacao(json) else {
             return;
         };
@@ -191,6 +192,9 @@ fn replay_de_processo_enviar_no_acervo() {
                             tela.as_ref().filter(|t| t.id == id),
                             lida.as_ref(),
                         );
+                        if card == "processo-enviar-grupo-pen1--aaa9bf747035" {
+                            observacoes_grupo.push(v.clone());
+                        }
                         somar(&mut contagem, "verificação", v, nome);
                     }
                     aberto_em.insert(id.clone(), lida);
@@ -289,6 +293,19 @@ fn replay_de_processo_enviar_no_acervo() {
             }
         }
     });
+    // O relatório histórico de 04/11 distingue os dois envios do PEN1.
+    // A ausência de unidade nova não confirma uma nova remessa.
+    assert_eq!(
+        observacoes_grupo
+            .iter()
+            .map(String::as_str)
+            .collect::<Vec<_>>(),
+        [
+            "2 unidades novas em `aberto_em`",
+            "0 unidades novas em `aberto_em`"
+        ],
+        "o envio múltiplo e o reenvio devem ser observados separadamente"
+    );
     let mut s = format!("{lidos} cassettes lidas.\n\n| Leitor | Classe |");
     for i in INSTALACOES {
         let _ = write!(s, " {i} |");
