@@ -170,9 +170,13 @@ fn lote_segunda_previa_sem_hdn_anexos_impede_toda_escrita() {
         false,
         &[b"%PDF-1.4\n2 0 obj\n%%EOF\n"],
     );
-    falha(&saidas[0], "CampoOcultoAusenteNoFormulario");
+    falha(&saidas[0], "Formulario");
     let stderr = String::from_utf8_lossy(&saidas[0].stderr);
-    assert!(stderr.contains("campo: \"hdnAnexos\""), "{stderr}");
+    assert!(
+        stderr.contains("CampoOcultoAusenteNoFormulario")
+            && stderr.contains("campo: \"hdnAnexos\""),
+        "{stderr}"
+    );
     assert_eq!(
         eventos
             .iter()

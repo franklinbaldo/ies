@@ -247,7 +247,7 @@ fn executar_com_falha_previa(
                         Some(("tamanho : 10", "tamanho : 01"))
                     }
                     Some(FalhaPrevia::SemAnexos(n)) if n == previas => {
-                        Some(("name=\"hdnAnexos\"", "name=\"hdnAusent\""))
+                        Some(("name='hdnAnexos'", "name='hdnAusent'"))
                     }
                     _ => None,
                 };
