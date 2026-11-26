@@ -107,9 +107,7 @@ fn replay_da_criacao_de_bloco_de_assinatura_no_acervo() {
         let formulario = respostas
             .iter()
             .find(|r| {
-                r.operacao == "bloco_assinatura_cadastrar"
-                    && r.metodo == "GET"
-                    && r.status == 200
+                r.operacao == "bloco_assinatura_cadastrar" && r.metodo == "GET" && r.status == 200
             })
             .expect("GET do cadastro não gravado");
         let html = HtmlServido::de_teste(
@@ -164,7 +162,10 @@ fn replay_da_criacao_de_bloco_de_assinatura_no_acervo() {
                 .expect("lista de assinatura");
             lista.lista.itens.iter().any(|b| b.numero == id)
         });
-        assert!(relido, "{instalacao}: identidade não observada após criação");
+        assert!(
+            relido,
+            "{instalacao}: identidade não observada após criação"
+        );
         *vistos.entry(instalacao.to_owned()).or_insert(0usize) += 1;
     });
     assert_eq!(vistos.get("ufrj"), Some(&1));
