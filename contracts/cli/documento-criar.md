@@ -33,7 +33,7 @@ efeito separada e contagem; `documento_gerar_multiplo` não é leitura.
 
 WIP #872: `--texto-padrao NOME` apenas na prévia; seleção exata e única, JSON `texto_padrao` com `id` e `nome`. Incompatível com `--confirmar`; confirmação por texto padrão (T) ou modelo (D) indisponível.
 
-O autocomplete é reconhecido lexicalmente nas formas inline e `inicializar`, não por execução JavaScript. Uma declaração após `return` ou uma função redefinida pode ser reconhecida mesmo sem execução pelo navegador. O POST de consulta é inferido; corpo, XML, charset e ausência de efeito externo não foram demonstrados em captura original. A bancada CLI/anti-IES/SQLite é sintética para essa transição; o replay original GO demonstra reconhecimento das declarações e controles, não a consulta efetiva. Nenhum POST criador é permitido nessa prévia.
+Autocomplete lexical (inline/`inicializar`), não execução JS: retorno antecipado ou redefinição podem gerar falso reconhecimento. POST inferido; corpo, XML, charset e efeito externo não comprovados. Bancada CLI/anti-IES/SQLite sintética; replay GO prova controles e declarações, não a consulta efetiva. R270 autoriza a hipótese só em treinamento e sei.test; outras origens recusadas antes da sessão/rede. Não altera a regra de produção nem autoriza POST criador.
 
 ## Confirmação
 

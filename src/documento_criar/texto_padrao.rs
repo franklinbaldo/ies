@@ -14,7 +14,7 @@ const CONSULTA: ConsultaAjax = ConsultaAjax {
     acao_ajax: crate::acao_do_sei::AcaoAjaxDoSei::TextoPadraoAutoCompletar,
     campos: &["palavras_pesquisa"],
     efeito: EfeitoAvaliado::ConsultaSemEfeitoObservado {
-        evidencia: "Todos documento_gerar.html: consulta de opções de texto padrão",
+        evidencia: "Hipótese experimental R270: só treinamento/bancada; efeito externo não comprovado",
     },
 };
 

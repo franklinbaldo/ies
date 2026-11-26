@@ -37,6 +37,9 @@ pub(crate) fn tentar_criar(cli: &Cli) -> Option<anyhow::Result<()>> {
     if *confirmar && let Err(erro) = validar_nivel_de_confirmacao(*nivel) {
         return Some(Err(erro.into()));
     }
+    if texto_padrao.is_some() && let Err(erro) = conferir_origem_da_previa() {
+        return Some(Err(erro));
+    }
     Some(com_sessao(cli, |sessao, indice| {
         let pasta = if *confirmar {
             let pasta = std::env::current_dir()?;
@@ -82,6 +85,16 @@ pub(crate) fn tentar_criar(cli: &Cli) -> Option<anyhow::Result<()>> {
         );
         copia.map(|_| ())
     }))
+}
+
+// A hipótese experimental é restrita antes de ler a sessão. O núcleo
+// confere novamente a origem efetiva, inclusive após troca de sessão.
+fn conferir_origem_da_previa() -> anyhow::Result<()> {
+    let arquivos = crate::configuracao::arquivos_de_acesso()?;
+    let origem = crate::arquivo_privado::ler(&arquivos.origem, 512)
+        .map_err(crate::transporte::FalhaTransporte::OrigemIlegivel)?;
+    crate::origem_de_treinamento::exigir_origem(origem.trim())?;
+    Ok(())
 }
 
 #[derive(Debug, thiserror::Error)]

@@ -102,3 +102,28 @@ fn previa_texto_padrao_cli_usa_catalogo_da_unidade_sem_escrita() {
             .any(|pedido| pedido.starts_with("POST documento_gerar:"))
     );
 }
+
+#[test]
+fn texto_padrao_fora_do_treinamento_recusa_antes_de_ler_sessao() {
+    for origem in [
+        "https://sei.exemplo.gov.br/sei",
+        "https://sei.test.exemplo/sei",
+    ] {
+        let pasta = super::Pasta::nova();
+        let arquivo = pasta.privado("origem", origem);
+        let mut previa = criar(false);
+        previa.extend(["--texto-padrao", "Ofício"]);
+        let saida = std::process::Command::new(env!("CARGO_BIN_EXE_ies"))
+            .args(&previa)
+            .current_dir(&pasta.0)
+            .env("IES_ORIGEM_FILE", arquivo)
+            .env("IES_URL_CONTROLE_FILE", pasta.0.join("url-ausente"))
+            .env("IES_COOKIE_FILE", pasta.0.join("cookie-ausente"))
+            .env("HOME", &pasta.0)
+            .env_remove("IES_CONFIG_FILE")
+            .env_remove("IES_CREDENCIAIS_FILE")
+            .output()
+            .unwrap();
+        super::falha_cli::falha(&saida, "OrigemForaDoTreinamento");
+    }
+}

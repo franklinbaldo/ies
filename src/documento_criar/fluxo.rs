@@ -181,6 +181,10 @@ pub(crate) fn executar_criacao<V: EnvioDoProcesso>(
         }
         validar_nivel_de_confirmacao(pedido.nivel)?;
     }
+    if pedido.texto_padrao.is_some() {
+        crate::origem_de_treinamento::exigir_origem(sessao.origem)
+            .map_err(|_| ErroDocumentoCriar::OrigemNaoAutorizada)?;
+    }
     let instalacao =
         Instalacao::interpretar(sessao.origem).ok_or(ErroDocumentoCriar::OrigemNaoAutorizada)?;
     let mut rede = Contador::novo(envio);
