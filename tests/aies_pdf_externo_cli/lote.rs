@@ -2,8 +2,12 @@ use super::*;
 
 #[test]
 fn lote_previa_de_dois_pdfs_nao_escreve() {
-    let (saidas, eventos, total, _) =
-        executar(None, true, Leitura::Nenhuma, &[b"%PDF-1.4\n2 0 obj\n%%EOF\n"]);
+    let (saidas, eventos, total, _) = executar(
+        None,
+        true,
+        Leitura::Nenhuma,
+        &[b"%PDF-1.4\n2 0 obj\n%%EOF\n"],
+    );
     assert_eq!(saidas[0].status.code(), Some(0), "{:?}", saidas[0].stderr);
     let previa = json(&saidas[0]);
     assert_eq!(previa["escopo"], "previa_web_lote");

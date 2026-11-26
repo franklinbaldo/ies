@@ -158,13 +158,7 @@ fn executar(
     leitura: Leitura,
     adicionais: &[&[u8]],
 ) -> ResultadoBancada {
-    executar_com_falha_previa(
-        cadastro_incerto,
-        None,
-        somente_previa,
-        leitura,
-        adicionais,
-    )
+    executar_com_falha_previa(cadastro_incerto, None, somente_previa, leitura, adicionais)
 }
 
 #[expect(
