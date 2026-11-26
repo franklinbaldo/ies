@@ -191,13 +191,14 @@ fn detalhe_sao_tres_get_sem_post_e_so_numero_da_linha() {
 fn cadastro_post_unico_e_releitura_independente() {
     let arquivos = Arquivos::criar();
     let casos = [
-        (302, Some("2196"), true),
-        (302, Some("2195"), false),
-        (302, Some("9999"), false),
-        (302, None, false),
-        (500, None, false),
+        (302, Some("2196"), true, false),
+        (302, Some("2195"), false, false),
+        (302, Some("9999"), false, false),
+        (302, None, false, false),
+        (500, None, false, false),
+        (302, Some("2196"), false, true),
     ];
-    for (status, id, confirmado) in casos {
+    for (status, id, confirmado, mudou_unidade) in casos {
         let mut envio = envio(false);
         let controle = envio.telas.front().unwrap().clone();
         let lista = envio.telas.back_mut().unwrap();
@@ -227,8 +228,14 @@ fn cadastro_post_unico_e_releitura_independente() {
             ),
         ));
         if status == 302 {
-            envio.telas.push_back(controle);
-            envio.telas.push_back(depois);
+            if mudou_unidade {
+                envio
+                    .telas
+                    .push_back((controle.0, controle.1.replace(">PPI<", ">OUTRA<")));
+            } else {
+                envio.telas.push_back(controle);
+                envio.telas.push_back(depois);
+            }
         }
         envio.aceite = Some((
             status,
@@ -243,7 +250,12 @@ fn cadastro_post_unico_e_releitura_independente() {
         );
         assert_eq!(envio.posts, 1);
         assert!(envio.telas.is_empty());
-        assert_eq!(envio.urls.len(), if status == 302 { 5 } else { 3 });
+        let gets_esperados = match (status, mudou_unidade) {
+            (302, true) => 4,
+            (302, false) => 5,
+            _ => 3,
+        };
+        assert_eq!(envio.urls.len(), gets_esperados);
         if confirmado {
             let valor = resultado.unwrap();
             assert_eq!(valor["bloco"]["numero"], "2196");
