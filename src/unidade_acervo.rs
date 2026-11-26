@@ -369,6 +369,18 @@ fn travessia_exige_cobertura_sem_deduplicar() {
     assert_eq!(reunir([]), Err(ErroAcervo::FaixaIncompleta));
 }
 
+fn conferir_campos(post: &crate::formulario_web::SubmissaoDerivada) {
+    for nome in ["selOrgao", "txtPeriodoDe", "txtPeriodoA", "sbmPesquisar"] {
+        assert_eq!(
+            post.nomes_dos_campos()
+                .iter()
+                .filter(|n| n.as_str() == nome)
+                .count(),
+            1
+        );
+    }
+}
+
 /// Somente diagnóstico do leitor de detalhe, não execução da CLI nem prova
 /// de que todas as respostas pertencem à mesma fotografia do acervo.
 #[test]
@@ -437,15 +449,7 @@ fn acervo_detalhe_original() {
                             data,
                         )
                         .expect("derivacao do formulario original");
-                        for nome in ["selOrgao", "txtPeriodoDe", "txtPeriodoA", "sbmPesquisar"] {
-                            assert_eq!(
-                                post.nomes_dos_campos()
-                                    .iter()
-                                    .filter(|n| n.as_str() == nome)
-                                    .count(),
-                                1
-                            );
-                        }
+                        conferir_campos(&post);
                         formulario_derivado = true;
                     }
                 }
