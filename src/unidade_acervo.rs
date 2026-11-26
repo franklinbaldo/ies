@@ -76,6 +76,70 @@ fn total_do_resultado(html: &HtmlServido) -> Result<(usize, String), ErroAcervo>
     Ok((total, url))
 }
 
+// Hipótese de submissão baseada no Todos; não abre sessão nem envia POST.
+fn formulario_do_acervo(
+    instalacao: &crate::instalacao::Instalacao,
+    tela: &crate::formulario_web::TelaServida<'_>,
+    data: crate::unidade_retornos::DataCivil,
+) -> Result<crate::formulario_web::SubmissaoDerivada, crate::formulario_web::ErroSubmissaoFormulario> {
+    use crate::acao_do_sei::AcaoDoSei;
+    use crate::formulario_web::{
+        ConferenciaDaUnidade, EfeitoAvaliado, EnvioDoFormulario, OperacaoDeFormulario,
+        ResultadoDoEnvio, derivar_submissao,
+    };
+    const CONSULTAR: OperacaoDeFormulario = OperacaoDeFormulario {
+        acao: AcaoDoSei::GerarEstatisticasUnidade,
+        formulario: "frmEstatisticas",
+        envio: EnvioDoFormulario::BotaoDeEnvio("sbmPesquisar"),
+        campos_ocultos_exigidos: &[],
+        campos_ocultos_reescritos: &[],
+        campos_usuario: &["selOrgao", "txtPeriodoDe", "txtPeriodoA"],
+        resultado: ResultadoDoEnvio::ConferidoPorLeituraPosterior,
+        unidade: ConferenciaDaUnidade::NaTelaDeOrigemDoLink,
+        efeito: EfeitoAvaliado::ConsultaSemEfeitoObservado {
+            evidencia: "Todos estatisticas.py: consulta historica, sem escrita observada",
+        },
+    };
+    let data = data.to_string();
+    derivar_submissao(
+        &CONSULTAR,
+        instalacao,
+        tela,
+        None,
+        &[
+            ("selOrgao", ""),
+            ("txtPeriodoDe", &data),
+            ("txtPeriodoA", &data),
+        ],
+    )
+}
+
+#[test]
+fn formulario_sintetico_envia_orgao_vazio_e_um_dia() {
+    use crate::formulario_web::tests::{HASH_TELA, instalacao, tela_iso};
+    let url = format!(
+        "https://sei.exemplo.gov.br/sei/controlador.php?acao=gerar_estatisticas_unidade&infra_hash={HASH_TELA}"
+    );
+    let html = HtmlServido::de_teste(&format!(
+        "<form id='frmEstatisticas' method='post' action='controlador.php?acao=gerar_estatisticas_unidade&amp;infra_hash={HASH_TELA}'>\
+         <select name='selOrgao'><option value='null' selected>Todos</option></select>\
+         <input name='txtPeriodoDe'><input name='txtPeriodoA'>\
+         <input type='submit' name='sbmPesquisar' value='Pesquisar'></form>"
+    ));
+    let data = crate::cli_unidade_aux::data_do_acervo("2024-02-29").unwrap();
+    let post = formulario_do_acervo(&instalacao(), &tela_iso(&url, &html), data).unwrap();
+    assert_eq!(
+        post.nomes_dos_campos(),
+        ["selOrgao", "txtPeriodoDe", "txtPeriodoA", "sbmPesquisar"]
+    );
+    assert_eq!(
+        std::str::from_utf8(post.corpo()).unwrap(),
+        "selOrgao=&txtPeriodoDe=29%2F02%2F2024&txtPeriodoA=29%2F02%2F2024&sbmPesquisar=Pesquisar"
+    );
+    let ausente = HtmlServido::de_teste(&html.as_str().replace("txtPeriodoA", "outro"));
+    assert!(formulario_do_acervo(&instalacao(), &tela_iso(&url, &ausente), data).is_err());
+}
+
 #[test]
 fn data_iso_reusa_calendario_civil() {
     use crate::cli_unidade_aux::data_do_acervo;
@@ -328,6 +392,8 @@ fn acervo_detalhe_original() {
         assert_eq!(conferida.instalacao, instalacao);
         let mut lidas = Vec::new();
         let mut recusados = 0;
+        let mut formulario_derivado = false;
+        let instalacao_gravada = gravacao::instalacao(&conferida.json).expect("instalacao gravada");
         let mut total_anterior = None;
         for resposta in gravacao::respostas(&conferida.json) {
             if resposta.operacao == "gerar_estatisticas_unidade"
@@ -336,6 +402,31 @@ fn acervo_detalhe_original() {
             {
                 let html = html_da_resposta(resposta.interacao).expect("HTML original");
                 let tela = HtmlServido::de_teste(&html);
+                if resposta.metodo == "GET" && !formulario_derivado {
+                    let dom = arvore(&tela);
+                    if crate::formulario_web::localizar_formulario(&dom, "frmEstatisticas").is_ok() {
+                        let url = gravacao::url_sem_consulta(&conferida.json, resposta.interacao);
+                        let codificacao = crate::pagina_do_controle::codificacao_da_tela(
+                            &gravacao::mime(resposta.interacao),
+                        )
+                        .expect("charset original");
+                        let servida = crate::formulario_web::TelaServida {
+                            url: &url,
+                            html: &tela,
+                            codificacao,
+                        };
+                        let data = crate::cli_unidade_aux::data_do_acervo("2024-02-29").unwrap();
+                        let post = formulario_do_acervo(&instalacao_gravada, &servida, data)
+                            .expect("derivacao do formulario original");
+                        for nome in ["selOrgao", "txtPeriodoDe", "txtPeriodoA", "sbmPesquisar"] {
+                            assert_eq!(
+                                post.nomes_dos_campos().iter().filter(|n| n.as_str() == nome).count(),
+                                1
+                            );
+                        }
+                        formulario_derivado = true;
+                    }
+                }
                 if let Ok((n, _)) = total_do_resultado(&tela) {
                     total_anterior = Some(n);
                     println!("{instalacao}: resultado passo={} total={n}", resposta.passo);
@@ -345,23 +436,21 @@ fn acervo_detalhe_original() {
                 continue;
             }
             let html = html_da_resposta(resposta.interacao).expect("HTML original");
-            match detalhe(&HtmlServido::de_teste(&html)) {
-                Ok(p) => {
-                    println!(
-                        "{instalacao}: detalhe passo={} total={} linhas={} faixa={:?}",
-                        resposta.passo,
-                        p.legenda.total,
-                        p.processos.len(),
-                        p.legenda.faixa
-                    );
-                    lidas.push(p);
-                }
-                Err(_) => {
-                    recusados += 1;
-                    println!("{instalacao}: detalhe passo={} recusado", resposta.passo);
-                }
+            if let Ok(p) = detalhe(&HtmlServido::de_teste(&html)) {
+                println!(
+                    "{instalacao}: detalhe passo={} total={} linhas={} faixa={:?}",
+                    resposta.passo,
+                    p.legenda.total,
+                    p.processos.len(),
+                    p.legenda.faixa
+                );
+                lidas.push(p);
+            } else {
+                recusados += 1;
+                println!("{instalacao}: detalhe passo={} recusado", resposta.passo);
             }
         }
+        assert!(formulario_derivado, "{instalacao}: formulario GET ausente");
         assert_eq!(recusados, 0, "{instalacao}: detalhes recusados");
         assert_eq!(
             total_anterior,
