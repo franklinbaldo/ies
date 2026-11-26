@@ -36,6 +36,7 @@ pub(crate) struct AcoesDeEstado {
     pub(crate) lista_ciencias:
         Result<Option<EnderecoDeEscrita>, crate::arvore_processo::ErroCienciaNaArvore>,
     pub(crate) anexar: Result<Option<EnderecoDeEscrita>, ErroAnexarNaBarra>,
+    pub(crate) exportacao: crate::arvore_processo::LinksExportacao,
     /// Atribuição do processo na unidade atual.
     pub(crate) atribuir: Result<Option<EnderecoDeEscrita>, ErroAtribuirNaBarra>,
     /// Ação de registrar andamento, lida da barra do processo.

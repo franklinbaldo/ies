@@ -26,9 +26,7 @@ impl Arquivos {
         let arquivos = [
             (
                 "controle",
-                format!(
-                    "{ORIGEM}/controlador.php?acao=procedimento_controlar&infra_hash={HASH}"
-                ),
+                format!("{ORIGEM}/controlador.php?acao=procedimento_controlar&infra_hash={HASH}"),
             ),
             ("origem", ORIGEM.to_owned()),
             ("cookie", "PHPSESSID=SINTETICO".to_owned()),
@@ -39,8 +37,7 @@ impl Arquivos {
             #[cfg(unix)]
             {
                 use std::os::unix::fs::PermissionsExt;
-                std::fs::set_permissions(&caminho, std::fs::Permissions::from_mode(0o600))
-                    .unwrap();
+                std::fs::set_permissions(&caminho, std::fs::Permissions::from_mode(0o600)).unwrap();
             }
         }
         let sessao = ReferenciasDaSessao::ler(
@@ -70,15 +67,12 @@ impl EnvioDoControle for EnvioFalso {
         submissao: SubmissaoDerivada,
         cookie: &str,
     ) -> Result<RespostaDoPost<Self::Corpo>, FalhaTransporte> {
-        let (status_code, localizacao) =
-            self.aceite.take().expect("POST não previsto ou repetido");
+        let (status_code, localizacao) = self.aceite.take().expect("POST não previsto ou repetido");
         assert_eq!(self.urls.len(), 3, "POST antes da prévia completa");
         assert_eq!(cookie, "PHPSESSID=SINTETICO");
         assert_eq!(
             submissao.url(),
-            format!(
-                "{ORIGEM}/controlador.php?acao=bloco_assinatura_cadastrar&infra_hash={HASH}"
-            )
+            format!("{ORIGEM}/controlador.php?acao=bloco_assinatura_cadastrar&infra_hash={HASH}")
         );
         assert_eq!(
             submissao.corpo(),
@@ -219,8 +213,7 @@ fn cadastro_post_unico_e_releitura_independente() {
                     ),
                 ),
         );
-        let cadastro =
-            format!("controlador.php?acao=bloco_assinatura_cadastrar&infra_hash={HASH}");
+        let cadastro = format!("controlador.php?acao=bloco_assinatura_cadastrar&infra_hash={HASH}");
         lista.1.push_str(&format!(
             "<button id='btnNovo' onclick=\"location.href='{cadastro}'\">Novo</button>"
         ));
