@@ -281,7 +281,7 @@ mod tests {
 #[cfg(test)]
 #[test]
 #[ignore = "exige ZIP original PEN1 verificado em IES_ACERVO_CACHE"]
-fn replay_grupos_envio_pen1_no_acervo() {
+fn cassette_pen1_grupos_envio_preservam_ids() {
     use crate::cassette::acervo::gravacao;
     use crate::cassette::{ZipDoAcervo, conferir_cassette_ate, html_da_resposta};
     use std::path::Path;
@@ -295,6 +295,7 @@ fn replay_grupos_envio_pen1_no_acervo() {
     // Ordinais e oráculo independente: Todos @caabe699 tests/test_grupo_envio_010.py.
     let tela = |acao: &str, ordem: usize| {
         let r = gravacao::respostas(&gravada.json)
+            .into_iter()
             .filter(|r| r.operacao == acao && r.metodo == "GET")
             .nth(ordem)
             .expect("resposta esperada no original");
