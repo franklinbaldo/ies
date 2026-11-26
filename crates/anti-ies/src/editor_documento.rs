@@ -156,6 +156,7 @@ fn salvar_editor_4(
     origem: &Instalacao,
     cenario: &str,
     id: &str,
+    procedimento: Option<&str>,
 ) -> Resposta {
     let (Some(versao_base), Some(html_editado), Some("N")) = (
         campo_formulario_unico(corpo, "hdnVersao")
@@ -175,6 +176,9 @@ fn salvar_editor_4(
     let Ok(Some(documento)) = ler(banco, origem, cenario, id) else {
         return Resposta::nova(Estado::DadosInsuficientes);
     };
+    if procedimento != Some(documento.id_procedimento.as_str()) {
+        return Resposta::nova(Estado::RequisicaoInvalida);
+    }
     let Some(ultima) = documento.revisoes.iter().max_by_key(|r| r.versao) else {
         return Resposta::nova(Estado::DadosInsuficientes);
     };
@@ -228,7 +232,14 @@ pub fn responder(
         (Some("documento_editar"), "GET") => formulario(banco, origem, cenario, id),
         (Some("documento_editar"), "POST") => salvar(corpo, banco, origem, cenario, id),
         (Some("editor_montar"), "GET") => formulario_editor_4(banco, origem, cenario, id),
-        (Some("editor_salvar"), "POST") => salvar_editor_4(corpo, banco, origem, cenario, id),
+        (Some("editor_salvar"), "POST") => salvar_editor_4(
+            corpo,
+            banco,
+            origem,
+            cenario,
+            id,
+            parametro_unico(alvo, "id_procedimento"),
+        ),
         _ => Resposta::nova(Estado::MetodoNaoPermitido),
     }
 }
