@@ -52,9 +52,7 @@ pub(crate) fn ler(html: &HtmlServido) -> Result<Lista, ErroCatalogo> {
     let mut tabelas = dom
         .elementos("table")
         .filter(|e| e.atributo("summary") == Some("Tabela de Marcadores."));
-    let tabela = tabelas
-        .next()
-        .ok_or(ErroCatalogo::TabelaAusenteOuAmbigua)?;
+    let tabela = tabelas.next().ok_or(ErroCatalogo::TabelaAusenteOuAmbigua)?;
     if tabelas.next().is_some() {
         return Err(ErroCatalogo::TabelaAusenteOuAmbigua);
     }
@@ -67,9 +65,7 @@ pub(crate) fn ler(html: &HtmlServido) -> Result<Lista, ErroCatalogo> {
     }
     let legenda = ler_legenda(&legenda.texto())?;
     let mut linhas = tabela.elementos("tr");
-    let cabecalho = linhas
-        .next()
-        .ok_or(ErroCatalogo::CabecalhoNaoReconhecido)?;
+    let cabecalho = linhas.next().ok_or(ErroCatalogo::CabecalhoNaoReconhecido)?;
     let nomes: Vec<_> = cabecalho
         .filhos()
         .filter(|e| e.nome() == "th")
@@ -119,13 +115,14 @@ pub(crate) fn ler(html: &HtmlServido) -> Result<Lista, ErroCatalogo> {
         if !ids.insert(id.clone()) {
             return Err(ErroCatalogo::IdRepetido);
         }
-        let mut estados = celula(acoes)?
-            .elementos("img")
-            .filter_map(|e| match e.atributo("title") {
-                Some("Desativar Marcador") => Some(Estado::Ativo),
-                Some("Reativar Marcador") => Some(Estado::Inativo),
-                _ => None,
-            });
+        let mut estados =
+            celula(acoes)?
+                .elementos("img")
+                .filter_map(|e| match e.atributo("title") {
+                    Some("Desativar Marcador") => Some(Estado::Ativo),
+                    Some("Reativar Marcador") => Some(Estado::Inativo),
+                    _ => None,
+                });
         let estado = estados.next().ok_or(ErroCatalogo::EstadoNaoDemonstrado)?;
         if estados.next().is_some() {
             return Err(ErroCatalogo::EstadoNaoDemonstrado);
@@ -227,6 +224,27 @@ mod tests {
         );
     }
 
+    #[test]
+    fn pagina_parcial_preserva_total_e_faixa() {
+        let parcial = MISTA.replace("2 registros", "4 registros - 2 a 3");
+        let lista = ler_texto(&parcial).unwrap();
+        assert_eq!(lista.total_declarado, 4);
+        assert_eq!(lista.faixa_observada, Some(Faixa { inicio: 2, fim: 3 }));
+        assert_eq!(lista.itens.len(), 2);
+    }
+
+    #[test]
+    fn vazio_explicito_preserva_total_zero() {
+        let vazio = r#"<table summary="Tabela de Marcadores.">
+        <caption>Lista de Marcadores (0 registros):</caption>
+        <tr><th></th><th>Nome</th><th>Ações</th><th>ID</th><th>Ícone</th></tr>
+        </table>"#;
+        let lista = ler_texto(vazio).unwrap();
+        assert_eq!(lista.total_declarado, 0);
+        assert_eq!(lista.faixa_observada, None);
+        assert!(lista.itens.is_empty());
+    }
+
     // Fonte original, separada do exemplo sintético e da inspeção de hashes.
     // O oráculo alternativo é o value do checkbox da linha, não o texto ID.
     #[test]
@@ -259,30 +277,37 @@ mod tests {
                     .elementos("table")
                     .find(|e| e.atributo("summary") == Some("Tabela de Marcadores."))
                     .unwrap();
-                let ids: Vec<_> = tabela
-                    .elementos("input")
-                    .filter(|e| e.atributo("type") == Some("checkbox"))
-                    .map(|e| e.atributo("value").unwrap())
+                // O checkbox testemunha a identidade; o título da ação
+                // testemunha o estado da mesma linha, não só a contagem.
+                let esperados: Vec<_> = tabela
+                    .elementos("tr")
+                    .filter_map(|linha| {
+                        let checkbox = linha.elementos("input").find(|e| {
+                            e.atributo("type") == Some("checkbox")
+                                && e.atributo("value").is_some()
+                        })?;
+                        let id = checkbox.atributo("value").unwrap();
+                        let ativo = linha
+                            .elementos("img")
+                            .any(|e| e.atributo("title") == Some("Desativar Marcador"));
+                        let inativo = linha
+                            .elementos("img")
+                            .any(|e| e.atributo("title") == Some("Reativar Marcador"));
+                        assert_ne!(ativo, inativo, "estado original ambíguo");
+                        let estado = if ativo {
+                            Estado::Ativo
+                        } else {
+                            Estado::Inativo
+                        };
+                        Some((id, estado))
+                    })
                     .collect();
-                let obtidos: Vec<_> = lista.itens.iter().map(|m| m.id.as_str()).collect();
-                assert_eq!(ids.len(), obtidos.len());
-                assert!(ids.iter().zip(&obtidos).all(|(a, b)| a == b));
-                let ativos = tabela
-                    .elementos("img")
-                    .filter(|e| e.atributo("title") == Some("Desativar Marcador"))
-                    .count();
-                let inativos = tabela
-                    .elementos("img")
-                    .filter(|e| e.atributo("title") == Some("Reativar Marcador"))
-                    .count();
-                assert_eq!(
-                    ativos,
-                    lista.itens.iter().filter(|m| m.estado == Estado::Ativo).count()
-                );
-                assert_eq!(
-                    inativos,
-                    lista.itens.iter().filter(|m| m.estado == Estado::Inativo).count()
-                );
+                let obtidos: Vec<_> = lista
+                    .itens
+                    .iter()
+                    .map(|m| (m.id.as_str(), m.estado))
+                    .collect();
+                assert_eq!(esperados, obtidos);
                 paginas += 1;
             }
             assert!(paginas > 0, "nenhuma página de catálogo original foi lida");
