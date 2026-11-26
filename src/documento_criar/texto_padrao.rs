@@ -58,6 +58,9 @@ pub(super) fn url_publicada(html: &HtmlServido) -> Result<String, ErroTextoPadra
             return Err(ErroTextoPadrao::ControlesNaoOferecidos);
         }
     }
+    let inicializar_no_onload = dom
+        .elementos("body")
+        .any(|body| body.atributo("onload").map(str::trim) == Some("inicializar();"));
     let mut urls = Vec::new();
     for script in dom.elementos("script") {
         if script.presente("src")
@@ -68,18 +71,60 @@ pub(super) fn url_publicada(html: &HtmlServido) -> Result<String, ErroTextoPadra
             continue;
         }
         let texto = script.texto();
-        urls.extend(
-            texto
-                .lines()
-                .filter_map(|linha| linha.trim().strip_prefix(PREFIXO))
-                .filter_map(|resto| resto.strip_suffix("');"))
-                .map(str::to_owned),
-        );
+        if texto.contains(PREFIXO) {
+            urls.extend(
+                urls_declaradas(&texto, inicializar_no_onload)
+                    .ok_or(ErroTextoPadrao::AutocompletarNaoDeclarado)?,
+            );
+        }
     }
     match urls.as_slice() {
         [url] if url.starts_with("controlador_ajax.php?") => Ok(url.clone()),
         _ => Err(ErroTextoPadrao::AutocompletarNaoDeclarado),
     }
+}
+
+/// Reconhece a forma inline sintética e a função inicializar publicada
+/// pelo cadastro observado. Não interpreta o fluxo de controle do JS.
+fn urls_declaradas(texto: &str, chamado_no_onload: bool) -> Option<Vec<String>> {
+    let mut urls = Vec::new();
+    let mut urls_inicializar = Vec::new();
+    let mut em_inicializar = false;
+    let mut chamado = chamado_no_onload;
+    super::guarda_navegacao::visitar_codigo(texto, |indice, atual, profundidade, ultimo| {
+        if atual == '}' && profundidade == 1 {
+            em_inicializar = false;
+        }
+        if !matches!(atual, 'f' | 'i' | 'o')
+            || !texto[..indice].rsplit('\n').next()?.trim().is_empty()
+            || !matches!(ultimo, ' ' | ';' | '}' | '{')
+        {
+            return Some(());
+        }
+        let linha = texto[indice..].lines().next()?.trim_end();
+        if profundidade == 0 {
+            if matches!(linha, "function inicializar(){" | "function inicializar() {") {
+                em_inicializar = true;
+            } else if linha == "inicializar();" {
+                chamado = true;
+            }
+        }
+        if let Some(url) = linha
+            .strip_prefix(PREFIXO)
+            .and_then(|resto| resto.strip_suffix("');"))
+        {
+            if profundidade == 0 {
+                urls.push(url.to_owned());
+            } else if profundidade == 1 && em_inicializar {
+                urls_inicializar.push(url.to_owned());
+            }
+        }
+        Some(())
+    })?;
+    if chamado {
+        urls.extend(urls_inicializar);
+    }
+    Some(urls)
 }
 
 /// Nome exato, não busca parcial; mantém o ID e a descrição da mesma opção.
@@ -193,6 +238,8 @@ mod tests {
             format!("/*\n{declaracao}\n*/"),
             format!("const exemplo = `\n{declaracao}\n`;"),
             format!("if (false) {{\n{declaracao}\n}}"),
+            format!("function inicializar() {{\n{declaracao}\n}}"),
+            format!("function inicializar() {{\nif (false) {{\n{declaracao}\n}}\n}}\ninicializar();"),
         ] {
             assert!(matches!(
                 url_publicada(&cadastro(&inerte)),
