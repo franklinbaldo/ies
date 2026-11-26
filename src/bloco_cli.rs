@@ -346,15 +346,41 @@ mod tests_fluxo {
     struct EnvioFalso {
         telas: VecDeque<(String, String)>,
         urls: Vec<String>,
+        aceite: Option<(u16, Option<String>)>,
+        posts: usize,
     }
     impl EnvioDoControle for EnvioFalso {
         type Corpo = Cursor<Vec<u8>>;
         fn post(
             &mut self,
-            _: SubmissaoDerivada,
-            _: &str,
+            submissao: SubmissaoDerivada,
+            cookie: &str,
         ) -> Result<RespostaDoPost<Self::Corpo>, FalhaTransporte> {
-            panic!("leitura de blocos nunca pode fazer POST")
+            let (status_code, localizacao) =
+                self.aceite.take().expect("POST não previsto ou repetido");
+            assert_eq!(self.urls.len(), 3, "POST antes da prévia completa");
+            assert_eq!(cookie, "PHPSESSID=SINTETICO");
+            assert_eq!(
+                submissao.url(),
+                format!(
+                    "{ORIGEM}/controlador.php?acao=bloco_assinatura_cadastrar&infra_hash={HASH}"
+                )
+            );
+            assert_eq!(
+                submissao.corpo(),
+                b"txtDescricao=Treinamento&selGrupoBloco=null&sbmCadastrarBloco=Salvar"
+            );
+            self.posts += 1;
+            Ok(RespostaDoPost {
+                resposta: RespostaWeb {
+                    status_code,
+                    mime: "text/html; charset=utf-8".to_owned(),
+                    content_length: None,
+                    localizacao: None,
+                    corpo: Cursor::new(Vec::new()),
+                },
+                localizacao,
+            })
         }
         fn get(
             &mut self,
@@ -409,6 +435,8 @@ mod tests_fluxo {
         EnvioFalso {
             telas,
             urls: Vec::new(),
+            aceite: None,
+            posts: 0,
         }
     }
     #[test]
@@ -451,6 +479,77 @@ mod tests_fluxo {
         assert_eq!(valor["requisicoes"], 3);
         assert_eq!(valor["bloco"]["itens"][0]["documento"], "001");
     }
+    #[test]
+    fn cadastro_post_unico_e_releitura_independente() {
+        let arquivos = Arquivos::criar();
+        let casos = [
+            (302, Some("2196"), true),
+            (302, Some("2195"), false),
+            (302, Some("9999"), false),
+            (302, None, false),
+            (500, None, false),
+        ];
+        for (status, id, confirmado) in casos {
+            let mut envio = envio(false);
+            let controle = envio.telas.front().unwrap().clone();
+            let lista = envio.telas.back_mut().unwrap();
+            let depois = (
+                lista.0.clone(),
+                lista
+                    .1
+                    .replace("1 registros", "2 registros")
+                    .replace(
+                        "</table>",
+                        &format!(
+                            "<tr><td><input type='checkbox'></td><td><a href='controlador.php?acao=rel_bloco_protocolo_listar&amp;id_bloco=2196&amp;infra_hash={HASH}'>2196</a></td><td>Gerado</td><td>Treinamento</td></tr></table>"
+                        ),
+                    ),
+            );
+            let cadastro = format!(
+                "controlador.php?acao=bloco_assinatura_cadastrar&infra_hash={HASH}"
+            );
+            lista.1.push_str(&format!(
+                "<button id='btnNovo' onclick=\"location.href='{cadastro}'\">Novo</button>"
+            ));
+            envio.telas.push_back((
+                format!("{ORIGEM}/{cadastro}"),
+                format!(
+                    "<form id='frmBlocoCadastro' method='post' action='{cadastro}'>\
+                     <textarea name='txtDescricao'></textarea>\
+                     <select name='selGrupoBloco'><option value='null'>Nenhum</option></select>\
+                     <button type='submit' name='sbmCadastrarBloco' value='Salvar'>Salvar</button></form>"
+                ),
+            ));
+            if status == 302 {
+                envio.telas.push_back(controle);
+                envio.telas.push_back(depois);
+            }
+            envio.aceite = Some((
+                status,
+                id.map(|id| {
+                    format!("controlador.php?acao=bloco_assinatura_listar&id_bloco={id}")
+                }),
+            ));
+            let resultado = criar::criar_via(
+                &arquivos.sessao,
+                Some("PPI"),
+                "Treinamento",
+                true,
+                &mut envio,
+            );
+            assert_eq!(envio.posts, 1);
+            assert!(envio.telas.is_empty());
+            assert_eq!(envio.urls.len(), if status == 302 { 5 } else { 3 });
+            if confirmado {
+                let valor = resultado.unwrap();
+                assert_eq!(valor["bloco"]["numero"], "2196");
+                assert_eq!(valor["confirmado"], true);
+            } else {
+                assert!(matches!(resultado, Err(FalhaLeitura::NaoConfirmado)));
+            }
+        }
+    }
+
     #[test]
     fn unidade_diferente_interrompe_antes_do_link_de_bloco() {
         let arquivos = Arquivos::criar();
