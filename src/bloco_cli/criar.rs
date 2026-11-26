@@ -143,7 +143,7 @@ fn conferir_criacao<'a>(
     })
 }
 
-fn criar_via<V: EnvioDoControle>(
+pub(super) fn criar_via<V: EnvioDoControle>(
     sessao: &ReferenciasDaSessao,
     unidade_esperada: Option<&str>,
     descricao: &str,
