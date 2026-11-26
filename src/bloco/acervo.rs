@@ -97,6 +97,7 @@ fn replay_da_criacao_de_bloco_de_assinatura_no_acervo() {
     use crate::tela_html::arvore;
 
     let mut vistos = BTreeMap::new();
+    let mut grupos = BTreeMap::new();
     percorrer(&["bloco_assinatura_cadastrar"], |nome, instalacao, json| {
         let campo = match nome {
             "bloco-ciclo-ufrj--9119d6015d02" => "txtDescricao",
@@ -143,7 +144,7 @@ fn replay_da_criacao_de_bloco_de_assinatura_no_acervo() {
             Some("null") => "null",
             Some(_) => "outro",
         };
-        publicar(&format!("{instalacao}: grupo padrão {classe_grupo}\n"));
+        grupos.insert(instalacao.to_owned(), classe_grupo);
 
         let post = respostas
             .iter()
@@ -180,6 +181,11 @@ fn replay_da_criacao_de_bloco_de_assinatura_no_acervo() {
     });
     assert_eq!(vistos.get("ufrj"), Some(&1));
     assert_eq!(vistos.get("pen3"), Some(&1));
+    let mut relatorio = String::new();
+    for (instalacao, classe) in grupos {
+        let _ = writeln!(relatorio, "{instalacao}: grupo padrão {classe}");
+    }
+    publicar(&relatorio);
 }
 
 // A testemunha anterior é a última lista GET antes do cadastro; a
