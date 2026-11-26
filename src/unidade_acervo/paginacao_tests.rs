@@ -38,3 +38,68 @@ pub(super) fn observar_formularios(instalacao: &str, html: &HtmlServido) {
     assert_eq!(candidatos, 1, "{instalacao}: campos de paginacao");
     println!("{instalacao}: campos candidatos de paginacao={candidatos}");
 }
+
+use crate::formulario_web::{
+    ConferenciaDaUnidade, EfeitoAvaliado, EnvioDoFormulario, ErroSubmissaoFormulario,
+    EstadoDeSessao, OperacaoDeFormulario, ResultadoDoEnvio, SubmissaoDerivada, TelaServida,
+    derivar_submissao,
+};
+use crate::instalacao::Instalacao;
+
+/// Reutiliza o formulário da página atual, sem fabricar action ou hash.
+/// O índice é zero-based; o corpo original não foi persistido pelo gravador.
+fn formulario_da_pagina(
+    instalacao: &Instalacao,
+    tela: &TelaServida<'_>,
+    unidade: &str,
+    pagina: usize,
+) -> Result<SubmissaoDerivada, ErroSubmissaoFormulario> {
+    const PAGINAR: OperacaoDeFormulario = OperacaoDeFormulario {
+        acao: crate::acao_do_sei::AcaoDoSei::EstatisticasDetalharUnidade,
+        formulario: "frmEstatisticasLista",
+        envio: EnvioDoFormulario::SubmitPorScript,
+        campos_ocultos_exigidos: &["hdnInfraPaginaAtual"],
+        campos_ocultos_reescritos: &["hdnInfraPaginaAtual"],
+        campos_usuario: &[],
+        resultado: ResultadoDoEnvio::ConferidoPorLeituraPosterior,
+        unidade: ConferenciaDaUnidade::NaTelaDeOrigemDoLink,
+        efeito: EfeitoAvaliado::AlteraEstadoDaSessao {
+            o_que: EstadoDeSessao::PaginaOuFiltroLembrado,
+        },
+    };
+    derivar_submissao(
+        &PAGINAR,
+        instalacao,
+        tela,
+        Some(unidade),
+        &[("hdnInfraPaginaAtual", &pagina.to_string())],
+    )
+}
+
+#[test]
+fn paginador_reescreve_indice_e_preserva_ocultos_da_tela_atual() {
+    use crate::formulario_web::tests::{HASH_TELA, instalacao, tela_iso};
+    let url = format!(
+        "https://sei.exemplo.gov.br/sei/controlador.php?acao=estatisticas_detalhar_unidade&infra_hash={HASH_TELA}"
+    );
+    let html = HtmlServido::de_teste(&format!(
+        "<form id='frmEstatisticasLista' method='post' action='controlador.php?acao=estatisticas_detalhar_unidade&amp;infra_hash={HASH_TELA}'>\
+         <input type='hidden' name='hdnInfraPaginaAtual' value='0'>\
+         <input type='hidden' name='hdnFiltro' value='a+b'>\
+         <input type='submit' name='sbmOutro' value='Outro'></form>"
+    ));
+    let inst = instalacao();
+    let post = formulario_da_pagina(&inst, &tela_iso(&url, &html), "U", 1).unwrap();
+    assert_eq!(post.nomes_dos_campos(), ["hdnInfraPaginaAtual", "hdnFiltro"]);
+    assert_eq!(post.corpo(), b"hdnInfraPaginaAtual=1&hdnFiltro=a%2Bb");
+    let segunda = HtmlServido::de_teste(
+        &html
+            .as_str()
+            .replace("value='0'", "value='1'")
+            .replace("a+b", "novo"),
+    );
+    let post = formulario_da_pagina(&inst, &tela_iso(&url, &segunda), "U", 2).unwrap();
+    assert_eq!(post.corpo(), b"hdnInfraPaginaAtual=2&hdnFiltro=novo");
+    let ausente = HtmlServido::de_teste(&html.as_str().replace("hdnInfraPaginaAtual", "outro"));
+    assert!(formulario_da_pagina(&inst, &tela_iso(&url, &ausente), "U", 1).is_err());
+}
