@@ -131,6 +131,20 @@ fn replay_da_criacao_de_bloco_de_assinatura_no_acervo() {
             "{instalacao}: botão Salvar"
         );
 
+        // O builder Rust só emite campos de usuário que a operação fornece.
+        // Observar o default do grupo antes de projetar a submissão.
+        let grupo = grupo_padrao_do_cadastro(*form);
+        if instalacao == "ufrj" {
+            assert_eq!(grupo.as_deref(), Some("null"));
+        }
+        let classe_grupo = match grupo.as_deref() {
+            None => "ausente",
+            Some("") => "vazio",
+            Some("null") => "null",
+            Some(_) => "outro",
+        };
+        publicar(&format!("{instalacao}: grupo padrão {classe_grupo}\n"));
+
         let post = respostas
             .iter()
             .find(|r| {
@@ -232,4 +246,70 @@ fn testemunha_da_criacao_nao_pula_para_lista_depois_de_outra_escrita() {
     let (antes, depois) = listas_da_criacao(&respostas, 1, 2);
     assert_eq!(antes.map(|r| r.passo), Some(0));
     assert!(depois.is_none());
+}
+
+// Oráculo de replay para o select simples do cadastro. Sem seleção explícita,
+// a primeira opção habilitada é o default; vazio não é ausência do controle.
+fn grupo_padrao_do_cadastro(form: crate::tela_html::Elemento<'_>) -> Option<String> {
+    let mut grupos = form
+        .elementos("select")
+        .filter(|no| no.atributo("name") == Some("selGrupoBloco"));
+    let grupo = grupos.next()?;
+    assert!(grupos.next().is_none(), "grupo repetido no cadastro");
+    if grupo.presente("disabled") {
+        return None;
+    }
+    assert!(!grupo.presente("multiple"), "grupo não é seleção simples");
+    assert!(
+        grupo.elementos("optgroup").next().is_none(),
+        "grupo com estrutura ainda não observada"
+    );
+    let opcoes: Vec<_> = grupo.elementos("option").collect();
+    let marcadas: Vec<_> = opcoes
+        .iter()
+        .copied()
+        .filter(|opcao| opcao.presente("selected"))
+        .collect();
+    let opcao = match marcadas.as_slice() {
+        [] => opcoes.iter().copied().find(|o| !o.presente("disabled")),
+        [opcao] => Some(*opcao),
+        _ => panic!("grupo com mais de uma seleção no cadastro"),
+    }?;
+    if opcao.presente("disabled") {
+        return None;
+    }
+    Some(
+        opcao
+            .atributo("value")
+            .map_or_else(|| opcao.texto().trim().to_owned(), str::to_owned),
+    )
+}
+
+#[test]
+fn grupo_padrao_do_cadastro_distingue_valor_vazio_e_ausencia() {
+    let casos = [
+        (
+            "<select name='selGrupoBloco'><option value='null'>Nenhum</option></select>",
+            Some("null"),
+        ),
+        (
+            "<select name='selGrupoBloco'><option value='null'>Nenhum</option><option value='' selected>Todos</option></select>",
+            Some(""),
+        ),
+        (
+            "<select name='selGrupoBloco'><option value='null'>Nenhum</option><option value='4' selected>Grupo</option></select>",
+            Some("4"),
+        ),
+        ("<textarea name='txtDescricao'></textarea>", None),
+        (
+            "<select name='selGrupoBloco'><option>Nenhum</option></select>",
+            Some("Nenhum"),
+        ),
+    ];
+    for (controles, esperado) in casos {
+        let html = HtmlServido::de_teste(&format!("<form>{controles}</form>"));
+        let dom = crate::tela_html::arvore(&html);
+        let form = dom.elementos("form").next().unwrap();
+        assert_eq!(grupo_padrao_do_cadastro(form).as_deref(), esperado);
+    }
 }
