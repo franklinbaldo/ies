@@ -129,6 +129,8 @@ mod status_web;
 mod tela_html;
 mod tela_login;
 mod transporte;
+#[cfg(test)]
+mod unidade_acervo;
 mod unidade_atual_cli;
 mod unidade_categoria;
 mod unidade_colunas_cli;
