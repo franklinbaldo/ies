@@ -4,25 +4,12 @@ use super::*;
 // o localizador da foto e o mesmo builder do POST de produção.
 #[test]
 fn editor_classico_conserva_vizinhas_vazias_no_post() {
-    use crate::arvore_processo::ProcessoNaArvore;
-    use crate::arvore_processo::tests::{NUP, interno};
     use crate::formulario_web::CodificacaoDaTela;
-    use crate::processo_obter::ResolvidoPor;
-    use crate::transporte::sessao::{CookieDaSessao, CookieLido};
+    use crate::transporte::sessao::CookieDaSessao;
 
     let instalacao = Instalacao::interpretar("https://sei.exemplo.gov.br/sei").unwrap();
     let hash = "a".repeat(64);
-    let html = HtmlServido::de_teste(&format!(
-        "<form id='frmEditor' method='post' action='controlador.php?acao=editor_salvar&amp;id_procedimento=10&amp;id_documento=21&amp;infra_hash={hash}'>\
-         <input type='hidden' name='hdnVersao' value='1'>\
-         <input type='hidden' name='hdnIgnorarNovaVersao' value='N'>\
-         <textarea name='txaEditor_4' readonly>&lt;h1&gt;Fixo&lt;/h1&gt;</textarea>\
-         <textarea name='txaEditor_5' readonly></textarea>\
-         <textarea name='txaEditor_12'>&lt;p&gt;@unidade@&lt;/p&gt;</textarea>\
-         <textarea name='txaEditor_6' readonly></textarea>\
-         <textarea name='txaEditor_7' readonly>&lt;hr&gt;</textarea></form>\
-         <script>CKEDITOR.replace('txaEditor_12', {{\"readOnly\":false}});</script>"
-    ));
+    let html = formulario_classico(&hash);
     let protocolo = Protocolo::ler(&html).unwrap();
     assert_eq!(protocolo.versao().unwrap().numero(), 1);
     let principal = protocolo.principal().unwrap();
@@ -48,22 +35,7 @@ fn editor_classico_conserva_vizinhas_vazias_no_post() {
         origem: &origem,
         cookie: &cookie,
     };
-    let alvo = DocumentoNaArvoreAberto {
-        numero: "0000101".into(),
-        id_documento: "21".into(),
-        rotulo: "Despacho 0000101".into(),
-        natureza: interno(),
-        processo: ProcessoNaArvore {
-            id: "10".into(),
-            nup: NUP.into(),
-            tipo: "Tipo Sintetico".into(),
-        },
-        unidade: None,
-        resolvido_por: ResolvidoPor::PesquisaRapida,
-        html: HtmlServido::de_teste(""),
-        requisicoes: 0,
-        cookie: CookieLido::sintetico("PHPSESSID=SINTETICO"),
-    };
+    let alvo = alvo_classico();
     let alvo_edicao = AlvoDaEdicao {
         instalacao: &instalacao,
         sessao: &sessao,
@@ -98,7 +70,7 @@ fn editor_classico_conserva_vizinhas_vazias_no_post() {
             ),
             Err(ErroEditorNativo::FormularioDeOutroDocumento)
         ));
-        assert!(envio.posts.is_empty());
+        assert_eq!(envio.posts.len(), 0);
     }
     let editor = Editor {
         url: url.clone(),
@@ -115,9 +87,13 @@ fn editor_classico_conserva_vizinhas_vazias_no_post() {
     )
     .unwrap();
     assert_eq!(aceite.map(VersaoDocumento::numero), Some(2));
-    assert!(envio.pedidos.is_empty());
+    assert_eq!(envio.pedidos.len(), 0);
     assert_eq!(envio.posts.len(), 1);
     let corpo = String::from_utf8(envio.posts[0].corpo().to_vec()).unwrap();
+    conferir_campos_classicos(&corpo);
+}
+
+fn conferir_campos_classicos(corpo: &str) {
     let campos: Vec<_> = corpo.split('&').collect();
     for campo in [
         "txaEditor_4=%3Ch1%3EFixo%3C%2Fh1%3E",
@@ -130,4 +106,42 @@ fn editor_classico_conserva_vizinhas_vazias_no_post() {
     ] {
         assert_eq!(campos.iter().filter(|c| **c == campo).count(), 1, "{campo}");
     }
+}
+
+fn alvo_classico() -> DocumentoNaArvoreAberto {
+    use crate::arvore_processo::ProcessoNaArvore;
+    use crate::arvore_processo::tests::{NUP, interno};
+    use crate::processo_obter::ResolvidoPor;
+    use crate::transporte::sessao::CookieLido;
+
+    DocumentoNaArvoreAberto {
+        numero: "0000101".into(),
+        id_documento: "21".into(),
+        rotulo: "Despacho 0000101".into(),
+        natureza: interno(),
+        processo: ProcessoNaArvore {
+            id: "10".into(),
+            nup: NUP.into(),
+            tipo: "Tipo Sintetico".into(),
+        },
+        unidade: None,
+        resolvido_por: ResolvidoPor::PesquisaRapida,
+        html: HtmlServido::de_teste(""),
+        requisicoes: 0,
+        cookie: CookieLido::sintetico("PHPSESSID=SINTETICO"),
+    }
+}
+
+fn formulario_classico(hash: &str) -> HtmlServido {
+    HtmlServido::de_teste(&format!(
+        "<form id='frmEditor' method='post' action='controlador.php?acao=editor_salvar&amp;id_procedimento=10&amp;id_documento=21&amp;infra_hash={hash}'>\
+         <input type='hidden' name='hdnVersao' value='1'>\
+         <input type='hidden' name='hdnIgnorarNovaVersao' value='N'>\
+         <textarea name='txaEditor_4' readonly>&lt;h1&gt;Fixo&lt;/h1&gt;</textarea>\
+         <textarea name='txaEditor_5' readonly></textarea>\
+         <textarea name='txaEditor_12'>&lt;p&gt;@unidade@&lt;/p&gt;</textarea>\
+         <textarea name='txaEditor_6' readonly></textarea>\
+         <textarea name='txaEditor_7' readonly>&lt;hr&gt;</textarea></form>\
+         <script>CKEDITOR.replace('txaEditor_12', {{\"readOnly\":false}});</script>"
+    ))
 }
