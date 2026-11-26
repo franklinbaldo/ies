@@ -21,7 +21,7 @@ fn ajuda_de_exportacao_publica_formatos_e_destino() {
     let resultado = sem_sessao(&["processo", "exportar", "--help"]);
     assert!(resultado.status.success());
     let ajuda = String::from_utf8_lossy(&resultado.stdout);
-    for campo in ["--formato", "--saida", "pdf", "zip"] {
+    for campo in ["--formato", "--saida", "--documentos", "pdf", "zip"] {
         assert!(ajuda.contains(campo), "{campo}: {ajuda}");
     }
 }
@@ -57,4 +57,23 @@ fn formato_invalido_e_erro_de_uso() {
     ]);
     assert_eq!(resultado.status.code(), Some(2));
     assert_eq!(resultado.stdout, Vec::<u8>::new());
+}
+
+#[test]
+fn selecao_pdf_recusada_antes_da_sessao() {
+    let resultado = sem_sessao(&[
+        "processo",
+        "exportar",
+        NUP,
+        "--formato",
+        "pdf",
+        "--saida",
+        "processo.teste",
+        "--documentos",
+        "050000001",
+    ]);
+    assert_eq!(resultado.status.code(), Some(1));
+    assert_eq!(resultado.stdout, Vec::<u8>::new());
+    let erro = String::from_utf8_lossy(&resultado.stderr);
+    assert!(erro.contains("SelecaoSomenteZip"), "{erro}");
 }
