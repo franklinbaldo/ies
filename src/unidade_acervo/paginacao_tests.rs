@@ -59,10 +59,7 @@ pub(super) fn observar_formularios(
         .collect();
     let mut avancos = 0;
     let mut voltas = 0;
-    for (indice, (anterior, seguinte)) in respostas
-        .iter()
-        .zip(respostas.iter().skip(1))
-        .enumerate()
+    for (indice, (anterior, seguinte)) in respostas.iter().zip(respostas.iter().skip(1)).enumerate()
     {
         assert_eq!(seguinte.metodo, "POST", "{instalacao}");
         let html_anterior = HtmlServido::de_teste(
@@ -82,10 +79,9 @@ pub(super) fn observar_formularios(
             indice + 1
         };
         let url = fonte::url_sem_consulta(gravacao, anterior.interacao);
-        let codificacao = crate::pagina_do_controle::codificacao_da_tela(&fonte::mime(
-            anterior.interacao,
-        ))
-        .expect("charset original");
+        let codificacao =
+            crate::pagina_do_controle::codificacao_da_tela(&fonte::mime(anterior.interacao))
+                .expect("charset original");
         let tela = TelaServida {
             url: &url,
             html: &html_anterior,
