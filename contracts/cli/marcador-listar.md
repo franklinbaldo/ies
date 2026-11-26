@@ -6,7 +6,7 @@ description: Primeira fatia de leitura do catálogo da unidade, distinta de marc
 
 # `ies marcador listar [--inativos]` — proposta #880
 
-**WIP.** Leitor experimental em `src/marcadores_unidade.rs`, ligado somente à suíte de testes. A CLI ainda não está disponível; não há aceite de compatibilidade.
+**WIP.** Leitor experimental em `src/marcadores_unidade.rs`, ligado somente à suíte de testes. A CLI ainda não está disponível; não há aceite de compatibilidade. A projeção tipada WIP conserva `total_declarado` do catálogo misto, `faixa_observada`, `total_observado` antes da seleção e `estado` solicitado. `itens` contém somente a seleção na página; uma seleção vazia em página parcial não demonstra ausência no catálogo inteiro.
 
 - Abrir o link `marcador_listar` publicado pelo menu da unidade ativa, pelo fluxo de sessão e navegação existente.
 - Listar ativos por padrão; `--inativos` seleciona inativos. JSON tipado e texto humano preservam ID decimal como string, nome, rótulo ID#NOME, cor e estado efetivamente observados. Não confundir ID de catálogo com identidade de uma atribuição.
