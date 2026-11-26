@@ -50,17 +50,17 @@ struct Linha {
 }
 
 #[derive(Debug, PartialEq, Eq, Serialize)]
-struct Membro {
-    id: String,
-    nome: String,
+pub(crate) struct Membro {
+    pub(crate) id: String,
+    pub(crate) nome: String,
 }
 
 #[derive(Debug, PartialEq, Eq, Serialize)]
-struct Grupo {
-    id: String,
-    nome: String,
-    descricao: String,
-    unidades: Vec<Membro>,
+pub(crate) struct Grupo {
+    pub(crate) id: String,
+    pub(crate) nome: String,
+    pub(crate) descricao: String,
+    pub(crate) unidades: Vec<Membro>,
 }
 
 fn texto(no: Elemento<'_>) -> String {
@@ -252,12 +252,11 @@ fn ler_grupo(html: &HtmlServido, id: &str) -> Result<Grupo, ErroGrupo> {
     })
 }
 
-fn ler_via<V: EnvioDoControle>(
+fn listar_via<V: EnvioDoControle>(
     sessao: &ReferenciasDaSessao,
     unidade_esperada: Option<&str>,
-    acao: &Acao,
     envio: &mut V,
-) -> anyhow::Result<serde_json::Value> {
+) -> anyhow::Result<(String, String, Vec<Linha>)> {
     let controle = transporte::envio_post::ler_tela_via(
         sessao.url_do_controle(),
         sessao.cookie(),
@@ -277,21 +276,44 @@ fn ler_via<V: EnvioDoControle>(
     let cookie = sessao.cookie().valor()?;
     let html = transporte::decodificar_resposta(envio.get(&url, cookie)?)?;
     let linhas = ler_lista(&html)?;
+    Ok((unidade, url, linhas))
+}
+
+/// Consulta tipada para a CLI e a expansão de grupos na tramitação (#875).
+/// Somente leitura; não resolve por nome nem envia processo.
+pub(crate) fn obter_via<V: EnvioDoControle>(
+    sessao: &ReferenciasDaSessao,
+    unidade_esperada: Option<&str>,
+    id: &str,
+    envio: &mut V,
+) -> anyhow::Result<(String, Grupo)> {
+    let (unidade, url, linhas) = listar_via(sessao, unidade_esperada, envio)?;
+    let linha = linhas
+        .iter()
+        .find(|l| l.item.id == id)
+        .ok_or(ErroGrupo::GrupoAusente)?;
+    let consulta = consulta_da_linha(linha, &url, sessao.origem())?;
+    let cookie = sessao.cookie().valor()?;
+    let html = transporte::decodificar_resposta(envio.get(&consulta, cookie)?)?;
+    Ok((unidade, ler_grupo(&html, id)?))
+}
+
+fn ler_via<V: EnvioDoControle>(
+    sessao: &ReferenciasDaSessao,
+    unidade_esperada: Option<&str>,
+    acao: &Acao,
+    envio: &mut V,
+) -> anyhow::Result<serde_json::Value> {
     match acao {
         Acao::Listar => {
+            let (unidade, _, linhas) = listar_via(sessao, unidade_esperada, envio)?;
             let itens: Vec<_> = linhas.into_iter().map(|linha| linha.item).collect();
             Ok(
                 serde_json::json!({"unidade": unidade, "origem": "web", "total": itens.len(), "itens": itens}),
             )
         }
         Acao::Obter { id } => {
-            let linha = linhas
-                .iter()
-                .find(|l| l.item.id == *id)
-                .ok_or(ErroGrupo::GrupoAusente)?;
-            let consulta = consulta_da_linha(linha, &url, sessao.origem())?;
-            let html = transporte::decodificar_resposta(envio.get(&consulta, cookie)?)?;
-            let grupo = ler_grupo(&html, id)?;
+            let (unidade, grupo) = obter_via(sessao, unidade_esperada, id, envio)?;
             Ok(serde_json::json!({"unidade": unidade, "origem": "web", "grupo": grupo}))
         }
     }
