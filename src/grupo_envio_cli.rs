@@ -332,7 +332,7 @@ fn listar_via<V: EnvioDoControle>(
     let codificacao = crate::pagina_do_controle::codificacao_da_tela(&resposta.mime);
     let html = transporte::decodificar_resposta(resposta)?;
     let (url, legenda, linhas) = paginacao::ler_observada(
-        html,
+        &html,
         url,
         codificacao,
         sessao,

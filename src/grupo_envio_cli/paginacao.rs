@@ -79,11 +79,7 @@ fn geometria(html: &HtmlServido, legenda: &Legenda) -> anyhow::Result<(usize, us
         .atributo("value")
         .ok_or(ErroGrupo::ListaIncompleta)?
         .parse()?;
-    let tamanho = if indice == 0 {
-        faixa.fim
-    } else {
-        (faixa.inicio - 1) / indice
-    };
+    let tamanho = (faixa.inicio - 1).checked_div(indice).unwrap_or(faixa.fim);
     if tamanho == 0
         || indice.checked_mul(tamanho) != Some(faixa.inicio - 1)
         || faixa.fim != faixa.inicio.saturating_add(tamanho - 1).min(legenda.total)
@@ -94,7 +90,7 @@ fn geometria(html: &HtmlServido, legenda: &Legenda) -> anyhow::Result<(usize, us
 }
 
 pub(super) fn ler_observada<V: EnvioDoControle>(
-    html: HtmlServido,
+    html: &HtmlServido,
     url: String,
     codificacao: Option<CodificacaoDaTela>,
     sessao: &ReferenciasDaSessao,
@@ -102,12 +98,12 @@ pub(super) fn ler_observada<V: EnvioDoControle>(
     pagina: Option<u32>,
     envio: &mut V,
 ) -> anyhow::Result<(String, Legenda, Vec<Linha>)> {
-    let (legenda, linhas) = ler_pagina(&html)?;
+    let (legenda, linhas) = ler_pagina(html)?;
     let Some(pagina) = pagina else {
         return Ok((url, legenda, linhas));
     };
     let destino = usize::try_from(pagina.checked_sub(1).ok_or(ErroGrupo::PaginaNaoOferecida)?)?;
-    let (atual, tamanho) = geometria(&html, &legenda)?;
+    let (atual, tamanho) = geometria(html, &legenda)?;
     if destino == atual {
         return Ok((url, legenda, linhas));
     }
@@ -117,10 +113,10 @@ pub(super) fn ler_observada<V: EnvioDoControle>(
         .filter(|n| *n <= legenda.total && tamanho > 0)
         .ok_or(ErroGrupo::PaginaNaoOferecida)?;
     let indice = destino.to_string();
-    let campos = campos_da_pagina(&html, &indice)?;
+    let campos = campos_da_pagina(html, &indice)?;
     let tela = TelaServida {
         url: &url,
-        html: &html,
+        html,
         codificacao: codificacao.ok_or(ErroGrupo::ListaIncompleta)?,
     };
     let post = derivar_submissao(&PAGINAR, instalacao, &tela, None, &campos)?;
