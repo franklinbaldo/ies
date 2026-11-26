@@ -15,7 +15,7 @@ pub(super) fn observar_formularios(
     instalacao: &str,
     html: &HtmlServido,
     gravacao: &serde_json::Value,
-    interacao: &serde_json::Value,
+    _interacao: &serde_json::Value,
     inst: &Instalacao,
     unidade: &str,
 ) {
@@ -50,27 +50,67 @@ pub(super) fn observar_formularios(
     }
     assert_eq!(candidatos, 1, "{instalacao}: campos de paginacao");
     println!("{instalacao}: campos candidatos de paginacao={candidatos}");
-    // UnB tem uma página: não precisa de POST de avanço.
-    if instalacao != "unb" {
-        use crate::cassette::acervo::gravacao as fonte;
-        let url = fonte::url_sem_consulta(gravacao, interacao);
-        let codificacao = crate::pagina_do_controle::codificacao_da_tela(&fonte::mime(interacao))
-            .expect("charset original");
+    // Cada POST usa o HTML e o charset da resposta imediatamente anterior.
+    // O gravador não guarda o corpo do POST nem a query da requisição.
+    use crate::cassette::acervo::gravacao as fonte;
+    let respostas: Vec<_> = fonte::respostas(gravacao)
+        .into_iter()
+        .filter(|r| r.operacao == "estatisticas_detalhar_unidade" && r.status == 200)
+        .collect();
+    let mut avancos = 0;
+    let mut voltas = 0;
+    for (indice, (anterior, seguinte)) in respostas
+        .iter()
+        .zip(respostas.iter().skip(1))
+        .enumerate()
+    {
+        assert_eq!(seguinte.metodo, "POST", "{instalacao}");
+        let html_anterior = HtmlServido::de_teste(
+            &crate::cassette::html_da_resposta(anterior.interacao).expect("HTML original"),
+        );
+        let lida = super::detalhe(&html_anterior).expect("detalhe anterior");
+        let final_da_lista = lida
+            .legenda
+            .faixa
+            .as_ref()
+            .is_none_or(|f| f.fim == lida.legenda.total);
+        let destino = if final_da_lista {
+            voltas += 1;
+            0
+        } else {
+            avancos += 1;
+            indice + 1
+        };
+        let url = fonte::url_sem_consulta(gravacao, anterior.interacao);
+        let codificacao = crate::pagina_do_controle::codificacao_da_tela(&fonte::mime(
+            anterior.interacao,
+        ))
+        .expect("charset original");
         let tela = TelaServida {
             url: &url,
-            html,
+            html: &html_anterior,
             codificacao,
         };
-        let post = formulario_da_pagina(inst, &tela, unidade, 1)
-            .expect("derivacao do POST de avanco no HTML original");
+        let post = formulario_da_pagina(inst, &tela, unidade, destino)
+            .expect("derivacao do POST a partir da pagina anterior");
+        let esperado = format!("hdnInfraPaginaAtual={destino}");
         assert_eq!(
             post.corpo()
                 .split(|b| *b == b'&')
-                .filter(|p| *p == b"hdnInfraPaginaAtual=1")
+                .filter(|p| *p == esperado.as_bytes())
                 .count(),
-            1
+            1,
+            "{instalacao}: destino da paginacao"
         );
     }
+    let esperado = match instalacao {
+        "unb" => (0, 0),
+        "pen1" => (6, 1),
+        "pen2" => (13, 1),
+        _ => panic!("instalacao nao catalogada"),
+    };
+    assert_eq!((avancos, voltas), esperado, "{instalacao}");
+    println!("{instalacao}: avancos_derivados={avancos} voltas_derivadas={voltas}");
 }
 
 /// Reutiliza o formulário da página atual, sem fabricar action ou hash.
