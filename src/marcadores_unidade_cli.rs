@@ -52,9 +52,9 @@ fn link_do_menu(
     if consulta.acao() != Ok(AcaoDoSei::MarcadorListar.como_na_url())
         || consulta.valores("acao_ajax").next().is_some()
         || !consulta.sem_chaves_repetidas()
-        || !consulta.unico("infra_hash").is_ok_and(|hash| {
-            hash.len() == 64 && hash.bytes().all(|b| b.is_ascii_hexdigit())
-        })
+        || !consulta
+            .unico("infra_hash")
+            .is_ok_and(|hash| hash.len() == 64 && hash.bytes().all(|b| b.is_ascii_hexdigit()))
     {
         return Err(FalhaLeitura::LinkInvalido);
     }
@@ -78,7 +78,11 @@ struct Saida {
 }
 
 pub(super) fn listar(unidade: Option<&str>, json_mode: bool, inativos: bool) -> anyhow::Result<()> {
-    let estado = if inativos { Estado::Inativo } else { Estado::Ativo };
+    let estado = if inativos {
+        Estado::Inativo
+    } else {
+        Estado::Ativo
+    };
     let arquivos = configuracao::arquivos_de_acesso()?;
     let indice = IndiceLocal::da_configuracao(&arquivos);
     let ((atual, selecao), nota) = relogin_cli::ler(
