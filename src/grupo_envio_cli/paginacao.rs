@@ -117,7 +117,9 @@ pub(super) fn ler_todas<V: EnvioDoControle>(
         let post = derivar_submissao(&PAGINAR, instalacao, &tela, None, &campos)?;
         post.url().clone_into(&mut url);
         let RespostaDoEnvio::Html(proxima) =
-            enviar_submissao_via(post, sessao.cookie(), |post, cookie| envio.post(post, cookie))?
+            enviar_submissao_via(post, sessao.cookie(), |post, cookie| {
+                envio.post(post, cookie)
+            })?
         else {
             return Err(ErroGrupo::ListaIncompleta.into());
         };
