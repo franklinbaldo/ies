@@ -20,7 +20,8 @@ const PDF_NATIVO: &[u8] = concat!(
 fn pdf_nativo_publica_teor_com_e_sem_cache_sem_alterar_original() {
     // Hipótese sintética: o PDF é semeado via bancada já existente. Não é
     // evidência de paridade com uma cassette original do SEI.
-    let (saidas, eventos, documentos, arquivo) = executar(false, false, true, Some(PDF_NATIVO), None);
+    let (saidas, eventos, documentos, arquivo) =
+        executar(false, false, true, Some(PDF_NATIVO), None);
     assert_eq!(documentos, 1);
     assert_eq!(saidas.len(), 5);
     assert_eq!(arquivo.as_deref(), Some(PDF_NATIVO));
