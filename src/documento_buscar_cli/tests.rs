@@ -120,11 +120,14 @@ fn aceita(args: &[&str]) -> bool {
 }
 
 #[test]
-fn buscar_exige_termo_e_pagina_positiva() {
+fn buscar_aceita_criterios_e_exige_pagina_positiva() {
     assert!(aceita(&["buscar", "0001018"]));
     assert!(aceita(&["buscar", "00010", "--pagina", "2"]));
-    assert!(!aceita(&["buscar"]));
+    // A falta de critério efetivo é recusada na borda antes da configuração.
+    assert!(aceita(&["buscar"]));
+    assert!(aceita(&["buscar", "--texto", "contrato"]));
+    assert!(!aceita(&["buscar", "--texto", "  "]));
     assert!(!aceita(&["buscar", "1", "--pagina", "0"]));
-    assert!(!aceita(&["buscar", "--assunto", "x"]));
+    assert!(aceita(&["buscar", "--assunto", "x"]));
     assert!(!aceita(&["buscar", "1", "2"]));
 }
