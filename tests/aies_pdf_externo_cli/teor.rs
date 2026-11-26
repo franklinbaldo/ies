@@ -19,7 +19,12 @@ fn executar_com_teor(
         pdf_de_teor,
         caminho_motor,
     );
-    (saidas, eventos, total, arquivos.into_iter().next().flatten())
+    (
+        saidas,
+        eventos,
+        total,
+        arquivos.into_iter().next().flatten(),
+    )
 }
 
 // #873: PDF sintético válido, com offsets xref conferidos pelo Poppler.
