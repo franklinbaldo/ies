@@ -16,6 +16,16 @@ pub(crate) fn ler_anexo<R: Read>(
     limite: LimiteDoAnexo,
     destino: DestinoDoAnexo<'_>,
 ) -> Result<AnexoLido, ErroAnexo> {
+    ler_anexo_com_teor(resposta, numero, limite, destino, false)
+}
+
+pub(crate) fn ler_anexo_com_teor<R: Read>(
+    resposta: RespostaBinaria<R>,
+    numero: &str,
+    limite: LimiteDoAnexo,
+    destino: DestinoDoAnexo<'_>,
+    extrair_pdf: bool,
+) -> Result<AnexoLido, ErroAnexo> {
     if resposta.status != 200 {
         // As mesmas recusas de status do transporte (corpo até 64 KiB).
         let mime = resposta
@@ -32,7 +42,13 @@ pub(crate) fn ler_anexo<R: Read>(
     }
     let mut conferido = conferir(&resposta, limite)?;
     let RespostaBinaria { corpo, .. } = resposta;
+    let teor_pdf = extrair_pdf && conferido.mime == "application/pdf";
     let mut arquivo = match destino {
+        DestinoDoAnexo::SoMetadados if teor_pdf => Some(abrir_parcial_cache(
+            &std::env::temp_dir(),
+            numero,
+            &conferido,
+        )?),
         DestinoDoAnexo::SoMetadados => None,
         DestinoDoAnexo::Diretorio(dir) => Some(abrir_parcial(dir, numero, &conferido)?),
         DestinoDoAnexo::Cache { diretorio, .. } => {
@@ -90,16 +106,26 @@ pub(crate) fn ler_anexo<R: Read>(
             .sincronizar()
             .map_err(ErroAnexo::GravacaoDoParcialFalhou)?;
     }
+    let pdf = if teor_pdf {
+        let parcial = arquivo.as_ref().ok_or(ErroAnexo::EscritaFalhou)?;
+        Some(super::pdf::extrair(parcial.parcial.temporario())?)
+    } else {
+        None
+    };
+    if teor_pdf && matches!(destino, DestinoDoAnexo::SoMetadados) {
+        arquivo = None;
+    }
     let hash = hex::encode(hasher.finalize());
     publicar_cache(&mut arquivo, destino, numero, &hash, conferido.extensao)?;
-    let conteudo = match arquivo {
-        Some(parcial) => ConteudoDoAnexo::Arquivo(parcial),
-        None if texto => ConteudoDoAnexo::Texto(texto_do_anexo(
+    let conteudo = match (arquivo, pdf) {
+        (None, Some(pdf)) => ConteudoDoAnexo::Pdf(pdf),
+        (Some(parcial), None | Some(_)) => ConteudoDoAnexo::Arquivo(parcial),
+        (None, None) if texto => ConteudoDoAnexo::Texto(texto_do_anexo(
             &conferido.mime,
             &guardado,
             &conferido.valor_do_tipo,
         )?),
-        None => ConteudoDoAnexo::Nenhum,
+        (None, None) => ConteudoDoAnexo::Nenhum,
     };
     Ok(AnexoLido {
         mime: conferido.mime,

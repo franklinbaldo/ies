@@ -7,13 +7,19 @@ use serde_json::{Value, json};
 
 /// `mime`, `tamanho`, `sha256`, `nome_original` e `disposicao`.
 pub(super) fn json_do_anexo(a: &AnexoLido) -> Value {
-    json!({
+    let mut valor = json!({
         "mime": a.mime,
         "tamanho": a.tamanho,
         "sha256": a.sha256,
         "nome_original": a.nome_original,
         "disposicao": a.disposicao.como_texto(),
-    })
+    });
+    if let Some(estado) = a.estado_pdf()
+        && let Some(objeto) = valor.as_object_mut()
+    {
+        objeto.insert("extracao_pdf".to_owned(), json!(estado));
+    }
+    valor
 }
 
 /// A linha humana do anexo; sem texto nem arquivo, a dica de `--saida`.
@@ -25,8 +31,11 @@ pub(super) fn linha_do_anexo(a: &AnexoLido, gravado: bool) -> String {
     } else {
         " Use --saida DIR para gravar o arquivo."
     };
+    let extracao = a.estado_pdf().map_or_else(String::new, |estado| {
+        format!(" Extração PDF: {estado}; OCR não executado.")
+    });
     format!(
-        "Anexo {}: {} bytes, sha256 {}{nome}.{dica}",
+        "Anexo {}: {} bytes, sha256 {}{nome}.{extracao}{dica}",
         a.mime, a.tamanho, a.sha256
     )
 }

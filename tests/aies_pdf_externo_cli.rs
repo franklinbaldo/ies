@@ -486,12 +486,15 @@ fn pdf_nativo_publica_teor_com_e_sem_cache_sem_alterar_original() {
     let hash = "545f1f049a835f19d710b9213bf38b1c0b802bbdedfded624736a878356e46de";
     assert_eq!(original["documentos"][0]["anexo"]["sha256"], hash);
     assert!(original["documentos"][0].get("texto").is_none());
-    for saida in &saidas[3..] {
+    assert!(original["documentos"][0]["anexo"].get("extracao_pdf").is_none());
+    for (i, saida) in saidas[3..].iter().enumerate() {
         assert_eq!(saida.status.code(), Some(0), "{:?}", saida.stderr);
         let lido = json(saida);
         let doc = &lido["documentos"][0];
         assert_eq!(doc["anexo"]["sha256"], hash);
         assert!(doc.get("arquivo").is_none());
+        assert_eq!(doc["anexo"]["extracao_pdf"], "nativo_parcial");
+        assert_eq!(doc.get("cache").is_some(), i == 1);
         assert_eq!(doc["texto"].as_str().map(str::trim), Some("NATIVO ALFA"));
     }
     assert_eq!(

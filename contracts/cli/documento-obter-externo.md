@@ -1,7 +1,7 @@
 ---
 type: Contract
 title: Ler documento externo pela Web
-description: ies documento DOC lê o arquivo de um documento externo pelo link documento_download_anexo assinado que a árvore publica, por um GET binário com limites próprios, e publica metadados, texto (só tipos de texto) ou o arquivo original em --saida
+description: ies documento DOC lê o arquivo de um documento externo pelo link documento_download_anexo assinado que a árvore publica, por um GET binário com limites próprios, e publica metadados, texto nativo quando recuperável ou o arquivo original em --saida
 ---
 
 # `ies documento DOC` externo (Refs #60, fatia 3)
@@ -75,10 +75,16 @@ sem a chave `tipo` (o título do HTML recebido é do órgão de origem, não da
 | `nome_original` | `filename*` (RFC 5987) ou `filename` do `Content-Disposition`, saneado (sem diretório nem controle, até 255 caracteres); sem nome, ou com nome vazio após o saneamento, é erro tipado |
 | `disposicao` | `inline` ou `attachment`; sem o `Content-Disposition` é erro tipado |
 
-Sem `--saida`: `texto` só para tipos de texto (`text/plain` decodificado
+Sem `--saida`: `texto` para tipos de texto (`text/plain` decodificado
 no charset declarado ou UTF-8 estrito, controles trocados por `�`;
-`text/html` pelo texto visível do corpo, como o interno); PDF sai sem a
-chave `texto` e só com os metadados. Bytes binários nunca vão para a saída
+`text/html` pelo texto visível do corpo, como o interno) ou PDF com texto
+nativo recuperado localmente pelo executável `pdftotext` (Poppler, instalado
+pela pessoa, sem download implícito). Em PDF, `anexo.extracao_pdf` indica
+`nativo_parcial`, `nativo_com_diagnostico`, `sem_texto_nativo`, `motor_ausente`
+ou `falhou`. Não certifica teor integral nem executa OCR nesta fatia. Ausência
+de texto nativo não prova página em branco. O motor tem prazo de 30 segundos
+e saída limitada a 8 MB; diagnóstico bruto não é publicado. Com `--saida`,
+não se executa a extração. A leitura sem cache usa parcial privado efêmero. Bytes binários nunca vão para a saída
 padrão. Sem `--json`, a linha do documento, a linha do anexo e o texto
 (se houver).
 
