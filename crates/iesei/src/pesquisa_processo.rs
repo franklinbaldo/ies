@@ -302,9 +302,9 @@ mod tests {
             },
         ] {
             assert_eq!(
-            coorte(&banco, &origem, "c", &unidade, outro).unwrap(),
-            Coorte::Desconhecida
-        );
+                coorte(&banco, &origem, "c", &unidade, outro).unwrap(),
+                Coorte::Desconhecida
+            );
         }
         assert_eq!(
             coorte(
@@ -428,14 +428,51 @@ mod tests {
                 Some(pagina)
             );
             for (o, c, u, crit) in [
-                (Instalacao::interpretar("https://outro.test/sei").unwrap(), "c", unidade.clone(), criterios),
+                (
+                    Instalacao::interpretar("https://outro.test/sei").unwrap(),
+                    "c",
+                    unidade.clone(),
+                    criterios,
+                ),
                 (origem.clone(), "outro", unidade.clone(), criterios),
-                (origem.clone(), "c", UnidadeExibida::nova("OUTRA").unwrap(), criterios),
-                (origem.clone(), "c", unidade.clone(), Criterios { tipo_id: "74", ..criterios }),
-                (origem.clone(), "c", unidade.clone(), Criterios { de: "", ..criterios }),
-                (origem.clone(), "c", unidade.clone(), Criterios { ate: "", ..criterios }),
+                (
+                    origem.clone(),
+                    "c",
+                    UnidadeExibida::nova("OUTRA").unwrap(),
+                    criterios,
+                ),
+                (
+                    origem.clone(),
+                    "c",
+                    unidade.clone(),
+                    Criterios {
+                        tipo_id: "74",
+                        ..criterios
+                    },
+                ),
+                (
+                    origem.clone(),
+                    "c",
+                    unidade.clone(),
+                    Criterios {
+                        de: "",
+                        ..criterios
+                    },
+                ),
+                (
+                    origem.clone(),
+                    "c",
+                    unidade.clone(),
+                    Criterios {
+                        ate: "",
+                        ..criterios
+                    },
+                ),
             ] {
-                assert_eq!(coorte(&banco, &o, c, &u, crit).unwrap(), Coorte::Desconhecida);
+                assert_eq!(
+                    coorte(&banco, &o, c, &u, crit).unwrap(),
+                    Coorte::Desconhecida
+                );
             }
         }
     }

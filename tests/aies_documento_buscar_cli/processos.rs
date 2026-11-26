@@ -105,8 +105,18 @@ pub(super) fn preparar_coorte_contraditoria(
         registrar_sem_resultado(banco, instalacao, CENARIO, &unidade, criterios).unwrap();
     }
     registrar_pagina(
-        banco, instalacao, CENARIO, &unidade, criterios,
-        &Pagina { numero: 2, inicio: 3, fim: 4, total: 4, ids: vec![] },
+        banco,
+        instalacao,
+        CENARIO,
+        &unidade,
+        criterios,
+        &Pagina {
+            numero: 2,
+            inicio: 3,
+            fim: 4,
+            total: 4,
+            ids: vec![],
+        },
     )
     .unwrap();
     if !zero_primeiro {
@@ -122,8 +132,17 @@ fn processo_recusa_coorte_contraditoria_antes_de_paginar() {
             let saida = executar_com_estado(
                 &pasta,
                 &[
-                    "--json", "processo", "buscar", "--tipo", "Administrativo",
-                    "--de", "01/01/2026", "--ate", "31/01/2026", "--pagina", pagina,
+                    "--json",
+                    "processo",
+                    "buscar",
+                    "--tipo",
+                    "Administrativo",
+                    "--de",
+                    "01/01/2026",
+                    "--ate",
+                    "31/01/2026",
+                    "--pagina",
+                    pagina,
                 ],
                 EstadoDeBusca::CoorteProcessualContraditoria(zero_primeiro),
             );

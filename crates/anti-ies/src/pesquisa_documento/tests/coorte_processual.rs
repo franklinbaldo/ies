@@ -9,7 +9,11 @@ fn coorte_processual_contraditoria_recusa_ambas_as_paginas() {
         banco_cassettes::iniciar(&banco).unwrap();
         let instalacao = Instalacao::interpretar("https://sei.test/sei").unwrap();
         let unidade = UnidadeExibida::nova("TESTE").unwrap();
-        let criterios = Criterios { tipo_id: "", de: "01/01/2026", ate: "" };
+        let criterios = Criterios {
+            tipo_id: "",
+            de: "01/01/2026",
+            ate: "",
+        };
         if zero_primeiro {
             registrar_sem_resultado(&banco, &instalacao, "c", &unidade, criterios).unwrap();
         }
@@ -19,7 +23,13 @@ fn coorte_processual_contraditoria_recusa_ambas_as_paginas() {
             "c",
             &unidade,
             criterios,
-            &Pagina { numero: 2, inicio: 3, fim: 4, total: 4, ids: vec![] },
+            &Pagina {
+                numero: 2,
+                inicio: 3,
+                fim: 4,
+                total: 4,
+                ids: vec![],
+            },
         )
         .unwrap();
         if !zero_primeiro {
