@@ -156,8 +156,7 @@ fn formulario_editor_4(
             write!(
                 editores,
                 "CKEDITOR.replace('{}', {{\"readOnly\":{}}});",
-                secao.nome,
-                !secao.principal
+                secao.nome, !secao.principal
             )
             .expect("formatação String");
         }

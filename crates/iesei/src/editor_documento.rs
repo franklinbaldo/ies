@@ -478,10 +478,7 @@ mod testes_secoes {
         novas[0].html = "<h1>Fixo\n</h1>".into();
         novas[2].html = "<p>Depois</p>".into();
         assert!(publicar(&banco, &origem, "ensaio", "42", edicao).is_err());
-        assert!(
-            publicar_secoes(&banco, &origem, "ensaio", "42", edicao, &novas[1..])
-                .is_err()
-        );
+        assert!(publicar_secoes(&banco, &origem, "ensaio", "42", edicao, &novas[1..]).is_err());
         banco
             .execute_batch(
                 "CREATE TRIGGER falha_secao BEFORE INSERT ON documento_revisao_secao
@@ -489,9 +486,7 @@ mod testes_secoes {
                  BEGIN SELECT RAISE(ABORT, 'falha sintetica'); END;",
             )
             .unwrap();
-        assert!(
-            publicar_secoes(&banco, &origem, "ensaio", "42", edicao, &novas).is_err()
-        );
+        assert!(publicar_secoes(&banco, &origem, "ensaio", "42", edicao, &novas).is_err());
         assert_eq!(
             ler(&banco, &origem, "ensaio", "42").unwrap(),
             Some(documento)
@@ -509,8 +504,7 @@ mod testes_secoes {
             2
         );
         banco.execute_batch("DROP TRIGGER falha_secao").unwrap();
-        let publicada =
-            publicar_secoes(&banco, &origem, "ensaio", "42", edicao, &novas).unwrap();
+        let publicada = publicar_secoes(&banco, &origem, "ensaio", "42", edicao, &novas).unwrap();
         assert_eq!(publicada.versao_nova, v3);
         assert_eq!(
             ler_secoes(&banco, &origem, "ensaio", "42", v2).unwrap(),
@@ -520,9 +514,7 @@ mod testes_secoes {
             ler_secoes(&banco, &origem, "ensaio", "42", v3).unwrap(),
             novas
         );
-        assert!(
-            publicar_secoes(&banco, &origem, "ensaio", "42", edicao, &novas).is_err()
-        );
+        assert!(publicar_secoes(&banco, &origem, "ensaio", "42", edicao, &novas).is_err());
         // Reimportar uma revisão divergente não reutiliza seções antigas.
         // Exercita também o modo SQLite sem enforcement de FK.
         banco.pragma_update(None, "foreign_keys", false).unwrap();

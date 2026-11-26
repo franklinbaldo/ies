@@ -475,7 +475,8 @@ fn editor_classico_rele_todas_as_secoes_transportadas() {
     ];
     registrar_secoes(&banco, &origem(), "ensaio", "42", v2, &secoes).unwrap();
     let montar = "/sei/controlador.php?acao=editor_montar&id_documento=42";
-    let salvar = "/sei/editor/editor_processar.php?acao=editor_salvar&id_procedimento=7&id_documento=42";
+    let salvar =
+        "/sei/editor/editor_processar.php?acao=editor_salvar&id_procedimento=7&id_documento=42";
     let previa = responder("GET", montar, "", &banco, &origem(), "ensaio");
     assert_eq!(previa.estado, Estado::Ok);
     assert!(previa.corpo.contains("name='txaEditor_5'></textarea>"));
