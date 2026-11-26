@@ -81,7 +81,8 @@ fn formulario_do_acervo(
     instalacao: &crate::instalacao::Instalacao,
     tela: &crate::formulario_web::TelaServida<'_>,
     data: crate::unidade_retornos::DataCivil,
-) -> Result<crate::formulario_web::SubmissaoDerivada, crate::formulario_web::ErroSubmissaoFormulario> {
+) -> Result<crate::formulario_web::SubmissaoDerivada, crate::formulario_web::ErroSubmissaoFormulario>
+{
     use crate::acao_do_sei::AcaoDoSei;
     use crate::formulario_web::{
         ConferenciaDaUnidade, EfeitoAvaliado, EnvioDoFormulario, OperacaoDeFormulario,
@@ -404,7 +405,8 @@ fn acervo_detalhe_original() {
                 let tela = HtmlServido::de_teste(&html);
                 if resposta.metodo == "GET" && !formulario_derivado {
                     let dom = arvore(&tela);
-                    if crate::formulario_web::localizar_formulario(&dom, "frmEstatisticas").is_ok() {
+                    if crate::formulario_web::localizar_formulario(&dom, "frmEstatisticas").is_ok()
+                    {
                         let url = gravacao::url_sem_consulta(&conferida.json, resposta.interacao);
                         let codificacao = crate::pagina_do_controle::codificacao_da_tela(
                             &gravacao::mime(resposta.interacao),
@@ -420,7 +422,10 @@ fn acervo_detalhe_original() {
                             .expect("derivacao do formulario original");
                         for nome in ["selOrgao", "txtPeriodoDe", "txtPeriodoA", "sbmPesquisar"] {
                             assert_eq!(
-                                post.nomes_dos_campos().iter().filter(|n| n.as_str() == nome).count(),
+                                post.nomes_dos_campos()
+                                    .iter()
+                                    .filter(|n| n.as_str() == nome)
+                                    .count(),
                                 1
                             );
                         }
