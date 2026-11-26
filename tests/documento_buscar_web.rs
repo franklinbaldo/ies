@@ -124,6 +124,9 @@ fn pesquisa_sem_criterio_e_recusada_antes_da_configuracao() {
 
 #[test]
 fn texto_livre_valido_chega_a_configuracao_sem_protocolo() {
-    let saida = ies(&["--json", "documento", "buscar", "--texto", "contrato"], true);
+    let saida = ies(
+        &["--json", "documento", "buscar", "--texto", "contrato"],
+        true,
+    );
     assert_eq!(saida.status.code(), Some(1));
 }
