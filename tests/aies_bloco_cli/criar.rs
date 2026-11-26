@@ -20,6 +20,7 @@ fn criar_bloco_previa_nao_grava_nem_adivinha_identidade() {
     assert_eq!(valor["unidade"], "TESTE");
     assert_eq!(valor["tipo_bloco"], "assinatura");
     assert_eq!(valor["descricao"], "Despachos de teste");
+    assert_eq!(valor["grupo_padrao"], "null");
     assert_eq!(valor["confirmado"], false);
     assert_eq!(valor["alterado"], false);
     assert!(valor["bloco"].is_null());
