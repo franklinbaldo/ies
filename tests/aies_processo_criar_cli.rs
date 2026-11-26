@@ -351,7 +351,10 @@ fn criacao_unica_e_releitura_independente_via_cli_real() {
         "Cadastro causal de ensaio"
     );
     assert_eq!(confirmado["propriedades"]["nivel_de_acesso"], "publico");
-    assert_eq!(confirmado["propriedades"]["assuntos"][0]["codigo"], "000.01");
+    assert_eq!(
+        confirmado["propriedades"]["assuntos"][0]["codigo"],
+        "000.01"
+    );
     assert_eq!(
         confirmado["propriedades"]["assuntos"][0]["descricao"],
         "Assunto de Ensaio"
