@@ -195,3 +195,91 @@ fn pdf_misto_recupera_texto_em_ordem_sem_alterar_original() {
         3
     );
 }
+
+// Retira apenas os glifos nativos, sem deslocar objetos nem a tabela xref.
+// Restam uma página digitalizada e duas páginas sem texto.
+fn pdf_apenas_ocr() -> Vec<u8> {
+    let marcador = b"NATIVO ALFA";
+    let mut pdf = PDF_MISTO.to_vec();
+    let inicio = pdf
+        .windows(marcador.len())
+        .position(|janela| janela == marcador)
+        .unwrap();
+    pdf[inicio..inicio + marcador.len()].fill(b' ');
+    pdf
+}
+
+fn conferir_pdf_ocr(
+    pdf: &[u8],
+    caminho: Option<&std::path::Path>,
+    estado: &str,
+    texto: Option<&str>,
+) {
+    use sha2::{Digest, Sha256};
+
+    let (saidas, eventos, documentos, arquivo) = executar(false, false, true, Some(pdf), caminho);
+    assert_eq!(documentos, 1);
+    assert_eq!(saidas.len(), 5);
+    assert_eq!(arquivo.as_deref(), Some(pdf));
+    let hash = hex::encode(Sha256::digest(pdf));
+    for (i, saida) in saidas.iter().skip(2).enumerate() {
+        assert_eq!(saida.status.code(), Some(0), "{:?}", saida.stderr);
+        let lido = json(saida);
+        let doc = &lido["documentos"][0];
+        assert_eq!(doc["anexo"]["sha256"], hash);
+        if i == 0 {
+            assert!(doc.get("texto").is_none());
+            assert!(doc["anexo"].get("extracao_pdf").is_none());
+        } else {
+            assert_eq!(doc["anexo"]["extracao_pdf"], estado);
+            assert_eq!(doc.get("cache").is_some(), i == 2);
+            assert_eq!(
+                doc.get("texto")
+                    .and_then(serde_json::Value::as_str)
+                    .map(str::trim),
+                texto
+            );
+        }
+    }
+    assert_eq!(
+        eventos
+            .iter()
+            .filter(|e| e.as_str() == "GET documento_download_anexo 200")
+            .count(),
+        3
+    );
+}
+
+#[test]
+fn pdf_sem_texto_nativo_recupera_apenas_ocr() {
+    conferir_pdf_ocr(
+        &pdf_apenas_ocr(),
+        None,
+        "ocr_parcial",
+        Some("DOCUMENTO DIGITALIZADO BETA"),
+    );
+}
+
+#[test]
+fn pdf_ocr_ausente_distingue_misto_de_digitalizado() {
+    use std::os::unix::fs::symlink;
+
+    let pasta = Pasta::nova();
+    let motores = pasta.0.join("somente-poppler");
+    fs::create_dir(&motores).unwrap();
+    let path = std::env::var_os("PATH").unwrap();
+    for nome in ["pdftotext", "pdftoppm"] {
+        let motor = std::env::split_paths(&path)
+            .map(|diretorio| diretorio.join(nome))
+            .find(|arquivo| arquivo.is_file())
+            .unwrap();
+        symlink(fs::canonicalize(motor).unwrap(), motores.join(nome)).unwrap();
+    }
+    conferir_pdf_ocr(
+        PDF_MISTO,
+        Some(&motores),
+        "nativo_com_diagnostico",
+        Some("NATIVO ALFA"),
+    );
+    conferir_pdf_ocr(&pdf_apenas_ocr(), Some(&motores), "ocr_indisponivel", None);
+}
