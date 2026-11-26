@@ -23,6 +23,7 @@ use fixture_tls::{Pasta, identidade};
 const ORIGEM: &str = "https://sei.test/sei";
 const CENARIO: &str = "bdd-245-cli";
 const TIPO: &str = "Administração Geral: Ensaio";
+const ESPECIFICACAO_PERDIDA: &str = "Cadastro com resposta perdida";
 
 fn aceitar(escuta: &TcpListener, parar: &AtomicBool) -> Option<TcpStream> {
     loop {
@@ -166,6 +167,7 @@ fn executar_com_releitura(
     args: &[&str],
     reler: bool,
     perder_resposta: bool,
+    concorrente: bool,
 ) -> (Output, Option<Output>, Vec<String>, (i64, i64), usize) {
     let pasta = Pasta::nova();
     let (cert, identidade) = identidade(&pasta.0, "sei.test");
@@ -190,6 +192,19 @@ fn executar_com_releitura(
         let antes = quantidade(&banco);
         while let Some(mut cliente) = aceitar(&escuta, &parar_sim) {
             atender_http(&mut cliente, Some((&banco, &instalacao, CENARIO))).unwrap();
+            // Outro ator cria no mesmo banco após o POST e antes da releitura.
+            // A injeção é sintética e não conta como requisição da CLI sob teste.
+            if concorrente && quantidade(&banco) == 1 {
+                criacao_processo::criar(
+                    &banco,
+                    &instalacao,
+                    CENARIO,
+                    "12",
+                    ESPECIFICACAO_PERDIDA,
+                    "TESTE",
+                )
+                .unwrap();
+            }
         }
         let tipos = criacao_processo::listar(&banco, &instalacao, CENARIO)
             .unwrap()
@@ -253,7 +268,7 @@ fn executar_com_releitura(
 }
 
 fn executar(args: &[&str]) -> (Output, Vec<String>, (i64, i64), usize) {
-    let (saida, _, pedidos, contagens, tipos) = executar_com_releitura(args, false, false);
+    let (saida, _, pedidos, contagens, tipos) = executar_com_releitura(args, false, false, false);
     (saida, pedidos, contagens, tipos)
 }
 
@@ -310,6 +325,7 @@ fn criacao_unica_e_releitura_independente_via_cli_real() {
             "--confirmar",
         ],
         true,
+        false,
         false,
     );
     assert_eq!(
@@ -427,11 +443,12 @@ fn resposta_perdida_preserva_residuo_sem_confirmar_nem_repetir() {
             "--tipo",
             TIPO,
             "--especificacao",
-            "Cadastro com resposta perdida",
+            ESPECIFICACAO_PERDIDA,
             "--confirmar",
         ],
         false,
         true,
+        false,
     );
     assert_eq!(
         saida.status.code(),
@@ -460,7 +477,60 @@ fn resposta_perdida_preserva_residuo_sem_confirmar_nem_repetir() {
             .iter()
             .any(|p| *p == "GET procedimento_controlar 200")
     );
+    let erro = String::from_utf8_lossy(&saida.stderr);
+    assert!(erro.contains("PosEscrita"), "{erro}");
+    assert!(erro.contains("causa_post:"), "{erro}");
+    assert!(
+        erro.contains("correspondentes: Some([\"00000.000001/2026-01\"])"),
+        "{erro}"
+    );
     // O processo recém-criado precisa aparecer em Gerados com link servido.
     // A leitura das propriedades não pode transformar coincidência em autoria.
     assert!(depois.iter().any(|p| *p == "GET procedimento_alterar 200"));
+}
+
+#[test]
+fn resposta_perdida_com_dois_candidatos_nao_atribui_autoria() {
+    let (saida, _, pedidos, contagens, tipos) = executar_com_releitura(
+        &[
+            "--json",
+            "processo",
+            "criar",
+            "--tipo",
+            TIPO,
+            "--especificacao",
+            ESPECIFICACAO_PERDIDA,
+            "--confirmar",
+        ],
+        false,
+        true,
+        true,
+    );
+    let erro = String::from_utf8_lossy(&saida.stderr);
+    assert_eq!(saida.status.code(), Some(1), "{erro} {pedidos:?}");
+    assert_eq!(contagens, (0, 2));
+    assert_eq!(tipos, 1);
+    assert_eq!(
+        pedidos
+            .iter()
+            .filter(|p| p.starts_with("POST procedimento_gerar "))
+            .count(),
+        1
+    );
+    assert_eq!(
+        pedidos
+            .iter()
+            .filter(|p| *p == "GET procedimento_alterar 200")
+            .count(),
+        2,
+        "cada candidato precisa de propriedades relidas"
+    );
+    assert!(erro.contains("PosEscrita"), "{erro}");
+    assert!(erro.contains("causa_post:"), "{erro}");
+    assert!(
+        erro.contains(
+            "correspondentes: Some([\"00000.000001/2026-01\", \"00000.000002/2026-01\"])"
+        ),
+        "{erro}"
+    );
 }
