@@ -135,10 +135,11 @@ pub fn registrar_pagina(
     criterios: Criterios<'_>,
     pagina: &Pagina,
 ) -> rusqlite::Result<()> {
+    let quantidade = u64::try_from(pagina.ids.len()).map_err(|_| rusqlite::Error::InvalidQuery)?;
     if pagina.total == 0
         || pagina.inicio == 0
         || pagina.fim < pagina.inicio
-        || pagina.ids.len() as u64 > pagina.fim - pagina.inicio + 1
+        || quantidade > pagina.fim - pagina.inicio + 1
     {
         return Err(rusqlite::Error::InvalidQuery);
     }
