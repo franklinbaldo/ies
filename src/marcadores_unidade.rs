@@ -283,8 +283,7 @@ mod tests {
                     .elementos("tr")
                     .filter_map(|linha| {
                         let checkbox = linha.elementos("input").find(|e| {
-                            e.atributo("type") == Some("checkbox")
-                                && e.atributo("value").is_some()
+                            e.atributo("type") == Some("checkbox") && e.atributo("value").is_some()
                         })?;
                         let id = checkbox.atributo("value").unwrap();
                         let ativo = linha
