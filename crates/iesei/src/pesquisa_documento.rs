@@ -87,8 +87,7 @@ mod tests {
                 let mut banco = Connection::open_in_memory().unwrap();
                 crate::banco_cassettes::iniciar(&banco).unwrap();
                 let negativo = |banco: &Connection| {
-                    registrar_sem_resultado(banco, &origem, "cenario", &unidade, "termo")
-                        .unwrap();
+                    registrar_sem_resultado(banco, &origem, "cenario", &unidade, "termo").unwrap();
                 };
                 if negativo_primeiro {
                     negativo(&banco);
