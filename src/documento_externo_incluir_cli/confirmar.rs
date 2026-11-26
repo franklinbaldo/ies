@@ -1,15 +1,16 @@
 //! #332 — conecta a confirmação única do PDF à saída pública.
 //! Validada ao vivo na `UnB` de treinamento (09/11/2026, saída 0).
+use super::arquivo_json;
 use crate::Cli;
-use crate::documento_externo_incluir::{PdfLocal, fluxo_confirmar::executar_confirmacao_https};
+use crate::documento_externo_incluir::{
+    PdfLocal, fluxo_confirmar::{executar_confirmacao_https, prevalidar_confirmacao},
+};
 use crate::processo::NumeroProcesso;
 use crate::processo_concluir::escrita::Contador;
 use crate::processo_concluir_cli::com_sessao;
 use crate::visao_do_controle::EnvioHttps;
 use serde_json::json;
 use std::path::{Path, PathBuf};
-use super::arquivo_json;
-use crate::documento_externo_incluir::fluxo_confirmar::prevalidar_confirmacao;
 
 /// Os contadores incluem as tentativas de rede que falharam. O multipart
 /// usa o mesmo cliente HTTPS, mas não passa pelo Contador dos GET/POST comuns.
@@ -118,7 +119,7 @@ pub(super) fn executar_lote(
         // Reconfere todos os arquivos antes da primeira escrita; a sequência
         // individual ainda reabre e confere o descritor efetivamente enviado.
         for (pdf, caminho) in pdfs.iter().zip(caminhos) {
-            crate::documento_externo_incluir::abrir_pdf_para_envio(caminho, pdf)?;
+            drop(crate::documento_externo_incluir::abrir_pdf_para_envio(caminho, pdf)?);
         }
         let mut itens = Vec::new();
         for (posicao, (pdf, caminho)) in pdfs.iter().zip(caminhos).enumerate() {

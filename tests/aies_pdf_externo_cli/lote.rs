@@ -3,7 +3,7 @@ use super::*;
 #[test]
 fn lote_previa_de_dois_pdfs_nao_escreve() {
     let (saidas, eventos, total, _) =
-        executar(false, true, false, Some(b"%PDF-1.4\n2 0 obj\n%%EOF\n"));
+        executar(None, true, false, &[b"%PDF-1.4\n2 0 obj\n%%EOF\n"]);
     assert_eq!(saidas[0].status.code(), Some(0), "{:?}", saidas[0].stderr);
     let previa = json(&saidas[0]);
     assert_eq!(previa["escopo"], "previa_web_lote");
@@ -24,7 +24,7 @@ fn lote_previa_de_dois_pdfs_nao_escreve() {
 
 #[test]
 fn lote_segundo_pdf_invalido_nao_abre_previa() {
-    let (saidas, eventos, total, _) = executar(false, true, false, Some(b"nao e pdf"));
+    let (saidas, eventos, total, _) = executar(None, true, false, &[b"nao e pdf"]);
     falha(&saidas[0], "Conteudo");
     assert_eq!(total, 0);
     assert!(
@@ -38,7 +38,7 @@ fn lote_segundo_pdf_invalido_nao_abre_previa() {
 #[test]
 fn lote_confirma_dois_pdfs_em_ordem_sem_retry() {
     let (saidas, eventos, total, _) =
-        executar(false, false, false, Some(b"%PDF-1.4\n2 0 obj\n%%EOF\n"));
+        executar(None, false, false, &[b"%PDF-1.4\n2 0 obj\n%%EOF\n"]);
     assert_eq!(saidas[0].status.code(), Some(0), "{:?}", saidas[0].stderr);
     let lote = json(&saidas[0]);
     assert_eq!(lote["escopo"], "confirmacao_web_lote");
@@ -66,4 +66,26 @@ fn lote_confirma_dois_pdfs_em_ordem_sem_retry() {
     let arvore = json(&saidas[1])["documentos"].to_string();
     assert!(arvore.contains("050000001"));
     assert!(arvore.contains(segundo));
+}
+
+#[test]
+fn lote_segundo_cadastro_incerto_preserva_primeiro_e_nao_tenta_terceiro() {
+    let (saidas, eventos, total, _) = executar(
+        Some(2),
+        false,
+        false,
+        &[b"%PDF-1.4\n2 0 obj\n%%EOF\n", b"%PDF-1.4\n3 0 obj\n%%EOF\n"],
+    );
+    falha(&saidas[0], "TentativaNaoComprovada");
+    let lote = json(&saidas[0]);
+    assert_eq!(lote["confirmado"], false);
+    assert_eq!(lote["itens"][0]["estado"], "confirmado");
+    assert_eq!(lote["itens"][0]["numero_sei"], "050000001");
+    assert_eq!(lote["itens"][1]["estado"], "nao_comprovado");
+    assert_eq!(lote["itens"][1]["upload_tentado"], true);
+    assert_eq!(lote["itens"][2]["estado"], "nao_tentado");
+    assert_eq!(total, 2, "segundo efeito existiu, terceiro não foi tentado");
+    for evento in ["POST documento_upload_anexo 200", "POST documento_receber 302"] {
+        assert_eq!(eventos.iter().filter(|e| e.as_str() == evento).count(), 2);
+    }
 }

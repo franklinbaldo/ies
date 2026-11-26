@@ -142,10 +142,10 @@ fn preparar_banco() -> (Connection, Instalacao) {
     reason = "Bancada E2E reúne proxy TLS, servidor HTTP e processos reais"
 )]
 fn executar(
-    incerteza: bool,
+    cadastro_incerto: Option<usize>,
     somente_previa: bool,
     com_leitura: bool,
-    segundo_pdf: Option<&[u8]>,
+    adicionais: &[&[u8]],
 ) -> (Vec<Output>, Vec<String>, usize, Option<Vec<u8>>) {
     let pasta = Pasta::nova();
     let (cert, identidade_tls) = identidade(&pasta.0, "sei.test");
@@ -161,10 +161,16 @@ fn executar(
     let cookie = pasta.privado("cookie", "PHPSESSID=FICTICIO");
     let pdf = pasta.0.join("peticao.pdf");
     fs::write(&pdf, b"%PDF-1.4\n1 0 obj\n%%EOF\n").unwrap();
-    let pdf2 = pasta.0.join("segundo.pdf");
-    if let Some(bytes) = segundo_pdf {
-        fs::write(&pdf2, bytes).unwrap();
-    }
+    let outros: Vec<_> = adicionais
+        .iter()
+        .enumerate()
+        .map(|(i, bytes)| {
+            let nome = ["segundo.pdf", "terceiro.pdf"][i];
+            let caminho = pasta.0.join(nome);
+            fs::write(&caminho, bytes).unwrap();
+            caminho
+        })
+        .collect();
 
     let escuta = TcpListener::bind(("127.0.0.1", 0)).unwrap();
     escuta.set_nonblocking(true).unwrap();
@@ -189,6 +195,7 @@ fn executar(
     let registro = Arc::clone(&trilha);
     let tunel = thread::spawn(move || {
         let tls = TlsAcceptor::new(identidade_tls).unwrap();
+        let mut cadastros = 0;
         while let Some(mut tcp) = aceitar(&proxy, &sinal_proxy) {
             let (connect, _, _) = pedido(&mut tcp);
             assert!(connect.starts_with(b"CONNECT sei.test:443 HTTP/1.1\r\n"));
@@ -213,11 +220,17 @@ fn executar(
                 .lock()
                 .unwrap()
                 .push(format!("{metodo} {acao} {status}"));
-            if incerteza && metodo == "POST" && acao == "documento_receber" && status == "302" {
-                resposta = String::from_utf8(resposta)
-                    .unwrap()
-                    .replace("id_documento=8000000000001", "id_documento=8000000000999")
-                    .into_bytes();
+            if metodo == "POST" && acao == "documento_receber" && status == "302" {
+                cadastros += 1;
+                if cadastro_incerto == Some(cadastros) {
+                    let texto = String::from_utf8(resposta).unwrap();
+                    let (_, resto) = texto.split_once("id_documento=").unwrap();
+                    let id: String = resto.chars().take_while(char::is_ascii_digit).collect();
+                    assert!(!id.is_empty());
+                    resposta = texto
+                        .replace(&format!("id_documento={id}"), "id_documento=8000000000999")
+                        .into_bytes();
+                }
             }
             canal.write_all(&resposta).unwrap();
             canal.flush().unwrap();
@@ -238,8 +251,8 @@ fn executar(
         "--confirmar"
     };
     let mut incluir = [base.as_slice(), &[pdf_str, "--tipo", "Anexo", modo]].concat();
-    if segundo_pdf.is_some() {
-        incluir.extend(["--arquivo", pdf2.to_str().unwrap()]);
+    for caminho in &outros {
+        incluir.extend(["--arquivo", caminho.to_str().unwrap()]);
     }
     let consultar = [
         "--json",
@@ -308,7 +321,7 @@ fn json(saida: &Output) -> Value {
 
 #[test]
 fn bdd_332_03_binario_confirma_upload_cadastro_e_releitura_independente() {
-    let (saidas, eventos, total, _) = executar(false, false, false, None);
+    let (saidas, eventos, total, _) = executar(None, false, false, &[]);
     assert_eq!(
         saidas[0].status.code(),
         Some(0),
@@ -354,7 +367,7 @@ fn bdd_332_03_binario_confirma_upload_cadastro_e_releitura_independente() {
 
 #[test]
 fn bdd_332_04_resposta_sem_autoria_falha_sem_repetir_post() {
-    let (saidas, eventos, total, _) = executar(true, false, false, None);
+    let (saidas, eventos, total, _) = executar(Some(1), false, false, &[]);
     falha(&saidas[0], "TentativaNaoComprovada");
     assert_eq!(total, 1, "efeito existiu mesmo com resposta adulterada");
     assert_eq!(
@@ -377,7 +390,7 @@ fn bdd_332_04_resposta_sem_autoria_falha_sem_repetir_post() {
 /// mas nenhuma linha de upload nem documento definitivo pode surgir.
 #[test]
 fn bdd_332_02_binario_consulta_previa_sem_upload_ou_cadastro() {
-    let (saidas, eventos, total, _) = executar(false, true, false, None);
+    let (saidas, eventos, total, _) = executar(None, true, false, &[]);
     assert_eq!(
         saidas[0].status.code(),
         Some(0),
@@ -422,7 +435,7 @@ fn bdd_332_02_binario_consulta_previa_sem_upload_ou_cadastro() {
 fn bdd_60_03_cli_baixa_pdf_original_do_estado_compartilhado() {
     // BDD-60-03 pré-escrito na #60: o mesmo PDF cadastrado deve ser lido
     // pela CLI real e salvo byte a byte, sem transformar conteúdo em HTML.
-    let (saidas, eventos, documentos, arquivo) = executar(false, false, true, None);
+    let (saidas, eventos, documentos, arquivo) = executar(None, false, true, &[]);
     assert_eq!(documentos, 1, "um único documento definitivo");
     assert_eq!(
         saidas[2].status.code(),
