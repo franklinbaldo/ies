@@ -143,6 +143,7 @@ enum Leitura {
     Pdf,
     Zip,
     PdfProcesso,
+    ZipSelecao(&'static str),
 }
 
 #[expect(
@@ -168,6 +169,9 @@ fn executar(
     let cookie = pasta.privado("cookie", "PHPSESSID=FICTICIO");
     let pdf = pasta.0.join("peticao.pdf");
     fs::write(&pdf, b"%PDF-1.4\n1 0 obj\n%%EOF\n").unwrap();
+
+    let outro_pdf = pasta.0.join("segundo.pdf");
+    fs::write(&outro_pdf, b"%PDF-1.4\n2 0 obj\n%%EOF\n").unwrap();
 
     let escuta = TcpListener::bind(("127.0.0.1", 0)).unwrap();
     escuta.set_nonblocking(true).unwrap();
@@ -241,6 +245,11 @@ fn executar(
         "--confirmar"
     };
     let incluir = [base.as_slice(), &[pdf_str, "--tipo", "Anexo", modo]].concat();
+    let incluir_outro = [
+        base.as_slice(),
+        &[outro_pdf.to_str().unwrap(), "--tipo", "Anexo", modo],
+    ]
+    .concat();
     let consultar = [
         "--json",
         "processo",
@@ -277,11 +286,18 @@ fn executar(
         "--saida",
         exportado.to_str().unwrap(),
     ];
-    let mut comandos = vec![&incluir[..], &consultar[..]];
+    let mut exportar_selecao = exportar.to_vec();
+    let mut comandos = vec![&incluir[..]];
+    if let Leitura::ZipSelecao(documento) = leitura {
+        comandos.push(&incluir_outro);
+        exportar_selecao.extend(["--documentos", documento]);
+    }
+    comandos.push(&consultar);
     match leitura {
         Leitura::Nenhuma => {}
         Leitura::Pdf => comandos.push(&ler_pdf),
         Leitura::Zip | Leitura::PdfProcesso => comandos.push(&exportar),
+        Leitura::ZipSelecao(_) => comandos.push(&exportar_selecao),
     }
     let saidas = comandos
         .iter()
@@ -310,7 +326,7 @@ fn executar(
     let total = servidor.join().unwrap();
     let eventos = trilha.lock().unwrap().clone();
     let arquivo = match leitura {
-        Leitura::Zip | Leitura::PdfProcesso => fs::read(exportado).ok(),
+        Leitura::Zip | Leitura::PdfProcesso | Leitura::ZipSelecao(_) => fs::read(exportado).ok(),
         _ => fs::read(destino_arquivo.join("050000001.pdf")).ok(),
     };
     (saidas, eventos, total, arquivo)
