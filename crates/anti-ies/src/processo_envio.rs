@@ -3,7 +3,8 @@
 use crate::{Estado, Resposta, despachar};
 use iesei::instalacao::Instalacao;
 use iesei::processos::{
-    ErroProcessos, PedidoEnvio, ProcessoSimulado, enviar_destinos_da_unidade, ler, registrar_anotacao,
+    ErroProcessos, PedidoEnvio, ProcessoSimulado, enviar_destinos_da_unidade, ler,
+    registrar_anotacao,
 };
 use rusqlite::Connection;
 use std::fmt::Write;
