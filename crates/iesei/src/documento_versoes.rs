@@ -355,10 +355,7 @@ mod testes_criacao {
             ler(&banco, &origem, "ensaio", "21").unwrap(),
             Some(documento.clone())
         );
-        assert_eq!(
-            ler(&banco, &origem, "outro", "21").unwrap(),
-            Some(antigo)
-        );
+        assert_eq!(ler(&banco, &origem, "outro", "21").unwrap(), Some(antigo));
         banco
             .execute_batch(
                 "CREATE TRIGGER falha_publicacao BEFORE INSERT ON documento_revisao
