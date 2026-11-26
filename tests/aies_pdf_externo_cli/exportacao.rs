@@ -7,7 +7,7 @@ fn exportacao_zip_preserva_documento_cadastrado_e_nao_repete_geracao() {
 
     // Hipótese de saída: o ZIP integral contém o PDF previamente cadastrado.
     // O formulário e o link de download têm replay original separado.
-    let (saidas, eventos, documentos, arquivo) = executar(false, false, Leitura::Zip);
+    let (saidas, eventos, documentos, arquivo) = executar(None, false, Leitura::Zip, &[]);
     assert_eq!(documentos, 1, "exportar não cria novo documento");
     assert_eq!(saidas[0].status.code(), Some(0), "cadastro: {eventos:?}");
     assert_eq!(saidas[1].status.code(), Some(0), "releitura: {eventos:?}");
@@ -17,7 +17,11 @@ fn exportacao_zip_preserva_documento_cadastrado_e_nao_repete_geracao() {
         "exportação: stderr={} HTTP={eventos:?}",
         String::from_utf8_lossy(&saidas[2].stderr)
     );
-    let bytes = arquivo.expect("arquivo efetivamente produzido pela CLI");
+    let bytes = arquivo
+        .into_iter()
+        .next()
+        .flatten()
+        .expect("arquivo efetivamente produzido pela CLI");
     let resultado = json(&saidas[2]);
     assert_eq!(resultado["formato"], "zip");
     assert_eq!(resultado["tamanho_bytes"], bytes.len());
@@ -45,7 +49,7 @@ fn exportacao_pdf_de_um_unico_anexo_preserva_bytes_e_nao_repete_geracao() {
 
     // Hipótese mínima: um único anexo externo, sem conversão ou composição.
     // Os bytes de teste são sintéticos; não demonstram fidelidade do PDF do SEI.
-    let (saidas, eventos, documentos, arquivo) = executar(false, false, Leitura::PdfProcesso);
+    let (saidas, eventos, documentos, arquivo) = executar(None, false, Leitura::PdfProcesso, &[]);
     assert_eq!(documentos, 1, "exportar não cria novo documento");
     assert_eq!(saidas[0].status.code(), Some(0), "cadastro: {eventos:?}");
     assert_eq!(saidas[1].status.code(), Some(0), "releitura: {eventos:?}");
@@ -55,7 +59,11 @@ fn exportacao_pdf_de_um_unico_anexo_preserva_bytes_e_nao_repete_geracao() {
         "exportação: stderr={} HTTP={eventos:?}",
         String::from_utf8_lossy(&saidas[2].stderr)
     );
-    let bytes = arquivo.expect("arquivo efetivamente produzido pela CLI");
+    let bytes = arquivo
+        .into_iter()
+        .next()
+        .flatten()
+        .expect("arquivo efetivamente produzido pela CLI");
     assert_eq!(bytes, b"%PDF-1.4\n1 0 obj\n%%EOF\n");
     let resultado = json(&saidas[2]);
     assert_eq!(resultado["formato"], "pdf");
