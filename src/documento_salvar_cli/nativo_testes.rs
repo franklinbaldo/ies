@@ -163,6 +163,7 @@ struct Roteiro {
     editor: String,
     sinal: char,
     pedidos: Vec<String>,
+    posts: Vec<SubmissaoDerivada>,
 }
 
 impl EnvioDoControle for Roteiro {
@@ -170,10 +171,15 @@ impl EnvioDoControle for Roteiro {
 
     fn post(
         &mut self,
-        _: SubmissaoDerivada,
-        _: &str,
+        submissao: SubmissaoDerivada,
+        cookie: &str,
     ) -> Result<crate::formulario_web::RespostaDoPost<Self::Corpo>, FalhaTransporte> {
-        panic!("POST fora da abertura do editor")
+        assert_eq!(cookie, "PHPSESSID=SINTETICO");
+        self.posts.push(submissao);
+        Ok(crate::formulario_web::RespostaDoPost {
+            resposta: resposta(200, "text/html; charset=utf-8", b"OK 2".to_vec(), None),
+            localizacao: None,
+        })
     }
 
     fn get(&mut self, url: &str, _: &str) -> Result<RespostaWeb<Self::Corpo>, FalhaTransporte> {
@@ -221,6 +227,7 @@ fn abrir_editor_exige_barra_e_consulta_sem_assinatura() {
     for (sinal_barra, sinal_ajax, outro_documento, quantidade) in [
         (Some('N'), 'N', false, 3),
         (Some('N'), 'S', false, 2),
+        (Some('N'), 'X', false, 2),
         (Some('S'), 'N', false, 0),
         (Some('S'), 'S', false, 0),
         (None, 'N', false, 0),
@@ -268,10 +275,15 @@ fn abrir_editor_exige_barra_e_consulta_sem_assinatura() {
             ),
             sinal: sinal_ajax,
             pedidos: Vec::new(),
+            posts: Vec::new(),
         };
         let resultado = abrir_editor(&mut envio, &instalacao, &alvo);
         match (sinal_barra, sinal_ajax) {
             (Some('N'), 'N') => assert_eq!(resultado.unwrap().url, envio.editor),
+            (Some('N'), 'X') => assert!(matches!(
+                resultado,
+                Err(ErroEditorNativo::AssinaturaNaoVerificada)
+            )),
             (Some('N'), 'S') | (Some('S'), _) => {
                 assert!(matches!(
                     resultado,
@@ -289,6 +301,7 @@ fn abrir_editor_exige_barra_e_consulta_sem_assinatura() {
             esperados[..quantidade],
             "{sinal_barra:?}/{sinal_ajax}"
         );
+        assert!(envio.posts.is_empty());
     }
 }
 
@@ -296,12 +309,16 @@ fn abrir_editor_exige_barra_e_consulta_sem_assinatura() {
 // o localizador da foto e o mesmo builder do POST de produção.
 #[test]
 fn editor_classico_conserva_vizinhas_vazias_no_post() {
+    use crate::arvore_processo::ProcessoNaArvore;
+    use crate::arvore_processo::tests::{NUP, interno};
     use crate::formulario_web::CodificacaoDaTela;
+    use crate::processo_obter::ResolvidoPor;
+    use crate::transporte::sessao::{CookieDaSessao, CookieLido};
 
     let instalacao = Instalacao::interpretar("https://sei.exemplo.gov.br/sei").unwrap();
     let hash = "a".repeat(64);
     let html = HtmlServido::de_teste(&format!(
-        "<form id='frmEditor' method='post' action='controlador.php?acao=editor_salvar&amp;infra_hash={hash}'>\
+        "<form id='frmEditor' method='post' action='controlador.php?acao=editor_salvar&amp;id_procedimento=10&amp;id_documento=21&amp;infra_hash={hash}'>\
          <input type='hidden' name='hdnVersao' value='1'>\
          <input type='hidden' name='hdnIgnorarNovaVersao' value='N'>\
          <textarea name='txaEditor_4' readonly>&lt;h1&gt;Fixo&lt;/h1&gt;</textarea>\
@@ -326,27 +343,72 @@ fn editor_classico_conserva_vizinhas_vazias_no_post() {
     let editado = copia_renderizada::corpo_editado(&base, &edicao, secoes, principal).unwrap();
     let htmls = htmls_para_post(secoes, principal, editado);
     assert_eq!(htmls, ["<h1>Fixo</h1>", "", "<p>Novo\ntexto", "", "<hr>"]);
-    let pares: Vec<_> = secoes
-        .iter()
-        .zip(&htmls)
-        .map(|(s, html)| (s.nome.as_str(), html.as_str()))
-        .collect();
+    let origem = instalacao.url_base();
     let url = format!(
-        "https://sei.exemplo.gov.br/sei/controlador.php?acao=editor_montar&infra_hash={hash}"
+        "{origem}/controlador.php?acao=editor_montar&id_procedimento=10&id_documento=21&infra_hash={hash}"
     );
-    let submissao = derivar_submissao(
-        &EDITAR,
-        &instalacao,
-        &TelaServida {
-            url: &url,
-            html: &html,
-            codificacao: CodificacaoDaTela::Utf8,
+    let cookie = CookieDaSessao::sintetico("PHPSESSID=SINTETICO");
+    let sessao = SessaoDoProcesso {
+        url_do_controle: &url,
+        origem: &origem,
+        cookie: &cookie,
+    };
+    let alvo = DocumentoNaArvoreAberto {
+        numero: "0000101".into(),
+        id_documento: "21".into(),
+        rotulo: "Despacho 0000101".into(),
+        natureza: interno(),
+        processo: ProcessoNaArvore {
+            id: "10".into(),
+            nup: NUP.into(),
+            tipo: "Tipo Sintetico".into(),
         },
-        None,
-        &pares,
-    )
-    .unwrap();
-    let corpo = String::from_utf8(submissao.corpo().to_vec()).unwrap();
+        unidade: None,
+        resolvido_por: ResolvidoPor::PesquisaRapida,
+        html: HtmlServido::de_teste(""),
+        requisicoes: 0,
+        cookie: CookieLido::sintetico("PHPSESSID=SINTETICO"),
+    };
+    let alvo_edicao = AlvoDaEdicao {
+        instalacao: &instalacao,
+        sessao: &sessao,
+        unidade: None,
+        documento: &alvo,
+    };
+    let mut envio = Roteiro {
+        tela: String::new(),
+        consulta: String::new(),
+        editor: String::new(),
+        sinal: 'N',
+        pedidos: Vec::new(),
+        posts: Vec::new(),
+    };
+    for (campo, outro) in [
+        ("id_documento=21", "id_documento=22"),
+        ("id_procedimento=10", "id_procedimento=11"),
+    ] {
+        let editor = Editor {
+            url: url.clone(),
+            html: HtmlServido::de_teste(&html.replace(campo, outro)),
+            codificacao: CodificacaoDaTela::Utf8,
+        };
+        assert!(matches!(
+            enviar_classico(&mut envio, &alvo_edicao, &editor, secoes, principal, editado),
+            Err(ErroEditorNativo::FormularioDeOutroDocumento)
+        ));
+        assert!(envio.posts.is_empty());
+    }
+    let editor = Editor {
+        url,
+        html,
+        codificacao: CodificacaoDaTela::Utf8,
+    };
+    let aceite = enviar_classico(&mut envio, &alvo_edicao, &editor, secoes, principal, editado)
+        .unwrap();
+    assert_eq!(aceite.map(VersaoDocumento::numero), Some(2));
+    assert!(envio.pedidos.is_empty());
+    assert_eq!(envio.posts.len(), 1);
+    let corpo = String::from_utf8(envio.posts[0].corpo().to_vec()).unwrap();
     let campos: Vec<_> = corpo.split('&').collect();
     for campo in [
         "txaEditor_4=%3Ch1%3EFixo%3C%2Fh1%3E",
