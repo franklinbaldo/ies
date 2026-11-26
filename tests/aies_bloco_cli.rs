@@ -129,14 +129,20 @@ fn cabecalho(fluxo: &mut impl Read) -> Vec<u8> {
     buf
 }
 
-fn registrar_blocos(banco: &mut Connection, instalacao: &Instalacao, interno: bool, detalhe: bool) {
+fn registrar_blocos(
+    banco: &mut Connection,
+    instalacao: &Instalacao,
+    interno: bool,
+    detalhe: bool,
+    completa: bool,
+) {
     blocos::guardar(
         banco,
         instalacao,
         CENARIO,
         &Pagina {
             tipo: Tipo::Assinatura,
-            total: 4,
+            total: if completa { 2 } else { 4 },
             faixa: Some((1, 2)),
             linhas: vec![
                 LinhaBloco {
@@ -308,6 +314,15 @@ fn argumentos(interno: bool, numero: Option<&str>, previa: bool) -> Vec<&str> {
 }
 
 fn executar(interno: bool, numero: Option<&str>, previa: bool) -> (Output, Vec<String>) {
+    executar_com_cobertura(interno, numero, previa, false)
+}
+
+fn executar_com_cobertura(
+    interno: bool,
+    numero: Option<&str>,
+    previa: bool,
+    completa: bool,
+) -> (Output, Vec<String>) {
     let detalhe = numero == Some("2195");
     let esperados = if interno || detalhe || previa { 3 } else { 2 };
     let pasta = Pasta::nova();
@@ -340,7 +355,7 @@ fn executar(interno: bool, numero: Option<&str>, previa: bool) -> (Output, Vec<S
             },
         )
         .unwrap();
-        registrar_blocos(&mut banco, &instalacao, interno, detalhe);
+        registrar_blocos(&mut banco, &instalacao, interno, detalhe, completa);
         let antes = banco.total_changes();
         for _ in 0..esperados {
             let mut fluxo = aceitar(&servidor);
@@ -451,6 +466,23 @@ fn bdd_256_01_cli_real_lista_somente_pagina_observada_no_sqlite() {
     assert!(itens[1].get("quantidade_itens").is_none());
     assert!(!valor.to_string().contains("infra_hash"));
     assert!(!valor.to_string().contains("PHPSESSID"));
+}
+
+/// Corpus sintético completo e isolado para a futura criação.
+#[test]
+fn cli_real_lista_corpus_completo_para_criacao() {
+    let (saida, pedidos) = executar_com_cobertura(false, None, false, true);
+    assert!(saida.status.success());
+    assert!(pedidos.iter().all(|p| p.starts_with("GET ")));
+    let valor = json(&saida);
+    let lista = &valor["lista"];
+    assert_eq!(lista["total_declarado"], 2);
+    assert_eq!(lista["faixa_observada"]["inicio"], 1);
+    assert_eq!(lista["faixa_observada"]["fim"], 2);
+    let itens = lista["itens"].as_array().unwrap();
+    assert_eq!(itens.len(), 2);
+    assert_eq!(itens[0]["numero"], "2195");
+    assert_eq!(itens[1]["numero"], "2196");
 }
 
 /// BDD-256-02: o POST devolve exclusivamente a segunda pagina observada.
