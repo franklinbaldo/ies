@@ -32,7 +32,7 @@ pub(super) fn linha_do_anexo(a: &AnexoLido, gravado: bool) -> String {
         " Use --saida DIR para gravar o arquivo."
     };
     let extracao = a.estado_pdf().map_or_else(String::new, |estado| {
-        format!(" Extração PDF: {estado}; OCR não executado.")
+        format!(" Extração PDF: {estado}; teor integral não certificado.")
     });
     format!(
         "Anexo {}: {} bytes, sha256 {}{nome}.{extracao}{dica}",
@@ -73,5 +73,31 @@ mod tests {
         assert!(linha.contains("12 bytes"));
         assert!(!linha_do_anexo(&anexo(Some("t")), false).contains("--saida"));
         assert!(!linha_do_anexo(&anexo(None), true).contains("--saida"));
+    }
+    #[test]
+    fn linha_pdf_declara_estado_sem_negar_ocr_nem_certificar_teor() {
+        use crate::anexo_documento::ExtracaoPdf;
+
+        for pdf in [
+            ExtracaoPdf::NativoParcial("texto".to_owned()),
+            ExtracaoPdf::NativoComDiagnostico("texto".to_owned()),
+            ExtracaoPdf::MistoParcial("texto".to_owned()),
+            ExtracaoPdf::OcrParcial("texto".to_owned()),
+            ExtracaoPdf::MistoComDiagnostico("texto".to_owned()),
+            ExtracaoPdf::OcrComDiagnostico("texto".to_owned()),
+            ExtracaoPdf::SemTextoNativo,
+            ExtracaoPdf::OcrIndisponivel,
+            ExtracaoPdf::MotorAusente,
+            ExtracaoPdf::Falhou,
+        ] {
+            let estado = pdf.estado();
+            let mut a = anexo(None);
+            a.conteudo = ConteudoDoAnexo::Pdf(pdf);
+            let linha = linha_do_anexo(&a, false);
+            assert!(linha.contains(&format!("Extração PDF: {estado};")));
+            assert!(linha.contains("teor integral não certificado."));
+            assert!(!linha.contains("OCR não executado"));
+            assert_eq!(json_do_anexo(&a)["extracao_pdf"], estado);
+        }
     }
 }
