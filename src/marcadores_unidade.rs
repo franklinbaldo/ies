@@ -31,6 +31,7 @@ pub(crate) struct Lista {
 #[derive(Debug, Serialize)]
 pub(crate) struct Selecao {
     pub(crate) total_declarado: usize,
+    #[serde(skip_serializing_if = "Option::is_none")]
     pub(crate) faixa_observada: Option<Faixa>,
     pub(crate) total_observado: usize,
     pub(crate) estado: Estado,
@@ -163,26 +164,34 @@ pub(crate) fn ler(html: &HtmlServido) -> Result<Lista, ErroCatalogo> {
             estado,
         });
     }
-    let faixa_observada = match legenda.faixa {
-        Some(f)
-            if f.inicio > 0
-                && f.fim >= f.inicio
-                && f.fim <= legenda.total
-                && f.fim - f.inicio + 1 == itens.len() =>
-        {
-            Some(f)
-        }
-        None if legenda.total == itens.len() => (legenda.total > 0).then_some(Faixa {
-            inicio: 1,
-            fim: legenda.total,
-        }),
-        _ => return Err(ErroCatalogo::FaixaIncoerente),
-    };
+    let faixa_observada = conferir_faixa(legenda.total, legenda.faixa, itens.len())?;
     Ok(Lista {
         total_declarado: legenda.total,
         faixa_observada,
         itens,
     })
+}
+
+fn conferir_faixa(
+    total: usize,
+    faixa: Option<Faixa>,
+    observados: usize,
+) -> Result<Option<Faixa>, ErroCatalogo> {
+    match faixa {
+        Some(f)
+            if f.inicio > 0
+                && f.fim >= f.inicio
+                && f.fim <= total
+                && f.fim - f.inicio + 1 == observados =>
+        {
+            Ok(Some(f))
+        }
+        None if total == observados => Ok((total > 0).then_some(Faixa {
+            inicio: 1,
+            fim: total,
+        })),
+        _ => Err(ErroCatalogo::FaixaIncoerente),
+    }
 }
 
 #[cfg(test)]
@@ -271,7 +280,16 @@ mod tests {
         let lista = ler_texto(vazio).unwrap();
         assert_eq!(lista.total_declarado, 0);
         assert_eq!(lista.faixa_observada, None);
-        assert!(lista.itens.is_empty());
+        assert_eq!(lista.itens, [] as [Marcador; 0]);
+        assert_eq!(
+            serde_json::to_value(lista.selecionar(Estado::Ativo)).unwrap(),
+            serde_json::json!({
+                "total_declarado": 0,
+                "total_observado": 0,
+                "estado": "ativo",
+                "itens": []
+            })
+        );
     }
 
     #[test]
@@ -310,7 +328,7 @@ mod tests {
         assert_eq!(selecao.total_declarado, 4);
         assert_eq!(selecao.total_observado, 2);
         assert_eq!(selecao.faixa_observada, Some(Faixa { inicio: 2, fim: 3 }));
-        assert!(selecao.itens.is_empty());
+        assert_eq!(selecao.itens, [] as [Marcador; 0]);
     }
 
     // Fonte original, separada do exemplo sintético e da inspeção de hashes.
