@@ -1,5 +1,6 @@
-//! Hipótese de exportação ZIP sobre PDFs externos cadastrados no SQLite (#889).
-//! Não simula conversão PDF, seleção, documentos internos nem geração assíncrona.
+//! Hipótese de exportação sobre PDFs externos cadastrados no SQLite (#889).
+//! PDF de anexo único preserva bytes; não simula composição, seleção,
+//! documentos internos nem geração assíncrona.
 use crate::{Estado, Resposta, parametro_unico};
 use iesei::instalacao::Instalacao;
 use iesei::pdf_externo;
@@ -13,9 +14,14 @@ fn url(acao: &str, id: &str) -> String {
     )
 }
 
-pub(crate) fn link_da_barra(id: &str) -> String {
-    let endereco = crate::escapar(&url("procedimento_gerar_zip", id));
-    format!(r#"<a href="{endereco}">Gerar ZIP do processo</a>"#)
+pub(crate) fn links_da_barra(id: &str, anexo_unico: bool) -> String {
+    let zip = crate::escapar(&url("procedimento_gerar_zip", id));
+    let mut links = format!(r#"<a href="{zip}">Gerar ZIP do processo</a>"#);
+    if anexo_unico {
+        let pdf = crate::escapar(&url("procedimento_gerar_pdf", id));
+        links.push_str(&format!(r#"<a href="{pdf}">Gerar PDF do processo</a>"#));
+    }
+    links
 }
 
 fn documentos(
@@ -30,7 +36,7 @@ fn documentos(
     {
         return Err(Estado::NaoEncontrado);
     }
-    // Não publicar ZIP parcial como integral: nós internos, anexados e
+    // Não publicar arquivo parcial como integral: nós internos, anexados e
     // pastas pendentes não pertencem à hipótese desta fatia.
     let (_, proximo) = crate::processo_envio::nos_e_proximo_indice(banco, origem, cenario, id)?;
     if proximo != 1 {
@@ -85,29 +91,63 @@ pub(crate) fn responder(
         Ok(docs) => docs,
         Err(estado) => return Resposta::nova(estado),
     };
-    match (parametro_unico(alvo, "acao"), metodo) {
-        (Some("procedimento_gerar_zip"), "GET") => {
-            let action = crate::escapar(&url("procedimento_gerar_zip", id));
+    let acao = parametro_unico(alvo, "acao");
+    let formato = match acao {
+        Some("procedimento_gerar_pdf") => "pdf",
+        Some("procedimento_gerar_zip") => "zip",
+        Some("exibir_arquivo") => match parametro_unico(alvo, "formato") {
+            Some("pdf") => "pdf",
+            Some("zip") => "zip",
+            _ => return Resposta::nova(Estado::RequisicaoInvalida),
+        },
+        _ => return Resposta::nova(Estado::MetodoNaoPermitido),
+    };
+    if formato == "pdf" && docs.len() != 1 {
+        return Resposta::nova(Estado::NaoImplementado);
+    }
+    match (acao, metodo) {
+        (Some(gerar @ ("procedimento_gerar_zip" | "procedimento_gerar_pdf")), "GET") => {
+            let action = crate::escapar(&url(gerar, id));
+            let form = if formato == "pdf" {
+                "frmProcedimentoPdf"
+            } else {
+                "frmProcedimentoZip"
+            };
             Resposta::html(format!(
-                r#"<html><body><form id="frmProcedimentoZip" method="post" action="{action}">
+                r#"<html><body><form id="{form}" method="post" action="{action}">
 <input type="radio" name="rdoTipo" value="T" checked>
 <input type="hidden" name="hdnFlagGerar" value="0">
 </form></body></html>"#
             ))
         }
-        (Some("procedimento_gerar_zip"), "POST") => {
+        (Some("procedimento_gerar_zip" | "procedimento_gerar_pdf"), "POST") => {
             if !matches!(
                 corpo,
                 "rdoTipo=T&hdnFlagGerar=1" | "hdnFlagGerar=1&rdoTipo=T"
             ) {
                 return Resposta::nova(Estado::RequisicaoInvalida);
             }
-            let download = url("exibir_arquivo", id);
+            let download = format!("{}&formato={formato}", url("exibir_arquivo", id));
             Resposta::html(format!(
                 r#"<html><body><iframe id="ifrDownload"></iframe><script>
 document.getElementById('ifrDownload').src = '{download}';
 </script></body></html>"#
             ))
+        }
+        (Some("exibir_arquivo"), "GET") if formato == "pdf" => {
+            let [doc] = docs.as_slice() else {
+                return Resposta::nova(Estado::NaoImplementado);
+            };
+            match pdf_externo::conteudo_do_anexo(banco, origem, cenario, &doc.id.to_string()) {
+                Ok(Some(bytes)) => Resposta {
+                    estado: Estado::Ok,
+                    tipo_conteudo: "application/pdf",
+                    corpo: String::new(),
+                    localizacao: None,
+                    corpo_binario: Some(bytes),
+                },
+                _ => Resposta::nova(Estado::DadosInsuficientes),
+            }
         }
         (Some("exibir_arquivo"), "GET") => match zip_do_processo(banco, origem, cenario, &docs) {
             Ok(bytes) => Resposta {

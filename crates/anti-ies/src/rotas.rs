@@ -272,7 +272,9 @@ pub(crate) fn responder(
         Some("documento_cancelar") if eh_controlador_sei(alvo) => {
             documento_cancelar::responder(metodo, alvo, corpo, banco, instalacao, cenario)
         }
-        Some("procedimento_gerar_zip" | "exibir_arquivo") if eh_controlador_sei(alvo) => {
+        Some("procedimento_gerar_zip" | "procedimento_gerar_pdf" | "exibir_arquivo")
+            if eh_controlador_sei(alvo) =>
+        {
             crate::processo_exportacao::responder(metodo, alvo, corpo, banco, instalacao, cenario)
         }
         Some("documento_download_anexo") if eh_controlador_sei(alvo) => {
