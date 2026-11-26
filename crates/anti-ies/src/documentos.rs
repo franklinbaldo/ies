@@ -223,6 +223,18 @@ fn cadastro(
 
 /// GET navega; POST altera apenas o estado SQLite da simulação.
 /// Tipos, identidade e documentos pertencem ao mesmo cenário/instalação.
+// A seleção de texto padrão ou modelo ainda não é simulada.
+// Não transformar uma solicitação de conteúdo inicial em documento vazio.
+fn texto_inicial_vazio(corpo: &str) -> bool {
+    match campo_formulario_unico(corpo, "rdoTextoInicial").as_deref() {
+        Some("N") => true,
+        None => !corpo
+            .split('&')
+            .any(|campo| campo.split('=').next() == Some("rdoTextoInicial")),
+        _ => false,
+    }
+}
+
 pub(crate) fn atender(
     metodo: &str,
     alvo: &str,
@@ -315,14 +327,8 @@ pub(crate) fn atender(
             {
                 return Resposta::nova(Estado::RequisicaoInvalida);
             }
-            // A seleção de texto padrão ou modelo ainda não é simulada.
-            // Não transformar uma solicitação de conteúdo inicial em documento vazio.
-            match campo_formulario_unico(corpo, "rdoTextoInicial").as_deref() {
-                Some("N") => {}
-                None if !corpo
-                    .split('&')
-                    .any(|campo| campo.split('=').next() == Some("rdoTextoInicial")) => {}
-                _ => return Resposta::nova(Estado::RequisicaoInvalida),
+            if !texto_inicial_vazio(corpo) {
+                return Resposta::nova(Estado::RequisicaoInvalida);
             }
             let Some(descricao) = descricao_do_cadastro(corpo) else {
                 return Resposta::nova(Estado::RequisicaoInvalida);
