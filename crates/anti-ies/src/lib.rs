@@ -395,7 +395,9 @@ pub fn controlar(
     else {
         return Resposta::nova(Estado::DadosInsuficientes);
     };
-    let Some(corpo) = controle_resumido::controle_html(&projetado, &snapshot) else {
+    let Some(corpo) =
+        controle_resumido::controle_html(&projetado, &snapshot, banco, instalacao, cenario)
+    else {
         return Resposta::nova(Estado::DadosInsuficientes);
     };
     Resposta::html(menu_com_retornos(corpo, banco, instalacao, cenario))
