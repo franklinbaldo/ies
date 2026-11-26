@@ -35,8 +35,13 @@ fn texto(no: Elemento<'_>) -> String {
 const ANDAMENTO_ABERTO: &str = "Processos com andamento aberto na unidade ao final do período";
 
 /// Seleciona o TOTAL da tabela 4, não um tipo ou outra estatística.
-/// O link ainda é apenas texto observado: não autoriza transporte.
-fn total_do_resultado(html: &HtmlServido) -> Result<(usize, String), ErroAcervo> {
+/// Resolve o link observado com a guarda comum dos endereços assinados.
+fn total_do_resultado(
+    html: &HtmlServido,
+    instalacao: &crate::instalacao::Instalacao,
+) -> Result<(usize, String), ErroAcervo> {
+    use crate::acao_do_sei::AcaoDoSei;
+    use crate::arvore_processo::endereco::conferir_endereco_relativo_por;
     use crate::consulta_do_controlador::ConsultaDoControlador;
     let dom = arvore(html);
     let mut tabelas = dom.elementos("table").filter(|t| {
@@ -66,12 +71,17 @@ fn total_do_resultado(html: &HtmlServido) -> Result<(usize, String), ErroAcervo>
     }
     let (_, query) = url.split_once('?').ok_or(ErroAcervo::ResultadoSemTotal)?;
     let consulta = ConsultaDoControlador::ler(query).map_err(|_| ErroAcervo::ResultadoSemTotal)?;
-    if consulta.acao().ok() != Some("estatisticas_detalhar_unidade")
-        || consulta.unico("tabela_estatisticas").ok() != Some("4")
-        || consulta.valores("id_tipo_procedimento").next().is_some()
-    {
+    if consulta.valores("id_tipo_procedimento").next().is_some() {
         return Err(ErroAcervo::ResultadoSemTotal);
     }
+    let url = conferir_endereco_relativo_por(
+        instalacao,
+        &url,
+        AcaoDoSei::EstatisticasDetalharUnidade,
+        "tabela_estatisticas",
+        "4",
+    )
+    .map_err(|_| ErroAcervo::ResultadoSemTotal)?;
     let total = ler_legenda(&format!("{numero} registros:"))?.total;
     Ok((total, url))
 }
@@ -167,26 +177,8 @@ fn data_iso_reusa_calendario_civil() {
     }
 }
 
-#[test]
-fn resultado_seleciona_total_e_nao_tipo() {
-    let tela = HtmlServido::de_teste(
-        "<table><caption>Processos gerados no período:</caption>\
-         <tr class='totalEstatisticas'><td>TOTAL:</td><td>99</td></tr></table>\
-         <table><caption>Processos com andamento aberto na unidade ao final do período:</caption>\
-         <tr><td>Tipo</td><td><a onclick=\"abrirDetalhe('controlador.php?acao=estatisticas_detalhar_unidade&amp;tabela_estatisticas=4&amp;id_tipo_procedimento=1');\">7</a></td></tr>\
-         <tr class='totalEstatisticas'><td>TOTAL:</td><td><a onclick=\"abrirDetalhe('controlador.php?acao=estatisticas_detalhar_unidade&amp;tabela_estatisticas=4');\">1.234</a></td></tr></table>",
-    );
-    let (total, _) = total_do_resultado(&tela).unwrap();
-    assert_eq!(total, 1234);
-    for alterada in [
-        tela.as_str().replace("4');", "1');"),
-        tela.as_str()
-            .replace("4');", "4&amp;id_tipo_procedimento=1');"),
-        tela.as_str().replace("1.234", "ilegível"),
-    ] {
-        assert!(total_do_resultado(&HtmlServido::de_teste(&alterada)).is_err());
-    }
-}
+#[path = "unidade_acervo/total_tests.rs"]
+mod total_tests;
 
 fn detalhe(html: &HtmlServido) -> Result<Pagina, ErroAcervo> {
     let dom = arvore(html);
@@ -453,7 +445,7 @@ fn acervo_detalhe_original() {
                         formulario_derivado = true;
                     }
                 }
-                if let Ok((n, _)) = total_do_resultado(&tela) {
+                if let Ok((n, _)) = total_do_resultado(&tela, &instalacao_gravada) {
                     total_anterior = Some(n);
                 }
             }

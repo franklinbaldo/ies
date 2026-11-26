@@ -75,6 +75,7 @@ acoes_do_sei! {
         DocumentoVisualizar => "documento_visualizar",
         EditorMontar => "editor_montar",
         EditorSalvar => "editor_salvar",
+        EstatisticasDetalharUnidade => "estatisticas_detalhar_unidade",
         GerarEstatisticasUnidade => "gerar_estatisticas_unidade",
         GrupoUnidadeCadastrar => "grupo_unidade_cadastrar",
         GrupoUnidadeListar => "grupo_unidade_listar",
