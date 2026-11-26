@@ -126,7 +126,9 @@ pub(super) fn ler_observada<V: EnvioDoControle>(
     let post = derivar_submissao(&PAGINAR, instalacao, &tela, None, &campos)?;
     let url = post.url().to_owned();
     let RespostaDoEnvio::Html(proxima) =
-        enviar_submissao_via(post, sessao.cookie(), |post, cookie| envio.post(post, cookie))?
+        enviar_submissao_via(post, sessao.cookie(), |post, cookie| {
+            envio.post(post, cookie)
+        })?
     else {
         return Err(ErroGrupo::ListaIncompleta.into());
     };
@@ -199,21 +201,38 @@ mod tests {
 
     #[test]
     fn saida_distingue_faixa_observada_de_total() {
-        let valor = saida("PPI".to_owned(), Legenda {
-            total: 103,
-            faixa: Some(crate::legenda::Faixa { inicio: 101, fim: 103 }),
-        }, Vec::new());
+        let valor = saida(
+            "PPI".to_owned(),
+            Legenda {
+                total: 103,
+                faixa: Some(crate::legenda::Faixa {
+                    inicio: 101,
+                    fim: 103,
+                }),
+            },
+            Vec::new(),
+        );
         assert_eq!(valor.get("total_declarado").unwrap(), 103);
-        assert_eq!(valor.get("faixa_observada").unwrap(), &serde_json::json!({"inicio":101,"fim":103}));
+        assert_eq!(
+            valor.get("faixa_observada").unwrap(),
+            &serde_json::json!({"inicio":101,"fim":103})
+        );
         assert!(valor.get("total").is_none());
-        let vazio = saida("PPI".to_owned(), Legenda { total: 0, faixa: None }, Vec::new());
+        let vazio = saida(
+            "PPI".to_owned(),
+            Legenda {
+                total: 0,
+                faixa: None,
+            },
+            Vec::new(),
+        );
         assert!(vazio.get("faixa_observada").is_none());
     }
 
     #[test]
     fn cli_pagina_explicita_deve_ser_positiva() {
-        use clap::Parser;
         use crate::Cli;
+        use clap::Parser;
         assert!(Cli::try_parse_from(["ies", "grupo-envio", "listar"]).is_ok());
         assert!(Cli::try_parse_from(["ies", "grupo-envio", "listar", "--pagina", "2"]).is_ok());
         assert!(Cli::try_parse_from(["ies", "grupo-envio", "listar", "--pagina", "0"]).is_err());
