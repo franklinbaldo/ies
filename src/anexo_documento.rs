@@ -18,7 +18,9 @@ mod conteudo;
 mod fluxo;
 mod pdf;
 
-pub(crate) use fluxo::{ler_anexo, ler_anexo_com_teor};
+#[cfg(test)]
+pub(crate) use fluxo::ler_anexo;
+pub(crate) use fluxo::ler_anexo_com_teor;
 
 pub(crate) use conteudo::ConteudoDoAnexo;
 

@@ -84,8 +84,8 @@ pela pessoa, sem download implícito). Em PDF, `anexo.extracao_pdf` indica
 ou `falhou`. Não certifica teor integral nem executa OCR nesta fatia. Ausência
 de texto nativo não prova página em branco. O motor tem prazo de 30 segundos
 e saída limitada a 8 MB; diagnóstico bruto não é publicado. Com `--saida`,
-não se executa a extração. A leitura sem cache usa parcial privado efêmero. Bytes binários nunca vão para a saída
-padrão. Sem `--json`, a linha do documento, a linha do anexo e o texto
+não se executa a extração. A leitura sem cache usa parcial privado efêmero.
+Bytes binários nunca vão para a saída padrão. Sem `--json`, a linha do documento, a linha do anexo e o texto
 (se houver).
 
 Com `--saida DIR`: o arquivo **original** vai para `DOC.pdf`, `DOC.txt`

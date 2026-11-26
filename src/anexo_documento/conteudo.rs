@@ -1,6 +1,5 @@
-//! O conteúdo guardado de um anexo lido: o texto (tipos de texto, sem
-//! `--saida`), o parcial (com `--saida`) ou nada. Texto e parcial são
-//! alternativos: o texto só é lido quando não há parcial.
+//! Conteúdo do anexo: texto, resultado de extração PDF, parcial para
+//! exportação ou nada. A exportação original não extrai texto.
 use super::{AnexoLido, ArquivoParcial, pdf::ExtracaoPdf};
 
 /// Um só destes: o texto lido, o parcial ainda não ligado ao nome final,
@@ -14,7 +13,7 @@ pub(crate) enum ConteudoDoAnexo {
 }
 
 impl AnexoLido {
-    /// O texto, só nos tipos de texto sem `--saida`.
+    /// Texto nativo recuperado ou tipo textual, sem `--saida`.
     pub(crate) fn texto(&self) -> Option<&str> {
         match &self.conteudo {
             ConteudoDoAnexo::Texto(texto) => Some(texto.as_str()),

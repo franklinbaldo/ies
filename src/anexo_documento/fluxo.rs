@@ -10,6 +10,7 @@ use sha2::{Digest, Sha256};
 
 /// Lê a resposta de `documento_download_anexo` do documento `numero`.
 /// 3xx não chega aqui: quem chama o trata como no resto do fluxo.
+#[cfg(test)]
 pub(crate) fn ler_anexo<R: Read>(
     resposta: RespostaBinaria<R>,
     numero: &str,
@@ -46,7 +47,7 @@ pub(crate) fn ler_anexo_com_teor<R: Read>(
     let mut arquivo = match destino {
         DestinoDoAnexo::SoMetadados if teor_pdf => Some(abrir_parcial_cache(
             &std::env::temp_dir(),
-            numero,
+            "ies-teor-pdf",
             &conferido,
         )?),
         DestinoDoAnexo::SoMetadados => None,
@@ -119,7 +120,7 @@ pub(crate) fn ler_anexo_com_teor<R: Read>(
     publicar_cache(&mut arquivo, destino, numero, &hash, conferido.extensao)?;
     let conteudo = match (arquivo, pdf) {
         (None, Some(pdf)) => ConteudoDoAnexo::Pdf(pdf),
-        (Some(parcial), None | Some(_)) => ConteudoDoAnexo::Arquivo(parcial),
+        (Some(parcial), _) => ConteudoDoAnexo::Arquivo(parcial),
         (None, None) if texto => ConteudoDoAnexo::Texto(texto_do_anexo(
             &conferido.mime,
             &guardado,
