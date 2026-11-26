@@ -103,6 +103,7 @@ mod processo_criar_lista;
 mod processo_criar_menu;
 mod processo_enviar;
 mod processo_enviar_cli;
+mod processo_exportar;
 mod processo_marcar;
 mod processo_marcar_cli;
 mod processo_obter;
@@ -428,6 +429,7 @@ fn tentar_operacao_documento_ou_processo(cli: &Cli) -> Option<anyhow::Result<()>
         .or_else(|| ciencia_cli::tentar_ciente(cli))
         .or_else(|| ciencia_documento_cli::tentar_ciente_documento(cli))
         .or_else(|| processo_anexar_cli::tentar_anexar(cli))
+        .or_else(|| processo_exportar::tentar_exportar(cli))
         .or_else(|| processo_sobrestar_cli::tentar_operar(cli))
         .or_else(|| documento_assinar_cli::tentar_assinar(cli))
         .or_else(|| documento_cancelar_cli::tentar_cancelar(cli))
