@@ -75,6 +75,51 @@ fn zip_do_processo(
         .into_inner())
 }
 
+fn gerar(corpo: &str, formato: &str, id: &str, docs: &[pdf_externo::Documento]) -> Resposta {
+    let Some(pares): Option<Vec<_>> = corpo.split('&').map(|p| p.split_once('=')).collect() else {
+        return Resposta::nova(Estado::RequisicaoInvalida);
+    };
+    let campo = |nome| crate::processo_envio::campo_unico(&pares, nome);
+    if campo("hdnFlagGerar") != Some("1") {
+        return Resposta::nova(Estado::RequisicaoInvalida);
+    }
+    let mut download = format!("{}&formato={formato}", url("exibir_arquivo", id));
+    match campo("rdoTipo") {
+        Some("T")
+            if pares.len() == 2
+                || (pares.len() == 3 && campo("hdnDocumentosApenas") == Some("")) => {}
+        Some("A") if formato == "zip" && pares.len() == 3 => {
+            let Some(valor) = campo("hdnDocumentosApenas")
+                .and_then(crate::processo_envio::decodificar_formulario)
+            else {
+                return Resposta::nova(Estado::RequisicaoInvalida);
+            };
+            let mut ids = Vec::new();
+            for item in valor.split('¥') {
+                let Some((id, titulo)) = item.split_once('±') else {
+                    return Resposta::nova(Estado::RequisicaoInvalida);
+                };
+                if ids.contains(&id)
+                    || !docs.iter().any(|doc| {
+                        doc.id_publico() == id
+                            && titulo == format!("{} - {} ", doc.numero_sei, doc.tipo)
+                    })
+                {
+                    return Resposta::nova(Estado::RequisicaoInvalida);
+                }
+                ids.push(id);
+            }
+            let _ = write!(download, "&documentos={}", ids.join(","));
+        }
+        _ => return Resposta::nova(Estado::RequisicaoInvalida),
+    }
+    Resposta::html(format!(
+        r#"<html><body><iframe id="ifrDownload"></iframe><script>
+document.getElementById('ifrDownload').src = '{download}';
+</script></body></html>"#
+    ))
+}
+
 pub(crate) fn responder(
     metodo: &str,
     alvo: &str,
@@ -130,49 +175,7 @@ pub(crate) fn responder(
             ))
         }
         (Some("procedimento_gerar_zip" | "procedimento_gerar_pdf"), "POST") => {
-            let Some(pares): Option<Vec<_>> = corpo.split('&').map(|p| p.split_once('=')).collect()
-            else {
-                return Resposta::nova(Estado::RequisicaoInvalida);
-            };
-            let campo = |nome| crate::processo_envio::campo_unico(&pares, nome);
-            if campo("hdnFlagGerar") != Some("1") {
-                return Resposta::nova(Estado::RequisicaoInvalida);
-            }
-            let mut download = format!("{}&formato={formato}", url("exibir_arquivo", id));
-            match campo("rdoTipo") {
-                Some("T")
-                    if pares.len() == 2
-                        || (pares.len() == 3 && campo("hdnDocumentosApenas") == Some("")) => {}
-                Some("A") if formato == "zip" && pares.len() == 3 => {
-                    let Some(valor) = campo("hdnDocumentosApenas")
-                        .and_then(crate::processo_envio::decodificar_formulario)
-                    else {
-                        return Resposta::nova(Estado::RequisicaoInvalida);
-                    };
-                    let mut ids = Vec::new();
-                    for item in valor.split('¥') {
-                        let Some((id, titulo)) = item.split_once('±') else {
-                            return Resposta::nova(Estado::RequisicaoInvalida);
-                        };
-                        if ids.contains(&id)
-                            || !docs.iter().any(|doc| {
-                                doc.id_publico() == id
-                                    && titulo == format!("{} - {} ", doc.numero_sei, doc.tipo)
-                            })
-                        {
-                            return Resposta::nova(Estado::RequisicaoInvalida);
-                        }
-                        ids.push(id);
-                    }
-                    let _ = write!(download, "&documentos={}", ids.join(","));
-                }
-                _ => return Resposta::nova(Estado::RequisicaoInvalida),
-            }
-            Resposta::html(format!(
-                r#"<html><body><iframe id="ifrDownload"></iframe><script>
-document.getElementById('ifrDownload').src = '{download}';
-</script></body></html>"#
-            ))
+            gerar(corpo, formato, id, &docs)
         }
         (Some("exibir_arquivo"), "GET") if formato == "pdf" => {
             let [doc] = docs.as_slice() else {
