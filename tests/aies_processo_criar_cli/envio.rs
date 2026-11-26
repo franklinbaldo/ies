@@ -159,6 +159,10 @@ fn destino_inexistente_recusa_antes_de_qualquer_escrita() {
         String::from_utf8_lossy(&saida.stderr)
     );
     assert_eq!(antes, depois);
-    assert!(pedidos.iter().all(|p| !p.starts_with("POST procedimento_enviar ")
-        && !p.starts_with("POST anotacao_registrar ")));
+    assert!(
+        pedidos
+            .iter()
+            .all(|p| !p.starts_with("POST procedimento_enviar ")
+                && !p.starts_with("POST anotacao_registrar "))
+    );
 }
