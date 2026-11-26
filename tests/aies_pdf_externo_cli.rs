@@ -17,6 +17,7 @@ use falha_cli::falha;
 use std::fs;
 use std::io::{Read, Write};
 use std::net::{Shutdown, TcpListener, TcpStream};
+use std::path::Path;
 use std::process::{Command, Output};
 use std::sync::atomic::{AtomicBool, Ordering};
 use std::sync::{Arc, Mutex};
@@ -146,6 +147,7 @@ fn executar(
     somente_previa: bool,
     com_leitura: bool,
     pdf_de_teor: Option<&[u8]>,
+    caminho_motor: Option<&Path>,
 ) -> (Vec<Output>, Vec<String>, usize, Option<Vec<u8>>) {
     let pasta = Pasta::nova();
     let (cert, identidade_tls) = identidade(&pasta.0, "sei.test");
@@ -274,7 +276,8 @@ fn executar(
     let saidas = comandos
         .iter()
         .map(|args| {
-            Command::new(env!("CARGO_BIN_EXE_ies"))
+            let mut comando = Command::new(env!("CARGO_BIN_EXE_ies"));
+            comando
                 .args(*args)
                 .env("IES_URL_CONTROLE_FILE", &controle)
                 .env("IES_COOKIE_FILE", &cookie)
@@ -290,9 +293,13 @@ fn executar(
                 .env_remove("NO_PROXY")
                 .env_remove("no_proxy")
                 .env_remove("IES_CONFIG_FILE")
-                .env_remove("IES_CREDENCIAIS_FILE")
-                .output()
-                .unwrap()
+                .env_remove("IES_CREDENCIAIS_FILE");
+            if let Some(caminho) = caminho_motor
+                && (*args == ler_teor_cache.as_slice() || *args == ler_teor_sem_cache.as_slice())
+            {
+                comando.env("PATH", caminho);
+            }
+            comando.output().unwrap()
         })
         .collect();
     parar.store(true, Ordering::SeqCst);
@@ -315,7 +322,7 @@ fn json(saida: &Output) -> Value {
 
 #[test]
 fn bdd_332_03_binario_confirma_upload_cadastro_e_releitura_independente() {
-    let (saidas, eventos, total, _) = executar(false, false, false, None);
+    let (saidas, eventos, total, _) = executar(false, false, false, None, None);
     assert_eq!(
         saidas[0].status.code(),
         Some(0),
@@ -361,7 +368,7 @@ fn bdd_332_03_binario_confirma_upload_cadastro_e_releitura_independente() {
 
 #[test]
 fn bdd_332_04_resposta_sem_autoria_falha_sem_repetir_post() {
-    let (saidas, eventos, total, _) = executar(true, false, false, None);
+    let (saidas, eventos, total, _) = executar(true, false, false, None, None);
     falha(&saidas[0], "TentativaNaoComprovada");
     assert_eq!(total, 1, "efeito existiu mesmo com resposta adulterada");
     assert_eq!(
@@ -384,7 +391,7 @@ fn bdd_332_04_resposta_sem_autoria_falha_sem_repetir_post() {
 /// mas nenhuma linha de upload nem documento definitivo pode surgir.
 #[test]
 fn bdd_332_02_binario_consulta_previa_sem_upload_ou_cadastro() {
-    let (saidas, eventos, total, _) = executar(false, true, false, None);
+    let (saidas, eventos, total, _) = executar(false, true, false, None, None);
     assert_eq!(
         saidas[0].status.code(),
         Some(0),
@@ -429,7 +436,7 @@ fn bdd_332_02_binario_consulta_previa_sem_upload_ou_cadastro() {
 fn bdd_60_03_cli_baixa_pdf_original_do_estado_compartilhado() {
     // BDD-60-03 pré-escrito na #60: o mesmo PDF cadastrado deve ser lido
     // pela CLI real e salvo byte a byte, sem transformar conteúdo em HTML.
-    let (saidas, eventos, documentos, arquivo) = executar(false, false, true, None);
+    let (saidas, eventos, documentos, arquivo) = executar(false, false, true, None, None);
     assert_eq!(documentos, 1, "um único documento definitivo");
     assert_eq!(
         saidas[2].status.code(),

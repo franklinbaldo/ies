@@ -1,4 +1,5 @@
-use super::{executar, json};
+use super::{Pasta, executar, json};
+use std::fs;
 
 // #873: PDF sintético válido, com offsets xref conferidos pelo Poppler.
 // Diferente do recibo de upload legado, este é um documento interpretável.
@@ -19,7 +20,7 @@ const PDF_NATIVO: &[u8] = concat!(
 fn pdf_nativo_publica_teor_com_e_sem_cache_sem_alterar_original() {
     // Hipótese sintética: o PDF é semeado via bancada já existente. Não é
     // evidência de paridade com uma cassette original do SEI.
-    let (saidas, eventos, documentos, arquivo) = executar(false, false, true, Some(PDF_NATIVO));
+    let (saidas, eventos, documentos, arquivo) = executar(false, false, true, Some(PDF_NATIVO), None);
     assert_eq!(documentos, 1);
     assert_eq!(saidas.len(), 5);
     assert_eq!(arquivo.as_deref(), Some(PDF_NATIVO));
@@ -78,7 +79,7 @@ fn pdf_sem_texto_e_pdf_corrompido_preservam_original_e_estado_distinto() {
             "falhou",
         ),
     ] {
-        let (saidas, eventos, documentos, arquivo) = executar(false, false, true, Some(pdf));
+        let (saidas, eventos, documentos, arquivo) = executar(false, false, true, Some(pdf), None);
         assert_eq!(documentos, 1);
         assert_eq!(saidas.len(), 5);
         assert_eq!(arquivo.as_deref(), Some(pdf));
@@ -103,4 +104,35 @@ fn pdf_sem_texto_e_pdf_corrompido_preservam_original_e_estado_distinto() {
             3
         );
     }
+}
+
+#[test]
+fn pdf_motor_ausente_preserva_original_e_indica_limite() {
+    let pasta = Pasta::nova();
+    let sem_motor = pasta.0.join("sem-motor");
+    fs::create_dir(&sem_motor).unwrap();
+    let (saidas, eventos, documentos, arquivo) =
+        executar(false, false, true, Some(PDF_NATIVO), Some(&sem_motor));
+    assert_eq!(documentos, 1);
+    assert_eq!(saidas.len(), 5);
+    assert_eq!(arquivo.as_deref(), Some(PDF_NATIVO));
+    for (i, saida) in saidas[3..].iter().enumerate() {
+        assert_eq!(saida.status.code(), Some(0), "{:?}", saida.stderr);
+        let lido = json(saida);
+        let doc = &lido["documentos"][0];
+        assert_eq!(
+            doc["anexo"]["sha256"],
+            "545f1f049a835f19d710b9213bf38b1c0b802bbdedfded624736a878356e46de"
+        );
+        assert_eq!(doc["anexo"]["extracao_pdf"], "motor_ausente");
+        assert!(doc.get("texto").is_none());
+        assert_eq!(doc.get("cache").is_some(), i == 1);
+    }
+    assert_eq!(
+        eventos
+            .iter()
+            .filter(|e| e.as_str() == "GET documento_download_anexo 200")
+            .count(),
+        3
+    );
 }
