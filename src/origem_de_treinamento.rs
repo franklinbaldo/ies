@@ -125,6 +125,15 @@ mod tests {
     }
 
     #[test]
+    fn criar_bloco_ainda_restrito_ao_treinamento() {
+        assert!(exigir(Escrita::BlocoCriar, "https://sei.test/sei").is_ok());
+        assert_eq!(
+            exigir(Escrita::BlocoCriar, "https://sei.exemplo.gov.br/sei"),
+            Err(CausaDaOrigem::OrigemForaDoTreinamento)
+        );
+    }
+
+    #[test]
     fn retirada_de_acompanhamento_somente_no_treinamento() {
         assert!(exigir(Escrita::ProcessoAcompanharDeixar, "https://sei.test/sei").is_ok());
         assert!(matches!(

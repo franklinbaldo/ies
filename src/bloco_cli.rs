@@ -222,7 +222,9 @@ fn executar_leitura(
 }
 pub(crate) fn executar(cli: &Cli, bloco: &Bloco) -> anyhow::Result<()> {
     match (&bloco.numero, &bloco.acao) {
-        (None, Some(BlocoAcao::Criar { descricao, confirmar })) => criar::executar(cli, descricao, *confirmar),
+        (None, Some(BlocoAcao::Criar { descricao, confirmar })) => {
+            criar::executar(cli, descricao, *confirmar)
+        }
         (None, Some(BlocoAcao::Listar { tipo, pagina })) => {
             executar_leitura(cli, *tipo, None, *pagina)
         }
