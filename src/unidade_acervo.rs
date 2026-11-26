@@ -179,6 +179,8 @@ fn data_iso_reusa_calendario_civil() {
 
 #[path = "unidade_acervo/total_tests.rs"]
 mod total_tests;
+#[path = "unidade_acervo/paginacao_tests.rs"]
+mod paginacao_tests;
 
 fn detalhe(html: &HtmlServido) -> Result<Pagina, ErroAcervo> {
     let dom = arvore(html);
@@ -453,7 +455,16 @@ fn acervo_detalhe_original() {
                 continue;
             }
             let html = html_da_resposta(resposta.interacao).expect("HTML original");
-            lidas.push(detalhe(&HtmlServido::de_teste(&html)).expect("detalhe original"));
+            assert_eq!(
+                resposta.metodo,
+                if lidas.is_empty() { "GET" } else { "POST" },
+                "{instalacao}: metodo do detalhe"
+            );
+            let tela = HtmlServido::de_teste(&html);
+            if lidas.is_empty() {
+                paginacao_tests::observar_formularios(instalacao, &tela);
+            }
+            lidas.push(detalhe(&tela).expect("detalhe original"));
         }
         assert!(formulario_derivado, "{instalacao}: formulario GET ausente");
         assert_eq!(
