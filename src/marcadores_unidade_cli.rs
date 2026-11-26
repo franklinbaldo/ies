@@ -165,7 +165,9 @@ mod tests {
             Err(FalhaLeitura::LinkAmbiguo)
         ));
         assert!(matches!(
-            ler(&format!("<a href='https://outra.example/sei/{href}'>Marcadores</a>")),
+            ler(&format!(
+                "<a href='https://outra.example/sei/{href}'>Marcadores</a>"
+            )),
             Err(FalhaLeitura::LinkInvalido)
         ));
     }
