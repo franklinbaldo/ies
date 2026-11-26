@@ -1,6 +1,6 @@
 //! Leitura de grupos de envio por identidade publicada na unidade atual.
 //! Forma de tela: Todos @caabe699, `src/todos/grupos_envio.py`; PEN1 4.0.12.
-//! Primeira fatia: lista completa de uma página; paginação ainda não suportada.
+//! Lista integral; paginação Infra ainda depende de validação em grupos.
 use crate::acao_do_sei::AcaoDoSei;
 use crate::consulta_do_controlador::{ConsultaDoControlador, menciona_acao};
 use crate::tela_html::{Elemento, HtmlServido, arvore};
@@ -10,9 +10,11 @@ use crate::{Cli, configuracao, controle_reconhecido, transporte, unidade_lupa};
 use serde::Serialize;
 use std::collections::HashSet;
 
+mod paginacao;
+
 #[derive(Debug, clap::Subcommand)]
 pub(crate) enum Acao {
-    /// Lista grupos da unidade; recusa lista paginada nesta fatia.
+    /// Lista grupos da unidade.
     Listar,
     /// Consulta o grupo pelo ID publicado na lista.
     Obter { id: String },
@@ -67,7 +69,7 @@ fn texto(no: Elemento<'_>) -> String {
     no.texto().split_whitespace().collect::<Vec<_>>().join(" ")
 }
 
-fn ler_lista(html: &HtmlServido) -> Result<Vec<Linha>, ErroGrupo> {
+fn ler_pagina(html: &HtmlServido) -> Result<(crate::legenda::Legenda, Vec<Linha>), ErroGrupo> {
     let dom = arvore(html);
     let forms: Vec<_> = dom.com_id("frmGrupoUnidadeLista").collect();
     let [form] = forms.as_slice() else {
@@ -76,16 +78,14 @@ fn ler_lista(html: &HtmlServido) -> Result<Vec<Linha>, ErroGrupo> {
     if form.nome() != "form" {
         return Err(ErroGrupo::ListaInesperada);
     }
-    if crate::paginacao_controle::controles_de_paginacao(html) {
-        return Err(ErroGrupo::ListaIncompleta);
-    }
+    let paginada = crate::paginacao_controle::controles_de_paginacao(html);
     let tabelas: Vec<_> = form
         .elementos("table")
         .filter(|t| t.elementos("th").any(|th| texto(th) == "Nome"))
         .collect();
     // Forma de vazio observada em outras listagens Infra (Todos @caabe699,
     // sei/menu.py). Para grupos, ainda é hipótese: exigir o formulário próprio.
-    if tabelas.is_empty() {
+    if tabelas.is_empty() && !paginada {
         let areas: Vec<_> = form
             .elementos("div")
             .filter(|n| n.atributo("id") == Some("divInfraAreaTabela"))
@@ -103,7 +103,7 @@ fn ler_lista(html: &HtmlServido) -> Result<Vec<Linha>, ErroGrupo> {
                 && (contadores.is_empty() || contadores == [Some("0")]))
                 || (aviso.is_empty() && contadores == [Some("0")])
             {
-                return Ok(Vec::new());
+                return Ok((crate::legenda::Legenda { total: 0, faixa: None }, Vec::new()));
             }
         }
     }
@@ -117,11 +117,21 @@ fn ler_lista(html: &HtmlServido) -> Result<Vec<Linha>, ErroGrupo> {
     let contagem =
         crate::legenda::ler_legenda(&texto(*legenda)).map_err(|_| ErroGrupo::ListaInesperada)?;
     let linhas = ler_linhas(*tabela)?;
-    if linhas.len() != contagem.total
-        || contagem
-            .faixa
-            .is_some_and(|f| f.inicio != 1 || f.fim != contagem.total)
-    {
+    let completa = match &contagem.faixa {
+        Some(f) => f.inicio > 0 && f.inicio <= f.fim && f.fim <= contagem.total
+            && linhas.len() == f.fim - f.inicio + 1,
+        None => !paginada && linhas.len() == contagem.total,
+    };
+    if !completa {
+        return Err(ErroGrupo::ListaIncompleta);
+    }
+    Ok((contagem, linhas))
+}
+
+#[cfg(test)]
+fn ler_lista(html: &HtmlServido) -> Result<Vec<Linha>, ErroGrupo> {
+    let (legenda, linhas) = ler_pagina(html)?;
+    if linhas.len() != legenda.total {
         return Err(ErroGrupo::ListaIncompleta);
     }
     Ok(linhas)
@@ -303,8 +313,17 @@ fn listar_via<V: EnvioDoControle>(
         AcaoDoSei::GrupoUnidadeListar,
     )?;
     let cookie = sessao.cookie().valor()?;
-    let html = transporte::decodificar_resposta(envio.get(&url, cookie)?)?;
-    let linhas = ler_lista(&html)?;
+    let resposta = envio.get(&url, cookie)?;
+    let codificacao = crate::pagina_do_controle::codificacao_da_tela(&resposta.mime);
+    let html = transporte::decodificar_resposta(resposta)?;
+    let linhas = paginacao::ler_todas(
+        html,
+        url.clone(),
+        codificacao,
+        sessao,
+        &controle.instalacao,
+        envio,
+    )?;
     Ok((unidade, url, linhas))
 }
 
