@@ -89,9 +89,7 @@ fn humano(termo: &str, busca: &BuscaRealizada) -> String {
     };
     format!(
         "IES: pesquisa de {:?} na unidade {}: {detalhe} ({} requisições).",
-        termo,
-        busca.unidade,
-        busca.requisicoes
+        termo, busca.unidade, busca.requisicoes
     )
 }
 
