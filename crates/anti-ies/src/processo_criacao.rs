@@ -158,16 +158,18 @@ fn propriedades_html(criado: &Criado) -> Resposta {
     let assunto_id = escapar(&criado.tipo.id_assunto);
     let assunto = escapar(&criado.tipo.assunto);
     let descricao = escapar(&criado.especificacao);
+    // Data fixa do relógio sintético (mesmo ano do NUP simulado).
     Resposta::html(format!(
         "<html><body><form id='frmProcedimentoCadastro'>\
          <input id='hdnProtocoloFormatado' value='{nup}'>\
          <input id='hdnIdProcedimento' value='{p}'>\
          <input id='hdnIdTipoProcedimento' value='{tipo_id}'>\
+         <input id='hdnDtaGeracao' value='01/01/2026'>\
          <select id='selTipoProcedimento'><option value='{tipo_id}' selected>{tipo}</option></select>\
          <input id='txtDescricao' value='{descricao}'>\
          <input id='hdnAssuntos' value=''>\
          <input id='hdnInteressadosProcedimento' value=''>\
-         <select id='selAssuntos'><option value='{assunto_id}' selected>{assunto}</option></select>\
+         <select id='selAssuntos' multiple><option value='{assunto_id}'>{assunto}</option></select>\
          <select id='selInteressadosProcedimento'></select>\
          <textarea id='txaObservacoes'></textarea>\
          <input type='radio' name='rdoNivelAcesso' id='optPublico' value='0' checked>\

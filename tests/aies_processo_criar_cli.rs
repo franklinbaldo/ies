@@ -101,7 +101,7 @@ fn banco() -> (Connection, Instalacao) {
             id: "12".into(),
             nome: TIPO.into(),
             id_assunto: "21".into(),
-            assunto: "Assunto de Ensaio".into(),
+            assunto: "000.01 - Assunto de Ensaio".into(),
         },
     )
     .unwrap();
@@ -279,7 +279,7 @@ fn previa_por_cli_real_sem_mutacao_sqlite() {
     assert_eq!(resultado["confirmado"], false);
     assert_eq!(resultado["tipo"], TIPO);
     assert_eq!(resultado["especificacao"], "Ensaio sem gravação");
-    assert_eq!(resultado["assunto"], "Assunto de Ensaio");
+    assert_eq!(resultado["assunto"], "000.01 - Assunto de Ensaio");
     assert_eq!(resultado["nivel"], "publico");
     assert_eq!(resultado["unidade"], "TESTE");
     assert!(resultado["nup"].is_null());
@@ -351,6 +351,12 @@ fn criacao_unica_e_releitura_independente_via_cli_real() {
         "Cadastro causal de ensaio"
     );
     assert_eq!(confirmado["propriedades"]["nivel_de_acesso"], "publico");
+    assert_eq!(confirmado["propriedades"]["assuntos"][0]["codigo"], "000.01");
+    assert_eq!(
+        confirmado["propriedades"]["assuntos"][0]["descricao"],
+        "Assunto de Ensaio"
+    );
+    assert_eq!(confirmado["propriedades"]["data_de_geracao"], "01/01/2026");
     assert_eq!(contagens, (0, 1), "um único processo antes/depois");
     assert_eq!(tipos, 1, "cadastro de tipos permanece");
 }
