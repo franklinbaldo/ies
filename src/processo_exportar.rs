@@ -247,3 +247,8 @@ pub(crate) fn tentar_exportar(cli: &Cli) -> Option<anyhow::Result<()>> {
         Ok(())
     }))
 }
+
+#[cfg(test)]
+mod acervo;
+#[cfg(test)]
+mod tests;
