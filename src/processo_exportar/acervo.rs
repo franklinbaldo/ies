@@ -2,8 +2,8 @@
 use super::{Formato, endereco_download, submissao};
 use crate::cassette::acervo::gravacao;
 use crate::cassette::{ZipDoAcervo, archive_filename, conferir_cassette_ate, html_da_resposta};
-use crate::formulario_web::TelaServida;
-use crate::tela_html::HtmlServido;
+use crate::formulario_web::{TelaServida, localizar_formulario};
+use crate::tela_html::{HtmlServido, arvore};
 use std::path::{Path, PathBuf};
 
 fn replay(formato: Formato, nomes: &[&str], acao: &str, formulario: &str) {
@@ -14,6 +14,7 @@ fn replay(formato: Formato, nomes: &[&str], acao: &str, formulario: &str) {
     );
     let mut formularios = 0;
     let mut downloads = 0;
+    let mut selecao = 0;
     for nome in nomes {
         let card = raiz.join(nome);
         let zip = ZipDoAcervo::ler(&cache.join(archive_filename(&card).unwrap())).unwrap();
@@ -44,6 +45,28 @@ fn replay(formato: Formato, nomes: &[&str], acao: &str, formulario: &str) {
                 assert!(campos.iter().any(|(n, v)| n == "rdoTipo" && v == "T"));
                 assert!(campos.iter().any(|(n, v)| n == "hdnFlagGerar" && v == "1"));
                 assert!(!campos.iter().any(|(n, _)| n.starts_with("btn")));
+                let dom = arvore(&html);
+                let form = localizar_formulario(&dom, formulario).unwrap();
+                let apenas = form.descendentes().any(|e| {
+                    e.nome() == "input"
+                        && e.atributo("type") == Some("radio")
+                        && e.atributo("name") == Some("rdoTipo")
+                        && e.atributo("value") == Some("A")
+                        && !e.presente("disabled")
+                });
+                let oculto = form.descendentes().any(|e| {
+                    e.nome() == "input"
+                        && e.atributo("type") == Some("hidden")
+                        && e.atributo("name") == Some("hdnDocumentosApenas")
+                });
+                let lista = form.descendentes().any(|e| {
+                    e.nome() == "select"
+                        && e.atributo("name") == Some("selDocumentosApenas")
+                        && e.presente("multiple")
+                });
+                if apenas && oculto && lista {
+                    selecao += 1;
+                }
                 formularios += 1;
             }
             if r.metodo == "POST"
@@ -64,8 +87,9 @@ fn replay(formato: Formato, nomes: &[&str], acao: &str, formulario: &str) {
         downloads > 0,
         "nenhuma resposta original com download confrontada"
     );
+    assert!(selecao > 0, "nenhum formulário original oferece seleção A");
     println!(
-        "exportação {formato:?}: {formularios} formulários e {downloads} links originais; POST real e anti-IES não comprovados"
+        "exportação {formato:?}: {formularios} formulários, {downloads} links e {selecao} seletores A originais; wire POST e anti-IES não comprovados"
     );
 }
 
