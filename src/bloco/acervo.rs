@@ -86,3 +86,87 @@ fn replay_da_lista_de_blocos_no_acervo() {
     let total: u64 = contagem.values().flat_map(|por| por.values()).sum();
     assert!(total > 0, "nenhuma lista de blocos lida");
 }
+
+// Primeira fatia #876: confirmar o contrato de criação a partir dos bytes
+// originais, não do Location sintético dos testes do Todos.
+#[test]
+#[ignore = "lê os ZIPs do acervo em IES_ACERVO_CACHE; sem rede"]
+fn replay_da_criacao_de_bloco_de_assinatura_no_acervo() {
+    use crate::consulta_do_controlador::ConsultaDoControlador;
+    use crate::formulario_web::consulta_do_controlador;
+    use crate::tela_html::arvore;
+
+    let mut vistos = BTreeMap::new();
+    percorrer(&["bloco_assinatura_cadastrar"], |nome, instalacao, json| {
+        let campo = match nome {
+            "bloco-ciclo-ufrj--9119d6015d02" => "txtDescricao",
+            "bloco-ciclo-pen3--de556c70c2ad" => "txaDescricao",
+            _ => return,
+        };
+        let respostas = gravacao::respostas(json);
+        let formulario = respostas
+            .iter()
+            .find(|r| {
+                r.operacao == "bloco_assinatura_cadastrar"
+                    && r.metodo == "GET"
+                    && r.status == 200
+            })
+            .expect("GET do cadastro não gravado");
+        let html = HtmlServido::de_teste(
+            &html_da_resposta(formulario.interacao).expect("HTML do cadastro"),
+        );
+        let dom = arvore(&html);
+        let forms: Vec<_> = dom.com_id("frmBlocoCadastro").collect();
+        let [form] = forms.as_slice() else {
+            panic!("{instalacao}: cadastro não único");
+        };
+        assert_eq!(form.nome(), "form");
+        let descricoes: Vec<_> = form
+            .elementos("textarea")
+            .filter_map(|no| no.atributo("name"))
+            .filter(|n| matches!(*n, "txtDescricao" | "txaDescricao"))
+            .collect();
+        assert_eq!(descricoes, [campo], "{instalacao}: descrição");
+        assert!(
+            form.descendentes()
+                .any(|no| no.atributo("name") == Some("sbmCadastrarBloco")),
+            "{instalacao}: botão Salvar"
+        );
+
+        let post = respostas
+            .iter()
+            .find(|r| {
+                r.passo > formulario.passo
+                    && r.operacao == "bloco_assinatura_cadastrar"
+                    && r.metodo == "POST"
+                    && r.status == 302
+            })
+            .expect("POST 302 de criação não gravado");
+        let url = gravacao::url_sem_consulta(json, post.interacao);
+        let consulta = gravacao::localizacao(post.interacao)
+            .and_then(|local| consulta_do_controlador(local, &url))
+            .and_then(|texto| ConsultaDoControlador::ler(texto).ok())
+            .expect("Location original não recuperado");
+        assert_eq!(consulta.acao().ok(), Some("bloco_assinatura_listar"));
+        let id = consulta.unico("id_bloco").expect("id do bloco no Location");
+        assert!(!id.is_empty() && id.bytes().all(|b| b.is_ascii_digit()));
+
+        let relido = respostas.iter().any(|r| {
+            if r.passo <= post.passo
+                || r.operacao != "bloco_assinatura_listar"
+                || r.metodo != "GET"
+                || r.status != 200
+            {
+                return false;
+            }
+            let html = html_da_resposta(r.interacao).expect("HTML da lista");
+            let lista = ler_lista(&HtmlServido::de_teste(&html), TipoBloco::Assinatura)
+                .expect("lista de assinatura");
+            lista.lista.itens.iter().any(|b| b.numero == id)
+        });
+        assert!(relido, "{instalacao}: identidade não observada após criação");
+        *vistos.entry(instalacao.to_owned()).or_insert(0usize) += 1;
+    });
+    assert_eq!(vistos.get("ufrj"), Some(&1));
+    assert_eq!(vistos.get("pen3"), Some(&1));
+}
