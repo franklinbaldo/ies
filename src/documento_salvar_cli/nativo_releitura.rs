@@ -51,7 +51,11 @@ pub(super) fn confere(
         && anterior
             .secoes()
             .iter()
-            .zip(super::htmls_para_post(anterior.secoes(), principal, editado))
+            .zip(super::htmls_para_post(
+                anterior.secoes(),
+                principal,
+                editado,
+            ))
             .all(|(secao, html)| {
                 persistido
                     .secoes()
