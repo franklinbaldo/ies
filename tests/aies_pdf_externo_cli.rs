@@ -145,6 +145,7 @@ fn executar(
     incerteza: bool,
     somente_previa: bool,
     com_leitura: bool,
+    pdf_de_teor: Option<&[u8]>,
 ) -> (Vec<Output>, Vec<String>, usize, Option<Vec<u8>>) {
     let pasta = Pasta::nova();
     let (cert, identidade_tls) = identidade(&pasta.0, "sei.test");
@@ -159,7 +160,7 @@ fn executar(
     );
     let cookie = pasta.privado("cookie", "PHPSESSID=FICTICIO");
     let pdf = pasta.0.join("peticao.pdf");
-    fs::write(&pdf, b"%PDF-1.4\n1 0 obj\n%%EOF\n").unwrap();
+    fs::write(&pdf, pdf_de_teor.unwrap_or(b"%PDF-1.4\n1 0 obj\n%%EOF\n")).unwrap();
 
     let escuta = TcpListener::bind(("127.0.0.1", 0)).unwrap();
     escuta.set_nonblocking(true).unwrap();
@@ -254,9 +255,16 @@ fn executar(
         destino_str,
         "--sem-cache",
     ];
+    let ler_teor_cache = ["--json", "documento", "050000001", "--processo", NUP];
+    let ler_teor_sem_cache = [
+        "--json", "documento", "050000001", "--processo", NUP, "--sem-cache",
+    ];
     let mut comandos = vec![&incluir[..], &consultar[..]];
     if com_leitura {
         comandos.push(&ler_pdf);
+    }
+    if pdf_de_teor.is_some() {
+        comandos.extend([ler_teor_sem_cache.as_slice(), ler_teor_cache.as_slice()]);
     }
     let saidas = comandos
         .iter()
@@ -269,6 +277,8 @@ fn executar(
                 .env("SSL_CERT_FILE", &cert)
                 .env("https_proxy", format!("http://127.0.0.1:{porta}"))
                 .env("HOME", &pasta.0)
+                .env("XDG_CACHE_HOME", pasta.0.join("cache"))
+                .env("IES_CACHE_DOCUMENTOS", "1")
                 .env_remove("HTTPS_PROXY")
                 .env_remove("all_proxy")
                 .env_remove("ALL_PROXY")
@@ -300,7 +310,7 @@ fn json(saida: &Output) -> Value {
 
 #[test]
 fn bdd_332_03_binario_confirma_upload_cadastro_e_releitura_independente() {
-    let (saidas, eventos, total, _) = executar(false, false, false);
+    let (saidas, eventos, total, _) = executar(false, false, false, None);
     assert_eq!(
         saidas[0].status.code(),
         Some(0),
@@ -346,7 +356,7 @@ fn bdd_332_03_binario_confirma_upload_cadastro_e_releitura_independente() {
 
 #[test]
 fn bdd_332_04_resposta_sem_autoria_falha_sem_repetir_post() {
-    let (saidas, eventos, total, _) = executar(true, false, false);
+    let (saidas, eventos, total, _) = executar(true, false, false, None);
     falha(&saidas[0], "TentativaNaoComprovada");
     assert_eq!(total, 1, "efeito existiu mesmo com resposta adulterada");
     assert_eq!(
@@ -369,7 +379,7 @@ fn bdd_332_04_resposta_sem_autoria_falha_sem_repetir_post() {
 /// mas nenhuma linha de upload nem documento definitivo pode surgir.
 #[test]
 fn bdd_332_02_binario_consulta_previa_sem_upload_ou_cadastro() {
-    let (saidas, eventos, total, _) = executar(false, true, false);
+    let (saidas, eventos, total, _) = executar(false, true, false, None);
     assert_eq!(
         saidas[0].status.code(),
         Some(0),
@@ -414,7 +424,7 @@ fn bdd_332_02_binario_consulta_previa_sem_upload_ou_cadastro() {
 fn bdd_60_03_cli_baixa_pdf_original_do_estado_compartilhado() {
     // BDD-60-03 pré-escrito na #60: o mesmo PDF cadastrado deve ser lido
     // pela CLI real e salvo byte a byte, sem transformar conteúdo em HTML.
-    let (saidas, eventos, documentos, arquivo) = executar(false, false, true);
+    let (saidas, eventos, documentos, arquivo) = executar(false, false, true, None);
     assert_eq!(documentos, 1, "um único documento definitivo");
     assert_eq!(
         saidas[2].status.code(),
@@ -440,5 +450,47 @@ fn bdd_60_03_cli_baixa_pdf_original_do_estado_compartilhado() {
             .count(),
         1,
         "o link assinado deve ser seguido uma só vez"
+    );
+}
+
+// #873: PDF sintético válido, com offsets xref conferidos pelo Poppler.
+// Diferente do recibo de upload legado, este é um documento interpretável.
+const PDF_NATIVO: &[u8] = concat!(
+    "%PDF-1.4\n",
+    "1 0 obj\n<< /Type /Catalog /Pages 2 0 R >>\nendobj\n",
+    "2 0 obj\n<< /Type /Pages /Count 1 /Kids [3 0 R] >>\nendobj\n",
+    "3 0 obj\n<< /Type /Page /Parent 2 0 R /MediaBox [0 0 595 842] /Resources << /Font << /F1 4 0 R >> >> /Contents 5 0 R >>\nendobj\n",
+    "4 0 obj\n<< /Type /Font /Subtype /Type1 /BaseFont /Helvetica >>\nendobj\n",
+    "5 0 obj\n<< /Length 43 >>\nstream\nBT /F1 20 Tf 40 700 Td (NATIVO ALFA) Tj ET\nendstream\nendobj\n",
+    "xref\n0 6\n0000000000 65535 f \n0000000009 00000 n \n0000000058 00000 n \n",
+    "0000000115 00000 n \n0000000241 00000 n \n0000000311 00000 n \n",
+    "trailer\n<< /Size 6 /Root 1 0 R >>\nstartxref\n403\n%%EOF\n",
+)
+.as_bytes();
+
+#[test]
+fn pdf_nativo_publica_teor_com_e_sem_cache_sem_alterar_original() {
+    // Hipótese sintética: o PDF é semeado via bancada já existente. Não é
+    // evidência de paridade com uma cassette original do SEI.
+    let (saidas, eventos, documentos, arquivo) = executar(false, false, true, Some(PDF_NATIVO));
+    assert_eq!(documentos, 1);
+    assert_eq!(arquivo.as_deref(), Some(PDF_NATIVO));
+    assert_eq!(saidas[2].status.code(), Some(0));
+    let original = json(&saidas[2]);
+    let hash = "545f1f049a835f19d710b9213bf38b1c0b802bbdedfded624736a878356e46de";
+    assert_eq!(original["documentos"][0]["anexo"]["sha256"], hash);
+    assert!(original["documentos"][0].get("texto").is_none());
+    for saida in &saidas[3..] {
+        assert_eq!(saida.status.code(), Some(0), "{:?}", saida.stderr);
+        let lido = json(saida);
+        let doc = &lido["documentos"][0];
+        assert_eq!(doc["anexo"]["sha256"], hash);
+        assert!(doc.get("arquivo").is_none());
+        assert_eq!(doc["texto"].as_str().map(str::trim), Some("NATIVO ALFA"));
+    }
+    assert_eq!(
+        eventos.iter().filter(|e| e.as_str() == "GET documento_download_anexo 200").count(),
+        3,
+        "cada leitura do teor reutiliza o mesmo GET do original"
     );
 }
