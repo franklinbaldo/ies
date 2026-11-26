@@ -28,7 +28,9 @@ impl ExtracaoPdf {
             | Self::OcrParcial(texto)
             | Self::MistoComDiagnostico(texto)
             | Self::OcrComDiagnostico(texto) => Some(texto),
-            Self::SemTextoNativo | Self::OcrIndisponivel | Self::MotorAusente | Self::Falhou => None,
+            Self::SemTextoNativo | Self::OcrIndisponivel | Self::MotorAusente | Self::Falhou => {
+                None
+            }
         }
     }
 
@@ -106,7 +108,12 @@ fn complementar(
         } else {
             pagina.trim().to_owned()
         };
-        if recuperado.len().saturating_add(parte.len()).saturating_add(1) > crate::MAX_HTML_BYTES {
+        if recuperado
+            .len()
+            .saturating_add(parte.len())
+            .saturating_add(1)
+            > crate::MAX_HTML_BYTES
+        {
             return Ok(ExtracaoPdf::Falhou);
         }
         recuperado.push_str(&parte);
