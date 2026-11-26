@@ -241,7 +241,8 @@ mod tests {
                 html: &html,
                 codificacao,
             };
-            let submissao = derivar_cadastro(&instalacao, &tela, "TESTE", "Ação & B", "null").unwrap();
+            let submissao =
+                derivar_cadastro(&instalacao, &tela, "TESTE", "Ação & B", "null").unwrap();
             assert_eq!(
                 std::str::from_utf8(submissao.corpo()).unwrap(),
                 format!("hdnExemplo=original&{campo}={codificado}&selGrupoBloco=null&sbmCadastrarBloco=Salvar")
