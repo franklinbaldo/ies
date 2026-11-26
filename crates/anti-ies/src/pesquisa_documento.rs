@@ -123,6 +123,21 @@ fn documento_exato(
     ))
 }
 
+// Ausência do controle equivale à primeira página; controle inválido não.
+fn deslocamento_da_pesquisa(corpo: &str) -> Option<u64> {
+    match corpo
+        .split('&')
+        .filter(|par| par.split('=').next() == Some("hdnInicio"))
+        .count()
+    {
+        0 => Some(0),
+        1 => super::documentos::campo_formulario_unico(corpo, "hdnInicio")?
+            .parse()
+            .ok(),
+        _ => None,
+    }
+}
+
 /// Pesquisa por protocolo na forma documento. Estado desconhecido retorna
 /// 503, nunca `sem_resultado` por omissão de registro no SQLite.
 #[must_use]
@@ -171,9 +186,7 @@ pub fn responder_pesquisa(
             }
             // O POST de navegar() repete o formulário, mudando só hdnInicio.
             // Sem a página observada, não inferimos uma faixa pelo total.
-            let deslocamento = super::documentos::campo_formulario_unico(corpo, "hdnInicio")
-                .unwrap_or_else(|| "0".to_owned());
-            let Ok(deslocamento) = deslocamento.parse::<u64>() else {
+            let Some(deslocamento) = deslocamento_da_pesquisa(corpo) else {
                 return Resposta::nova(Estado::RequisicaoInvalida);
             };
             let pagina = iesei::pesquisa_documento::consultar_por_inicio(
@@ -245,6 +258,26 @@ mod tests {
     use iesei::observacao::{TabelaObservada, UnidadeExibida};
 
     #[test]
+    fn deslocamento_ausente_nao_equivale_a_controle_invalido() {
+        for (corpo, esperado) in [
+            ("q=", Some(0)),
+            ("hdnInicio=0", Some(0)),
+            ("hdnInicio=10", Some(10)),
+            ("hdnInicio=%31%30", Some(10)),
+            ("hdnInicio=", None),
+            ("hdnInicio", None),
+            ("hdnInicio=%ZZ", None),
+            ("hdnInicio=%FF", None),
+            ("hdnInicio=-1", None),
+            ("hdnInicio=18446744073709551616", None),
+            ("hdnInicio=10&hdnInicio=0", None),
+            ("hdnInicio&hdnInicio=10", None),
+        ] {
+            assert_eq!(deslocamento_da_pesquisa(corpo), esperado, "{corpo}");
+        }
+    }
+
+    #[test]
     fn registro_negativo_na_unidade_nao_inventa_resultado_de_outro_termo() {
         let mut banco = Connection::open_in_memory().unwrap();
         banco_cassettes::iniciar(&banco).unwrap();
@@ -292,6 +325,14 @@ mod tests {
         // A observação negativa de protocolo não prova a mesma consulta com q.
         for (criterios, esperado) in [
             ("txtProtocoloPesquisa=DOC-NAO-ACHADO&q=", Estado::Ok),
+            (
+                "txtProtocoloPesquisa=DOC-NAO-ACHADO&hdnInicio=10&hdnInicio=0",
+                Estado::RequisicaoInvalida,
+            ),
+            (
+                "txtProtocoloPesquisa=DOC-NAO-ACHADO&hdnInicio=%ZZ",
+                Estado::RequisicaoInvalida,
+            ),
             (
                 "txtProtocoloPesquisa=DOC-NAO-ACHADO&q=contrato",
                 Estado::DadosInsuficientes,
