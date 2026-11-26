@@ -120,6 +120,7 @@ pub(crate) fn abrir_para_escrever<V: EnvioDoProcesso>(
         ciencia: arvore_lida.ciencia,
         lista_ciencias: arvore_lida.lista_ciencias,
         anexar: arvore_lida.anexar,
+        exportacao: arvore_lida.exportacao,
         atribuir: arvore_lida.atribuir,
         andamento: arvore_lida.andamento,
         relacionar: arvore_lida.relacionar,
