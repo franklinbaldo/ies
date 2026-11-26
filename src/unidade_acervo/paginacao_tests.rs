@@ -1,6 +1,6 @@
 //! Diagnóstico estrutural do paginador original, sem valores ou URLs.
-use super::{HtmlServido, arvore};
 use super::web::{ErroEnvioPagina, enviar_pagina_via, formulario_da_pagina};
+use super::{HtmlServido, arvore};
 use crate::formulario_web::TelaServida;
 use crate::instalacao::Instalacao;
 

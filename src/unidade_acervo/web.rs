@@ -90,7 +90,9 @@ fn link_do_menu(instalacao: &Instalacao, html: &HtmlServido) -> Result<String, E
         .elementos("a")
         .filter_map(|a| a.atributo("href"))
         .filter(|href| menciona_acao(href, acao));
-    let href = links.next().ok_or(ErroAcervo::MenuDeEstatisticasNaoReconhecido)?;
+    let href = links
+        .next()
+        .ok_or(ErroAcervo::MenuDeEstatisticasNaoReconhecido)?;
     if links.next().is_some() {
         return Err(ErroAcervo::MenuDeEstatisticasNaoReconhecido);
     }
@@ -168,9 +170,14 @@ fn ler_via<V: EnvioDoControle>(
     }
 }
 
-pub(crate) fn listar(unidade: Option<&str>, json_mode: bool, data: DataCivil) -> anyhow::Result<()> {
+pub(crate) fn listar(
+    unidade: Option<&str>,
+    json_mode: bool,
+    data: DataCivil,
+) -> anyhow::Result<()> {
     let arquivos = crate::configuracao::arquivos_de_acesso()?;
-    let sessao = ReferenciasDaSessao::ler(&arquivos.url_controle, &arquivos.origem, &arquivos.cookie)?;
+    let sessao =
+        ReferenciasDaSessao::ler(&arquivos.url_controle, &arquivos.origem, &arquivos.cookie)?;
     let mut envio = EnvioContado::novo(EnvioHttps);
     // Não envolver em relogin que recomeçaria os POSTs de paginação.
     let (unidade, processos) = ler_via(&sessao, unidade, data, &mut envio)?;
@@ -181,17 +188,29 @@ pub(crate) fn listar(unidade: Option<&str>, json_mode: bool, data: DataCivil) ->
         .collect::<std::collections::HashSet<_>>()
         .len();
     if json_mode {
-        println!("{}", serde_json::json!({
-            "unidade": unidade, "data": data.to_string(), "origem": "web",
-            "total_declarado": total, "linhas_observadas": total,
-            "nups_distintos": distintos, "processos": processos,
-            "requisicoes": envio.pedidos.total(),
-        }));
+        println!(
+            "{}",
+            serde_json::json!({
+                "unidade": unidade, "data": data.to_string(), "origem": "web",
+                "total_declarado": total, "linhas_observadas": total,
+                "nups_distintos": distintos, "processos": processos,
+                "requisicoes": envio.pedidos.total(),
+            })
+        );
     } else {
-        println!("Acervo da unidade {unidade} em {data}: {total} linhas, {distintos} NUPs distintos.");
+        println!(
+            "Acervo da unidade {unidade} em {data}: {total} linhas, {distintos} NUPs distintos."
+        );
         for processo in processos {
-            println!("{} | {} | {} | {} | {} | {}", processo.processo, processo.tipo,
-                processo.orgao, processo.unidade, processo.mes, processo.ano);
+            println!(
+                "{} | {} | {} | {} | {} | {}",
+                processo.processo,
+                processo.tipo,
+                processo.orgao,
+                processo.unidade,
+                processo.mes,
+                processo.ano
+            );
         }
     }
     Ok(())
@@ -201,11 +220,16 @@ pub(crate) fn listar(unidade: Option<&str>, json_mode: bool, data: DataCivil) ->
 fn menu_exige_link_unico_assinado_da_instalacao() {
     use crate::formulario_web::tests::{HASH_TELA, instalacao};
     let inst = instalacao();
-    let link = format!("<a href='controlador.php?acao=gerar_estatisticas_unidade&amp;infra_hash={HASH_TELA}'>Estatísticas</a>");
+    let link = format!(
+        "<a href='controlador.php?acao=gerar_estatisticas_unidade&amp;infra_hash={HASH_TELA}'>Estatísticas</a>"
+    );
     assert!(link_do_menu(&inst, &HtmlServido::de_teste(&link)).is_ok());
-    for html in [String::new(), format!("{link}{link}"),
+    for html in [
+        String::new(),
+        format!("{link}{link}"),
         link.replace("controlador.php?", "https://fora.example/controlador.php?"),
-        link.replace(HASH_TELA, "x")] {
+        link.replace(HASH_TELA, "x"),
+    ] {
         assert!(link_do_menu(&inst, &HtmlServido::de_teste(&html)).is_err());
     }
 }
