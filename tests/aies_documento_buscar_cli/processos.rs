@@ -82,7 +82,7 @@ fn processo_por_tipo_e_periodo_lista_pagina_parcial() {
             assert_eq!(json["processos"].as_array().unwrap().len(), 1);
             assert_eq!(json["processos"][0]["numero"], "00002.000003/2026-00");
         } else {
-            assert!(saida.stdout.is_empty());
+            assert_eq!(saida.stdout.as_slice(), b"");
         }
     }
 }

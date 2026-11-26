@@ -512,7 +512,7 @@ fn processo_por_periodo_distingue_zero_observado_de_periodo_desconhecido() {
             assert_eq!(json["total_declarado"], 0);
             assert_eq!(json["processos"].as_array().unwrap().len(), 0);
         } else {
-            assert!(saida.stdout.is_empty());
+            assert_eq!(saida.stdout.as_slice(), b"");
         }
     }
 }
@@ -543,7 +543,7 @@ fn processo_por_tipo_e_periodo_nao_reutiliza_resultado_de_outro_tipo() {
             assert_eq!(json["termo"], "");
             assert_eq!(json["total_declarado"], 0);
         } else {
-            assert!(saida.stdout.is_empty());
+            assert_eq!(saida.stdout.as_slice(), b"");
         }
     }
 }
