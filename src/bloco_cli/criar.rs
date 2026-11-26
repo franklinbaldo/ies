@@ -62,7 +62,11 @@ pub(crate) fn grupo_padrao(html: &HtmlServido) -> Result<Option<String>, FalhaLe
         .elementos("option")
         .filter(|no| no.presente("selected"))
         .last()
-        .or_else(|| grupo.elementos("option").find(|no| !no.presente("disabled")));
+        .or_else(|| {
+            grupo
+                .elementos("option")
+                .find(|no| !no.presente("disabled"))
+        });
     Ok(opcao.filter(|no| !no.presente("disabled")).map(|no| {
         no.atributo("value")
             .map_or_else(|| no.texto().trim().to_owned(), str::to_owned)
@@ -104,15 +108,14 @@ fn previa_via<V: EnvioDoControle>(
     )?;
     let cadastro = transporte::decodificar_resposta(envio.get(&url, cookie)?)?;
     campo_descricao(&cadastro)?;
-    let grupo = grupo_padrao(&cadastro)?;
+    let grupo = grupo_padrao(&cadastro)?.ok_or(FalhaLeitura::HtmlDeBlocosInvalido)?;
     Ok(serde_json::json!({
         "unidade": unidade,
         "tipo_bloco": TipoBloco::Assinatura,
         "descricao": descricao,
         "grupo_padrao": grupo,
         "confirmado": false,
-        "alterado": false,
-        "bloco": null
+        "alterado": false
     }))
 }
 
@@ -152,9 +155,8 @@ mod tests {
             ("<textarea name='txtDescricao'></textarea>", None),
         ];
         for (controles, esperado) in casos {
-            let html = HtmlServido::de_teste(&format!(
-                "<form id='frmBlocoCadastro'>{controles}</form>"
-            ));
+            let html =
+                HtmlServido::de_teste(&format!("<form id='frmBlocoCadastro'>{controles}</form>"));
             assert_eq!(grupo_padrao(&html).unwrap().as_deref(), esperado);
         }
     }

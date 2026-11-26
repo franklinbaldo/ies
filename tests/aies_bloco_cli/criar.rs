@@ -23,7 +23,7 @@ fn criar_bloco_previa_nao_grava_nem_adivinha_identidade() {
     assert_eq!(valor["grupo_padrao"], "null");
     assert_eq!(valor["confirmado"], false);
     assert_eq!(valor["alterado"], false);
-    assert!(valor["bloco"].is_null());
+    assert!(valor.get("bloco").is_none());
     assert!(!valor.to_string().contains("infra_hash"));
     assert!(!valor.to_string().contains("PHPSESSID"));
 }
