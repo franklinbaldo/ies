@@ -31,7 +31,9 @@ campos e nível solicitado. A prévia não envia POST de criação. Uma
 eventual leitura por POST (`hdnFiltroSerie=T`) exige declaração de
 efeito separada e contagem; `documento_gerar_multiplo` não é leitura.
 
-WIP #872: `--texto-padrao NOME` apenas na prévia; seleção exata e única, JSON `texto_padrao` com `id` e `nome`. Charset e XML ainda não confrontados com cassettes originais. Incompatível com `--confirmar`.
+WIP #872: `--texto-padrao NOME` apenas na prévia; seleção exata e única, JSON `texto_padrao` com `id` e `nome`. Incompatível com `--confirmar`; confirmação por texto padrão (T) ou modelo (D) indisponível.
+
+O autocomplete é reconhecido lexicalmente nas formas inline e `inicializar`, não por execução JavaScript. Uma declaração após `return` ou uma função redefinida pode ser reconhecida mesmo sem execução pelo navegador. O POST de consulta é inferido; corpo, XML, charset e ausência de efeito externo não foram demonstrados em captura original. A bancada CLI/anti-IES/SQLite é sintética para essa transição; o replay original GO demonstra reconhecimento das declarações e controles, não a consulta efetiva. Nenhum POST criador é permitido nessa prévia.
 
 ## Confirmação
 
