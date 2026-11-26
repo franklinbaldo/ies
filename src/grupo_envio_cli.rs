@@ -5,7 +5,7 @@ use crate::acao_do_sei::AcaoDoSei;
 use crate::consulta_do_controlador::{ConsultaDoControlador, menciona_acao};
 use crate::tela_html::{Elemento, HtmlServido, arvore};
 use crate::transporte::sessao::ReferenciasDaSessao;
-use crate::visao_do_controle::{EnvioDoControle, EnvioHttps};
+use crate::visao_do_controle::{EnvioDoControle, EnvioHttps, TelaAtual};
 use crate::{Cli, configuracao, controle_reconhecido, transporte, unidade_lupa};
 use serde::Serialize;
 use std::collections::HashSet;
@@ -305,6 +305,18 @@ fn ler_grupo(html: &HtmlServido, id: &str) -> Result<Grupo, ErroGrupo> {
     })
 }
 
+// Janela derivada do Controle pode omitir a barra; se publicar, deve
+// confirmar a unidade, inclusive no par móvel/desktop já reconhecido.
+fn conferir_unidade_publicada(html: &HtmlServido, unidade: &str) -> anyhow::Result<()> {
+    let dom = arvore(html);
+    if dom.com_id("lnkInfraUnidade").next().is_some()
+        && crate::controle_contexto::unidade_html(&dom)?.as_deref() != Some(unidade)
+    {
+        return Err(ErroGrupo::UnidadeInesperada.into());
+    }
+    Ok(())
+}
+
 fn listar_via<V: EnvioDoControle>(
     sessao: &ReferenciasDaSessao,
     unidade_esperada: Option<&str>,
@@ -329,17 +341,13 @@ fn listar_via<V: EnvioDoControle>(
     )?;
     let cookie = sessao.cookie().valor()?;
     let resposta = envio.get(&url, cookie)?;
-    let codificacao = crate::pagina_do_controle::codificacao_da_tela(&resposta.mime);
-    let html = transporte::decodificar_resposta(resposta)?;
-    let (url, legenda, linhas) = paginacao::ler_observada(
-        &html,
+    let tela = TelaAtual {
         url,
-        codificacao,
-        sessao,
-        &controle.instalacao,
-        pagina,
-        envio,
-    )?;
+        mime: resposta.mime.clone(),
+        html: transporte::decodificar_resposta(resposta)?,
+    };
+    let (url, legenda, linhas) =
+        paginacao::ler_observada(tela, sessao, &controle.instalacao, &unidade, pagina, envio)?;
     Ok((unidade, url, legenda, linhas))
 }
 
@@ -358,6 +366,7 @@ pub(crate) fn obter_via<V: EnvioDoControle>(
     let consulta = consulta_da_linha(linha, &url, sessao.origem())?;
     let cookie = sessao.cookie().valor()?;
     let html = transporte::decodificar_resposta(envio.get(&consulta, cookie)?)?;
+    conferir_unidade_publicada(&html, &unidade)?;
     Ok((unidade, ler_grupo(&html, id)?))
 }
 

@@ -1,18 +1,17 @@
 //! Paginação Infra: formulário observado, sem executar JavaScript.
 //! Hipótese para grupos: o mesmo protocolo visto em blocos GO e no Todos.
 //! Sem pedido explícito, não há POST; não há varredura nem restauração.
-use super::{ErroGrupo, Item, Linha, ler_pagina};
+use super::{ErroGrupo, Item, Linha, conferir_unidade_publicada, ler_pagina};
 use crate::acao_do_sei::AcaoDoSei;
 use crate::formulario_web::{
-    CodificacaoDaTela, ConferenciaDaUnidade, EfeitoAvaliado, EnvioDoFormulario, EstadoDeSessao,
-    OperacaoDeFormulario, RespostaDoEnvio, ResultadoDoEnvio, TelaServida, derivar_submissao,
-    enviar_submissao_via,
+    ConferenciaDaUnidade, EfeitoAvaliado, EnvioDoFormulario, EstadoDeSessao, OperacaoDeFormulario,
+    RespostaDoEnvio, ResultadoDoEnvio, TelaServida, derivar_submissao, enviar_submissao_via,
 };
 use crate::instalacao::Instalacao;
 use crate::legenda::Legenda;
 use crate::tela_html::{HtmlServido, arvore};
 use crate::transporte::sessao::ReferenciasDaSessao;
-use crate::visao_do_controle::EnvioDoControle;
+use crate::visao_do_controle::{EnvioDoControle, TelaAtual};
 
 const PAGINAR: OperacaoDeFormulario = OperacaoDeFormulario {
     acao: AcaoDoSei::GrupoUnidadeListar,
@@ -90,20 +89,21 @@ fn geometria(html: &HtmlServido, legenda: &Legenda) -> anyhow::Result<(usize, us
 }
 
 pub(super) fn ler_observada<V: EnvioDoControle>(
-    html: &HtmlServido,
-    url: String,
-    codificacao: Option<CodificacaoDaTela>,
+    tela: TelaAtual,
     sessao: &ReferenciasDaSessao,
     instalacao: &Instalacao,
+    unidade: &str,
     pagina: Option<u32>,
     envio: &mut V,
 ) -> anyhow::Result<(String, Legenda, Vec<Linha>)> {
-    let (legenda, linhas) = ler_pagina(html)?;
+    let TelaAtual { url, html, mime } = tela;
+    conferir_unidade_publicada(&html, unidade)?;
+    let (legenda, linhas) = ler_pagina(&html)?;
     let Some(pagina) = pagina else {
         return Ok((url, legenda, linhas));
     };
     let destino = usize::try_from(pagina.checked_sub(1).ok_or(ErroGrupo::PaginaNaoOferecida)?)?;
-    let (atual, tamanho) = geometria(html, &legenda)?;
+    let (atual, tamanho) = geometria(&html, &legenda)?;
     if destino == atual {
         return Ok((url, legenda, linhas));
     }
@@ -113,13 +113,14 @@ pub(super) fn ler_observada<V: EnvioDoControle>(
         .filter(|n| *n <= legenda.total && tamanho > 0)
         .ok_or(ErroGrupo::PaginaNaoOferecida)?;
     let indice = destino.to_string();
-    let campos = campos_da_pagina(html, &indice)?;
+    let campos = campos_da_pagina(&html, &indice)?;
     let tela = TelaServida {
         url: &url,
-        html,
-        codificacao: codificacao.ok_or(ErroGrupo::ListaIncompleta)?,
+        html: &html,
+        codificacao: crate::pagina_do_controle::codificacao_da_tela(&mime)
+            .ok_or(ErroGrupo::ListaIncompleta)?,
     };
-    let post = derivar_submissao(&PAGINAR, instalacao, &tela, None, &campos)?;
+    let post = derivar_submissao(&PAGINAR, instalacao, &tela, Some(unidade), &campos)?;
     let url = post.url().to_owned();
     let RespostaDoEnvio::Html(proxima) =
         enviar_submissao_via(post, sessao.cookie(), |post, cookie| {
@@ -128,6 +129,7 @@ pub(super) fn ler_observada<V: EnvioDoControle>(
     else {
         return Err(ErroGrupo::ListaIncompleta.into());
     };
+    conferir_unidade_publicada(&proxima, unidade)?;
     let (nova, linhas) = ler_pagina(&proxima)?;
     let fim = inicio.saturating_add(tamanho - 1).min(legenda.total);
     if nova.total != legenda.total

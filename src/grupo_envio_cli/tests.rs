@@ -146,3 +146,25 @@ fn cassette_pen1_grupos_envio_preservam_ids() {
         antes.iter().map(|l| &l.item).collect::<Vec<_>>()
     );
 }
+
+#[test]
+fn unidade_publicada_distingue_ausencia_de_barra_invalida() {
+    const A: &str = "<a id='lnkInfraUnidade' href='#'>UNIDADE A</a>";
+    const B: &str = "<a id='lnkInfraUnidade' href='#'>UNIDADE B</a>";
+    let par = format!(
+        "<div id='divInfraBarraSistemaMovel'>{A}<div id='divInfraBarraSistemaPadrao'>{A}</div></div>"
+    );
+    for html in ["".to_owned(), A.to_owned(), par.clone()] {
+        assert!(conferir_unidade_publicada(&HtmlServido::de_teste(&html), "UNIDADE A").is_ok());
+    }
+    for html in [
+        B.to_owned(),
+        "<a id='lnkInfraUnidade'> </a>".to_owned(),
+        "<span id='lnkInfraUnidade'>UNIDADE A</span>".to_owned(),
+        format!("{A}{A}"),
+        format!("{par}{B}"),
+        par.replacen("UNIDADE A", "UNIDADE B", 1),
+    ] {
+        assert!(conferir_unidade_publicada(&HtmlServido::de_teste(&html), "UNIDADE A").is_err());
+    }
+}
