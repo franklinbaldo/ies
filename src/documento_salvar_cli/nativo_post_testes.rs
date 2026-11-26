@@ -88,18 +88,32 @@ fn editor_classico_conserva_vizinhas_vazias_no_post() {
             codificacao: CodificacaoDaTela::Utf8,
         };
         assert!(matches!(
-            enviar_classico(&mut envio, &alvo_edicao, &editor, secoes, principal, editado),
+            enviar_classico(
+                &mut envio,
+                &alvo_edicao,
+                &editor,
+                secoes,
+                principal,
+                editado
+            ),
             Err(ErroEditorNativo::FormularioDeOutroDocumento)
         ));
         assert!(envio.posts.is_empty());
     }
     let editor = Editor {
-        url,
+        url: url.clone(),
         html,
         codificacao: CodificacaoDaTela::Utf8,
     };
-    let aceite =
-        enviar_classico(&mut envio, &alvo_edicao, &editor, secoes, principal, editado).unwrap();
+    let aceite = enviar_classico(
+        &mut envio,
+        &alvo_edicao,
+        &editor,
+        secoes,
+        principal,
+        editado,
+    )
+    .unwrap();
     assert_eq!(aceite.map(VersaoDocumento::numero), Some(2));
     assert!(envio.pedidos.is_empty());
     assert_eq!(envio.posts.len(), 1);
