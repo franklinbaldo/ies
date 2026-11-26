@@ -145,6 +145,7 @@ fn executar(
     incerteza: bool,
     somente_previa: bool,
     com_leitura: bool,
+    segundo_pdf: Option<&[u8]>,
 ) -> (Vec<Output>, Vec<String>, usize, Option<Vec<u8>>) {
     let pasta = Pasta::nova();
     let (cert, identidade_tls) = identidade(&pasta.0, "sei.test");
@@ -160,6 +161,10 @@ fn executar(
     let cookie = pasta.privado("cookie", "PHPSESSID=FICTICIO");
     let pdf = pasta.0.join("peticao.pdf");
     fs::write(&pdf, b"%PDF-1.4\n1 0 obj\n%%EOF\n").unwrap();
+    let pdf2 = pasta.0.join("segundo.pdf");
+    if let Some(bytes) = segundo_pdf {
+        fs::write(&pdf2, bytes).unwrap();
+    }
 
     let escuta = TcpListener::bind(("127.0.0.1", 0)).unwrap();
     escuta.set_nonblocking(true).unwrap();
@@ -232,7 +237,10 @@ fn executar(
     } else {
         "--confirmar"
     };
-    let incluir = [base.as_slice(), &[pdf_str, "--tipo", "Anexo", modo]].concat();
+    let mut incluir = [base.as_slice(), &[pdf_str, "--tipo", "Anexo", modo]].concat();
+    if segundo_pdf.is_some() {
+        incluir.extend(["--arquivo", pdf2.to_str().unwrap()]);
+    }
     let consultar = [
         "--json",
         "processo",
@@ -300,7 +308,7 @@ fn json(saida: &Output) -> Value {
 
 #[test]
 fn bdd_332_03_binario_confirma_upload_cadastro_e_releitura_independente() {
-    let (saidas, eventos, total, _) = executar(false, false, false);
+    let (saidas, eventos, total, _) = executar(false, false, false, None);
     assert_eq!(
         saidas[0].status.code(),
         Some(0),
@@ -346,7 +354,7 @@ fn bdd_332_03_binario_confirma_upload_cadastro_e_releitura_independente() {
 
 #[test]
 fn bdd_332_04_resposta_sem_autoria_falha_sem_repetir_post() {
-    let (saidas, eventos, total, _) = executar(true, false, false);
+    let (saidas, eventos, total, _) = executar(true, false, false, None);
     falha(&saidas[0], "TentativaNaoComprovada");
     assert_eq!(total, 1, "efeito existiu mesmo com resposta adulterada");
     assert_eq!(
@@ -369,7 +377,7 @@ fn bdd_332_04_resposta_sem_autoria_falha_sem_repetir_post() {
 /// mas nenhuma linha de upload nem documento definitivo pode surgir.
 #[test]
 fn bdd_332_02_binario_consulta_previa_sem_upload_ou_cadastro() {
-    let (saidas, eventos, total, _) = executar(false, true, false);
+    let (saidas, eventos, total, _) = executar(false, true, false, None);
     assert_eq!(
         saidas[0].status.code(),
         Some(0),
@@ -414,7 +422,7 @@ fn bdd_332_02_binario_consulta_previa_sem_upload_ou_cadastro() {
 fn bdd_60_03_cli_baixa_pdf_original_do_estado_compartilhado() {
     // BDD-60-03 pré-escrito na #60: o mesmo PDF cadastrado deve ser lido
     // pela CLI real e salvo byte a byte, sem transformar conteúdo em HTML.
-    let (saidas, eventos, documentos, arquivo) = executar(false, false, true);
+    let (saidas, eventos, documentos, arquivo) = executar(false, false, true, None);
     assert_eq!(documentos, 1, "um único documento definitivo");
     assert_eq!(
         saidas[2].status.code(),
@@ -441,4 +449,25 @@ fn bdd_60_03_cli_baixa_pdf_original_do_estado_compartilhado() {
         1,
         "o link assinado deve ser seguido uma só vez"
     );
+}
+
+#[test]
+fn lote_previa_de_dois_pdfs_nao_escreve() {
+    let (saidas, eventos, total, _) = executar(false, true, false, Some(b"%PDF-1.4\n2 0 obj\n%%EOF\n"));
+    assert_eq!(saidas[0].status.code(), Some(0), "{:?}", saidas[0].stderr);
+    let previa = json(&saidas[0]);
+    assert_eq!(previa["escopo"], "previa_web_lote");
+    assert_eq!(previa["itens"][0]["arquivo"]["nome"], "peticao.pdf");
+    assert_eq!(previa["itens"][1]["arquivo"]["nome"], "segundo.pdf");
+    assert_ne!(previa["itens"][0]["arquivo"]["sha256"], previa["itens"][1]["arquivo"]["sha256"]);
+    assert_eq!(total, 0);
+    assert!(!eventos.iter().any(|evento| evento.starts_with("POST documento_upload_anexo") || evento == "POST documento_receber 302"));
+}
+
+#[test]
+fn lote_segundo_pdf_invalido_nao_abre_previa() {
+    let (saidas, eventos, total, _) = executar(false, true, false, Some(b"nao e pdf"));
+    falha(&saidas[0], "Conteudo");
+    assert_eq!(total, 0);
+    assert!(!eventos.iter().any(|evento| evento.starts_with("POST documento_receber") || evento.starts_with("POST documento_upload_anexo")));
 }
