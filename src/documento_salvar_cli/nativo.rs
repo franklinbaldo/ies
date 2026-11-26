@@ -204,9 +204,17 @@ fn abrir_editor(
 }
 
 #[cfg(test)]
-pub(super) fn reconhece_classico(html: &HtmlServido) -> bool {
-    versao_do_editor(html).is_some_and(|v| matches!(v.numero(), 1 | 2))
-        && principal_publicado(html).is_some()
+pub(super) fn censo_do_classico(html: &HtmlServido) -> Option<(usize, usize)> {
+    let Protocolo::Classico { versao, secoes, .. } = Protocolo::ler(html).ok()? else {
+        return None;
+    };
+    if !matches!(versao.numero(), 1 | 2) {
+        return None;
+    }
+    Some((
+        secoes.len(),
+        secoes.iter().filter(|s| s.html.is_empty()).count(),
+    ))
 }
 
 #[cfg(test)]
