@@ -37,7 +37,9 @@ pub(crate) fn tentar_criar(cli: &Cli) -> Option<anyhow::Result<()>> {
     if *confirmar && let Err(erro) = validar_nivel_de_confirmacao(*nivel) {
         return Some(Err(erro.into()));
     }
-    if texto_padrao.is_some() && let Err(erro) = conferir_origem_da_previa() {
+    if texto_padrao.is_some()
+        && let Err(erro) = conferir_origem_da_previa()
+    {
         return Some(Err(erro));
     }
     Some(com_sessao(cli, |sessao, indice| {
