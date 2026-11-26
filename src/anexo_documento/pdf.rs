@@ -38,7 +38,7 @@ pub(super) fn extrair(caminho: &Path) -> Result<ExtracaoPdf, ErroAnexo> {
         .args(["-enc", "UTF-8"])
         .arg(caminho)
         .arg("-")
-        .stdin(Stdio::null())
+        .stdin(Stdio::piped())
         .stdout(Stdio::piped())
         .stderr(Stdio::piped())
         .spawn()
@@ -49,6 +49,8 @@ pub(super) fn extrair(caminho: &Path) -> Result<ExtracaoPdf, ErroAnexo> {
         }
         Err(_) => return Ok(ExtracaoPdf::Falhou),
     };
+    // O motor recebe EOF, nunca o stdin da CLI.
+    drop(filho.stdin.take());
     let (Some(stdout), Some(mut stderr)) = (filho.stdout.take(), filho.stderr.take()) else {
         let _ = filho.kill();
         let _ = filho.wait();
@@ -128,7 +130,10 @@ mod tests {
             classificar(b"NATIVO ALFA", true),
             Ok(ExtracaoPdf::NativoComDiagnostico("NATIVO ALFA".to_owned()))
         );
-        assert_eq!(classificar(b"\n\x0c", false), Ok(ExtracaoPdf::SemTextoNativo));
+        assert_eq!(
+            classificar(b"\n\x0c", false),
+            Ok(ExtracaoPdf::SemTextoNativo)
+        );
         assert_eq!(classificar(b"", true), Ok(ExtracaoPdf::Falhou));
         assert_eq!(classificar(b"\xff", false), Ok(ExtracaoPdf::Falhou));
         assert_eq!(

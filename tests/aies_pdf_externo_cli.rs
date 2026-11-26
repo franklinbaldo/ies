@@ -486,7 +486,11 @@ fn pdf_nativo_publica_teor_com_e_sem_cache_sem_alterar_original() {
     let hash = "545f1f049a835f19d710b9213bf38b1c0b802bbdedfded624736a878356e46de";
     assert_eq!(original["documentos"][0]["anexo"]["sha256"], hash);
     assert!(original["documentos"][0].get("texto").is_none());
-    assert!(original["documentos"][0]["anexo"].get("extracao_pdf").is_none());
+    assert!(
+        original["documentos"][0]["anexo"]
+            .get("extracao_pdf")
+            .is_none()
+    );
     for (i, saida) in saidas[3..].iter().enumerate() {
         assert_eq!(saida.status.code(), Some(0), "{:?}", saida.stderr);
         let lido = json(saida);

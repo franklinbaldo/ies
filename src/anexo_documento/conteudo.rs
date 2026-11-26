@@ -25,7 +25,9 @@ impl AnexoLido {
     pub(crate) fn estado_pdf(&self) -> Option<&'static str> {
         match &self.conteudo {
             ConteudoDoAnexo::Pdf(pdf) => Some(pdf.estado()),
-            ConteudoDoAnexo::Texto(_) | ConteudoDoAnexo::Arquivo(_) | ConteudoDoAnexo::Nenhum => None,
+            ConteudoDoAnexo::Texto(_) | ConteudoDoAnexo::Arquivo(_) | ConteudoDoAnexo::Nenhum => {
+                None
+            }
         }
     }
 
