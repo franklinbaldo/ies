@@ -1,13 +1,13 @@
 ---
 type: CommandContract
-title: Enviar o processo a uma unidade de destino
+title: Enviar o processo a uma ou mais unidades de destino
 operation: processo.enviar
-command: ies processo enviar NUP --para SIGLA [--manter-aberto] [--remover-anotacoes] [--confirmar]
+command: ies processo enviar NUP --para SIGLA [--para SIGLA ...] [--manter-aberto] [--remover-anotacoes] [--confirmar]
 effect: write-process-state
 implementation: partial
 ---
 
-# `ies processo enviar NUP --para SIGLA [--manter-aberto] [--remover-anotacoes] [--confirmar]` (Refs #173, #333)
+# `ies processo enviar NUP --para SIGLA [--para SIGLA ...] [--manter-aberto] [--remover-anotacoes] [--confirmar]` (Refs #173, #333)
 
 Envia (tramita) o processo da **unidade da sessão** a **uma ou mais** unidades de
 destino, uma vez e por pedido explícito, pelo link "Enviar Processo" que a
@@ -93,7 +93,7 @@ da tela declara.
    leitura (`ConsultaSemEfeitoObservado`). Cada resposta precisa ser XML
    200 `<itens><item id descricao/>…</itens>`, senão 1 e a busca para (sem
    repetir nem seguir para a próxima consulta).
-6. **Busca e escolha do destino**: em cada resposta valem só os itens
+6. **Busca e escolha de cada destino**: para cada sigla pedida, em cada resposta valem só os itens
    cuja sigla (o texto de `descricao` antes de ` - `) é igual a `SIGLA`,
    sem distinguir maiúsculas ASCII; vale também para o termo alargado, que
    só amplia a busca. A ordem é a do Todos, no máximo quatro consultas,
@@ -112,7 +112,10 @@ da tela declara.
    `VariosDestinosComASigla` (`candidatos`). Sem `/` só há a consulta
    3, como antes. Destino já em `aberto_em`: 1,
    `ProcessoJaAbertoNoDestino` (a leitura não distinguiria o efeito).
-7. **Sem `--confirmar`**: publica `destino`, `aberto_em`, `depois_esperado`
+   Todos os destinos devem estar resolvidos e ser novos antes de qualquer
+   POST de escrita, inclusive eventual limpeza da anotação.
+7. **Sem `--confirmar`**: publica `destino` (singular) ou `destinos` (plural),
+   `aberto_em`, `depois_esperado`
    e o plano. Com `--remover-anotacoes`, publica `remover_anotacoes: true`
    e `metodo_remocao: "checkbox_no_envio" | "limpar_anotacao"`, conforme
    os controles observados. Sem a flag, não altera a saída legada.
@@ -139,7 +142,7 @@ da tela declara.
    a limpeza e a releitura acontecem antes do envio: anotação ainda
    preenchida recusa o envio (1); leitura inconclusiva da limpeza recusa
    o envio com saída 1. O envio posterior continua sujeito à
-   reconciliação do destino já existente.
+   reconciliação de todos os destinos pedidos.
 
 ## Conferência da tela "Enviar Processo"
 
@@ -168,7 +171,9 @@ programados).
 
 O POST **sem `--remover-anotacoes`** leva, na ordem do documento: os ocultos como servidos, salvo
 `hdnUnidades` = `ID±DESCRIÇÃO` do item escolhido (a forma do
-`infraLupaSelect`); `sbmEnviar`; `selOrgao` = o órgão efetivo;
+`infraLupaSelect`); para múltiplos destinos, `ID±DESCRIÇÃO¥ID±DESCRIÇÃO`
+  é a hipótese de serialização exercitada no simulador e apoiada pelo Todos,
+  não um corpo POST plural original capturado; `sbmEnviar`; `selOrgao` = o órgão efetivo;
 `txtUnidade=`; `chkSinManterAberto=on` só com `--manter-aberto`; cada texto
 servido, vazio. Nenhuma opção de `selProcedimentos`/`selUnidades`, nenhuma
 outra caixa nem rádio. O `action` é o servido (conferido pelo primitivo);
@@ -209,10 +214,10 @@ não é o esperado. Qualquer outra
 
 | Resposta | Leitura depois | Saída | Resultado |
 | --- | --- | --- | --- |
-| Esperada | destino em `aberto_em` e unidade da sessão como pedido | 0 | `alterado: true` |
+| Esperada | todos os destinos em `aberto_em` e unidade da sessão como pedido | 0 | `alterado: true` |
 | Não esperada | idem | 0 | `alterado: true`, `reconciliado_por_leitura: true`, `falha_do_envio` |
-| Qualquer | sem o destino | 1 | `EnvioNaoAplicado` |
-| Qualquer | destino, mas a unidade da sessão diferente do pedido | 1 | `SituacaoDaOrigemDiferenteDaPedidaAposEnvio` |
+| Qualquer | falta qualquer destino (inclusive efeito parcial) | 1 | `EnvioNaoAplicado` |
+| Qualquer | todos os destinos, mas a unidade da sessão diferente do pedido | 1 | `SituacaoDaOrigemDiferenteDaPedidaAposEnvio` |
 | Qualquer | leitura falhou ou situação não lida | 1 | `NaoConfirmadoNoEnvio` |
 
 Quando o fallback já comprovou a limpeza e a releitura da tramitação falha,
@@ -227,7 +232,7 @@ derivação) não é escrita: saída 1. Antes de repetir à mão, conferir com
 ## Efeito
 
 `EfeitoAvaliado::AlteraEstadoDoProcesso { UnidadesComOProcessoAberto }`:
-abre o processo na unidade de destino; sem `--manter-aberto`, o fecha na
+abre o processo em cada unidade de destino; sem `--manter-aberto`, o fecha na
 da sessão. **Não se desfaz da sessão de origem**: sem manter aberto, o
 processo sai da unidade; voltar exige uma sessão na unidade de destino
 (enviar de volta ou concluir lá).
@@ -250,7 +255,7 @@ valor.
 Nunca URL, `infra_hash` ou cookie. Falhas: saída 1, stdout vazio e
 `Error: <ErroEnviar::…>` em stderr; `aberto_em`, `oferecidos`,
 `candidatos`, `depois`, `falha_do_envio` e `verificacao` são campos dos
-erros que os observaram. Destino recusado pelo SEI sobe com o contexto
+erros que os observaram. Somente para pedido singular, destino recusado pelo SEI sobe com o contexto
 `SugestoesGuardadas` quando o índice local tem siglas parecidas. A saída humana da prévia termina com "Para
 enviar, repita com --confirmar".
 
@@ -268,7 +273,8 @@ Abertura = a de `processo concluir` (3 GET a frio pela linha do Controle,
 | `--confirmar` (qualquer resultado da verificação) | abertura + 1 GET + C POST + 1 POST + verificação; com remoção via checkbox, +2 GET da anotação (antes/depois) |
 | `--confirmar --remover-anotacoes` com fallback | mesma base, +1 GET da anotação antes; se há texto, +1 POST de limpeza e +1 GET de conferência **antes** do envio. Sem texto, nenhum POST de limpeza |
 
-C, as consultas da busca (passo 6):
+C é a soma das consultas da busca (passo 6) por sigla pedida, interrompida
+na primeira recusa. Por sigla:
 
 | `SIGLA` | C |
 | --- | --- |
@@ -276,17 +282,22 @@ C, as consultas da busca (passo 6):
 | com `/`, sem órgão do prefixo | 1 (a consulta 3 decide) ou 2 (mais a 4) |
 | com `/` e órgão do prefixo | 1 a 4, a primeira com a sigla exata (ou vários) encerra |
 
-A frio e sem `/`, sem leitura extra: prévia 4 GET + 1 POST; `--confirmar` 5 GET + 2 POST. Os
+Para um destino, a frio e sem `/`, sem leitura extra: prévia 4 GET + 1 POST; `--confirmar` 5 GET + 2 POST. Os
 testes conferem a sequência exata de cada caminho.
 
 ## Fora do escopo
 
-Vários destinos e grupos de envio (`hdnUnidades` com `¥`),
+Grupos de envio (múltiplos destinos explícitos não são grupos),
 "Enviar e-mail
 de notificação", retorno e reabertura
 programados, a lupa de unidades, enviar vários processos.
 
 ## Evidência
+
+Plural: replay PEN1 observa duas novas unidades no primeiro envio e nenhuma
+no reenvio; não registra o corpo POST plural. A CLI com múltiplos destinos
+é exercitada por E2E sintético CLI/HTTPS/anti-IES/SQLite, sem prova de
+compatibilidade ou atomicidade no SEI real; confirmação plural restrita a treinamento.
 
 [Evidência da operação](../evidencias/processo-enviar.md) (Todos, sete
 instalações), [observação](../../docs/como-o-sei-funciona/envio-do-processo.md)
