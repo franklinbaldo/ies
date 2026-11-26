@@ -47,9 +47,10 @@ pub fn tipos(
          WHERE origem=?1 AND cenario=?2 AND unidade=?3 ORDER BY id_tipo",
     )?;
     consulta
-        .query_map(params![instalacao.url_base(), cenario, unidade.as_str()], |r| {
-            Ok((r.get(0)?, r.get(1)?))
-        })?
+        .query_map(
+            params![instalacao.url_base(), cenario, unidade.as_str()],
+            |r| Ok((r.get(0)?, r.get(1)?)),
+        )?
         .collect()
 }
 
@@ -128,7 +129,10 @@ mod tests {
         registrar_sem_resultado(&banco, &origem, "c", &unidade, periodo).unwrap();
         assert!(tem_resultado_negativo(&banco, &origem, "c", &unidade, periodo).unwrap());
         for outro in [
-            Criterios { tipo_id: "73", ..periodo },
+            Criterios {
+                tipo_id: "73",
+                ..periodo
+            },
             Criterios { de: "", ..periodo },
             Criterios {
                 ate: "30/01/2026",
