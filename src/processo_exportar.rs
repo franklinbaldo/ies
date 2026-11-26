@@ -170,8 +170,8 @@ fn gravar<R: Read>(
     let mut parcial = Parcial::abrir(saida, politica)?;
     let mut hash = Sha256::new();
     parcial.escrever(prefixo)?;
-    hash.update(prefixo);
     let mut tamanho = u64::try_from(prefixo.len())?;
+    hash.update(prefixo);
     let mut bloco = [0u8; 16 * 1024];
     loop {
         let lido = resposta.corpo.read(&mut bloco)?;
