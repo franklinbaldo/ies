@@ -446,7 +446,11 @@ fn resposta_perdida_preserva_residuo_sem_confirmar_nem_repetir() {
         .skip_while(|p| *p != "POST procedimento_gerar 302")
         .skip(1)
         .collect::<Vec<_>>();
-    assert!(depois.iter().any(|p| *p == "GET procedimento_controlar 200"));
+    assert!(
+        depois
+            .iter()
+            .any(|p| *p == "GET procedimento_controlar 200")
+    );
     // O processo recém-criado precisa aparecer em Gerados com link servido.
     // A leitura das propriedades não pode transformar coincidência em autoria.
     assert!(depois.iter().any(|p| *p == "GET procedimento_alterar 200"));
