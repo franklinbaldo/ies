@@ -47,6 +47,7 @@ pub(crate) enum Escrita {
     ProcessoComentar,
     ProcessoAcompanharDeixar,
     ProcessoEnviarRemovendoAnotacoes,
+    ProcessoEnviarMultiplos,
 }
 
 impl Escrita {
@@ -143,6 +144,15 @@ mod tests {
             ),
             Err(CausaDaOrigem::OrigemForaDoTreinamento)
         ));
+    }
+
+    #[test]
+    fn envio_multiplo_ainda_restrito_ao_treinamento() {
+        assert!(exigir(Escrita::ProcessoEnviarMultiplos, "https://sei.test/sei").is_ok());
+        assert_eq!(
+            exigir(Escrita::ProcessoEnviarMultiplos, "https://sei.unb.br/sei"),
+            Err(CausaDaOrigem::OrigemForaDoTreinamento)
+        );
     }
 
     #[test]
