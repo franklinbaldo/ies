@@ -518,9 +518,7 @@ mod testes_secoes {
         // Reimportar uma revisão divergente não reutiliza seções antigas.
         // Exercita também o modo SQLite sem enforcement de FK.
         banco.pragma_update(None, "foreign_keys", false).unwrap();
-        let mut reimportado = ler(&banco, &origem, "ensaio", "42")
-            .unwrap()
-            .unwrap();
+        let mut reimportado = ler(&banco, &origem, "ensaio", "42").unwrap().unwrap();
         reimportado.revisoes[0].html_corpo = "<p>Substituido</p>".into();
         guardar(&mut banco, "ensaio", &reimportado).unwrap();
         assert!(
