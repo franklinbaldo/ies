@@ -457,7 +457,13 @@ fn processo_por_periodo_distingue_zero_observado_de_periodo_desconhecido() {
         let saida = executar_com_estado(
             &pasta,
             &[
-                "--json", "processo", "buscar", "--de", "01/01/2026", "--ate", ate,
+                "--json",
+                "processo",
+                "buscar",
+                "--de",
+                "01/01/2026",
+                "--ate",
+                ate,
             ],
             EstadoDeBusca::PeriodoProcessual,
         );

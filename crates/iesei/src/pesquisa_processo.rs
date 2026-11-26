@@ -83,7 +83,10 @@ mod tests {
         assert!(tem_resultado_negativo(&banco, &origem, "c", &unidade, periodo).unwrap());
         for outro in [
             Periodo { de: "", ..periodo },
-            Periodo { ate: "30/01/2026", ..periodo },
+            Periodo {
+                ate: "30/01/2026",
+                ..periodo
+            },
         ] {
             assert!(!tem_resultado_negativo(&banco, &origem, "c", &unidade, outro).unwrap());
         }

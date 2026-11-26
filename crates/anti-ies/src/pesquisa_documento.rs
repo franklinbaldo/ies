@@ -67,7 +67,12 @@ fn formulario_de_pesquisa(
 ) -> String {
     let hash = "c".repeat(64);
     let (p, d, de, ate) = match periodo {
-        Some(periodo) => (" checked", "", crate::escapar(periodo.de), crate::escapar(periodo.ate)),
+        Some(periodo) => (
+            " checked",
+            "",
+            crate::escapar(periodo.de),
+            crate::escapar(periodo.ate),
+        ),
         None => ("", " checked", String::new(), String::new()),
     };
     format!(
@@ -133,6 +138,15 @@ fn documento_exato(
     ))
 }
 
+fn campo_opcional(corpo: &str, nome: &str) -> Option<String> {
+    super::documentos::campo_formulario_unico(corpo, nome).or_else(|| {
+        (!corpo
+            .split('&')
+            .any(|par| par.split('=').next() == Some(nome)))
+        .then(String::new)
+    })
+}
+
 /// Primeira hipótese sintética de busca processual: somente período.
 /// Não usa a tabela documental nem deduz zero da ausência de observação.
 fn periodo_processual(
@@ -143,12 +157,7 @@ fn periodo_processual(
     unidade: &iesei::observacao::UnidadeExibida,
 ) -> Resposta {
     use iesei::pesquisa_processo::{Periodo, tem_resultado_negativo};
-    let campo = |nome: &str| {
-        super::documentos::campo_formulario_unico(corpo, nome).or_else(|| {
-            (!corpo.split('&').any(|par| par.split('=').next() == Some(nome)))
-                .then(String::new)
-        })
-    };
+    let campo = |nome: &str| campo_opcional(corpo, nome);
     let (Some(de), Some(ate)) = (campo("txtDataInicio"), campo("txtDataFim")) else {
         return Resposta::nova(Estado::RequisicaoInvalida);
     };
@@ -158,9 +167,18 @@ fn periodo_processual(
         || campo("q").as_deref() != Some("")
         || campo("chkSinConsiderarDocumentos").as_deref() != Some("")
         || campo("hdnInicio").as_deref() != Some("0")
-        || ["hdnIdAssunto", "hdnIdUnidade", "hdnIdContato", "hdnIdAssinante"]
-            .iter()
-            .any(|nome| campo(nome).as_deref() != Some(""))
+        || campo("selOrgaoPesquisa%5B%5D").as_deref() != Some("0")
+        || [
+            "hdnIdAssunto",
+            "hdnIdUnidade",
+            "hdnIdContato",
+            "hdnIdAssinante",
+            "hdnIdUsuarioGerador1",
+            "hdnIdUsuarioGerador2",
+            "hdnIdUsuarioGerador3",
+        ]
+        .iter()
+        .any(|nome| campo(nome).as_deref() != Some(""))
     {
         return Resposta::nova(Estado::RequisicaoInvalida);
     }
@@ -194,7 +212,12 @@ pub fn responder_pesquisa(
         return Resposta::nova(Estado::DadosInsuficientes);
     };
     match metodo {
-        "GET" => Resposta::html(formulario_de_pesquisa(controle.unidade.as_str(), "", "", None)),
+        "GET" => Resposta::html(formulario_de_pesquisa(
+            controle.unidade.as_str(),
+            "",
+            "",
+            None,
+        )),
         "POST" => {
             let termo = super::documentos::campo_formulario_unico(corpo, "txtProtocoloPesquisa");
             let radio = super::documentos::campo_formulario_unico(corpo, "rdoPesquisarEm");
@@ -212,6 +235,13 @@ pub fn responder_pesquisa(
                 || (gerados.as_deref() != Some("S") && recebidos.as_deref() != Some("S"))
             {
                 return Resposta::nova(Estado::RequisicaoInvalida);
+            }
+            // O estado documental ainda não distingue filtros por data.
+            if ["txtDataInicio", "txtDataFim"]
+                .iter()
+                .any(|nome| campo_opcional(corpo, nome).as_deref() != Some(""))
+            {
+                return Resposta::nova(Estado::DadosInsuficientes);
             }
             // O POST de navegar() repete o formulário, mudando só hdnInicio.
             // Sem a página observada, não inferimos uma faixa pelo total.
@@ -334,6 +364,18 @@ mod tests {
         assert_eq!(observado.estado, Estado::Ok);
         assert!(observado.corpo.contains("pesquisaSemResultado"));
         assert_eq!(buscar("OUTRO").estado, Estado::DadosInsuficientes);
+        assert_eq!(
+            responder_pesquisa(
+                "POST",
+                url,
+                "rdoPesquisarEm=D&chkSinDocumentosGerados=S&txtProtocoloPesquisa=DOC-NAO-ACHADO&txtDataInicio=01%2F01%2F2026",
+                &banco,
+                &instalacao,
+                "cenario",
+            )
+            .estado,
+            Estado::DadosInsuficientes
+        );
         assert_eq!(
             responder_pesquisa(
                 "POST",
