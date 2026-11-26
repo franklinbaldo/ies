@@ -37,9 +37,7 @@ fn editor_classico_rele_todas_as_secoes_transportadas() {
     assert!(legado.contains("<main id='corpoEditavel'><p>antes</p></main>"));
     registrar_secoes(&banco, &origem(), "ensaio", "42", v2, &secoes).unwrap();
     let foto_base = foto(atual);
-    assert!(foto_base.contains(
-        "<body><h1>Fixo\r\r\n</h1><p>antes</p><div unselectable=\"on\">"
-    ));
+    assert!(foto_base.contains("<body><h1>Fixo\r\r\n</h1><p>antes</p><div unselectable=\"on\">"));
     assert!(!foto_base.contains("corpoEditavel"));
     let montar = "/sei/controlador.php?acao=editor_montar&id_documento=42";
     let salvar =
@@ -83,9 +81,7 @@ fn editor_classico_rele_todas_as_secoes_transportadas() {
         esperado
     );
     let foto_nova = foto(atual);
-    assert!(foto_nova.contains(
-        "<body><h1>Fixo\n</h1><p>depois</p><div unselectable=\"on\">"
-    ));
+    assert!(foto_nova.contains("<body><h1>Fixo\n</h1><p>depois</p><div unselectable=\"on\">"));
     assert!(foto_nova.contains("versão 3 por"));
     assert_eq!(foto(antiga), foto_base);
     let releitura = responder("GET", montar, "", &banco, &origem(), "ensaio");
