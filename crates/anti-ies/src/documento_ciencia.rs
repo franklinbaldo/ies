@@ -81,9 +81,43 @@ pub(crate) fn tela(
     } else {
         String::new()
     };
+    // A tela do nó é compartilhada: oferecer edição não apaga a ciência.
+    let editor = match links_do_editor(banco, origem, cenario, documento, processo) {
+        Ok(editor) => editor,
+        Err(estado) => return Some(Resposta::nova(estado)),
+    };
     Some(Resposta::html(format!(
-        "<html><head><title>SEI - Visualizar Árvore</title><script type=\"text/javascript\">\n{link}\n</script></head><body></body></html>"
+        "<html><head><title>SEI - Visualizar Árvore</title><script type=\"text/javascript\">\n{link}\n{editor}\n</script></head><body></body></html>"
     )))
+}
+
+
+// Hipótese sintética da tela observada: ambas as URLs são publicadas na
+// mesma identidade. A consulta AJAX continua independente da oferta.
+fn links_do_editor(
+    banco: &Connection,
+    origem: &Instalacao,
+    cenario: &str,
+    documento: &str,
+    processo: &str,
+) -> Result<String, Estado> {
+    use iesei::cancelamento_documento::Situacao;
+    use iesei::editor_documento::consultar_oferta;
+
+    let oferta = consultar_oferta(banco, origem, cenario, documento)
+        .map_err(|_| Estado::DadosInsuficientes)?;
+    if !oferta.is_some_and(|o| o.editavel)
+        || !matches!(
+            crate::documento_cancelar::estado(banco, origem, cenario, documento, processo)?,
+            Some(Situacao::Disponivel)
+        )
+    {
+        return Ok(String::new());
+    }
+    let hash = crate::protocolo_sintetico::INFRA_HASH;
+    Ok(format!(
+        "objAjaxVerificacaoAssinatura = new infraAjaxComplementar(null,'controlador_ajax.php?acao_ajax=documento_verificar_assinatura&id_documento={documento}&infra_hash={hash}');\nvar linkEditarConteudo = 'controlador.php?acao=editor_montar&id_procedimento={processo}&id_documento={documento}&infra_hash={hash}';"
+    ))
 }
 
 /// Rotas cuja consulta à lista não modifica o documento.
@@ -172,5 +206,83 @@ pub(crate) fn responder(
             }
         }
         _ => Resposta::nova(Estado::NaoEncontrado),
+    }
+}
+
+#[cfg(test)]
+mod testes_editor {
+    use super::*;
+    use iesei::documento_versoes::{DocumentoSimulado, Revisao, guardar, ler};
+    use iesei::editor_documento::{Oferta, registrar_oferta};
+    use std::num::NonZeroU32;
+
+    #[test]
+    fn tela_compoe_ciencia_e_editor_sem_inventar_oferta() {
+        let origem = Instalacao::interpretar("https://sei.test/sei").unwrap();
+        let mut banco = Connection::open_in_memory().unwrap();
+        iesei::banco_cassettes::iniciar(&banco).unwrap();
+        let documento = DocumentoSimulado {
+            instalacao: origem.clone(),
+            id_documento: "21".into(),
+            id_procedimento: "10".into(),
+            numero_processo: "00001.000001/2026-01".into(),
+            numero: "0000101".into(),
+            tipo: "Despacho".into(),
+            revisoes: vec![Revisao {
+                versao: NonZeroU32::new(1).unwrap(),
+                usuario: "Teste".into(),
+                unidade: "TESTE".into(),
+                modificacao: "26/11/2026".into(),
+                html_corpo: "<p>Antes</p>".into(),
+            }],
+        };
+        guardar(&mut banco, "ensaio", &documento).unwrap();
+        let alvo = "/sei/controlador.php?acao=arvore_visualizar&id_procedimento=10&id_documento=21";
+        let pedir = |alvo, cenario| {
+            crate::rotas::responder("GET", alvo, b"", &banco, &origem, cenario)
+        };
+        let sem_oferta = pedir(alvo, "ensaio");
+        assert_eq!(sem_oferta.estado, Estado::Ok);
+        assert!(sem_oferta.corpo.contains("linkCienciaDocumento"));
+        assert!(!sem_oferta.corpo.contains("linkEditarConteudo"));
+        for (editavel, assinaturas) in [(false, 0), (true, 0), (true, 2)] {
+            registrar_oferta(
+                &banco,
+                &origem,
+                "ensaio",
+                "21",
+                Oferta {
+                    editavel,
+                    assinaturas,
+                },
+            )
+            .unwrap();
+            let resposta = pedir(alvo, "ensaio");
+            assert_eq!(resposta.estado, Estado::Ok);
+            assert!(resposta.corpo.contains("linkCienciaDocumento"));
+            assert_eq!(resposta.corpo.contains("linkEditarConteudo"), editavel);
+            assert_eq!(
+                resposta.corpo.contains(
+                    "acao_ajax=documento_verificar_assinatura&id_documento=21&infra_hash="
+                ),
+                editavel
+            );
+            assert_eq!(
+                resposta.corpo.contains(
+                    "acao=editor_montar&id_procedimento=10&id_documento=21&infra_hash="
+                ),
+                editavel
+            );
+        }
+        let outro = alvo.replace("id_procedimento=10", "id_procedimento=11");
+        assert!(!pedir(&outro, "ensaio").corpo.contains("linkEditarConteudo"));
+        assert!(!pedir(alvo, "outro").corpo.contains("linkEditarConteudo"));
+        iesei::cancelamento_documento::aplicar(&banco, &origem, "ensaio", "21", "10", "Teste")
+            .unwrap();
+        assert!(!pedir(alvo, "ensaio").corpo.contains("linkEditarConteudo"));
+        assert_eq!(
+            ler(&banco, &origem, "ensaio", "21").unwrap(),
+            Some(documento)
+        );
     }
 }
