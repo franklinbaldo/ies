@@ -96,14 +96,17 @@ fn urls_declaradas(texto: &str, chamado_no_onload: bool) -> Option<Vec<String>> 
             em_inicializar = false;
         }
         if !matches!(atual, 'f' | 'i' | 'o')
-            || !texto[..indice].rsplit('\n').next()?.trim().is_empty()
+            || !texto.get(..indice)?.rsplit('\n').next()?.trim().is_empty()
             || !matches!(ultimo, ' ' | ';' | '}' | '{')
         {
             return Some(());
         }
-        let linha = texto[indice..].lines().next()?.trim_end();
+        let linha = texto.get(indice..)?.lines().next()?.trim_end();
         if profundidade == 0 {
-            if matches!(linha, "function inicializar(){" | "function inicializar() {") {
+            if matches!(
+                linha,
+                "function inicializar(){" | "function inicializar() {"
+            ) {
                 em_inicializar = true;
             } else if linha == "inicializar();" {
                 chamado = true;
@@ -239,7 +242,9 @@ mod tests {
             format!("const exemplo = `\n{declaracao}\n`;"),
             format!("if (false) {{\n{declaracao}\n}}"),
             format!("function inicializar() {{\n{declaracao}\n}}"),
-            format!("function inicializar() {{\nif (false) {{\n{declaracao}\n}}\n}}\ninicializar();"),
+            format!(
+                "function inicializar() {{\nif (false) {{\n{declaracao}\n}}\n}}\ninicializar();"
+            ),
         ] {
             assert!(matches!(
                 url_publicada(&cadastro(&inerte)),
