@@ -216,19 +216,18 @@ enum ErroSelecao {
     DocumentoSelecionadoForaDaArvore,
     IdentidadeDocumentalAmbigua,
     DocumentoSelecionadoRepetido,
-    NumeroSeiAusente,
 }
 
-/// Nº SEI e ID interno são opacos; a união das correspondências deve ser única.
+/// Nº SEI é opaco; resolve univocamente o ID interno da árvore.
 fn selecao_da_arvore(
     documentos: &[crate::arvore_processo::DocumentoNaArvore],
     pedidos: &[String],
 ) -> Result<String, ErroSelecao> {
     let mut selecionados = Vec::new();
     for pedido in pedidos {
-        let mut candidatos = documentos.iter().filter(|doc| {
-            doc.id == *pedido || doc.numero_sei.as_deref() == Some(pedido.as_str())
-        });
+        let mut candidatos = documentos
+            .iter()
+            .filter(|doc| doc.numero_sei.as_deref() == Some(pedido.as_str()));
         let doc = candidatos
             .next()
             .ok_or(ErroSelecao::DocumentoSelecionadoForaDaArvore)?;
@@ -238,10 +237,7 @@ fn selecao_da_arvore(
         if selecionados.iter().any(|(id, _)| *id == doc.id.as_str()) {
             return Err(ErroSelecao::DocumentoSelecionadoRepetido);
         }
-        let numero = doc
-            .numero_sei
-            .as_deref()
-            .ok_or(ErroSelecao::NumeroSeiAusente)?;
+        let numero = pedido.as_str();
         // Hipótese de título da lupa baseada no oráculo Todos; não é POST capturado.
         let sufixo = format!(" ({numero})");
         let tipo = doc.rotulo.strip_suffix(&sufixo).unwrap_or(&doc.rotulo);

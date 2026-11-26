@@ -38,7 +38,7 @@ pub(crate) enum ProcessoAcao {
         formato: crate::processo_exportar::Formato,
         #[arg(long)]
         saida: std::path::PathBuf,
-        /// Nº SEI ou ID interno, repetível; seleção explícita apenas em ZIP.
+        /// Nº SEI exato, repetível; seleção explícita apenas em ZIP.
         #[arg(long, value_name = "DOCUMENTO")]
         documentos: Vec<String>,
     },

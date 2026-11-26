@@ -160,19 +160,23 @@ fn selecao_por_identidade_lexical_e_nao_por_titulo() {
     };
     let docs = [doc("11", "0001"), doc("22", "0002")];
     assert_eq!(
-        selecao_da_arvore(&docs, &["0002".into(), "11".into()]).unwrap(),
+        selecao_da_arvore(&docs, &["0002".into(), "0001".into()]).unwrap(),
         "22±0002 - Anexo ¥11±0001 - Anexo "
     );
+    assert!(matches!(
+        selecao_da_arvore(&docs, &["22".into()]),
+        Err(ErroSelecao::DocumentoSelecionadoForaDaArvore)
+    ));
     assert!(matches!(
         selecao_da_arvore(&docs, &["2".into()]),
         Err(ErroSelecao::DocumentoSelecionadoForaDaArvore)
     ));
     assert!(matches!(
-        selecao_da_arvore(&docs, &["22".into(), "0002".into()]),
+        selecao_da_arvore(&docs, &["0002".into(), "0002".into()]),
         Err(ErroSelecao::DocumentoSelecionadoRepetido)
     ));
     assert!(matches!(
-        selecao_da_arvore(&[doc("11", "0001"), doc("22", "11")], &["11".into()]),
+        selecao_da_arvore(&[doc("11", "0001"), doc("22", "0001")], &["0001".into()]),
         Err(ErroSelecao::IdentidadeDocumentalAmbigua)
     ));
 }

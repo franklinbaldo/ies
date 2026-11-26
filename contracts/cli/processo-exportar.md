@@ -19,8 +19,9 @@ description: Geração nativa integral em PDF ou ZIP
 - Ausência de oferta, sessão, formato, resposta ou arquivo válido é falha.
 - Limite de bytes reutiliza IES_LIMITE_ANEXO_BYTES; espera do transporte atual
   permanece inalterada (Todos usa 300 s para geração).
-- ZIP seletivo: `--documentos DOCUMENTO` repetível, Nº SEI ou ID interno
-  exatos; a identidade deve ser única na árvore e não pode repetir.
+- ZIP seletivo: `--documentos DOCUMENTO` repetível, Nº SEI
+  exato (zeros preservados); o ID interno é resolvido univocamente na árvore
+  e não pode repetir.
   Seleção desconhecida falha antes do POST gerador. A modalidade A e o
   oculto hdnDocumentosApenas estão presentes no HTML original. A composição
   id±título com ¥ usa o primitivo de lupa e é hipótese baseada no Todos.
