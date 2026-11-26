@@ -39,7 +39,7 @@ fn replay(formato: Formato, nomes: &[&str], acao: &str, formulario: &str) {
                     html: &html,
                     codificacao,
                 };
-                let post = submissao(&origem, &tela, &id, formato, None)
+                let post = submissao(&origem, &tela, &id, formato, None, None)
                     .expect("derivação de formulário original");
                 let campos: Vec<_> = form_urlencoded::parse(post.corpo()).collect();
                 assert!(campos.iter().any(|(n, v)| n == "rdoTipo" && v == "T"));

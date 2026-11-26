@@ -1,4 +1,4 @@
-//! Geração nativa do processo inteiro (#889). Não executa JavaScript,
+//! Geração nativa de PDF/ZIP (#889). Não executa JavaScript,
 //! não fabrica links e não repete a geração.
 use crate::acao_do_sei::AcaoDoSei;
 use crate::anexo_documento::LimiteDoAnexo;
@@ -7,7 +7,7 @@ use crate::arvore_processo::conferir_endereco_relativo;
 use crate::formulario_web::{
     ConferenciaDaUnidade, EfeitoAvaliado, EnvioDoFormulario, OperacaoDeFormulario, RespostaDoEnvio,
     ResultadoDoEnvio, SubmissaoDerivada, TelaServida, derivar_submissao, enviar_submissao_via,
-    localizar_formulario,
+    localizar_formulario, valor_da_lupa,
 };
 use crate::indice_local::IndiceLocal;
 use crate::instalacao::Instalacao;
@@ -31,7 +31,7 @@ pub(crate) enum Formato {
 }
 
 impl Formato {
-    fn operacao(self) -> OperacaoDeFormulario {
+    fn operacao(self, seletiva: bool) -> OperacaoDeFormulario {
         let (acao, formulario) = match self {
             Self::Pdf => (AcaoDoSei::ProcedimentoGerarPdf, "frmProcedimentoPdf"),
             Self::Zip => (AcaoDoSei::ProcedimentoGerarZip, "frmProcedimentoZip"),
@@ -40,8 +40,16 @@ impl Formato {
             acao,
             formulario,
             envio: EnvioDoFormulario::SubmitPorScript,
-            campos_ocultos_exigidos: &["hdnFlagGerar"],
-            campos_ocultos_reescritos: &["hdnFlagGerar"],
+            campos_ocultos_exigidos: if seletiva {
+                &["hdnFlagGerar", "hdnDocumentosApenas"]
+            } else {
+                &["hdnFlagGerar"]
+            },
+            campos_ocultos_reescritos: if seletiva {
+                &["hdnFlagGerar", "hdnDocumentosApenas"]
+            } else {
+                &["hdnFlagGerar"]
+            },
             campos_usuario: &["rdoTipo"],
             resultado: ResultadoDoEnvio::ConferidoPorLeituraPosterior,
             unidade: ConferenciaDaUnidade::NaTelaDeOrigemDoLink,
@@ -72,31 +80,33 @@ fn submissao(
     id: &str,
     formato: Formato,
     unidade: Option<&str>,
+    selecao: Option<&str>,
 ) -> anyhow::Result<SubmissaoDerivada> {
-    let operacao = formato.operacao();
+    let operacao = formato.operacao(selecao.is_some());
+    let modo = if selecao.is_some() { "A" } else { "T" };
     let dom = arvore(tela.html);
     let form = localizar_formulario(&dom, operacao.formulario)?;
     let action = form
         .atributo("action")
         .context("ActionDeExportacaoAusente")?;
     conferir_endereco_relativo(instalacao, action, operacao.acao, id)?;
-    let todos = form
+    let oferecidos = form
         .descendentes()
         .filter(|e| {
             e.nome() == "input"
                 && e.atributo("type") == Some("radio")
                 && e.atributo("name") == Some("rdoTipo")
-                && e.atributo("value") == Some("T")
+                && e.atributo("value") == Some(modo)
                 && !e.presente("disabled")
         })
         .count();
-    ensure!(todos == 1, "OpcaoTodosNaoPublicadaUmaVez");
+    ensure!(oferecidos == 1, "OpcaoDeExportacaoNaoPublicadaUmaVez");
+    let mut campos = vec![("rdoTipo", modo), ("hdnFlagGerar", "1")];
+    if let Some(valor) = selecao {
+        campos.push(("hdnDocumentosApenas", valor));
+    }
     Ok(derivar_submissao(
-        &operacao,
-        instalacao,
-        tela,
-        unidade,
-        &[("rdoTipo", "T"), ("hdnFlagGerar", "1")],
+        &operacao, instalacao, tela, unidade, &campos,
     )?)
 }
 
@@ -199,12 +209,53 @@ fn gravar<R: Read>(
     })
 }
 
+#[derive(Debug, thiserror::Error)]
+#[error("{self:?}")]
+enum ErroSelecao {
+    SelecaoSomenteZip,
+    DocumentoSelecionadoForaDaArvore,
+    IdentidadeDocumentalAmbigua,
+    DocumentoSelecionadoRepetido,
+    NumeroSeiAusente,
+}
+
+/// Nº SEI e ID interno são opacos; a união das correspondências deve ser única.
+fn selecao_da_arvore(
+    documentos: &[crate::arvore_processo::DocumentoNaArvore],
+    pedidos: &[String],
+) -> Result<String, ErroSelecao> {
+    let mut selecionados = Vec::new();
+    for pedido in pedidos {
+        let mut candidatos = documentos.iter().filter(|doc| {
+            doc.id == *pedido || doc.numero_sei.as_deref() == Some(pedido.as_str())
+        });
+        let doc = candidatos
+            .next()
+            .ok_or(ErroSelecao::DocumentoSelecionadoForaDaArvore)?;
+        if candidatos.next().is_some() {
+            return Err(ErroSelecao::IdentidadeDocumentalAmbigua);
+        }
+        if selecionados.iter().any(|(id, _)| *id == doc.id.as_str()) {
+            return Err(ErroSelecao::DocumentoSelecionadoRepetido);
+        }
+        let numero = doc.numero_sei.as_deref().ok_or(ErroSelecao::NumeroSeiAusente)?;
+        // Hipótese de título da lupa baseada no oráculo Todos; não é POST capturado.
+        let sufixo = format!(" ({numero})");
+        let tipo = doc.rotulo.strip_suffix(&sufixo).unwrap_or(&doc.rotulo);
+        selecionados.push((doc.id.as_str(), format!("{numero} - {tipo} ")));
+    }
+    Ok(valor_da_lupa(
+        selecionados.iter().map(|(id, titulo)| (*id, titulo.as_str())),
+    ))
+}
+
 struct Pedido<'a> {
     numero: &'a NumeroProcesso,
     unidade: Option<&'a str>,
     formato: Formato,
     saida: &'a Path,
     limite: LimiteDoAnexo,
+    documentos: &'a [String],
 }
 
 fn exportar<V: EnvioDoProcesso>(
@@ -221,6 +272,14 @@ fn exportar<V: EnvioDoProcesso>(
         indice,
         &mut rede,
     )?;
+    let selecao = if pedido.documentos.is_empty() {
+        None
+    } else {
+        if !matches!(pedido.formato, Formato::Zip) {
+            return Err(ErroSelecao::SelecaoSomenteZip.into());
+        }
+        Some(selecao_da_arvore(&aberto.arvore.documentos, pedido.documentos)?)
+    };
     let id = aberto.arvore.processo.id;
     let link = match pedido.formato {
         Formato::Pdf => acoes.exportacao.pdf,
@@ -236,7 +295,14 @@ fn exportar<V: EnvioDoProcesso>(
         html: &html,
         codificacao,
     };
-    let post = submissao(&instalacao, &tela, &id, pedido.formato, pedido.unidade)?;
+    let post = submissao(
+        &instalacao,
+        &tela,
+        &id,
+        pedido.formato,
+        pedido.unidade,
+        selecao.as_deref(),
+    )?;
     let RespostaDoEnvio::Html(resposta) =
         enviar_submissao_via(post, sessao.cookie, |submissao, cookie| {
             rede.post(submissao, cookie)
@@ -257,6 +323,7 @@ pub(crate) fn tentar_exportar(cli: &Cli) -> Option<anyhow::Result<()>> {
                 numero,
                 formato,
                 saida,
+                documentos,
             }),
         ..
     }) = &cli.command
@@ -274,6 +341,7 @@ pub(crate) fn tentar_exportar(cli: &Cli) -> Option<anyhow::Result<()>> {
                 formato: *formato,
                 saida,
                 limite,
+                documentos,
             };
             let (arquivo, requisicoes) = exportar(sessao, &pedido, indice, &mut EnvioHttps)?;
             if cli.json {

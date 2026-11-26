@@ -28,9 +28,9 @@ fn todos_gera_post_sem_botao_e_recusa_id_alheio() {
         html: &html,
         codificacao: CodificacaoDaTela::Utf8,
     };
-    let post = submissao(&origem, &tela, "123", Formato::Pdf, None).unwrap();
+    let post = submissao(&origem, &tela, "123", Formato::Pdf, None, None).unwrap();
     assert_eq!(post.corpo(), b"rdoTipo=T&hdnFlagGerar=1");
-    assert!(submissao(&origem, &tela, "456", Formato::Pdf, None).is_err());
+    assert!(submissao(&origem, &tela, "456", Formato::Pdf, None, None).is_err());
 }
 
 #[test]
