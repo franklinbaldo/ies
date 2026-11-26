@@ -35,10 +35,9 @@ fn replay_de_processo_exportar_no_acervo() {
             let html = HtmlServido::de_teste(&html_da_resposta(r.interacao).unwrap());
             if r.metodo == "GET" && html.as_str().contains("frmProcedimentoPdf") {
                 let url = gravacao::url_sem_consulta(&original.json, r.interacao);
-                let codificacao = crate::pagina_do_controle::codificacao_da_tela(
-                    &gravacao::mime(r.interacao),
-                )
-                .expect("charset original");
+                let codificacao =
+                    crate::pagina_do_controle::codificacao_da_tela(&gravacao::mime(r.interacao))
+                        .expect("charset original");
                 let tela = TelaServida {
                     url: &url,
                     html: &html,
@@ -53,7 +52,9 @@ fn replay_de_processo_exportar_no_acervo() {
                 formularios += 1;
             }
             if r.metodo == "POST"
-                && html.as_str().contains("document.getElementById('ifrDownload').src")
+                && html
+                    .as_str()
+                    .contains("document.getElementById('ifrDownload').src")
             {
                 assert!(
                     endereco_download(&origem, &html, &id).is_ok(),
@@ -64,7 +65,10 @@ fn replay_de_processo_exportar_no_acervo() {
         }
     }
     assert!(formularios > 0, "nenhum formulário original confrontado");
-    assert!(downloads > 0, "nenhuma resposta original com download confrontada");
+    assert!(
+        downloads > 0,
+        "nenhuma resposta original com download confrontada"
+    );
     println!(
         "exportação PDF: {formularios} formulários e {downloads} links originais; POST real, ZIP e anti-IES não comprovados"
     );

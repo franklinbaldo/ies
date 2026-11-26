@@ -5,7 +5,10 @@ use crate::instalacao::Instalacao;
 use crate::tela_html::HtmlServido;
 
 fn url(acao: &str, id: &str) -> String {
-    format!("controlador.php?acao={acao}&id_procedimento={id}&infra_hash={}", "a".repeat(64))
+    format!(
+        "controlador.php?acao={acao}&id_procedimento={id}&infra_hash={}",
+        "a".repeat(64)
+    )
 }
 
 #[test]
@@ -20,7 +23,11 @@ fn todos_gera_post_sem_botao_e_recusa_id_alheio() {
         <input type="hidden" name="hdnFlagGerar" value="0">
         <button type="submit" name="btnGerar">Gerar</button></form>"#
     ));
-    let tela = TelaServida { url: &absoluto, html: &html, codificacao: CodificacaoDaTela::Utf8 };
+    let tela = TelaServida {
+        url: &absoluto,
+        html: &html,
+        codificacao: CodificacaoDaTela::Utf8,
+    };
     let post = submissao(&origem, &tela, "123", Formato::Pdf, None).unwrap();
     assert_eq!(post.corpo(), b"rdoTipo=T&hdnFlagGerar=1");
     assert!(submissao(&origem, &tela, "456", Formato::Pdf, None).is_err());
@@ -41,5 +48,12 @@ fn download_exige_link_da_mesma_instalacao_e_processo() {
         ));
         assert_eq!(endereco_download(&origem, &html, "123").is_ok(), valido);
     }
-    assert!(endereco_download(&origem, &HtmlServido::de_teste("<iframe id=\"ifrDownload\"></iframe>"), "123").is_err());
+    assert!(
+        endereco_download(
+            &origem,
+            &HtmlServido::de_teste("<iframe id=\"ifrDownload\"></iframe>"),
+            "123"
+        )
+        .is_err()
+    );
 }

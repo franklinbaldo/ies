@@ -5,9 +5,9 @@ use crate::anexo_documento::LimiteDoAnexo;
 use crate::arquivo_privado::{Parcial, Politica, conferir_diretorios};
 use crate::arvore_processo::conferir_endereco_relativo;
 use crate::formulario_web::{
-    ConferenciaDaUnidade, EfeitoAvaliado, EnvioDoFormulario, OperacaoDeFormulario,
-    RespostaDoEnvio, ResultadoDoEnvio, SubmissaoDerivada, TelaServida, derivar_submissao,
-    enviar_submissao_via, localizar_formulario,
+    ConferenciaDaUnidade, EfeitoAvaliado, EnvioDoFormulario, OperacaoDeFormulario, RespostaDoEnvio,
+    ResultadoDoEnvio, SubmissaoDerivada, TelaServida, derivar_submissao, enviar_submissao_via,
+    localizar_formulario,
 };
 use crate::indice_local::IndiceLocal;
 use crate::instalacao::Instalacao;
@@ -76,7 +76,9 @@ fn submissao(
     let operacao = formato.operacao();
     let dom = arvore(tela.html);
     let form = localizar_formulario(&dom, operacao.formulario)?;
-    let action = form.atributo("action").context("ActionDeExportacaoAusente")?;
+    let action = form
+        .atributo("action")
+        .context("ActionDeExportacaoAusente")?;
     conferir_endereco_relativo(instalacao, action, operacao.acao, id)?;
     let todos = form
         .descendentes()
@@ -108,14 +110,16 @@ fn endereco_download(
     ensure!(
         dom.elementos("iframe")
             .filter(|e| e.atributo("id") == Some("ifrDownload"))
-            .count() == 1,
+            .count()
+            == 1,
         "IframeDownloadAusenteOuRepetido"
     );
     let mut urls = Vec::new();
     for script in dom.elementos("script").filter(|e| !e.presente("src")) {
         let texto = script.texto();
         for linha in texto.lines() {
-            if let Some(url) = linha.trim()
+            if let Some(url) = linha
+                .trim()
                 .strip_prefix("document.getElementById('ifrDownload').src = '")
                 .and_then(|linha| linha.strip_suffix("';"))
             {
@@ -126,7 +130,12 @@ fn endereco_download(
     let [url] = urls.as_slice() else {
         bail!("DownloadNaoPublicadoUmaVez");
     };
-    Ok(conferir_endereco_relativo(instalacao, url, AcaoDoSei::ExibirArquivo, id)?)
+    Ok(conferir_endereco_relativo(
+        instalacao,
+        url,
+        AcaoDoSei::ExibirArquivo,
+        id,
+    )?)
 }
 
 #[derive(serde::Serialize)]
@@ -147,11 +156,19 @@ fn gravar<R: Read>(
         matches!(tipos.as_slice(), [tipo] if tipo.split(';').next().is_some_and(|t| t.trim().eq_ignore_ascii_case(formato.mime()))),
         "TipoDoDownloadDivergente"
     );
-    let politica = Politica::exclusiva().diretorio_do_usuario().com_limite(limite.bytes());
+    let politica = Politica::exclusiva()
+        .diretorio_do_usuario()
+        .com_limite(limite.bytes());
     let mut prefixo = [0u8; 5];
-    let n = match formato { Formato::Pdf => 5, Formato::Zip => 4 };
+    let n = match formato {
+        Formato::Pdf => 5,
+        Formato::Zip => 4,
+    };
     resposta.corpo.read_exact(&mut prefixo[..n])?;
-    ensure!(formato.assinatura(&prefixo[..n]), "AssinaturaDoDownloadDivergente");
+    ensure!(
+        formato.assinatura(&prefixo[..n]),
+        "AssinaturaDoDownloadDivergente"
+    );
     let mut parcial = Parcial::abrir(saida, politica)?;
     let mut hash = Sha256::new();
     parcial.escrever(&prefixo[..n])?;
@@ -160,18 +177,24 @@ fn gravar<R: Read>(
     let mut bloco = [0u8; 16 * 1024];
     loop {
         let lido = resposta.corpo.read(&mut bloco)?;
-        if lido == 0 { break; }
+        if lido == 0 {
+            break;
+        }
         parcial.escrever(&bloco[..lido])?;
         hash.update(&bloco[..lido]);
         tamanho += lido as u64;
     }
     let comprimentos = resposta.valores("content-length");
     ensure!(
-        comprimentos.is_empty() || matches!(comprimentos.as_slice(), [c] if c.parse::<u64>().ok() == Some(tamanho)),
+        comprimentos.is_empty()
+            || matches!(comprimentos.as_slice(), [c] if c.parse::<u64>().ok() == Some(tamanho)),
         "ComprimentoDoDownloadDivergente"
     );
     parcial.confirmar()?;
-    Ok(Arquivo { tamanho_bytes: tamanho, sha256: hex::encode(hash.finalize()) })
+    Ok(Arquivo {
+        tamanho_bytes: tamanho,
+        sha256: hex::encode(hash.finalize()),
+    })
 }
 
 struct Pedido<'a> {
@@ -200,18 +223,23 @@ fn exportar<V: EnvioDoProcesso>(
     let link = match pedido.formato {
         Formato::Pdf => acoes.exportacao.pdf,
         Formato::Zip => acoes.exportacao.zip,
-    }?.context("ExportacaoNaoOferecida")?;
+    }?
+    .context("ExportacaoNaoOferecida")?;
     let cookie = acoes.cookie;
     let (html, mime) = obter_tela(&mut rede, &cookie, link.as_str())?;
-    let codificacao = crate::pagina_do_controle::codificacao_da_tela(&mime)
-        .context("CharsetNaoReconhecido")?;
-    let tela = TelaServida { url: link.as_str(), html: &html, codificacao };
+    let codificacao =
+        crate::pagina_do_controle::codificacao_da_tela(&mime).context("CharsetNaoReconhecido")?;
+    let tela = TelaServida {
+        url: link.as_str(),
+        html: &html,
+        codificacao,
+    };
     let post = submissao(&instalacao, &tela, &id, pedido.formato, pedido.unidade)?;
-    let RespostaDoEnvio::Html(resposta) = enviar_submissao_via(
-        post,
-        sessao.cookie,
-        |submissao, cookie| rede.post(submissao, cookie),
-    )? else {
+    let RespostaDoEnvio::Html(resposta) =
+        enviar_submissao_via(post, sessao.cookie, |submissao, cookie| {
+            rede.post(submissao, cookie)
+        })?
+    else {
         bail!("GeracaoRedirecionada");
     };
     let url = endereco_download(&instalacao, &resposta, &id)?;
@@ -222,30 +250,51 @@ fn exportar<V: EnvioDoProcesso>(
 
 pub(crate) fn tentar_exportar(cli: &Cli) -> Option<anyhow::Result<()>> {
     let Domain::Processo(Processo {
-        acao: Some(ProcessoAcao::Exportar { numero, formato, saida }),
+        acao:
+            Some(ProcessoAcao::Exportar {
+                numero,
+                formato,
+                saida,
+            }),
         ..
-    }) = &cli.command else { return None; };
-    Some(crate::processo_concluir_cli::com_sessao(cli, |sessao, indice| {
-        let limite = LimiteDoAnexo::do_ambiente().context("LimiteDeDownloadInvalido")?;
-        conferir_diretorios(saida, Politica::exclusiva().diretorio_do_usuario())?;
-        let pedido = Pedido { numero, unidade: cli.unidade.as_deref(), formato: *formato, saida, limite };
-        let (arquivo, requisicoes) = exportar(sessao, &pedido, indice, &mut EnvioHttps)?;
-        if cli.json {
-            let mut valor = serde_json::json!({
-                "numero": numero.as_str(),
-                "formato": formato,
-                "arquivo": saida,
-                "tamanho_bytes": arquivo.tamanho_bytes,
-                "sha256": arquivo.sha256,
-                "requisicoes": requisicoes,
-            });
-            crate::indice_local::anexar_avisos(&mut valor, indice);
-            println!("{valor}");
-        } else {
-            println!("Exportado {}: {} bytes.", numero.as_str(), arquivo.tamanho_bytes);
-        }
-        Ok(())
-    }))
+    }) = &cli.command
+    else {
+        return None;
+    };
+    Some(crate::processo_concluir_cli::com_sessao(
+        cli,
+        |sessao, indice| {
+            let limite = LimiteDoAnexo::do_ambiente().context("LimiteDeDownloadInvalido")?;
+            conferir_diretorios(saida, Politica::exclusiva().diretorio_do_usuario())?;
+            let pedido = Pedido {
+                numero,
+                unidade: cli.unidade.as_deref(),
+                formato: *formato,
+                saida,
+                limite,
+            };
+            let (arquivo, requisicoes) = exportar(sessao, &pedido, indice, &mut EnvioHttps)?;
+            if cli.json {
+                let mut valor = serde_json::json!({
+                    "numero": numero.as_str(),
+                    "formato": formato,
+                    "arquivo": saida,
+                    "tamanho_bytes": arquivo.tamanho_bytes,
+                    "sha256": arquivo.sha256,
+                    "requisicoes": requisicoes,
+                });
+                crate::indice_local::anexar_avisos(&mut valor, indice);
+                println!("{valor}");
+            } else {
+                println!(
+                    "Exportado {}: {} bytes.",
+                    numero.as_str(),
+                    arquivo.tamanho_bytes
+                );
+            }
+            Ok(())
+        },
+    ))
 }
 
 #[cfg(test)]

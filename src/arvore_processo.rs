@@ -10,7 +10,6 @@ mod acompanhar;
 mod andamento;
 mod anexados;
 mod anexar;
-mod exportar;
 mod assinatura;
 mod atribuir;
 mod barra_do_documento;
@@ -23,6 +22,7 @@ mod conteudo;
 pub(crate) mod endereco;
 mod enviar;
 mod erro;
+mod exportar;
 mod literais;
 mod movidos;
 mod natureza;
@@ -79,7 +79,6 @@ pub(crate) use acompanhar::{ErroAcompanharNaBarra, ler_acompanhar_da_barra};
 pub(crate) use andamento::{ErroAndamentoNaBarra, ler_andamento_da_barra};
 use anexados::{AnexadoLido, conferir_anexados, ler_anexado};
 pub(crate) use anexar::{ErroAnexarNaBarra, ler_anexar_da_barra};
-pub(crate) use exportar::{LinksExportacao, ler_exportacao_da_barra};
 pub(crate) use assinatura::{
     Assinante, ErroAssinaturaNaArvore, ErroLinkDeAssinar, ler_assinatura_na_arvore,
     ler_link_de_assinar, tela_do_documento,
@@ -114,6 +113,7 @@ pub(crate) use conteudo::{
 pub(crate) use endereco::conferir_endereco_relativo;
 pub(crate) use enviar::{ErroEnviarNaBarra, ler_enviar_da_barra};
 pub(crate) use erro::ErroArvore;
+pub(crate) use exportar::{LinksExportacao, ler_exportacao_da_barra};
 use literais::{Literal, ler_barra, ler_declaracao, ler_protocolos};
 pub(crate) use movidos::ler_destinos_dos_movidos;
 use movidos::{MovidoLido, conferir_movidos, ler_movido};
