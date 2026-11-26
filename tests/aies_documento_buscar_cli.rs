@@ -366,6 +366,32 @@ fn bdd_61_03_cli_sem_resultado_observado_na_unidade() {
     assert_eq!(json["documentos"].as_array().unwrap().len(), 0);
 }
 
+// Estado sintético: nenhum resultado textual foi registrado. Os três tipos
+// de observação legada (zero, redirecionamento e lista) não provam a consulta
+// com q. O túnel exige três requisições reais, inclusive o POST.
+#[test]
+fn texto_livre_desconhecido_nao_herda_estado_do_protocolo() {
+    for (termo, estado) in [
+        (None, EstadoDeBusca::SemResultado),
+        (Some(TERMO), EstadoDeBusca::SemResultado),
+        (Some(TERMO_EXATO), EstadoDeBusca::DocumentoExato),
+        (Some(TERMO_PAGINADO), EstadoDeBusca::Paginas),
+    ] {
+        let pasta = Pasta::nova();
+        let mut args = vec!["--json", "documento", "buscar"];
+        args.extend(termo);
+        args.extend(["--texto", "licitação"]);
+        let saida = executar_com_estado(&pasta, &args, estado);
+        assert_eq!(
+            saida.status.code(),
+            Some(1),
+            "{args:?}: {}",
+            String::from_utf8_lossy(&saida.stderr)
+        );
+        assert!(saida.stdout.is_empty(), "{args:?}");
+    }
+}
+
 #[test]
 fn bdd_61_03_cli_humana_nao_confunde_sem_resultado_com_inexistencia() {
     let pasta = Pasta::nova();
