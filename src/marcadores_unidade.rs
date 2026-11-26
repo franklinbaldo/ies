@@ -2,15 +2,17 @@
 //! WIP: forma do oráculo Todos caabe699; ainda sem ligação à CLI.
 use crate::legenda::{ErroLegenda, Faixa, ler_legenda};
 use crate::tela_html::{HtmlServido, arvore};
+use serde::Serialize;
 use std::collections::HashSet;
 
-#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize)]
+#[serde(rename_all = "lowercase")]
 pub(crate) enum Estado {
     Ativo,
     Inativo,
 }
 
-#[derive(Debug, PartialEq, Eq)]
+#[derive(Debug, PartialEq, Eq, Serialize)]
 pub(crate) struct Marcador {
     pub(crate) id: String,
     pub(crate) nome: String,
@@ -23,6 +25,33 @@ pub(crate) struct Lista {
     pub(crate) total_declarado: usize,
     pub(crate) faixa_observada: Option<Faixa>,
     pub(crate) itens: Vec<Marcador>,
+}
+
+/// Projeção da página, não uma contagem do catálogo inteiro por estado.
+#[derive(Debug, Serialize)]
+pub(crate) struct Selecao {
+    pub(crate) total_declarado: usize,
+    pub(crate) faixa_observada: Option<Faixa>,
+    pub(crate) total_observado: usize,
+    pub(crate) estado: Estado,
+    pub(crate) itens: Vec<Marcador>,
+}
+
+impl Lista {
+    pub(crate) fn selecionar(self, estado: Estado) -> Selecao {
+        let total_observado = self.itens.len();
+        Selecao {
+            total_declarado: self.total_declarado,
+            faixa_observada: self.faixa_observada,
+            total_observado,
+            estado,
+            itens: self
+                .itens
+                .into_iter()
+                .filter(|m| m.estado == estado)
+                .collect(),
+        }
+    }
 }
 
 #[derive(Debug, PartialEq, Eq, thiserror::Error)]
@@ -243,6 +272,45 @@ mod tests {
         assert_eq!(lista.total_declarado, 0);
         assert_eq!(lista.faixa_observada, None);
         assert!(lista.itens.is_empty());
+    }
+
+    #[test]
+    fn selecao_nao_confunde_catalogo_pagina_e_subconjunto() {
+        let parcial = MISTA.replace("2 registros", "4 registros - 2 a 3");
+        for (estado, id, rotulo) in [
+            (Estado::Ativo, "01", "ativo"),
+            (Estado::Inativo, "02", "inativo"),
+        ] {
+            let selecao = ler_texto(&parcial).unwrap().selecionar(estado);
+            let json = serde_json::to_value(selecao).unwrap();
+            assert_eq!(
+                json,
+                serde_json::json!({
+                    "total_declarado": 4,
+                    "faixa_observada": {"inicio": 2, "fim": 3},
+                    "total_observado": 2,
+                    "estado": rotulo,
+                    "itens": [{
+                        "id": id,
+                        "nome": "Mesmo #nome",
+                        "cor": if estado == Estado::Ativo { "Branco" } else { "Amarelo" },
+                        "estado": rotulo
+                    }]
+                })
+            );
+        }
+    }
+
+    #[test]
+    fn subconjunto_vazio_na_pagina_nao_e_catalogo_vazio() {
+        let parcial = MISTA
+            .replace("2 registros", "4 registros - 2 a 3")
+            .replace("Reativar Marcador", "Desativar Marcador");
+        let selecao = ler_texto(&parcial).unwrap().selecionar(Estado::Inativo);
+        assert_eq!(selecao.total_declarado, 4);
+        assert_eq!(selecao.total_observado, 2);
+        assert_eq!(selecao.faixa_observada, Some(Faixa { inicio: 2, fim: 3 }));
+        assert!(selecao.itens.is_empty());
     }
 
     // Fonte original, separada do exemplo sintético e da inspeção de hashes.
