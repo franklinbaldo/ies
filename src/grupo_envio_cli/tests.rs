@@ -147,28 +147,6 @@ fn cassette_pen1_grupos_envio_preservam_ids() {
     );
 }
 
-#[test]
-fn unidade_publicada_distingue_ausencia_de_barra_invalida() {
-    const A: &str = "<a id='lnkInfraUnidade' href='#'>UNIDADE A</a>";
-    const B: &str = "<a id='lnkInfraUnidade' href='#'>UNIDADE B</a>";
-    let par = format!(
-        "<div id='divInfraBarraSistemaMovel'>{A}<div id='divInfraBarraSistemaPadrao'>{A}</div></div>"
-    );
-    for html in ["".to_owned(), A.to_owned(), par.clone()] {
-        assert!(conferir_unidade_publicada(&HtmlServido::de_teste(&html), "UNIDADE A").is_ok());
-    }
-    for html in [
-        B.to_owned(),
-        "<a id='lnkInfraUnidade'> </a>".to_owned(),
-        "<span id='lnkInfraUnidade'>UNIDADE A</span>".to_owned(),
-        format!("{A}{A}"),
-        format!("{par}{B}"),
-        par.replacen("UNIDADE A", "UNIDADE B", 1),
-    ] {
-        assert!(conferir_unidade_publicada(&HtmlServido::de_teste(&html), "UNIDADE A").is_err());
-    }
-}
-
 mod fluxo {
     use super::*;
     use crate::formulario_web::{RespostaDoPost, SubmissaoDerivada};
@@ -225,11 +203,7 @@ mod fluxo {
     impl EnvioDoControle for Envio {
         type Corpo = Cursor<Vec<u8>>;
 
-        fn get(
-            &mut self,
-            _: &str,
-            _: &str,
-        ) -> Result<RespostaWeb<Self::Corpo>, FalhaTransporte> {
+        fn get(&mut self, _: &str, _: &str) -> Result<RespostaWeb<Self::Corpo>, FalhaTransporte> {
             self.registro.push("GET");
             Ok(self.proxima())
         }
@@ -250,8 +224,7 @@ mod fluxo {
 
     #[test]
     fn fluxo_confere_unidade_no_get_e_post_sem_retry() {
-        let pasta =
-            std::env::temp_dir().join(format!("ies-grupo-unidade-{}", std::process::id()));
+        let pasta = std::env::temp_dir().join(format!("ies-grupo-unidade-{}", std::process::id()));
         std::fs::create_dir_all(&pasta).unwrap();
         let url = pasta.join("url");
         let origem = pasta.join("origem");
@@ -268,8 +241,7 @@ mod fluxo {
             #[cfg(unix)]
             {
                 use std::os::unix::fs::PermissionsExt;
-                std::fs::set_permissions(arquivo, std::fs::Permissions::from_mode(0o600))
-                    .unwrap();
+                std::fs::set_permissions(arquivo, std::fs::Permissions::from_mode(0o600)).unwrap();
             }
         }
         let sessao = ReferenciasDaSessao::ler(&url, &origem, &cookie).unwrap();
@@ -280,9 +252,12 @@ mod fluxo {
             respostas: [controle(), lista(B, 0)].into(),
             registro: Vec::new(),
         };
-        let erro = ler_via(&sessao, None, &Acao::Listar { pagina: Some(2) }, &mut envio)
-            .unwrap_err();
-        assert_eq!(erro.downcast_ref::<ErroGrupo>(), Some(&ErroGrupo::UnidadeInesperada));
+        let erro =
+            ler_via(&sessao, None, &Acao::Listar { pagina: Some(2) }, &mut envio).unwrap_err();
+        assert_eq!(
+            erro.downcast_ref::<ErroGrupo>(),
+            Some(&ErroGrupo::UnidadeInesperada)
+        );
         assert_eq!(envio.registro, ["GET", "GET"]);
 
         for (barra, esperada) in [(A, true), ("", true), (B, false)] {
@@ -321,8 +296,12 @@ mod fluxo {
                 respostas: [controle(), lista(A, 0), consulta].into(),
                 registro: Vec::new(),
             };
-            let resultado =
-                ler_via(&sessao, None, &Acao::Obter { id: "6".to_owned() }, &mut envio);
+            let resultado = ler_via(
+                &sessao,
+                None,
+                &Acao::Obter { id: "6".to_owned() },
+                &mut envio,
+            );
             assert_eq!(resultado.is_ok(), esperada, "{resultado:?}");
             assert_eq!(envio.registro, ["GET", "GET", "GET"]);
             if !esperada {

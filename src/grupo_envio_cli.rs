@@ -309,9 +309,7 @@ fn ler_grupo(html: &HtmlServido, id: &str) -> Result<Grupo, ErroGrupo> {
 // confirmar a unidade, inclusive no par móvel/desktop já reconhecido.
 fn conferir_unidade_publicada(html: &HtmlServido, unidade: &str) -> anyhow::Result<()> {
     let dom = arvore(html);
-    if dom.com_id("lnkInfraUnidade").next().is_some()
-        && crate::controle_contexto::unidade_html(&dom)?.as_deref() != Some(unidade)
-    {
+    if !crate::controle_contexto::unidade_publicada_compativel(&dom, unidade)? {
         return Err(ErroGrupo::UnidadeInesperada.into());
     }
     Ok(())
