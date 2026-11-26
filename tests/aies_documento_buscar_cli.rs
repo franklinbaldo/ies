@@ -318,8 +318,11 @@ fn executar(pasta: &Pasta, args: &[&str]) -> Output {
 }
 
 fn executar_com_estado(pasta: &Pasta, args: &[&str], estado: EstadoDeBusca) -> Output {
-    let requisicoes = if matches!(estado, EstadoDeBusca::Paginas | EstadoDeBusca::PaginasProcessuais)
-        && args.contains(&"--pagina") {
+    let requisicoes = if matches!(
+        estado,
+        EstadoDeBusca::Paginas | EstadoDeBusca::PaginasProcessuais
+    ) && args.contains(&"--pagina")
+    {
         4
     } else {
         3

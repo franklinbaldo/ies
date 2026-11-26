@@ -406,7 +406,11 @@ pub fn controle_da_unidade(
                        WHERE aberta.origem=base.origem
                          AND aberta.cenario=base.cenario
                          AND aberta.id_procedimento=base.id_procedimento
-                         AND aberta.unidade=?3)
+                         AND aberta.unidade=?3),
+                base.unidade=?3 AND EXISTS(
+                    SELECT 1 FROM processo_criado criado
+                    WHERE criado.origem=base.origem AND criado.cenario=base.cenario
+                      AND criado.id_procedimento=base.id_procedimento)
          FROM sim_processo base
          JOIN processo_simulado sim
            ON sim.origem=base.origem AND sim.cenario=base.cenario
@@ -422,12 +426,13 @@ pub fn controle_da_unidade(
                     linha.get::<_, String>(0)?,
                     linha.get::<_, String>(1)?,
                     linha.get::<_, i64>(2)? != 0,
+                    linha.get::<_, i64>(3)? != 0,
                 ))
             },
         )?
         .collect::<rusqlite::Result<Vec<_>>>()?;
     let mut mudou = false;
-    for (id, numero, aberta) in estados {
+    for (id, numero, aberta, criado_na_unidade) in estados {
         if !aberta {
             let recebidos = controle.recebidos.linhas.len();
             let gerados = controle.gerados.linhas.len();
@@ -438,7 +443,12 @@ pub fn controle_da_unidade(
         } else if !controle.recebidos.linhas.iter().any(|linha| linha.id == id)
             && !controle.gerados.linhas.iter().any(|linha| linha.id == id)
         {
-            controle.recebidos.linhas.push(Linha {
+            let linhas = if criado_na_unidade {
+                &mut controle.gerados.linhas
+            } else {
+                &mut controle.recebidos.linhas
+            };
+            linhas.push(Linha {
                 id,
                 numero,
                 visualizado: false,

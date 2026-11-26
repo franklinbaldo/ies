@@ -308,9 +308,7 @@ mod tests {
             total: 4,
             ids: vec!["7".into()],
         };
-        assert!(
-            registrar_pagina(&mut banco, &origem, "c", &unidade, criterios, &pagina).is_err()
-        );
+        assert!(registrar_pagina(&mut banco, &origem, "c", &unidade, criterios, &pagina).is_err());
         assert!(
             consultar_pagina(&banco, &origem, "c", &unidade, criterios, 0)
                 .unwrap()
