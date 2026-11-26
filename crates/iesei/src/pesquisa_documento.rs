@@ -14,6 +14,7 @@ pub enum Resultado {
 pub enum ErroPesquisaDocumento {
     Sqlite(#[from] rusqlite::Error),
     EntradaInvalida,
+    CoorteContraditoria,
 }
 
 fn valido(cenario: &str, termo: &str) -> bool {
@@ -46,7 +47,7 @@ pub fn registrar_sem_resultado(
 /// `None` significa desconhecido, não uma pesquisa que encontrou zero itens.
 ///
 /// # Errors
-/// Propaga erro SQL e recusa contexto inválido.
+/// Propaga erro SQL e recusa contexto inválido ou observações contraditórias.
 pub fn consultar(
     banco: &Connection,
     instalacao: &Instalacao,
@@ -57,15 +58,18 @@ pub fn consultar(
     if !valido(cenario, termo) {
         return Err(ErroPesquisaDocumento::EntradaInvalida);
     }
-    let achado: Option<i64> = banco
-        .query_row(
-            "SELECT 1 FROM pesquisa_documento_sem_resultado
-         WHERE origem=?1 AND cenario=?2 AND unidade=?3 AND termo=?4",
-            params![instalacao.url_base(), cenario, unidade.as_str(), termo],
-            |linha| linha.get(0),
-        )
-        .optional()?;
-    Ok(achado.map(|_| Resultado::SemResultado))
+    let (negativo, positivo): (bool, bool) = banco.query_row(
+        "SELECT EXISTS(SELECT 1 FROM pesquisa_documento_sem_resultado
+         WHERE origem=?1 AND cenario=?2 AND unidade=?3 AND termo=?4),
+         EXISTS(SELECT 1 FROM pesquisa_documento_pagina
+         WHERE origem=?1 AND cenario=?2 AND unidade=?3 AND termo=?4)",
+        params![instalacao.url_base(), cenario, unidade.as_str(), termo],
+        |linha| Ok((linha.get(0)?, linha.get(1)?)),
+    )?;
+    if negativo && positivo {
+        return Err(ErroPesquisaDocumento::CoorteContraditoria);
+    }
+    Ok(negativo.then_some(Resultado::SemResultado))
 }
 
 #[cfg(test)]
