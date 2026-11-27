@@ -119,6 +119,7 @@ enum ScratchPdf {
 enum FalhaPrevia {
     LimiteMenor(usize),
     SemAnexos(usize),
+    DocumentoFechado,
 }
 
 #[derive(Clone, Copy)]
@@ -268,6 +269,17 @@ fn executar_bancada(
                     assert_eq!(texto.matches(original).count(), 1);
                     resposta = texto.replace(original, alterado).into_bytes();
                 }
+            }
+            if matches!(falha_previa, Some(FalhaPrevia::DocumentoFechado))
+                && cadastros == 2
+                && acao == "procedimento_visualizar"
+                && status == "200"
+                && exportacao::fechar_segundo_no(&mut resposta)
+            {
+                registro
+                    .lock()
+                    .unwrap()
+                    .push("arvore mista projetada".into());
             }
             registro
                 .lock()
@@ -419,7 +431,7 @@ fn executar_bancada(
     } else {
         None
     };
-    let saidas = comandos
+    let saidas: Vec<Output> = comandos
         .iter()
         .map(|args| {
             let mut comando = Command::new(env!("CARGO_BIN_EXE_ies"));
@@ -471,6 +483,11 @@ fn executar_bancada(
         );
     }
     let eventos = trilha.lock().unwrap().clone();
+    if matches!(leitura, Leitura::ZipSelecao(_))
+        && saidas.last().is_some_and(|saida| !saida.status.success())
+    {
+        assert_eq!(fs::read_dir(&destino_arquivo).unwrap().count(), 0);
+    }
     let arquivos = match leitura {
         Leitura::Zip | Leitura::PdfProcesso | Leitura::ZipSelecao(_) => {
             vec![fs::read(exportado).ok()]

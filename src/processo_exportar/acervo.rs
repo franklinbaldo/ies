@@ -130,3 +130,110 @@ fn replay_de_processo_exportar_no_acervo() {
         "frmProcedimentoZip",
     );
 }
+
+// Fonte independente: Todos test_pasta_mista_gravada_010.py.
+// A árvore de destino contém 20 nós em PASTA1, o segundo fechado.
+// O teste observa a árvore e contrasta a seleção real, não um POST gravado.
+#[test]
+#[ignore = "ZIP público conferido no cache; sem rede"]
+fn replay_elegibilidade_da_exportacao_no_acervo() {
+    use crate::arvore_processo::{
+        ConteudoNaArvore, barra_do_no, ler_arvore, ler_conteudo_na_arvore, nup_declarado_na_arvore,
+        tela_do_documento,
+    };
+
+    let raiz = Path::new(env!("CARGO_MANIFEST_DIR")).join("cassettes");
+    let cache = std::env::var_os("IES_ACERVO_CACHE").map_or_else(
+        || PathBuf::from(std::env::var_os("HOME").expect("HOME")).join(".cache/ies"),
+        PathBuf::from,
+    );
+    let mut resultados = Vec::new();
+    for (instalacao, nome) in [
+        ("unb", "processo-pasta-mista-unb--dffe2d9379eb.md"),
+        ("ufrj", "processo-pasta-mista-ufrj--65861ad4af07.md"),
+    ] {
+        let card = raiz.join(instalacao).join(nome);
+        let zip = ZipDoAcervo::ler(&cache.join(archive_filename(&card).unwrap())).unwrap();
+        let original = conferir_cassette_ate(&card, &zip, 120_000_000).unwrap();
+        assert_eq!(original.instalacao, instalacao);
+        let origem = gravacao::instalacao(&original.json).unwrap();
+        let mut observado = false;
+        for r in gravacao::respostas(&original.json) {
+            if r.operacao != "procedimento_visualizar"
+                || r.status != 200
+                || gravacao::parametro(r.interacao, "abrir_pastas") != ["1"]
+            {
+                continue;
+            }
+            let Some(id) = gravacao::id_procedimento(r.interacao) else {
+                continue;
+            };
+            let Ok(html) = html_da_resposta(r.interacao) else {
+                continue;
+            };
+            let Some(nup) = nup_declarado_na_arvore(&html) else {
+                continue;
+            };
+            let Ok(lida) = ler_arvore(&html, &nup, &id) else {
+                continue;
+            };
+            let pasta: Vec<_> = lida
+                .documentos
+                .iter()
+                .filter(|d| d.pasta.as_deref() == Some("PASTA1"))
+                .collect();
+            if pasta.len() != 20 {
+                continue;
+            }
+            let fechado = pasta[1];
+            if !matches!(
+                ler_conteudo_na_arvore(&origem, &html, &fechado.id),
+                Ok(ConteudoNaArvore::Vazio)
+            ) || !barra_do_no(&html, &fechado.id)
+                .unwrap()
+                .is_some_and(|barra| barra.as_str().is_empty())
+                || tela_do_documento(&origem, &html, &fechado.id, &id).is_some()
+            {
+                continue;
+            }
+            assert!(!fechado.natureza.cancelamento.cancelado());
+            let numero = fechado.numero_sei.clone().expect("número do nó fechado");
+            let vizinho = pasta[0];
+            assert!(matches!(
+                ler_conteudo_na_arvore(&origem, &html, &vizinho.id),
+                Ok(ConteudoNaArvore::Visualizar(_))
+            ));
+            let positivo = vizinho.numero_sei.clone().expect("número do vizinho");
+            assert!(
+                super::selecao_da_arvore(
+                    &lida.documentos,
+                    std::slice::from_ref(&positivo),
+                    &html,
+                    &origem,
+                )
+                .is_ok()
+            );
+            let recusou = matches!(
+                super::selecao_da_arvore(
+                    &lida.documentos,
+                    std::slice::from_ref(&numero),
+                    &html,
+                    &origem,
+                ),
+                Err(super::ErroSelecao::DocumentoSelecionadoInacessivel)
+            );
+            let recusou_mista = matches!(
+                super::selecao_da_arvore(&lida.documentos, &[positivo, numero], &html, &origem),
+                Err(super::ErroSelecao::DocumentoSelecionadoInacessivel)
+            );
+            resultados.push((instalacao, recusou, recusou_mista));
+            observado = true;
+            break;
+        }
+        assert!(observado, "{instalacao}: árvore de destino não localizada");
+    }
+    assert_eq!(resultados.len(), 2);
+    for (instalacao, isolada, mista) in resultados {
+        assert!(isolada && mista, "{instalacao}: seleção aceitou nó fechado");
+    }
+}
