@@ -397,7 +397,7 @@ fn executar_com_falha_previa(
         Leitura::ZipSelecao(_) => comandos.push(&exportar_selecao),
         _ => {}
     }
-    let saidas = comandos
+    let saidas: Vec<Output> = comandos
         .iter()
         .map(|args| {
             Command::new(env!("CARGO_BIN_EXE_ies"))
@@ -423,6 +423,11 @@ fn executar_com_falha_previa(
     tunel.join().unwrap();
     let total = servidor.join().unwrap();
     let eventos = trilha.lock().unwrap().clone();
+    if matches!(leitura, Leitura::ZipSelecao(_))
+        && saidas.last().is_some_and(|saida| !saida.status.success())
+    {
+        assert_eq!(fs::read_dir(&destino_arquivo).unwrap().count(), 0);
+    }
     let arquivos = match leitura {
         Leitura::Zip | Leitura::PdfProcesso | Leitura::ZipSelecao(_) => {
             vec![fs::read(exportado).ok()]
