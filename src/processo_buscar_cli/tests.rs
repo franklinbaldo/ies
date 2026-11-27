@@ -21,7 +21,7 @@ fn termo() -> NumeroProcesso {
 #[test]
 fn processo_unico_publica_so_o_id_e_o_termo() {
     let valor = json_da_busca(
-        &termo(),
+        termo().as_str(),
         &busca(
             RespostaDaPesquisa::ProcessoUnico {
                 id: IdProcedimento::novo("4321").unwrap(),
@@ -57,8 +57,8 @@ fn lista_publica_total_faixa_e_numeros() {
     };
     let realizada = busca(RespostaDaPesquisa::Lista(lista), 4);
     // Goiás: a faixa da barra é publicada com as posições sem linha.
-    assert!(humano(&termo(), &realizada).contains("faixa 11 a 12, 1 sem linha na tabela"));
-    let valor = json_da_busca(&termo(), &realizada);
+    assert!(humano(termo().as_str(), &realizada).contains("faixa 11 a 12, 1 sem linha na tabela"));
+    let valor = json_da_busca(termo().as_str(), &realizada);
     assert_eq!(
         valor,
         json!({
@@ -77,7 +77,10 @@ fn lista_publica_total_faixa_e_numeros() {
 
 #[test]
 fn sem_resultado_publica_total_zero_sem_faixa() {
-    let valor = json_da_busca(&termo(), &busca(RespostaDaPesquisa::SemResultado, 3));
+    let valor = json_da_busca(
+        termo().as_str(),
+        &busca(RespostaDaPesquisa::SemResultado, 3),
+    );
     assert_eq!(
         valor,
         json!({
@@ -101,12 +104,23 @@ fn aceita(args: &[&str]) -> bool {
 }
 
 #[test]
-fn buscar_exige_termo_e_pagina_positiva() {
+fn buscar_exige_criterio_e_pagina_positiva() {
     assert!(aceita(&["buscar", "00001"]));
     assert!(aceita(&["buscar", "00001.000001/2026-00", "--pagina", "2"]));
     assert!(!aceita(&["buscar"]));
     assert!(!aceita(&["buscar", "1", "--pagina", "0"]));
     assert!(!aceita(&["buscar", "1", "--pagina", "x"]));
     assert!(!aceita(&["buscar", "--assunto", "x"]));
+    assert!(!aceita(&["buscar", "--pagina", "2"]));
+    assert!(aceita(&["buscar", "--tipo", "Administrativo"]));
+    assert!(aceita(&["buscar", "--de", "01/01/2026"]));
+    assert!(aceita(&["buscar", "--ate", "31/01/2026"]));
     assert!(!aceita(&["buscar", "1", "2"]));
+}
+
+#[test]
+fn pesquisa_por_filtros_sem_protocolo_publica_termo_vazio() {
+    let valor = json_da_busca("", &busca(RespostaDaPesquisa::SemResultado, 3));
+    assert_eq!(valor["termo"], "");
+    assert_eq!(valor["resultado"], "sem_resultado");
 }
