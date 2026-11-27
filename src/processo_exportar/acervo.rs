@@ -131,7 +131,6 @@ fn replay_de_processo_exportar_no_acervo() {
     );
 }
 
-
 // Fonte independente: Todos test_pasta_mista_gravada_010.py.
 // A árvore de destino contém 20 nós em PASTA1, o segundo fechado.
 // O teste observa a árvore e contrasta a seleção real, não um POST gravado.
