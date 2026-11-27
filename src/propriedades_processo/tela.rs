@@ -4,6 +4,11 @@
 //! árvore `tela_html` (atributos e aninhamento como no navegador).
 use super::{Assunto, ErroPropriedades, FonteDasPropriedades, Interessado, NivelDeAcesso, PropriedadesLidas};
 
+use crate::formulario_web::{
+    ConferenciaDaUnidade, EfeitoAvaliado, EnvioDoFormulario, OperacaoDeFormulario,
+    ResultadoDoEnvio, EstadoDoProcesso, valor_da_lupa,
+};
+
 const FORMULARIO: &str = "frmProcedimentoCadastro";
 
 type Tag<'p> = crate::tela_html::Elemento<'p>;
@@ -220,4 +225,146 @@ fn data_de_geracao(campos: &Campos<'_>) -> Result<String, ErroPropriedades> {
         return Err(ErroPropriedades::DataDeGeracaoForaDaFormaObservada);
     }
     Ok(data)
+}
+
+// Derivação da alteração de especificação: hipótese ainda sem replay original.
+pub(super) const ALTERAR_ESPECIFICACAO: OperacaoDeFormulario = OperacaoDeFormulario {
+    acao: crate::acao_do_sei::AcaoDoSei::ProcedimentoAlterar,
+    formulario: FORMULARIO,
+    envio: EnvioDoFormulario::SubmitPorScript,
+    campos_ocultos_exigidos: &[
+        "hdnFlagProcedimentoCadastro", "hdnIdProcedimento", "hdnProtocoloFormatado",
+        "hdnIdTipoProcedimento", "hdnAssuntos", "hdnInteressadosProcedimento",
+    ],
+    campos_ocultos_reescritos: &[
+        "hdnFlagProcedimentoCadastro", "hdnAssuntos", "hdnInteressadosProcedimento",
+    ],
+    campos_usuario: &[
+        "selTipoProcedimento", "txtDescricao", "txtAssunto", "selAssuntos",
+        "txtInteressadoProcedimento", "selInteressadosProcedimento",
+        "txtInteressadoUsuario", "txaObservacoes", "selGrauSigilo",
+        "rdoNivelAcesso", "selHipoteseLegal",
+    ],
+    resultado: ResultadoDoEnvio::ConferidoPorLeituraPosterior,
+    unidade: ConferenciaDaUnidade::NaTelaDeOrigemDoLink,
+    efeito: EfeitoAvaliado::AlteraEstadoDoProcesso {
+        o_que: EstadoDoProcesso::CadastroAlterado,
+    },
+};
+
+/// A propriedade de domínio None não distingue select vazio de option null.
+/// Preservar a presença da opção servida em vez de sintetizar "null".
+fn pares_select(
+    campos: &Campos<'_>,
+    nome: &'static str,
+    pares: &mut Vec<(&'static str, String)>,
+) -> Result<(), ErroPropriedades> {
+    if let Some(select) = campos.opcional(nome)? {
+        if select.presente("disabled") {
+            return Ok(());
+        }
+        let opcoes = opcoes(select);
+        let marcadas = opcoes.iter().filter(|(_, marcada, _)| *marcada);
+        if select.presente("multiple") {
+            pares.extend(marcadas.map(|(id, _, _)| (nome, id.clone())));
+        } else if let Some((id, _, _)) = marcadas.last().or_else(|| opcoes.first()) {
+            pares.push((nome, id.clone()));
+        }
+    }
+    Ok(())
+}
+
+/// Reusar o leitor local de Campos, opcoes e observacoes, e o serializer
+/// valor_da_lupa existente. A ordem final cabe a derivar_submissao.
+pub(super) fn pares_de_especificacao(
+    html: &crate::tela_html::HtmlServido,
+    pedida: &str,
+) -> Result<Vec<(&'static str, String)>, ErroPropriedades> {
+    let dom = crate::tela_html::arvore(html);
+    let formulario = match dom.com_id(FORMULARIO).collect::<Vec<_>>().as_slice() {
+        [] => return Err(ErroPropriedades::FormularioDasPropriedadesAusente),
+        [unico] => *unico,
+        _ => return Err(ErroPropriedades::FormulariosDasPropriedadesRepetidos),
+    };
+    let campos = &Campos { formulario };
+    let mut pares = vec![
+        ("txtDescricao", pedida.to_owned()),
+        ("txaObservacoes", observacoes(campos)?),
+        ("hdnFlagProcedimentoCadastro", "2".to_owned()),
+    ];
+    for nome in ["txtAssunto", "txtInteressadoProcedimento", "txtInteressadoUsuario"] {
+        if let Some(tag) = campos.opcional(nome)? {
+            if !tag.presente("disabled") {
+                pares.push((nome, valor(tag)));
+            }
+        }
+    }
+    for nome in ["selTipoProcedimento", "selAssuntos", "selInteressadosProcedimento",
+                 "selGrauSigilo", "selHipoteseLegal"] {
+        pares_select(campos, nome, &mut pares)?;
+    }
+    let nivel = match nivel_de_acesso(campos)? {
+        NivelDeAcesso::Publico => "0",
+        NivelDeAcesso::Restrito => "1",
+        NivelDeAcesso::Sigiloso => "2",
+    };
+    pares.push(("rdoNivelAcesso", nivel.to_owned()));
+    for (select, oculto) in [
+        ("selAssuntos", "hdnAssuntos"),
+        ("selInteressadosProcedimento", "hdnInteressadosProcedimento"),
+    ] {
+        let itens = opcoes(campos.unico(select)?);
+        pares.push((oculto, valor_da_lupa(itens.iter().map(|(id, _, rotulo)| {
+            (id.as_str(), rotulo.as_str())
+        }))));
+    }
+    Ok(pares)
+}
+
+// Testes sintéticos da derivação, sem acesso remoto.
+#[cfg(test)]
+mod testes_derivacao_r284 {
+    use super::*;
+    use crate::formulario_web::{derivar_submissao, tests::{instalacao, tela_iso}};
+    use crate::propriedades_processo::tests_apoio::{tela_das_propriedades, tela_restrita, link_das_propriedades};
+    use crate::tela_html::HtmlServido;
+
+    fn corpo(html: &str) -> String {
+        let html = HtmlServido::de_teste(html);
+        let pares = pares_de_especificacao(&html, "Nova descrição & café").unwrap();
+        let refs: Vec<_> = pares.iter().map(|(n, v)| (*n, v.as_str())).collect();
+        let url = format!("https://sei.exemplo.gov.br/sei/{}", link_das_propriedades(
+            crate::acao_do_sei::AcaoDoSei::ProcedimentoAlterar, "10"));
+        let sub = derivar_submissao(&ALTERAR_ESPECIFICACAO, &instalacao(),
+            &tela_iso(&url, &html), None, &refs).unwrap();
+        String::from_utf8(sub.corpo().to_vec()).unwrap()
+    }
+
+    #[test]
+    fn publica_e_restrita_preservam_controles() {
+        let nup = "00001.000001/2026-01";
+        let publica = corpo(&tela_das_propriedades(nup, "10"));
+        for par in [
+            "txtDescricao=Nova+descri%E7%E3o+%26+caf%E9",
+            "txaObservacoes=Observa%E7%E3o+sint%E9tica",
+            "selTipoProcedimento=100000002",
+            "hdnAssuntos=2001%B1000.01+-+Assunto+sint%E9tico+um",
+            "hdnInteressadosProcedimento=301%B1Pessoa+Sintetica+A%A5302%B1Entidade+Sintetica+B",
+            "hdnFlagProcedimentoCadastro=2", "rdoNivelAcesso=0", "selGrauSigilo=null",
+            "txtAssunto=", "txtInteressadoProcedimento=", "txtInteressadoUsuario=",
+        ] {
+            assert!(publica.split('&').any(|p| p == par), "par ausente: {par}");
+        }
+        for nome in ["selHipoteseLegal", "btnSalvar", "selAssuntos",
+                     "selInteressadosProcedimento", "hdnInfraPrefixoCookie"] {
+            assert!(!publica.split('&').any(|p| p.starts_with(&format!("{nome}="))));
+        }
+        let restrita = corpo(&tela_restrita(nup, "10"));
+        assert!(restrita.split('&').any(|p| p == "rdoNivelAcesso=1"));
+        assert!(restrita.split('&').any(|p| p == "selHipoteseLegal=7"));
+        let placeholder = tela_das_propriedades(nup, "10").replace(
+            "<select id=\"selHipoteseLegal\" name=\"selHipoteseLegal\" class=\"infraSelect\">\n</select>",
+            "<select id=\"selHipoteseLegal\" name=\"selHipoteseLegal\" class=\"infraSelect\"><option value=\"null\">&nbsp;</option></select>");
+        assert!(corpo(&placeholder).split('&').any(|p| p == "selHipoteseLegal=null"));
+    }
 }
