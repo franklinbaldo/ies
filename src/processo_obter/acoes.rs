@@ -37,6 +37,8 @@ pub(crate) struct AcoesDeEstado {
         Result<Option<EnderecoDeEscrita>, crate::arvore_processo::ErroCienciaNaArvore>,
     pub(crate) anexar: Result<Option<EnderecoDeEscrita>, ErroAnexarNaBarra>,
     pub(crate) exportacao: crate::arvore_processo::LinksExportacao,
+    /// A última árvore conferida, para a elegibilidade da seleção ZIP.
+    pub(crate) html_da_arvore: crate::tela_html::HtmlServido,
     /// Atribuição do processo na unidade atual.
     pub(crate) atribuir: Result<Option<EnderecoDeEscrita>, ErroAtribuirNaBarra>,
     /// Ação de registrar andamento, lida da barra do processo.

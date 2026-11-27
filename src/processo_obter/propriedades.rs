@@ -41,7 +41,7 @@ pub(super) fn ler<V: EnvioDoProcesso>(
         )
     };
     contexto.aprender_link(fonte.acao(), id, &url);
-    Ok(Propriedades::Lidas(lidas))
+    Ok(Propriedades::Lidas(Box::new(lidas)))
 }
 
 /// Link guardado nesta geração e unidade. `Ok(None)`: não havia, ou o

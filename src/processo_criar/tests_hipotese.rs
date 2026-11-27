@@ -21,8 +21,14 @@ fn arvore_verificadora() -> String {
     )
 }
 
-fn propriedades_verificadoras() -> String {
+fn propriedades_verificadoras(id_hipotese: &str, nome_hipotese: &str) -> String {
     tela_restrita(NUP, "10")
+        .replace("100000002", "12")
+        .replace(
+            "value=\"7\" selected",
+            &format!("value=\"{id_hipotese}\" selected"),
+        )
+        .replace("Hipotese Sintetica (Art. 1)", nome_hipotese)
         .replace("Tipo Sintetico: Teste", TIPO)
         .replace("Especificação sintética &amp; teste", "Ensaio restrito")
 }
@@ -139,7 +145,7 @@ fn confirmacao_restrita_tem_ajax_uma_escrita_e_duas_releituras() {
         )),
         ok(trabalhar()),
         ok(arvore_verificadora()),
-        ok(propriedades_verificadoras()),
+        ok(propriedades_verificadoras("31", "Base Legal de Teste")),
     ];
     let (resultado, pedidos) = rodar_com(&amb, respostas, |sessao, _, _, rede| {
         criar(
@@ -345,7 +351,7 @@ fn confirmacao_restrita_escolhe_segunda_hipotese_ajax_e_verifica() {
         )),
         ok(trabalhar()),
         ok(arvore_verificadora()),
-        ok(propriedades_verificadoras()),
+        ok(propriedades_verificadoras("32", "Base B")),
     ];
     let (resultado, pedidos) = rodar_com(&amb, respostas, |sessao, _, _, rede| {
         criar(
@@ -397,4 +403,61 @@ fn nome_incorreto_da_hipotese_nao_cria_processo() {
     });
     assert_eq!(pedidos.len(), 4);
     assert_eq!(pedidos.iter().filter(|p| p.metodo == "POST").count(), 1);
+}
+
+/// A resposta 302 vincula o NUP ao POST, mas não prova que o cadastro
+/// relido preservou a identidade solicitada. Mutantes sintéticos.
+fn conferir_identidade_divergente(propriedades: String) {
+    let amb = ambiente();
+    let respostas = vec![
+        ok(controle_de_criacao()),
+        ok(lista()),
+        ok(cadastro(true)),
+        ok(XML_UNICO.to_owned()),
+        r302(&format!(
+            "controlador.php?acao=procedimento_trabalhar&id_procedimento=10&infra_hash={HASH}"
+        )),
+        ok(trabalhar()),
+        ok(arvore_verificadora()),
+        ok(propriedades),
+    ];
+    let (resultado, pedidos) = rodar_com(&amb, respostas, |sessao, _, _, rede| {
+        criar(
+            sessao.origem,
+            sessao.url_do_controle,
+            sessao.cookie,
+            &restrito(true),
+            rede,
+        )
+    });
+    assert_eq!(pedidos.len(), 8);
+    assert_eq!(
+        pedidos
+            .iter()
+            .filter(|p| p.metodo == "POST" && p.url.contains("acao=procedimento_gerar"))
+            .count(),
+        1
+    );
+    assert!(pedidos[5..].iter().all(|p| p.metodo == "GET"));
+    assert!(matches!(
+        resultado,
+        Err(ErroCriar::VerificacaoAposPost(causa))
+            if matches!(
+                *causa,
+                ErroCriar::ProvaDaCriacao(super::erro_fluxo::ProvaDaCriacao::PropriedadesDivergentes)
+            )
+    ));
+}
+
+#[test]
+fn tipo_homonimo_relido_nao_confirma_criacao() {
+    let original = propriedades_verificadoras("31", "Base Legal de Teste");
+    let mutante = original.replace("value=\"12\"", "value=\"13\"");
+    assert_ne!(original, mutante);
+    conferir_identidade_divergente(mutante);
+}
+
+#[test]
+fn hipotese_homonima_relida_nao_confirma_criacao() {
+    conferir_identidade_divergente(propriedades_verificadoras("32", "Base Legal de Teste"));
 }
