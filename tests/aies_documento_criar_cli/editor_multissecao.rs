@@ -150,13 +150,16 @@ fn conferir_sql(banco: &Connection, instalacao: &Instalacao) {
             )
             .unwrap();
         let persistidas: Vec<Secao> = consulta
-            .query_map(rusqlite::params![instalacao.url_base(), CENA, versao], |r| {
-                Ok(Secao {
-                    nome: r.get(0)?,
-                    principal: r.get(1)?,
-                    html: r.get(2)?,
-                })
-            })
+            .query_map(
+                rusqlite::params![instalacao.url_base(), CENA, versao],
+                |r| {
+                    Ok(Secao {
+                        nome: r.get(0)?,
+                        principal: r.get(1)?,
+                        html: r.get(2)?,
+                    })
+                },
+            )
             .unwrap()
             .collect::<Result<_, _>>()
             .unwrap();
@@ -229,19 +232,47 @@ fn cli_nativa_salva_multissecao_e_preserva_revisao_anterior() {
 
 fn exercitar(comando: &impl Fn(&[&str]) -> Output, pasta: &Pasta, registro: &Mutex<Vec<String>>) {
     let saida = pasta.0.to_str().unwrap();
-    let foto = comando(&["--json", "documento", DOC, "--versao", "1", "--saida", saida]);
-    assert!(foto.status.success(), "{}", String::from_utf8_lossy(&foto.stderr));
+    let foto = comando(&[
+        "--json",
+        "documento",
+        DOC,
+        "--versao",
+        "1",
+        "--saida",
+        saida,
+    ]);
+    assert!(
+        foto.status.success(),
+        "{}",
+        String::from_utf8_lossy(&foto.stderr)
+    );
     let base = fs::read_to_string(pasta.0.join(format!("{DOC}.v1.html"))).unwrap();
     assert_eq!(base.matches(ANTES).count(), 1);
     let editada = base.replace(ANTES, "<p>Depois\r\r\nopaco</p>");
     pasta.privado(&format!("{DOC}.v2.html"), &editada);
     let antes = registro.lock().unwrap().len();
     let previa = comando(&["--json", "documento", "salvar", DOC, "--versao", "1"]);
-    assert!(previa.status.success(), "{}", String::from_utf8_lossy(&previa.stderr));
+    assert!(
+        previa.status.success(),
+        "{}",
+        String::from_utf8_lossy(&previa.stderr)
+    );
     assert_eq!(registro.lock().unwrap().len(), antes);
-    let confirmar = ["--json", "documento", "salvar", DOC, "--versao", "1", "--confirmar"];
+    let confirmar = [
+        "--json",
+        "documento",
+        "salvar",
+        DOC,
+        "--versao",
+        "1",
+        "--confirmar",
+    ];
     let salvo = comando(&confirmar);
-    assert!(salvo.status.success(), "{}", String::from_utf8_lossy(&salvo.stderr));
+    assert!(
+        salvo.status.success(),
+        "{}",
+        String::from_utf8_lossy(&salvo.stderr)
+    );
     let valor = json(&salvo);
     assert_eq!(valor["confirmado"], true);
     assert_eq!(valor["versao_criada"], 2);
@@ -251,11 +282,24 @@ fn exercitar(comando: &impl Fn(&[&str]) -> Output, pasta: &Pasta, registro: &Mut
     let nova = pasta.0.join("releitura");
     fs::create_dir(&nova).unwrap();
     let relida = comando(&[
-        "--json", "documento", DOC, "--versao", "2", "--saida", nova.to_str().unwrap(),
+        "--json",
+        "documento",
+        DOC,
+        "--versao",
+        "2",
+        "--saida",
+        nova.to_str().unwrap(),
     ]);
-    assert!(relida.status.success(), "{}", String::from_utf8_lossy(&relida.stderr));
+    assert!(
+        relida.status.success(),
+        "{}",
+        String::from_utf8_lossy(&relida.stderr)
+    );
     let html = fs::read_to_string(nova.join(format!("{DOC}.v2.html"))).unwrap();
     assert!(html.contains(DEPOIS));
     assert!(html.contains("<h1>Fixo</h1>"));
-    assert_eq!(fs::read_to_string(pasta.0.join(format!("{DOC}.v1.html"))).unwrap(), base);
+    assert_eq!(
+        fs::read_to_string(pasta.0.join(format!("{DOC}.v1.html"))).unwrap(),
+        base
+    );
 }
