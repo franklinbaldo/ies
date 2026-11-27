@@ -117,6 +117,10 @@ const SO_RELEITURA: &[(&str, &str)] = &[
     ),
     ("documento_gerar", "documento criar: releitura da árvore"),
     (
+        "bloco_assinatura_cadastrar",
+        "bloco criar: identidade e releitura",
+    ),
+    (
         "documento_receber",
         "documento incluir-externo: recibo e releitura",
     ),

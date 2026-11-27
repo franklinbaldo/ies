@@ -14,6 +14,7 @@ use serde_json::Value;
 #[path = "support/falha.rs"]
 mod falha_cli;
 use falha_cli::falha;
+use fluxo::{Cenario, executar_fluxo};
 use std::fs;
 use std::io::{Read, Write};
 use std::net::{Shutdown, TcpListener, TcpStream};
@@ -129,14 +130,20 @@ fn cabecalho(fluxo: &mut impl Read) -> Vec<u8> {
     buf
 }
 
-fn registrar_blocos(banco: &mut Connection, instalacao: &Instalacao, interno: bool, detalhe: bool) {
+fn registrar_blocos(
+    banco: &mut Connection,
+    instalacao: &Instalacao,
+    interno: bool,
+    detalhe: bool,
+    completa: bool,
+) {
     blocos::guardar(
         banco,
         instalacao,
         CENARIO,
         &Pagina {
             tipo: Tipo::Assinatura,
-            total: 4,
+            total: if completa { 2 } else { 4 },
             faixa: Some((1, 2)),
             linhas: vec![
                 LinhaBloco {
@@ -287,51 +294,16 @@ fn iniciar_tunel(
     })
 }
 
-fn executar(interno: bool, numero: Option<&str>) -> (Output, Vec<String>) {
-    let detalhe = numero == Some("2195");
-    let esperados = if interno || detalhe { 3usize } else { 2usize };
-    let pasta = Pasta::nova();
-    let (cert, identidade) = certificado(&pasta.0);
-    let origem = pasta.privado("origem", ORIGEM);
-    let nome_hash = ["infra", "hash"].join("_");
-    let controle = pasta.privado(
-        "url",
-        &format!(
-            "{ORIGEM}/controlador.php?acao=procedimento_controlar&{nome_hash}={}",
-            "a".repeat(64)
-        ),
-    );
-    let cookie = pasta.privado("cookie", "PHPSESSID=FICTICIO");
-
-    let servidor = TcpListener::bind(("127.0.0.1", 0)).unwrap();
-    let endereco = servidor.local_addr().unwrap();
-    let simulador = thread::spawn(move || {
-        let mut banco = Connection::open_in_memory().unwrap();
-        banco_cassettes::iniciar(&banco).unwrap();
-        let instalacao = Instalacao::interpretar(ORIGEM).unwrap();
-        banco_cassettes::guardar(
-            &mut banco,
-            CENARIO,
-            &ControleResumido {
-                instalacao: instalacao.clone(),
-                unidade: UnidadeExibida::nova("TESTE").unwrap(),
-                recebidos: TabelaObservada::<Linha>::nova(Some(0), None, vec![]).unwrap(),
-                gerados: TabelaObservada::<Linha>::nova(Some(0), None, vec![]).unwrap(),
-            },
-        )
-        .unwrap();
-        registrar_blocos(&mut banco, &instalacao, interno, detalhe);
-        for _ in 0..esperados {
-            let mut fluxo = aceitar(&servidor);
-            atender_http(&mut fluxo, Some((&banco, &instalacao, CENARIO))).unwrap();
-        }
-    });
-
-    let proxy = TcpListener::bind(("127.0.0.1", 0)).unwrap();
-    let porta = proxy.local_addr().unwrap().port();
-    let tunel = iniciar_tunel(proxy, identidade, endereco, esperados);
-
-    let argumentos: Vec<&str> = if let Some(numero) = numero {
+fn argumentos(interno: bool, numero: Option<&str>, previa: bool) -> Vec<&str> {
+    if previa {
+        vec![
+            "--json",
+            "bloco",
+            "criar",
+            "--descricao",
+            "Despachos de teste",
+        ]
+    } else if let Some(numero) = numero {
         vec!["--json", "bloco", numero]
     } else if interno {
         vec![
@@ -339,50 +311,9 @@ fn executar(interno: bool, numero: Option<&str>) -> (Output, Vec<String>) {
         ]
     } else {
         vec!["--json", "bloco", "listar", "--tipo", "assinatura"]
-    };
-    let saida = Command::new(env!("CARGO_BIN_EXE_ies"))
-        .args(argumentos)
-        .env("IES_URL_CONTROLE_FILE", controle)
-        .env("IES_COOKIE_FILE", cookie)
-        .env("IES_ORIGEM_FILE", origem)
-        .env("SSL_CERT_FILE", cert)
-        .env("https_proxy", format!("http://127.0.0.1:{porta}"))
-        .env("HOME", &pasta.0)
-        .env_remove("HTTPS_PROXY")
-        .env_remove("all_proxy")
-        .env_remove("ALL_PROXY")
-        .env_remove("NO_PROXY")
-        .env_remove("no_proxy")
-        .env_remove("IES_CONFIG_FILE")
-        .env_remove("IES_CREDENCIAIS_FILE")
-        .output()
-        .expect("binário ies");
-    let pedidos = tunel.join().expect("GET HTTPS");
-    simulador.join().expect("GET anti-IES");
-    assert_eq!(pedidos.len(), esperados);
-    assert_eq!(
-        pedidos.iter().filter(|p| p.starts_with("GET ")).count(),
-        if detalhe { 3 } else { 2 }
-    );
-    assert_eq!(
-        pedidos.iter().filter(|p| p.starts_with("POST ")).count(),
-        usize::from(interno)
-    );
-    assert!(pedidos[0].contains("acao=procedimento_controlar"));
-    assert!(pedidos[1].contains(if interno {
-        "acao=bloco_interno_listar"
-    } else {
-        "acao=bloco_assinatura_listar"
-    }));
-    if interno {
-        assert!(pedidos[2].contains("acao=bloco_interno_listar"));
     }
-    if detalhe {
-        assert!(pedidos[2].contains("acao=rel_bloco_protocolo_listar"));
-        assert!(pedidos[2].contains("id_bloco=2195"));
-    }
-    (saida, pedidos)
 }
+
 fn json(saida: &Output) -> Value {
     serde_json::from_slice(&saida.stdout).unwrap_or_else(|e| {
         panic!(
@@ -396,7 +327,7 @@ fn json(saida: &Output) -> Value {
 // Expectativas sobre o contrato da CLI, nao geradas a partir do HTML do servidor.
 #[test]
 fn bdd_256_01_cli_real_lista_somente_pagina_observada_no_sqlite() {
-    let (saida, pedidos) = executar(false, None);
+    let (saida, pedidos) = executar_fluxo(Cenario::Lista);
     assert_eq!(
         saida.status.code(),
         Some(0),
@@ -427,11 +358,28 @@ fn bdd_256_01_cli_real_lista_somente_pagina_observada_no_sqlite() {
     assert!(!valor.to_string().contains("PHPSESSID"));
 }
 
+/// Corpus sintético completo e isolado para a futura criação.
+#[test]
+fn cli_real_lista_corpus_completo_para_criacao() {
+    let (saida, pedidos) = executar_fluxo(Cenario::ListaCompleta);
+    assert!(saida.status.success());
+    assert!(pedidos.iter().all(|p| p.starts_with("GET ")));
+    let valor = json(&saida);
+    let lista = &valor["lista"];
+    assert_eq!(lista["total_declarado"], 2);
+    assert_eq!(lista["faixa_observada"]["inicio"], 1);
+    assert_eq!(lista["faixa_observada"]["fim"], 2);
+    let itens = lista["itens"].as_array().unwrap();
+    assert_eq!(itens.len(), 2);
+    assert_eq!(itens[0]["numero"], "2195");
+    assert_eq!(itens[1]["numero"], "2196");
+}
+
 /// BDD-256-02: o POST devolve exclusivamente a segunda pagina observada.
 /// A expectativa nao e derivada do HTML gerado pelo anti-IES.
 #[test]
 fn bdd_256_02_cli_real_pagina_2_interna_sqlite() {
-    let (saida, pedidos) = executar(true, None);
+    let (saida, pedidos) = executar_fluxo(Cenario::Interno);
     assert_eq!(
         saida.status.code(),
         Some(0),
@@ -462,7 +410,7 @@ fn bdd_256_02_cli_real_pagina_2_interna_sqlite() {
 /// Expectativas definidas independentemente do HTML gerado pelo simulador.
 #[test]
 fn bdd_256_03_cli_real_detalhe_assinatura_com_estado_e_itens() {
-    let (saida, pedidos) = executar(false, Some("2195"));
+    let (saida, pedidos) = executar_fluxo(Cenario::Detalhe);
     assert_eq!(
         saida.status.code(),
         Some(0),
@@ -496,8 +444,14 @@ fn bdd_256_03_cli_real_detalhe_assinatura_com_estado_e_itens() {
 /// O numero nao visto nesta pagina nao pode virar inexistencia global.
 #[test]
 fn bdd_256_03_bloco_ausente_da_pagina_recusa_sem_terceiro_get() {
-    let (saida, pedidos) = executar(false, Some("9999"));
+    let (saida, pedidos) = executar_fluxo(Cenario::Ausente);
     falha(&saida, "Bloco");
     assert_eq!(pedidos.len(), 2);
     assert!(!String::from_utf8_lossy(&saida.stderr).contains("infra_hash"));
 }
+
+#[path = "aies_bloco_cli/criar.rs"]
+mod criar;
+
+#[path = "aies_bloco_cli/fluxo.rs"]
+mod fluxo;

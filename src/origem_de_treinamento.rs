@@ -33,6 +33,7 @@ pub(crate) enum CausaDaOrigem {
 /// As escritas da CLI, cada uma com o seu estado de aprovação.
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub(crate) enum Escrita {
+    BlocoCriar,
     BlocoIncluirDocumento,
     DocumentoIncluirExterno,
     DocumentoIncluirExternoLote,
@@ -101,6 +102,15 @@ pub(crate) fn exigir_origem(origem: &str) -> Result<(), CausaDaOrigem> {
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    #[test]
+    fn criar_bloco_ainda_restrito_ao_treinamento() {
+        assert!(exigir(Escrita::BlocoCriar, "https://sei.test/sei").is_ok());
+        assert_eq!(
+            exigir(Escrita::BlocoCriar, "https://sei.exemplo.gov.br/sei"),
+            Err(CausaDaOrigem::OrigemForaDoTreinamento)
+        );
+    }
 
     #[test]
     fn escrita_restrita_recusa_producao_e_origens_imitadoras() {

@@ -80,6 +80,24 @@ fn html(pagina: &Pagina, numero_pagina: usize, observadas: &[usize]) -> String {
             observadas,
         );
     }
+    if pagina.tipo == Tipo::Assinatura {
+        // Perfil sintético correspondente ao escopo observado no acervo.
+        saida.push_str(
+            "<select name='selGrupoBloco'><option selected value=''>Todos</option></select>\
+        <select name='selUnidadeGeradora'><option selected value=''>Todas</option></select>\
+        <input type='text' name='txtPalavrasPesquisaBloco' value=''>\
+        <input type='hidden' name='hdnMeusBlocos' value='T'>\
+        <input type='checkbox' name='chkSinPrioridade'>\
+        <input type='checkbox' name='chkSinRevisao'>\
+        <input type='checkbox' name='chkSinComentario'>\
+        <input type='checkbox' name='chkSinEstadoGerado' checked>\
+        <input type='checkbox' name='chkSinEstadoDisponibilizado' checked>\
+        <input type='checkbox' name='chkSinEstadoRecebido' checked>\
+        <input type='checkbox' name='chkSinEstadoRetornado' checked>\
+        <input type='checkbox' name='chkSinEstadoConcluido'>",
+        );
+        write!(saida, "<button id='btnNovo' type='button' onclick=\"location.href='controlador.php?acao=bloco_assinatura_cadastrar&amp;infra_hash={HASH}'\">Novo</button>").expect("String");
+    }
     saida.push_str("<table id='tblBlocos'>");
     if let Some((inicio, fim)) = pagina.faixa {
         write!(
@@ -147,6 +165,51 @@ pub(crate) fn responder(
         (Ok(observadas), Ok(Some(pagina))) if observadas.contains(&numero_pagina) => {
             Resposta::html(html(&pagina, numero_pagina, &observadas))
         }
+        _ => Resposta::nova(Estado::DadosInsuficientes),
+    }
+}
+
+pub(crate) fn cadastro(
+    metodo: &str,
+    corpo: &str,
+    banco: &Connection,
+    instalacao: &Instalacao,
+    cenario: &str,
+) -> Resposta {
+    if metodo == "POST" {
+        let Some(pares) = crate::processo_envio::pares(corpo) else {
+            return Resposta::nova(Estado::RequisicaoInvalida);
+        };
+        let campo = |nome| crate::processo_envio::campo_unico(&pares, nome);
+        let Some(descricao) =
+            campo("txtDescricao").and_then(crate::processo_envio::decodificar_formulario)
+        else {
+            return Resposta::nova(Estado::RequisicaoInvalida);
+        };
+        if pares.len() != 3
+            || campo("selGrupoBloco") != Some("null")
+            || campo("sbmCadastrarBloco") != Some("Salvar")
+            || descricao.trim().is_empty()
+        {
+            return Resposta::nova(Estado::RequisicaoInvalida);
+        }
+        return match blocos::acrescentar_assinatura(banco, instalacao, cenario, &descricao) {
+            Ok(id) => Resposta::redirecionar(format!(
+                "controlador.php?acao=bloco_assinatura_listar&id_bloco={id}"
+            )),
+            Err(_) => Resposta::nova(Estado::DadosInsuficientes),
+        };
+    }
+    if metodo != "GET" {
+        return Resposta::nova(Estado::MetodoNaoPermitido);
+    }
+    match blocos::ler(banco, instalacao, cenario, Tipo::Assinatura) {
+        Ok(Some(_)) => Resposta::html(format!(
+            "<html><body><form id='frmBlocoCadastro' method='post' action='controlador.php?acao=bloco_assinatura_cadastrar&amp;infra_hash={HASH}'>\
+            <textarea name='txtDescricao'></textarea>\
+            <select name='selGrupoBloco'><option value='null'>Nenhum</option></select>\
+            <button type='submit' name='sbmCadastrarBloco' value='Salvar'>Salvar</button></form></body></html>"
+        )),
         _ => Resposta::nova(Estado::DadosInsuficientes),
     }
 }

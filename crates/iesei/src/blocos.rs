@@ -236,9 +236,117 @@ pub fn paginas_observadas(
     registros.collect()
 }
 
+/// Cria identidade sintética somente no cadastro de assinatura de página única.
+/// # Errors
+/// Recusa cadastro ausente/parcial e propaga falha SQLite sem gravar parcialmente.
+pub fn acrescentar_assinatura(
+    banco: &Connection,
+    instalacao: &Instalacao,
+    cenario: &str,
+    descricao: &str,
+) -> rusqlite::Result<String> {
+    if descricao.trim().is_empty() {
+        return Err(rusqlite::Error::InvalidQuery);
+    }
+    let tx = rusqlite::Transaction::new_unchecked(banco, rusqlite::TransactionBehavior::Immediate)?;
+    let tipo = Tipo::Assinatura;
+    let foto = ler(&tx, instalacao, cenario, tipo)?.ok_or(rusqlite::Error::InvalidQuery)?;
+    if paginas_observadas(&tx, instalacao, cenario, tipo)? != [1] || foto.total != foto.linhas.len()
+    {
+        return Err(rusqlite::Error::InvalidQuery);
+    }
+    let mut maior = 0_u64;
+    for linha in &foto.linhas {
+        let numero = linha
+            .numero
+            .parse::<u64>()
+            .map_err(|_| rusqlite::Error::InvalidQuery)?;
+        maior = maior.max(numero);
+    }
+    let id = maior
+        .checked_add(1)
+        .ok_or(rusqlite::Error::InvalidQuery)?
+        .to_string();
+    let posicao = i64::try_from(foto.total).map_err(|_| rusqlite::Error::InvalidQuery)?;
+    let total = posicao
+        .checked_add(1)
+        .ok_or(rusqlite::Error::InvalidQuery)?;
+    tx.execute(
+        "UPDATE sim_bloco_pagina SET total=?4,inicio=1,fim=?4
+         WHERE origem=?1 AND cenario=?2 AND tipo=?3 AND pagina=1",
+        params![instalacao.url_base(), cenario, tipo.nome(), total],
+    )?;
+    tx.execute(
+        "INSERT INTO sim_bloco_linha(origem,cenario,tipo,pagina,posicao,numero,estado,descricao)
+         VALUES(?1,?2,?3,1,?4,?5,'Gerado',?6)",
+        params![
+            instalacao.url_base(),
+            cenario,
+            tipo.nome(),
+            posicao,
+            id,
+            descricao
+        ],
+    )?;
+    tx.commit()?;
+    Ok(id)
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    #[test]
+    fn criar_assinatura_atomica_preserva_homonimo_e_reverte_falha() {
+        let mut banco = Connection::open_in_memory().unwrap();
+        crate::banco_cassettes::iniciar(&banco).unwrap();
+        let origem = Instalacao::interpretar("https://sei.test/sei").unwrap();
+        let mut foto = Pagina {
+            tipo: Tipo::Assinatura,
+            total: 1,
+            faixa: Some((1, 1)),
+            linhas: vec![Linha {
+                numero: "41".into(),
+                estado: "Gerado".into(),
+                descricao: "Mesmo texto".into(),
+            }],
+        };
+        guardar(&mut banco, &origem, "teste", &foto).unwrap();
+        guardar(&mut banco, &origem, "outro", &foto).unwrap();
+        assert_eq!(
+            acrescentar_assinatura(&banco, &origem, "teste", "Mesmo texto").unwrap(),
+            "42"
+        );
+        foto.total = 2;
+        foto.faixa = Some((1, 2));
+        foto.linhas.push(Linha {
+            numero: "42".into(),
+            estado: "Gerado".into(),
+            descricao: "Mesmo texto".into(),
+        });
+        assert_eq!(
+            ler(&banco, &origem, "teste", Tipo::Assinatura).unwrap(),
+            Some(foto.clone())
+        );
+        banco
+            .execute_batch(
+                "CREATE TRIGGER falhar_bloco BEFORE INSERT ON sim_bloco_linha
+             BEGIN SELECT RAISE(ABORT, 'falha de teste'); END;",
+            )
+            .unwrap();
+        assert!(acrescentar_assinatura(&banco, &origem, "teste", "Outro").is_err());
+        assert_eq!(
+            ler(&banco, &origem, "teste", Tipo::Assinatura).unwrap(),
+            Some(foto)
+        );
+        assert_eq!(
+            ler(&banco, &origem, "outro", Tipo::Assinatura)
+                .unwrap()
+                .unwrap()
+                .total,
+            1
+        );
+    }
 
     #[test]
     fn pagina_persiste_sem_inferir_totalidade_e_sem_contaminar_cenarios() {
