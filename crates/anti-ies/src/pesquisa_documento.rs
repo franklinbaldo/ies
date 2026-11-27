@@ -118,6 +118,7 @@ fn formulario_de_pesquisa(
         <input type="hidden" id="hdnIdUsuarioGerador1" name="hdnIdUsuarioGerador1" value=""/>
         <input type="hidden" id="hdnIdUsuarioGerador2" name="hdnIdUsuarioGerador2" value=""/>
         <input type="hidden" id="hdnIdUsuarioGerador3" name="hdnIdUsuarioGerador3" value=""/>
+        <input type="text" id="q" name="q" value=""/>
         <select id="selTipoProcedimentoPesquisa" name="selTipoProcedimentoPesquisa">{opcoes}</select>
         <input type="text" name="txtDataInicio" id="txtDataInicio" value="{de}"/>
         <input type="text" name="txtDataFim" id="txtDataFim" value="{ate}"/>
@@ -156,13 +157,13 @@ fn documento_exato(
     ))
 }
 
-fn campo_opcional(corpo: &str, nome: &str) -> Option<String> {
+fn campo_opcional(corpo: &str, nome: &str, padrao: &str) -> Option<String> {
     match corpo
         .split('&')
         .filter(|par| par.split('=').next() == Some(nome))
         .count()
     {
-        0 => Some(String::new()),
+        0 => Some(padrao.to_owned()),
         1 => super::documentos::campo_formulario_unico(corpo, nome),
         _ => None,
     }
@@ -178,7 +179,7 @@ fn periodo_processual(
     unidade: &iesei::observacao::UnidadeExibida,
 ) -> Resposta {
     use iesei::pesquisa_processo::{Coorte, Criterios, coorte, tipos};
-    let campo = |nome: &str| campo_opcional(corpo, nome);
+    let campo = |nome: &str| campo_opcional(corpo, nome, "");
     let (Some(de), Some(ate), Some(tipo)) = (
         campo("txtDataInicio"),
         campo("txtDataFim"),
@@ -251,30 +252,46 @@ fn pesquisa_documental(
     unidade: &iesei::observacao::UnidadeExibida,
     radio: Option<&str>,
 ) -> Resposta {
+    // A chave legada não contém q: nunca responder uma consulta textual
+    // com a observação de um protocolo. Só q ausente/vazio é equivalente.
+    let mut textos = corpo
+        .split('&')
+        .filter(|par| par.split('=').next() == Some("q"));
+    let texto = textos.next();
+    if textos.next().is_some() {
+        return Resposta::nova(Estado::RequisicaoInvalida);
+    }
+    if texto.is_some_and(|par| par != "q=") {
+        return Resposta::nova(Estado::DadosInsuficientes);
+    }
+    let termo = super::documentos::campo_formulario_unico(corpo, "txtProtocoloPesquisa");
     let gerados = super::documentos::campo_formulario_unico(corpo, "chkSinDocumentosGerados");
     let recebidos = super::documentos::campo_formulario_unico(corpo, "chkSinDocumentosRecebidos");
-    let Some(termo) = super::documentos::campo_formulario_unico(corpo, "txtProtocoloPesquisa")
-        .filter(|t| !t.trim().is_empty())
-    else {
+    let Some(termo) = termo.filter(|t| !t.trim().is_empty()) else {
         return Resposta::nova(Estado::RequisicaoInvalida);
     };
     if radio != Some("D") || (gerados.as_deref() != Some("S") && recebidos.as_deref() != Some("S"))
     {
         return Resposta::nova(Estado::RequisicaoInvalida);
     }
-    // O estado documental ainda não distingue filtros por data.
-    if ["txtDataInicio", "txtDataFim"]
+    // O estado documental ainda não distingue filtros por data ou série.
+    if ["txtDataInicio", "txtDataFim", "selSeriePesquisa"]
         .iter()
-        .any(|nome| campo_opcional(corpo, nome).as_deref() != Some(""))
+        .any(|nome| campo_opcional(corpo, nome, "").as_deref() != Some(""))
     {
         return Resposta::nova(Estado::DadosInsuficientes);
     }
     // O POST de navegar() repete o formulário, mudando só hdnInicio.
     // Sem a página observada, não inferimos uma faixa pelo total.
-    let deslocamento = super::documentos::campo_formulario_unico(corpo, "hdnInicio")
-        .unwrap_or_else(|| "0".to_owned());
-    let Ok(deslocamento) = deslocamento.parse::<u64>() else {
+    let Some(deslocamento) =
+        campo_opcional(corpo, "hdnInicio", "0").and_then(|s| s.parse::<u64>().ok())
+    else {
         return Resposta::nova(Estado::RequisicaoInvalida);
+    };
+    let Ok(negativo) =
+        iesei::pesquisa_documento::consultar(banco, instalacao, cenario, unidade, &termo)
+    else {
+        return Resposta::nova(Estado::DadosInsuficientes);
     };
     let pagina = iesei::pesquisa_documento::consultar_por_inicio(
         banco,
@@ -294,7 +311,7 @@ fn pesquisa_documental(
                 ) else {
                     return Resposta::nova(Estado::DadosInsuficientes);
                 };
-                if primeira.total_declarado != pagina.total_declarado {
+                if primeira.inicio != 1 || primeira.total_declarado != pagina.total_declarado {
                     return Resposta::nova(Estado::DadosInsuficientes);
                 }
                 primeira.fim
@@ -312,22 +329,18 @@ fn pesquisa_documental(
         }
         Err(_) => Resposta::nova(Estado::DadosInsuficientes),
         Ok(None) if deslocamento != 0 => Resposta::nova(Estado::DadosInsuficientes),
-        Ok(None) => {
-            match iesei::pesquisa_documento::consultar(banco, instalacao, cenario, unidade, &termo)
-            {
-                Ok(Some(iesei::pesquisa_documento::Resultado::SemResultado)) => {
-                    Resposta::html(formulario_de_pesquisa(
-                        unidade.as_str(),
-                        &termo,
-                        "<div class='pesquisaSemResultado'>Nenhum resultado encontrado.</div>",
-                        None,
-                        &[],
-                    ))
-                }
-                Ok(None) => documento_exato(banco, instalacao, cenario, &termo),
-                Err(_) => Resposta::nova(Estado::DadosInsuficientes),
+        Ok(None) => match negativo {
+            Some(iesei::pesquisa_documento::Resultado::SemResultado) => {
+                Resposta::html(formulario_de_pesquisa(
+                    unidade.as_str(),
+                    &termo,
+                    "<div class='pesquisaSemResultado'>Nenhum resultado encontrado.</div>",
+                    None,
+                    &[],
+                ))
             }
-        }
+            None => documento_exato(banco, instalacao, cenario, &termo),
+        },
     }
 }
 
@@ -382,129 +395,4 @@ pub fn responder_pesquisa(
 }
 
 #[cfg(test)]
-mod tests {
-    use super::*;
-    #[path = "coorte_processual.rs"]
-    mod coorte_processual;
-    use iesei::banco_cassettes::{self, ControleResumido, Linha};
-    use iesei::observacao::{TabelaObservada, UnidadeExibida};
-
-    #[test]
-    fn campo_opcional_recusa_ocorrencias_duplicadas_incompletas() {
-        for (corpo, nome, esperado) in [
-            ("outro=1", "q", Some("")),
-            ("q=", "q", Some("")),
-            ("q=a+b", "q", Some("a b")),
-            ("q", "q", None),
-            ("q=%", "q", None),
-            ("q=&q=", "q", None),
-            ("q=&q", "q", None),
-            ("q&q=", "q", None),
-            ("hdnInicio=10&hdnInicio", "hdnInicio", None),
-            ("hdnInicio&hdnInicio=10", "hdnInicio", None),
-            (
-                "txtDataInicio=01%2F01%2F2026",
-                "txtDataInicio",
-                Some("01/01/2026"),
-            ),
-            (
-                "txtDataInicio=01%2F01%2F2026&txtDataInicio",
-                "txtDataInicio",
-                None,
-            ),
-        ] {
-            assert_eq!(campo_opcional(corpo, nome).as_deref(), esperado, "{corpo}");
-        }
-    }
-
-    #[test]
-    fn registro_negativo_na_unidade_nao_inventa_resultado_de_outro_termo() {
-        let mut banco = Connection::open_in_memory().unwrap();
-        banco_cassettes::iniciar(&banco).unwrap();
-        let instalacao = Instalacao::interpretar("https://sei.test/sei").unwrap();
-        let unidade = UnidadeExibida::nova("TESTE").unwrap();
-        banco_cassettes::guardar(
-            &mut banco,
-            "cenario",
-            &ControleResumido {
-                instalacao: instalacao.clone(),
-                unidade: unidade.clone(),
-                recebidos: TabelaObservada::<Linha>::nova(Some(0), None, vec![]).unwrap(),
-                gerados: TabelaObservada::<Linha>::nova(Some(0), None, vec![]).unwrap(),
-            },
-        )
-        .unwrap();
-        iesei::pesquisa_documento::registrar_sem_resultado(
-            &banco,
-            &instalacao,
-            "cenario",
-            &unidade,
-            "DOC-NAO-ACHADO",
-        )
-        .unwrap();
-        let url = "/sei/controlador.php?acao=protocolo_pesquisar";
-        let tela = responder_pesquisa("GET", url, "", &banco, &instalacao, "cenario");
-        assert_eq!(tela.estado, Estado::Ok);
-        assert!(tela.corpo.contains("frmPesquisaProtocolo"));
-        assert!(tela.corpo.contains("optDocumentos"));
-        let base =
-            "rdoPesquisarEm=P&txtDataInicio=01%2F01%2F2026&hdnInicio=0&selOrgaoPesquisa%5B%5D=0";
-        for extra in ["", "&q=&q", "&q&q=", "&hdnInicio", "&txtDataInicio"] {
-            let resposta = responder_pesquisa(
-                "POST",
-                url,
-                &format!("{base}{extra}"),
-                &banco,
-                &instalacao,
-                "cenario",
-            );
-            assert_eq!(
-                resposta.estado,
-                if extra.is_empty() {
-                    Estado::DadosInsuficientes
-                } else {
-                    Estado::RequisicaoInvalida
-                },
-                "{extra}"
-            );
-        }
-        let buscar = |termo: &str| {
-            responder_pesquisa(
-                "POST",
-                url,
-                &format!("rdoPesquisarEm=D&chkSinDocumentosGerados=S&txtProtocoloPesquisa={termo}"),
-                &banco,
-                &instalacao,
-                "cenario",
-            )
-        };
-        let observado = buscar("DOC-NAO-ACHADO");
-        assert_eq!(observado.estado, Estado::Ok);
-        assert!(observado.corpo.contains("pesquisaSemResultado"));
-        assert_eq!(buscar("OUTRO").estado, Estado::DadosInsuficientes);
-        assert_eq!(
-            responder_pesquisa(
-                "POST",
-                url,
-                "rdoPesquisarEm=D&chkSinDocumentosGerados=S&txtProtocoloPesquisa=DOC-NAO-ACHADO&txtDataInicio=01%2F01%2F2026",
-                &banco,
-                &instalacao,
-                "cenario",
-            )
-            .estado,
-            Estado::DadosInsuficientes
-        );
-        assert_eq!(
-            responder_pesquisa(
-                "POST",
-                url,
-                "rdoPesquisarEm=P&txtProtocoloPesquisa=DOC-NAO-ACHADO",
-                &banco,
-                &instalacao,
-                "cenario",
-            )
-            .estado,
-            Estado::RequisicaoInvalida
-        );
-    }
-}
+mod tests;

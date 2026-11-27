@@ -16,10 +16,15 @@ use std::path::Path;
 mod cabecalhos;
 mod conteudo;
 mod fluxo;
+mod pdf;
 
+#[cfg(test)]
 pub(crate) use fluxo::ler_anexo;
+pub(crate) use fluxo::ler_anexo_com_teor;
 
 pub(crate) use conteudo::ConteudoDoAnexo;
+#[cfg(test)]
+pub(crate) use pdf::ExtracaoPdf;
 
 /// Limite padrão do PDF: 64 MiB.
 pub(crate) const LIMITE_PADRAO: u64 = 64 * 1024 * 1024;
