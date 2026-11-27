@@ -35,7 +35,9 @@ pub struct Pagina {
 fn faixa_valida(pagina: &Pagina) -> bool {
     match pagina.faixa {
         Some((inicio, fim)) => {
-            inicio > 0 && fim >= inicio && fim <= pagina.total
+            inicio > 0
+                && fim >= inicio
+                && fim <= pagina.total
                 && fim - inicio + 1 == pagina.itens.len()
         }
         None => pagina.total == 0 && pagina.itens.is_empty(),
@@ -75,7 +77,15 @@ pub fn registrar(
         "INSERT INTO unidade_gestao_marcadores
          (origem,cenario,unidade,ordinal,total_declarado,inicio,fim)
          VALUES (?1,?2,?3,?4,?5,?6,?7)",
-        params![origem, cenario, unidade, ordinal, inteiro(pagina.total)?, inicio, fim],
+        params![
+            origem,
+            cenario,
+            unidade,
+            ordinal,
+            inteiro(pagina.total)?,
+            inicio,
+            fim
+        ],
     )?;
     for (posicao, item) in pagina.itens.iter().enumerate() {
         tx.execute(
@@ -151,7 +161,12 @@ pub fn ler(
             "inativo" => Estado::Inativo,
             _ => return Err(rusqlite::Error::InvalidQuery),
         };
-        itens.push(Marcador { id, nome, cor, estado });
+        itens.push(Marcador {
+            id,
+            nome,
+            cor,
+            estado,
+        });
     }
     let pagina = Pagina {
         total: natural(total)?,
@@ -228,7 +243,11 @@ mod tests {
         assert!(registrar(&mut db, &origem, "a", "U", 1, &invalida).is_err());
         assert_eq!(ler(&db, &origem, "a", "U", 1).unwrap(), None);
         let contagem: i64 = db
-            .query_row("SELECT count(*) FROM unidade_gestao_marcador_linha", [], |r| r.get(0))
+            .query_row(
+                "SELECT count(*) FROM unidade_gestao_marcador_linha",
+                [],
+                |r| r.get(0),
+            )
             .unwrap();
         assert_eq!(contagem, 0);
         registrar(&mut db, &origem, "a", "U", 1, &original).unwrap();
@@ -246,8 +265,11 @@ mod tests {
         incompleta.itens.pop();
         assert!(registrar(&mut db, &origem, "a", "U", 1, &incompleta).is_err());
         registrar(&mut db, &origem, "a", "U", 1, &pagina()).unwrap();
-        db.execute("UPDATE unidade_gestao_marcador_linha SET posicao=3 WHERE posicao=1", [])
-            .unwrap();
+        db.execute(
+            "UPDATE unidade_gestao_marcador_linha SET posicao=3 WHERE posicao=1",
+            [],
+        )
+        .unwrap();
         assert!(ler(&db, &origem, "a", "U", 1).is_err());
     }
 }
