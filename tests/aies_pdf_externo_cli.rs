@@ -29,7 +29,10 @@ use fixture_tls::{Pasta, identidade};
 
 #[path = "aies_pdf_externo_cli/bancada.rs"]
 mod bancada;
-use bancada::{aceitar, pedido, preparar_banco};
+use bancada::pedido;
+#[path = "aies_pdf_externo_cli/bancada_pdf.rs"]
+mod bancada_pdf;
+use bancada_pdf::{aceitar, preparar_banco};
 
 type ResultadoBancada = (Vec<Output>, Vec<String>, usize, Vec<Option<Vec<u8>>>);
 
@@ -210,7 +213,7 @@ fn executar_bancada(
                 && acao == "exibir_arquivo"
                 && status == "200"
             {
-                bancada::trocar_membro_zip(&mut resposta);
+                bancada_pdf::trocar_membro_zip(&mut resposta);
                 registro
                     .lock()
                     .unwrap()
