@@ -402,8 +402,9 @@ mod testes_assinatura {
             pedir("GET", alvo, "outro").estado,
             Estado::DadosInsuficientes
         );
+        let alvo_ambiguo = format!("{alvo}&id_documento=22");
         assert_eq!(
-            pedir("GET", &format!("{alvo}&id_documento=22"), "ensaio").estado,
+            pedir("GET", &alvo_ambiguo, "ensaio").estado,
             Estado::RequisicaoInvalida
         );
         assert_eq!(

@@ -33,16 +33,10 @@ pub enum ErroDocumentoVersoes {
     DadoInvalido,
 }
 
-/// Reconstrói as versões de forma atômica, preservando as linhas idênticas.
-///
-/// # Errors
-/// Recusa identidade, revisão repetida ou dados incompletos e preserva
-/// a causa SQLite original.
-pub fn guardar(
-    banco: &mut Connection,
+fn validar(
     cenario: &str,
     documento: &DocumentoSimulado,
-) -> Result<(), ErroDocumentoVersoes> {
+) -> Result<HashSet<i64>, ErroDocumentoVersoes> {
     let valido = |texto: &str| !texto.trim().is_empty();
     if !valido(cenario)
         || !valido(&documento.id_procedimento)
@@ -72,6 +66,20 @@ pub fn guardar(
             return Err(ErroDocumentoVersoes::DadoInvalido);
         }
     }
+    Ok(vistas)
+}
+
+/// Reconstrói as versões de forma atômica, preservando as linhas idênticas.
+///
+/// # Errors
+/// Recusa identidade, revisão repetida ou dados incompletos e preserva
+/// a causa SQLite original.
+pub fn guardar(
+    banco: &mut Connection,
+    cenario: &str,
+    documento: &DocumentoSimulado,
+) -> Result<(), ErroDocumentoVersoes> {
+    let vistas = validar(cenario, documento)?;
     let origem = documento.instalacao.url_base();
     let tx = banco.transaction()?;
     tx.execute(

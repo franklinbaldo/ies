@@ -223,6 +223,7 @@ fn conferir_projecao_multissecao(html: &HtmlServido) {
         abrir_editor(&mut envio, &instalacao, &alvo)
     })
     .unwrap()
+    .unwrap()
     .unwrap();
     assert_eq!(envio.interno.posts, 1);
     let fresco = Protocolo::ler(&relido.html).unwrap();
