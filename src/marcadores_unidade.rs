@@ -472,8 +472,7 @@ mod tests {
                         })
                         .collect(),
                 };
-                gestao::registrar(&mut banco, &origem, caminho, unidade, r.passo, &pagina)
-                    .unwrap();
+                gestao::registrar(&mut banco, &origem, caminho, unidade, r.passo, &pagina).unwrap();
                 paginas.push((r.passo, pagina));
             }
             assert!(
