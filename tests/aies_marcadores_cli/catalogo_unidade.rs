@@ -92,8 +92,18 @@ fn catalogo_publicado_de_outra_unidade_nao_sai_como_unidade_do_controle() {
             let json: serde_json::Value = serde_json::from_slice(&saida.stdout).unwrap();
             assert_eq!(json["unidade"], "TESTE");
             assert_eq!(json["total_declarado"], 1);
-            assert_eq!(json["itens"][0]["id"], "501");
-            assert_eq!(json["itens"][0]["estado"], "ativo");
+            assert_eq!(json["total_observado"], 1);
+            assert_eq!(
+                json["faixa_observada"],
+                serde_json::json!({"inicio": 1, "fim": 1})
+            );
+            assert_eq!(json["estado"], "ativo");
+            assert_eq!(
+                json["itens"],
+                serde_json::json!([{
+                    "id": "501", "nome": "Revisão", "cor": "Branco", "estado": "ativo"
+                }])
+            );
         }
     }
 }
