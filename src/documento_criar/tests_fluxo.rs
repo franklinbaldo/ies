@@ -221,6 +221,7 @@ fn confirmar_nivel_ausente_ou_sem_hipotese_recusa_antes_de_toda_rede() {
                     tipo: "Despacho",
                     descricao: None,
                     nivel,
+                    texto_padrao: None,
                 };
                 executar_criacao(sessao, &pedido, indice, transporte, true)
             });

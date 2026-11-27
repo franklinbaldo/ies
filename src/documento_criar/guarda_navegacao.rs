@@ -10,76 +10,48 @@ enum Contexto {
     Regex { classe: bool },
 }
 
-/// Uma declaração só é prova quando começa em código JavaScript de
-/// nível superior. O conteúdo esperado é integral e literal; não é
-/// interpretado nem executado. Formas desconhecidas falham fechadas.
-fn definicoes_ativas(texto: &str, assinatura: &str, corpo_esperado: &str) -> Option<usize> {
+/// Visita somente caracteres em contexto léxico de código; não executa JS.
+/// Profundidade e último caractere significativo pertencem ao prefixo.
+pub(super) fn visitar_codigo(
+    texto: &str,
+    mut visitar: impl FnMut(usize, char, u32, char) -> Option<()>,
+) -> Option<()> {
     let mut contexto = Contexto::Codigo;
     let mut profundidade = 0_u32;
     let mut ultimo = ' ';
-    let mut encontradas = 0;
     let mut caracteres = texto.char_indices().peekable();
     while let Some((indice, atual)) = caracteres.next() {
         match contexto {
-            Contexto::Codigo => match atual {
-                '/' if caracteres.peek().is_some_and(|&(_, c)| c == '/') => {
-                    caracteres.next();
-                    contexto = Contexto::ComentarioDeLinha;
-                }
-                '/' if caracteres.peek().is_some_and(|&(_, c)| c == '*') => {
-                    caracteres.next();
-                    contexto = Contexto::ComentarioDeBloco;
-                }
-                '\'' | '"' | '\u{60}' => contexto = Contexto::Cadeia(atual),
-                '/' if matches!(ultimo, '=' | ':' | '(' | ',' | '[' | '!') => {
-                    contexto = Contexto::Regex { classe: false };
-                }
-                '{' => {
-                    profundidade = profundidade.checked_add(1)?;
-                    ultimo = atual;
-                }
-                '}' => {
-                    profundidade = profundidade.checked_sub(1)?;
-                    ultimo = atual;
-                }
-                'f' if texto.split_at(indice).1.starts_with("function") => {
-                    let inicio: String = texto
-                        .split_at(indice)
-                        .1
-                        .chars()
-                        .filter(|c| !c.is_ascii_whitespace())
-                        .take(assinatura.len())
-                        .collect();
-                    if inicio == assinatura {
-                        // Uma expressão nomeada não publica uma função global
-                        // para o onclick. Aceitar só o início do script ou
-                        // uma declaração após instrução/bloco terminado.
-                        if profundidade != 0 || !matches!(ultimo, ' ' | ';' | '}') {
-                            return None;
-                        }
-                        encontradas += 1;
-                        if encontradas > 1 {
-                            return None;
-                        }
-                        let literal: String = texto
-                            .split_at(indice)
-                            .1
-                            .chars()
-                            .filter(|c| !c.is_ascii_whitespace())
-                            .take(corpo_esperado.len())
-                            .collect();
-                        if literal != corpo_esperado {
-                            return None;
-                        }
+            Contexto::Codigo => {
+                visitar(indice, atual, profundidade, ultimo)?;
+                match atual {
+                    '/' if caracteres.peek().is_some_and(|&(_, c)| c == '/') => {
+                        caracteres.next();
+                        contexto = Contexto::ComentarioDeLinha;
                     }
-                    ultimo = atual;
-                }
-                _ => {
-                    if !atual.is_ascii_whitespace() {
+                    '/' if caracteres.peek().is_some_and(|&(_, c)| c == '*') => {
+                        caracteres.next();
+                        contexto = Contexto::ComentarioDeBloco;
+                    }
+                    '\'' | '"' | '\u{60}' => contexto = Contexto::Cadeia(atual),
+                    '/' if matches!(ultimo, '=' | ':' | '(' | ',' | '[' | '!') => {
+                        contexto = Contexto::Regex { classe: false };
+                    }
+                    '{' => {
+                        profundidade = profundidade.checked_add(1)?;
                         ultimo = atual;
                     }
+                    '}' => {
+                        profundidade = profundidade.checked_sub(1)?;
+                        ultimo = atual;
+                    }
+                    _ => {
+                        if !atual.is_ascii_whitespace() {
+                            ultimo = atual;
+                        }
+                    }
                 }
-            },
+            }
             Contexto::ComentarioDeLinha => {
                 if atual == '\n' {
                     contexto = Contexto::Codigo;
@@ -112,6 +84,49 @@ fn definicoes_ativas(texto: &str, assinatura: &str, corpo_esperado: &str) -> Opt
     if !matches!(contexto, Contexto::Codigo | Contexto::ComentarioDeLinha) || profundidade != 0 {
         return None;
     }
+    Some(())
+}
+
+/// Uma declaração só é prova quando começa em código JavaScript de
+/// nível superior. O conteúdo esperado é integral e literal; não é
+/// interpretado nem executado. Formas desconhecidas falham fechadas.
+fn definicoes_ativas(texto: &str, assinatura: &str, corpo_esperado: &str) -> Option<usize> {
+    let mut encontradas = 0;
+    visitar_codigo(texto, |indice, atual, profundidade, ultimo| {
+        if atual != 'f' || !texto.split_at(indice).1.starts_with("function") {
+            return Some(());
+        }
+        let inicio: String = texto
+            .split_at(indice)
+            .1
+            .chars()
+            .filter(|c| !c.is_ascii_whitespace())
+            .take(assinatura.len())
+            .collect();
+        if inicio == assinatura {
+            // Uma expressão nomeada não publica uma função global
+            // para o onclick. Aceitar só o início do script ou
+            // uma declaração após instrução/bloco terminado.
+            if profundidade != 0 || !matches!(ultimo, ' ' | ';' | '}') {
+                return None;
+            }
+            encontradas += 1;
+            if encontradas > 1 {
+                return None;
+            }
+            let literal: String = texto
+                .split_at(indice)
+                .1
+                .chars()
+                .filter(|c| !c.is_ascii_whitespace())
+                .take(corpo_esperado.len())
+                .collect();
+            if literal != corpo_esperado {
+                return None;
+            }
+        }
+        Some(())
+    })?;
     Some(encontradas)
 }
 

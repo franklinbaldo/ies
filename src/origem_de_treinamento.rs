@@ -78,13 +78,17 @@ impl Escrita {
     }
 }
 
-/// Único ponto de construção de [`CausaDaOrigem::OrigemForaDoTreinamento`]. Escrita
-/// aprovada em treinamento grava em qualquer instalação; as demais, só nas
-/// instalações públicas de treinamento.
+/// Escrita aprovada em treinamento grava em qualquer instalação; as demais,
+/// só nas instalações públicas de treinamento.
 pub(crate) fn exigir(escrita: Escrita, origem: &str) -> Result<(), CausaDaOrigem> {
     if escrita.aprovada_em_treinamento() {
         return Ok(());
     }
+    exigir_origem(origem)
+}
+
+/// Origem da bancada ou instalação pública de treinamento, sem promoção.
+pub(crate) fn exigir_origem(origem: &str) -> Result<(), CausaDaOrigem> {
     let aceita = crate::instalacao::Instalacao::interpretar(origem)
         .is_some_and(|instalacao| ORIGENS.contains(&instalacao.url_base().as_str()));
     if aceita {
