@@ -28,7 +28,9 @@ pub(crate) fn acrescentar_menu(
             let link = format!(
                 "<a href='controlador.php?acao=grupo_unidade_listar&amp;infra_hash={HASH}'>Grupos de Envio</a>"
             );
-            resposta.corpo = resposta.corpo.replacen("</body>", &format!("{link}</body>"), 1);
+            resposta.corpo = resposta
+                .corpo
+                .replacen("</body>", &format!("{link}</body>"), 1);
         }
     }
     resposta
@@ -42,7 +44,11 @@ fn lista(grupos: &[Grupo]) -> Resposta {
     if grupos.is_empty() {
         html.push_str("<div id='divInfraAreaTabela'>Nenhum registro encontrado.</div>");
     } else {
-        let plural = if grupos.len() == 1 { "registro" } else { "registros" };
+        let plural = if grupos.len() == 1 {
+            "registro"
+        } else {
+            "registros"
+        };
         write!(
             html,
             "<table><caption>Grupos de Envio ({} {plural}):</caption><tr><th></th><th>Nome</th><th>Descrição</th><th>Ações</th></tr>",
@@ -144,7 +150,13 @@ fn confirmar(banco: &Connection, escopo: Escopo<'_>, corpo: &str) -> Resposta {
     let Some(pedido) = ler_cadastro(corpo, &oferecidos) else {
         return Resposta::nova(Estado::RequisicaoInvalida);
     };
-    match grupos_envio::criar(banco, escopo, &pedido.nome, &pedido.descricao, &pedido.membros) {
+    match grupos_envio::criar(
+        banco,
+        escopo,
+        &pedido.nome,
+        &pedido.descricao,
+        &pedido.membros,
+    ) {
         Ok(id) => Resposta::redirecionar(format!(
             "controlador.php?acao=grupo_unidade_listar&id_grupo={id}"
         )),
@@ -275,7 +287,12 @@ mod tests {
         let corpo = "hdnIdGrupoUnidade=&txtNome=Grupo&txaDescricao=&hdnUnidades=001%C2%B1X+-+Unidade&sbmCadastrarGrupoUnidade=Salvar";
         let recusa = confirmar(&banco, escopo, &corpo.replace("001", "1"));
         assert_eq!(recusa.estado, Estado::RequisicaoInvalida);
-        assert!(grupos_envio::listar(&banco, escopo).unwrap().unwrap().is_empty());
+        assert!(
+            grupos_envio::listar(&banco, escopo)
+                .unwrap()
+                .unwrap()
+                .is_empty()
+        );
         let criado = confirmar(&banco, escopo, corpo);
         assert_eq!(criado.estado, Estado::Redirecionamento);
         assert_eq!(
@@ -285,6 +302,9 @@ mod tests {
         let (grupo, membros) = grupos_envio::obter(&banco, escopo, "1").unwrap().unwrap();
         assert_eq!(grupo.nome, "Grupo");
         assert_eq!(membros, vec![membro]);
-        assert_eq!(grupos_envio::listar(&banco, escopo).unwrap().unwrap().len(), 1);
+        assert_eq!(
+            grupos_envio::listar(&banco, escopo).unwrap().unwrap().len(),
+            1
+        );
     }
 }
