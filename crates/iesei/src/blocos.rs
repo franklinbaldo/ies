@@ -251,8 +251,7 @@ pub fn acrescentar_assinatura(
     let tx = rusqlite::Transaction::new_unchecked(banco, rusqlite::TransactionBehavior::Immediate)?;
     let tipo = Tipo::Assinatura;
     let foto = ler(&tx, instalacao, cenario, tipo)?.ok_or(rusqlite::Error::InvalidQuery)?;
-    if paginas_observadas(&tx, instalacao, cenario, tipo)? != [1]
-        || foto.total != foto.linhas.len()
+    if paginas_observadas(&tx, instalacao, cenario, tipo)? != [1] || foto.total != foto.linhas.len()
     {
         return Err(rusqlite::Error::InvalidQuery);
     }
