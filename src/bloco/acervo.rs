@@ -169,8 +169,7 @@ fn replay_da_criacao_de_bloco_de_assinatura_no_acervo() {
             .expect("identidade publicada no Location original");
 
         let (antes, depois) = listas_da_criacao(&respostas, formulario.passo, post.passo);
-        let (antes, filtros_antes) =
-            ler_lista_gravada(antes.expect("lista anterior ao cadastro"));
+        let (antes, filtros_antes) = ler_lista_gravada(antes.expect("lista anterior ao cadastro"));
         assert!(
             !antes.itens.iter().any(|b| b.numero == id),
             "{instalacao}: identidade já observada antes da criação"

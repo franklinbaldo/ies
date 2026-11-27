@@ -190,6 +190,10 @@ pub(super) fn criar_via<V: EnvioDoControle>(
     let submissao = derivar_cadastro(&controle.instalacao, &tela, &unidade, descricao, &grupo)?;
     if confirmar {
         let antes = bloco::ler_lista(&lista, TipoBloco::Assinatura)?.lista;
+        // Ausência numa página parcial não prova novidade. Não gravar nesse caso.
+        if antes.itens.len() != antes.total_declarado {
+            return Err(FalhaLeitura::NaoConfirmado);
+        }
         let resposta = enviar_submissao_via(submissao, sessao.cookie(), |sub, cookie| {
             envio.post(sub, cookie)
         });

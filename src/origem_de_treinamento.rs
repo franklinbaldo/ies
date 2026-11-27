@@ -33,8 +33,8 @@ pub(crate) enum CausaDaOrigem {
 /// As escritas da CLI, cada uma com o seu estado de aprovação.
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub(crate) enum Escrita {
-    BlocoIncluirDocumento,
     BlocoCriar,
+    BlocoIncluirDocumento,
     DocumentoIncluirExterno,
     DocumentoIncluirExternoLote,
     DocumentoSalvar,
@@ -79,13 +79,17 @@ impl Escrita {
     }
 }
 
-/// Único ponto de construção de [`CausaDaOrigem::OrigemForaDoTreinamento`]. Escrita
-/// aprovada em treinamento grava em qualquer instalação; as demais, só nas
-/// instalações públicas de treinamento.
+/// Escrita aprovada em treinamento grava em qualquer instalação; as demais,
+/// só nas instalações públicas de treinamento.
 pub(crate) fn exigir(escrita: Escrita, origem: &str) -> Result<(), CausaDaOrigem> {
     if escrita.aprovada_em_treinamento() {
         return Ok(());
     }
+    exigir_origem(origem)
+}
+
+/// Origem da bancada ou instalação pública de treinamento, sem promoção.
+pub(crate) fn exigir_origem(origem: &str) -> Result<(), CausaDaOrigem> {
     let aceita = crate::instalacao::Instalacao::interpretar(origem)
         .is_some_and(|instalacao| ORIGENS.contains(&instalacao.url_base().as_str()));
     if aceita {
@@ -98,6 +102,15 @@ pub(crate) fn exigir(escrita: Escrita, origem: &str) -> Result<(), CausaDaOrigem
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    #[test]
+    fn criar_bloco_ainda_restrito_ao_treinamento() {
+        assert!(exigir(Escrita::BlocoCriar, "https://sei.test/sei").is_ok());
+        assert_eq!(
+            exigir(Escrita::BlocoCriar, "https://sei.exemplo.gov.br/sei"),
+            Err(CausaDaOrigem::OrigemForaDoTreinamento)
+        );
+    }
 
     #[test]
     fn escrita_restrita_recusa_producao_e_origens_imitadoras() {
@@ -135,15 +148,6 @@ mod tests {
         assert!(exigir(Escrita::DocumentoIncluirExterno, producao).is_ok());
         assert_eq!(
             exigir(Escrita::DocumentoIncluirExternoLote, producao),
-            Err(CausaDaOrigem::OrigemForaDoTreinamento)
-        );
-    }
-
-    #[test]
-    fn criar_bloco_ainda_restrito_ao_treinamento() {
-        assert!(exigir(Escrita::BlocoCriar, "https://sei.test/sei").is_ok());
-        assert_eq!(
-            exigir(Escrita::BlocoCriar, "https://sei.exemplo.gov.br/sei"),
             Err(CausaDaOrigem::OrigemForaDoTreinamento)
         );
     }

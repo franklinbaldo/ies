@@ -2,7 +2,7 @@
 type: CommandContract
 title: Buscar processo pela pesquisa Web do SEI
 operation: processo.buscar
-command: ies processo buscar TERMO [--pagina N] [--tipo TIPO] [--assunto TEXTO] [--de DD/MM/AAAA] [--ate DD/MM/AAAA] [--json]
+command: ies processo buscar [TERMO] [--pagina N] [--tipo TIPO] [--assunto TEXTO] [--de DD/MM/AAAA] [--ate DD/MM/AAAA] [--json]
 effect: read
 implementation: partial
 source_commit: fffbc5abd07d44ccef79b3c0e6872e0bdc39c18b
@@ -21,15 +21,14 @@ passam pelos mesmos leitores no replay do acervo `pesquisa_web::acervo`
 (`scripts/replay pesquisa_web::acervo`; não há `ies replay`).
 
 O stub anterior `ies processo buscar [--assunto]` foi substituído: o
-verbo continua `buscar`, agora com `TERMO` posicional obrigatório e
-`--pagina N`. `--assunto` deixou de existir (nunca foi implementado).
+verbo continua `buscar`, com `TERMO` posicional e `--pagina N`. A opção `--assunto` permanece experimental (ver abaixo).
 
 ## Entrada
 
-`TERMO` é texto opaco (NUP inteiro ou parte do número), com as regras de
+`TERMO`, quando informado, é texto opaco (NUP inteiro ou parte do número), com as regras de
 `NumeroProcesso`: controles recusados antes de aparar espaços, vazio e
 `sei://` recusados, saída 2 (erro do clap) **antes** de ler a
-configuração. `--pagina N` é inteiro ≥ 1. Opções de leitura de
+configuração. Sem `TERMO`, é obrigatório informar ao menos `--tipo` não branco, `--de` ou `--ate`; `--pagina` e `--assunto` isolados não são critérios efetivos. Uma consulta sem critério é recusada com saída 2 antes da configuração. O campo `txtProtocoloPesquisa` e a chave JSON `termo` ficam vazios. `--pagina N` é inteiro ≥ 1. Opções de leitura de
 `ies processo NUP` (`--sem-documentos`, `--andamentos-completos`…) junto com
 `buscar` são `opcoes_incompativeis_com_busca` (saída 2). `--unidade` é
 pré-condição conferida na tela do Controle, não rótulo ecoado.
@@ -188,7 +187,7 @@ número do processo; o documento não sai.
 
 ## Filtros experimentais (#247)
 
-`ies processo buscar TERMO [--pagina N] [--tipo TIPO] [--assunto TEXTO]
+`ies processo buscar [TERMO] [--pagina N] [--tipo TIPO] [--assunto TEXTO]
 [--de DD/MM/AAAA] [--ate DD/MM/AAAA]` preserva o termo e o fluxo
 Web anterior. `--tipo` procura o texto **exato** de uma opção de
 `selTipoProcedimentoPesquisa`, usando o seu `value` servido no mesmo
@@ -214,3 +213,7 @@ filtros está **NOT_RUN**; não inferir suporte universal.
 - `AtributoDoFiltroIlegivel`: atributo HTML do filtro inválido.
 - `valor_do_filtro_diferente_do_solicitado`: incompatibilidade na página seguinte (reservado à verificação de consistência).
 - `data_da_pesquisa_invalida` e `periodo_da_pesquisa_invertido`: falhas de uso antes da configuração.
+
+Busca exclusivamente por tipo/período (#874): hipótese sintética enquanto não houver captura original pertinente. A paginação reutiliza os critérios pedidos no mesmo formulário, sem novo caminho de transporte. O teste de compatibilidade externa depende de replay e validação próprios.
+
+No anti-IES, hipótese de resultado negativo processual por tipo e/ou período: o catálogo de tipos da pesquisa é registrado separadamente do resultado e do cadastro. Somente uma chave explicitamente registrada (origem, cenário, unidade, ID do tipo e limites) devolve zero; combinação desconhecida permanece insuficiente, inclusive quando o tipo foi oferecido. Os testes TLS/CLI são sintéticos. Listas positivas e paginação usam faixas explícitas e identidades processuais do mesmo SQLite; uma página não registrada permanece desconhecida. O E2E sintético de página parcial e página ausente está escrito, mas ainda precisa ser executado; não comprova paridade externa.

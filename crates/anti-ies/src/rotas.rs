@@ -85,7 +85,9 @@ pub(crate) fn responder(
     cenario: &str,
 ) -> Resposta {
     // A recusa de sessão sintética vale inclusive antes de um upload.
-    if eh_controlador_sei(alvo) {
+    if eh_controlador_sei(alvo)
+        || parametro_unico(alvo, "acao_ajax") == Some("texto_padrao_auto_completar")
+    {
         match acesso_sessao::consultar(banco, instalacao, cenario) {
             Ok(AcessoSessao::Recusado) => return Resposta::nova(crate::Estado::AcessoNegado),
             Ok(AcessoSessao::Permitido) => {}
@@ -114,6 +116,9 @@ pub(crate) fn responder(
             == Some("unidade_auto_completar_envio_processo") =>
         {
             processo_envio::autocompletar(metodo, alvo, corpo, banco, instalacao, cenario)
+        }
+        None if parametro_unico(alvo, "acao_ajax") == Some("texto_padrao_auto_completar") => {
+            documentos::autocompletar(metodo, alvo, corpo, banco, instalacao, cenario)
         }
         Some("procedimento_configurar_detalhe") if eh_controlador_sei(alvo) => {
             nivel_de_detalhe::responder(metodo, corpo, banco, instalacao, cenario)

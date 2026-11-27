@@ -233,7 +233,7 @@ fn cadastro_post_unico_e_releitura_independente() {
                  <button type='submit' name='sbmCadastrarBloco' value='Salvar'>Salvar</button></form>"
             ),
         ));
-        if status == 302 {
+        if status == 302 && !parcial {
             if mudou_unidade {
                 envio
                     .telas
@@ -254,11 +254,12 @@ fn cadastro_post_unico_e_releitura_independente() {
             true,
             &mut envio,
         );
-        assert_eq!(envio.posts, 1);
+        assert_eq!(envio.posts, if parcial { 0 } else { 1 });
         assert!(envio.telas.is_empty());
-        let gets_esperados = match (status, mudou_unidade) {
-            (302, true) => 4,
-            (302, false) => 5,
+        let gets_esperados = match (status, mudou_unidade, parcial) {
+            (_, _, true) => 3,
+            (302, true, false) => 4,
+            (302, false, false) => 5,
             _ => 3,
         };
         assert_eq!(envio.urls.len(), gets_esperados);

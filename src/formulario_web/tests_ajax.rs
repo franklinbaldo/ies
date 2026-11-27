@@ -142,3 +142,71 @@ fn consulta_ajax_ilegivel_preserva_causa() {
         );
     }
 }
+
+const TEXTO_PADRAO: ConsultaAjax = ConsultaAjax {
+    acao_ajax: crate::acao_do_sei::AcaoAjaxDoSei::TextoPadraoAutoCompletar,
+    campos: &["palavras_pesquisa"],
+    efeito: EfeitoAvaliado::ConsultaSemEfeitoObservado {
+        evidencia: "HTML Todos documento_gerar; transporte original ainda não observado",
+    },
+};
+
+fn texto_padrao_declarada() -> String {
+    format!(
+        "controlador_ajax.php?acao_ajax=texto_padrao_auto_completar&infra_sistema=100000100&infra_unidade_atual=110000001&infra_hash={HASH}"
+    )
+}
+
+#[test]
+fn texto_padrao_contrasta_charset_da_tela_com_encode_uri_component() {
+    // A captura HTML do Todos (caabe699, documento_gerar.html) monta
+    // palavras_pesquisa com encodeURIComponent. Isto caracteriza o
+    // transporte atual do IES; não é replay de uma requisição SEI.
+    let url = format!(
+        "https://sei.exemplo.gov.br/sei/controlador.php?acao=documento_gerar&infra_hash={HASH}"
+    );
+    let html = HtmlServido::de_teste("");
+    for (codificacao, esperado) in [
+        (CodificacaoDaTela::Iso88591, "palavras_pesquisa=Of%EDcio"),
+        (CodificacaoDaTela::Utf8, "palavras_pesquisa=Of%C3%ADcio"),
+    ] {
+        let tela = TelaServida {
+            url: &url,
+            html: &html,
+            codificacao,
+        };
+        let s = derivar_consulta_ajax(
+            &TEXTO_PADRAO,
+            &instalacao(),
+            &tela,
+            &texto_padrao_declarada(),
+            &[("palavras_pesquisa", "Ofício")],
+        )
+        .unwrap();
+        assert_eq!(s.corpo(), esperado.as_bytes());
+        assert_eq!(s.referer(), url);
+    }
+}
+
+#[test]
+fn texto_padrao_nao_aceita_acao_de_contato_nem_campo_de_cadastro() {
+    let outra = texto_padrao_declarada().replace(
+        "texto_padrao_auto_completar",
+        "contato_auto_completar_contexto_RI1225",
+    );
+    assert_eq!(
+        derivar(&TEXTO_PADRAO, &outra, &[("palavras_pesquisa", "Oficio")]).map(|_| ()),
+        Err(ErroSubmissaoFormulario::AcaoDoFormularioDiferenteDaOperacao)
+    );
+    assert_eq!(
+        derivar(
+            &TEXTO_PADRAO,
+            &texto_padrao_declarada(),
+            &[("hdnIdTextoPadrao", "7")],
+        )
+        .map(|_| ()),
+        Err(ErroSubmissaoFormulario::CampoForaDaListaDaOperacao {
+            campo: "hdnIdTextoPadrao".into()
+        })
+    );
+}
