@@ -63,7 +63,9 @@ fn testemunha_exata_preserva_faixa_estados_e_escape() {
 
     let mut banco = Connection::open_in_memory().unwrap();
     banco
-        .execute_batch(include_str!("../../iesei/migrations/0043_gestao_marcadores.sql"))
+        .execute_batch(include_str!(
+            "../../iesei/migrations/0043_gestao_marcadores.sql"
+        ))
         .unwrap();
     let origem = Instalacao::interpretar("https://sei.test/sei").unwrap();
     let pagina = Pagina {
@@ -94,7 +96,11 @@ fn testemunha_exata_preserva_faixa_estados_e_escape() {
 
     let resposta = responder("GET", &banco, &origem, "a", "U", 1);
     assert_eq!(resposta.estado, Estado::Ok);
-    assert!(resposta.corpo.contains("Lista de Marcadores (4 registros - 2 a 3):"));
+    assert!(
+        resposta
+            .corpo
+            .contains("Lista de Marcadores (4 registros - 2 a 3):")
+    );
     let linha = concat!(
         "<td>01</td><td>A &amp; &lt;B&gt;</td>",
         "<td><img title='Cor &#39;A&#39;'></td>",
@@ -109,7 +115,11 @@ fn testemunha_exata_preserva_faixa_estados_e_escape() {
     assert!(resposta.corpo.contains(linha));
     let resposta = responder("GET", &banco, &origem, "a", "U", 2);
     assert_eq!(resposta.estado, Estado::Ok);
-    assert!(resposta.corpo.contains("Lista de Marcadores (0 registros):"));
+    assert!(
+        resposta
+            .corpo
+            .contains("Lista de Marcadores (0 registros):")
+    );
     assert!(!resposta.corpo.contains("<td>"));
     for (cenario, unidade, ordinal) in [("a", "U", 3), ("b", "U", 1), ("a", "V", 1)] {
         assert_eq!(
