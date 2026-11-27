@@ -99,6 +99,7 @@ fn executar(
             descricao: Some("Ensaio"),
             nivel: Some(crate::dominio::NivelDeAcesso::Publico),
             texto_padrao: None,
+            modelo: None,
         };
         executar_criacao(sessao, &pedido, indice, rede, confirmar)
     })
@@ -255,6 +256,7 @@ fn executar_com_cadastro_sintetico(
             descricao: Some("Ensaio"),
             nivel: Some(crate::dominio::NivelDeAcesso::Publico),
             texto_padrao: None,
+            modelo: None,
         };
         executar_criacao(sessao, &pedido, indice, rede, true)
     })
@@ -288,6 +290,7 @@ fn botao_salvar_sem_name_conserva_post_unico_e_releitura() {
             descricao: Some("Ensaio"),
             nivel: Some(crate::dominio::NivelDeAcesso::Publico),
             texto_padrao: None,
+            modelo: None,
         };
         executar_criacao(sessao, &pedido, indice, rede, true)
     });
@@ -377,6 +380,7 @@ fn incerteza_conserva_contagem_da_rede_externa() {
                 descricao: Some("Ensaio"),
                 nivel: Some(crate::dominio::NivelDeAcesso::Publico),
                 texto_padrao: None,
+                modelo: None,
             };
             let mut contagem = Contador::novo(envio);
             let resultado = executar_criacao(sessao, &pedido, indice, &mut contagem, true);
