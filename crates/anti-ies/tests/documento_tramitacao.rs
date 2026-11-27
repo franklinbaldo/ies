@@ -126,3 +126,28 @@ fn documento_criar_perde_oferta_apos_enviar_sem_manter_aberto() {
     assert!(!final_arvore.contains("Despacho 1000002"));
     tarefa.join().unwrap();
 }
+
+#[test]
+fn documento_nao_cria_vazio_quando_texto_inicial_nao_e_simulado() {
+    let (endereco, tarefa) = servidor(6);
+    let cadastro = "/sei/controlador.php?acao=documento_gerar&id_procedimento=10&id_serie=291";
+    let base = "hdnIdSerie=291&hdnFlagDocumentoCadastro=2&rdoNivelAcesso=0";
+    for campos in [
+        "rdoTextoInicial=T&hdnIdTextoPadrao=007",
+        "rdoTextoInicial=D&txtProtocoloDocumentoTextoBase=1000001",
+        "rdoTextoInicial=N&rdoTextoInicial=T",
+        "rdoTextoInicial=",
+        "rdoTextoInicial=X",
+    ] {
+        let resposta = pedir(endereco, "POST", cadastro, &format!("{base}&{campos}"));
+        assert!(resposta.starts_with("HTTP/1.1 400 Bad Request"));
+    }
+    let criado = pedir(
+        endereco,
+        "POST",
+        cadastro,
+        &format!("{base}&rdoTextoInicial=N"),
+    );
+    assert!(criado.starts_with("HTTP/1.1 302 Found"));
+    tarefa.join().unwrap();
+}

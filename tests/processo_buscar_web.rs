@@ -25,7 +25,7 @@ fn ajuda_mostra_termo_e_pagina() {
     let saida = ies(&["processo", "buscar", "--help"], false);
     assert_eq!(saida.status.code(), Some(0));
     let texto = String::from_utf8_lossy(&saida.stdout);
-    assert!(texto.contains("<TERMO>"), "{texto}");
+    assert!(texto.contains("[TERMO]"), "{texto}");
     assert!(texto.contains("--pagina <N>"), "{texto}");
     assert!(texto.contains("--assunto <TEXTO>"), "{texto}");
     assert!(texto.contains("--tipo <TIPO>"), "{texto}");
@@ -95,4 +95,38 @@ fn periodo_invertido_e_recusado_antes_da_configuracao() {
         false,
     );
     assert_eq!(saida.status.code(), Some(2));
+}
+
+#[test]
+fn busca_sem_protocolo_exige_criterio_efetivo_antes_da_sessao() {
+    for args in [
+        vec!["processo", "buscar"],
+        vec!["processo", "buscar", "--pagina", "2"],
+        vec!["processo", "buscar", "--assunto", "x"],
+        vec!["processo", "buscar", "--tipo", " "],
+        vec![
+            "processo",
+            "buscar",
+            "--de",
+            "02/01/2026",
+            "--ate",
+            "01/01/2026",
+        ],
+    ] {
+        let saida = ies(&args, true);
+        assert_eq!(saida.status.code(), Some(2), "{args:?}");
+        assert_eq!(saida.stdout, b"");
+    }
+}
+
+#[test]
+fn busca_por_tipo_ou_periodo_sem_protocolo_chega_a_configuracao() {
+    for args in [
+        ["processo", "buscar", "--tipo", "Administrativo"],
+        ["processo", "buscar", "--de", "01/01/2026"],
+        ["processo", "buscar", "--ate", "31/01/2026"],
+    ] {
+        let saida = ies(&args, true);
+        assert_eq!(saida.status.code(), Some(1), "{args:?}");
+    }
 }

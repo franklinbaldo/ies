@@ -135,6 +135,8 @@ fn controle() -> String {
 fn pagina(indice: usize) -> String {
     let pos = indice + 1;
     let id = ["004", "6"][indice];
+    let selecionado_0 = if indice == 0 { " selected" } else { "" };
+    let selecionado_1 = if indice == 1 { " selected" } else { "" };
     let hash = "a".repeat(64);
     format!(
         "<html><body><a id='lnkInfraUnidade'>TESTE</a>\
@@ -142,12 +144,15 @@ fn pagina(indice: usize) -> String {
          action='controlador.php?acao=grupo_unidade_listar&amp;infra_hash={hash}'>\
          <input type='hidden' name='hdnInfraPaginaAtual' value='{indice}'>\
          <select id='selInfraPaginacaoSuperior' name='selInfraPaginacaoSuperior'>\
-         <option value='0'>1</option><option value='1'>2</option></select>\
+         <option value='0'{selecionado_0}>1</option><option value='1'{selecionado_1}>2</option></select>\
          <table><caption>Grupos de Envio (2 registros - {pos} a {pos}):</caption>\
          <tr><th></th><th>Nome</th><th>Descrição</th><th>Ações</th></tr>\
          <tr><td><input type='checkbox' value='{id}'></td><td>Mesmo</td>\
          <td>Descrição {id}</td><td><a href='controlador.php?acao=grupo_unidade_consultar&amp;id_grupo_unidade={id}&amp;infra_hash={hash}'>Consultar</a></td></tr>\
-         </table></form></body></html>"
+         </table>\
+         <select id='selInfraPaginacaoInferior' name='selInfraPaginacaoInferior'>\
+         <option value='0'{selecionado_0}>1</option><option value='1'{selecionado_1}>2</option></select>\
+         </form></body></html>"
     )
 }
 
@@ -171,6 +176,20 @@ fn conferir_pagina(saida: &Output, pos: usize, id: &str) {
             "faixa_observada": {"inicio": pos, "fim": pos},
             "itens": [{"id": id, "nome": "Mesmo", "descricao": format!("Descrição {id}")}]
         })
+    );
+}
+
+fn conferir_post_paginacao(texto: &str) {
+    let (_, corpo) = texto.split_once("\r\n\r\n").unwrap();
+    let mut campos: Vec<_> = corpo.split('&').collect();
+    campos.sort_unstable();
+    assert_eq!(
+        campos,
+        [
+            "hdnInfraPaginaAtual=0",
+            "selInfraPaginacaoInferior=0",
+            "selInfraPaginacaoSuperior=0",
+        ]
     );
 }
 
@@ -198,13 +217,7 @@ fn pagina_observada_opt_in_e_estado_lembrado_sem_restaurar() {
                 "GET procedimento_controlar" => controle(),
                 "GET grupo_unidade_listar" => pagina(indice),
                 "POST grupo_unidade_listar" => {
-                    let (_, corpo) = texto.split_once("\r\n\r\n").unwrap();
-                    let mut campos: Vec<_> = corpo.split('&').collect();
-                    campos.sort_unstable();
-                    assert_eq!(
-                        campos,
-                        ["hdnInfraPaginaAtual=0", "selInfraPaginacaoSuperior=0"]
-                    );
+                    conferir_post_paginacao(texto);
                     indice = 0;
                     pagina(indice)
                 }
