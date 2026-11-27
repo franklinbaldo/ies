@@ -16,7 +16,7 @@ fn executar_com_teor(
         somente_previa,
         leitura,
         &[],
-        pdf_de_teor,
+        pdf_de_teor.map(|bytes| (bytes, super::ScratchPdf::Livre)),
         caminho_motor,
     );
     (
@@ -78,6 +78,41 @@ fn pdf_nativo_publica_teor_com_e_sem_cache_sem_alterar_original() {
             .count(),
         3,
         "cada leitura do teor reutiliza o mesmo GET do original"
+    );
+}
+
+#[test]
+fn pdf_sem_cache_preserva_orfao_antigo_do_pai() {
+    let (saidas, eventos, documentos, arquivos) = executar_bancada(
+        None,
+        None,
+        false,
+        Leitura::Pdf,
+        &[],
+        Some((PDF_NATIVO, super::ScratchPdf::Orfao)),
+        None,
+    );
+    assert_eq!(documentos, 1);
+    assert_eq!(saidas.len(), 5);
+    assert_eq!(arquivos[0].as_deref(), Some(PDF_NATIVO));
+    for (i, saida) in saidas[3..].iter().enumerate() {
+        assert_eq!(saida.status.code(), Some(0), "{:?}", saida.stderr);
+        let lido = json(saida);
+        let doc = &lido["documentos"][0];
+        assert_eq!(
+            doc["anexo"]["sha256"],
+            "545f1f049a835f19d710b9213bf38b1c0b802bbdedfded624736a878356e46de"
+        );
+        assert_eq!(doc["anexo"]["extracao_pdf"], "nativo_parcial");
+        assert_eq!(doc.get("cache").is_some(), i == 1);
+        assert_eq!(doc["texto"].as_str().map(str::trim), Some("NATIVO ALFA"));
+    }
+    assert_eq!(
+        eventos
+            .iter()
+            .filter(|e| e.as_str() == "GET documento_download_anexo 200")
+            .count(),
+        3
     );
 }
 

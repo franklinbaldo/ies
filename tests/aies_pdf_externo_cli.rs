@@ -110,6 +110,12 @@ fn preparar_banco() -> (Connection, Instalacao) {
 
 type ResultadoBancada = (Vec<Output>, Vec<String>, usize, Vec<Option<Vec<u8>>>);
 
+#[derive(Clone, Copy)]
+enum ScratchPdf {
+    Livre,
+    Orfao,
+}
+
 enum FalhaPrevia {
     LimiteMenor(usize),
     SemAnexos(usize),
@@ -161,7 +167,7 @@ fn executar_bancada(
     somente_previa: bool,
     leitura: Leitura,
     adicionais: &[&[u8]],
-    pdf_de_teor: Option<&[u8]>,
+    pdf_de_teor: Option<(&[u8], ScratchPdf)>,
     caminho_motor: Option<&Path>,
 ) -> ResultadoBancada {
     let pasta = Pasta::nova();
@@ -177,7 +183,13 @@ fn executar_bancada(
     );
     let cookie = pasta.privado("cookie", "PHPSESSID=FICTICIO");
     let pdf = pasta.0.join("peticao.pdf");
-    fs::write(&pdf, pdf_de_teor.unwrap_or(b"%PDF-1.4\n1 0 obj\n%%EOF\n")).unwrap();
+    fs::write(
+        &pdf,
+        pdf_de_teor
+            .map(|(bytes, _)| bytes)
+            .unwrap_or(b"%PDF-1.4\n1 0 obj\n%%EOF\n"),
+    )
+    .unwrap();
     let outros: Vec<_> = adicionais
         .iter()
         .enumerate()
@@ -392,6 +404,23 @@ fn executar_bancada(
     if pdf_de_teor.is_some() {
         fs::create_dir(&scratch_pdf).unwrap();
     }
+    let orfao = if matches!(pdf_de_teor, Some((_, ScratchPdf::Orfao))) {
+        use std::os::unix::fs::MetadataExt;
+        use std::time::SystemTime;
+
+        let caminho = scratch_pdf.join(".ies-teor-pdf.cache.pdf.parcial-sentinela");
+        let mut arquivo = fs::File::create(&caminho).unwrap();
+        arquivo.write_all(b"sentinela").unwrap();
+        arquivo
+            .set_modified(SystemTime::now() - Duration::from_secs(7200))
+            .unwrap();
+        let meta = arquivo.metadata().unwrap();
+        assert!(meta.modified().unwrap().elapsed().unwrap() > Duration::from_secs(3600));
+        assert!(!scratch_pdf.join("ies-teor-pdf.cache.pdf").exists());
+        Some((caminho, meta.dev(), meta.ino()))
+    } else {
+        None
+    };
     let saidas = comandos
         .iter()
         .map(|args| {
@@ -428,6 +457,15 @@ fn executar_bancada(
     parar.store(true, Ordering::SeqCst);
     tunel.join().unwrap();
     let total = servidor.join().unwrap();
+    if let Some((caminho, dispositivo, inode)) = orfao {
+        use std::os::unix::fs::MetadataExt;
+
+        let meta = fs::symlink_metadata(&caminho).expect("sentinela antiga preservada");
+        assert!(meta.is_file());
+        assert_eq!((meta.dev(), meta.ino()), (dispositivo, inode));
+        assert_eq!(fs::read(&caminho).unwrap(), b"sentinela");
+        fs::remove_file(caminho).unwrap();
+    }
     if pdf_de_teor.is_some() {
         assert!(
             fs::read_dir(&scratch_pdf).unwrap().next().is_none(),
