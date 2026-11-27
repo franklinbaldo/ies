@@ -36,14 +36,24 @@ pub(crate) fn ler_propriedades(
             return Err(ErroPropriedades::ListaOcultaDasPropriedadesPreenchida);
         }
     }
+    let (id_tipo, tipo) = tipo(&campos)?;
+    let especificacao = valor(campos.unico("txtDescricao")?);
+    let interessados = interessados(&campos)?;
+    let assuntos = assuntos(&campos)?;
+    let observacoes = observacoes(&campos)?;
+    let nivel_de_acesso = nivel_de_acesso(&campos)?;
+    let (id_hipotese_legal, hipotese_legal) = marcada(campos.unico("selHipoteseLegal")?)?
+        .map_or((None, None), |(id, texto)| (Some(id), Some(texto)));
     Ok(PropriedadesLidas {
-        tipo: tipo(&campos)?,
-        especificacao: valor(campos.unico("txtDescricao")?),
-        interessados: interessados(&campos)?,
-        assuntos: assuntos(&campos)?,
-        observacoes: observacoes(&campos)?,
-        nivel_de_acesso: nivel_de_acesso(&campos)?,
-        hipotese_legal: marcada(campos.unico("selHipoteseLegal")?)?.map(|(_, t)| t),
+        id_tipo,
+        tipo,
+        especificacao,
+        interessados,
+        assuntos,
+        observacoes,
+        nivel_de_acesso,
+        id_hipotese_legal,
+        hipotese_legal,
         data_de_geracao: data_de_geracao(&campos)?,
         fonte,
     })
@@ -109,7 +119,7 @@ fn marcada(select: Tag<'_>) -> Result<Option<(String, String)>, ErroPropriedades
     }
 }
 
-fn tipo(campos: &Campos<'_>) -> Result<String, ErroPropriedades> {
+fn tipo(campos: &Campos<'_>) -> Result<(String, String), ErroPropriedades> {
     let Some((valor_marcado, texto)) = marcada(campos.unico("selTipoProcedimento")?)? else {
         return Err(ErroPropriedades::TipoDoProcessoNaoMarcado);
     };
@@ -118,7 +128,7 @@ fn tipo(campos: &Campos<'_>) -> Result<String, ErroPropriedades> {
     {
         return Err(ErroPropriedades::TipoDoProcessoInconsistente);
     }
-    Ok(texto)
+    Ok((valor_marcado, texto))
 }
 
 fn assuntos(campos: &Campos<'_>) -> Result<Vec<Assunto>, ErroPropriedades> {

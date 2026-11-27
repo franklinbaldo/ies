@@ -68,12 +68,14 @@ pub(crate) struct Assunto {
 /// hipótese está marcada, o único campo cuja ausência é o domínio.
 #[derive(Clone, Debug, PartialEq, Eq)]
 pub(crate) struct PropriedadesLidas {
+    pub(crate) id_tipo: String,
     pub(crate) tipo: String,
     pub(crate) especificacao: String,
     pub(crate) interessados: Vec<String>,
     pub(crate) assuntos: Vec<Assunto>,
     pub(crate) observacoes: String,
     pub(crate) nivel_de_acesso: NivelDeAcesso,
+    pub(crate) id_hipotese_legal: Option<String>,
     pub(crate) hipotese_legal: Option<String>,
     pub(crate) data_de_geracao: String,
     pub(crate) fonte: FonteDasPropriedades,
