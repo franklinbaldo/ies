@@ -95,8 +95,18 @@ fn testemunha_exata_preserva_faixa_estados_e_escape() {
     let resposta = responder("GET", &banco, &origem, "a", "U", 1);
     assert_eq!(resposta.estado, Estado::Ok);
     assert!(resposta.corpo.contains("Lista de Marcadores (4 registros - 2 a 3):"));
-    assert!(resposta.corpo.contains("<td>01</td><td>A &amp; &lt;B&gt;</td><td><img title='Cor &#39;A&#39;'></td><td><img title='Desativar Marcador'></td>"));
-    assert!(resposta.corpo.contains("<td>02</td><td>A &amp; &lt;B&gt;</td><td><img title='Cor &quot;B&quot;'></td><td><img title='Reativar Marcador'></td>"));
+    let linha = concat!(
+        "<td>01</td><td>A &amp; &lt;B&gt;</td>",
+        "<td><img title='Cor &#39;A&#39;'></td>",
+        "<td><img title='Desativar Marcador'></td>"
+    );
+    assert!(resposta.corpo.contains(linha));
+    let linha = concat!(
+        "<td>02</td><td>A &amp; &lt;B&gt;</td>",
+        "<td><img title='Cor &quot;B&quot;'></td>",
+        "<td><img title='Reativar Marcador'></td>"
+    );
+    assert!(resposta.corpo.contains(linha));
     let resposta = responder("GET", &banco, &origem, "a", "U", 2);
     assert_eq!(resposta.estado, Estado::Ok);
     assert!(resposta.corpo.contains("Lista de Marcadores (0 registros):"));
