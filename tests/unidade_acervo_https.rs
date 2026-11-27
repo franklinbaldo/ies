@@ -67,14 +67,12 @@ fn relatorio(vazio: bool) -> String {
 }
 
 fn pagina(inicio: usize, fim: usize, nups: &[&str]) -> String {
-    let linhas: String = nups
-        .iter()
-        .map(|nup| {
-            format!(
-                "<tr><td>O</td><td>PPI</td><td>{nup}</td><td>T</td><td>2</td><td>2024</td></tr>"
-            )
-        })
-        .collect();
+    let mut linhas = String::new();
+    for nup in nups {
+        linhas.push_str("<tr><td>O</td><td>PPI</td><td>");
+        linhas.push_str(nup);
+        linhas.push_str("</td><td>T</td><td>2</td><td>2024</td></tr>");
+    }
     format!(
         "<form id='frmEstatisticasLista' method='post' action='{}'>\
          <input type='hidden' name='hdnInfraPaginaAtual' value='0'>\
@@ -127,7 +125,7 @@ fn roteiro(caso: Caso) -> Vec<Passo> {
     passos
 }
 
-fn servir(escuta: TcpListener, parar: &AtomicBool, tls: &TlsAcceptor, passos: Vec<Passo>) -> usize {
+fn servir(escuta: &TcpListener, parar: &AtomicBool, tls: &TlsAcceptor, passos: Vec<Passo>) -> usize {
     let mut passos = passos.into_iter();
     let mut total = 0;
     loop {
@@ -198,7 +196,7 @@ fn executar(caso: Caso) -> (Output, usize) {
     let sinal = Arc::clone(&parar);
     let servidor = thread::spawn(move || {
         servir(
-            escuta,
+            &escuta,
             &sinal,
             &TlsAcceptor::new(identidade_tls).unwrap(),
             roteiro(caso),
@@ -252,7 +250,7 @@ fn acervo_historico_binario_recusa_pagina_repetida_sem_parcial() {
     let (saida, total) = executar(Caso::Repetido);
     assert_eq!(total, 5);
     assert_eq!(saida.status.code(), Some(1));
-    assert!(saida.stdout.is_empty());
+    assert_eq!(saida.stdout, [] as [u8; 0]);
     assert!(String::from_utf8_lossy(&saida.stderr).contains("FaixaIncompleta"));
 }
 
@@ -269,5 +267,5 @@ fn acervo_historico_binario_zero_explicito_sem_detalhe() {
     assert_eq!(json["total_declarado"], 0);
     assert_eq!(json["linhas_observadas"], 0);
     assert_eq!(json["nups_distintos"], 0);
-    assert!(json["processos"].as_array().unwrap().is_empty());
+    assert_eq!(json["processos"].as_array().unwrap().as_slice(), []);
 }
