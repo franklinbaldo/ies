@@ -14,6 +14,7 @@ fn nup() -> NumeroProcesso {
 fn com_propriedades() -> ProcessoAberto {
     let mut aberto = aberto(Some("UNIDADE TESTE"));
     aberto.propriedades = Propriedades::Lidas(PropriedadesLidas {
+        id_tipo: "100000002".into(),
         tipo: "Tipo Sintetico: Teste".into(),
         especificacao: "Especificacao sintetica".into(),
         interessados: vec!["Pessoa Sintetica A".into()],
@@ -29,6 +30,7 @@ fn com_propriedades() -> ProcessoAberto {
         ],
         observacoes: String::new(),
         nivel_de_acesso: NivelDeAcesso::Restrito,
+        id_hipotese_legal: Some("7".into()),
         hipotese_legal: Some("Hipotese Sintetica".into()),
         data_de_geracao: "01/02/2026".into(),
         fonte: FonteDasPropriedades::Consultar,
