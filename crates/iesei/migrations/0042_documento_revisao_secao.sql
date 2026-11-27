@@ -1,4 +1,4 @@
--- 0041: seções opacas da revisão do editor clássico simulado.
+-- 0042: seções opacas da revisão do editor clássico simulado.
 -- Nenhuma linha para uma revisão legada: não representa uma seção vazia.
 CREATE TABLE documento_revisao_secao (
     origem TEXT NOT NULL,
@@ -26,4 +26,4 @@ CREATE TRIGGER documento_revisao_limpar_secoes
         WHERE origem=OLD.origem AND cenario=OLD.cenario
           AND id_documento=OLD.id_documento AND versao=OLD.versao;
     END;
-PRAGMA user_version = 41;
+PRAGMA user_version = 42;
