@@ -131,6 +131,7 @@ mod status_web;
 mod tela_html;
 mod tela_login;
 mod transporte;
+mod unidade_acervo;
 mod unidade_atual_cli;
 mod unidade_categoria;
 mod unidade_colunas_cli;
@@ -352,6 +353,12 @@ enum UnidadeAcao {
     Recebidos(ListaDaUnidade),
     /// Lista Gerados da unidade: a página observada, com total e faixa
     Gerados(ListaDaUnidade),
+    /// Consulta o acervo histórico da unidade ao final da data informada
+    Acervo {
+        /// Data civil AAAA-MM-DD
+        #[arg(long, value_name = "AAAA-MM-DD", value_parser = cli_unidade_aux::data_do_acervo)]
+        em: unidade_retornos::DataCivil,
+    },
     /// Lista os retornos programados da unidade na tela Web do SEI
     Retornos {
         /// Mes AAAA-MM (ausente: mes marcado como hoje pelo SEI)
