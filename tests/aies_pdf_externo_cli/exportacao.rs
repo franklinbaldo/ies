@@ -309,8 +309,9 @@ pub(super) fn fechar_segundo_no(resposta: &mut [u8]) -> bool {
     let fim = resto.iter().position(|&b| b == b'\n').unwrap();
     let linha = &mut resto[..fim];
     assert!(linha.starts_with(b"Nos[2].src = 'controlador.php?acao=documento_download_anexo"));
-    let fechado = b"Nos[2].src = '';";
-    // Preserva o Content-Length, sem tocar nos demais nós ou na barra.
+    let fechado = b"Nos[2].src = '';\n";
+    // Preserva o Content-Length; o padding fica em outra linha,
+    // pois o leitor exige o ponto e vírgula no fim da atribuição.
     linha.fill(b' ');
     linha[..fechado.len()].copy_from_slice(fechado);
     true
@@ -365,7 +366,7 @@ fn exportacao_seletiva_recusa_no_fechado_antes_do_gerador() {
         ] {
             assert_eq!(
                 eventos.iter().filter(|e| e.starts_with(prefixo)).count(),
-                if valido { 1 } else { 0 },
+                usize::from(valido),
                 "{prefixo}: {eventos:?}"
             );
         }
