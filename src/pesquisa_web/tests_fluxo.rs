@@ -558,3 +558,74 @@ fn colheita_do_controle_nao_muda_a_sequencia_e_guarda_o_link_da_pesquisa() {
         Some(url_da_tela())
     );
 }
+
+// Hipótese sintética: a cassette UnB não comprova POST só com filtros.
+fn tela_com_filtros(html: &str) -> String {
+    html.replace(
+        "<div id=\"conteudo\">",
+        "<select name='selTipoProcedimentoPesquisa'><option value='73'>Administrativo</option></select>\
+         <input type='text' name='txtDataInicio' value='01/01/2026'>\
+         <div id='conteudo'>",
+    )
+}
+
+#[test]
+fn sem_protocolo_envia_tipo_e_data_nos_dois_posts() {
+    let (_pasta, arquivo) = cookie();
+    let url = url_controle();
+    let sessao = SessaoDaBusca {
+        url_do_controle: &url,
+        origem: ORIGEM,
+        cookie: &CookieDaSessao::ler(&arquivo),
+    };
+    let pedido = PedidoDeBusca {
+        termo: "",
+        pagina: Some(2),
+        unidade: None,
+    };
+    let filtros = FiltrosDaPesquisa {
+        tipo: Some("Administrativo"),
+        de: crate::unidade_retornos::DataCivil::ler("01/01/2026"),
+        ..Default::default()
+    };
+    let mut roteiro = Roteiro::novo(vec![
+        ok(controle_com_menu()),
+        ok(tela_com_filtros(&tela_de_pesquisa())),
+        ok(tela_com_filtros(&resultado("", 1, 10, "20"))),
+        ok(tela_com_filtros(&resultado("", 11, 20, "20"))),
+    ]);
+    let busca = buscar_colhendo_filtrado::<EmProcessos, _>(
+        &sessao,
+        &pedido,
+        filtros,
+        &Colheita::nenhuma(),
+        &mut roteiro,
+    )
+    .unwrap();
+    let RespostaDaPesquisa::Lista(lista) = busca.resposta else {
+        panic!("esperada lista");
+    };
+    assert_eq!(
+        lista.faixa,
+        FaixaDaPesquisa {
+            inicio: 11,
+            fim: 20
+        }
+    );
+    let posts: Vec<_> = roteiro
+        .pedidos
+        .iter()
+        .filter_map(|p| p.corpo.as_deref())
+        .collect();
+    assert_eq!(posts.len(), 2);
+    for corpo in &posts {
+        for par in [
+            "txtProtocoloPesquisa=",
+            "selTipoProcedimentoPesquisa=73",
+            "txtDataInicio=01%2F01%2F2026",
+        ] {
+            assert!(corpo.split('&').any(|p| p == par), "{corpo}");
+        }
+    }
+    assert!(posts[1].split('&').any(|p| p == "hdnInicio=10"));
+}

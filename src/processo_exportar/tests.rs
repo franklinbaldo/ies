@@ -28,9 +28,9 @@ fn todos_gera_post_sem_botao_e_recusa_id_alheio() {
         html: &html,
         codificacao: CodificacaoDaTela::Utf8,
     };
-    let post = submissao(&origem, &tela, "123", Formato::Pdf, None).unwrap();
+    let post = submissao(&origem, &tela, "123", Formato::Pdf, None, None).unwrap();
     assert_eq!(post.corpo(), b"rdoTipo=T&hdnFlagGerar=1");
-    assert!(submissao(&origem, &tela, "456", Formato::Pdf, None).is_err());
+    assert!(submissao(&origem, &tela, "456", Formato::Pdf, None, None).is_err());
 }
 
 #[test]
@@ -140,4 +140,43 @@ fn download_sintetico_publica_bytes_e_recusa_respostas_divergentes() {
         assert_eq!(fs::read_dir(&pasta).unwrap().count(), 0);
     }
     fs::remove_dir(&pasta).unwrap();
+}
+
+#[test]
+fn selecao_por_identidade_lexical_e_nao_por_titulo() {
+    use super::{ErroSelecao, selecao_da_arvore};
+    use crate::arvore_processo::{Cancelamento, DocumentoNaArvore, NaturezaDoDocumento};
+
+    let doc = |id: &str, numero: &str| DocumentoNaArvore {
+        id: id.into(),
+        rotulo: format!("Anexo ({numero})"),
+        numero_sei: Some(numero.into()),
+        pasta: None,
+        natureza: NaturezaDoDocumento {
+            icone: "documento_pdf".into(),
+            cancelamento: Cancelamento::Ativo,
+            dica: None,
+        },
+    };
+    let docs = [doc("11", "0001"), doc("22", "0002")];
+    assert_eq!(
+        selecao_da_arvore(&docs, &["0002".into(), "0001".into()]).unwrap(),
+        "22±0002 - Anexo ¥11±0001 - Anexo "
+    );
+    assert!(matches!(
+        selecao_da_arvore(&docs, &["22".into()]),
+        Err(ErroSelecao::DocumentoSelecionadoForaDaArvore)
+    ));
+    assert!(matches!(
+        selecao_da_arvore(&docs, &["2".into()]),
+        Err(ErroSelecao::DocumentoSelecionadoForaDaArvore)
+    ));
+    assert!(matches!(
+        selecao_da_arvore(&docs, &["0002".into(), "0002".into()]),
+        Err(ErroSelecao::DocumentoSelecionadoRepetido)
+    ));
+    assert!(matches!(
+        selecao_da_arvore(&[doc("11", "0001"), doc("22", "0001")], &["0001".into()]),
+        Err(ErroSelecao::IdentidadeDocumentalAmbigua)
+    ));
 }

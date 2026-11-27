@@ -35,6 +35,9 @@ pub(crate) enum DocumentoAcao {
         descricao: Option<String>,
         #[arg(long, value_enum)]
         nivel: Option<crate::dominio::NivelDeAcesso>,
+        /// Resolve o nome exato de um texto padrão; por enquanto, apenas prévia.
+        #[arg(long, conflicts_with = "confirmar", value_name = "NOME")]
+        texto_padrao: Option<String>,
         /// Cria uma vez no SEI e prepara os arquivos HTML no diretório atual.
         #[arg(long)]
         confirmar: bool,

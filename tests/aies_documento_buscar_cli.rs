@@ -32,6 +32,9 @@ enum EstadoDeBusca {
     DocumentoExato,
     Paginas,
     CoorteContraditoria { negativo_primeiro: bool },
+    PeriodoProcessual,
+    PaginasProcessuais,
+    CoorteProcessualContraditoria(bool),
 }
 
 struct Pasta(PathBuf);
@@ -220,6 +223,48 @@ fn preparar_estado(banco: &mut Connection, instalacao: &Instalacao, estado: Esta
         if !negativo_primeiro {
             negativo(banco);
         }
+    } else if matches!(estado, EstadoDeBusca::PeriodoProcessual) {
+        // Hipótese sintética, não resposta original do SEI.
+        let unidade = UnidadeExibida::nova("TESTE").unwrap();
+        for (id, nome) in [("73", "Administrativo"), ("74", "Judicial")] {
+            iesei::pesquisa_processo::registrar_tipo(
+                banco, instalacao, CENARIO, &unidade, id, nome,
+            )
+            .unwrap();
+        }
+        iesei::pesquisa_processo::registrar_sem_resultado(
+            banco,
+            instalacao,
+            CENARIO,
+            &UnidadeExibida::nova("TESTE").unwrap(),
+            iesei::pesquisa_processo::Criterios {
+                tipo_id: "",
+                de: "01/01/2026",
+                ate: "31/01/2026",
+            },
+        )
+        .unwrap();
+        for criterios in [
+            iesei::pesquisa_processo::Criterios {
+                tipo_id: "73",
+                de: "",
+                ate: "",
+            },
+            iesei::pesquisa_processo::Criterios {
+                tipo_id: "73",
+                de: "01/01/2026",
+                ate: "31/01/2026",
+            },
+        ] {
+            iesei::pesquisa_processo::registrar_sem_resultado(
+                banco, instalacao, CENARIO, &unidade, criterios,
+            )
+            .unwrap();
+        }
+    } else if matches!(estado, EstadoDeBusca::PaginasProcessuais) {
+        processos::preparar_paginas(banco, instalacao);
+    } else if let EstadoDeBusca::CoorteProcessualContraditoria(zero_primeiro) = estado {
+        processos::preparar_coorte_contraditoria(banco, instalacao, zero_primeiro);
     } else {
         preparar_paginas(banco, instalacao);
     }
@@ -295,7 +340,11 @@ fn executar(pasta: &Pasta, args: &[&str]) -> Output {
 }
 
 fn executar_com_estado(pasta: &Pasta, args: &[&str], estado: EstadoDeBusca) -> Output {
-    let requisicoes = if matches!(estado, EstadoDeBusca::Paginas) && args.contains(&"--pagina") {
+    let requisicoes = if matches!(
+        estado,
+        EstadoDeBusca::Paginas | EstadoDeBusca::PaginasProcessuais
+    ) && args.contains(&"--pagina")
+    {
         4
     } else {
         3
@@ -385,60 +434,6 @@ fn bdd_61_03_cli_sem_resultado_observado_na_unidade() {
     assert_eq!(json["documentos"].as_array().unwrap().len(), 0);
 }
 
-// Estado sintético: nenhum resultado textual foi registrado. Os três tipos
-// de observação legada (zero, redirecionamento e lista) não provam a consulta
-// com q. O túnel exige três requisições reais, inclusive o POST.
-#[test]
-fn texto_livre_desconhecido_nao_herda_estado_do_protocolo() {
-    for (termo, estado) in [
-        (None, EstadoDeBusca::SemResultado),
-        (Some(TERMO), EstadoDeBusca::SemResultado),
-        (Some(TERMO_EXATO), EstadoDeBusca::DocumentoExato),
-        (Some(TERMO_PAGINADO), EstadoDeBusca::Paginas),
-    ] {
-        let pasta = Pasta::nova();
-        let mut args = vec!["--json", "documento", "buscar"];
-        args.extend(termo);
-        args.extend(["--texto", "licitação"]);
-        let saida = executar_com_estado(&pasta, &args, estado);
-        assert_eq!(
-            saida.status.code(),
-            Some(1),
-            "{args:?}: {}",
-            String::from_utf8_lossy(&saida.stderr)
-        );
-        assert!(saida.stdout.is_empty(), "{args:?}");
-    }
-}
-
-#[test]
-fn coorte_contraditoria_recusa_cli_em_ambas_ordens() {
-    for negativo_primeiro in [true, false] {
-        for pagina in ["1", "2"] {
-            let pasta = Pasta::nova();
-            let saida = executar_com_estado(
-                &pasta,
-                &[
-                    "--json",
-                    "documento",
-                    "buscar",
-                    TERMO_PAGINADO,
-                    "--pagina",
-                    pagina,
-                ],
-                EstadoDeBusca::CoorteContraditoria { negativo_primeiro },
-            );
-            assert_eq!(
-                saida.status.code(),
-                Some(1),
-                "{}",
-                String::from_utf8_lossy(&saida.stderr)
-            );
-            assert_eq!(saida.stdout.as_slice(), b"");
-        }
-    }
-}
-
 #[test]
 fn bdd_61_03_cli_humana_nao_confunde_sem_resultado_com_inexistencia() {
     let pasta = Pasta::nova();
@@ -511,3 +506,9 @@ fn bdd_61_01_cli_documento_unico_por_numero_exato_sem_seguir_302() {
 
 #[path = "aies_documento_buscar_cli/paginacao.rs"]
 mod paginacao;
+
+#[path = "aies_documento_buscar_cli/processos.rs"]
+mod processos;
+
+#[path = "aies_documento_buscar_cli/criterios.rs"]
+mod criterios;

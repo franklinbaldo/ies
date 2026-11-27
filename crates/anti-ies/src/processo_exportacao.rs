@@ -1,6 +1,6 @@
 //! Hipótese de exportação sobre PDFs externos cadastrados no SQLite (#889).
-//! PDF de anexo único preserva bytes; não simula composição, seleção,
-//! documentos internos nem geração assíncrona.
+//! PDF de anexo único preserva bytes; ZIP admite seleção de anexos.
+//! Não simula composição PDF, documentos internos nem geração assíncrona.
 use crate::{Estado, Resposta, parametro_unico};
 use iesei::instalacao::Instalacao;
 use iesei::pdf_externo;
@@ -75,6 +75,83 @@ fn zip_do_processo(
         .into_inner())
 }
 
+fn gerar(corpo: &str, formato: &str, id: &str, docs: &[pdf_externo::Documento]) -> Resposta {
+    let Some(pares): Option<Vec<_>> = corpo.split('&').map(|p| p.split_once('=')).collect() else {
+        return Resposta::nova(Estado::RequisicaoInvalida);
+    };
+    let campo = |nome| crate::processo_envio::campo_unico(&pares, nome);
+    if campo("hdnFlagGerar") != Some("1") {
+        return Resposta::nova(Estado::RequisicaoInvalida);
+    }
+    let mut download = format!("{}&formato={formato}", url("exibir_arquivo", id));
+    match campo("rdoTipo") {
+        Some("T")
+            if pares.len() == 2
+                || (pares.len() == 3 && campo("hdnDocumentosApenas") == Some("")) => {}
+        Some("A") if formato == "zip" && pares.len() == 3 => {
+            let Some(valor) = campo("hdnDocumentosApenas")
+                .and_then(crate::processo_envio::decodificar_formulario)
+            else {
+                return Resposta::nova(Estado::RequisicaoInvalida);
+            };
+            let mut ids = Vec::new();
+            for item in valor.split('¥') {
+                let Some((id, titulo)) = item.split_once('±') else {
+                    return Resposta::nova(Estado::RequisicaoInvalida);
+                };
+                if ids.contains(&id)
+                    || !docs.iter().any(|doc| {
+                        doc.id_publico() == id
+                            && titulo == format!("{} - {} ", doc.numero_sei, doc.tipo)
+                    })
+                {
+                    return Resposta::nova(Estado::RequisicaoInvalida);
+                }
+                ids.push(id);
+            }
+            let _ = write!(download, "&documentos={}", ids.join(","));
+        }
+        _ => return Resposta::nova(Estado::RequisicaoInvalida),
+    }
+    Resposta::html(format!(
+        r#"<html><body><iframe id="ifrDownload"></iframe><script>
+document.getElementById('ifrDownload').src = '{download}';
+</script></body></html>"#
+    ))
+}
+
+fn selecionar_documentos(
+    alvo: &str,
+    docs: Vec<pdf_externo::Documento>,
+) -> Result<Vec<pdf_externo::Documento>, Estado> {
+    let query = alvo.split_once('?').map_or("", |(_, query)| query);
+    let mut campos = query
+        .split('&')
+        .filter(|parte| parte.split('=').next() == Some("documentos"));
+    let Some(campo) = campos.next() else {
+        return Ok(docs);
+    };
+    if campos.next().is_some() {
+        return Err(Estado::RequisicaoInvalida);
+    }
+    let (_, ids) = campo.split_once('=').ok_or(Estado::RequisicaoInvalida)?;
+    let mut selecionados = Vec::new();
+    for id in ids.split(',') {
+        let doc = docs
+            .iter()
+            .find(|doc| doc.id_publico() == id)
+            .ok_or(Estado::RequisicaoInvalida)?;
+        if selecionados
+            .iter()
+            .any(|d: &pdf_externo::Documento| d.id == doc.id)
+        {
+            return Err(Estado::RequisicaoInvalida);
+        }
+        selecionados.push(doc.clone());
+    }
+    Ok(selecionados)
+}
+
 pub(crate) fn responder(
     metodo: &str,
     alvo: &str,
@@ -114,26 +191,23 @@ pub(crate) fn responder(
             } else {
                 "frmProcedimentoZip"
             };
+            let selecao = if formato == "zip" {
+                r#"<input type="radio" name="rdoTipo" value="A">
+<input type="hidden" name="hdnDocumentosApenas" value="">
+<select name="selDocumentosApenas" multiple></select>"#
+            } else {
+                ""
+            };
             Resposta::html(format!(
                 r#"<html><body><form id="{form}" method="post" action="{action}">
 <input type="radio" name="rdoTipo" value="T" checked>
 <input type="hidden" name="hdnFlagGerar" value="0">
+{selecao}
 </form></body></html>"#
             ))
         }
         (Some("procedimento_gerar_zip" | "procedimento_gerar_pdf"), "POST") => {
-            if !matches!(
-                corpo,
-                "rdoTipo=T&hdnFlagGerar=1" | "hdnFlagGerar=1&rdoTipo=T"
-            ) {
-                return Resposta::nova(Estado::RequisicaoInvalida);
-            }
-            let download = format!("{}&formato={formato}", url("exibir_arquivo", id));
-            Resposta::html(format!(
-                r#"<html><body><iframe id="ifrDownload"></iframe><script>
-document.getElementById('ifrDownload').src = '{download}';
-</script></body></html>"#
-            ))
+            gerar(corpo, formato, id, &docs)
         }
         (Some("exibir_arquivo"), "GET") if formato == "pdf" => {
             let [doc] = docs.as_slice() else {
@@ -150,16 +224,22 @@ document.getElementById('ifrDownload').src = '{download}';
                 _ => Resposta::nova(Estado::DadosInsuficientes),
             }
         }
-        (Some("exibir_arquivo"), "GET") => match zip_do_processo(banco, origem, cenario, &docs) {
-            Ok(bytes) => Resposta {
-                estado: Estado::Ok,
-                tipo_conteudo: "application/zip",
-                corpo: String::new(),
-                localizacao: None,
-                corpo_binario: Some(bytes),
-            },
-            Err(estado) => Resposta::nova(estado),
-        },
+        (Some("exibir_arquivo"), "GET") => {
+            let docs = match selecionar_documentos(alvo, docs) {
+                Ok(docs) => docs,
+                Err(estado) => return Resposta::nova(estado),
+            };
+            match zip_do_processo(banco, origem, cenario, &docs) {
+                Ok(bytes) => Resposta {
+                    estado: Estado::Ok,
+                    tipo_conteudo: "application/zip",
+                    corpo: String::new(),
+                    localizacao: None,
+                    corpo_binario: Some(bytes),
+                },
+                Err(estado) => Resposta::nova(estado),
+            }
+        }
         _ => Resposta::nova(Estado::MetodoNaoPermitido),
     }
 }
