@@ -232,9 +232,16 @@ mod tests {
             || std::path::PathBuf::from(std::env::var("HOME").unwrap()).join(".cache/ies"),
             std::path::PathBuf::from,
         );
-        for caminho in [
-            "cassettes/unb/marcador-listar-estados-unb--c47ad7e28f89.md",
-            "cassettes/pen1/marcador-listar-estados-pen1--8358611b6263.md",
+        // Inventário dos cards: Controle, catálogo e troca de unidade.
+        for (caminho, esperadas) in [
+            (
+                "cassettes/unb/marcador-listar-estados-unb--c47ad7e28f89.md",
+                [12, 3, 1],
+            ),
+            (
+                "cassettes/pen1/marcador-listar-estados-pen1--8358611b6263.md",
+                [1, 3, 1],
+            ),
         ] {
             let card = std::path::Path::new(env!("CARGO_MANIFEST_DIR")).join(caminho);
             let zip = ZipDoAcervo::ler(&cache.join(archive_filename(&card).unwrap())).unwrap();
@@ -243,11 +250,22 @@ mod tests {
             let mut controles = 0;
             let mut catalogos = 0;
             let mut anterior = None;
+            let mut inventario = [0, 0, 0];
             for r in gravacao::respostas(&captura.json) {
                 // Só o Controle imediatamente anterior é candidato. Qualquer
                 // interação intermediária, inclusive troca, rompe a cadeia.
                 let candidato: Option<(String, String)> = anterior.take();
-                if r.metodo != "GET" || r.status != 200 {
+                assert_eq!(r.metodo, "GET", "{caminho}: passo {}", r.passo);
+                match r.operacao {
+                    "procedimento_controlar" => inventario[0] += 1,
+                    "marcador_listar" => inventario[1] += 1,
+                    "infra_trocar_unidade" => inventario[2] += 1,
+                    _ => panic!("{caminho}: operação não inventariada no passo {}", r.passo),
+                }
+                if r.status != 200 {
+                    if r.operacao == "marcador_listar" {
+                        println!("{caminho}: passo {} unidade=NAO_200", r.passo);
+                    }
                     continue;
                 }
                 if r.operacao == "procedimento_controlar" {
@@ -284,6 +302,7 @@ mod tests {
                     catalogos += 1;
                 }
             }
+            assert_eq!(inventario, esperadas, "{caminho}: inventário do card");
             assert!(controles > 0, "{caminho}: nenhum Controle original");
             assert!(catalogos > 0, "{caminho}: nenhum catálogo GET 200 original");
         }
