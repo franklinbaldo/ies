@@ -12,11 +12,14 @@ mod identidade;
 mod membros;
 
 #[derive(Debug, thiserror::Error)]
-#[error("{self:?}")]
 enum ErroCriar {
+    #[error("CharsetNaoSuportado")]
     CharsetNaoSuportado,
+    #[error("IdentidadeNaoConfirmada: criação pode ter ocorrido; confira antes de repetir")]
     IdentidadeNaoConfirmada,
+    #[error("IdentidadeJaObservada: criação pode ter ocorrido; confira antes de repetir")]
     IdentidadeJaObservada,
+    #[error("GrupoDiferenteDoPedido: criação pode ter ocorrido; confira antes de repetir")]
     GrupoDiferenteDoPedido,
 }
 

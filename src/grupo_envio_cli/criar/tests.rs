@@ -207,7 +207,18 @@ fn identidade_preexistente_ou_releitura_diferente_nao_confirma_nem_repete() {
             consultas: 0,
             location,
         };
-        assert!(criar_via(&sessao, None, &pedido, &mut envio).is_err());
+        let Err(erro) = criar_via(&sessao, None, &pedido, &mut envio) else {
+            panic!("criação não deveria ser confirmada");
+        };
+        assert!(matches!(
+            erro.downcast_ref::<ErroCriar>(),
+            Some(
+                ErroCriar::IdentidadeJaObservada
+                    | ErroCriar::IdentidadeNaoConfirmada
+                    | ErroCriar::GrupoDiferenteDoPedido
+            )
+        ));
+        assert!(erro.to_string().contains("confira antes de repetir"));
         assert_eq!((envio.consultas, envio.mutacoes), (1, 1));
         assert!(envio.telas.is_empty());
     }
