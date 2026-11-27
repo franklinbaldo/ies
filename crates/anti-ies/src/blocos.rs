@@ -156,10 +156,35 @@ pub(crate) fn responder(
 
 pub(crate) fn cadastro(
     metodo: &str,
+    corpo: &str,
     banco: &Connection,
     instalacao: &Instalacao,
     cenario: &str,
 ) -> Resposta {
+    if metodo == "POST" {
+        let Some(pares) = crate::processo_envio::pares(corpo) else {
+            return Resposta::nova(Estado::RequisicaoInvalida);
+        };
+        let campo = |nome| crate::processo_envio::campo_unico(&pares, nome);
+        let Some(descricao) =
+            campo("txtDescricao").and_then(crate::processo_envio::decodificar_formulario)
+        else {
+            return Resposta::nova(Estado::RequisicaoInvalida);
+        };
+        if pares.len() != 3
+            || campo("selGrupoBloco") != Some("null")
+            || campo("sbmCadastrarBloco") != Some("Salvar")
+            || descricao.trim().is_empty()
+        {
+            return Resposta::nova(Estado::RequisicaoInvalida);
+        }
+        return match blocos::acrescentar_assinatura(banco, instalacao, cenario, &descricao) {
+            Ok(id) => Resposta::redirecionar(format!(
+                "controlador.php?acao=bloco_assinatura_listar&id_bloco={id}"
+            )),
+            Err(_) => Resposta::nova(Estado::DadosInsuficientes),
+        };
+    }
     if metodo != "GET" {
         return Resposta::nova(Estado::MetodoNaoPermitido);
     }
@@ -168,7 +193,7 @@ pub(crate) fn cadastro(
             "<html><body><form id='frmBlocoCadastro' method='post' action='controlador.php?acao=bloco_assinatura_cadastrar&amp;infra_hash={HASH}'>\
             <textarea name='txtDescricao'></textarea>\
             <select name='selGrupoBloco'><option value='null'>Nenhum</option></select>\
-            <button type='submit' name='sbmCadastrarBloco'>Salvar</button></form></body></html>"
+            <button type='submit' name='sbmCadastrarBloco' value='Salvar'>Salvar</button></form></body></html>"
         )),
         _ => Resposta::nova(Estado::DadosInsuficientes),
     }
