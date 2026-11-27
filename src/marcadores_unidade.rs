@@ -331,8 +331,92 @@ mod tests {
         assert_eq!(selecao.itens, [] as [Marcador; 0]);
     }
 
+    // Leitura de testemunhas diretamente da linha original, sem chamar ler()
+    // ou ler_legenda(). O checkbox fornece uma identidade independente.
+    fn testemunhas_catalogo(html: &HtmlServido, lista: &Lista) {
+        let dom = arvore(html);
+        let tabela = dom
+            .elementos("table")
+            .find(|e| e.atributo("summary") == Some("Tabela de Marcadores."))
+            .unwrap();
+        let legenda = tabela.elementos("caption").next().unwrap().texto();
+        let numeros: Vec<usize> = legenda
+            .split(|c: char| !c.is_ascii_digit() && c != '.')
+            .filter(|s| s.bytes().any(|b| b.is_ascii_digit()))
+            .map(|s| s.replace('.', "").parse().unwrap())
+            .collect();
+        let (total, faixa) = match numeros.as_slice() {
+            [0] => (0, None),
+            [total] => (
+                *total,
+                Some(Faixa {
+                    inicio: 1,
+                    fim: *total,
+                }),
+            ),
+            [total, inicio, fim] => (
+                *total,
+                Some(Faixa {
+                    inicio: *inicio,
+                    fim: *fim,
+                }),
+            ),
+            _ => panic!("legenda original fora da forma testemunhada"),
+        };
+        assert_eq!(lista.total_declarado, total);
+        assert_eq!(lista.faixa_observada, faixa);
+
+        let mut linhas = tabela.elementos("tr");
+        let cabecalhos: Vec<_> = linhas
+            .next()
+            .unwrap()
+            .filhos()
+            .filter(|e| e.nome() == "th")
+            .map(|e| e.texto())
+            .collect();
+        let esperados: Vec<_> = linhas
+            .filter_map(|linha| {
+                let checkbox = linha.elementos("input").find(|e| {
+                    e.atributo("type") == Some("checkbox") && e.atributo("value").is_some()
+                })?;
+                let id = checkbox.atributo("value").unwrap();
+                let celulas: Vec<_> = linha.filhos().filter(|e| e.nome() == "td").collect();
+                let mut nome = None;
+                let mut cor = None;
+                for (titulo, celula) in cabecalhos.iter().zip(celulas) {
+                    match titulo.trim() {
+                        "Nome" => nome = Some(celula.texto().trim().to_owned()),
+                        "Ícone" => {
+                            cor = celula.elementos("img").find_map(|e| e.atributo("title"));
+                        }
+                        _ => {}
+                    }
+                }
+                let ativo = linha
+                    .elementos("img")
+                    .any(|e| e.atributo("title") == Some("Desativar Marcador"));
+                let inativo = linha
+                    .elementos("img")
+                    .any(|e| e.atributo("title") == Some("Reativar Marcador"));
+                assert_ne!(ativo, inativo, "estado original ambíguo");
+                let estado = if ativo {
+                    Estado::Ativo
+                } else {
+                    Estado::Inativo
+                };
+                Some((id, nome.unwrap(), cor.unwrap(), estado))
+            })
+            .collect();
+        let obtidos: Vec<_> = lista
+            .itens
+            .iter()
+            .map(|m| (m.id.as_str(), m.nome.clone(), m.cor.as_str(), m.estado))
+            .collect();
+        assert_eq!(esperados, obtidos);
+    }
+
     // Fonte original, separada do exemplo sintético e da inspeção de hashes.
-    // O oráculo alternativo é o value do checkbox da linha, não o texto ID.
+    // O oráculo confronta identidade, nome, cor, estado, total e faixa.
     #[test]
     #[ignore = "ZIPs originais no IES_ACERVO_CACHE; offline"]
     fn cassette_catalogo_misto_unb_pen1() {
@@ -358,41 +442,7 @@ mod tests {
                 }
                 let html = HtmlServido::de_teste(&html_da_resposta(r.interacao).unwrap());
                 let lista = ler(&html).unwrap();
-                let dom = arvore(&html);
-                let tabela = dom
-                    .elementos("table")
-                    .find(|e| e.atributo("summary") == Some("Tabela de Marcadores."))
-                    .unwrap();
-                // O checkbox testemunha a identidade; o título da ação
-                // testemunha o estado da mesma linha, não só a contagem.
-                let esperados: Vec<_> = tabela
-                    .elementos("tr")
-                    .filter_map(|linha| {
-                        let checkbox = linha.elementos("input").find(|e| {
-                            e.atributo("type") == Some("checkbox") && e.atributo("value").is_some()
-                        })?;
-                        let id = checkbox.atributo("value").unwrap();
-                        let ativo = linha
-                            .elementos("img")
-                            .any(|e| e.atributo("title") == Some("Desativar Marcador"));
-                        let inativo = linha
-                            .elementos("img")
-                            .any(|e| e.atributo("title") == Some("Reativar Marcador"));
-                        assert_ne!(ativo, inativo, "estado original ambíguo");
-                        let estado = if ativo {
-                            Estado::Ativo
-                        } else {
-                            Estado::Inativo
-                        };
-                        Some((id, estado))
-                    })
-                    .collect();
-                let obtidos: Vec<_> = lista
-                    .itens
-                    .iter()
-                    .map(|m| (m.id.as_str(), m.estado))
-                    .collect();
-                assert_eq!(esperados, obtidos);
+                testemunhas_catalogo(&html, &lista);
                 paginas += 1;
             }
             assert!(paginas > 0, "nenhuma página de catálogo original foi lida");
