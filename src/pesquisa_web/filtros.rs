@@ -5,6 +5,7 @@ use crate::unidade_retornos::DataCivil;
 
 #[derive(Clone, Copy, Debug, Default, PartialEq, Eq)]
 pub(crate) struct FiltrosDaPesquisa<'a> {
+    pub(crate) texto: Option<&'a str>,
     pub(crate) tipo: Option<&'a str>,
     pub(crate) assunto: Option<&'a str>,
     pub(crate) de: Option<DataCivil>,
@@ -104,6 +105,9 @@ pub(crate) fn derivar_campos(
 ) -> Result<Vec<(&'static str, String)>, ErroFiltro> {
     let tags: Vec<_> = form.descendentes().collect();
     let mut campos = Vec::new();
+    if let Some(texto) = filtros.texto {
+        campos.push(("q", texto.to_owned()));
+    }
     if let Some(tipo) = filtros.tipo {
         let nome = if em_documentos {
             "selSeriePesquisa"

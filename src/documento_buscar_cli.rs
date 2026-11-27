@@ -145,7 +145,15 @@ fn buscar(
     pagina: Option<u32>,
     filtros: FiltrosDaPesquisa<'_>,
 ) -> anyhow::Result<()> {
-    // O formato das datas e o termo já foram conferidos pelo clap.
+    // O formato das datas e os textos já foram conferidos pelo clap.
+    if termo.is_empty()
+        && filtros.texto.is_none()
+        && filtros.tipo.is_none_or(|tipo| tipo.trim().is_empty())
+        && filtros.de.is_none()
+        && filtros.ate.is_none()
+    {
+        crate::uso_invalido::recusar(crate::uso_invalido::UsoInvalido::BuscaDeDocumentoSemCriterio);
+    }
     if let (Some(de), Some(ate)) = (filtros.de, filtros.ate)
         && de > ate
     {
@@ -193,12 +201,18 @@ fn buscar(
     busca.requisicoes = relogin_cli::somar(busca.requisicoes, nota.as_ref());
     if cli.json {
         let mut valor = json_da_busca(termo, &busca);
+        if let (Some(objeto), Some(texto)) = (valor.as_object_mut(), filtros.texto) {
+            objeto.insert("texto".to_owned(), json!(texto));
+        }
         relogin_cli::anotar(&mut valor, nota.as_ref());
         indice_local::anexar_avisos(&mut valor, &indice);
         println!("{}", serde_json::to_string_pretty(&valor)?);
     } else {
         relogin_cli::avisar(cli.json, nota.as_ref());
         indice_local::avisar_no_texto(&indice);
+        if let Some(texto) = filtros.texto {
+            println!("Texto livre: {texto:?}");
+        }
         println!("{}", humano(termo, &busca));
     }
     Ok(())
@@ -211,6 +225,7 @@ pub(crate) fn tentar_buscar(cli: &Cli) -> Option<anyhow::Result<()>> {
     };
     let Some(DocumentoAcao::Buscar {
         termo,
+        texto,
         pagina,
         tipo,
         assunto,
@@ -223,9 +238,10 @@ pub(crate) fn tentar_buscar(cli: &Cli) -> Option<anyhow::Result<()>> {
     Some(buscar(
         cli,
         comando,
-        termo,
+        termo.as_deref().unwrap_or_default(),
         *pagina,
         FiltrosDaPesquisa {
+            texto: texto.as_deref(),
             tipo: tipo.as_deref(),
             assunto: assunto.as_deref(),
             de: *de,
