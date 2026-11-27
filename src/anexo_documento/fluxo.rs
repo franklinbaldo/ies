@@ -10,30 +10,37 @@ use sha2::{Digest, Sha256};
 
 /// Lê a resposta de `documento_download_anexo` do documento `numero`.
 /// 3xx não chega aqui: quem chama o trata como no resto do fluxo.
+#[cfg(test)]
 pub(crate) fn ler_anexo<R: Read>(
     resposta: RespostaBinaria<R>,
     numero: &str,
     limite: LimiteDoAnexo,
     destino: DestinoDoAnexo<'_>,
 ) -> Result<AnexoLido, ErroAnexo> {
+    ler_anexo_com_teor(resposta, numero, limite, destino, false)
+}
+
+pub(crate) fn ler_anexo_com_teor<R: Read>(
+    resposta: RespostaBinaria<R>,
+    numero: &str,
+    limite: LimiteDoAnexo,
+    destino: DestinoDoAnexo<'_>,
+    extrair_pdf: bool,
+) -> Result<AnexoLido, ErroAnexo> {
     if resposta.status != 200 {
-        // As mesmas recusas de status do transporte (corpo até 64 KiB).
-        let mime = resposta
-            .valores("content-type")
-            .first()
-            .map_or_else(String::new, |v| (*v).to_owned());
-        return Err(ErroAnexo::Transporte(recusar_status(RespostaWeb {
-            status_code: i32::from(resposta.status),
-            mime,
-            content_length: None,
-            localizacao: None,
-            corpo: resposta.corpo,
-        })));
+        return Err(recusar_anexo(resposta));
     }
     let mut conferido = conferir(&resposta, limite)?;
     let RespostaBinaria { corpo, .. } = resposta;
+    let teor_pdf = extrair_pdf && conferido.mime == "application/pdf";
+    let scratch = (teor_pdf && matches!(destino, DestinoDoAnexo::SoMetadados))
+        .then(ScratchPdf::novo)
+        .transpose()?;
     let mut arquivo = match destino {
-        DestinoDoAnexo::SoMetadados => None,
+        DestinoDoAnexo::SoMetadados => scratch
+            .as_ref()
+            .map(|p| abrir_parcial_cache(&p.0, "ies-teor-pdf", &conferido))
+            .transpose()?,
         DestinoDoAnexo::Diretorio(dir) => Some(abrir_parcial(dir, numero, &conferido)?),
         DestinoDoAnexo::Cache { diretorio, .. } => {
             Some(abrir_parcial_cache(diretorio, numero, &conferido)?)
@@ -90,16 +97,26 @@ pub(crate) fn ler_anexo<R: Read>(
             .sincronizar()
             .map_err(ErroAnexo::GravacaoDoParcialFalhou)?;
     }
+    let pdf = if teor_pdf {
+        let parcial = arquivo.as_ref().ok_or(ErroAnexo::EscritaFalhou)?;
+        Some(super::pdf::extrair(parcial.parcial.temporario())?)
+    } else {
+        None
+    };
+    if teor_pdf && matches!(destino, DestinoDoAnexo::SoMetadados) {
+        arquivo = None;
+    }
     let hash = hex::encode(hasher.finalize());
     publicar_cache(&mut arquivo, destino, numero, &hash, conferido.extensao)?;
-    let conteudo = match arquivo {
-        Some(parcial) => ConteudoDoAnexo::Arquivo(parcial),
-        None if texto => ConteudoDoAnexo::Texto(texto_do_anexo(
+    let conteudo = match (arquivo, pdf) {
+        (None, Some(pdf)) => ConteudoDoAnexo::Pdf(pdf),
+        (Some(parcial), _) => ConteudoDoAnexo::Arquivo(parcial),
+        (None, None) if texto => ConteudoDoAnexo::Texto(texto_do_anexo(
             &conferido.mime,
             &guardado,
             &conferido.valor_do_tipo,
         )?),
-        None => ConteudoDoAnexo::Nenhum,
+        (None, None) => ConteudoDoAnexo::Nenhum,
     };
     Ok(AnexoLido {
         mime: conferido.mime,
@@ -109,6 +126,21 @@ pub(crate) fn ler_anexo<R: Read>(
         disposicao,
         conteudo,
     })
+}
+
+fn recusar_anexo<R: Read>(resposta: RespostaBinaria<R>) -> ErroAnexo {
+    // As mesmas recusas de status do transporte (corpo até 64 KiB).
+    let mime = resposta
+        .valores("content-type")
+        .first()
+        .map_or_else(String::new, |v| (*v).to_owned());
+    ErroAnexo::Transporte(recusar_status(RespostaWeb {
+        status_code: i32::from(resposta.status),
+        mime,
+        content_length: None,
+        localizacao: None,
+        corpo: resposta.corpo,
+    }))
 }
 
 fn conferir_html(bytes: &[u8], tipo: &str) -> Result<(), ErroAnexo> {
@@ -155,4 +187,59 @@ fn texto_do_anexo(mime: &str, bytes: &[u8], tipo: &str) -> Result<String, ErroAn
             }
         })
         .collect())
+}
+
+/// Diretório exclusivo da extração sem cache. O parcial é descartado
+/// antes dele, inclusive nas saídas por erro.
+struct ScratchPdf(std::path::PathBuf);
+
+impl ScratchPdf {
+    fn novo() -> Result<Self, ErroAnexo> {
+        use crate::arquivo_privado::{FalhaDaGravacao, Politica, conferir_diretorios};
+        use std::fs::{self, DirBuilder};
+        use std::io::ErrorKind;
+        use std::sync::atomic::{AtomicU64, Ordering};
+
+        static SEQUENCIA: AtomicU64 = AtomicU64::new(0);
+
+        let pai = fs::canonicalize(std::env::temp_dir()).map_err(|erro| {
+            ErroAnexo::GravacaoDoParcialFalhou(FalhaDaGravacao::DiretorioNaoConsultado(erro.kind()))
+        })?;
+        conferir_diretorios(
+            &pai.join("ies-teor-pdf"),
+            Politica::exclusiva().diretorio_do_ies(),
+        )
+        .map_err(ErroAnexo::GravacaoDoParcialFalhou)?;
+        #[cfg(unix)]
+        let construtor = {
+            use std::os::unix::fs::DirBuilderExt;
+            let mut construtor = DirBuilder::new();
+            construtor.mode(0o700);
+            construtor
+        };
+        #[cfg(not(unix))]
+        let construtor = DirBuilder::new();
+        for _ in 0..8 {
+            let n = SEQUENCIA.fetch_add(1, Ordering::Relaxed);
+            let caminho = pai.join(format!("ies-teor-pdf-{}-{n}", std::process::id()));
+            match construtor.create(&caminho) {
+                Ok(()) => return Ok(Self(caminho)),
+                Err(erro) if erro.kind() == ErrorKind::AlreadyExists => {}
+                Err(erro) => {
+                    return Err(ErroAnexo::GravacaoDoParcialFalhou(
+                        FalhaDaGravacao::CriacaoDoDiretorioFalhou(erro.kind()),
+                    ));
+                }
+            }
+        }
+        Err(ErroAnexo::GravacaoDoParcialFalhou(
+            FalhaDaGravacao::NomesDeTemporarioEsgotados,
+        ))
+    }
+}
+
+impl Drop for ScratchPdf {
+    fn drop(&mut self) {
+        let _ = std::fs::remove_dir(&self.0);
+    }
 }
