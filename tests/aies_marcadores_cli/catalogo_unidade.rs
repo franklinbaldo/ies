@@ -139,3 +139,144 @@ fn texto_distingue_faixa_e_estado_mesmo_sem_itens_selecionados() {
         assert_eq!(texto.contains("501#Revisão"), estado == "ativo");
     }
 }
+
+/// Hipótese sintética complementar: binário real, rota HTTP e banco compartilhado.
+/// As páginas originais são confrontadas separadamente no replay cassette_.
+#[test]
+fn catalogo_sqlite_selecao_explicita_chega_ao_binario() {
+    use iesei::gestao_marcadores::{self as gestao, Estado, Marcador, Pagina};
+
+    for ordinal in [1, 2] {
+        let (pasta, cert, tls_id, origem, controle, cookie) = preparar_sessao();
+        let backend = TcpListener::bind(("127.0.0.1", 0)).unwrap();
+        backend.set_nonblocking(true).unwrap();
+        let endereco = backend.local_addr().unwrap();
+        let proxy = TcpListener::bind(("127.0.0.1", 0)).unwrap();
+        proxy.set_nonblocking(true).unwrap();
+        let porta = proxy.local_addr().unwrap().port();
+        let parar = Arc::new(AtomicBool::new(false));
+        let sinal = Arc::clone(&parar);
+        let servidor = thread::spawn(move || {
+            let (mut banco, instalacao) = estado(false, false);
+            banco
+                .execute_batch(include_str!(
+                    "../../crates/iesei/migrations/0043_gestao_marcadores.sql"
+                ))
+                .unwrap();
+            let mista = Pagina {
+                total: 4,
+                faixa: Some((2, 3)),
+                itens: vec![
+                    Marcador {
+                        id: "01".into(),
+                        nome: "A & <B>".into(),
+                        cor: "Branco".into(),
+                        estado: Estado::Ativo,
+                    },
+                    Marcador {
+                        id: "02".into(),
+                        nome: "A & <B>".into(),
+                        cor: "Amarelo".into(),
+                        estado: Estado::Inativo,
+                    },
+                ],
+            };
+            let vazia = Pagina {
+                total: 0,
+                faixa: None,
+                itens: vec![],
+            };
+            gestao::registrar(&mut banco, &instalacao, CENARIO, "TESTE", 1, &mista).unwrap();
+            gestao::registrar(&mut banco, &instalacao, CENARIO, "TESTE", 2, &vazia).unwrap();
+            assert!(gestao::selecionar(&banco, &instalacao, CENARIO, "TESTE", ordinal).unwrap());
+            while let Some(mut cliente) = aceitar(&backend, &sinal) {
+                atender_http(&mut cliente, Some((&banco, &instalacao, CENARIO))).unwrap();
+            }
+            assert_eq!(
+                gestao::ler(&banco, &instalacao, CENARIO, "TESTE", 1).unwrap(),
+                Some(mista.clone())
+            );
+            assert_eq!(
+                gestao::ler(&banco, &instalacao, CENARIO, "TESTE", 2).unwrap(),
+                Some(vazia.clone())
+            );
+            assert_eq!(
+                gestao::ler_selecionada(&banco, &instalacao, CENARIO, "TESTE").unwrap(),
+                Some(if ordinal == 1 { mista } else { vazia })
+            );
+        });
+        let sinal = Arc::clone(&parar);
+        let tunel = thread::spawn(move || {
+            let tls = TlsAcceptor::new(tls_id).unwrap();
+            let mut pedidos = Vec::new();
+            while let Some(mut tcp) = aceitar(&proxy, &sinal) {
+                let (connect, _) = pedido_http(&mut tcp);
+                assert!(connect.starts_with(b"CONNECT"));
+                tcp.write_all(b"HTTP/1.1 200 Connection established\r\n\r\n")
+                    .unwrap();
+                let mut canal = tls.accept(tcp).unwrap();
+                let (req, evento) = pedido_http(&mut canal);
+                pedidos.push(evento);
+                let mut destino = TcpStream::connect(endereco).unwrap();
+                destino.write_all(&req).unwrap();
+                destino.shutdown(Shutdown::Write).unwrap();
+                std::io::copy(&mut destino, &mut canal).unwrap();
+                canal.flush().unwrap();
+            }
+            pedidos
+        });
+        let arquivos = [
+            controle.as_path(),
+            cookie.as_path(),
+            origem.as_path(),
+            cert.as_path(),
+        ];
+        let ativo = executar_cli(&pasta, arquivos, porta, &["--json", "marcador", "listar"]);
+        let inativo = executar_cli(
+            &pasta,
+            arquivos,
+            porta,
+            &["--json", "marcador", "listar", "--inativos"],
+        );
+        parar.store(true, Ordering::SeqCst);
+        let pedidos = tunel.join().unwrap();
+        servidor.join().unwrap();
+        assert_eq!(
+            pedidos,
+            [
+                "GET procedimento_controlar",
+                "GET marcador_listar",
+                "GET procedimento_controlar",
+                "GET marcador_listar"
+            ]
+        );
+        for (saida, estado, id, cor) in [
+            (ativo, "ativo", "01", "Branco"),
+            (inativo, "inativo", "02", "Amarelo"),
+        ] {
+            assert_eq!(saida.status.code(), Some(0));
+            let json: serde_json::Value = serde_json::from_slice(&saida.stdout).unwrap();
+            assert_eq!(json["unidade"], "TESTE");
+            assert_eq!(json["estado"], estado);
+            if ordinal == 1 {
+                assert_eq!(json["total_declarado"], 4);
+                assert_eq!(json["total_observado"], 2);
+                assert_eq!(
+                    json["faixa_observada"],
+                    serde_json::json!({"inicio": 2, "fim": 3})
+                );
+                assert_eq!(
+                    json["itens"],
+                    serde_json::json!([{
+                        "id": id, "nome": "A & <B>", "cor": cor, "estado": estado
+                    }])
+                );
+            } else {
+                assert_eq!(json["total_declarado"], 0);
+                assert_eq!(json["total_observado"], 0);
+                assert!(json.get("faixa_observada").is_none());
+                assert_eq!(json["itens"], serde_json::json!([]));
+            }
+        }
+    }
+}
