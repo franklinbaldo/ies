@@ -60,8 +60,16 @@ pub(crate) use crate::dominio::NivelDeAcesso;
 /// Uma `option` de `selAssuntos`: `<código> - <descrição>`.
 #[derive(Clone, Debug, PartialEq, Eq)]
 pub(crate) struct Assunto {
+    pub(crate) id: String,
     pub(crate) codigo: String,
     pub(crate) descricao: String,
+}
+
+/// Uma `option` de `selInteressadosProcedimento`; o valor é opaco.
+#[derive(Clone, Debug, PartialEq, Eq)]
+pub(crate) struct Interessado {
+    pub(crate) id: String,
+    pub(crate) nome: String,
 }
 
 /// O que o formulário publicou. `hipotese_legal` é `None` quando nenhuma
@@ -71,7 +79,7 @@ pub(crate) struct PropriedadesLidas {
     pub(crate) id_tipo: String,
     pub(crate) tipo: String,
     pub(crate) especificacao: String,
-    pub(crate) interessados: Vec<String>,
+    pub(crate) interessados: Vec<Interessado>,
     pub(crate) assuntos: Vec<Assunto>,
     pub(crate) observacoes: String,
     pub(crate) nivel_de_acesso: NivelDeAcesso,
