@@ -87,9 +87,14 @@ fn humano(termo: &str, busca: &BuscaRealizada) -> String {
             "nenhum resultado para esta conta e unidade (não prova inexistência)".to_owned()
         }
     };
+    let consulta = if termo.is_empty() {
+        "por filtros".to_owned()
+    } else {
+        format!("de {termo:?}")
+    };
     format!(
-        "IES: pesquisa de {:?} na unidade {}: {detalhe} ({} requisições).",
-        termo, busca.unidade, busca.requisicoes
+        "IES: pesquisa {consulta} na unidade {}: {detalhe} ({} requisições).",
+        busca.unidade, busca.requisicoes
     )
 }
 
@@ -172,6 +177,8 @@ pub(crate) fn tentar_buscar(cli: &Cli) -> Option<anyhow::Result<()>> {
         termo,
         pagina,
         tipo,
+        descricao,
+        observacao,
         assunto,
         de,
         ate,
@@ -186,6 +193,8 @@ pub(crate) fn tentar_buscar(cli: &Cli) -> Option<anyhow::Result<()>> {
         *pagina,
         FiltrosDaPesquisa {
             tipo: tipo.as_deref(),
+            descricao: descricao.as_deref(),
+            observacao: observacao.as_deref(),
             assunto: assunto.as_deref(),
             de: *de,
             ate: *ate,
