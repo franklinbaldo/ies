@@ -139,8 +139,8 @@ fn replay_de_processo_exportar_no_acervo() {
 #[ignore = "ZIP público conferido no cache; sem rede"]
 fn replay_elegibilidade_da_exportacao_no_acervo() {
     use crate::arvore_processo::{
-        ConteudoNaArvore, barra_do_no, ler_arvore, ler_conteudo_na_arvore,
-        nup_declarado_na_arvore, tela_do_documento,
+        ConteudoNaArvore, barra_do_no, ler_arvore, ler_conteudo_na_arvore, nup_declarado_na_arvore,
+        tela_do_documento,
     };
 
     let raiz = Path::new(env!("CARGO_MANIFEST_DIR")).join("cassettes");
@@ -205,9 +205,11 @@ fn replay_elegibilidade_da_exportacao_no_acervo() {
                 Ok(ConteudoNaArvore::Visualizar(_))
             ));
             let positivo = vizinho.numero_sei.clone().expect("número do vizinho");
-            assert!(super::selecao_da_arvore(&lida.documentos, &[positivo.clone()]).is_ok());
+            assert!(
+                super::selecao_da_arvore(&lida.documentos, std::slice::from_ref(&positivo)).is_ok()
+            );
             let recusou =
-                super::selecao_da_arvore(&lida.documentos, &[numero.clone()]).is_err();
+                super::selecao_da_arvore(&lida.documentos, std::slice::from_ref(&numero)).is_err();
             let recusou_mista =
                 super::selecao_da_arvore(&lida.documentos, &[positivo, numero]).is_err();
             resultados.push((instalacao, recusou, recusou_mista));
