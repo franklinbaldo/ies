@@ -3,7 +3,7 @@
 use crate::acao_do_sei::AcaoDoSei;
 use crate::anexo_documento::LimiteDoAnexo;
 use crate::arquivo_privado::{Parcial, Politica, conferir_diretorios};
-use crate::arvore_processo::conferir_endereco_relativo;
+use crate::arvore_processo::{conferir_endereco_relativo, documento_inacessivel};
 use crate::formulario_web::{
     ConferenciaDaUnidade, EfeitoAvaliado, EnvioDoFormulario, OperacaoDeFormulario, RespostaDoEnvio,
     ResultadoDoEnvio, SubmissaoDerivada, TelaServida, derivar_submissao, enviar_submissao_via,
@@ -216,12 +216,15 @@ enum ErroSelecao {
     DocumentoSelecionadoForaDaArvore,
     IdentidadeDocumentalAmbigua,
     DocumentoSelecionadoRepetido,
+    DocumentoSelecionadoInacessivel,
 }
 
 /// Nº SEI é opaco; resolve univocamente o ID interno da árvore.
 fn selecao_da_arvore(
     documentos: &[crate::arvore_processo::DocumentoNaArvore],
     pedidos: &[String],
+    html: &str,
+    instalacao: &Instalacao,
 ) -> Result<String, ErroSelecao> {
     let mut selecionados = Vec::new();
     for pedido in pedidos {
@@ -236,6 +239,11 @@ fn selecao_da_arvore(
         }
         if selecionados.iter().any(|(id, _)| *id == doc.id.as_str()) {
             return Err(ErroSelecao::DocumentoSelecionadoRepetido);
+        }
+        if !doc.natureza.cancelamento.cancelado()
+            && documento_inacessivel(instalacao, html, &doc.id)
+        {
+            return Err(ErroSelecao::DocumentoSelecionadoInacessivel);
         }
         let numero = pedido.as_str();
         // Hipótese de título da lupa baseada no oráculo Todos; não é POST capturado.
@@ -279,6 +287,8 @@ fn exportar<V: EnvioDoProcesso>(
         Some(selecao_da_arvore(
             &aberto.arvore.documentos,
             pedido.documentos,
+            &acoes.html_da_arvore,
+            &instalacao,
         )?)
     };
     let id = aberto.arvore.processo.id;

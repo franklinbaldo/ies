@@ -205,12 +205,27 @@ fn replay_elegibilidade_da_exportacao_no_acervo() {
             ));
             let positivo = vizinho.numero_sei.clone().expect("número do vizinho");
             assert!(
-                super::selecao_da_arvore(&lida.documentos, std::slice::from_ref(&positivo)).is_ok()
+                super::selecao_da_arvore(
+                    &lida.documentos,
+                    std::slice::from_ref(&positivo),
+                    &html,
+                    &origem,
+                )
+                .is_ok()
             );
-            let recusou =
-                super::selecao_da_arvore(&lida.documentos, std::slice::from_ref(&numero)).is_err();
-            let recusou_mista =
-                super::selecao_da_arvore(&lida.documentos, &[positivo, numero]).is_err();
+            let recusou = matches!(
+                super::selecao_da_arvore(
+                    &lida.documentos,
+                    std::slice::from_ref(&numero),
+                    &html,
+                    &origem,
+                ),
+                Err(super::ErroSelecao::DocumentoSelecionadoInacessivel)
+            );
+            let recusou_mista = matches!(
+                super::selecao_da_arvore(&lida.documentos, &[positivo, numero], &html, &origem),
+                Err(super::ErroSelecao::DocumentoSelecionadoInacessivel)
+            );
             resultados.push((instalacao, recusou, recusou_mista));
             observado = true;
             break;
