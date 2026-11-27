@@ -66,7 +66,10 @@ pub(crate) enum DocumentoAcao {
     Buscar {
         /// Número SEI exato ou parcial, como digitado no campo Protocolo
         #[arg(value_parser = crate::documento_buscar_cli::termo_de_documento)]
-        termo: String,
+        termo: Option<String>,
+        /// Texto livre no conteúdo, distinto do campo Protocolo
+        #[arg(long, value_name = "TEXTO", value_parser = crate::documento_buscar_cli::termo_de_documento)]
+        texto: Option<String>,
         /// Pede a página N do resultado (um POST que altera a página lembrada)
         #[arg(
             long,
