@@ -11,7 +11,6 @@ mod documento_ciencia;
 pub mod documento_versoes;
 mod documentos;
 pub mod editor_documento;
-mod gestao_marcadores;
 mod nivel_de_detalhe;
 pub mod pdf_externo;
 pub mod pesquisa_documento;

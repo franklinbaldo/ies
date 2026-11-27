@@ -336,14 +336,17 @@ mod replay {
         }
     }
 
-    fn roteiro(json: &serde_json::Value, paginas: usize) -> Gravado<'_> {
+    fn roteiro<'a>(
+        json: &'a serde_json::Value,
+        inst: &Instalacao,
+        detalhes: usize,
+    ) -> (Gravado<'a>, Vec<ProcessoDoAcervo>) {
         let respostas = fonte::respostas(json);
         let detalhe = respostas
             .iter()
             .position(|r| r.operacao == "estatisticas_detalhar_unidade")
             .expect("detalhe original");
-        // A gravação contém duas consultas estatísticas; só a última
-        // precede a travessia do detalhe. Não simular a consulta anterior.
+        // Só a última consulta estatística precede o detalhe.
         let relatorio = respostas[..detalhe]
             .iter()
             .rposition(|r| r.operacao == "gerar_estatisticas_unidade" && r.metodo == "POST")
@@ -356,6 +359,38 @@ mod replay {
             .iter()
             .rposition(|r| r.operacao == "procedimento_controlar" && r.metodo == "GET")
             .expect("Controle original");
+        let html = crate::cassette::html_da_resposta(respostas[relatorio].interacao)
+            .expect("relatório original");
+        let (total, _) =
+            total_do_resultado(&HtmlServido::de_teste(&html), inst).expect("TOTAL original");
+        assert_eq!(
+            respostas
+                .iter()
+                .filter(|r| r.operacao == "estatisticas_detalhar_unidade")
+                .count(),
+            detalhes
+        );
+        let mut esperados = Vec::new();
+        let mut paginas = 0;
+        for r in &respostas[detalhe..] {
+            assert_eq!(r.operacao, "estatisticas_detalhar_unidade");
+            assert_eq!(r.status, 200);
+            assert_eq!(r.metodo, if paginas == 0 { "GET" } else { "POST" });
+            let html = crate::cassette::html_da_resposta(r.interacao).expect("detalhe original");
+            let pagina = super::detalhe(&HtmlServido::de_teste(&html)).expect("página original");
+            conferir_pagina(&pagina, total, esperados.len(), paginas == 0)
+                .expect("primeira travessia contínua");
+            esperados.extend(pagina.processos);
+            paginas += 1;
+            if esperados.len() == total {
+                break;
+            }
+        }
+        assert_eq!(esperados.len(), total);
+        println!(
+            "páginas={paginas} detalhes_posteriores={}",
+            detalhes - paginas
+        );
         let mut passos = VecDeque::new();
         for r in respostas {
             if [controle, formulario, relatorio].contains(&r.passo)
@@ -366,11 +401,14 @@ mod replay {
             }
         }
         assert_eq!(passos.len(), paginas + 3);
-        Gravado {
-            json,
-            passos,
-            pagina: 0,
-        }
+        (
+            Gravado {
+                json,
+                passos,
+                pagina: 0,
+            },
+            esperados,
+        )
     }
 
     #[test]
@@ -384,10 +422,14 @@ mod replay {
             || PathBuf::from(std::env::var_os("HOME").expect("HOME")).join(".cache/ies"),
             PathBuf::from,
         );
-        for (nome, revisao, total, paginas) in [
-            ("unb", "74b641c4a8a1", 21, 1),
-            ("pen1", "5c557e93a6ce", 305, 7),
-            ("pen2", "c64c576f9a9a", 685, 14),
+        for (nome, revisao, detalhes, conhecido) in [
+            ("unb", "74b641c4a8a1", 1, Some((21, 1))),
+            ("pen1", "5c557e93a6ce", 8, Some((305, 7))),
+            ("pen2", "c64c576f9a9a", 15, Some((685, 14))),
+            ("pen3", "16097c7cc146", 7, None),
+            ("pen4", "0d47ebcf5ebc", 7, None),
+            ("ufrj", "5d94a0dca37b", 5, None),
+            ("go", "c43eb268ad0d", 172, None),
         ] {
             let card = raiz
                 .join(nome)
@@ -398,7 +440,11 @@ mod replay {
                 conferir_cassette_ate(&card, &zip, 120_000_000).expect("integridade do original");
             assert_eq!(conferida.instalacao, nome);
             let inst = fonte::instalacao(&conferida.json).expect("instalação original");
-            let mut envio = EnvioContado::novo(roteiro(&conferida.json, paginas));
+            println!("{nome}: original");
+            let (gravado, esperados) = roteiro(&conferida.json, &inst, detalhes);
+            let requisicoes = gravado.passos.len();
+            let total = esperados.len();
+            let mut envio = EnvioContado::novo(gravado);
 
             // URL inicial e cookie sintéticos, nunca enviados à rede.
             let origem = inst.url_base();
@@ -439,15 +485,20 @@ mod replay {
 
             let (_, processos) = resultado.unwrap_or_else(|_| panic!("{nome}: fluxo recusado"));
             assert!(envio.interno.passos.is_empty(), "{nome}: roteiro restante");
-            assert_eq!(envio.total(), paginas + 3, "{nome}");
+            assert_eq!(envio.total(), requisicoes, "{nome}");
             assert_eq!(processos.len(), total, "{nome}");
+            assert!(processos == esperados, "{nome}: linhas divergentes");
             let distintos = processos
                 .iter()
                 .map(|p| p.processo.as_str())
                 .collect::<std::collections::HashSet<_>>()
                 .len();
-            assert_eq!(distintos, total, "{nome}");
-            println!("{nome}: fluxo={total} requisições={}", envio.total());
+            if let Some((n, p)) = conhecido {
+                assert_eq!(total, n, "{nome}");
+                assert_eq!(distintos, n, "{nome}");
+                assert_eq!(requisicoes, p + 3, "{nome}");
+            }
+            println!("{nome}: fluxo={total} distintos={distintos} requisições={requisicoes}");
         }
     }
 }

@@ -435,19 +435,7 @@ mod tests {
             let card = std::path::Path::new(env!("CARGO_MANIFEST_DIR")).join(caminho);
             let zip = ZipDoAcervo::ler(&cache.join(archive_filename(&card).unwrap())).unwrap();
             let captura = conferir_cassette_ate(&card, &zip, 120_000_000).unwrap();
-            use iesei::gestao_marcadores as gestao;
-            let origem = gravacao::instalacao(&captura.json).unwrap();
-            let mut banco = rusqlite::Connection::open_in_memory().unwrap();
-            banco.execute_batch("PRAGMA foreign_keys=ON;").unwrap();
-            banco
-                .execute_batch(include_str!(
-                    "../crates/iesei/migrations/0043_gestao_marcadores.sql"
-                ))
-                .unwrap();
-            // Chave de ensaio, não atribuição de unidade real: a gravação pode
-            // omitir a barra da unidade ou conter troca de unidade.
-            let unidade = "UNIDADE-DE-ENSAIO";
-            let mut paginas = Vec::new();
+            let mut paginas = 0;
             for r in gravacao::respostas(&captura.json) {
                 if r.operacao != "marcador_listar" || r.metodo != "GET" || r.status != 200 {
                     continue;
@@ -455,43 +443,9 @@ mod tests {
                 let html = HtmlServido::de_teste(&html_da_resposta(r.interacao).unwrap());
                 let lista = ler(&html).unwrap();
                 testemunhas_catalogo(&html, &lista);
-                let pagina = gestao::Pagina {
-                    total: lista.total_declarado,
-                    faixa: lista.faixa_observada.map(|f| (f.inicio, f.fim)),
-                    itens: lista
-                        .itens
-                        .into_iter()
-                        .map(|m| gestao::Marcador {
-                            id: m.id,
-                            nome: m.nome,
-                            cor: m.cor,
-                            estado: match m.estado {
-                                Estado::Ativo => gestao::Estado::Ativo,
-                                Estado::Inativo => gestao::Estado::Inativo,
-                            },
-                        })
-                        .collect(),
-                };
-                gestao::registrar(&mut banco, &origem, caminho, unidade, r.passo, &pagina).unwrap();
-                paginas.push((r.passo, pagina));
+                paginas += 1;
             }
-            assert!(
-                !paginas.is_empty(),
-                "nenhuma página de catálogo original foi lida"
-            );
-            assert_eq!(
-                gestao::ler_selecionada(&banco, &origem, caminho, unidade).unwrap(),
-                None
-            );
-            // Selecionar em ordem inversa verifica que uma página posterior
-            // não substituiu a anterior, inclusive se seus IDs coincidirem.
-            for (ordinal, pagina) in paginas.into_iter().rev() {
-                assert!(gestao::selecionar(&banco, &origem, caminho, unidade, ordinal).unwrap());
-                assert_eq!(
-                    gestao::ler_selecionada(&banco, &origem, caminho, unidade).unwrap(),
-                    Some(pagina)
-                );
-            }
+            assert!(paginas > 0, "nenhuma página de catálogo original foi lida");
         }
     }
 }

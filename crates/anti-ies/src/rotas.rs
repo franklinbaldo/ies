@@ -124,15 +124,7 @@ pub(crate) fn responder(
             nivel_de_detalhe::responder(metodo, corpo, banco, instalacao, cenario)
         }
         Some("procedimento_controlar") if eh_controlador_sei(alvo) => {
-            crate::gestao_marcadores::acrescentar_menu(
-                processo_criacao::controle_com_menu(metodo, alvo, banco, instalacao, cenario),
-                banco,
-                instalacao,
-                cenario,
-            )
-        }
-        Some("marcador_listar") if eh_controlador_sei(alvo) => {
-            crate::gestao_marcadores::responder(metodo, banco, instalacao, cenario)
+            processo_criacao::controle_com_menu(metodo, alvo, banco, instalacao, cenario)
         }
         Some("procedimento_escolher_tipo" | "procedimento_gerar") if eh_controlador_sei(alvo) => {
             processo_criacao::responder(metodo, alvo, corpo, banco, instalacao, cenario)
