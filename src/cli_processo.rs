@@ -136,8 +136,11 @@ pub(crate) enum ProcessoAcao {
         #[arg(value_parser = crate::processo::NumeroProcesso::novo)]
         numero: crate::processo::NumeroProcesso,
         /// Sigla de destino, como o SEI a oferece (repetível)
-        #[arg(long, required = true, value_parser = crate::processo_enviar_cli::sigla_de_destino)]
+        #[arg(long, required_unless_present = "grupo", value_parser = crate::processo_enviar_cli::sigla_de_destino)]
         para: Vec<String>,
+        /// ID publicado do grupo de envio; somente prévia nesta fatia.
+        #[arg(long, value_name = "ID", conflicts_with = "confirmar", value_parser = crate::processo_enviar_cli::id_de_grupo)]
+        grupo: Option<String>,
         /// Marca "Manter processo aberto na unidade atual"
         #[arg(long)]
         manter_aberto: bool,

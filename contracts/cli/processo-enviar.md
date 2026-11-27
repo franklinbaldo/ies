@@ -34,6 +34,17 @@ da tela declara.
   Resolver todos os destinos antes de qualquer escrita; deduplicar por ID.
   Para dois ou mais destinos distintos, a saída usa `destinos` (lista);
   para um único destino, mantém `destino` (objeto) e o formato legado.
+- `--grupo ID` (prévia experimental, #875): ID lexical publicado na página
+  observada de grupos da unidade atual. Aceita grupo sem `--para` ou união
+  com destinos explícitos; `--confirmar` é incompatível (saída 2 antes da
+  sessão). Usa o leitor de `grupo-envio obter`, sem paginação automática;
+  exige membros não vazios com sigla reconhecível em `SIGLA - Nome`.
+  A prévia plural resolve os membros antes dos destinos explícitos e só
+  publica resultado se cada par ID/sigla do grupo estiver presente no
+  resultado do autocomplete, preservando zeros e deduplicação por ID.
+  A unidade do grupo deve ser a do processo. JSON acrescenta `grupo_id`;
+  texto não sugere confirmação. Sem POST mutador. A composição de leituras
+  ainda precisa de E2E próprio; o replay separado não atesta a composição.
 - `--manter-aberto`: marca "Manter processo aberto na unidade atual"
   (`chkSinManterAberto=on`). Sem ele, a caixa vai como servida (desmarcada).
 - `--remover-anotacoes`: na **prévia**, escolhe o checkbox real

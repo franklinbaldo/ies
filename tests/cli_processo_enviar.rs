@@ -111,3 +111,18 @@ fn para_repetido_e_aceito_antes_da_sessao() {
     ]);
     sem_arquivos_de_sessao(&saida);
 }
+
+#[test]
+fn grupo_e_previa_apenas_e_id_e_lexical() {
+    for extra in [&[][..], &["--para", "X"][..]] {
+        let mut args = vec!["processo", "enviar", NUP, "--grupo", "004", "--json"];
+        args.extend_from_slice(extra);
+        sem_arquivos_de_sessao(&sem_sessao(&args));
+        args.push("--confirmar");
+        let recusado = sem_sessao(&args);
+        assert_eq!(recusado.status.code(), Some(2));
+        assert!(recusado.stdout.is_empty());
+    }
+    let invalido = sem_sessao(&["processo", "enviar", NUP, "--grupo", " "]);
+    assert_eq!(invalido.status.code(), Some(2));
+}

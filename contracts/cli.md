@@ -86,6 +86,7 @@ legado do Todos faz parte do contrato público por pressuposição.
   `ies processo retomar NUP [--confirmar]` ([contrato parcial](cli/processo-sobrestar.md):
   prévia Web; `--confirmar` com uma escrita e verificação por releitura, saída 1 se não confirmada)
 - `ies processo enviar NUP --para SIGLA [--manter-aberto] [--confirmar]`
+- `ies processo enviar NUP --grupo ID [--para SIGLA ...] [--manter-aberto]` (prévia; sem confirmação)
   ([contrato](cli/processo-enviar.md))
 - `ies processo ciente NUP [--confirmar]` (ciência Web: um GET mutador,
   releitura da árvore e da lista; [contrato](cli/processo-ciente.md); #271)
