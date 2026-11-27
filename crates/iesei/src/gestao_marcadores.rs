@@ -179,6 +179,50 @@ pub fn ler(
     Ok(Some(pagina))
 }
 
+/// Escolhe explicitamente uma testemunha existente para a unidade do cenário.
+/// Retorna false se o ordinal não existe, preservando a escolha anterior.
+/// # Errors
+/// Propaga a causa SQLite.
+pub fn selecionar(
+    banco: &Connection,
+    instalacao: &Instalacao,
+    cenario: &str,
+    unidade: &str,
+    ordinal: usize,
+) -> rusqlite::Result<bool> {
+    let alteradas = banco.execute(
+        "INSERT INTO unidade_gestao_marcadores_selecao (origem,cenario,unidade,ordinal)
+         SELECT origem,cenario,unidade,ordinal FROM unidade_gestao_marcadores
+         WHERE origem=?1 AND cenario=?2 AND unidade=?3 AND ordinal=?4
+         ON CONFLICT(origem,cenario,unidade) DO UPDATE SET ordinal=excluded.ordinal",
+        params![instalacao.url_base(), cenario, unidade, inteiro(ordinal)?],
+    )?;
+    Ok(alteradas == 1)
+}
+
+/// Lê somente a testemunha escolhida, sem inferir a mais recente.
+/// # Errors
+/// Propaga a causa SQLite ou uma observação incoerente.
+pub fn ler_selecionada(
+    banco: &Connection,
+    instalacao: &Instalacao,
+    cenario: &str,
+    unidade: &str,
+) -> rusqlite::Result<Option<Pagina>> {
+    let ordinal: Option<i64> = banco
+        .query_row(
+            "SELECT ordinal FROM unidade_gestao_marcadores_selecao
+             WHERE origem=?1 AND cenario=?2 AND unidade=?3",
+            params![instalacao.url_base(), cenario, unidade],
+            |r| r.get(0),
+        )
+        .optional()?;
+    match ordinal {
+        Some(n) => ler(banco, instalacao, cenario, unidade, natural(n)?),
+        None => Ok(None),
+    }
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -210,6 +254,36 @@ mod tests {
                 },
             ],
         }
+    }
+
+    #[test]
+    fn selecao_explicita_nao_inventa_ultima_testemunha() {
+        let mut db = banco();
+        let origem = Instalacao::interpretar("https://sei.test/sei").unwrap();
+        let outra = Instalacao::interpretar("https://sei.test/outro").unwrap();
+        let original = pagina();
+        let vazia = Pagina {
+            total: 0,
+            faixa: None,
+            itens: vec![],
+        };
+        registrar(&mut db, &origem, "a", "U", 1, &original).unwrap();
+        registrar(&mut db, &origem, "a", "U", 2, &vazia).unwrap();
+        assert_eq!(ler_selecionada(&db, &origem, "a", "U").unwrap(), None);
+        assert!(selecionar(&db, &origem, "a", "U", 1).unwrap());
+        assert!(!selecionar(&db, &origem, "a", "U", 3).unwrap());
+        assert_eq!(
+            ler_selecionada(&db, &origem, "a", "U").unwrap(),
+            Some(original)
+        );
+        assert_eq!(ler_selecionada(&db, &origem, "a", "V").unwrap(), None);
+        assert_eq!(ler_selecionada(&db, &origem, "b", "U").unwrap(), None);
+        assert_eq!(ler_selecionada(&db, &outra, "a", "U").unwrap(), None);
+        assert!(selecionar(&db, &origem, "a", "U", 2).unwrap());
+        assert_eq!(
+            ler_selecionada(&db, &origem, "a", "U").unwrap(),
+            Some(vazia)
+        );
     }
 
     #[test]

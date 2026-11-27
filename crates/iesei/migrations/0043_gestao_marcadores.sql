@@ -29,4 +29,13 @@ CREATE TABLE unidade_gestao_marcador_linha (
     FOREIGN KEY (origem, cenario, unidade, ordinal)
         REFERENCES unidade_gestao_marcadores(origem, cenario, unidade, ordinal)
 ) STRICT;
+CREATE TABLE unidade_gestao_marcadores_selecao (
+    origem TEXT NOT NULL,
+    cenario TEXT NOT NULL,
+    unidade TEXT NOT NULL,
+    ordinal INTEGER NOT NULL,
+    PRIMARY KEY (origem, cenario, unidade),
+    FOREIGN KEY (origem, cenario, unidade, ordinal)
+        REFERENCES unidade_gestao_marcadores(origem, cenario, unidade, ordinal)
+) STRICT;
 PRAGMA user_version = 43;
