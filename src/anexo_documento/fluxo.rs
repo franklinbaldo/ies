@@ -33,13 +33,14 @@ pub(crate) fn ler_anexo_com_teor<R: Read>(
     let mut conferido = conferir(&resposta, limite)?;
     let RespostaBinaria { corpo, .. } = resposta;
     let teor_pdf = extrair_pdf && conferido.mime == "application/pdf";
+    let scratch = (teor_pdf && matches!(destino, DestinoDoAnexo::SoMetadados))
+        .then(ScratchPdf::novo)
+        .transpose()?;
     let mut arquivo = match destino {
-        DestinoDoAnexo::SoMetadados if teor_pdf => Some(abrir_parcial_cache(
-            &std::env::temp_dir(),
-            "ies-teor-pdf",
-            &conferido,
-        )?),
-        DestinoDoAnexo::SoMetadados => None,
+        DestinoDoAnexo::SoMetadados => scratch
+            .as_ref()
+            .map(|p| abrir_parcial_cache(&p.0, "ies-teor-pdf", &conferido))
+            .transpose()?,
         DestinoDoAnexo::Diretorio(dir) => Some(abrir_parcial(dir, numero, &conferido)?),
         DestinoDoAnexo::Cache { diretorio, .. } => {
             Some(abrir_parcial_cache(diretorio, numero, &conferido)?)
@@ -186,4 +187,58 @@ fn texto_do_anexo(mime: &str, bytes: &[u8], tipo: &str) -> Result<String, ErroAn
             }
         })
         .collect())
+}
+
+/// Diretório exclusivo da extração sem cache. O parcial é descartado
+/// antes dele, inclusive nas saídas por erro.
+struct ScratchPdf(std::path::PathBuf);
+
+impl ScratchPdf {
+    fn novo() -> Result<Self, ErroAnexo> {
+        use crate::arquivo_privado::{FalhaDaGravacao, Politica, conferir_diretorios};
+        use std::fs::{self, DirBuilder};
+        use std::io::ErrorKind;
+        use std::sync::atomic::{AtomicU64, Ordering};
+
+        let pai = fs::canonicalize(std::env::temp_dir()).map_err(|erro| {
+            ErroAnexo::GravacaoDoParcialFalhou(FalhaDaGravacao::DiretorioNaoConsultado(erro.kind()))
+        })?;
+        conferir_diretorios(
+            &pai.join("ies-teor-pdf"),
+            Politica::exclusiva().diretorio_do_ies(),
+        )
+        .map_err(ErroAnexo::GravacaoDoParcialFalhou)?;
+        #[cfg(unix)]
+        let construtor = {
+            use std::os::unix::fs::DirBuilderExt;
+            let mut construtor = DirBuilder::new();
+            construtor.mode(0o700);
+            construtor
+        };
+        #[cfg(not(unix))]
+        let construtor = DirBuilder::new();
+        static SEQUENCIA: AtomicU64 = AtomicU64::new(0);
+        for _ in 0..8 {
+            let n = SEQUENCIA.fetch_add(1, Ordering::Relaxed);
+            let caminho = pai.join(format!("ies-teor-pdf-{}-{n}", std::process::id()));
+            match construtor.create(&caminho) {
+                Ok(()) => return Ok(Self(caminho)),
+                Err(erro) if erro.kind() == ErrorKind::AlreadyExists => {}
+                Err(erro) => {
+                    return Err(ErroAnexo::GravacaoDoParcialFalhou(
+                        FalhaDaGravacao::CriacaoDoDiretorioFalhou(erro.kind()),
+                    ));
+                }
+            }
+        }
+        Err(ErroAnexo::GravacaoDoParcialFalhou(
+            FalhaDaGravacao::NomesDeTemporarioEsgotados,
+        ))
+    }
+}
+
+impl Drop for ScratchPdf {
+    fn drop(&mut self) {
+        let _ = std::fs::remove_dir(&self.0);
+    }
 }
