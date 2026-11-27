@@ -250,6 +250,7 @@ mod replay {
     struct Gravado<'a> {
         json: &'a serde_json::Value,
         passos: VecDeque<fonte::Resposta<'a>>,
+        pagina: usize,
     }
 
     impl Gravado<'_> {
@@ -292,6 +293,33 @@ mod replay {
             cookie: &str,
         ) -> Result<crate::formulario_web::RespostaDoPost<Self::Corpo>, FalhaTransporte> {
             assert!(cookie == "PHPSESSID=SINTETICO");
+            // O corpo gravado não existe; conferir a intenção da CLI contra
+            // um oráculo independente, sem inferir igualdade com o POST real.
+            let corpo = std::str::from_utf8(submissao.corpo()).expect("corpo URL encoded");
+            let conferir = |nome: &str, esperado: &str| {
+                let mut valores = corpo
+                    .split('&')
+                    .filter_map(|par| par.split_once('='))
+                    .filter(|(chave, _)| *chave == nome)
+                    .map(|(_, valor)| valor);
+                assert!(
+                    valores.next() == Some(esperado) && valores.next().is_none(),
+                    "campo {nome} divergente ou repetido"
+                );
+            };
+            match self.passos.front().expect("POST além do roteiro").operacao {
+                "gerar_estatisticas_unidade" => {
+                    conferir("selOrgao", "");
+                    conferir("txtPeriodoDe", "29%2F02%2F2024");
+                    conferir("txtPeriodoA", "29%2F02%2F2024");
+                    conferir("sbmPesquisar", "Pesquisar");
+                }
+                "estatisticas_detalhar_unidade" => {
+                    self.pagina += 1;
+                    conferir("hdnInfraPaginaAtual", &self.pagina.to_string());
+                }
+                _ => panic!("POST inesperado no roteiro"),
+            }
             Ok(self.proxima("POST", submissao.url()))
         }
 
@@ -335,7 +363,11 @@ mod replay {
             }
         }
         assert_eq!(passos.len(), paginas + 3);
-        Gravado { json, passos }
+        Gravado {
+            json,
+            passos,
+            pagina: 0,
+        }
     }
 
     #[test]
