@@ -1,4 +1,4 @@
-use super::{Leitura, executar, falha, json};
+use super::{FalhaPrevia, Leitura, executar, executar_com_falha_previa, falha, json};
 
 #[test]
 fn exportacao_zip_preserva_documento_cadastrado_e_nao_repete_geracao() {
@@ -294,5 +294,81 @@ fn download_zip_http_distingue_seletor_ausente_de_malformado() {
         );
         assert!(!cabecalho.contains("Content-Disposition:"));
         assert_eq!(corpo, br#"{"erro":"requisicao_invalida"}"#);
+    }
+}
+
+// Intervenção sintética na projeção HTTP, não no cadastro SQLite:
+// o segundo nó passa a publicar a forma fechada observada no acervo.
+// O gerador real do anti-IES continua disponível para o primeiro anexo.
+pub(super) fn fechar_segundo_no(resposta: &mut [u8]) -> bool {
+    let prefixo = b"Nos[2].src = '";
+    let Some(inicio) = resposta.windows(prefixo.len()).position(|w| w == prefixo) else {
+        return false;
+    };
+    let resto = &mut resposta[inicio..];
+    let fim = resto.iter().position(|&b| b == b'\n').unwrap();
+    let linha = &mut resto[..fim];
+    assert!(linha.starts_with(b"Nos[2].src = 'controlador.php?acao=documento_download_anexo"));
+    let fechado = b"Nos[2].src = '';\n";
+    // Preserva o Content-Length; o padding fica em outra linha,
+    // pois o leitor exige o ponto e vírgula no fim da atribuição.
+    linha.fill(b' ');
+    linha[..fechado.len()].copy_from_slice(fechado);
+    true
+}
+
+// Mesmo estado sintético e intervenção nas três execuções; apenas a
+// seleção muda. A positiva precisa passar pelo gerador e baixar o ZIP.
+// O replay original UnB/UFRJ da forma fechada é um teste separado.
+#[test]
+fn exportacao_seletiva_recusa_no_fechado_antes_do_gerador() {
+    use std::io::{Cursor, Read};
+
+    for (pedidos, valido) in [
+        (&["050000001"][..], true),
+        (&["050000002"][..], false),
+        (&["050000001", "050000002"][..], false),
+    ] {
+        let (saidas, eventos, documentos, arquivos) = executar_com_falha_previa(
+            None,
+            Some(FalhaPrevia::DocumentoFechado),
+            false,
+            Leitura::ZipSelecao(pedidos),
+            &[b"%PDF-1.4\n2 0 obj\n%%EOF\n"],
+        );
+        assert_eq!(documentos, 2);
+        for saida in &saidas[..3] {
+            assert!(saida.status.success(), "HTTP={eventos:?}");
+        }
+        let arvore = json(&saidas[2]);
+        let docs = arvore["documentos"].as_array().unwrap();
+        assert_eq!(docs.len(), 2);
+        assert_eq!(docs[0]["numero_sei"], "050000001");
+        assert_eq!(docs[1]["numero_sei"], "050000002");
+        assert!(eventos.iter().any(|e| e == "arvore mista projetada"));
+        if valido {
+            assert!(saidas[3].status.success(), "HTTP={eventos:?}");
+            let bytes = arquivos.into_iter().next().flatten().unwrap();
+            let mut zip = zip::ZipArchive::new(Cursor::new(bytes)).unwrap();
+            assert_eq!(zip.len(), 1);
+            let mut membro = zip.by_name("050000001.pdf").unwrap();
+            let mut conteudo = Vec::new();
+            membro.read_to_end(&mut conteudo).unwrap();
+            assert_eq!(conteudo, b"%PDF-1.4\n1 0 obj\n%%EOF\n");
+        } else {
+            falha(&saidas[3], "DocumentoSelecionadoInacessivel");
+            assert_eq!(arquivos, vec![None]);
+        }
+        for prefixo in [
+            "GET procedimento_gerar_zip",
+            "POST procedimento_gerar_zip",
+            "GET exibir_arquivo",
+        ] {
+            assert_eq!(
+                eventos.iter().filter(|e| e.starts_with(prefixo)).count(),
+                usize::from(valido),
+                "{prefixo}: {eventos:?}"
+            );
+        }
     }
 }
