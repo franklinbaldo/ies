@@ -19,6 +19,7 @@ pub mod detalhada_cassettes;
 pub mod documento_versoes;
 pub mod documentos_simulados;
 pub mod editor_documento;
+pub mod gestao_marcadores;
 pub mod instalacao;
 pub mod marcadores;
 pub mod observacao;
