@@ -231,6 +231,9 @@ fn cadastro(
             "</form>",
             "<input type='radio' name='rdoTextoInicial' value='N' checked>\
              <input type='radio' name='rdoTextoInicial' value='T'>\
+             <input type='radio' name='rdoTextoInicial' value='D'>\
+             <input type='text' name='txtProtocoloDocumentoTextoBase' maxlength='7'>\
+             <input type='hidden' name='hdnIdDocumentoTextoBase'>\
              <input type='text' name='txtTextoPadrao'>\
              <input type='hidden' name='hdnIdTextoPadrao'></form>",
             1,

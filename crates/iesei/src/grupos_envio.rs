@@ -39,7 +39,13 @@ pub fn semear(
     for membro in oferecidos {
         tx.execute(
             "INSERT INTO sim_grupo_envio_unidade VALUES (?1,?2,?3,?4,?5)",
-            params![origem, escopo.cenario, escopo.unidade, membro.id, membro.nome],
+            params![
+                origem,
+                escopo.cenario,
+                escopo.unidade,
+                membro.id,
+                membro.nome
+            ],
         )?;
     }
     tx.commit()
