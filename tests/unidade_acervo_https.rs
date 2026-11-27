@@ -125,7 +125,12 @@ fn roteiro(caso: Caso) -> Vec<Passo> {
     passos
 }
 
-fn servir(escuta: &TcpListener, parar: &AtomicBool, tls: &TlsAcceptor, passos: Vec<Passo>) -> usize {
+fn servir(
+    escuta: &TcpListener,
+    parar: &AtomicBool,
+    tls: &TlsAcceptor,
+    passos: Vec<Passo>,
+) -> usize {
     let mut passos = passos.into_iter();
     let mut total = 0;
     loop {
