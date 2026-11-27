@@ -2,6 +2,8 @@
 use super::*;
 use crate::consulta_do_controlador::ErroParametroDaUrl;
 
+/// Link servido na lista 4.0 com duas identidades não permite abrir
+/// cadastro, mesmo que o primeiro ID seja numérico.
 #[test]
 fn lista_40_com_identidade_duplicada_recusa_sem_abrir_cadastro() {
     let amb = ambiente();

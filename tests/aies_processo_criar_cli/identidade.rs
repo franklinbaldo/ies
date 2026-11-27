@@ -63,6 +63,12 @@ fn tipo_homonimo_persistido_nao_confirma_nem_repete_post() {
         String::from_utf8_lossy(&saida.stdout),
         String::from_utf8_lossy(&saida.stderr),
     );
+    assert!(saida.stdout.is_empty());
+    let erro = String::from_utf8_lossy(&saida.stderr);
+    assert!(
+        erro.contains("VerificacaoAposPost(ProvaDaCriacao(PropriedadesDivergentes))"),
+        "{erro}"
+    );
     assert_eq!(
         pedidos
             .iter()

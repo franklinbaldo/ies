@@ -349,8 +349,5 @@ fn confirma_41_com_post_de_escolha_e_post_criador_unicos() {
     assert!(requests[5..].iter().all(|req| req.metodo == "GET"));
 }
 
-/// Link servido na lista 4.0 com duas identidades não permite abrir
-/// cadastro, mesmo que o primeiro ID seja numérico.
-
 #[path = "tests_fluxo_limites.rs"]
 mod tests_fluxo_limites;
