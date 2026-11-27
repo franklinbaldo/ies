@@ -287,6 +287,12 @@ pub(super) fn pares_de_especificacao(
         _ => return Err(ErroPropriedades::FormulariosDasPropriedadesRepetidos),
     };
     let campos = &Campos { formulario };
+    if valor(campos.unico("hdnSinIndividual")?) != "N" {
+        return Err(ErroPropriedades::CadastroIndividualNaoSuportado);
+    }
+    if nivel_de_acesso(campos)? == NivelDeAcesso::Sigiloso {
+        return Err(ErroPropriedades::CadastroSigilosoNaoSuportado);
+    }
     let mut pares = vec![
         ("txtDescricao", pedida.to_owned()),
         ("txaObservacoes", observacoes(campos)?),

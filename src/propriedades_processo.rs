@@ -3,7 +3,10 @@
 //! nó do processo, lido por [`crate::arvore_processo::ler_link_das_propriedades`],
 //! e o formulário `form#frmProcedimentoCadastro`, lido sem nunca ser
 //! enviado. Estrutura em docs/como-o-sei-funciona/propriedades-do-processo.md.
+mod alteracao;
 mod tela;
+
+pub(crate) use alteracao::tentar_alterar;
 
 use crate::acao_do_sei::AcaoDoSei;
 
@@ -116,6 +119,8 @@ pub(crate) enum ErroPropriedades {
     InteressadoForaDaFormaObservada,
     NivelDeAcessoForaDaFormaObservada,
     OpcoesMarcadasRepetidas,
+    CadastroIndividualNaoSuportado,
+    CadastroSigilosoNaoSuportado,
 }
 
 impl ErroPropriedades {
