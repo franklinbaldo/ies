@@ -19,21 +19,23 @@ pub(super) fn conferir(html: &HtmlServido, numero: &NumeroDocumento) -> Result<S
     // O perfil observado usa controles internos, sem associação explícita.
     // Um controle externo associado ao cadastro também participa do envio.
     if let Some(id) = form.atributo("id")
-        && ["input", "select", "textarea", "button"].iter().any(|tipo| {
-            dom.elementos(tipo).any(|tag| {
-                tag.atributo("form") == Some(id)
-                    && matches!(
-                        tag.atributo("name"),
-                        Some(
-                            "rdoTextoInicial"
-                                | "txtProtocoloDocumentoTextoBase"
-                                | "txtTextoPadrao"
-                                | "hdnIdDocumentoTextoBase"
-                                | "hdnIdTextoPadrao"
+        && ["input", "select", "textarea", "button"]
+            .iter()
+            .any(|tipo| {
+                dom.elementos(tipo).any(|tag| {
+                    tag.atributo("form") == Some(id)
+                        && matches!(
+                            tag.atributo("name"),
+                            Some(
+                                "rdoTextoInicial"
+                                    | "txtProtocoloDocumentoTextoBase"
+                                    | "txtTextoPadrao"
+                                    | "hdnIdDocumentoTextoBase"
+                                    | "hdnIdTextoPadrao"
+                            )
                         )
-                    )
+                })
             })
-        })
     {
         return Err(ErroModelo::ControlesNaoOferecidos);
     }
