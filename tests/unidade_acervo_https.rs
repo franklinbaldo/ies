@@ -272,5 +272,6 @@ fn acervo_historico_binario_zero_explicito_sem_detalhe() {
     assert_eq!(json["total_declarado"], 0);
     assert_eq!(json["linhas_observadas"], 0);
     assert_eq!(json["nups_distintos"], 0);
-    assert!(json["processos"].as_array().unwrap().is_empty());
+    let vazio: &[Value] = &[];
+    assert_eq!(json["processos"].as_array().unwrap().as_slice(), vazio);
 }

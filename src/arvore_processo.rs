@@ -108,7 +108,8 @@ pub(crate) use concluir::{
     ler_concluir_da_barra, ler_funcao_de_concluir,
 };
 pub(crate) use conteudo::{
-    ConteudoNaArvore, EnderecoDoConteudo, ErroConteudoNaArvore, ler_conteudo_na_arvore,
+    ConteudoNaArvore, EnderecoDoConteudo, ErroConteudoNaArvore, documento_inacessivel,
+    ler_conteudo_na_arvore,
 };
 pub(crate) use endereco::conferir_endereco_relativo;
 pub(crate) use enviar::{ErroEnviarNaBarra, ler_enviar_da_barra};
