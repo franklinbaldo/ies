@@ -119,6 +119,8 @@ fn formulario_de_pesquisa(
         <input type="hidden" id="hdnIdUsuarioGerador2" name="hdnIdUsuarioGerador2" value=""/>
         <input type="hidden" id="hdnIdUsuarioGerador3" name="hdnIdUsuarioGerador3" value=""/>
         <input type="text" id="q" name="q" value=""/>
+        <input type="text" name="txtDescricaoPesquisa" id="txtDescricaoPesquisa" maxlength="250" value=""/>
+        <input type="text" name="txtObservacaoPesquisa" id="txtObservacaoPesquisa" maxlength="250" value=""/>
         <select id="selTipoProcedimentoPesquisa" name="selTipoProcedimentoPesquisa">{opcoes}</select>
         <input type="text" name="txtDataInicio" id="txtDataInicio" value="{de}"/>
         <input type="text" name="txtDataFim" id="txtDataFim" value="{ate}"/>
