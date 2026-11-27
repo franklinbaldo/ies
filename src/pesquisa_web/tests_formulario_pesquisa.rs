@@ -424,3 +424,6 @@ fn assunto_nao_vira_texto_sem_id_de_autocompletar() {
 
 #[path = "tests_formulario_pesquisa_maxlength.rs"]
 mod maxlength;
+
+#[path = "tests_formulario_texto.rs"]
+mod texto;
