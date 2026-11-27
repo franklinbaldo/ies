@@ -95,8 +95,6 @@ fn replay_da_lista_de_blocos_no_acervo() {
 #[test]
 #[ignore = "lê os ZIPs do acervo em IES_ACERVO_CACHE; sem rede"]
 fn replay_da_criacao_de_bloco_de_assinatura_no_acervo() {
-    use crate::tela_html::arvore;
-
     let mut vistos = BTreeMap::new();
     let mut observacoes = BTreeMap::new();
     percorrer(&["bloco_assinatura_cadastrar"], |nome, instalacao, json| {
@@ -117,36 +115,7 @@ fn replay_da_criacao_de_bloco_de_assinatura_no_acervo() {
         let html = HtmlServido::de_teste(
             &html_da_resposta(formulario.interacao).expect("HTML do cadastro"),
         );
-        let dom = arvore(&html);
-        let forms: Vec<_> = dom.com_id("frmBlocoCadastro").collect();
-        let [form] = forms.as_slice() else {
-            panic!("{instalacao}: cadastro não único");
-        };
-        assert_eq!(form.nome(), "form");
-        let descricoes: Vec<_> = form
-            .elementos("textarea")
-            .filter_map(|no| no.atributo("name"))
-            .filter(|n| matches!(*n, "txtDescricao" | "txaDescricao"))
-            .collect();
-        assert_eq!(descricoes, [campo], "{instalacao}: descrição");
-        assert_eq!(
-            crate::bloco_cli::criar::campo_descricao(&html).expect("leitor de produção"),
-            campo
-        );
-        assert!(
-            form.descendentes()
-                .any(|no| no.atributo("name") == Some("sbmCadastrarBloco")),
-            "{instalacao}: botão Salvar"
-        );
-
-        // O builder Rust só emite campos de usuário que a operação fornece.
-        // Observar o default do grupo antes de projetar a submissão.
-        let grupo = grupo_padrao_do_cadastro(*form);
-        assert_eq!(grupo.as_deref(), Some("null"), "{instalacao}");
-        assert_eq!(
-            crate::bloco_cli::criar::grupo_padrao(&html).expect("leitor de produção"),
-            grupo
-        );
+        let grupo = conferir_formulario_da_criacao(&html, campo, instalacao);
         let classe_grupo = match grupo.as_deref() {
             None => "ausente",
             Some("") => "vazio",
@@ -208,6 +177,44 @@ fn replay_da_criacao_de_bloco_de_assinatura_no_acervo() {
         let _ = writeln!(relatorio, "  filtros depois: {fd}");
     }
     publicar(&relatorio);
+}
+
+fn conferir_formulario_da_criacao(
+    html: &HtmlServido,
+    campo: &str,
+    instalacao: &str,
+) -> Option<String> {
+    let dom = crate::tela_html::arvore(html);
+    let forms: Vec<_> = dom.com_id("frmBlocoCadastro").collect();
+    let [form] = forms.as_slice() else {
+        panic!("{instalacao}: cadastro não único");
+    };
+    assert_eq!(form.nome(), "form");
+    let descricoes: Vec<_> = form
+        .elementos("textarea")
+        .filter_map(|no| no.atributo("name"))
+        .filter(|n| matches!(*n, "txtDescricao" | "txaDescricao"))
+        .collect();
+    assert_eq!(descricoes, [campo], "{instalacao}: descrição");
+    assert_eq!(
+        crate::bloco_cli::criar::campo_descricao(html).expect("leitor de produção"),
+        campo
+    );
+    assert!(
+        form.descendentes()
+            .any(|no| no.atributo("name") == Some("sbmCadastrarBloco")),
+        "{instalacao}: botão Salvar"
+    );
+
+    // O builder Rust só emite campos de usuário que a operação fornece.
+    // Observar o default do grupo antes de projetar a submissão.
+    let grupo = grupo_padrao_do_cadastro(*form);
+    assert_eq!(grupo.as_deref(), Some("null"), "{instalacao}");
+    assert_eq!(
+        crate::bloco_cli::criar::grupo_padrao(html).expect("leitor de produção"),
+        grupo
+    );
+    grupo
 }
 
 fn conferir_derivacao_do_cadastro(

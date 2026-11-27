@@ -2,6 +2,7 @@ use super::*;
 use crate::formulario_web::{RespostaDoPost, SubmissaoDerivada};
 use crate::transporte::RespostaWeb;
 use std::collections::VecDeque;
+use std::fmt::Write as _;
 use std::io::Cursor;
 use std::path::PathBuf;
 use std::time::{SystemTime, UNIX_EPOCH};
@@ -221,9 +222,11 @@ fn cadastro_post_unico_e_releitura_independente() {
             depois.1 = lista.1.replace("2195", "2196");
         }
         let cadastro = format!("controlador.php?acao=bloco_assinatura_cadastrar&infra_hash={HASH}");
-        lista.1.push_str(&format!(
+        write!(
+            lista.1,
             "<button id='btnNovo' onclick=\"location.href='{cadastro}'\">Novo</button>"
-        ));
+        )
+        .unwrap();
         envio.telas.push_back((
             format!("{ORIGEM}/{cadastro}"),
             format!(
@@ -254,10 +257,9 @@ fn cadastro_post_unico_e_releitura_independente() {
             true,
             &mut envio,
         );
-        assert_eq!(envio.posts, if parcial { 0 } else { 1 });
+        assert_eq!(envio.posts, usize::from(!parcial));
         assert!(envio.telas.is_empty());
         let gets_esperados = match (status, mudou_unidade, parcial) {
-            (_, _, true) => 3,
             (302, true, false) => 4,
             (302, false, false) => 5,
             _ => 3,

@@ -14,6 +14,7 @@ use serde_json::Value;
 #[path = "support/falha.rs"]
 mod falha_cli;
 use falha_cli::falha;
+use fluxo::{Cenario, executar_fluxo};
 use std::fs;
 use std::io::{Read, Write};
 use std::net::{Shutdown, TcpListener, TcpStream};
@@ -313,19 +314,6 @@ fn argumentos(interno: bool, numero: Option<&str>, previa: bool) -> Vec<&str> {
     }
 }
 
-fn executar(interno: bool, numero: Option<&str>, previa: bool) -> (Output, Vec<String>) {
-    executar_com_cobertura(interno, numero, previa, false)
-}
-
-fn executar_com_cobertura(
-    interno: bool,
-    numero: Option<&str>,
-    previa: bool,
-    completa: bool,
-) -> (Output, Vec<String>) {
-    fluxo::executar_fluxo(interno, numero, previa, completa, false)
-}
-
 fn json(saida: &Output) -> Value {
     serde_json::from_slice(&saida.stdout).unwrap_or_else(|e| {
         panic!(
@@ -339,7 +327,7 @@ fn json(saida: &Output) -> Value {
 // Expectativas sobre o contrato da CLI, nao geradas a partir do HTML do servidor.
 #[test]
 fn bdd_256_01_cli_real_lista_somente_pagina_observada_no_sqlite() {
-    let (saida, pedidos) = executar(false, None, false);
+    let (saida, pedidos) = executar_fluxo(Cenario::Lista);
     assert_eq!(
         saida.status.code(),
         Some(0),
@@ -373,7 +361,7 @@ fn bdd_256_01_cli_real_lista_somente_pagina_observada_no_sqlite() {
 /// Corpus sintético completo e isolado para a futura criação.
 #[test]
 fn cli_real_lista_corpus_completo_para_criacao() {
-    let (saida, pedidos) = executar_com_cobertura(false, None, false, true);
+    let (saida, pedidos) = executar_fluxo(Cenario::ListaCompleta);
     assert!(saida.status.success());
     assert!(pedidos.iter().all(|p| p.starts_with("GET ")));
     let valor = json(&saida);
@@ -391,7 +379,7 @@ fn cli_real_lista_corpus_completo_para_criacao() {
 /// A expectativa nao e derivada do HTML gerado pelo anti-IES.
 #[test]
 fn bdd_256_02_cli_real_pagina_2_interna_sqlite() {
-    let (saida, pedidos) = executar(true, None, false);
+    let (saida, pedidos) = executar_fluxo(Cenario::Interno);
     assert_eq!(
         saida.status.code(),
         Some(0),
@@ -422,7 +410,7 @@ fn bdd_256_02_cli_real_pagina_2_interna_sqlite() {
 /// Expectativas definidas independentemente do HTML gerado pelo simulador.
 #[test]
 fn bdd_256_03_cli_real_detalhe_assinatura_com_estado_e_itens() {
-    let (saida, pedidos) = executar(false, Some("2195"), false);
+    let (saida, pedidos) = executar_fluxo(Cenario::Detalhe);
     assert_eq!(
         saida.status.code(),
         Some(0),
@@ -456,7 +444,7 @@ fn bdd_256_03_cli_real_detalhe_assinatura_com_estado_e_itens() {
 /// O numero nao visto nesta pagina nao pode virar inexistencia global.
 #[test]
 fn bdd_256_03_bloco_ausente_da_pagina_recusa_sem_terceiro_get() {
-    let (saida, pedidos) = executar(false, Some("9999"), false);
+    let (saida, pedidos) = executar_fluxo(Cenario::Ausente);
     falha(&saida, "Bloco");
     assert_eq!(pedidos.len(), 2);
     assert!(!String::from_utf8_lossy(&saida.stderr).contains("infra_hash"));

@@ -1,5 +1,5 @@
 //! #876: hipótese sintética de prévia, não replay do POST original.
-use super::{CENARIO, Command, ORIGEM, executar, fluxo::executar_fluxo, json};
+use super::{CENARIO, Cenario, Command, ORIGEM, executar_fluxo, json};
 use rusqlite::{Connection, params};
 
 #[test]
@@ -15,7 +15,7 @@ fn criar_bloco_previa_nao_grava_nem_adivinha_identidade() {
         String::from_utf8_lossy(&ajuda.stderr)
     );
     // A descrição já existe no SQLite. A prévia não pode adotar seu ID.
-    let (saida, pedidos) = executar(false, None, true);
+    let (saida, pedidos) = executar_fluxo(Cenario::Previa);
     assert!(pedidos.iter().all(|p| p.starts_with("GET ")));
     let valor = json(&saida);
     assert_eq!(valor["unidade"], "TESTE");
@@ -77,7 +77,7 @@ pub(super) fn conferir_sqlite(banco: &Connection) {
 
 #[test]
 fn criar_bloco_confirmado_preserva_homonimo_e_persiste_novo_id() {
-    let (saida, pedidos) = executar_fluxo(false, None, true, true, true);
+    let (saida, pedidos) = executar_fluxo(Cenario::Confirmar);
     let valor = json(&saida);
     assert_eq!(valor["confirmado"], true);
     assert_eq!(valor["alterado"], true);
@@ -91,7 +91,7 @@ fn criar_bloco_confirmado_preserva_homonimo_e_persiste_novo_id() {
 
 #[test]
 fn criar_bloco_confirmar_recusa_lista_parcial_sem_post() {
-    let (saida, pedidos) = executar_fluxo(false, None, true, false, true);
+    let (saida, pedidos) = executar_fluxo(Cenario::RecusarParcial);
     assert!(!saida.status.success());
     assert!(pedidos.iter().all(|p| p.starts_with("GET ")));
 }

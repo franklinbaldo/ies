@@ -5,15 +5,39 @@ use super::{
     banco_cassettes, certificado, criar, iniciar_tunel, registrar_blocos, thread,
 };
 
-pub(super) fn executar_fluxo(
-    interno: bool,
-    numero: Option<&str>,
-    previa: bool,
-    completa: bool,
-    confirmar: bool,
-) -> (Output, Vec<String>) {
-    let detalhe = numero == Some("2195");
-    let gravar = confirmar && completa;
+#[derive(Clone, Copy)]
+pub(super) enum Cenario {
+    Lista,
+    ListaCompleta,
+    Interno,
+    Detalhe,
+    Ausente,
+    Previa,
+    Confirmar,
+    RecusarParcial,
+}
+
+impl Cenario {
+    fn numero(self) -> Option<&'static str> {
+        match self {
+            Self::Detalhe => Some("2195"),
+            Self::Ausente => Some("9999"),
+            _ => None,
+        }
+    }
+
+    fn previa(self) -> bool {
+        matches!(self, Self::Previa | Self::Confirmar | Self::RecusarParcial)
+    }
+}
+
+pub(super) fn executar_fluxo(cenario: Cenario) -> (Output, Vec<String>) {
+    let interno = matches!(cenario, Cenario::Interno);
+    let detalhe = matches!(cenario, Cenario::Detalhe);
+    let previa = cenario.previa();
+    let completa = matches!(cenario, Cenario::ListaCompleta | Cenario::Confirmar);
+    let confirmar = matches!(cenario, Cenario::Confirmar | Cenario::RecusarParcial);
+    let gravar = matches!(cenario, Cenario::Confirmar);
     let esperados = if gravar {
         6
     } else if interno || detalhe || previa {
@@ -68,7 +92,7 @@ pub(super) fn executar_fluxo(
     let porta = proxy.local_addr().unwrap().port();
     let tunel = iniciar_tunel(proxy, identidade, endereco, esperados);
 
-    let mut argumentos = argumentos(interno, numero, previa);
+    let mut argumentos = argumentos(interno, cenario.numero(), previa);
     if confirmar {
         argumentos.push("--confirmar");
     }
@@ -98,6 +122,15 @@ pub(super) fn executar_fluxo(
     }
     let pedidos = tunel.join().expect("GET HTTPS");
     simulador.join().expect("GET anti-IES");
+    conferir_pedidos(&pedidos, cenario, esperados);
+    (saida, pedidos)
+}
+
+fn conferir_pedidos(pedidos: &[String], cenario: Cenario, esperados: usize) {
+    let interno = matches!(cenario, Cenario::Interno);
+    let detalhe = matches!(cenario, Cenario::Detalhe);
+    let previa = cenario.previa();
+    let gravar = matches!(cenario, Cenario::Confirmar);
     assert_eq!(pedidos.len(), esperados);
     assert_eq!(
         pedidos.iter().filter(|p| p.starts_with("GET ")).count(),
@@ -129,5 +162,4 @@ pub(super) fn executar_fluxo(
         assert!(pedidos[2].contains("acao=rel_bloco_protocolo_listar"));
         assert!(pedidos[2].contains("id_bloco=2195"));
     }
-    (saida, pedidos)
 }
