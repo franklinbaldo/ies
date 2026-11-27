@@ -11,7 +11,7 @@ pub(crate) enum ErroModelo {
     NumeroExcedeLimite,
 }
 
-/// Perfil histórico Todos caabe699, documento_gerar.html, L838–866.
+/// Perfil histórico Todos caabe699, `documento_gerar.html`, L838–866.
 /// O número lexical não é o ID oculto retornado pela lupa de favoritos.
 pub(super) fn conferir(html: &HtmlServido, numero: &NumeroDocumento) -> Result<String, ErroModelo> {
     let dom = crate::tela_html::arvore(html);

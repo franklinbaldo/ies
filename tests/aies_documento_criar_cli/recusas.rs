@@ -148,6 +148,6 @@ fn modelo_com_confirmacao_recusa_antes_da_sessao() {
     confirmacao.extend(["--modelo", "0011526"]);
     let (saidas, trilha, quantidade) = executar(&[&confirmacao], false);
     assert_eq!(saidas[0].status.code(), Some(2));
-    assert!(trilha.is_empty());
+    assert_eq!(trilha, [] as [std::string::String; 0]);
     assert_eq!(quantidade, 1);
 }
