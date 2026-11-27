@@ -253,11 +253,15 @@ mod tests {
                 if r.operacao == "procedimento_controlar" {
                     let html = HtmlServido::de_teste(&html_da_resposta(r.interacao).unwrap());
                     let servida = gravacao::url_sem_consulta(&captura.json, r.interacao);
-                    let link = link_do_menu(&html, &servida, &instalacao)
-                        .unwrap_or_else(|_| panic!("{caminho}: passo {} sem link utilizável", r.passo));
-                    if let Ok(Some(unidade)) = crate::controle_contexto::unidade_html(&arvore(&html))
-                    {
-                        anterior = Some((unidade, link));
+                    let resultado = link_do_menu(&html, &servida, &instalacao);
+                    assert!(
+                        resultado.is_ok(),
+                        "{caminho}: passo {} sem link utilizável",
+                        r.passo
+                    );
+                    let unidade = crate::controle_contexto::unidade_html(&arvore(&html));
+                    if let Ok(Some(unidade)) = unidade {
+                        anterior = Some((unidade, resultado.unwrap()));
                     }
                     controles += 1;
                 } else if r.operacao == "marcador_listar" {
@@ -268,9 +272,7 @@ mod tests {
                             .then_some(unidade.as_str())
                     });
                     let classe = match crate::controle_contexto::unidade_html(&dom) {
-                        Ok(Some(unidade)) if encadeada.is_some_and(|u| u != unidade) => {
-                            "CONFLITO"
-                        }
+                        Ok(Some(unidade)) if encadeada.is_some_and(|u| u != unidade) => "CONFLITO",
                         Ok(Some(_)) => "DIRETA",
                         Ok(None) if dom.com_id("lnkInfraUnidade").next().is_some() => "INVALIDA",
                         Ok(None) if encadeada.is_some() => "LINK_EXATO",
