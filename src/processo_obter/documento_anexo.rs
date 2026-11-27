@@ -5,7 +5,9 @@
 //! para o login é sessão encerrada, como no resto do fluxo.
 use super::super::abertura::{Rede, fora_de_palpite};
 use super::super::{EnvioDoProcesso, ErroProcessoObter};
-use crate::anexo_documento::{AnexoLido, DestinoDoAnexo, ErroAnexo, LimiteDoAnexo, ler_anexo};
+use crate::anexo_documento::{
+    AnexoLido, DestinoDoAnexo, ErroAnexo, LimiteDoAnexo, ler_anexo_com_teor,
+};
 use crate::arvore_processo::EnderecoDoConteudo;
 use std::path::Path;
 
@@ -62,7 +64,14 @@ pub(super) fn ler<V: EnvioDoProcesso>(
         (None, _, Some(dir)) => DestinoDoAnexo::Diretorio(dir),
         _ => DestinoDoAnexo::SoMetadados,
     };
-    let lido = ler_anexo(resposta, numero, pedido.limite, destino).map_err(|erro| match erro {
+    let lido = ler_anexo_com_teor(
+        resposta,
+        numero,
+        pedido.limite,
+        destino,
+        pedido.saida.is_none(),
+    )
+    .map_err(|erro| match erro {
         ErroAnexo::TelaDeLogin(crate::erro_publico::SessaoEncerrada) => {
             super::erro::ErroDocumentoObter::Processo(ErroProcessoObter::SessaoEncerrada(
                 crate::erro_publico::SessaoEncerrada,
