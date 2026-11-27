@@ -294,8 +294,8 @@ fn pesquisa_documental(
         "txtDescricaoPesquisa",
         "txtObservacaoPesquisa",
     ]
-        .iter()
-        .any(|nome| campo_opcional(corpo, nome, "").as_deref() != Some(""))
+    .iter()
+    .any(|nome| campo_opcional(corpo, nome, "").as_deref() != Some(""))
     {
         return Resposta::nova(Estado::DadosInsuficientes);
     }

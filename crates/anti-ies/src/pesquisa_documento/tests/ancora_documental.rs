@@ -96,7 +96,10 @@ fn verificar_filtros_processuais(
         ("&txtObservacaoPesquisa=", Estado::Ok),
         ("&txtDescricaoPesquisa=&txtObservacaoPesquisa=", Estado::Ok),
         ("&txtDescricaoPesquisa=contrato", Estado::DadosInsuficientes),
-        ("&txtObservacaoPesquisa=contrato", Estado::DadosInsuficientes),
+        (
+            "&txtObservacaoPesquisa=contrato",
+            Estado::DadosInsuficientes,
+        ),
         ("&txtDescricaoPesquisa=+", Estado::DadosInsuficientes),
         ("&txtObservacaoPesquisa=%20", Estado::DadosInsuficientes),
         (
