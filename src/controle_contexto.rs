@@ -136,6 +136,17 @@ pub(crate) fn unidade_html(dom: &crate::tela_html::Documento) -> Result<Option<S
     Ok(unidade_html_original(dom))
 }
 
+/// Somente para janelas derivadas de um Controle já identificado: a ausência
+/// do marcador é compatível; se presente, deve identificar a unidade esperada.
+/// Os erros do leitor são preservados. Não substitui a identificação obrigatória.
+pub(crate) fn unidade_publicada_compativel(
+    dom: &crate::tela_html::Documento,
+    esperada: &str,
+) -> Result<bool, ErroCaixa> {
+    Ok(dom.com_id("lnkInfraUnidade").next().is_none()
+        || unidade_html(dom)?.as_deref() == Some(esperada))
+}
+
 fn par_de_barras_equivalentes(dom: &crate::tela_html::Documento) -> bool {
     if dom.com_id("lnkInfraUnidade").count() != 2 {
         return false;
@@ -317,6 +328,40 @@ mod tests {
         );
         let nested = barras("Unidade4", "Unidade4", "#").replacen("</div>", "", 1) + "</div>";
         assert_eq!(unidade_exibida_no_controle(&nested), Ok("Unidade4".into()));
+    }
+
+    #[test]
+    fn unidade_publicada_distingue_ausencia_de_barra_invalida() {
+        const A: &str = "<a id='lnkInfraUnidade' href='#'>UNIDADE A</a>";
+        const B: &str = "<a id='lnkInfraUnidade' href='#'>UNIDADE B</a>";
+        let compativel = |html: &str| {
+            let servido = crate::tela_html::HtmlServido::de_teste(html);
+            unidade_publicada_compativel(&crate::tela_html::arvore(&servido), "UNIDADE A")
+        };
+        let par = barras("UNIDADE A", "UNIDADE A", "#");
+        let aninhado = par.replacen("</div>", "", 1) + "</div>";
+        for html in [String::new(), A.to_owned(), par.clone(), aninhado] {
+            assert_eq!(compativel(&html), Ok(true), "{html}");
+        }
+        for html in [
+            B.to_owned(),
+            "<a id='lnkInfraUnidade'> </a>".to_owned(),
+            "<span id='lnkInfraUnidade'>UNIDADE A</span>".to_owned(),
+        ] {
+            assert_eq!(compativel(&html), Ok(false), "{html}");
+        }
+        for html in [
+            format!("{A}{A}"),
+            format!("{par}{B}"),
+            barras("UNIDADE A", "UNIDADE B", "#"),
+            barras("UNIDADE A", "UNIDADE A", "#outro"),
+        ] {
+            assert_eq!(
+                compativel(&html),
+                Err(ErroCaixa::IdentificacoesDaUnidadeRepetidasNoControle),
+                "{html}"
+            );
+        }
     }
 
     #[test]
