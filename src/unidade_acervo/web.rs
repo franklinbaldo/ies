@@ -387,7 +387,10 @@ mod replay {
             }
         }
         assert_eq!(esperados.len(), total);
-        println!("páginas={paginas} detalhes_posteriores={}", detalhes - paginas);
+        println!(
+            "páginas={paginas} detalhes_posteriores={}",
+            detalhes - paginas
+        );
         let mut passos = VecDeque::new();
         for r in respostas {
             if [controle, formulario, relatorio].contains(&r.passo)
