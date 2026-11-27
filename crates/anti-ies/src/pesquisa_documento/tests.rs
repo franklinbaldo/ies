@@ -137,6 +137,11 @@ fn registro_negativo_na_unidade_nao_inventa_resultado_de_outro_termo() {
         .estado,
         Estado::DadosInsuficientes
     );
+    verificar_criterios_documentais(&banco, &instalacao, url);
+    verificar_coorte_contraditoria(&mut banco, &instalacao, &unidade, url);
+}
+
+fn verificar_criterios_documentais(banco: &Connection, instalacao: &Instalacao, url: &str) {
     // A observação negativa de protocolo não prova a mesma consulta com q.
     for (criterios, esperado) in [
         ("txtProtocoloPesquisa=DOC-NAO-ACHADO&q=", Estado::Ok),
@@ -177,19 +182,27 @@ fn registro_negativo_na_unidade_nao_inventa_resultado_de_outro_termo() {
             "POST",
             url,
             &format!("rdoPesquisarEm=D&chkSinDocumentosGerados=S&{criterios}"),
-            &banco,
-            &instalacao,
+            banco,
+            instalacao,
             "cenario",
         );
         assert_eq!(resposta.estado, esperado, "{criterios}");
     }
+}
+
+fn verificar_coorte_contraditoria(
+    banco: &mut Connection,
+    instalacao: &Instalacao,
+    unidade: &UnidadeExibida,
+    url: &str,
+) {
     // A segunda página contradiz o zero explícito, ainda que não haja
     // primeira página positiva. Nenhum deslocamento pode renderizá-la.
     iesei::pesquisa_documento::registrar_pagina(
-        &mut banco,
-        &instalacao,
+        banco,
+        instalacao,
         "cenario",
-        &unidade,
+        unidade,
         "DOC-NAO-ACHADO",
         &iesei::pesquisa_documento::PaginaObservada {
             pagina: 2,
@@ -207,8 +220,8 @@ fn registro_negativo_na_unidade_nao_inventa_resultado_de_outro_termo() {
             &format!(
                 "rdoPesquisarEm=D&chkSinDocumentosGerados=S&txtProtocoloPesquisa=DOC-NAO-ACHADO&hdnInicio={deslocamento}"
             ),
-            &banco,
-            &instalacao,
+            banco,
+            instalacao,
             "cenario",
         );
         assert_eq!(resposta.estado, Estado::DadosInsuficientes);
@@ -219,8 +232,8 @@ fn registro_negativo_na_unidade_nao_inventa_resultado_de_outro_termo() {
             "POST",
             url,
             "rdoPesquisarEm=P&txtProtocoloPesquisa=DOC-NAO-ACHADO",
-            &banco,
-            &instalacao,
+            banco,
+            instalacao,
             "cenario",
         )
         .estado,

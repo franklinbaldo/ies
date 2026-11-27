@@ -224,49 +224,51 @@ fn preparar_estado(banco: &mut Connection, instalacao: &Instalacao, estado: Esta
             negativo(banco);
         }
     } else if matches!(estado, EstadoDeBusca::PeriodoProcessual) {
-        // Hipótese sintética, não resposta original do SEI.
-        let unidade = UnidadeExibida::nova("TESTE").unwrap();
-        for (id, nome) in [("73", "Administrativo"), ("74", "Judicial")] {
-            iesei::pesquisa_processo::registrar_tipo(
-                banco, instalacao, CENARIO, &unidade, id, nome,
-            )
-            .unwrap();
-        }
-        iesei::pesquisa_processo::registrar_sem_resultado(
-            banco,
-            instalacao,
-            CENARIO,
-            &UnidadeExibida::nova("TESTE").unwrap(),
-            iesei::pesquisa_processo::Criterios {
-                tipo_id: "",
-                de: "01/01/2026",
-                ate: "31/01/2026",
-            },
-        )
-        .unwrap();
-        for criterios in [
-            iesei::pesquisa_processo::Criterios {
-                tipo_id: "73",
-                de: "",
-                ate: "",
-            },
-            iesei::pesquisa_processo::Criterios {
-                tipo_id: "73",
-                de: "01/01/2026",
-                ate: "31/01/2026",
-            },
-        ] {
-            iesei::pesquisa_processo::registrar_sem_resultado(
-                banco, instalacao, CENARIO, &unidade, criterios,
-            )
-            .unwrap();
-        }
+        preparar_periodo_processual(banco, instalacao);
     } else if matches!(estado, EstadoDeBusca::PaginasProcessuais) {
         processos::preparar_paginas(banco, instalacao);
     } else if let EstadoDeBusca::CoorteProcessualContraditoria(zero_primeiro) = estado {
         processos::preparar_coorte_contraditoria(banco, instalacao, zero_primeiro);
     } else {
         preparar_paginas(banco, instalacao);
+    }
+}
+
+fn preparar_periodo_processual(banco: &mut Connection, instalacao: &Instalacao) {
+    // Hipótese sintética, não resposta original do SEI.
+    let unidade = UnidadeExibida::nova("TESTE").unwrap();
+    for (id, nome) in [("73", "Administrativo"), ("74", "Judicial")] {
+        iesei::pesquisa_processo::registrar_tipo(banco, instalacao, CENARIO, &unidade, id, nome)
+            .unwrap();
+    }
+    iesei::pesquisa_processo::registrar_sem_resultado(
+        banco,
+        instalacao,
+        CENARIO,
+        &UnidadeExibida::nova("TESTE").unwrap(),
+        iesei::pesquisa_processo::Criterios {
+            tipo_id: "",
+            de: "01/01/2026",
+            ate: "31/01/2026",
+        },
+    )
+    .unwrap();
+    for criterios in [
+        iesei::pesquisa_processo::Criterios {
+            tipo_id: "73",
+            de: "",
+            ate: "",
+        },
+        iesei::pesquisa_processo::Criterios {
+            tipo_id: "73",
+            de: "01/01/2026",
+            ate: "31/01/2026",
+        },
+    ] {
+        iesei::pesquisa_processo::registrar_sem_resultado(
+            banco, instalacao, CENARIO, &unidade, criterios,
+        )
+        .unwrap();
     }
 }
 
