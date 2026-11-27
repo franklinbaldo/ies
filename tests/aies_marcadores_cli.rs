@@ -22,6 +22,9 @@ use std::time::Duration;
 mod fixture_tls;
 use fixture_tls::{Pasta, identidade};
 
+#[path = "aies_marcadores_cli/posicao.rs"]
+mod posicao;
+
 const ORIGEM: &str = "https://sei.test/sei";
 const CENARIO: &str = "bdd-255-marcador-idempotente";
 const NUP: &str = "00001.000001/2026-01";
