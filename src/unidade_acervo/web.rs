@@ -354,9 +354,9 @@ mod replay {
             ("pen1", "5c557e93a6ce", 305, 7),
             ("pen2", "c64c576f9a9a", 685, 14),
         ] {
-            let card = raiz.join(nome).join(format!(
-                "unidade-estatisticas-acervo-{nome}--{revisao}.md"
-            ));
+            let card = raiz
+                .join(nome)
+                .join(format!("unidade-estatisticas-acervo-{nome}--{revisao}.md"));
             let arquivo = crate::cassette::archive_filename(&card).expect("card OKF");
             let zip = ZipDoAcervo::ler(&cache.join(&arquivo)).expect("ZIP original");
             let conferida =
