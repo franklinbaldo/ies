@@ -372,3 +372,36 @@ fn exportacao_seletiva_recusa_no_fechado_antes_do_gerador() {
         }
     }
 }
+
+// Mesmo pedido e estado, com e sem mutação do download: o ZIP errado
+// tem cardinalidade correta, formato legível e o mesmo tamanho do bom.
+#[test]
+fn exportacao_seletiva_recusa_membro_alheio_sem_publicar() {
+    for mutante in [false, true] {
+        let (saidas, eventos, documentos, arquivos) = executar_com_falha_previa(
+            None,
+            mutante.then_some(FalhaPrevia::ZipMembroAlheio),
+            false,
+            Leitura::ZipSelecao(&["050000001", "050000002"]),
+            &[b"%PDF-1.4\n2 0 obj\n%%EOF\n"],
+        );
+        assert_eq!(documentos, 2);
+        for saida in &saidas[..3] {
+            assert!(saida.status.success(), "HTTP={eventos:?}");
+        }
+        for evento in ["POST procedimento_gerar_zip 200", "GET exibir_arquivo 200"] {
+            assert_eq!(eventos.iter().filter(|e| e.as_str() == evento).count(), 1);
+        }
+        assert_eq!(
+            eventos.iter().any(|e| e == "zip membro alheio projetado"),
+            mutante
+        );
+        if mutante {
+            falha(&saidas[3], "SelecaoZipDivergente");
+            assert_eq!(arquivos, vec![None]);
+        } else {
+            assert!(saidas[3].status.success(), "HTTP={eventos:?}");
+            assert!(arquivos[0].is_some());
+        }
+    }
+}
