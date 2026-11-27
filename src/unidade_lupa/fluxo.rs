@@ -256,7 +256,7 @@ pub(crate) fn destino(
     destino_de_candidatos(candidatos(html, acao), url_da_tela, origem, acao)
 }
 
-fn botao_novo(
+pub(crate) fn botao_novo(
     html: &crate::tela_html::HtmlServido,
     url: &str,
     origem: &str,

@@ -10,6 +10,7 @@ use crate::{Cli, configuracao, controle_reconhecido, transporte, unidade_lupa};
 use serde::Serialize;
 use std::collections::HashSet;
 
+mod criar;
 mod paginacao;
 
 #[derive(Debug, clap::Subcommand)]
@@ -21,6 +22,18 @@ pub(crate) enum Acao {
     },
     /// Consulta o grupo pelo ID publicado na página observada.
     Obter { id: String },
+    /// Prepara a criação de um grupo; --confirmar grava apenas em treinamento.
+    Criar {
+        #[arg(long)]
+        nome: String,
+        #[arg(long, default_value = "")]
+        descricao: String,
+        /// Unidade a incluir; pode ser repetida.
+        #[arg(long = "membro")]
+        membros: Vec<String>,
+        #[arg(long)]
+        confirmar: bool,
+    },
 }
 
 #[derive(Debug, clap::Args)]
@@ -315,12 +328,11 @@ fn conferir_unidade_publicada(html: &HtmlServido, unidade: &str) -> anyhow::Resu
     Ok(())
 }
 
-fn listar_via<V: EnvioDoControle>(
+fn abrir_lista_via<V: EnvioDoControle>(
     sessao: &ReferenciasDaSessao,
     unidade_esperada: Option<&str>,
-    pagina: Option<u32>,
     envio: &mut V,
-) -> anyhow::Result<(String, String, crate::legenda::Legenda, Vec<Linha>)> {
+) -> anyhow::Result<(String, crate::instalacao::Instalacao, TelaAtual)> {
     let controle = transporte::envio_post::ler_tela_via(
         sessao.url_do_controle(),
         sessao.cookie(),
@@ -344,8 +356,18 @@ fn listar_via<V: EnvioDoControle>(
         mime: resposta.mime.clone(),
         html: transporte::decodificar_resposta(resposta)?,
     };
+    Ok((unidade, controle.instalacao, tela))
+}
+
+fn listar_via<V: EnvioDoControle>(
+    sessao: &ReferenciasDaSessao,
+    unidade_esperada: Option<&str>,
+    pagina: Option<u32>,
+    envio: &mut V,
+) -> anyhow::Result<(String, String, crate::legenda::Legenda, Vec<Linha>)> {
+    let (unidade, instalacao, tela) = abrir_lista_via(sessao, unidade_esperada, envio)?;
     let (url, legenda, linhas) =
-        paginacao::ler_observada(tela, sessao, &controle.instalacao, &unidade, pagina, envio)?;
+        paginacao::ler_observada(tela, sessao, &instalacao, &unidade, pagina, envio)?;
     Ok((unidade, url, legenda, linhas))
 }
 
@@ -385,6 +407,22 @@ fn ler_via<V: EnvioDoControle>(
             let (unidade, grupo) = obter_via(sessao, unidade_esperada, id, envio)?;
             Ok(serde_json::json!({"unidade": unidade, "origem": "web", "grupo": grupo}))
         }
+        Acao::Criar {
+            nome,
+            descricao,
+            membros,
+            confirmar,
+        } => Ok(serde_json::to_value(criar::criar_via(
+            sessao,
+            unidade_esperada,
+            &criar::Pedido {
+                nome,
+                descricao,
+                unidades: membros,
+                confirmar: *confirmar,
+            },
+            envio,
+        )?)?),
     }
 }
 

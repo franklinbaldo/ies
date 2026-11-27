@@ -48,6 +48,8 @@ pub(crate) enum EstadoDoProcesso {
     ProcessoCriadoNaUnidade,
     /// Cadastro de bloco de assinatura na unidade, confirmado na lista.
     BlocoCriadoNaUnidade,
+    /// Cadastro de grupo de envio na unidade, conferido pela releitura.
+    GrupoEnvioCriadoNaUnidade,
     /// Sobrestar ou remover o sobrestamento de um processo.
     Sobrestamento,
     /// Atribuição de um processo a usuário da unidade, ou sua remoção.
