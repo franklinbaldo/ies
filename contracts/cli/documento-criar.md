@@ -31,6 +31,10 @@ campos e nível solicitado. A prévia não envia POST de criação. Uma
 eventual leitura por POST (`hdnFiltroSerie=T`) exige declaração de
 efeito separada e contagem; `documento_gerar_multiplo` não é leitura.
 
+WIP #872: `--texto-padrao NOME` apenas na prévia; seleção exata e única, JSON `texto_padrao` com `id` e `nome`. Incompatível com `--confirmar`; confirmação por texto padrão (T) ou modelo (D) indisponível.
+
+Autocomplete lexical (inline/`inicializar`), não execução JS: retorno antecipado ou redefinição podem gerar falso reconhecimento. POST inferido; corpo, XML, charset e efeito externo não comprovados. Bancada CLI/anti-IES/SQLite sintética; replay GO prova controles e declarações, não a consulta efetiva. R270 autoriza a hipótese só em treinamento e sei.test; outras origens recusadas antes da sessão/rede. Não altera a regra de produção nem autoriza POST criador.
+
 ## Confirmação
 
 Antes do primeiro POST de escrita, todas as recusas precisam estar
