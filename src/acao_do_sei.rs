@@ -50,6 +50,7 @@ acoes_do_sei! {
         AndamentoMarcadorRemover => "andamento_marcador_remover",
         AnotacaoRegistrar => "anotacao_registrar",
         ArvoreVisualizar => "arvore_visualizar",
+        BlocoAssinaturaCadastrar => "bloco_assinatura_cadastrar",
         BlocoAssinaturaListar => "bloco_assinatura_listar",
         BlocoEscolher => "bloco_escolher",
         BlocoInternoListar => "bloco_interno_listar",

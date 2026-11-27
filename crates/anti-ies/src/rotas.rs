@@ -192,6 +192,9 @@ pub(crate) fn responder(
         {
             crate::blocos::responder(metodo, alvo, corpo, banco, instalacao, cenario)
         }
+        Some("bloco_assinatura_cadastrar") if eh_controlador_sei(alvo) => {
+            crate::blocos::cadastro(metodo, corpo, banco, instalacao, cenario)
+        }
         Some("bloco_escolher") if eh_controlador_sei(alvo) => {
             crate::bloco_escolher::responder(metodo, alvo, corpo, banco, instalacao, cenario)
         }
