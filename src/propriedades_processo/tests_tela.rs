@@ -33,6 +33,7 @@ fn le_os_campos_da_forma_observada() {
     assert_eq!(
         lidas,
         PropriedadesLidas {
+            id_tipo: "100000002".into(),
             tipo: "Tipo Sintetico: Teste".into(),
             especificacao: "Especificação sintética & teste".into(),
             interessados: vec!["Pessoa Sintetica A".into(), "Entidade Sintetica B".into()],
@@ -42,6 +43,7 @@ fn le_os_campos_da_forma_observada() {
             }],
             observacoes: "Observação sintética".into(),
             nivel_de_acesso: NivelDeAcesso::Publico,
+            id_hipotese_legal: None,
             hipotese_legal: None,
             data_de_geracao: "01/02/2026".into(),
             fonte: FonteDasPropriedades::Alterar,
@@ -71,6 +73,7 @@ fn fonte_consultar_e_publicada() {
 fn restrito_publica_a_hipotese_marcada() {
     let lidas = ler(&tela_restrita(NUP, ID)).unwrap();
     assert_eq!(lidas.nivel_de_acesso, NivelDeAcesso::Restrito);
+    assert_eq!(lidas.id_hipotese_legal.as_deref(), Some("7"));
     assert_eq!(
         lidas.hipotese_legal.as_deref(),
         Some("Hipotese Sintetica (Art. 1)")
@@ -88,7 +91,30 @@ fn hipotese_marcada_com_valor_null_e_nao_observada() {
             "<option value=\"null\">&nbsp;</option>\n<option value=\"7\"",
             "<option value=\"null\" selected=\"selected\">&nbsp;</option>\n<option value=\"7\"",
         );
-    assert_eq!(ler(&html).unwrap().hipotese_legal, None);
+    let lidas = ler(&html).unwrap();
+    assert_eq!(lidas.hipotese_legal, None);
+    assert_eq!(lidas.id_hipotese_legal, None);
+}
+
+#[test]
+fn tipo_homonimo_preserva_identidade_distinta() {
+    let original = ler(&padrao()).unwrap();
+    let html = padrao().replace("100000002", "100000004");
+    let homonimo = ler(&html).unwrap();
+    assert_eq!(original.tipo, homonimo.tipo);
+    assert_eq!(homonimo.id_tipo, "100000004");
+    assert_ne!(original.id_tipo, homonimo.id_tipo);
+}
+
+#[test]
+fn hipotese_homonima_preserva_identidade_distinta() {
+    let html = tela_restrita(NUP, ID);
+    let original = ler(&html).unwrap();
+    let mutante = html.replace("value=\"7\" selected", "value=\"8\" selected");
+    let homonima = ler(&mutante).unwrap();
+    assert_eq!(original.hipotese_legal, homonima.hipotese_legal);
+    assert_eq!(homonima.id_hipotese_legal.as_deref(), Some("8"));
+    assert_ne!(original.id_hipotese_legal, homonima.id_hipotese_legal);
 }
 
 #[test]

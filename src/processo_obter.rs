@@ -244,7 +244,7 @@ impl Andamentos {
 /// por `--sem-propriedades`. Barra sem a tela é erro tipado.
 #[derive(Debug, PartialEq, Eq)]
 pub(crate) enum Propriedades {
-    Lidas(PropriedadesLidas),
+    Lidas(Box<PropriedadesLidas>),
     /// `--sem-propriedades`: nenhum pedido à tela.
     Omitidas,
 }
