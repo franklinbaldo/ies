@@ -13,7 +13,9 @@ mod membros;
 
 #[derive(Debug, thiserror::Error)]
 enum ErroCriar {
-    #[error("CatalogoAnteriorIncompleto: confirmação exige catálogo integral; nenhuma criação enviada")]
+    #[error(
+        "CatalogoAnteriorIncompleto: confirmação exige catálogo integral; nenhuma criação enviada"
+    )]
     CatalogoAnteriorIncompleto,
     #[error("CharsetNaoSuportado")]
     CharsetNaoSuportado,
