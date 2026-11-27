@@ -36,8 +36,12 @@ fn le_os_campos_da_forma_observada() {
             id_tipo: "100000002".into(),
             tipo: "Tipo Sintetico: Teste".into(),
             especificacao: "Especificação sintética & teste".into(),
-            interessados: vec!["Pessoa Sintetica A".into(), "Entidade Sintetica B".into()],
+            interessados: vec![
+                Interessado { id: "301".into(), nome: "Pessoa Sintetica A".into() },
+                Interessado { id: "302".into(), nome: "Entidade Sintetica B".into() },
+            ],
             assuntos: vec![Assunto {
+                id: "2001".into(),
                 codigo: "000.01".into(),
                 descricao: "Assunto sintético um".into(),
             }],
@@ -104,6 +108,18 @@ fn tipo_homonimo_preserva_identidade_distinta() {
     assert_eq!(original.tipo, homonimo.tipo);
     assert_eq!(homonimo.id_tipo, "100000004");
     assert_ne!(original.id_tipo, homonimo.id_tipo);
+}
+
+#[test]
+fn listas_homonimas_preservam_identidades_distintas() {
+    let original = ler(&padrao()).unwrap();
+    let assunto = ler(&trocar("value=\"2001\"", "value=\"2002\"")).unwrap();
+    let interessado = ler(&trocar("value=\"301\"", "value=\"303\"")).unwrap();
+    assert_eq!(original.assuntos[0].codigo, assunto.assuntos[0].codigo);
+    assert_eq!(original.assuntos[0].descricao, assunto.assuntos[0].descricao);
+    assert_ne!(original.assuntos, assunto.assuntos);
+    assert_eq!(original.interessados[0].nome, interessado.interessados[0].nome);
+    assert_ne!(original.interessados, interessado.interessados);
 }
 
 #[test]
@@ -249,7 +265,7 @@ fn interessado_sem_texto_e_recusa_e_sem_opcoes_e_lista_vazia() {
         "<option value=\"301\">Pessoa Sintetica A</option>\n<option value=\"302\">Entidade Sintetica B</option>\n",
         "",
     );
-    assert_eq!(ler(&sem).unwrap().interessados, Vec::<String>::new());
+    assert!(ler(&sem).unwrap().interessados.is_empty());
 }
 
 #[test]
