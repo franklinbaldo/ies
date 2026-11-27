@@ -185,7 +185,7 @@ fn conferir_projecao_multissecao(html: &HtmlServido) {
         projetado.versao().map(VersaoDocumento::numero),
         Some(versao.get())
     );
-    assert!(projetado.principal() == Some(principal));
+    assert_eq!(projetado.principal(), Some(principal));
     assert_eq!(projetado.secoes().len(), secoes.len());
     assert!(
         projetado
@@ -195,7 +195,8 @@ fn conferir_projecao_multissecao(html: &HtmlServido) {
             .all(|(a, b)| a.nome == b.nome && a.html == b.html),
         "projeção alterou ordem ou conteúdo"
     );
-    assert!(ler_secoes(&banco, &instalacao, "ensaio", "21", versao).unwrap() == secoes);
+    let ler_revisao = |v| ler_secoes(&banco, &instalacao, "ensaio", "21", v).unwrap();
+    assert_eq!(ler_revisao(versao), secoes);
 
     let cookie = crate::transporte::sessao::CookieDaSessao::sintetico("PHPSESSID=SINTETICO");
     let sessao = SessaoDoProcesso {
@@ -209,17 +210,17 @@ fn conferir_projecao_multissecao(html: &HtmlServido) {
         unidade: None,
         documento: &alvo,
     };
-    let novo = "<p>IES: edição sintética multisseção</p>";
-    let nova = NonZeroU32::new(versao.get() + 1).unwrap();
+    let html_novo = "<p>IES: edição sintética multisseção</p>";
+    let seguinte = NonZeroU32::new(versao.get() + 1).unwrap();
     let aceite = enviar_classico(
         &mut envio,
         &alvo_edicao,
         &editor,
         projetado.secoes(),
         principal,
-        novo,
+        html_novo,
     );
-    let relido = reabrir_apos_aceite(aceite, nova.get(), || {
+    let relido = reabrir_apos_aceite(aceite, seguinte.get(), || {
         abrir_editor(&mut envio, &instalacao, &alvo)
     })
     .unwrap()
@@ -227,17 +228,17 @@ fn conferir_projecao_multissecao(html: &HtmlServido) {
     .unwrap();
     assert_eq!(envio.interno.posts, 1);
     let fresco = Protocolo::ler(&relido.html).unwrap();
-    assert!(releitura::confere(&original, &fresco, nova.get(), novo));
-    assert!(ler_secoes(&banco, &instalacao, "ensaio", "21", versao).unwrap() == secoes);
+    assert!(releitura::confere(&original, &fresco, seguinte.get(), html_novo));
+    assert_eq!(ler_revisao(versao), secoes);
     let mut esperadas = secoes;
     for s in &mut esperadas {
         s.html = if s.principal {
-            novo.into()
+            html_novo.into()
         } else {
             html_para_envio(&s.html)
         };
     }
-    assert!(ler_secoes(&banco, &instalacao, "ensaio", "21", nova).unwrap() == esperadas);
+    assert_eq!(ler_revisao(seguinte), esperadas);
     assert_eq!(fresco.secoes().len(), esperadas.len());
 }
 
