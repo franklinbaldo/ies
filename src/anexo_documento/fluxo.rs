@@ -200,6 +200,8 @@ impl ScratchPdf {
         use std::io::ErrorKind;
         use std::sync::atomic::{AtomicU64, Ordering};
 
+        static SEQUENCIA: AtomicU64 = AtomicU64::new(0);
+
         let pai = fs::canonicalize(std::env::temp_dir()).map_err(|erro| {
             ErroAnexo::GravacaoDoParcialFalhou(FalhaDaGravacao::DiretorioNaoConsultado(erro.kind()))
         })?;
@@ -217,7 +219,6 @@ impl ScratchPdf {
         };
         #[cfg(not(unix))]
         let construtor = DirBuilder::new();
-        static SEQUENCIA: AtomicU64 = AtomicU64::new(0);
         for _ in 0..8 {
             let n = SEQUENCIA.fetch_add(1, Ordering::Relaxed);
             let caminho = pai.join(format!("ies-teor-pdf-{}-{n}", std::process::id()));

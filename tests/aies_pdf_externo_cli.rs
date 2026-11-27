@@ -185,9 +185,7 @@ fn executar_bancada(
     let pdf = pasta.0.join("peticao.pdf");
     fs::write(
         &pdf,
-        pdf_de_teor
-            .map(|(bytes, _)| bytes)
-            .unwrap_or(b"%PDF-1.4\n1 0 obj\n%%EOF\n"),
+        pdf_de_teor.map_or(b"%PDF-1.4\n1 0 obj\n%%EOF\n".as_slice(), |(bytes, _)| bytes),
     )
     .unwrap();
     let outros: Vec<_> = adicionais

@@ -88,19 +88,24 @@ fn complementar(
                 incompleto = true;
                 continue;
             }
-            match ocr(caminho, indice + 1, prazo) {
-                Ok(bytes) => match classificar(&bytes, false)? {
-                    ExtracaoPdf::NativoParcial(texto) => {
-                        houve_ocr = true;
-                        texto
-                    }
-                    ExtracaoPdf::SemTextoNativo => continue,
-                    _ => {
-                        incompleto = true;
-                        continue;
-                    }
-                },
-                Err(_) => {
+            let Ok(bytes) = ocr(caminho, indice + 1, prazo) else {
+                incompleto = true;
+                continue;
+            };
+            match classificar(&bytes, false)? {
+                ExtracaoPdf::NativoParcial(texto) => {
+                    houve_ocr = true;
+                    texto
+                }
+                ExtracaoPdf::SemTextoNativo => continue,
+                ExtracaoPdf::NativoComDiagnostico(_)
+                | ExtracaoPdf::MistoParcial(_)
+                | ExtracaoPdf::OcrParcial(_)
+                | ExtracaoPdf::MistoComDiagnostico(_)
+                | ExtracaoPdf::OcrComDiagnostico(_)
+                | ExtracaoPdf::OcrIndisponivel
+                | ExtracaoPdf::MotorAusente
+                | ExtracaoPdf::Falhou => {
                     incompleto = true;
                     continue;
                 }
