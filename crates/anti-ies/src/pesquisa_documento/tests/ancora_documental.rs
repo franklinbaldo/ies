@@ -64,4 +64,65 @@ fn pagina_documental_exige_ancora_na_primeira_posicao() {
             assert!(!resposta.corpo.contains("pesquisaSemResultado"));
         }
     }
+
+    // Critérios exclusivos de processo não podem herdar uma página documental.
+    for deslocamento in [0, 10] {
+        verificar_filtros_processuais(&banco, &instalacao, "integra", deslocamento, false);
+    }
+    iesei::pesquisa_documento::registrar_sem_resultado(
+        &banco,
+        &instalacao,
+        "cenario",
+        &unidade,
+        "vazia",
+    )
+    .unwrap();
+    verificar_filtros_processuais(&banco, &instalacao, "vazia", 0, true);
+}
+
+fn verificar_filtros_processuais(
+    banco: &Connection,
+    instalacao: &Instalacao,
+    termo: &str,
+    deslocamento: u64,
+    vazio: bool,
+) {
+    let base = format!(
+        "rdoPesquisarEm=D&chkSinDocumentosGerados=S&txtProtocoloPesquisa={termo}&hdnInicio={deslocamento}"
+    );
+    for (extra, esperado) in [
+        ("", Estado::Ok),
+        ("&txtDescricaoPesquisa=", Estado::Ok),
+        ("&txtObservacaoPesquisa=", Estado::Ok),
+        ("&txtDescricaoPesquisa=&txtObservacaoPesquisa=", Estado::Ok),
+        ("&txtDescricaoPesquisa=contrato", Estado::DadosInsuficientes),
+        ("&txtObservacaoPesquisa=contrato", Estado::DadosInsuficientes),
+        ("&txtDescricaoPesquisa=+", Estado::DadosInsuficientes),
+        ("&txtObservacaoPesquisa=%20", Estado::DadosInsuficientes),
+        (
+            "&txtDescricaoPesquisa=&txtDescricaoPesquisa",
+            Estado::DadosInsuficientes,
+        ),
+        (
+            "&txtObservacaoPesquisa=&txtObservacaoPesquisa=",
+            Estado::DadosInsuficientes,
+        ),
+        ("&txtDescricaoPesquisa", Estado::DadosInsuficientes),
+        ("&txtObservacaoPesquisa=%ZZ", Estado::DadosInsuficientes),
+    ] {
+        let resposta = responder_pesquisa(
+            "POST",
+            "/sei/controlador.php?acao=protocolo_pesquisar",
+            &format!("{base}{extra}"),
+            banco,
+            instalacao,
+            "cenario",
+        );
+        assert_eq!(resposta.estado, esperado, "{termo}/{deslocamento}/{extra}");
+        assert_eq!(
+            resposta.corpo.contains("pesquisaSemResultado"),
+            vazio && esperado == Estado::Ok,
+            "{termo}/{deslocamento}/{extra}"
+        );
+    }
 }

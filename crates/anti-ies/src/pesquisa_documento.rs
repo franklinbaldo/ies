@@ -286,8 +286,14 @@ fn pesquisa_documental(
     {
         return Resposta::nova(Estado::RequisicaoInvalida);
     }
-    // O estado documental ainda não distingue filtros por data ou série.
-    if ["txtDataInicio", "txtDataFim", "selSeriePesquisa"]
+    // A chave documental não distingue data, série, descrição ou observação.
+    if [
+        "txtDataInicio",
+        "txtDataFim",
+        "selSeriePesquisa",
+        "txtDescricaoPesquisa",
+        "txtObservacaoPesquisa",
+    ]
         .iter()
         .any(|nome| campo_opcional(corpo, nome, "").as_deref() != Some(""))
     {
