@@ -17,6 +17,7 @@ use falha_cli::falha;
 use std::fs;
 use std::io::{Read, Write};
 use std::net::{Shutdown, TcpListener, TcpStream};
+use std::path::Path;
 use std::process::{Command, Output};
 use std::sync::atomic::{AtomicBool, Ordering};
 use std::sync::{Arc, Mutex};
@@ -30,6 +31,10 @@ const CENARIO: &str = "bdd-332-binario";
 #[path = "aies_documento_criar_cli/fixture_tls.rs"]
 mod fixture_tls;
 use fixture_tls::{Pasta, identidade};
+
+#[path = "aies_pdf_externo_cli/bancada.rs"]
+mod bancada;
+use bancada::pedido;
 
 fn aceitar(escuta: &TcpListener, parar: &AtomicBool) -> Option<TcpStream> {
     loop {
@@ -53,40 +58,6 @@ fn aceitar(escuta: &TcpListener, parar: &AtomicBool) -> Option<TcpStream> {
             Err(e) => panic!("accept: {e}"),
         }
     }
-}
-
-fn pedido(canal: &mut impl Read) -> (Vec<u8>, String, String) {
-    let mut cabecalho = Vec::new();
-    let mut byte = [0];
-    while !cabecalho.ends_with(b"\r\n\r\n") {
-        assert!(cabecalho.len() < 16_384);
-        canal.read_exact(&mut byte).unwrap();
-        cabecalho.push(byte[0]);
-    }
-    let texto = std::str::from_utf8(&cabecalho).unwrap();
-    let inicio = texto.lines().next().unwrap().to_owned();
-    let tamanho = texto
-        .lines()
-        .find_map(|linha| {
-            let (nome, valor) = linha.split_once(':')?;
-            nome.eq_ignore_ascii_case("content-length")
-                .then(|| valor.trim().parse::<usize>().unwrap())
-        })
-        .unwrap_or(0);
-    assert!(tamanho < 3 * 1024 * 1024, "limite da bancada sintética");
-    let mut corpo = vec![0; tamanho];
-    canal.read_exact(&mut corpo).unwrap();
-    cabecalho.extend(corpo);
-    let acao = inicio
-        .split_whitespace()
-        .nth(1)
-        .unwrap()
-        .split_once('?')
-        .and_then(|(_, query)| query.split('&').find_map(|par| par.strip_prefix("acao=")))
-        .unwrap_or("desconhecida")
-        .to_owned();
-    let metodo = inicio.split_whitespace().next().unwrap().to_owned();
-    (cabecalho, metodo, acao)
 }
 
 fn preparar_banco() -> (Connection, Instalacao) {
@@ -139,6 +110,12 @@ fn preparar_banco() -> (Connection, Instalacao) {
 
 type ResultadoBancada = (Vec<Output>, Vec<String>, usize, Vec<Option<Vec<u8>>>);
 
+#[derive(Clone, Copy)]
+enum ScratchPdf {
+    Livre,
+    Orfao,
+}
+
 enum FalhaPrevia {
     LimiteMenor(usize),
     SemAnexos(usize),
@@ -163,16 +140,36 @@ fn executar(
     executar_com_falha_previa(cadastro_incerto, None, somente_previa, leitura, adicionais)
 }
 
-#[expect(
-    clippy::too_many_lines,
-    reason = "Bancada E2E reúne proxy TLS, servidor HTTP e processos reais"
-)]
 fn executar_com_falha_previa(
     cadastro_incerto: Option<usize>,
     falha_previa: Option<FalhaPrevia>,
     somente_previa: bool,
     leitura: Leitura,
     adicionais: &[&[u8]],
+) -> ResultadoBancada {
+    executar_bancada(
+        cadastro_incerto,
+        falha_previa,
+        somente_previa,
+        leitura,
+        adicionais,
+        None,
+        None,
+    )
+}
+
+#[expect(
+    clippy::too_many_lines,
+    reason = "Bancada E2E reúne proxy TLS, servidor HTTP e processos reais"
+)]
+fn executar_bancada(
+    cadastro_incerto: Option<usize>,
+    falha_previa: Option<FalhaPrevia>,
+    somente_previa: bool,
+    leitura: Leitura,
+    adicionais: &[&[u8]],
+    pdf_de_teor: Option<(&[u8], ScratchPdf)>,
+    caminho_motor: Option<&Path>,
 ) -> ResultadoBancada {
     let pasta = Pasta::nova();
     let (cert, identidade_tls) = identidade(&pasta.0, "sei.test");
@@ -187,7 +184,11 @@ fn executar_com_falha_previa(
     );
     let cookie = pasta.privado("cookie", "PHPSESSID=FICTICIO");
     let pdf = pasta.0.join("peticao.pdf");
-    fs::write(&pdf, b"%PDF-1.4\n1 0 obj\n%%EOF\n").unwrap();
+    fs::write(
+        &pdf,
+        pdf_de_teor.map_or(b"%PDF-1.4\n1 0 obj\n%%EOF\n".as_slice(), |(bytes, _)| bytes),
+    )
+    .unwrap();
     let outros: Vec<_> = adicionais
         .iter()
         .enumerate()
@@ -353,6 +354,15 @@ fn executar_com_falha_previa(
             ]
         })
         .collect();
+    let ler_teor_cache = ["--json", "documento", "050000001", "--processo", NUP];
+    let ler_teor_sem_cache = [
+        "--json",
+        "documento",
+        "050000001",
+        "--processo",
+        NUP,
+        "--sem-cache",
+    ];
     let (formato, nome) = match leitura {
         Leitura::PdfProcesso => ("pdf", "processo.pdf"),
         _ => ("zip", "processo.zip"),
@@ -397,10 +407,35 @@ fn executar_com_falha_previa(
         Leitura::ZipSelecao(_) => comandos.push(&exportar_selecao),
         _ => {}
     }
+    if pdf_de_teor.is_some() {
+        comandos.extend([ler_teor_sem_cache.as_slice(), ler_teor_cache.as_slice()]);
+    }
+    let scratch_pdf = pasta.0.join("scratch-pdf");
+    if pdf_de_teor.is_some() {
+        fs::create_dir(&scratch_pdf).unwrap();
+    }
+    let orfao = if matches!(pdf_de_teor, Some((_, ScratchPdf::Orfao))) {
+        use std::os::unix::fs::MetadataExt;
+        use std::time::SystemTime;
+
+        let caminho = scratch_pdf.join(".ies-teor-pdf.cache.pdf.parcial-sentinela");
+        let mut arquivo = fs::File::create(&caminho).unwrap();
+        arquivo.write_all(b"sentinela").unwrap();
+        arquivo
+            .set_modified(SystemTime::now() - Duration::from_secs(7200))
+            .unwrap();
+        let meta = arquivo.metadata().unwrap();
+        assert!(meta.modified().unwrap().elapsed().unwrap() > Duration::from_secs(3600));
+        assert!(!scratch_pdf.join("ies-teor-pdf.cache.pdf").exists());
+        Some((caminho, meta.dev(), meta.ino()))
+    } else {
+        None
+    };
     let saidas: Vec<Output> = comandos
         .iter()
         .map(|args| {
-            Command::new(env!("CARGO_BIN_EXE_ies"))
+            let mut comando = Command::new(env!("CARGO_BIN_EXE_ies"));
+            comando
                 .args(*args)
                 .env("IES_URL_CONTROLE_FILE", &controle)
                 .env("IES_COOKIE_FILE", &cookie)
@@ -414,14 +449,39 @@ fn executar_com_falha_previa(
                 .env_remove("NO_PROXY")
                 .env_remove("no_proxy")
                 .env_remove("IES_CONFIG_FILE")
-                .env_remove("IES_CREDENCIAIS_FILE")
-                .output()
-                .unwrap()
+                .env_remove("IES_CREDENCIAIS_FILE");
+            if pdf_de_teor.is_some() {
+                comando
+                    .env("TMPDIR", &scratch_pdf)
+                    .env("XDG_CACHE_HOME", pasta.0.join("cache"))
+                    .env("IES_CACHE_DOCUMENTOS", "1");
+            }
+            if let Some(caminho) = caminho_motor
+                && (*args == ler_teor_cache.as_slice() || *args == ler_teor_sem_cache.as_slice())
+            {
+                comando.env("PATH", caminho);
+            }
+            comando.output().unwrap()
         })
         .collect();
     parar.store(true, Ordering::SeqCst);
     tunel.join().unwrap();
     let total = servidor.join().unwrap();
+    if let Some((caminho, dispositivo, inode)) = orfao {
+        use std::os::unix::fs::MetadataExt;
+
+        let meta = fs::symlink_metadata(&caminho).expect("sentinela antiga preservada");
+        assert!(meta.is_file());
+        assert_eq!((meta.dev(), meta.ino()), (dispositivo, inode));
+        assert_eq!(fs::read(&caminho).unwrap(), b"sentinela");
+        fs::remove_file(caminho).unwrap();
+    }
+    if pdf_de_teor.is_some() {
+        assert!(
+            fs::read_dir(&scratch_pdf).unwrap().next().is_none(),
+            "a leitura do teor não deve deixar arquivos temporários"
+        );
+    }
     let eventos = trilha.lock().unwrap().clone();
     if matches!(leitura, Leitura::ZipSelecao(_))
         && saidas.last().is_some_and(|saida| !saida.status.success())
@@ -458,3 +518,6 @@ mod lote;
 
 #[path = "aies_pdf_externo_cli/exportacao.rs"]
 mod exportacao;
+
+#[path = "aies_pdf_externo_cli/teor.rs"]
+mod teor;
