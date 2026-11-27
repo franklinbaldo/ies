@@ -105,7 +105,13 @@ pub(crate) fn classificar(
         let lido = por_id
             .get(candidato.id.as_str())
             .ok_or(ErroConferencia::LeituraAusente)?;
-        if lido.corresponde(tipo, hipotese, especificacao, nivel, interessados_solicitados) {
+        if lido.corresponde(
+            tipo,
+            hipotese,
+            especificacao,
+            nivel,
+            interessados_solicitados,
+        ) {
             correspondentes.push(candidato.nup.clone());
         }
     }
@@ -352,7 +358,10 @@ mod tests {
                 &[],
             )
             .unwrap();
-            assert_eq!(matches!(desfecho, Desfecho::CoincidenciaUnica { .. }), coincide);
+            assert_eq!(
+                matches!(desfecho, Desfecho::CoincidenciaUnica { .. }),
+                coincide
+            );
         }
     }
 
