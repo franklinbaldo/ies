@@ -266,9 +266,10 @@ pub(crate) fn escopo_criacao(html: &crate::tela_html::HtmlServido) -> bool {
                 return false;
             }
             let mut selecionadas = no.elementos("option").filter(|o| o.presente("selected"));
-            selecionadas.next().is_some_and(|o| {
-                o.atributo("value") == Some("") && !o.presente("disabled")
-            }) && selecionadas.next().is_none()
+            selecionadas
+                .next()
+                .is_some_and(|o| o.atributo("value") == Some("") && !o.presente("disabled"))
+                && selecionadas.next().is_none()
         })
     };
     let valor = |nome: &str, esperado: &str| {

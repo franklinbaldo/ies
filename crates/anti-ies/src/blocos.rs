@@ -82,7 +82,8 @@ fn html(pagina: &Pagina, numero_pagina: usize, observadas: &[usize]) -> String {
     }
     if pagina.tipo == Tipo::Assinatura {
         // Perfil sintético correspondente ao escopo observado no acervo.
-        saida.push_str("<select name='selGrupoBloco'><option selected value=''>Todos</option></select>\
+        saida.push_str(
+            "<select name='selGrupoBloco'><option selected value=''>Todos</option></select>\
         <select name='selUnidadeGeradora'><option selected value=''>Todas</option></select>\
         <input type='text' name='txtPalavrasPesquisaBloco' value=''>\
         <input type='hidden' name='hdnMeusBlocos' value='T'>\
@@ -93,7 +94,8 @@ fn html(pagina: &Pagina, numero_pagina: usize, observadas: &[usize]) -> String {
         <input type='checkbox' name='chkSinEstadoDisponibilizado' checked>\
         <input type='checkbox' name='chkSinEstadoRecebido' checked>\
         <input type='checkbox' name='chkSinEstadoRetornado' checked>\
-        <input type='checkbox' name='chkSinEstadoConcluido'>");
+        <input type='checkbox' name='chkSinEstadoConcluido'>",
+        );
         write!(saida, "<button id='btnNovo' type='button' onclick=\"location.href='controlador.php?acao=bloco_assinatura_cadastrar&amp;infra_hash={HASH}'\">Novo</button>").expect("String");
     }
     saida.push_str("<table id='tblBlocos'>");

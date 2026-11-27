@@ -8,7 +8,10 @@ pub(super) fn ler_lista_gravada(r: &gravacao::Resposta<'_>) -> (ListaDeBlocos, S
     let lista = ler_lista(&html, TipoBloco::Assinatura)
         .expect("lista de assinatura")
         .lista;
-    assert!(crate::bloco::escopo_criacao(&html), "perfil de consulta original");
+    assert!(
+        crate::bloco::escopo_criacao(&html),
+        "perfil de consulta original"
+    );
     (lista, observar_filtros(&html))
 }
 
