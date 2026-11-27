@@ -177,7 +177,12 @@ fn selecao_por_identidade_lexical_e_nao_por_titulo() {
         Err(ErroSelecao::DocumentoSelecionadoRepetido)
     ));
     assert!(matches!(
-        selecao_da_arvore(&[doc("11", "0001"), doc("22", "0001")], &["0001".into()], "", &origem),
+        selecao_da_arvore(
+            &[doc("11", "0001"), doc("22", "0001")],
+            &["0001".into()],
+            "",
+            &origem
+        ),
         Err(ErroSelecao::IdentidadeDocumentalAmbigua)
     ));
 }
@@ -185,9 +190,9 @@ fn selecao_por_identidade_lexical_e_nao_por_titulo() {
 #[test]
 fn selecao_recusa_fechado_sem_excluir_anexo_recuperavel() {
     use super::{ErroSelecao, selecao_da_arvore};
+    use crate::arvore_processo::ler_arvore;
     use crate::arvore_processo::tests::{NUP, arvore, no_documento, no_processo};
     use crate::arvore_processo::tests_conteudo::{com_src, src_anexo};
-    use crate::arvore_processo::ler_arvore;
 
     let origem = Instalacao::interpretar("https://sei.example.org/sei").unwrap();
     let html = arvore(&[
@@ -199,7 +204,10 @@ fn selecao_recusa_fechado_sem_excluir_anexo_recuperavel() {
     let lida = ler_arvore(&html, NUP, "10").unwrap();
     let docs = &lida.documentos;
     assert!(selecao_da_arvore(docs, &["0000102".into()], &html, &origem).is_ok());
-    for pedidos in [vec!["0000101".into()], vec!["0000102".into(), "0000101".into()]] {
+    for pedidos in [
+        vec!["0000101".into()],
+        vec!["0000102".into(), "0000101".into()],
+    ] {
         assert!(matches!(
             selecao_da_arvore(docs, &pedidos, &html, &origem),
             Err(ErroSelecao::DocumentoSelecionadoInacessivel)
@@ -208,7 +216,11 @@ fn selecao_recusa_fechado_sem_excluir_anexo_recuperavel() {
     // Conteúdo vazio não basta: barra publicada ou a3 não fechado.
     for outro in [
         html.replace("Nos[1].acoes = '';", "Nos[1].acoes = '<span>Ação</span>';"),
-        html.replacen("\"about:blank\",\"ifrVisualizacao\"", "\"outra\",\"ifrVisualizacao\"", 2),
+        html.replacen(
+            "\"about:blank\",\"ifrVisualizacao\"",
+            "\"outra\",\"ifrVisualizacao\"",
+            2,
+        ),
         html.replace("Nos[1].src = '';\n", ""),
     ] {
         assert!(selecao_da_arvore(docs, &["0000101".into()], &outro, &origem).is_ok());

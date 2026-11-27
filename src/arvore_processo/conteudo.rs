@@ -155,11 +155,7 @@ pub(crate) fn ler_conteudo_na_arvore(
 /// A forma fechada observada na unidade de destino: número declarado,
 /// a3 em branco, conteúdo explicitamente vazio e barra vazia.
 /// Ausência de URL validada, isoladamente, não é prova de fechamento.
-pub(crate) fn documento_inacessivel(
-    instalacao: &Instalacao,
-    html: &str,
-    id: &str,
-) -> bool {
+pub(crate) fn documento_inacessivel(instalacao: &Instalacao, html: &str, id: &str) -> bool {
     let declarado_fechado = html.lines().any(|linha| {
         let Ok(Some((_, a))) = ler_declaracao(linha) else {
             return false;
@@ -177,9 +173,8 @@ pub(crate) fn documento_inacessivel(
             ler_conteudo_na_arvore(instalacao, html, id),
             Ok(ConteudoNaArvore::Vazio)
         )
-        && super::barra_do_no(html, id).is_ok_and(|barra| {
-            barra.is_some_and(|barra| barra.as_str().is_empty())
-        })
+        && super::barra_do_no(html, id)
+            .is_ok_and(|barra| barra.is_some_and(|barra| barra.as_str().is_empty()))
 }
 
 /// O `id_anexo` único e decimal de `controlador.php?…`.
