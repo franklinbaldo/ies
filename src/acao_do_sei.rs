@@ -122,6 +122,7 @@ acoes_do_sei! {
         HipoteseLegalSelectNomeBaseLegal => "hipotese_legal_select_nome_base_legal",
         ProcedimentoAnexacaoVerificar => "procedimento_anexacao_verificar",
         ProtocoloRi1023 => "protocolo_RI1023",
+        TextoPadraoAutoCompletar => "texto_padrao_auto_completar",
         UnidadeAutoCompletarEnvioProcesso => "unidade_auto_completar_envio_processo",
     }
 }
