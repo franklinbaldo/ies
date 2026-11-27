@@ -99,6 +99,7 @@ fn replay_documento_criar_go() {
                     if conferir_cadastro(&servido, &tipo, None, None).is_err() {
                         return false;
                     }
+                    registrar_oferta_modelo(&servido);
                     cadastros += 1;
                     // Censo independente da declaração literal do autocomplete:
                     // presença de T no formulário original não prova consulta.
@@ -178,4 +179,12 @@ fn conferir_css_no_documento_gerado(raiz: &Path, zip: &ZipDoAcervo) {
         }
     }
     assert_eq!(impressoes, 2);
+}
+
+// Censo de capacidade, não prova da seleção ou cópia no servidor.
+// O resultado não altera os oráculos históricos de T.
+fn registrar_oferta_modelo(servido: &HtmlServido) {
+    let numero = crate::documento::NumeroDocumento::novo("0011526").expect("número de teste");
+    let reconhecido = super::modelo::conferir(servido, &numero).is_ok();
+    println!("modelo manual GO: perfil reconhecido={reconhecido}");
 }

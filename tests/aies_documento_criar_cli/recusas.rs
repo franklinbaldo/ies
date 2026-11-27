@@ -127,3 +127,27 @@ fn texto_padrao_fora_do_treinamento_recusa_antes_de_ler_sessao() {
         super::falha_cli::falha(&saida, "OrigemForaDoTreinamento");
     }
 }
+
+#[test]
+fn previa_modelo_manual_confere_oferta_sem_abrir_fonte_ou_criar() {
+    let mut previa = criar(false);
+    previa.extend(["--modelo", "0011526"]);
+    let (saidas, trilha, quantidade) = executar(&[&previa], false);
+    assert_eq!(saidas[0].status.code(), Some(0));
+    let resultado = json(&saidas[0]);
+    assert_eq!(resultado["modelo_solicitado"], "0011526");
+    assert_eq!(resultado["confirmado"], false);
+    assert_eq!(quantidade, 1);
+    let (_, trilha_normal, _) = executar(&[&criar(false)], false);
+    assert_eq!(trilha, trilha_normal, "nenhuma consulta adicional da fonte");
+}
+
+#[test]
+fn modelo_com_confirmacao_recusa_antes_da_sessao() {
+    let mut confirmacao = criar(true);
+    confirmacao.extend(["--modelo", "0011526"]);
+    let (saidas, trilha, quantidade) = executar(&[&confirmacao], false);
+    assert_eq!(saidas[0].status.code(), Some(2));
+    assert_eq!(trilha, [] as [std::string::String; 0]);
+    assert_eq!(quantidade, 1);
+}
