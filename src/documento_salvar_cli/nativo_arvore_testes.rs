@@ -26,15 +26,18 @@ fn get_http(
             bruto
         });
         let (mut fluxo, _) = escuta.accept().unwrap();
-        fluxo
-            .set_read_timeout(Some(Duration::from_secs(5)))
-            .unwrap();
+        fluxo.set_read_timeout(Some(Duration::from_secs(5))).unwrap();
         anti_ies::atender_http(&mut fluxo, Some((banco, instalacao, "ensaio"))).unwrap();
         drop(fluxo);
         cliente.join().unwrap()
     });
     let (cabecalho, corpo) = bruto.split_once("\r\n\r\n").unwrap();
-    let status = cabecalho.split_ascii_whitespace().nth(1).unwrap().parse().unwrap();
+    let status = cabecalho
+        .split_ascii_whitespace()
+        .nth(1)
+        .unwrap()
+        .parse()
+        .unwrap();
     let mime = cabecalho
         .lines()
         .find_map(|linha| linha.strip_prefix("Content-Type: "))
@@ -217,8 +220,8 @@ fn conferir_projecao_multissecao(html: &HtmlServido) {
     let relido = reabrir_apos_aceite(aceite, nova.get(), || {
         abrir_editor(&mut envio, &instalacao, &alvo)
     })
-        .unwrap()
-        .unwrap();
+    .unwrap()
+    .unwrap();
     assert_eq!(envio.interno.posts, 1);
     let fresco = Protocolo::ler(&relido.html).unwrap();
     assert!(releitura::confere(&original, &fresco, nova.get(), novo));
