@@ -123,6 +123,6 @@ fn criar_bloco_saida_humana_previa_nao_anuncia_numero() {
 fn criar_bloco_saida_humana_recusa_sem_anunciar_sucesso() {
     let (saida, pedidos) = executar_fluxo_modo(Cenario::RecusarParcial, false);
     assert!(!saida.status.success());
-    assert!(saida.stdout.is_empty());
+    assert_eq!(saida.stdout, [] as [u8; 0]);
     assert!(pedidos.iter().all(|p| p.starts_with("GET ")));
 }

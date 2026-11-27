@@ -259,18 +259,26 @@ pub(super) fn executar(cli: &Cli, descricao: &str, confirmar: bool) -> anyhow::R
         &mut EnvioHttps,
     )?;
     if cli.json {
-        let confirmado = resultado.bloco.is_some();
-        let mut valor = serde_json::json!({
-            "unidade": resultado.unidade,
-            "tipo_bloco": TipoBloco::Assinatura,
-            "descricao": descricao,
-            "grupo_padrao": resultado.grupo,
-            "confirmado": confirmado,
-            "alterado": confirmado
-        });
-        if let Some(bloco) = resultado.bloco {
-            valor["bloco"] = serde_json::to_value(bloco)?;
-        }
+        let valor = if let Some(bloco) = resultado.bloco {
+            serde_json::json!({
+                "unidade": resultado.unidade,
+                "tipo_bloco": TipoBloco::Assinatura,
+                "descricao": descricao,
+                "grupo_padrao": resultado.grupo,
+                "bloco": bloco,
+                "confirmado": true,
+                "alterado": true
+            })
+        } else {
+            serde_json::json!({
+                "unidade": resultado.unidade,
+                "tipo_bloco": TipoBloco::Assinatura,
+                "descricao": descricao,
+                "grupo_padrao": resultado.grupo,
+                "confirmado": false,
+                "alterado": false
+            })
+        };
         println!("{}", serde_json::to_string_pretty(&valor)?);
     } else if let Some(bloco) = resultado.bloco {
         println!(
