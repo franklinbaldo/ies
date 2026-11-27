@@ -162,3 +162,90 @@ fn cancelamento_altera_icone_na_arvore_mista_sem_apagar_outros_documentos() {
         Ok(Some(Situacao::Cancelado { .. }))
     ));
 }
+
+/// Oferta explícita e assinatura são projetadas somente na barra do próprio
+/// documento versionado; histórico e ciência continuam independentes.
+#[test]
+fn oferta_editor_na_arvore_individual_e_mista() {
+    use iesei::editor_documento::{Oferta, registrar_oferta};
+
+    let mut banco = Connection::open_in_memory().unwrap();
+    iniciar(&banco).unwrap();
+    let origem = Instalacao::interpretar("https://sei.exemplo/sei").unwrap();
+    let cenario = "editor-arvore";
+    for (id, numero) in [("42", "0011519"), ("43", "0011520")] {
+        versoes::guardar(
+            &mut banco,
+            cenario,
+            &DocumentoSimulado {
+                instalacao: origem.clone(),
+                id_documento: id.into(),
+                id_procedimento: "10".into(),
+                numero_processo: "00001.000001/2026-01".into(),
+                numero: numero.into(),
+                tipo: "Despacho".into(),
+                revisoes: vec![Revisao {
+                    versao: NonZeroU32::new(1).unwrap(),
+                    usuario: "Teste".into(),
+                    unidade: "ORIGEM".into(),
+                    modificacao: "26/11/2026".into(),
+                    html_corpo: "<p>Original</p>".into(),
+                }],
+            },
+        )
+        .unwrap();
+    }
+    let conferir = |esperado: Option<char>| {
+        let individual = responder(
+            "GET",
+            "/sei/controlador.php?acao=procedimento_visualizar&id_procedimento=10&id_documento=42",
+            &banco,
+            &origem,
+            cenario,
+        );
+        assert_eq!(individual.estado, Estado::Ok);
+        let mista = nos_do_processo(&banco, &origem, cenario, "10").unwrap();
+        for arvore in [&individual.corpo, &mista] {
+            assert_eq!(
+                arvore.matches("editarConteudo").count(),
+                usize::from(esperado.is_some())
+            );
+            if let Some(c) = esperado {
+                assert!(arvore.contains(&format!(r"editarConteudo(\'{c}\');")));
+            }
+        }
+        let vizinho = responder(
+            "GET",
+            "/sei/controlador.php?acao=procedimento_visualizar&id_procedimento=10&id_documento=43",
+            &banco,
+            &origem,
+            cenario,
+        );
+        assert!(!vizinho.corpo.contains("editarConteudo"));
+        assert!(vizinho.corpo.contains("documento_versao_listar"));
+    };
+    conferir(None);
+    for (editavel, assinaturas, esperado) in [
+        (false, 0, None),
+        (true, 0, Some('N')),
+        (true, 2, Some('S')),
+    ] {
+        registrar_oferta(
+            &banco,
+            &origem,
+            cenario,
+            "42",
+            Oferta {
+                editavel,
+                assinaturas,
+            },
+        )
+        .unwrap();
+        conferir(esperado);
+    }
+    assert_eq!(
+        aplicar(&banco, &origem, cenario, "42", "10", "Cancelado").unwrap(),
+        Aplicacao::Aplicada
+    );
+    conferir(None);
+}
