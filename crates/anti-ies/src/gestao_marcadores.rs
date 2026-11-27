@@ -1,5 +1,4 @@
 //! Projeção local de uma testemunha explicitamente escolhida do catálogo de gestão.
-//! WIP: a escolha do ordinal e a publicação no menu ainda não estão ligadas à rota HTTP.
 use crate::{Estado, Resposta, escapar};
 use iesei::gestao_marcadores::{self, Estado as EstadoMarcador, Pagina};
 use iesei::instalacao::Instalacao;
@@ -40,21 +39,74 @@ fn html(unidade: &str, pagina: &Pagina) -> String {
     saida
 }
 
-fn responder(
-    metodo: &str,
+fn responder_unidade(
     banco: &Connection,
     origem: &Instalacao,
     cenario: &str,
     unidade: &str,
-    ordinal: usize,
+) -> Resposta {
+    match gestao_marcadores::ler_selecionada(banco, origem, cenario, unidade) {
+        Ok(Some(pagina)) => Resposta::html(html(unidade, &pagina)),
+        Ok(None) | Err(_) => Resposta::nova(Estado::DadosInsuficientes),
+    }
+}
+
+// O Controle detalhado tem precedência, como em crate::controlar.
+fn unidade_do_controle(banco: &Connection, origem: &Instalacao, cenario: &str) -> Option<String> {
+    match iesei::detalhada_cassettes::ler(banco, origem, cenario).ok()? {
+        Some(controle) => {
+            let configuracao = iesei::colunas_detalhe::ler(banco, origem, cenario).ok()?;
+            if configuracao.is_some_and(|c| c.unidade != controle.unidade) {
+                return None;
+            }
+            Some(controle.unidade.as_str().to_owned())
+        }
+        None => iesei::banco_cassettes::ler(banco, origem, cenario)
+            .ok()?
+            .map(|controle| controle.unidade.as_str().to_owned()),
+    }
+}
+
+pub(crate) fn acrescentar_menu(
+    mut resposta: Resposta,
+    banco: &Connection,
+    origem: &Instalacao,
+    cenario: &str,
+) -> Resposta {
+    if resposta.estado != Estado::Ok {
+        return resposta;
+    }
+    let Some(unidade) = unidade_do_controle(banco, origem, cenario) else {
+        return resposta;
+    };
+    if matches!(
+        gestao_marcadores::ler_selecionada(banco, origem, cenario, &unidade),
+        Ok(Some(_))
+    ) {
+        let link = format!(
+            "<a href='controlador.php?acao=marcador_listar&amp;infra_hash={}'>Marcadores</a>",
+            crate::protocolo_sintetico::INFRA_HASH
+        );
+        resposta.corpo = resposta
+            .corpo
+            .replacen("</body>", &format!("{link}</body>"), 1);
+    }
+    resposta
+}
+
+pub(crate) fn responder(
+    metodo: &str,
+    banco: &Connection,
+    origem: &Instalacao,
+    cenario: &str,
 ) -> Resposta {
     if metodo != "GET" {
         return Resposta::nova(Estado::MetodoNaoPermitido);
     }
-    match gestao_marcadores::ler(banco, origem, cenario, unidade, ordinal) {
-        Ok(Some(pagina)) => Resposta::html(html(unidade, &pagina)),
-        Ok(None) | Err(_) => Resposta::nova(Estado::DadosInsuficientes),
-    }
+    let Some(unidade) = unidade_do_controle(banco, origem, cenario) else {
+        return Resposta::nova(Estado::DadosInsuficientes);
+    };
+    responder_unidade(banco, origem, cenario, &unidade)
 }
 
 #[test]
@@ -94,7 +146,12 @@ fn testemunha_exata_preserva_faixa_estados_e_escape() {
     };
     gestao_marcadores::registrar(&mut banco, &origem, "a", "U", 2, &vazia).unwrap();
 
-    let resposta = responder("GET", &banco, &origem, "a", "U", 1);
+    assert_eq!(
+        responder_unidade(&banco, &origem, "a", "U").estado,
+        Estado::DadosInsuficientes
+    );
+    assert!(gestao_marcadores::selecionar(&banco, &origem, "a", "U", 1).unwrap());
+    let resposta = responder_unidade(&banco, &origem, "a", "U");
     assert_eq!(resposta.estado, Estado::Ok);
     assert!(
         resposta
@@ -113,7 +170,8 @@ fn testemunha_exata_preserva_faixa_estados_e_escape() {
         "<td><img title='Reativar Marcador'></td>"
     );
     assert!(resposta.corpo.contains(linha));
-    let resposta = responder("GET", &banco, &origem, "a", "U", 2);
+    assert!(gestao_marcadores::selecionar(&banco, &origem, "a", "U", 2).unwrap());
+    let resposta = responder_unidade(&banco, &origem, "a", "U");
     assert_eq!(resposta.estado, Estado::Ok);
     assert!(
         resposta
@@ -121,14 +179,14 @@ fn testemunha_exata_preserva_faixa_estados_e_escape() {
             .contains("Lista de Marcadores (0 registros):")
     );
     assert!(!resposta.corpo.contains("<td>"));
-    for (cenario, unidade, ordinal) in [("a", "U", 3), ("b", "U", 1), ("a", "V", 1)] {
+    for (cenario, unidade) in [("b", "U"), ("a", "V")] {
         assert_eq!(
-            responder("GET", &banco, &origem, cenario, unidade, ordinal).estado,
+            responder_unidade(&banco, &origem, cenario, unidade).estado,
             Estado::DadosInsuficientes
         );
     }
     assert_eq!(
-        responder("POST", &banco, &origem, "a", "U", 1).estado,
+        responder("POST", &banco, &origem, "a").estado,
         Estado::MetodoNaoPermitido
     );
 }
