@@ -8,6 +8,7 @@ mod fluxo;
 mod guarda_navegacao;
 mod guarda_script;
 mod texto_padrao;
+mod modelo;
 pub(crate) use cadastro::conferir_cadastro;
 mod link_do_tipo;
 pub(crate) use fluxo::{

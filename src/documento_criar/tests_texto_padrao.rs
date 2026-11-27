@@ -41,6 +41,7 @@ fn previa_texto_padrao_consulta_id_sem_post_criador() {
             descricao: None,
             nivel: None,
             texto_padrao: Some("Ofício"),
+            modelo: None,
         };
         executar_criacao(&sessao, &pedido, indice, rede, false)
     });
@@ -68,6 +69,7 @@ fn confirmar_texto_padrao_ainda_recusa_antes_da_rede() {
             descricao: None,
             nivel: Some(crate::dominio::NivelDeAcesso::Publico),
             texto_padrao: Some("Ofício"),
+            modelo: None,
         };
         executar_criacao(sessao, &pedido, indice, rede, true)
     });
@@ -99,6 +101,7 @@ fn previa_texto_padrao_recusa_origens_fora_do_treinamento_sem_rede() {
                 descricao: None,
                 nivel: None,
                 texto_padrao: Some("Ofício"),
+                modelo: None,
             };
             executar_criacao(&sessao, &pedido, indice, rede, false)
         });

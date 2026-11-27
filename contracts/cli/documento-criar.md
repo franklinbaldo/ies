@@ -2,7 +2,7 @@
 type: CommandContract
 title: Criar documento interno no processo pelo cadastro Web
 operation: documento.criar
-command: ies documento criar --processo NUP --tipo TIPO [--descricao TEXTO] [--nivel NIVEL] [--confirmar]
+command: ies documento criar --processo NUP --tipo TIPO [--descricao TEXTO] [--nivel NIVEL] [--texto-padrao NOME | --modelo NUMERO] [--confirmar]
 effect: write
 implementation: partial
 source_commit: 323eb01
@@ -32,6 +32,15 @@ eventual leitura por POST (`hdnFiltroSerie=T`) exige declaração de
 efeito separada e contagem; `documento_gerar_multiplo` não é leitura.
 
 WIP #872: `--texto-padrao NOME` apenas na prévia; seleção exata e única, JSON `texto_padrao` com `id` e `nome`. Incompatível com `--confirmar`; confirmação por texto padrão (T) ou modelo (D) indisponível.
+
+WIP #872: `--modelo NUMERO` é prévia experimental em treinamento e
+sei.test, incompatível com `--confirmar` e `--texto-padrao`.
+Confere a oferta e o limite publicado do campo manual, preserva zeros
+à esquerda e recusa identificadores residuais. JSON
+`modelo_solicitado` indica somente o número pedido: não comprova
+existência, identidade, permissão, conteúdo ou cópia do documento-base.
+Não abre a fonte nem envia POST criador. Perfil histórico Todos
+caabe699 (cadastro D/N/T); anti-IES sintético, não replay de seleção D.
 
 Autocomplete lexical (inline/`inicializar`), não execução JS: retorno antecipado ou redefinição podem gerar falso reconhecimento. POST inferido; corpo, XML, charset e efeito externo não comprovados. Bancada CLI/anti-IES/SQLite sintética; replay GO prova controles e declarações, não a consulta efetiva. R270 autoriza a hipótese só em treinamento e sei.test; outras origens recusadas antes da sessão/rede. Não altera a regra de produção nem autoriza POST criador.
 
