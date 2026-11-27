@@ -38,6 +38,14 @@ pub(crate) enum DocumentoAcao {
         /// Resolve o nome exato de um texto padrão; por enquanto, apenas prévia.
         #[arg(long, conflicts_with = "confirmar", value_name = "NOME")]
         texto_padrao: Option<String>,
+        /// Confere a oferta de modelo manual; não resolve o documento-base.
+        #[arg(
+            long,
+            conflicts_with_all = ["confirmar", "texto_padrao"],
+            value_name = "NUMERO",
+            value_parser = crate::documento::NumeroDocumento::novo
+        )]
+        modelo: Option<crate::documento::NumeroDocumento>,
         /// Cria uma vez no SEI e prepara os arquivos HTML no diretório atual.
         #[arg(long)]
         confirmar: bool,

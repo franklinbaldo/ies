@@ -25,6 +25,7 @@ pub(crate) fn tentar_criar(cli: &Cli) -> Option<anyhow::Result<()>> {
                 descricao,
                 nivel,
                 texto_padrao,
+                modelo,
                 confirmar,
             }),
         ..
@@ -37,7 +38,7 @@ pub(crate) fn tentar_criar(cli: &Cli) -> Option<anyhow::Result<()>> {
     if *confirmar && let Err(erro) = validar_nivel_de_confirmacao(*nivel) {
         return Some(Err(erro.into()));
     }
-    if texto_padrao.is_some()
+    if (texto_padrao.is_some() || modelo.is_some())
         && let Err(erro) = conferir_origem_da_previa()
     {
         return Some(Err(erro));
@@ -57,6 +58,7 @@ pub(crate) fn tentar_criar(cli: &Cli) -> Option<anyhow::Result<()>> {
             descricao: descricao.as_deref(),
             nivel: *nivel,
             texto_padrao: texto_padrao.as_deref(),
+            modelo: modelo.as_ref(),
         };
         // A contagem externa sobrevive ao erro, inclusive depois do POST.
         let mut envio = EnvioHttps;
@@ -148,6 +150,9 @@ fn resultado_json(resultado: &ResultadoCriacao) -> serde_json::Value {
     if let (Some(texto), Some(objeto)) = (&resultado.texto_padrao, saida.as_object_mut()) {
         objeto.insert("texto_padrao".to_owned(), json!(texto));
     }
+    if let (Some(modelo), Some(objeto)) = (&resultado.modelo, saida.as_object_mut()) {
+        objeto.insert("modelo_solicitado".to_owned(), json!(modelo));
+    }
     saida
 }
 
@@ -191,6 +196,9 @@ fn publicar_resultado(
     if let Some(texto) = &resultado.texto_padrao {
         println!("Texto padrão: {} (ID {})", texto.nome, texto.id);
     }
+    if let Some(modelo) = &resultado.modelo {
+        println!("Modelo solicitado: {modelo} (identidade e conteúdo não conferidos).");
+    }
     if let Some(copia) = copia {
         println!("Cópia editável: {}", copia.arquivo);
         if let Some(orientacao) = copia.orientacao {
@@ -216,6 +224,7 @@ mod tests {
             nivel: Some(crate::dominio::NivelDeAcesso::Publico),
             requisicoes: 5,
             texto_padrao: None,
+            modelo: None,
             estado: EstadoCriacao::Previa,
         };
         let saida = resultado_json(&resultado);
