@@ -191,7 +191,7 @@ pub(super) fn criar_via<V: EnvioDoControle>(
     if confirmar {
         let antes = bloco::ler_lista(&lista, TipoBloco::Assinatura)?.lista;
         // Ausência numa página parcial não prova novidade. Não gravar nesse caso.
-        if antes.itens.len() != antes.total_declarado {
+        if antes.itens.len() != antes.total_declarado || !bloco::escopo_criacao(&lista) {
             return Err(FalhaLeitura::NaoConfirmado);
         }
         let resposta = enviar_submissao_via(submissao, sessao.cookie(), |sub, cookie| {
@@ -212,6 +212,9 @@ pub(super) fn criar_via<V: EnvioDoControle>(
             envio,
         )
         .map_err(|_| FalhaLeitura::NaoConfirmado)?;
+        if !relido.escopo_criacao {
+            return Err(FalhaLeitura::NaoConfirmado);
+        }
         let Leitura::Lista(depois) = relido.leitura else {
             return Err(FalhaLeitura::NaoConfirmado);
         };

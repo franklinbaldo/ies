@@ -44,6 +44,7 @@ pub(crate) struct Lido {
     pub(crate) unidade: String,
     pub(crate) requisicoes: usize,
     pub(crate) leitura: Leitura,
+    escopo_criacao: bool,
 }
 
 /// Transporte injetável, mesmo caminho da produção; cada chamada faz um GET.
@@ -59,6 +60,7 @@ fn ler_via<V: EnvioDoControle>(
         unidade,
         requisicoes,
         leitura,
+        ..
     } = ler_tipado_via(sessao, unidade_esperada, tipo, numero, pagina, envio)?;
     Ok(match leitura {
         Leitura::Detalhe(detalhe) => {
@@ -101,6 +103,7 @@ pub(crate) fn ler_tipado_via<V: EnvioDoControle>(
     let resposta = envio.get(&url_lista, cookie)?;
     let codificacao = codificacao_da_tela(&resposta.mime);
     let html = transporte::decodificar_resposta(resposta)?;
+    let escopo_criacao = tipo == TipoBloco::Assinatura && bloco::escopo_criacao(&html);
     let mut lista = bloco::ler_lista(&html, tipo)?;
     if pagina == Some(2) && tipo == TipoBloco::Interno {
         lista = paginacao::ler_pagina_dois(
@@ -150,12 +153,14 @@ pub(crate) fn ler_tipado_via<V: EnvioDoControle>(
             unidade,
             requisicoes,
             leitura: Leitura::Detalhe(detalhe),
+            escopo_criacao: false,
         });
     }
     Ok(Lido {
         unidade,
         requisicoes,
         leitura: Leitura::Lista(lista.lista),
+        escopo_criacao,
     })
 }
 #[expect(

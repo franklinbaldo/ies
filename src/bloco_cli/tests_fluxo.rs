@@ -117,10 +117,23 @@ fn envio(detalhe: bool) -> EnvioFalso {
          <a href='controlador.php?acao=bloco_assinatura_listar&amp;infra_hash={HASH}'>Blocos</a></html>"
     );
     let lista = format!(
-        "<table id='tblBlocos'><caption>Lista (1 registros):</caption>\
+        "<form id='frmBlocoLista'>\
+        <select name='selGrupoBloco'><option selected value=''>Todos</option></select>\
+        <select name='selUnidadeGeradora'><option selected value=''>Todas</option></select>\
+        <input type='text' name='txtPalavrasPesquisaBloco' value=''>\
+        <input type='hidden' name='hdnMeusBlocos' value='T'>\
+        <input type='checkbox' name='chkSinPrioridade'>\
+        <input type='checkbox' name='chkSinRevisao'>\
+        <input type='checkbox' name='chkSinComentario'>\
+        <input type='checkbox' name='chkSinEstadoGerado' checked>\
+        <input type='checkbox' name='chkSinEstadoDisponibilizado' checked>\
+        <input type='checkbox' name='chkSinEstadoRecebido' checked>\
+        <input type='checkbox' name='chkSinEstadoRetornado' checked>\
+        <input type='checkbox' name='chkSinEstadoConcluido'>\
+        <table id='tblBlocos'><caption>Lista (1 registros):</caption>\
          <tr><th></th><th>Número</th><th>Estado</th><th>Descrição</th></tr>\
          <tr><td><input type='checkbox'></td><td><a href='controlador.php?acao=rel_bloco_protocolo_listar&amp;id_bloco=2195&amp;infra_hash={HASH}'>2195</a></td>\
-         <td>Gerado</td><td>Treinamento</td></tr></table>"
+         <td>Gerado</td><td>Treinamento</td></tr></table></form>"
     );
     let mut telas = VecDeque::from([
         (
@@ -192,16 +205,20 @@ fn detalhe_sao_tres_get_sem_post_e_so_numero_da_linha() {
 fn cadastro_post_unico_e_releitura_independente() {
     let arquivos = Arquivos::criar();
     let casos = [
-        (302, Some("2196"), true, false, false),
-        (302, Some("2195"), false, false, false),
-        (302, Some("9999"), false, false, false),
-        (302, None, false, false, false),
-        (500, None, false, false, false),
-        (302, Some("2196"), false, true, false),
+        (302, Some("2196"), true, false, false, None),
+        (302, Some("2195"), false, false, false, None),
+        (302, Some("9999"), false, false, false, None),
+        (302, None, false, false, false, None),
+        (500, None, false, false, false, None),
+        (302, Some("2196"), false, true, false, None),
         // Mesmo ID/descrição do positivo, mas já podia existir fora da página.
-        (302, Some("2196"), false, false, true),
+        (302, Some("2196"), false, false, true, None),
+        // Filtro anterior exclui ID antigo; não enviar POST.
+        (302, Some("2196"), false, false, false, Some("antes")),
+        // Filtro mudou após POST, mesmo com presença de ID e descrição.
+        (302, Some("2196"), false, false, false, Some("depois")),
     ];
-    for (status, id, confirmado, mudou_unidade, parcial) in casos {
+    for (status, id, confirmado, mudou_unidade, parcial, filtro) in casos {
         let mut envio = envio(false);
         let controle = envio.telas.front().unwrap().clone();
         let lista = envio.telas.back_mut().unwrap();
@@ -221,6 +238,13 @@ fn cadastro_post_unico_e_releitura_independente() {
             lista.1 = lista.1.replace("1 registros", "2 registros - 1 a 1");
             depois.1 = lista.1.replace("2195", "2196");
         }
+        if filtro == Some("antes") {
+            lista.1 = lista.1.replace("selected value=''", "selected value='41'");
+        }
+        if filtro == Some("depois") {
+            depois.1 = depois.1.replace("selected value=''", "selected value='42'");
+        }
+        let recusado_antes = parcial || filtro == Some("antes");
         let cadastro = format!("controlador.php?acao=bloco_assinatura_cadastrar&infra_hash={HASH}");
         write!(
             lista.1,
@@ -236,7 +260,7 @@ fn cadastro_post_unico_e_releitura_independente() {
                  <button type='submit' name='sbmCadastrarBloco' value='Salvar'>Salvar</button></form>"
             ),
         ));
-        if status == 302 && !parcial {
+        if status == 302 && !recusado_antes {
             if mudou_unidade {
                 envio
                     .telas
@@ -257,9 +281,9 @@ fn cadastro_post_unico_e_releitura_independente() {
             true,
             &mut envio,
         );
-        assert_eq!(envio.posts, usize::from(!parcial));
+        assert_eq!(envio.posts, usize::from(!recusado_antes));
         assert!(envio.telas.is_empty());
-        let gets_esperados = match (status, mudou_unidade, parcial) {
+        let gets_esperados = match (status, mudou_unidade, recusado_antes) {
             (302, true, false) => 4,
             (302, false, false) => 5,
             _ => 3,
