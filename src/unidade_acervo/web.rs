@@ -154,6 +154,9 @@ fn ler_via<V: EnvioDoControle>(
     let consulta = formulario_do_acervo(inst, &tela_servida(&tela)?, &unidade, data)?;
     let resultado = post(envio, sessao, consulta)?;
     let (total, url) = total_do_resultado(&resultado.html, inst)?;
+    let Some(url) = url else {
+        return Ok((unidade, Vec::new()));
+    };
     let mut tela = get(envio, sessao, url)?;
     let mut processos = Vec::new();
     let mut indice = 0;

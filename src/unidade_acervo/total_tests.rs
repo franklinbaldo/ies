@@ -16,7 +16,10 @@ fn resultado_seleciona_total_e_nao_tipo() {
         &format!("controlador.php?infra_hash={HASH_TELA}&"),
     ));
     let (total, url) = total_do_resultado(&tela, &inst).unwrap();
-    assert!(url.starts_with(&format!("{}/controlador.php?", inst.url_base())));
+    assert!(
+        url.unwrap()
+            .starts_with(&format!("{}/controlador.php?", inst.url_base()))
+    );
     assert_eq!(total, 1234);
     for alterada in [
         tela.as_str().replace("4');", "1');"),
@@ -26,6 +29,28 @@ fn resultado_seleciona_total_e_nao_tipo() {
         tela.as_str().replace(HASH_TELA, "x"),
         tela.as_str()
             .replace("controlador.php?", "https://fora.example/controlador.php?"),
+    ] {
+        assert!(total_do_resultado(&HtmlServido::de_teste(&alterada), &inst).is_err());
+    }
+}
+
+#[test]
+fn zero_sem_link_exige_total_explicito() {
+    use crate::formulario_web::tests::instalacao;
+    let inst = instalacao();
+    let html = "<table><caption>Processos com andamento aberto na unidade ao final do período:</caption>\
+         <tr class='totalEstatisticas'><td>TOTAL:</td><td>0</td></tr></table>";
+    assert_eq!(
+        total_do_resultado(&HtmlServido::de_teste(html), &inst),
+        Ok((0, None))
+    );
+    for alterada in [
+        html.replace("<td>0</td>", "<td>1</td>"),
+        html.replace("<td>0</td>", "<td></td>"),
+        html.replace("<td>0</td>", "<td><a>0</a></td>"),
+        html.replace("TOTAL:", "Tipo"),
+        html.replace("totalEstatisticas", "outro"),
+        html.replace("ao final do período", "no período"),
     ] {
         assert!(total_do_resultado(&HtmlServido::de_teste(&alterada), &inst).is_err());
     }
