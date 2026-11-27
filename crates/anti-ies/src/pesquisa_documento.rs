@@ -180,6 +180,16 @@ fn periodo_processual(
 ) -> Resposta {
     use iesei::pesquisa_processo::{Coorte, Criterios, coorte, tipos};
     let campo = |nome: &str| campo_opcional(corpo, nome, "");
+    let (Some(descricao), Some(observacao)) = (
+        campo("txtDescricaoPesquisa"),
+        campo("txtObservacaoPesquisa"),
+    ) else {
+        return Resposta::nova(Estado::RequisicaoInvalida);
+    };
+    // Ainda não há coorte observada para esses critérios.
+    if !descricao.is_empty() || !observacao.is_empty() {
+        return Resposta::nova(Estado::DadosInsuficientes);
+    }
     let (Some(de), Some(ate), Some(tipo)) = (
         campo("txtDataInicio"),
         campo("txtDataFim"),
