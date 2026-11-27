@@ -138,9 +138,8 @@ fn previa_modelo_manual_confere_oferta_sem_abrir_fonte_ou_criar() {
     assert_eq!(resultado["modelo_solicitado"], "0011526");
     assert_eq!(resultado["confirmado"], false);
     assert_eq!(quantidade, 1);
-    assert!(
-        !trilha.iter().any(|pedido| pedido.starts_with("POST documento_gerar:"))
-    );
+    let (_, trilha_normal, _) = executar(&[&criar(false)], false);
+    assert_eq!(trilha, trilha_normal, "nenhuma consulta adicional da fonte");
 }
 
 #[test]

@@ -12,13 +12,13 @@ source_commit: 323eb01
 
 ## Limite
 
-Operação planejada: `ies documento criar --processo NUP --tipo TIPO
+Sintaxe: `ies documento criar --processo NUP --tipo TIPO
 [--descricao TEXTO] [--nivel publico|restrito|sigiloso] [--confirmar]`.
 O valor `--nivel` e eventuais hipóteses legais devem ser conferidos
 contra o cadastro servido; não há autorização para supor uma seleção
-implícita. A operação **não** grava texto no editor e **não** assina.
+implícita. Não grava texto nem assina.
 
-Estado `partial`: a CLI oferece prévia nas telas com link direto e assinado para o cadastro (`documento_gerar`) **e** nas telas com `escolher(ID)` quando a função servida comprova duas instruções literais: atribuir `hdnIdSerie` e submeter `frmDocumentoEscolherTipo`. Nessa segunda forma, faz um POST **de navegação sem criação** para `documento_escolher_tipo`, valida a Location 302 assinada do mesmo processo e faz um GET do cadastro; não executa JS, não segue redirecionamentos automaticamente e não repete requisições. A confirmação tem um único POST **de escrita** e reconciliação por releitura, somente com `--nivel publico` explícito, controle Salvar e formulário observados. Até CI, replay e ensaio live, tudo permanece WIP, sem validação para uso real. Níveis restrito/sigiloso recusam antes de escrever, pois dependem de hipótese legal não resolvida.
+Estado `partial`: prévia nas telas com link direto e assinado para o cadastro (`documento_gerar`) **e** nas telas com `escolher(ID)` quando a função servida comprova duas instruções literais: atribuir `hdnIdSerie` e submeter `frmDocumentoEscolherTipo`. Nessa segunda forma, faz um POST **de navegação sem criação** para `documento_escolher_tipo`, valida a Location 302 assinada do mesmo processo e faz um GET do cadastro; não executa JS, não segue redirecionamentos automaticamente e não repete requisições. A confirmação tem um único POST **de escrita** e reconciliação por releitura, somente com `--nivel publico` explícito, controle Salvar e formulário observados. Até CI, replay e ensaio live, tudo permanece WIP, sem validação para uso real. Níveis restrito/sigiloso recusam antes de escrever, pois dependem de hipótese legal não resolvida.
 
 ## Prévia
 
@@ -31,16 +31,9 @@ campos e nível solicitado. A prévia não envia POST de criação. Uma
 eventual leitura por POST (`hdnFiltroSerie=T`) exige declaração de
 efeito separada e contagem; `documento_gerar_multiplo` não é leitura.
 
-WIP #872: `--texto-padrao NOME` apenas na prévia; seleção exata e única, JSON `texto_padrao` com `id` e `nome`. Incompatível com `--confirmar`; confirmação por texto padrão (T) ou modelo (D) indisponível.
+WIP #872: `--texto-padrao NOME` só na prévia; JSON `texto_padrao` com `id` e `nome` exatos e únicos. Confirmação T/D indisponível.
 
-WIP #872: `--modelo NUMERO` é prévia experimental em treinamento e
-sei.test, incompatível com `--confirmar` e `--texto-padrao`.
-Confere a oferta e o limite publicado do campo manual, preserva zeros
-à esquerda e recusa identificadores residuais. JSON
-`modelo_solicitado` indica somente o número pedido: não comprova
-existência, identidade, permissão, conteúdo ou cópia do documento-base.
-Não abre a fonte nem envia POST criador. Perfil histórico Todos
-caabe699 (cadastro D/N/T); anti-IES sintético, não replay de seleção D.
+`--modelo NUMERO` (WIP, só treinamento/bancada, incompatível com T e confirmação): confere controles/limite, não abre a fonte. JSON `modelo_solicitado` preserva zeros, sem atestar existência, identidade ou conteúdo. Anti-IES sintético; seleção D não capturada.
 
 Autocomplete lexical (inline/`inicializar`), não execução JS: retorno antecipado ou redefinição podem gerar falso reconhecimento. POST inferido; corpo, XML, charset e efeito externo não comprovados. Bancada CLI/anti-IES/SQLite sintética; replay GO prova controles e declarações, não a consulta efetiva. R270 autoriza a hipótese só em treinamento e sei.test; outras origens recusadas antes da sessão/rede. Não altera a regra de produção nem autoriza POST criador.
 

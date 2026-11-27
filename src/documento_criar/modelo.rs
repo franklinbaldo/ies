@@ -13,10 +13,7 @@ pub(crate) enum ErroModelo {
 
 /// Perfil histórico Todos caabe699, documento_gerar.html, L838–866.
 /// O número lexical não é o ID oculto retornado pela lupa de favoritos.
-pub(super) fn conferir(
-    html: &HtmlServido,
-    numero: &NumeroDocumento,
-) -> Result<String, ErroModelo> {
+pub(super) fn conferir(html: &HtmlServido, numero: &NumeroDocumento) -> Result<String, ErroModelo> {
     let dom = crate::tela_html::arvore(html);
     let form = localizar_formulario(&dom, "frmDocumentoCadastro")?;
     let radios: Vec<_> = form
@@ -71,4 +68,49 @@ pub(super) fn conferir(
         return Err(ErroModelo::NumeroExcedeLimite);
     }
     Ok(numero.as_str().to_owned())
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    const PERFIL: &str = r#"<form id="frmDocumentoCadastro">
+      <input type="radio" name="rdoTextoInicial" value="D">
+      <input type="radio" name="rdoTextoInicial" value="T">
+      <input type="radio" name="rdoTextoInicial" value="N">
+      <input type="text" name="txtProtocoloDocumentoTextoBase" maxlength="7">
+      <input type="text" name="txtTextoPadrao">
+      <input type="hidden" name="hdnIdDocumentoTextoBase" value="">
+      <input type="hidden" name="hdnIdTextoPadrao" value="">
+    </form>"#;
+
+    #[test]
+    fn perfil_manual_preserva_numero_e_recusa_limite() {
+        let html = HtmlServido::de_teste(PERFIL);
+        let numero = NumeroDocumento::novo("0011526").unwrap();
+        assert_eq!(conferir(&html, &numero).unwrap(), "0011526");
+        let longo = NumeroDocumento::novo("00011526").unwrap();
+        assert!(matches!(
+            conferir(&html, &longo),
+            Err(ErroModelo::NumeroExcedeLimite)
+        ));
+    }
+
+    #[test]
+    fn perfil_manual_recusa_residuo_e_radio_ambiguo() {
+        let numero = NumeroDocumento::novo("0011526").unwrap();
+        for html in [
+            PERFIL.replace(
+                "name=\"hdnIdDocumentoTextoBase\" value=\"\"",
+                "name=\"hdnIdDocumentoTextoBase\" value=\"9\"",
+            ),
+            PERFIL.replace("value=\"D\"", "value=\"D\" disabled"),
+            PERFIL.replace("value=\"N\"", "value=\"D\""),
+        ] {
+            assert!(matches!(
+                conferir(&HtmlServido::de_teste(&html), &numero),
+                Err(ErroModelo::ControlesNaoOferecidos)
+            ));
+        }
+    }
 }
