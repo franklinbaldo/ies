@@ -9,6 +9,9 @@ use crate::tela_html::HtmlServido;
 use std::collections::BTreeMap;
 use std::fmt::Write as _;
 
+mod filtros;
+use filtros::ler_lista_gravada;
+
 type Contagem = BTreeMap<(&'static str, String), BTreeMap<String, u64>>;
 
 fn tipo_da_operacao(operacao: &str) -> Option<TipoBloco> {
@@ -166,12 +169,14 @@ fn replay_da_criacao_de_bloco_de_assinatura_no_acervo() {
             .expect("identidade publicada no Location original");
 
         let (antes, depois) = listas_da_criacao(&respostas, formulario.passo, post.passo);
-        let antes = ler_lista_gravada(antes.expect("lista anterior ao cadastro"));
+        let (antes, filtros_antes) =
+            ler_lista_gravada(antes.expect("lista anterior ao cadastro"));
         assert!(
             !antes.itens.iter().any(|b| b.numero == id),
             "{instalacao}: identidade já observada antes da criação"
         );
-        let depois = ler_lista_gravada(depois.expect("lista após POST, antes de outro POST"));
+        let (depois, filtros_depois) =
+            ler_lista_gravada(depois.expect("lista após POST, antes de outro POST"));
         assert!(
             depois.itens.iter().any(|b| {
                 b.numero == id && b.estado == crate::bloco_estado::EstadoDoBloco::Gerado
@@ -186,6 +191,8 @@ fn replay_da_criacao_de_bloco_de_assinatura_no_acervo() {
                 antes.total_declarado,
                 depois.itens.len(),
                 depois.total_declarado,
+                filtros_antes,
+                filtros_depois,
             ),
         );
         *vistos.entry(instalacao.to_owned()).or_insert(0usize) += 1;
@@ -193,11 +200,13 @@ fn replay_da_criacao_de_bloco_de_assinatura_no_acervo() {
     assert_eq!(vistos.get("ufrj"), Some(&1));
     assert_eq!(vistos.get("pen3"), Some(&1));
     let mut relatorio = String::new();
-    for (instalacao, (grupo, antes, total_antes, depois, total_depois)) in observacoes {
+    for (instalacao, (grupo, antes, total_antes, depois, total_depois, fa, fd)) in observacoes {
         let _ = writeln!(
             relatorio,
             "{instalacao}: grupo padrão {grupo}; lista antes {antes}/{total_antes}, depois {depois}/{total_depois}"
         );
+        let _ = writeln!(relatorio, "  filtros antes: {fa}");
+        let _ = writeln!(relatorio, "  filtros depois: {fd}");
     }
     publicar(&relatorio);
 }
@@ -288,13 +297,6 @@ fn listas_da_criacao<'a, 'j>(
         .take_while(|r| r.metodo != "POST")
         .find(e_lista);
     (antes, depois)
-}
-
-fn ler_lista_gravada(r: &gravacao::Resposta<'_>) -> super::ListaDeBlocos {
-    let html = html_da_resposta(r.interacao).expect("HTML da lista");
-    ler_lista(&HtmlServido::de_teste(&html), TipoBloco::Assinatura)
-        .expect("lista de assinatura")
-        .lista
 }
 
 #[test]
