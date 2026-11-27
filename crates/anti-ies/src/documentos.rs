@@ -205,7 +205,7 @@ fn cadastro(
         return Resposta::nova(Estado::NaoEncontrado);
     };
     let hash = crate::protocolo_sintetico::INFRA_HASH; // Somente para a navegação no simulador.
-    Resposta::html(format!(
+    let mut resposta = Resposta::html(format!(
         "<html><head><script>function confirmarDados() {{ submeter(); }}\
          function submeter() {{ document.getElementById('hdnFlagDocumentoCadastro').value='2';\
          document.getElementById('frmDocumentoCadastro').submit(); }}</script></head><body>\
@@ -218,7 +218,92 @@ fn cadastro(
          <input type='text' id='txtDescricao' name='txtDescricao'>\
          </form><button type='button' id='btnSalvar' name='btnSalvar' onclick='confirmarDados()'>Salvar</button></body></html>",
         escapar(&tipo.nome),
-    ))
+    ));
+    let Ok(Some(controle)) = iesei::banco_cassettes::ler(banco, origem, cenario) else {
+        return resposta;
+    };
+    let Ok(textos) = modelo::textos_padrao(banco, origem, cenario, controle.unidade.as_str())
+    else {
+        return Resposta::nova(Estado::DadosInsuficientes);
+    };
+    if !textos.is_empty() {
+        resposta.corpo = resposta.corpo.replacen(
+            "</form>",
+            "<input type='radio' name='rdoTextoInicial' value='N' checked>\
+             <input type='radio' name='rdoTextoInicial' value='T'>\
+             <input type='text' name='txtTextoPadrao'>\
+             <input type='hidden' name='hdnIdTextoPadrao'></form>",
+            1,
+        );
+        let script = format!(
+            "<script>\nobjAutoCompletarTextoPadrao = new infraAjaxAutoCompletar('hdnIdTextoPadrao','txtTextoPadrao','controlador_ajax.php?acao_ajax=texto_padrao_auto_completar&infra_sistema=100000100&infra_unidade_atual=110000001&infra_hash={hash}');\n</script></head>"
+        );
+        resposta.corpo = resposta.corpo.replacen("</head>", &script, 1);
+    }
+    resposta
+}
+
+/// Hipótese sintética: autocomplete UTF-8 da unidade exibida no Controle R.
+pub(crate) fn autocompletar(
+    metodo: &str,
+    alvo: &str,
+    corpo: &str,
+    banco: &Connection,
+    origem: &Instalacao,
+    cenario: &str,
+) -> Resposta {
+    let caminho = alvo.split_once('?').map_or(alvo, |(caminho, _)| caminho);
+    if !caminho.ends_with("/controlador_ajax.php") {
+        return Resposta::nova(Estado::NaoEncontrado);
+    }
+    if metodo != "POST" {
+        return Resposta::nova(Estado::MetodoNaoPermitido);
+    }
+    let Some(termo) =
+        campo_formulario_unico(corpo, "palavras_pesquisa").filter(|texto| !texto.trim().is_empty())
+    else {
+        return Resposta::nova(Estado::RequisicaoInvalida);
+    };
+    let Ok(Some(controle)) = iesei::banco_cassettes::ler(banco, origem, cenario) else {
+        return Resposta::nova(Estado::DadosInsuficientes);
+    };
+    let Ok(textos) = modelo::textos_padrao(banco, origem, cenario, controle.unidade.as_str())
+    else {
+        return Resposta::nova(Estado::DadosInsuficientes);
+    };
+    let termo = termo.to_lowercase();
+    let mut xml = String::from("<?xml version='1.0' encoding='UTF-8'?><itens>");
+    for texto in textos {
+        if texto.nome.to_lowercase().contains(&termo) {
+            write!(
+                xml,
+                "<item id='{}' descricao='{}'></item>",
+                escapar(&texto.id),
+                escapar(&texto.nome)
+            )
+            .expect("formatação String");
+        }
+    }
+    xml.push_str("</itens>");
+    Resposta {
+        estado: Estado::Ok,
+        tipo_conteudo: "application/xml; charset=utf-8",
+        corpo: xml,
+        localizacao: None,
+        corpo_binario: None,
+    }
+}
+
+// A seleção de texto padrão ou modelo ainda não é simulada.
+// Não transformar uma solicitação de conteúdo inicial em documento vazio.
+fn texto_inicial_vazio(corpo: &str) -> bool {
+    match campo_formulario_unico(corpo, "rdoTextoInicial").as_deref() {
+        Some("N") => true,
+        None => !corpo
+            .split('&')
+            .any(|campo| campo.split('=').next() == Some("rdoTextoInicial")),
+        _ => false,
+    }
 }
 
 /// GET navega; POST altera apenas o estado SQLite da simulação.
@@ -313,6 +398,9 @@ pub(crate) fn atender(
                 || campo_formulario_unico(corpo, "hdnFlagDocumentoCadastro").as_deref() != Some("2")
                 || campo_formulario_unico(corpo, "rdoNivelAcesso").as_deref() != Some("0")
             {
+                return Resposta::nova(Estado::RequisicaoInvalida);
+            }
+            if !texto_inicial_vazio(corpo) {
                 return Resposta::nova(Estado::RequisicaoInvalida);
             }
             let Some(descricao) = descricao_do_cadastro(corpo) else {
