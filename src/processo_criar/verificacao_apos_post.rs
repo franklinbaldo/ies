@@ -42,7 +42,7 @@ pub(super) fn verificar<V: EnvioDoControle>(
         || propriedades.nivel_de_acesso != pedido.nivel.como_acesso()
         || !super::reconciliacao::desfechos::interessados_conferem(
             &feito.interessados,
-            &propriedades.interessados,
+            &propriedades.interessados.iter().map(|i| i.nome.clone()).collect::<Vec<_>>(),
         )
     {
         return Err(ErroCriar::ProvaDaCriacao(
