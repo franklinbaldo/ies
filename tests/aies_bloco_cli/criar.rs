@@ -1,6 +1,6 @@
 //! #876: hipótese sintética de prévia, não replay do POST original.
-use super::{CENARIO, Cenario, Command, ORIGEM, executar_fluxo, json};
 use super::fluxo::executar_fluxo_modo;
+use super::{CENARIO, Cenario, Command, ORIGEM, executar_fluxo, json};
 use rusqlite::{Connection, params};
 
 #[test]

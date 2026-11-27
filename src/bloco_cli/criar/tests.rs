@@ -58,8 +58,7 @@ fn derivacao_preserva_campo_da_versao_grupo_oculto_e_charset() {
             html: &html,
             codificacao,
         };
-        let submissao =
-            derivar_cadastro(&instalacao, &tela, "TESTE", "Ação & B", "null").unwrap();
+        let submissao = derivar_cadastro(&instalacao, &tela, "TESTE", "Ação & B", "null").unwrap();
         assert_eq!(
             std::str::from_utf8(submissao.corpo()).unwrap(),
             format!(
