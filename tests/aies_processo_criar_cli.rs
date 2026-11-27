@@ -23,6 +23,7 @@ use fixture_tls::{Pasta, identidade};
 const ORIGEM: &str = "https://sei.test/sei";
 const CENARIO: &str = "bdd-245-cli";
 const TIPO: &str = "Administração Geral: Ensaio";
+const ESPECIFICACAO_PERDIDA: &str = "Cadastro com resposta perdida";
 
 fn aceitar(escuta: &TcpListener, parar: &AtomicBool) -> Option<TcpStream> {
     loop {
@@ -169,6 +170,24 @@ fn executar_em_bancada<T: Send + 'static>(
     preparar: fn() -> (Connection, Instalacao),
     observar: fn(&Connection, &Instalacao) -> T,
 ) -> (Output, Option<Output>, Vec<String>, T, T) {
+    executar_em_bancada_com_interferencia(
+        args,
+        reler,
+        perder_resposta,
+        preparar,
+        observar,
+        |_, _| {},
+    )
+}
+
+fn executar_em_bancada_com_interferencia<T: Send + 'static>(
+    args: &[&str],
+    reler: bool,
+    perder_resposta: bool,
+    preparar: fn() -> (Connection, Instalacao),
+    observar: fn(&Connection, &Instalacao) -> T,
+    interferir: impl Fn(&Connection, &Instalacao) + Send + 'static,
+) -> (Output, Option<Output>, Vec<String>, T, T) {
     let pasta = Pasta::nova();
     let (cert, identidade) = identidade(&pasta.0, "sei.test");
     let origem = pasta.privado("origem", ORIGEM);
@@ -192,6 +211,7 @@ fn executar_em_bancada<T: Send + 'static>(
         let antes = observar(&banco, &instalacao);
         while let Some(mut cliente) = aceitar(&escuta, &parar_sim) {
             atender_http(&mut cliente, Some((&banco, &instalacao, CENARIO))).unwrap();
+            interferir(&banco, &instalacao);
         }
         (antes, observar(&banco, &instalacao))
     });
@@ -262,9 +282,30 @@ fn executar_com_releitura(
     args: &[&str],
     reler: bool,
     perder_resposta: bool,
+    concorrente: bool,
 ) -> (Output, Option<Output>, Vec<String>, (i64, i64), usize) {
-    let (saida, leitura, pedidos, antes, depois) =
-        executar_em_bancada(args, reler, perder_resposta, banco, observar_criacao);
+    let (saida, leitura, pedidos, antes, depois) = executar_em_bancada_com_interferencia(
+        args,
+        reler,
+        perder_resposta,
+        banco,
+        observar_criacao,
+        move |banco, instalacao| {
+            // Outro ator cria depois do POST e antes da releitura, no mesmo banco.
+            // A injeção é sintética e não conta como requisição da CLI sob teste.
+            if concorrente && quantidade(banco) == 1 {
+                criacao_processo::criar(
+                    banco,
+                    instalacao,
+                    CENARIO,
+                    "12",
+                    ESPECIFICACAO_PERDIDA,
+                    "TESTE",
+                )
+                .unwrap();
+            }
+        },
+    );
     (saida, leitura, pedidos, (antes.0, depois.0), depois.1)
 }
 
@@ -275,7 +316,7 @@ mod envio;
 mod identidade;
 
 fn executar(args: &[&str]) -> (Output, Vec<String>, (i64, i64), usize) {
-    let (saida, _, pedidos, contagens, tipos) = executar_com_releitura(args, false, false);
+    let (saida, _, pedidos, contagens, tipos) = executar_com_releitura(args, false, false, false);
     (saida, pedidos, contagens, tipos)
 }
 
@@ -332,6 +373,7 @@ fn criacao_unica_e_releitura_independente_via_cli_real() {
             "--confirmar",
         ],
         true,
+        false,
         false,
     );
     assert_eq!(
@@ -439,50 +481,5 @@ fn confirmacao_recusa_especificacao_acima_do_limite_servido() {
     assert_eq!(tipos, 1);
 }
 
-#[test]
-fn resposta_perdida_preserva_residuo_sem_confirmar_nem_repetir() {
-    let (saida, _, pedidos, contagens, tipos) = executar_com_releitura(
-        &[
-            "--json",
-            "processo",
-            "criar",
-            "--tipo",
-            TIPO,
-            "--especificacao",
-            "Cadastro com resposta perdida",
-            "--confirmar",
-        ],
-        false,
-        true,
-    );
-    assert_eq!(
-        saida.status.code(),
-        Some(1),
-        "stdout={} stderr={} pedidos={pedidos:?}",
-        String::from_utf8_lossy(&saida.stdout),
-        String::from_utf8_lossy(&saida.stderr),
-    );
-    assert_eq!(contagens, (0, 1), "a escrita chegou ao SQLite");
-    assert_eq!(tipos, 1);
-    assert_eq!(
-        pedidos
-            .iter()
-            .filter(|p| p.starts_with("POST procedimento_gerar "))
-            .count(),
-        1,
-        "a perda da resposta não permite retry",
-    );
-    let depois = pedidos
-        .iter()
-        .skip_while(|p| *p != "POST procedimento_gerar 302")
-        .skip(1)
-        .collect::<Vec<_>>();
-    assert!(
-        depois
-            .iter()
-            .any(|p| *p == "GET procedimento_controlar 200")
-    );
-    // O processo recém-criado precisa aparecer em Gerados com link servido.
-    // A leitura das propriedades não pode transformar coincidência em autoria.
-    assert!(depois.iter().any(|p| *p == "GET procedimento_alterar 200"));
-}
+#[path = "aies_processo_criar_cli/concorrencia.rs"]
+mod concorrencia;
