@@ -241,6 +241,68 @@ fn lista_vazia(dom: &crate::tela_html::Documento) -> bool {
         && texto_do_elemento(area) == LISTA_VAZIA
 }
 
+/// Perfil testemunhado em PEN3 e UFRJ: consulta dos próprios blocos,
+/// sem restrição de grupo, geradora ou palavras, nos estados não concluídos.
+/// Não representa o cadastro global.
+pub(crate) fn escopo_criacao(html: &crate::tela_html::HtmlServido) -> bool {
+    let dom = crate::tela_html::arvore(html);
+    let mut forms = dom.com_id("frmBlocoLista");
+    let Some(form) = forms.next() else {
+        return false;
+    };
+    if form.nome() != "form" || forms.next().is_some() {
+        return false;
+    }
+    let controle = |nome: &str| {
+        let mut nos = form
+            .descendentes()
+            .filter(|no| no.atributo("name") == Some(nome));
+        let no = nos.next()?;
+        (nos.next().is_none() && !no.presente("disabled")).then_some(no)
+    };
+    let select_vazio = |nome: &str| {
+        controle(nome).is_some_and(|no| {
+            if no.nome() != "select" || no.presente("multiple") {
+                return false;
+            }
+            let mut selecionadas = no.elementos("option").filter(|o| o.presente("selected"));
+            selecionadas
+                .next()
+                .is_some_and(|o| o.atributo("value") == Some("") && !o.presente("disabled"))
+                && selecionadas.next().is_none()
+        })
+    };
+    let valor = |nome: &str, esperado: &str| {
+        controle(nome).is_some_and(|no| {
+            no.nome() == "input"
+                && no.atributo("type") != Some("checkbox")
+                && no.atributo("value") == Some(esperado)
+        })
+    };
+    select_vazio("selGrupoBloco")
+        && select_vazio("selUnidadeGeradora")
+        && valor("txtPalavrasPesquisaBloco", "")
+        && valor("hdnMeusBlocos", "T")
+        && [
+            ("chkSinPrioridade", false),
+            ("chkSinRevisao", false),
+            ("chkSinComentario", false),
+            ("chkSinEstadoGerado", true),
+            ("chkSinEstadoDisponibilizado", true),
+            ("chkSinEstadoRecebido", true),
+            ("chkSinEstadoRetornado", true),
+            ("chkSinEstadoConcluido", false),
+        ]
+        .into_iter()
+        .all(|(nome, marcado)| {
+            controle(nome).is_some_and(|no| {
+                no.nome() == "input"
+                    && no.atributo("type") == Some("checkbox")
+                    && no.presente("checked") == marcado
+            })
+        })
+}
+
 pub(crate) fn ler_lista(
     html: &crate::tela_html::HtmlServido,
     tipo: TipoBloco,

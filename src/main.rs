@@ -248,6 +248,13 @@ struct Bloco {
 }
 #[derive(Debug, Subcommand)]
 enum BlocoAcao {
+    /// Cria bloco de assinatura; sem --confirmar, só prévia
+    Criar {
+        #[arg(long, value_parser = clap::builder::NonEmptyStringValueParser::new())]
+        descricao: String,
+        #[arg(long)]
+        confirmar: bool,
+    },
     /// Lista blocos da unidade na página atualmente observada
     Listar {
         /// Tipo de bloco oferecido pelo menu Web
