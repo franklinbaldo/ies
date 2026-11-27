@@ -24,6 +24,7 @@ pub(crate) fn tentar_criar(cli: &Cli) -> Option<anyhow::Result<()>> {
                 tipo,
                 descricao,
                 nivel,
+                texto_padrao,
                 confirmar,
             }),
         ..
@@ -35,6 +36,11 @@ pub(crate) fn tentar_criar(cli: &Cli) -> Option<anyhow::Result<()>> {
     // vem antes de abrir arquivos privados.
     if *confirmar && let Err(erro) = validar_nivel_de_confirmacao(*nivel) {
         return Some(Err(erro.into()));
+    }
+    if texto_padrao.is_some()
+        && let Err(erro) = conferir_origem_da_previa()
+    {
+        return Some(Err(erro));
     }
     Some(com_sessao(cli, |sessao, indice| {
         let pasta = if *confirmar {
@@ -50,6 +56,7 @@ pub(crate) fn tentar_criar(cli: &Cli) -> Option<anyhow::Result<()>> {
             tipo,
             descricao: descricao.as_deref(),
             nivel: *nivel,
+            texto_padrao: texto_padrao.as_deref(),
         };
         // A contagem externa sobrevive ao erro, inclusive depois do POST.
         let mut envio = EnvioHttps;
@@ -80,6 +87,16 @@ pub(crate) fn tentar_criar(cli: &Cli) -> Option<anyhow::Result<()>> {
         );
         copia.map(|_| ())
     }))
+}
+
+// A hipótese experimental é restrita antes de ler a sessão. O núcleo
+// confere novamente a origem efetiva, inclusive após troca de sessão.
+fn conferir_origem_da_previa() -> anyhow::Result<()> {
+    let arquivos = crate::configuracao::arquivos_de_acesso()?;
+    let origem = crate::arquivo_privado::ler(&arquivos.origem, 512)
+        .map_err(crate::transporte::FalhaTransporte::OrigemIlegivel)?;
+    crate::origem_de_treinamento::exigir_origem(origem.trim())?;
+    Ok(())
 }
 
 #[derive(Debug, thiserror::Error)]
@@ -116,7 +133,7 @@ fn resultado_json(resultado: &ResultadoCriacao) -> serde_json::Value {
         EstadoCriacao::Previa => None,
         EstadoCriacao::Criado { numero_sei } => Some(numero_sei.as_str()),
     };
-    json!({
+    let mut saida = json!({
         "nup": resultado.nup,
         "tipo": resultado.tipo,
         "descricao": resultado.descricao,
@@ -127,7 +144,11 @@ fn resultado_json(resultado: &ResultadoCriacao) -> serde_json::Value {
         "alterado": numero_sei.is_some(),
         "numero_sei": numero_sei,
         "requisicoes": resultado.requisicoes
-    })
+    });
+    if let (Some(texto), Some(objeto)) = (&resultado.texto_padrao, saida.as_object_mut()) {
+        objeto.insert("texto_padrao".to_owned(), json!(texto));
+    }
+    saida
 }
 
 fn publicar_resultado(
@@ -167,6 +188,9 @@ fn publicar_resultado(
     if let Some(nivel) = resultado.nivel {
         println!("Nível: {}", nivel.como_texto());
     }
+    if let Some(texto) = &resultado.texto_padrao {
+        println!("Texto padrão: {} (ID {})", texto.nome, texto.id);
+    }
     if let Some(copia) = copia {
         println!("Cópia editável: {}", copia.arquivo);
         if let Some(orientacao) = copia.orientacao {
@@ -191,6 +215,7 @@ mod tests {
             descricao: Some("Ensaio de despacho".to_owned()),
             nivel: Some(crate::dominio::NivelDeAcesso::Publico),
             requisicoes: 5,
+            texto_padrao: None,
             estado: EstadoCriacao::Previa,
         };
         let saida = resultado_json(&resultado);

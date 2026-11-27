@@ -11,6 +11,15 @@ pub(crate) struct FiltrosDaPesquisa<'a> {
     pub(crate) ate: Option<DataCivil>,
 }
 
+impl FiltrosDaPesquisa<'_> {
+    /// Só critérios já implementados; paginação e assunto sem ID não filtram.
+    pub(crate) fn tem_criterio_efetivo(&self) -> bool {
+        self.tipo.is_some_and(|tipo| !tipo.trim().is_empty())
+            || self.de.is_some()
+            || self.ate.is_some()
+    }
+}
+
 /// `--de`/`--ate` DD/MM/AAAA que existe no calendário (parser do clap: saída 2).
 #[derive(Debug, Clone, Copy, PartialEq, Eq, thiserror::Error)]
 #[error("{self:?}")]

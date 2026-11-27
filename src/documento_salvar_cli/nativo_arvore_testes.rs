@@ -26,7 +26,9 @@ fn get_http(
             bruto
         });
         let (mut fluxo, _) = escuta.accept().unwrap();
-        fluxo.set_read_timeout(Some(Duration::from_secs(5))).unwrap();
+        fluxo
+            .set_read_timeout(Some(Duration::from_secs(5)))
+            .unwrap();
         anti_ies::atender_http(&mut fluxo, Some((banco, instalacao, "ensaio"))).unwrap();
         drop(fluxo);
         cliente.join().unwrap()

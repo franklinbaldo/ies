@@ -31,6 +31,9 @@ enum EstadoDeBusca {
     SemResultado,
     DocumentoExato,
     Paginas,
+    PeriodoProcessual,
+    PaginasProcessuais,
+    CoorteProcessualContraditoria(bool),
 }
 
 struct Pasta(PathBuf);
@@ -201,6 +204,48 @@ fn preparar_estado(banco: &mut Connection, instalacao: &Instalacao, estado: Esta
             TERMO,
         )
         .unwrap();
+    } else if matches!(estado, EstadoDeBusca::PeriodoProcessual) {
+        // Hipótese sintética, não resposta original do SEI.
+        let unidade = UnidadeExibida::nova("TESTE").unwrap();
+        for (id, nome) in [("73", "Administrativo"), ("74", "Judicial")] {
+            iesei::pesquisa_processo::registrar_tipo(
+                banco, instalacao, CENARIO, &unidade, id, nome,
+            )
+            .unwrap();
+        }
+        iesei::pesquisa_processo::registrar_sem_resultado(
+            banco,
+            instalacao,
+            CENARIO,
+            &UnidadeExibida::nova("TESTE").unwrap(),
+            iesei::pesquisa_processo::Criterios {
+                tipo_id: "",
+                de: "01/01/2026",
+                ate: "31/01/2026",
+            },
+        )
+        .unwrap();
+        for criterios in [
+            iesei::pesquisa_processo::Criterios {
+                tipo_id: "73",
+                de: "",
+                ate: "",
+            },
+            iesei::pesquisa_processo::Criterios {
+                tipo_id: "73",
+                de: "01/01/2026",
+                ate: "31/01/2026",
+            },
+        ] {
+            iesei::pesquisa_processo::registrar_sem_resultado(
+                banco, instalacao, CENARIO, &unidade, criterios,
+            )
+            .unwrap();
+        }
+    } else if matches!(estado, EstadoDeBusca::PaginasProcessuais) {
+        processos::preparar_paginas(banco, instalacao);
+    } else if let EstadoDeBusca::CoorteProcessualContraditoria(zero_primeiro) = estado {
+        processos::preparar_coorte_contraditoria(banco, instalacao, zero_primeiro);
     } else {
         preparar_paginas(banco, instalacao);
     }
@@ -276,7 +321,11 @@ fn executar(pasta: &Pasta, args: &[&str]) -> Output {
 }
 
 fn executar_com_estado(pasta: &Pasta, args: &[&str], estado: EstadoDeBusca) -> Output {
-    let requisicoes = if matches!(estado, EstadoDeBusca::Paginas) && args.contains(&"--pagina") {
+    let requisicoes = if matches!(
+        estado,
+        EstadoDeBusca::Paginas | EstadoDeBusca::PaginasProcessuais
+    ) && args.contains(&"--pagina")
+    {
         4
     } else {
         3
@@ -436,5 +485,74 @@ fn bdd_61_01_cli_documento_unico_por_numero_exato_sem_seguir_302() {
     assert!(json["processo"].get("numero").is_none());
 }
 
+#[test]
+fn processo_por_periodo_distingue_zero_observado_de_periodo_desconhecido() {
+    for (ate, esperado) in [("31/01/2026", 0), ("30/01/2026", 1)] {
+        let pasta = Pasta::nova();
+        let saida = executar_com_estado(
+            &pasta,
+            &[
+                "--json",
+                "processo",
+                "buscar",
+                "--de",
+                "01/01/2026",
+                "--ate",
+                ate,
+            ],
+            EstadoDeBusca::PeriodoProcessual,
+        );
+        assert_eq!(
+            saida.status.code(),
+            Some(esperado),
+            "{}",
+            String::from_utf8_lossy(&saida.stderr)
+        );
+        if esperado == 0 {
+            let json: Value = serde_json::from_slice(&saida.stdout).unwrap();
+            assert_eq!(json["resultado"], "sem_resultado");
+            assert_eq!(json["termo"], "");
+            assert_eq!(json["total_declarado"], 0);
+            assert_eq!(json["processos"].as_array().unwrap().len(), 0);
+        } else {
+            assert_eq!(saida.stdout.as_slice(), b"");
+        }
+    }
+}
+
+#[test]
+fn processo_por_tipo_e_periodo_nao_reutiliza_resultado_de_outro_tipo() {
+    for (tipo, datas, esperado) in [
+        ("Administrativo", false, 0),
+        ("Administrativo", true, 0),
+        ("Judicial", false, 1),
+        ("Judicial", true, 1),
+    ] {
+        let pasta = Pasta::nova();
+        let mut args = vec!["--json", "processo", "buscar", "--tipo", tipo];
+        if datas {
+            args.extend(["--de", "01/01/2026", "--ate", "31/01/2026"]);
+        }
+        let saida = executar_com_estado(&pasta, &args, EstadoDeBusca::PeriodoProcessual);
+        assert_eq!(
+            saida.status.code(),
+            Some(esperado),
+            "{}",
+            String::from_utf8_lossy(&saida.stderr)
+        );
+        if esperado == 0 {
+            let json: Value = serde_json::from_slice(&saida.stdout).unwrap();
+            assert_eq!(json["resultado"], "sem_resultado");
+            assert_eq!(json["termo"], "");
+            assert_eq!(json["total_declarado"], 0);
+        } else {
+            assert_eq!(saida.stdout.as_slice(), b"");
+        }
+    }
+}
+
 #[path = "aies_documento_buscar_cli/paginacao.rs"]
 mod paginacao;
+
+#[path = "aies_documento_buscar_cli/processos.rs"]
+mod processos;
