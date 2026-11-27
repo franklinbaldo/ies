@@ -225,11 +225,9 @@ fn oferta_editor_na_arvore_individual_e_mista() {
         assert!(vizinho.corpo.contains("documento_versao_listar"));
     };
     conferir(None);
-    for (editavel, assinaturas, esperado) in [
-        (false, 0, None),
-        (true, 0, Some('N')),
-        (true, 2, Some('S')),
-    ] {
+    for (editavel, assinaturas, esperado) in
+        [(false, 0, None), (true, 0, Some('N')), (true, 2, Some('S'))]
+    {
         registrar_oferta(
             &banco,
             &origem,
