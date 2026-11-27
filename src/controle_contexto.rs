@@ -340,7 +340,7 @@ mod tests {
         };
         let par = barras("UNIDADE A", "UNIDADE A", "#");
         let aninhado = par.replacen("</div>", "", 1) + "</div>";
-        for html in ["".to_owned(), A.to_owned(), par.clone(), aninhado] {
+        for html in [String::new(), A.to_owned(), par.clone(), aninhado] {
             assert_eq!(compativel(&html), Ok(true), "{html}");
         }
         for html in [
