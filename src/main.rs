@@ -54,6 +54,7 @@ mod erro_web;
 mod esquema_cli;
 mod formulario_web;
 mod foto_documento;
+mod grupo_envio_cli;
 mod historico;
 mod historico_processo;
 mod indice_caminho_cli;
@@ -181,6 +182,8 @@ enum Domain {
     Indice(Indice),
     /// Leitura de blocos de assinatura, internos e de reunião
     Bloco(Bloco),
+    /// Consulta grupos de envio da unidade ativa
+    GrupoEnvio(grupo_envio_cli::GrupoEnvio),
     /// Consulta o catálogo de marcadores da unidade
     Marcador(MarcadorArgs),
     /// Diagnóstico da conexão (ainda não implementado)
@@ -461,6 +464,7 @@ fn run(cli: &Cli) -> anyhow::Result<()> {
     }
     match &cli.command {
         Domain::Bloco(bloco) => return bloco_cli::executar(cli, bloco),
+        Domain::GrupoEnvio(grupo) => return grupo_envio_cli::executar(cli, grupo),
         Domain::Marcador(args) => {
             return match &args.acao {
                 Some(MarcadorAcao::Listar { inativos }) => {
@@ -520,6 +524,7 @@ fn run(cli: &Cli) -> anyhow::Result<()> {
         | Domain::Unidade(_)
         | Domain::Indice(_)
         | Domain::Bloco(_)
+        | Domain::GrupoEnvio(_)
         | Domain::Marcador(_)
         | Domain::Status(_)
         | Domain::Setup(_)
