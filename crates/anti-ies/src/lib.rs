@@ -24,6 +24,7 @@ mod processo_ciencia;
 mod processo_comentarios;
 mod processo_criacao;
 pub mod processo_envio;
+mod grupo_envio;
 mod processo_exportacao;
 mod processo_marcadores;
 mod processo_relacionar;

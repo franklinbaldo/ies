@@ -85,7 +85,10 @@ pub(crate) fn responder(
     cenario: &str,
 ) -> Resposta {
     // A recusa de sessão sintética vale inclusive antes de um upload.
+    let ajax_grupo = parametro_unico(alvo, "acao_ajax") == Some("unidade_auto_completar_envio_processo")
+        && parametro_unico(alvo, "acao_origem") == Some("grupo_unidade_cadastrar");
     if eh_controlador_sei(alvo)
+        || ajax_grupo
         || parametro_unico(alvo, "acao_ajax") == Some("texto_padrao_auto_completar")
     {
         match acesso_sessao::consultar(banco, instalacao, cenario) {
@@ -112,6 +115,9 @@ pub(crate) fn responder(
         Some("procedimento_enviar" | "anotacao_registrar") if eh_controlador_sei(alvo) => {
             processo_envio::responder(metodo, alvo, corpo, banco, instalacao, cenario)
         }
+        None if ajax_grupo => {
+            crate::grupo_envio::autocompletar(metodo, alvo, corpo, banco, instalacao, cenario)
+        }
         None if parametro_unico(alvo, "acao_ajax")
             == Some("unidade_auto_completar_envio_processo") =>
         {
@@ -124,7 +130,17 @@ pub(crate) fn responder(
             nivel_de_detalhe::responder(metodo, corpo, banco, instalacao, cenario)
         }
         Some("procedimento_controlar") if eh_controlador_sei(alvo) => {
-            processo_criacao::controle_com_menu(metodo, alvo, banco, instalacao, cenario)
+            crate::grupo_envio::acrescentar_menu(
+                processo_criacao::controle_com_menu(metodo, alvo, banco, instalacao, cenario),
+                banco,
+                instalacao,
+                cenario,
+            )
+        }
+        Some("grupo_unidade_listar" | "grupo_unidade_cadastrar" | "grupo_unidade_consultar")
+            if eh_controlador_sei(alvo) =>
+        {
+            crate::grupo_envio::responder(metodo, alvo, corpo, banco, instalacao, cenario)
         }
         Some("procedimento_escolher_tipo" | "procedimento_gerar") if eh_controlador_sei(alvo) => {
             processo_criacao::responder(metodo, alvo, corpo, banco, instalacao, cenario)
