@@ -60,10 +60,9 @@ fn editor_classico_rele_todas_as_secoes_transportadas() {
             Estado::RequisicaoInvalida
         );
     }
-    assert!(
-        ler_secoes(&banco, &origem(), "ensaio", "42", v3)
-            .unwrap()
-            .is_empty()
+    assert_eq!(
+        ler_secoes(&banco, &origem(), "ensaio", "42", v3).unwrap(),
+        Vec::<Secao>::new()
     );
     assert_eq!(
         responder("POST", salvar, post, &banco, &origem(), "ensaio").estado,
