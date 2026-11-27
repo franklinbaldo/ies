@@ -216,6 +216,7 @@ fn expressao_na_lista_servida_recusa_post_com_orcamento_exato() {
                 descricao: Some("Ensaio"),
                 nivel: Some(crate::dominio::NivelDeAcesso::Publico),
                 texto_padrao: None,
+                modelo: None,
             };
             executar_criacao(sessao, &pedido, indice, rede, true)
         });
