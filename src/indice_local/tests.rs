@@ -314,12 +314,18 @@ fn concorrencia_numa_pasta_nova(nome: &str) {
                     let id = (n * 1000 + i).to_string();
                     indice.registrar_processo(&instalacao(), &format!("{prefixo}{i}"), &id);
                 }
-                indice.ligado()
+                let ligado = indice.ligado();
+                (prefixo, ligado, indice.avisos())
             })
         })
         .collect();
     for tarefa in tarefas {
-        assert!(tarefa.join().unwrap());
+        let (prefixo, ligado, avisos) = tarefa.join().unwrap();
+        assert!(
+            ligado,
+            "índice desligado em {nome}/{prefixo}: {}",
+            serde_json::json!(avisos)
+        );
     }
     let leitor = IndiceLocal::em(caminho);
     for i in 0..40 {
