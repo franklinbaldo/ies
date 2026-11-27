@@ -36,6 +36,24 @@ pub(crate) fn colunas(
     }
 }
 
+/// Data civil do acervo, conferida pelo clap antes de abrir a sessão.
+#[derive(Debug, thiserror::Error)]
+#[error("data civil inválida; use AAAA-MM-DD")]
+pub(crate) struct DataDoAcervoInvalida;
+
+pub(crate) fn data_do_acervo(
+    s: &str,
+) -> Result<crate::unidade_retornos::DataCivil, DataDoAcervoInvalida> {
+    use crate::unidade_retornos::{DataCivil, MesAno};
+    let (mes_ano, dia) = s.rsplit_once('-').ok_or(DataDoAcervoInvalida)?;
+    let mes_ano = MesAno::ler_cli(mes_ano).ok_or(DataDoAcervoInvalida)?;
+    if dia.len() != 2 || !dia.bytes().all(|b| b.is_ascii_digit()) {
+        return Err(DataDoAcervoInvalida);
+    }
+    let dia = dia.parse().map_err(|_| DataDoAcervoInvalida)?;
+    DataCivil::new(mes_ano.ano(), mes_ano.mes(), dia).ok_or(DataDoAcervoInvalida)
+}
+
 /// `ies unidade <ação>`: encaminha cada ação ao seu fluxo.
 pub(crate) fn executar(cli: &Cli, acao: &UnidadeAcao) -> anyhow::Result<()> {
     let unidade = cli.unidade.as_deref();
@@ -57,6 +75,7 @@ pub(crate) fn executar(cli: &Cli, acao: &UnidadeAcao) -> anyhow::Result<()> {
             lista,
             crate::unidade_categoria::CategoriaLista::Gerados,
         ),
+        UnidadeAcao::Acervo { em } => crate::unidade_acervo::listar(unidade, cli.json, *em),
         UnidadeAcao::Retornos { mes } => {
             crate::unidade_retornos_cli::listar(unidade, cli.json, *mes)
         }
