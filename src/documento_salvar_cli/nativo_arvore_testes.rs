@@ -228,7 +228,12 @@ fn conferir_projecao_multissecao(html: &HtmlServido) {
     .unwrap();
     assert_eq!(envio.interno.posts, 1);
     let fresco = Protocolo::ler(&relido.html).unwrap();
-    assert!(releitura::confere(&original, &fresco, seguinte.get(), html_novo));
+    assert!(releitura::confere(
+        &original,
+        &fresco,
+        seguinte.get(),
+        html_novo
+    ));
     assert_eq!(ler_revisao(versao), secoes);
     let mut esperadas = secoes;
     for s in &mut esperadas {
