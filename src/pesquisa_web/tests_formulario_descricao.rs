@@ -56,7 +56,10 @@ fn descricao_respeita_controle_servido_e_limite_utf16() {
         observado(),
         com_textos(),
         com_textos().replace("maxlength='250'", "maxlength='x'"),
-        com_textos().replace("name='txtDescricaoPesquisa'", "name='txtDescricaoPesquisa' disabled"),
+        com_textos().replace(
+            "name='txtDescricaoPesquisa'",
+            "name='txtDescricaoPesquisa' disabled",
+        ),
     ] {
         let html = HtmlServido::de_teste(&html);
         let erro = derivar_pesquisa_em_filtrada(

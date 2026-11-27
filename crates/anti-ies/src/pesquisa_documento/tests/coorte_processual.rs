@@ -66,12 +66,23 @@ fn texto_processual_nao_herda_zero_do_periodo() {
         ("", Estado::Ok),
         ("&txtDescricaoPesquisa=&txtObservacaoPesquisa=", Estado::Ok),
         ("&txtDescricaoPesquisa=contrato", Estado::DadosInsuficientes),
-        ("&txtObservacaoPesquisa=contrato", Estado::DadosInsuficientes),
-        ("&txtDescricaoPesquisa=&txtDescricaoPesquisa", Estado::RequisicaoInvalida),
+        (
+            "&txtObservacaoPesquisa=contrato",
+            Estado::DadosInsuficientes,
+        ),
+        (
+            "&txtDescricaoPesquisa=&txtDescricaoPesquisa",
+            Estado::RequisicaoInvalida,
+        ),
         ("&txtObservacaoPesquisa", Estado::RequisicaoInvalida),
     ] {
-        let resposta =
-            periodo_processual(&format!("{base}{extra}"), &banco, &instalacao, "c", &unidade);
+        let resposta = periodo_processual(
+            &format!("{base}{extra}"),
+            &banco,
+            &instalacao,
+            "c",
+            &unidade,
+        );
         assert_eq!(resposta.estado, esperado, "{extra}");
     }
 }
