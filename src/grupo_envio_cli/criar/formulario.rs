@@ -3,8 +3,8 @@ use super::Membro;
 use crate::acao_do_sei::AcaoDoSei;
 use crate::formulario_web::{
     ConferenciaDaUnidade, EfeitoAvaliado, EnvioDoFormulario, EstadoDoProcesso,
-    OperacaoDeFormulario, ResultadoDoEnvio, SubmissaoDerivada, TelaServida,
-    derivar_submissao, localizar_formulario, valor_da_lupa,
+    OperacaoDeFormulario, ResultadoDoEnvio, SubmissaoDerivada, TelaServida, derivar_submissao,
+    localizar_formulario, valor_da_lupa,
 };
 use crate::instalacao::Instalacao;
 use crate::tela_html::arvore;
@@ -44,9 +44,7 @@ pub(super) fn preparar(
         matches!(ids.as_slice(), [id] if id.atributo("value") == Some("")),
         "Cadastro não publicou identidade vazia"
     );
-    let unidades = valor_da_lupa(
-        membros.iter().map(|m| (m.id.as_str(), m.nome.as_str()))
-    );
+    let unidades = valor_da_lupa(membros.iter().map(|m| (m.id.as_str(), m.nome.as_str())));
     Ok(derivar_submissao(
         &CRIAR,
         instalacao,
@@ -73,19 +71,31 @@ mod tests {
         <input type='hidden' name='hdnUnidades' value=''>\
         <input type='hidden' name='hdnInfraTipoPagina' value='7'>\
         <input type='submit' name='sbmCadastrarGrupoUnidade' value='Salvar'>";
-    fn derivar(interior: &str, codificacao: CodificacaoDaTela) -> anyhow::Result<SubmissaoDerivada> {
+    fn derivar(
+        interior: &str,
+        codificacao: CodificacaoDaTela,
+    ) -> anyhow::Result<SubmissaoDerivada> {
         let instalacao = Instalacao::interpretar("https://sei.exemplo.gov.br/sei").unwrap();
-        let url = format!("https://sei.exemplo.gov.br/sei/controlador.php?acao=grupo_unidade_cadastrar&infra_hash={HASH}");
+        let url = format!(
+            "https://sei.exemplo.gov.br/sei/controlador.php?acao=grupo_unidade_cadastrar&infra_hash={HASH}"
+        );
         let html = HtmlServido::de_teste(&format!(
             "<form id='frmGrupoCadastro' method='post' action='controlador.php?acao=grupo_unidade_cadastrar&infra_hash={HASH}'>{interior}</form>"
         ));
         preparar(
             &instalacao,
-            &TelaServida { url: &url, html: &html, codificacao },
+            &TelaServida {
+                url: &url,
+                html: &html,
+                codificacao,
+            },
             "TESTE",
             "Ação & B",
             "",
-            &[Membro { id: "001".into(), nome: "Órgão".into() }],
+            &[Membro {
+                id: "001".into(),
+                nome: "Órgão".into(),
+            }],
         )
     }
     #[test]
@@ -108,8 +118,14 @@ mod tests {
     fn identidade_ausente_preenchida_ou_duplicada_nao_prepara() {
         for interior in [
             INTERIOR.replace("name='hdnIdGrupoUnidade'", "name='outro'"),
-            INTERIOR.replace("name='hdnIdGrupoUnidade' value=''", "name='hdnIdGrupoUnidade' value='001'"),
-            INTERIOR.replace("name='hdnIdGrupoUnidade' value=''", "name='hdnIdGrupoUnidade'"),
+            INTERIOR.replace(
+                "name='hdnIdGrupoUnidade' value=''",
+                "name='hdnIdGrupoUnidade' value='001'",
+            ),
+            INTERIOR.replace(
+                "name='hdnIdGrupoUnidade' value=''",
+                "name='hdnIdGrupoUnidade'",
+            ),
             format!("{INTERIOR}<input type='hidden' name='hdnIdGrupoUnidade' value=''>"),
         ] {
             assert!(derivar(&interior, CodificacaoDaTela::Iso88591).is_err());

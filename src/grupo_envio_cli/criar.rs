@@ -68,15 +68,25 @@ pub(super) fn criar_via<V: EnvioDoControle>(
         .ok_or(ErroCriar::CharsetNaoSuportado)?;
     let html = decodificar_resposta(resposta)?;
     conferir_unidade_publicada(&html, &unidade)?;
-    let tela = TelaServida { url: &novo, html: &html, codificacao };
+    let tela = TelaServida {
+        url: &novo,
+        html: &html,
+        codificacao,
+    };
     let membros = membros::resolver(&instalacao, &tela, cookie, pedido.unidades, envio)?;
     let post = formulario::preparar(&instalacao, &tela, &unidade, &nome, &descricao, &membros)?;
     if !pedido.confirmar {
-        return Ok(Criacao::Previa { unidade, nome, descricao, membros });
+        return Ok(Criacao::Previa {
+            unidade,
+            nome,
+            descricao,
+            membros,
+        });
     }
     // O único POST mutador. Um 302 é dado, não instrução de navegação.
-    let resposta = enviar_submissao_via(post, sessao.cookie(), |p, c| envio.post(p, c))
-        .context("Criação não confirmada após tentativa de envio; confira o grupo antes de repetir")?;
+    let resposta = enviar_submissao_via(post, sessao.cookie(), |p, c| envio.post(p, c)).context(
+        "Criação não confirmada após tentativa de envio; confira o grupo antes de repetir",
+    )?;
     let RespostaDoEnvio::Redirecionamento(redir) = resposta else {
         return Err(ErroCriar::IdentidadeNaoConfirmada.into());
     };

@@ -9,7 +9,8 @@ pub(super) fn id_publicado(redir: &Redirecionamento302) -> Option<&str> {
     if local.contains(['#', '\\']) || !local.bytes().all(|b| (33..=126).contains(&b)) {
         return None;
     }
-    let consulta = ConsultaDoControlador::ler(consulta_do_controlador(local, redir.url_do_envio())?).ok()?;
+    let consulta =
+        ConsultaDoControlador::ler(consulta_do_controlador(local, redir.url_do_envio())?).ok()?;
     if consulta.acao().ok()? != "grupo_unidade_listar" {
         return None;
     }
@@ -47,8 +48,12 @@ mod tests {
             Some("controlador.php?acao=grupo_unidade_consultar&id_grupo=001"),
             Some("controlador.php?acao=grupo_unidade_listar&id_grupo="),
             Some("controlador.php?acao=grupo_unidade_listar&id_grupo=%30%31"),
-            Some("https://other.invalid/sei/controlador.php?acao=grupo_unidade_listar&id_grupo=001"),
-            Some("https://example.invalid/outra/controlador.php?acao=grupo_unidade_listar&id_grupo=001"),
+            Some(
+                "https://other.invalid/sei/controlador.php?acao=grupo_unidade_listar&id_grupo=001",
+            ),
+            Some(
+                "https://example.invalid/outra/controlador.php?acao=grupo_unidade_listar&id_grupo=001",
+            ),
         ] {
             let r = Redirecionamento302::sintetico(local, POST);
             assert_eq!(id_publicado(&r), None);

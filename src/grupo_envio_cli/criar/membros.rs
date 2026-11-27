@@ -30,7 +30,9 @@ fn url_declarada(html: &crate::tela_html::HtmlServido) -> Result<String, ErroMem
     for script in dom.elementos("script") {
         let texto = script.texto();
         for resto in texto.split(PREFIXO).skip(1) {
-            let (url, _) = resto.split_once("');").ok_or(ErroMembro::AutocompleteNaoDeclarado)?;
+            let (url, _) = resto
+                .split_once("');")
+                .ok_or(ErroMembro::AutocompleteNaoDeclarado)?;
             urls.push(url.to_owned());
         }
     }
@@ -41,16 +43,23 @@ fn url_declarada(html: &crate::tela_html::HtmlServido) -> Result<String, ErroMem
 }
 
 fn chave(s: &str) -> String {
-    s.split_whitespace().collect::<Vec<_>>().join(" ").to_lowercase()
+    s.split_whitespace()
+        .collect::<Vec<_>>()
+        .join(" ")
+        .to_lowercase()
 }
 
 fn escolher(termo: &str, itens: &[(String, String)], alargado: bool) -> Result<Membro, ErroMembro> {
     let termo = chave(termo);
-    let exatos: Vec<_> = itens.iter().filter(|(_, nome)| {
-        chave(nome) == termo || nome.split_once(" - ").is_some_and(|(sigla, descricao)| {
-            chave(sigla) == termo || chave(descricao) == termo
+    let exatos: Vec<_> = itens
+        .iter()
+        .filter(|(_, nome)| {
+            chave(nome) == termo
+                || nome.split_once(" - ").is_some_and(|(sigla, descricao)| {
+                    chave(sigla) == termo || chave(descricao) == termo
+                })
         })
-    }).collect();
+        .collect();
     let (id, nome) = match exatos.as_slice() {
         [item] => *item,
         [] => match itens {
@@ -61,7 +70,10 @@ fn escolher(termo: &str, itens: &[(String, String)], alargado: bool) -> Result<M
         },
         _ => return Err(ErroMembro::UnidadeAmbigua),
     };
-    Ok(Membro { id: id.clone(), nome: nome.clone() })
+    Ok(Membro {
+        id: id.clone(),
+        nome: nome.clone(),
+    })
 }
 
 /// Consultas AJAX de leitura não são o POST mutador. Resolver todos antes
@@ -83,7 +95,11 @@ pub(super) fn resolver<V: EnvioDoControle>(
         let termo = pedido.trim();
         let mut consultar = |termo: &str| -> anyhow::Result<Vec<(String, String)>> {
             let post = derivar_consulta_ajax(
-                &CONSULTA, instalacao, tela, &url, &[("palavras_pesquisa", termo)]
+                &CONSULTA,
+                instalacao,
+                tela,
+                &url,
+                &[("palavras_pesquisa", termo)],
             )?;
             Ok(ler_resposta_da_consulta(envio.post(post, cookie)?)?)
         };
@@ -120,12 +136,18 @@ mod tests {
     #[test]
     fn homonimos_nao_decidem() {
         let itens = [item("001", "X - Unidade"), item("1", "Y - Unidade")];
-        assert!(matches!(escolher("Unidade", &itens, false), Err(ErroMembro::UnidadeAmbigua)));
+        assert!(matches!(
+            escolher("Unidade", &itens, false),
+            Err(ErroMembro::UnidadeAmbigua)
+        ));
     }
     #[test]
     fn alargamento_nao_aceita_o_unico_item_incorreto() {
         let itens = [item("1", "DEF/GECONT - Outra")];
-        assert!(matches!(escolher("ABC/GECONT-18141", &itens, true), Err(ErroMembro::UnidadeNaoOferecida)));
+        assert!(matches!(
+            escolher("ABC/GECONT-18141", &itens, true),
+            Err(ErroMembro::UnidadeNaoOferecida)
+        ));
         assert_eq!(escolher("GECONT", &itens, false).unwrap().id, "1");
     }
 }

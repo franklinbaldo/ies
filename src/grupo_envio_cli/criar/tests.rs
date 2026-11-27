@@ -90,7 +90,11 @@ impl EnvioDoControle for Envio {
             b"hdnIdGrupoUnidade=&txtNome=Grupo&txaDescricao=Descri%C3%A7%C3%A3o&hdnUnidades=001%C2%B1X+-+Unidade&sbmCadastrarGrupoUnidade=Salvar"
         );
         Ok(testes_http::resposta_post(
-            302, "text/html", Vec::new(), Some(0), Some(self.location.to_owned()),
+            302,
+            "text/html",
+            Vec::new(),
+            Some(0),
+            Some(self.location.to_owned()),
         ))
     }
 }
@@ -99,14 +103,20 @@ fn sessao() -> ReferenciasDaSessao {
     let pasta = std::env::temp_dir().join(format!(
         "ies-grupo-criar-{}-{}",
         std::process::id(),
-        std::time::SystemTime::now().duration_since(std::time::UNIX_EPOCH).unwrap().as_nanos(),
+        std::time::SystemTime::now()
+            .duration_since(std::time::UNIX_EPOCH)
+            .unwrap()
+            .as_nanos(),
     ));
     std::fs::create_dir_all(&pasta).unwrap();
     let url = pasta.join("url");
     let origem = pasta.join("origem");
     let cookie = pasta.join("cookie");
     for (arquivo, valor) in [
-        (&url, format!("{ORIGEM}/controlador.php?acao=procedimento_controlar&infra_hash={HASH}")),
+        (
+            &url,
+            format!("{ORIGEM}/controlador.php?acao=procedimento_controlar&infra_hash={HASH}"),
+        ),
         (&origem, ORIGEM.to_owned()),
         (&cookie, "PHPSESSID=SINTETICO".to_owned()),
     ] {
@@ -126,7 +136,12 @@ fn sessao() -> ReferenciasDaSessao {
 fn previa_e_confirmacao_distinguem_ajax_de_mutacao() {
     let sessao = sessao();
     let unidades = ["X".to_owned()];
-    let mut pedido = Pedido { nome: "Grupo", descricao: "Descrição", unidades: &unidades, confirmar: false };
+    let mut pedido = Pedido {
+        nome: "Grupo",
+        descricao: "Descrição",
+        unidades: &unidades,
+        confirmar: false,
+    };
     let mut envio = Envio {
         telas: [controle(), lista("1"), cadastro()].into(),
         mutacoes: 0,
@@ -139,7 +154,15 @@ fn previa_e_confirmacao_distinguem_ajax_de_mutacao() {
     assert!(envio.telas.is_empty());
 
     pedido.confirmar = true;
-    envio.telas = [controle(), lista("1"), cadastro(), controle(), lista("001"), consulta("Grupo")].into();
+    envio.telas = [
+        controle(),
+        lista("1"),
+        cadastro(),
+        controle(),
+        lista("001"),
+        consulta("Grupo"),
+    ]
+    .into();
     envio.consultas = 0;
     let criado = criar_via(&sessao, None, &pedido, &mut envio).unwrap();
     assert!(matches!(criado, Criacao::Criado { grupo, .. } if grupo.id == "001"));
@@ -151,17 +174,39 @@ fn previa_e_confirmacao_distinguem_ajax_de_mutacao() {
 fn identidade_preexistente_ou_releitura_diferente_nao_confirma_nem_repete() {
     let sessao = sessao();
     let unidades = ["X".to_owned()];
-    let pedido = Pedido { nome: "Grupo", descricao: "Descrição", unidades: &unidades, confirmar: true };
+    let pedido = Pedido {
+        nome: "Grupo",
+        descricao: "Descrição",
+        unidades: &unidades,
+        confirmar: true,
+    };
     for (antes, location, releitura) in [
-        ("001", "controlador.php?acao=grupo_unidade_listar&id_grupo=001", None),
-        ("1", "controlador.php?acao=grupo_unidade_listar#fragment&id_grupo=001", None),
-        ("1", "controlador.php?acao=grupo_unidade_listar&id_grupo=001", Some("Outro")),
+        (
+            "001",
+            "controlador.php?acao=grupo_unidade_listar&id_grupo=001",
+            None,
+        ),
+        (
+            "1",
+            "controlador.php?acao=grupo_unidade_listar#fragment&id_grupo=001",
+            None,
+        ),
+        (
+            "1",
+            "controlador.php?acao=grupo_unidade_listar&id_grupo=001",
+            Some("Outro"),
+        ),
     ] {
         let mut telas = VecDeque::from([controle(), lista(antes), cadastro()]);
         if let Some(nome) = releitura {
             telas.extend([controle(), lista("001"), consulta(nome)]);
         }
-        let mut envio = Envio { telas, mutacoes: 0, consultas: 0, location };
+        let mut envio = Envio {
+            telas,
+            mutacoes: 0,
+            consultas: 0,
+            location,
+        };
         assert!(criar_via(&sessao, None, &pedido, &mut envio).is_err());
         assert_eq!((envio.consultas, envio.mutacoes), (1, 1));
         assert!(envio.telas.is_empty());
