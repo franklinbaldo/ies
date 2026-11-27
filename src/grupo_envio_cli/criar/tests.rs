@@ -223,3 +223,49 @@ fn identidade_preexistente_ou_releitura_diferente_nao_confirma_nem_repete() {
         assert!(envio.telas.is_empty());
     }
 }
+
+#[test]
+fn catalogo_parcial_permite_previa_mas_recusa_confirmacao_antes_de_post() {
+    let sessao = sessao();
+    let unidades = ["X".to_owned()];
+    for faixa in ["1 a 1", "2 a 2"] {
+        let parcial = lista("1").replace(
+            "Grupos de Envio (1 registro):",
+            &format!("Grupos de Envio (2 registros - {faixa}):"),
+        );
+        for confirmar in [false, true] {
+            let pedido = Pedido {
+                nome: "Grupo",
+                descricao: "Descrição",
+                unidades: &unidades,
+                confirmar,
+            };
+            let mut telas = VecDeque::from([controle(), parcial.clone()]);
+            if !confirmar {
+                telas.push_back(cadastro());
+            }
+            let mut envio = Envio {
+                telas,
+                mutacoes: 0,
+                consultas: 0,
+                location: "controlador.php?acao=grupo_unidade_listar&id_grupo=001",
+            };
+            let resultado = criar_via(&sessao, None, &pedido, &mut envio);
+            if confirmar {
+                let Err(erro) = resultado else {
+                    panic!("catálogo parcial não autoriza criação");
+                };
+                assert!(matches!(
+                    erro.downcast_ref::<ErroCriar>(),
+                    Some(ErroCriar::CatalogoAnteriorIncompleto)
+                ));
+                assert_eq!(envio.consultas, 0);
+            } else {
+                assert!(matches!(resultado.unwrap(), Criacao::Previa { .. }));
+                assert_eq!(envio.consultas, 1);
+            }
+            assert_eq!(envio.mutacoes, 0);
+            assert!(envio.telas.is_empty());
+        }
+    }
+}

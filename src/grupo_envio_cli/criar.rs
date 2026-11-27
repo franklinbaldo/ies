@@ -13,6 +13,8 @@ mod membros;
 
 #[derive(Debug, thiserror::Error)]
 enum ErroCriar {
+    #[error("CatalogoAnteriorIncompleto: confirmação exige catálogo integral; nenhuma criação enviada")]
+    CatalogoAnteriorIncompleto,
     #[error("CharsetNaoSuportado")]
     CharsetNaoSuportado,
     #[error("IdentidadeNaoConfirmada: criação pode ter ocorrido; confira antes de repetir")]
@@ -63,7 +65,11 @@ pub(super) fn criar_via<V: EnvioDoControle>(
     let descricao = limpo(pedido.descricao);
     let (unidade, instalacao, lista) = abrir_lista_via(sessao, unidade_esperada, envio)?;
     conferir_unidade_publicada(&lista.html, &unidade)?;
-    let (_, antes) = ler_pagina(&lista.html)?;
+    let (legenda, antes) = ler_pagina(&lista.html)?;
+    // ler_pagina já valida faixa, contagem e unicidade dos IDs.
+    if pedido.confirmar && antes.len() != legenda.total {
+        return Err(ErroCriar::CatalogoAnteriorIncompleto.into());
+    }
     let novo = crate::unidade_lupa::botao_novo(&lista.html, &lista.url, sessao.origem())?;
     let cookie = sessao.cookie().valor()?;
     let resposta = envio.get(&novo, cookie)?;
