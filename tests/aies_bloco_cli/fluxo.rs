@@ -1,8 +1,8 @@
 //! Execução CLI/TLS e anti-IES compartilhada pelos testes de bloco.
 use super::{
     CENARIO, Command, Connection, ControleResumido, Instalacao, Linha, ORIGEM, Output, Pasta,
-    TabelaObservada, TcpListener, UnidadeExibida, aceitar, argumentos, atender_http, banco_cassettes,
-    certificado, criar, iniciar_tunel, registrar_blocos, thread,
+    TabelaObservada, TcpListener, UnidadeExibida, aceitar, argumentos, atender_http,
+    banco_cassettes, certificado, criar, iniciar_tunel, registrar_blocos, thread,
 };
 
 pub(super) fn executar_fluxo(

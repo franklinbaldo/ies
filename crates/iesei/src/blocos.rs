@@ -268,7 +268,9 @@ pub fn acrescentar_assinatura(
         .ok_or(rusqlite::Error::InvalidQuery)?
         .to_string();
     let posicao = i64::try_from(foto.total).map_err(|_| rusqlite::Error::InvalidQuery)?;
-    let total = posicao.checked_add(1).ok_or(rusqlite::Error::InvalidQuery)?;
+    let total = posicao
+        .checked_add(1)
+        .ok_or(rusqlite::Error::InvalidQuery)?;
     tx.execute(
         "UPDATE sim_bloco_pagina SET total=?4,inicio=1,fim=?4
          WHERE origem=?1 AND cenario=?2 AND tipo=?3 AND pagina=1",
@@ -277,7 +279,14 @@ pub fn acrescentar_assinatura(
     tx.execute(
         "INSERT INTO sim_bloco_linha(origem,cenario,tipo,pagina,posicao,numero,estado,descricao)
          VALUES(?1,?2,?3,1,?4,?5,'Gerado',?6)",
-        params![instalacao.url_base(), cenario, tipo.nome(), posicao, id, descricao],
+        params![
+            instalacao.url_base(),
+            cenario,
+            tipo.nome(),
+            posicao,
+            id,
+            descricao
+        ],
     )?;
     tx.commit()?;
     Ok(id)
@@ -319,11 +328,12 @@ mod tests {
             ler(&banco, &origem, "teste", Tipo::Assinatura).unwrap(),
             Some(foto.clone())
         );
-        banco.execute_batch(
-            "CREATE TRIGGER falhar_bloco BEFORE INSERT ON sim_bloco_linha
+        banco
+            .execute_batch(
+                "CREATE TRIGGER falhar_bloco BEFORE INSERT ON sim_bloco_linha
              BEGIN SELECT RAISE(ABORT, 'falha de teste'); END;",
-        )
-        .unwrap();
+            )
+            .unwrap();
         assert!(acrescentar_assinatura(&banco, &origem, "teste", "Outro").is_err());
         assert_eq!(
             ler(&banco, &origem, "teste", Tipo::Assinatura).unwrap(),

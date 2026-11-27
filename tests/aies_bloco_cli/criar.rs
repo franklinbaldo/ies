@@ -56,13 +56,21 @@ pub(super) fn conferir_sqlite(banco: &Connection) {
     assert_eq!(
         linhas,
         vec![
-            ("2195".to_owned(), "Gerado".to_owned(), "Despachos de teste".to_owned()),
+            (
+                "2195".to_owned(),
+                "Gerado".to_owned(),
+                "Despachos de teste".to_owned()
+            ),
             (
                 "2196".to_owned(),
                 "Disponibilizado".to_owned(),
                 "Assinaturas pendentes".to_owned()
             ),
-            ("2197".to_owned(), "Gerado".to_owned(), "Despachos de teste".to_owned()),
+            (
+                "2197".to_owned(),
+                "Gerado".to_owned(),
+                "Despachos de teste".to_owned()
+            ),
         ]
     );
 }
