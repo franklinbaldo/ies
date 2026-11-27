@@ -91,7 +91,6 @@ pub(crate) fn tela(
     )))
 }
 
-
 // Hipótese sintética da tela observada: ambas as URLs são publicadas na
 // mesma identidade. A consulta AJAX continua independente da oferta.
 fn links_do_editor(
@@ -238,9 +237,8 @@ mod testes_editor {
         };
         guardar(&mut banco, "ensaio", &documento).unwrap();
         let alvo = "/sei/controlador.php?acao=arvore_visualizar&id_procedimento=10&id_documento=21";
-        let pedir = |alvo, cenario| {
-            crate::rotas::responder("GET", alvo, b"", &banco, &origem, cenario)
-        };
+        let pedir =
+            |alvo, cenario| crate::rotas::responder("GET", alvo, b"", &banco, &origem, cenario);
         let sem_oferta = pedir(alvo, "ensaio");
         assert_eq!(sem_oferta.estado, Estado::Ok);
         assert!(sem_oferta.corpo.contains("linkCienciaDocumento"));
@@ -268,9 +266,9 @@ mod testes_editor {
                 editavel
             );
             assert_eq!(
-                resposta.corpo.contains(
-                    "acao=editor_montar&id_procedimento=10&id_documento=21&infra_hash="
-                ),
+                resposta
+                    .corpo
+                    .contains("acao=editor_montar&id_procedimento=10&id_documento=21&infra_hash="),
                 editavel
             );
         }
