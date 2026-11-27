@@ -12,10 +12,10 @@ use std::sync::atomic::{AtomicBool, Ordering};
 use std::thread;
 use std::time::Duration;
 
-#[path = "aies_documento_criar_cli/fixture_tls.rs"]
-mod fixture_tls;
 #[path = "aies_pdf_externo_cli/bancada.rs"]
 mod bancada;
+#[path = "aies_documento_criar_cli/fixture_tls.rs"]
+mod fixture_tls;
 
 use fixture_tls::{Pasta, identidade};
 
@@ -24,7 +24,10 @@ const A: &str = "00001.000001/2024-01";
 const B: &str = "00001.000002/2024-02";
 
 fn link(acao: &str) -> String {
-    format!("controlador.php?acao={acao}&amp;infra_hash={}", "a".repeat(64))
+    format!(
+        "controlador.php?acao={acao}&amp;infra_hash={}",
+        "a".repeat(64)
+    )
 }
 
 fn controle() -> String {
@@ -66,7 +69,11 @@ fn relatorio(vazio: bool) -> String {
 fn pagina(inicio: usize, fim: usize, nups: &[&str]) -> String {
     let linhas: String = nups
         .iter()
-        .map(|nup| format!("<tr><td>O</td><td>PPI</td><td>{nup}</td><td>T</td><td>2</td><td>2024</td></tr>"))
+        .map(|nup| {
+            format!(
+                "<tr><td>O</td><td>PPI</td><td>{nup}</td><td>T</td><td>2</td><td>2024</td></tr>"
+            )
+        })
         .collect();
     format!(
         "<form id='frmEstatisticasLista' method='post' action='{}'>\
@@ -99,13 +106,23 @@ fn roteiro(caso: Caso) -> Vec<Passo> {
         ),
     ];
     if !matches!(caso, Caso::Vazio) {
-        passos.push(("GET", "estatisticas_detalhar_unidade", "", pagina(1, 2, &[A, A])));
+        passos.push((
+            "GET",
+            "estatisticas_detalhar_unidade",
+            "",
+            pagina(1, 2, &[A, A]),
+        ));
         let ultima = match caso {
             Caso::Completo => pagina(3, 3, &[B]),
             Caso::Repetido => pagina(1, 2, &[A, A]),
             Caso::Vazio => unreachable!(),
         };
-        passos.push(("POST", "estatisticas_detalhar_unidade", "hdnInfraPaginaAtual=1", ultima));
+        passos.push((
+            "POST",
+            "estatisticas_detalhar_unidade",
+            "hdnInfraPaginaAtual=1",
+            ultima,
+        ));
     }
     passos
 }
@@ -132,7 +149,8 @@ fn servir(escuta: TcpListener, parar: &AtomicBool, tls: &TlsAcceptor, passos: Ve
         tcp.set_write_timeout(Some(Duration::from_secs(5))).unwrap();
         let (connect, _, _) = bancada::pedido(&mut tcp);
         assert!(connect.starts_with(b"CONNECT sei.test:443 HTTP/1.1\r\n"));
-        tcp.write_all(b"HTTP/1.1 200 Connection established\r\n\r\n").unwrap();
+        tcp.write_all(b"HTTP/1.1 200 Connection established\r\n\r\n")
+            .unwrap();
         let mut canal = tls.accept(tcp).unwrap();
         let (bytes, metodo, acao) = bancada::pedido(&mut canal);
         let (m, a, corpo, html) = passos.next().expect("requisição além do roteiro");
@@ -141,7 +159,13 @@ fn servir(escuta: TcpListener, parar: &AtomicBool, tls: &TlsAcceptor, passos: Ve
         let (cabecalho, recebido) = pedido.split_once("\r\n\r\n").unwrap();
         assert_eq!(recebido, corpo);
         if total == 3 {
-            assert!(cabecalho.lines().next().unwrap().contains("tabela_estatisticas=4"));
+            assert!(
+                cabecalho
+                    .lines()
+                    .next()
+                    .unwrap()
+                    .contains("tabela_estatisticas=4")
+            );
         }
         write!(
             canal,
@@ -173,7 +197,12 @@ fn executar(caso: Caso) -> (Output, usize) {
     let parar = Arc::new(AtomicBool::new(false));
     let sinal = Arc::clone(&parar);
     let servidor = thread::spawn(move || {
-        servir(escuta, &sinal, &TlsAcceptor::new(identidade_tls).unwrap(), roteiro(caso))
+        servir(
+            escuta,
+            &sinal,
+            &TlsAcceptor::new(identidade_tls).unwrap(),
+            roteiro(caso),
+        )
     });
     let saida = Command::new(env!("CARGO_BIN_EXE_ies"))
         .args(["--json", "unidade", "acervo", "--em", "2024-02-29"])
@@ -199,7 +228,11 @@ fn executar(caso: Caso) -> (Output, usize) {
 #[test]
 fn acervo_historico_binario_preserva_linhas_e_conta_nups() {
     let (saida, total) = executar(Caso::Completo);
-    assert!(saida.status.success(), "{}", String::from_utf8_lossy(&saida.stderr));
+    assert!(
+        saida.status.success(),
+        "{}",
+        String::from_utf8_lossy(&saida.stderr)
+    );
     let json: Value = serde_json::from_slice(&saida.stdout).unwrap();
     assert_eq!(total, 5);
     assert_eq!(json["unidade"], "PPI");
@@ -226,7 +259,11 @@ fn acervo_historico_binario_recusa_pagina_repetida_sem_parcial() {
 #[test]
 fn acervo_historico_binario_zero_explicito_sem_detalhe() {
     let (saida, total) = executar(Caso::Vazio);
-    assert!(saida.status.success(), "{}", String::from_utf8_lossy(&saida.stderr));
+    assert!(
+        saida.status.success(),
+        "{}",
+        String::from_utf8_lossy(&saida.stderr)
+    );
     let json: Value = serde_json::from_slice(&saida.stdout).unwrap();
     assert_eq!(total, 3);
     assert_eq!(json["total_declarado"], 0);
