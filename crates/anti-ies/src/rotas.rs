@@ -85,7 +85,8 @@ pub(crate) fn responder(
     cenario: &str,
 ) -> Resposta {
     // A recusa de sessão sintética vale inclusive antes de um upload.
-    let ajax_grupo = parametro_unico(alvo, "acao_ajax") == Some("unidade_auto_completar_envio_processo")
+    let ajax_grupo = parametro_unico(alvo, "acao_ajax")
+        == Some("unidade_auto_completar_envio_processo")
         && parametro_unico(alvo, "acao_origem") == Some("grupo_unidade_cadastrar");
     if eh_controlador_sei(alvo)
         || ajax_grupo
