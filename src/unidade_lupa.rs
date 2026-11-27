@@ -7,7 +7,9 @@ mod acervo;
 mod fluxo;
 use crate::indice_local::UnidadeGuardada;
 use crate::legenda::ler_legenda;
-pub(crate) use fluxo::{FalhaDaLupa, HttpsLupa, ler_integral_com_contador};
+pub(crate) use fluxo::{
+    FalhaDaLupa, HttpsLupa, destino, destino_de_candidatos, ler_integral_com_contador,
+};
 
 #[derive(Debug, PartialEq, Eq, thiserror::Error)]
 #[error("{self:?}")]
