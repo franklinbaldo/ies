@@ -74,5 +74,6 @@ pub(crate) fn ler_bloco_por_numero_via<V: EnvioDoControle>(
         unidade,
         requisicoes,
         leitura: Leitura::Detalhe(detalhe),
+        escopo_criacao: false,
     })
 }

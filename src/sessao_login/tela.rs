@@ -116,7 +116,7 @@ pub(crate) fn mensagem_de_recusa(html: &crate::tela_html::HtmlServido) -> Option
 
 /// URL de `onclick` nas duas formas observadas do menu:
 /// `location.href='…'` e `window.location.href='…'`, com `;` opcional.
-fn url_do_onclick(onclick: &str) -> Option<&str> {
+pub(crate) fn url_do_onclick(onclick: &str) -> Option<&str> {
     let texto = onclick.trim();
     let texto = texto.strip_prefix("window.").unwrap_or(texto);
     let (url, depois) = texto.strip_prefix("location.href='")?.split_once('\'')?;
