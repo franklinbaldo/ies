@@ -42,4 +42,4 @@ CREATE TABLE pesquisa_processo_pagina_linha (
     FOREIGN KEY (origem, cenario, unidade, id_tipo, data_inicio, data_fim, pagina)
       REFERENCES pesquisa_processo_pagina
 ) STRICT;
-PRAGMA user_version = 40;
+PRAGMA user_version = 41;
