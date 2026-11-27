@@ -36,7 +36,11 @@ pub(super) fn total_do_resultado(
     let Some((numero, url)) = links.next() else {
         // Hipótese mínima para acervo vazio: TOTAL explicitamente zero,
         // sem link de detalhe. Ausência da tabela/linha nunca é zero.
-        let celulas: Vec<_> = linha.filhos().filter(|c| c.nome() == "td").map(texto).collect();
+        let celulas: Vec<_> = linha
+            .filhos()
+            .filter(|c| c.nome() == "td")
+            .map(texto)
+            .collect();
         if linha.elementos("a").next().is_none()
             && celulas.len() == 2
             && celulas[0] == "TOTAL:"
