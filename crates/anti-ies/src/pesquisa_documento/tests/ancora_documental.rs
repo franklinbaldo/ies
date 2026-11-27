@@ -47,10 +47,7 @@ fn pagina_documental_exige_ancora_na_primeira_posicao() {
                 linhas: vec![],
             },
         ] {
-            registrar_pagina(
-                &mut banco, &instalacao, "cenario", &unidade, termo, &pagina,
-            )
-            .unwrap();
+            registrar_pagina(&mut banco, &instalacao, "cenario", &unidade, termo, &pagina).unwrap();
         }
         for (offset, esperado) in [(0, esperado_zero), (10, esperado_dez)] {
             let resposta = responder_pesquisa(

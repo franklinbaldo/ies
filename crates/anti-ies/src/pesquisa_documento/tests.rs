@@ -28,7 +28,11 @@ fn campo_opcional_recusa_ocorrencias_duplicadas_incompletas() {
             None,
         ),
     ] {
-        assert_eq!(campo_opcional(corpo, nome, "").as_deref(), esperado, "{corpo}");
+        assert_eq!(
+            campo_opcional(corpo, nome, "").as_deref(),
+            esperado,
+            "{corpo}"
+        );
     }
 }
 
@@ -87,8 +91,7 @@ fn registro_negativo_na_unidade_nao_inventa_resultado_de_outro_termo() {
     assert!(tela.corpo.contains("frmPesquisaProtocolo"));
     assert!(tela.corpo.contains("optDocumentos"));
     assert!(tela.corpo.contains("name=\"q\""));
-    let base =
-        "rdoPesquisarEm=P&txtDataInicio=01%2F01%2F2026&hdnInicio=0&selOrgaoPesquisa%5B%5D=0";
+    let base = "rdoPesquisarEm=P&txtDataInicio=01%2F01%2F2026&hdnInicio=0&selOrgaoPesquisa%5B%5D=0";
     for extra in ["", "&q=&q", "&q&q=", "&hdnInicio", "&txtDataInicio"] {
         let resposta = responder_pesquisa(
             "POST",

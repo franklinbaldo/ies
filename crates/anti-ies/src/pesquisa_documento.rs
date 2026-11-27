@@ -265,15 +265,12 @@ fn pesquisa_documental(
         return Resposta::nova(Estado::DadosInsuficientes);
     }
     let termo = super::documentos::campo_formulario_unico(corpo, "txtProtocoloPesquisa");
-    let gerados =
-        super::documentos::campo_formulario_unico(corpo, "chkSinDocumentosGerados");
-    let recebidos =
-        super::documentos::campo_formulario_unico(corpo, "chkSinDocumentosRecebidos");
+    let gerados = super::documentos::campo_formulario_unico(corpo, "chkSinDocumentosGerados");
+    let recebidos = super::documentos::campo_formulario_unico(corpo, "chkSinDocumentosRecebidos");
     let Some(termo) = termo.filter(|t| !t.trim().is_empty()) else {
         return Resposta::nova(Estado::RequisicaoInvalida);
     };
-    if radio != Some("D")
-        || (gerados.as_deref() != Some("S") && recebidos.as_deref() != Some("S"))
+    if radio != Some("D") || (gerados.as_deref() != Some("S") && recebidos.as_deref() != Some("S"))
     {
         return Resposta::nova(Estado::RequisicaoInvalida);
     }
@@ -291,13 +288,9 @@ fn pesquisa_documental(
     else {
         return Resposta::nova(Estado::RequisicaoInvalida);
     };
-    let Ok(negativo) = iesei::pesquisa_documento::consultar(
-        banco,
-        instalacao,
-        cenario,
-        unidade,
-        &termo,
-    ) else {
+    let Ok(negativo) =
+        iesei::pesquisa_documento::consultar(banco, instalacao, cenario, unidade, &termo)
+    else {
         return Resposta::nova(Estado::DadosInsuficientes);
     };
     let pagina = iesei::pesquisa_documento::consultar_por_inicio(
@@ -314,12 +307,7 @@ fn pesquisa_documental(
                 pagina.fim
             } else {
                 let Ok(Some(primeira)) = iesei::pesquisa_documento::consultar_pagina(
-                    banco,
-                    instalacao,
-                    cenario,
-                    unidade,
-                    &termo,
-                    1,
+                    banco, instalacao, cenario, unidade, &termo, 1,
                 ) else {
                     return Resposta::nova(Estado::DadosInsuficientes);
                 };
