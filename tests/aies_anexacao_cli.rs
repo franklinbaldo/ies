@@ -174,6 +174,7 @@ enum Modo {
     PreviaAssinada,
     PreviaSemObservacao,
     JaAnexado,
+    FormularioDeOutroProcesso,
 }
 
 /// Estado inicial sintético para uma das hipóteses de anexação.
@@ -218,6 +219,22 @@ fn preparar_estado(modo: Modo, banco: &mut Connection, instalacao: &Instalacao) 
     }
     if matches!(modo, Modo::PdfAposAnexacao) {
         pdf_apos_anexacao::preparar(banco, instalacao);
+    }
+    if modo == Modo::FormularioDeOutroProcesso {
+        processos::guardar(
+            banco,
+            instalacao,
+            CENARIO,
+            &ProcessoSimulado {
+                id: "33".into(),
+                numero: "00001.000003/2026-01".into(),
+                unidade_origem: "TESTE".into(),
+                aberto_em: vec!["TESTE".into()],
+                anotacao_origem: None,
+                destinos: vec![],
+            },
+        )
+        .unwrap();
     }
     if matches!(modo, Modo::JaAnexado) {
         anexacoes::anexar(banco, instalacao, CENARIO, "10", "22").unwrap();
@@ -302,6 +319,15 @@ fn executar(modo: Modo) {
                 // SQLite já recebeu a escrita, mas a resposta não prova aceite.
                 resposta = b"HTTP/1.1 503 Service Unavailable\r\nContent-Length: 0\r\nConnection: close\r\n\r\n".to_vec();
             }
+            if modo == Modo::FormularioDeOutroProcesso && evento == "GET procedimento_anexar" {
+                // Mesmo tamanho: mantém Content-Length do HTML servido.
+                let html = String::from_utf8(resposta).unwrap();
+                let original = "id_procedimento=10&infra_hash=";
+                assert_eq!(html.matches(original).count(), 1);
+                resposta = html
+                    .replace(original, "id_procedimento=33&infra_hash=")
+                    .into_bytes();
+            }
             pedidos.lock().unwrap().push(evento);
             canal.write_all(&resposta).unwrap();
             canal.flush().unwrap();
@@ -315,7 +341,10 @@ fn executar(modo: Modo) {
         pdf_apos_anexacao::recusar_nup_alheio(&pasta, arquivos, porta, "antes");
     }
     let comando: &[&str] = match modo {
-        Modo::Aceite | Modo::PdfAposAnexacao | Modo::RespostaIncerta => &[
+        Modo::Aceite
+        | Modo::PdfAposAnexacao
+        | Modo::RespostaIncerta
+        | Modo::FormularioDeOutroProcesso => &[
             "--json",
             "processo",
             "anexar",
@@ -377,6 +406,7 @@ fn conferir_resultados(
     let erro_esperado = match modo {
         Modo::RespostaIncerta => Some("NaoConfirmadoNoPost"),
         Modo::JaAnexado => Some("Recusada"),
+        Modo::FormularioDeOutroProcesso => Some("FormularioDeOutroProcesso"),
         Modo::PreviaSemObservacao => Some("ConsultaResposta"),
         Modo::Aceite
         | Modo::PdfAposAnexacao
@@ -425,7 +455,10 @@ fn conferir_resultados(
                 assert_eq!(saida_json["confirmado"], false);
                 assert_eq!(saida_json["alterado"], false);
             }
-            Modo::RespostaIncerta | Modo::JaAnexado | Modo::PreviaSemObservacao => {
+            Modo::RespostaIncerta
+            | Modo::JaAnexado
+            | Modo::PreviaSemObservacao
+            | Modo::FormularioDeOutroProcesso => {
                 unreachable!("falhas conferidas acima")
             }
         }
@@ -505,6 +538,11 @@ fn consulta_sem_observacao_de_assinatura_nao_inventa_assinada() {
 #[test]
 fn bdd_270_03_duplicidade_existente_recusada_sem_nova_escrita() {
     executar(Modo::JaAnexado);
+}
+
+#[test]
+fn action_de_outro_principal_recusada_antes_de_anexar() {
+    executar(Modo::FormularioDeOutroProcesso);
 }
 
 #[path = "aies_anexacao_cli/pdf_apos_anexacao.rs"]
