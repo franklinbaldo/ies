@@ -190,3 +190,91 @@ fn testemunha_exata_preserva_faixa_estados_e_escape() {
         Estado::MetodoNaoPermitido
     );
 }
+
+#[test]
+fn rota_e_menu_seguem_unidade_do_controle() {
+    use iesei::banco_cassettes::{self, ControleResumido};
+    use iesei::detalhada_cassettes::{self, ControleDetalhado};
+    use iesei::observacao::{TabelaObservada, UnidadeExibida};
+
+    let mut banco = Connection::open_in_memory().unwrap();
+    banco_cassettes::iniciar(&banco).unwrap();
+    banco
+        .execute_batch(include_str!(
+            "../../iesei/migrations/0043_gestao_marcadores.sql"
+        ))
+        .unwrap();
+    let origem = Instalacao::interpretar("https://sei.test/sei").unwrap();
+    let vazia = Pagina {
+        total: 0,
+        faixa: None,
+        itens: vec![],
+    };
+    gestao_marcadores::registrar(&mut banco, &origem, "a", "U", 1, &vazia).unwrap();
+    banco_cassettes::guardar(
+        &mut banco,
+        "a",
+        &ControleResumido {
+            instalacao: origem.clone(),
+            unidade: UnidadeExibida::nova("U").unwrap(),
+            recebidos: TabelaObservada::nova(Some(0), None, vec![]).unwrap(),
+            gerados: TabelaObservada::nova(Some(0), None, vec![]).unwrap(),
+        },
+    )
+    .unwrap();
+    let acessar = |banco: &Connection, metodo, acao| {
+        crate::rotas::responder(metodo, acao, b"", banco, &origem, "a")
+    };
+    let controle = "/sei/controlador.php?acao=procedimento_controlar";
+    let lista = "/sei/controlador.php?acao=marcador_listar";
+    assert!(
+        !acessar(&banco, "GET", controle)
+            .corpo
+            .contains("acao=marcador_listar")
+    );
+    assert_eq!(
+        acessar(&banco, "GET", lista).estado,
+        Estado::DadosInsuficientes
+    );
+    assert!(gestao_marcadores::selecionar(&banco, &origem, "a", "U", 1).unwrap());
+    assert!(
+        acessar(&banco, "GET", controle)
+            .corpo
+            .contains("acao=marcador_listar")
+    );
+    assert_eq!(acessar(&banco, "GET", lista).estado, Estado::Ok);
+    assert_eq!(
+        acessar(&banco, "POST", lista).estado,
+        Estado::MetodoNaoPermitido
+    );
+
+    detalhada_cassettes::guardar(
+        &mut banco,
+        "a",
+        &ControleDetalhado {
+            instalacao: origem.clone(),
+            unidade: UnidadeExibida::nova("V").unwrap(),
+            processos: TabelaObservada::nova(Some(0), None, vec![]).unwrap(),
+        },
+    )
+    .unwrap();
+    assert!(
+        !acessar(&banco, "GET", controle)
+            .corpo
+            .contains("acao=marcador_listar")
+    );
+    assert_eq!(
+        acessar(&banco, "GET", lista).estado,
+        Estado::DadosInsuficientes
+    );
+    gestao_marcadores::registrar(&mut banco, &origem, "a", "V", 1, &vazia).unwrap();
+    assert!(gestao_marcadores::selecionar(&banco, &origem, "a", "V", 1).unwrap());
+    let resposta = acessar(&banco, "GET", lista);
+    assert_eq!(resposta.estado, Estado::Ok);
+    assert!(resposta.corpo.contains("id='lnkInfraUnidade'>V</a>"));
+    assert!(
+        acessar(&banco, "GET", controle)
+            .corpo
+            .contains("acao=marcador_listar")
+    );
+}
