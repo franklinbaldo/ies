@@ -2,7 +2,7 @@
 //! `procedimento_alterar` (ou `procedimento_consultar`), lido sem envio:
 //! nenhum campo é reescrito e `btnSalvar` nunca participa. Atributos pelo
 //! árvore `tela_html` (atributos e aninhamento como no navegador).
-use super::{Assunto, ErroPropriedades, FonteDasPropriedades, NivelDeAcesso, PropriedadesLidas};
+use super::{Assunto, ErroPropriedades, FonteDasPropriedades, Interessado, NivelDeAcesso, PropriedadesLidas};
 
 const FORMULARIO: &str = "frmProcedimentoCadastro";
 
@@ -147,6 +147,7 @@ fn assuntos(campos: &Campos<'_>) -> Result<Vec<Assunto>, ErroPropriedades> {
             return Err(ErroPropriedades::CodigoDoAssuntoNaoInterpretado);
         };
         lidos.push(Assunto {
+            id: valor,
             codigo: codigo.to_owned(),
             descricao: descricao.to_owned(),
         });
@@ -154,15 +155,15 @@ fn assuntos(campos: &Campos<'_>) -> Result<Vec<Assunto>, ErroPropriedades> {
     Ok(lidos)
 }
 
-fn interessados(campos: &Campos<'_>) -> Result<Vec<String>, ErroPropriedades> {
+fn interessados(campos: &Campos<'_>) -> Result<Vec<Interessado>, ErroPropriedades> {
     let select = campos.unico("selInteressadosProcedimento")?;
     opcoes(select)
         .into_iter()
-        .map(|(_, _, texto)| {
+        .map(|(id, _, texto)| {
             if texto.is_empty() {
                 Err(ErroPropriedades::InteressadoForaDaFormaObservada)
             } else {
-                Ok(texto)
+                Ok(Interessado { id, nome: texto })
             }
         })
         .collect()
