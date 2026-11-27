@@ -14,6 +14,7 @@ pub enum Resultado {
 pub enum ErroPesquisaDocumento {
     Sqlite(#[from] rusqlite::Error),
     EntradaInvalida,
+    CoorteContraditoria,
 }
 
 fn valido(cenario: &str, termo: &str) -> bool {
@@ -46,7 +47,7 @@ pub fn registrar_sem_resultado(
 /// `None` significa desconhecido, não uma pesquisa que encontrou zero itens.
 ///
 /// # Errors
-/// Propaga erro SQL e recusa contexto inválido.
+/// Propaga erro SQL e recusa contexto inválido ou observações contraditórias.
 pub fn consultar(
     banco: &Connection,
     instalacao: &Instalacao,
@@ -57,20 +58,78 @@ pub fn consultar(
     if !valido(cenario, termo) {
         return Err(ErroPesquisaDocumento::EntradaInvalida);
     }
-    let achado: Option<i64> = banco
-        .query_row(
-            "SELECT 1 FROM pesquisa_documento_sem_resultado
-         WHERE origem=?1 AND cenario=?2 AND unidade=?3 AND termo=?4",
-            params![instalacao.url_base(), cenario, unidade.as_str(), termo],
-            |linha| linha.get(0),
-        )
-        .optional()?;
-    Ok(achado.map(|_| Resultado::SemResultado))
+    let (negativo, positivo): (bool, bool) = banco.query_row(
+        "SELECT EXISTS(SELECT 1 FROM pesquisa_documento_sem_resultado
+         WHERE origem=?1 AND cenario=?2 AND unidade=?3 AND termo=?4),
+         EXISTS(SELECT 1 FROM pesquisa_documento_pagina
+         WHERE origem=?1 AND cenario=?2 AND unidade=?3 AND termo=?4)",
+        params![instalacao.url_base(), cenario, unidade.as_str(), termo],
+        |linha| Ok((linha.get(0)?, linha.get(1)?)),
+    )?;
+    if negativo && positivo {
+        return Err(ErroPesquisaDocumento::CoorteContraditoria);
+    }
+    Ok(negativo.then_some(Resultado::SemResultado))
 }
 
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    #[test]
+    fn coorte_contraditoria_respeita_todas_as_dimensoes_da_chave() {
+        let origem = Instalacao::interpretar("https://sei.test/sei").unwrap();
+        let outra_origem = Instalacao::interpretar("https://outro.test/sei").unwrap();
+        let unidade = UnidadeExibida::nova("TESTE").unwrap();
+        let outra_unidade = UnidadeExibida::nova("OUTRA").unwrap();
+        for negativo_primeiro in [true, false] {
+            for numero in [1, 2] {
+                let mut banco = Connection::open_in_memory().unwrap();
+                crate::banco_cassettes::iniciar(&banco).unwrap();
+                let negativo = |banco: &Connection| {
+                    registrar_sem_resultado(banco, &origem, "cenario", &unidade, "termo").unwrap();
+                };
+                if negativo_primeiro {
+                    negativo(&banco);
+                }
+                let inicio = u64::from(numero - 1) * 10 + 1;
+                registrar_pagina(
+                    &mut banco,
+                    &origem,
+                    "cenario",
+                    &unidade,
+                    "termo",
+                    &PaginaObservada {
+                        pagina: numero,
+                        inicio,
+                        fim: inicio + 9,
+                        total_declarado: 20,
+                        linhas: vec![],
+                    },
+                )
+                .unwrap();
+                if !negativo_primeiro {
+                    negativo(&banco);
+                }
+                assert!(matches!(
+                    consultar(&banco, &origem, "cenario", &unidade, "termo"),
+                    Err(ErroPesquisaDocumento::CoorteContraditoria)
+                ));
+                for (o, c, u, t) in [
+                    (&outra_origem, "cenario", &unidade, "termo"),
+                    (&origem, "outro", &unidade, "termo"),
+                    (&origem, "cenario", &outra_unidade, "termo"),
+                    (&origem, "cenario", &unidade, "outro"),
+                ] {
+                    registrar_sem_resultado(&banco, o, c, u, t).unwrap();
+                    assert_eq!(
+                        consultar(&banco, o, c, u, t).unwrap(),
+                        Some(Resultado::SemResultado)
+                    );
+                }
+            }
+        }
+    }
 
     #[test]
     fn registro_idempotente_e_ausencia_nao_inferida() {

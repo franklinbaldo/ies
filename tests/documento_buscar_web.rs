@@ -26,8 +26,9 @@ fn ajuda_mostra_termo_e_pagina_sem_assunto() {
     let saida = ies(&["documento", "buscar", "--help"], false);
     assert_eq!(saida.status.code(), Some(0));
     let texto = String::from_utf8_lossy(&saida.stdout);
-    assert!(texto.contains("<TERMO>"), "{texto}");
+    assert!(texto.contains("[TERMO]"), "{texto}");
     assert!(texto.contains("--pagina <N>"), "{texto}");
+    assert!(texto.contains("--texto <TEXTO>"), "{texto}");
     assert!(texto.contains("--assunto <TEXTO>"), "{texto}");
     assert!(texto.contains("--tipo <TIPO>"), "{texto}");
     assert!(texto.contains("--de <DD/MM/AAAA>"), "{texto}");
@@ -106,4 +107,26 @@ fn periodo_invertido_e_recusado_antes_da_configuracao() {
     assert_eq!(saida.status.code(), Some(2), "uso inválido é saída 2");
     assert_eq!(saida.stdout, b"");
     assert!(String::from_utf8_lossy(&saida.stderr).contains("PeriodoInvertido"));
+}
+
+#[test]
+fn pesquisa_sem_criterio_e_recusada_antes_da_configuracao() {
+    for args in [
+        vec!["--json", "documento", "buscar"],
+        vec!["--json", "documento", "buscar", "--pagina", "2"],
+        vec!["--json", "documento", "buscar", "--assunto", "x"],
+    ] {
+        let saida = ies(&args, false);
+        assert_eq!(saida.status.code(), Some(2));
+        assert!(String::from_utf8_lossy(&saida.stderr).contains("BuscaDeDocumentoSemCriterio"));
+    }
+}
+
+#[test]
+fn texto_livre_valido_chega_a_configuracao_sem_protocolo() {
+    let saida = ies(
+        &["--json", "documento", "buscar", "--texto", "contrato"],
+        true,
+    );
+    assert_eq!(saida.status.code(), Some(1));
 }
