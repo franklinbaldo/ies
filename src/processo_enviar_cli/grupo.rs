@@ -2,13 +2,13 @@
 //! A confirmação continua indisponível; a união só é publicada após conferir
 //! cada identidade lexical do grupo contra os destinos resolvidos.
 use super::{resultado_envio, sigla_de_destino};
+use crate::Cli;
 use crate::grupo_envio_cli::{Grupo, Membro, obter_via};
 use crate::processo::NumeroProcesso;
 use crate::processo_concluir::escrita::Contador;
 use crate::processo_concluir_cli::com_sessao_referencias;
 use crate::processo_enviar::{Destino, PedidoDoEnvio, enviar_processo};
 use crate::visao_do_controle::EnvioHttps;
-use crate::Cli;
 
 #[derive(Debug, thiserror::Error)]
 #[error("{self:?}")]
@@ -27,11 +27,13 @@ pub(crate) fn id_de_grupo(id: &str) -> Result<String, ErroGrupoDaPrevia> {
 }
 
 fn sigla(membro: &Membro) -> Result<String, ErroGrupoDaPrevia> {
-    let (sigla, _) = membro.nome.split_once(" - ").ok_or_else(|| {
-        ErroGrupoDaPrevia::MembroSemSigla {
-            id: membro.id.clone(),
-        }
-    })?;
+    let (sigla, _) =
+        membro
+            .nome
+            .split_once(" - ")
+            .ok_or_else(|| ErroGrupoDaPrevia::MembroSemSigla {
+                id: membro.id.clone(),
+            })?;
     sigla_de_destino(sigla).map_err(|_| ErroGrupoDaPrevia::MembroSemSigla {
         id: membro.id.clone(),
     })
@@ -70,8 +72,7 @@ pub(super) fn prever(
     com_sessao_referencias(cli, |sessao, indice, referencias| {
         let mut https = EnvioHttps;
         let mut rede = Contador::novo(&mut https);
-        let (unidade, grupo) =
-            obter_via(referencias, cli.unidade.as_deref(), id, &mut rede)?;
+        let (unidade, grupo) = obter_via(referencias, cli.unidade.as_deref(), id, &mut rede)?;
         // Membros primeiro: uma sigla explícita não pode esconder a identidade
         // de um membro quando o fluxo plural deduplica pelo ID.
         let mut siglas = siglas_do_grupo(&grupo)?;
@@ -98,7 +99,10 @@ pub(super) fn prever(
             crate::indice_local::anexar_avisos(&mut valor, indice);
             println!("{}", serde_json::to_string_pretty(&valor)?);
         } else {
-            println!("{}", super::humano::humano_com_grupo(&feito, Some(&grupo.id)));
+            println!(
+                "{}",
+                super::humano::humano_com_grupo(&feito, Some(&grupo.id))
+            );
         }
         Ok(())
     })
