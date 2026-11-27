@@ -46,3 +46,32 @@ fn coorte_processual_contraditoria_recusa_ambas_as_paginas() {
         }
     }
 }
+
+#[test]
+fn texto_processual_nao_herda_zero_do_periodo() {
+    use iesei::pesquisa_processo::{Criterios, registrar_sem_resultado};
+
+    let banco = Connection::open_in_memory().unwrap();
+    banco_cassettes::iniciar(&banco).unwrap();
+    let instalacao = Instalacao::interpretar("https://sei.test/sei").unwrap();
+    let unidade = UnidadeExibida::nova("TESTE").unwrap();
+    let criterios = Criterios {
+        tipo_id: "",
+        de: "01/01/2026",
+        ate: "",
+    };
+    registrar_sem_resultado(&banco, &instalacao, "c", &unidade, criterios).unwrap();
+    let base = "txtDataInicio=01%2F01%2F2026&hdnInicio=0&selOrgaoPesquisa%5B%5D=0";
+    for (extra, esperado) in [
+        ("", Estado::Ok),
+        ("&txtDescricaoPesquisa=&txtObservacaoPesquisa=", Estado::Ok),
+        ("&txtDescricaoPesquisa=contrato", Estado::DadosInsuficientes),
+        ("&txtObservacaoPesquisa=contrato", Estado::DadosInsuficientes),
+        ("&txtDescricaoPesquisa=&txtDescricaoPesquisa", Estado::RequisicaoInvalida),
+        ("&txtObservacaoPesquisa", Estado::RequisicaoInvalida),
+    ] {
+        let resposta =
+            periodo_processual(&format!("{base}{extra}"), &banco, &instalacao, "c", &unidade);
+        assert_eq!(resposta.estado, esperado, "{extra}");
+    }
+}
