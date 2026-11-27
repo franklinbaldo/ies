@@ -98,3 +98,6 @@ pub(super) fn criar_via<V: EnvioDoControle>(
     }
     Ok(Criacao::Criado { unidade, grupo })
 }
+
+#[cfg(test)]
+mod tests;
