@@ -7,7 +7,9 @@ use super::CandidatoGerado;
 pub(crate) struct ProcessoConferido {
     pub(crate) id: String,
     pub(crate) nup: String,
+    pub(crate) id_tipo: String,
     pub(crate) tipo: String,
+    pub(crate) id_hipotese_legal: Option<String>,
     pub(crate) especificacao: String,
     /// O nível lido integra a identidade do pedido.
     pub(crate) nivel: crate::dominio::NivelDeAcesso,
@@ -52,12 +54,31 @@ pub(crate) fn interessados_conferem(solicitados: &[String], observados: &[String
     solicitados == observados
 }
 
+impl ProcessoConferido {
+    pub(crate) fn corresponde(
+        &self,
+        tipo: (&str, &str),
+        hipotese: Option<&str>,
+        especificacao: &str,
+        nivel: crate::dominio::NivelDeCriacao,
+        interessados: &[String],
+    ) -> bool {
+        self.id_tipo == tipo.0
+            && self.tipo == tipo.1
+            && self.id_hipotese_legal.as_deref() == hipotese
+            && self.especificacao == especificacao
+            && self.nivel == nivel.como_acesso()
+            && interessados_conferem(interessados, &self.interessados)
+    }
+}
+
 /// Somente leituras independentes das propriedades podem embasar o desfecho.
 /// O chamador deve verificar todos os candidatos; sem isso, falha fechado.
 pub(crate) fn classificar(
     candidatos: &[CandidatoGerado],
     conferidos: &[ProcessoConferido],
-    tipo: &str,
+    tipo: (&str, &str),
+    hipotese: Option<&str>,
     especificacao: &str,
     nivel: crate::dominio::NivelDeCriacao,
     interessados_solicitados: &[String],
@@ -84,11 +105,13 @@ pub(crate) fn classificar(
         let lido = por_id
             .get(candidato.id.as_str())
             .ok_or(ErroConferencia::LeituraAusente)?;
-        if lido.tipo == tipo
-            && lido.especificacao == especificacao
-            && lido.nivel == nivel.como_acesso()
-            && interessados_conferem(interessados_solicitados, &lido.interessados)
-        {
+        if lido.corresponde(
+            tipo,
+            hipotese,
+            especificacao,
+            nivel,
+            interessados_solicitados,
+        ) {
             correspondentes.push(candidato.nup.clone());
         }
     }
@@ -119,7 +142,9 @@ mod tests {
         ProcessoConferido {
             id: id.into(),
             nup: nup.into(),
+            id_tipo: "12".into(),
             tipo: tipo.into(),
+            id_hipotese_legal: None,
             especificacao: esp.into(),
             nivel: crate::dominio::NivelDeAcesso::Publico,
             interessados: vec!["Pessoa Sintetica A".into()],
@@ -135,7 +160,15 @@ mod tests {
         especificacao: &str,
         nivel: crate::dominio::NivelDeCriacao,
     ) -> Result<Desfecho, ErroConferencia> {
-        super::classificar(candidatos, conferidos, tipo, especificacao, nivel, &[])
+        super::classificar(
+            candidatos,
+            conferidos,
+            ("12", tipo),
+            None,
+            especificacao,
+            nivel,
+            &[],
+        )
     }
 
     #[test]
@@ -149,7 +182,8 @@ mod tests {
             super::classificar(
                 &candidatos,
                 &[lido],
-                TIPO,
+                ("12", TIPO),
+                None,
                 ESPECIFICACAO,
                 crate::dominio::NivelDeCriacao::Publico,
                 &desejado
@@ -292,6 +326,41 @@ mod tests {
                     crate::dominio::NivelDeCriacao::Publico
                 ),
                 Err(ErroConferencia::IdentidadeDivergente)
+            );
+        }
+    }
+
+    #[test]
+    fn identidade_da_hipotese_e_do_tipo_discrimina_homonimos() {
+        let candidatos = vec![candidato("17", "NUP-17")];
+        let mut lido = prova("17", "NUP-17", TIPO, ESPECIFICACAO);
+        lido.nivel = crate::dominio::NivelDeAcesso::Restrito;
+        for (tipo, hipotese, coincide) in [
+            ("12", Some("31"), true),
+            ("13", Some("31"), false),
+            ("12", Some("32"), false),
+            ("12", None, false),
+        ] {
+            lido.id_tipo = tipo.into();
+            lido.id_hipotese_legal = hipotese.map(str::to_owned);
+            let nivel = crate::dominio::NivelDeCriacao::Restrito;
+            assert_eq!(
+                lido.corresponde(("12", TIPO), Some("31"), ESPECIFICACAO, nivel, &[]),
+                coincide
+            );
+            let desfecho = super::classificar(
+                &candidatos,
+                std::slice::from_ref(&lido),
+                ("12", TIPO),
+                Some("31"),
+                ESPECIFICACAO,
+                nivel,
+                &[],
+            )
+            .unwrap();
+            assert_eq!(
+                matches!(desfecho, Desfecho::CoincidenciaUnica { .. }),
+                coincide
             );
         }
     }
