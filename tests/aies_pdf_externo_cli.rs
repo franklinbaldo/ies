@@ -388,6 +388,10 @@ fn executar_bancada(
     if pdf_de_teor.is_some() {
         comandos.extend([ler_teor_sem_cache.as_slice(), ler_teor_cache.as_slice()]);
     }
+    let scratch_pdf = pasta.0.join("scratch-pdf");
+    if pdf_de_teor.is_some() {
+        fs::create_dir(&scratch_pdf).unwrap();
+    }
     let saidas = comandos
         .iter()
         .map(|args| {
@@ -409,6 +413,7 @@ fn executar_bancada(
                 .env_remove("IES_CREDENCIAIS_FILE");
             if pdf_de_teor.is_some() {
                 comando
+                    .env("TMPDIR", &scratch_pdf)
                     .env("XDG_CACHE_HOME", pasta.0.join("cache"))
                     .env("IES_CACHE_DOCUMENTOS", "1");
             }
@@ -423,6 +428,12 @@ fn executar_bancada(
     parar.store(true, Ordering::SeqCst);
     tunel.join().unwrap();
     let total = servidor.join().unwrap();
+    if pdf_de_teor.is_some() {
+        assert!(
+            fs::read_dir(&scratch_pdf).unwrap().next().is_none(),
+            "a leitura do teor não deve deixar arquivos temporários"
+        );
+    }
     let eventos = trilha.lock().unwrap().clone();
     let arquivos = match leitura {
         Leitura::Zip | Leitura::PdfProcesso | Leitura::ZipSelecao(_) => {
