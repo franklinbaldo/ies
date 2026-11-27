@@ -2,9 +2,8 @@
 //! com 302 e verificação da identidade na árvore. Nunca há retry.
 use crate::acao_do_sei::AcaoDoSei;
 use crate::formulario_web::{
-    ConferenciaDaUnidade, EfeitoAvaliado, EnvioDoFormulario, EstadoDeSessao, EstadoDoProcesso,
-    OperacaoDeFormulario, RespostaDoEnvio, ResultadoDoEnvio, TelaServida, derivar_submissao,
-    enviar_submissao_via, valor_da_lupa,
+    OperacaoDeFormulario, RespostaDoEnvio, TelaServida, derivar_submissao, enviar_submissao_via,
+    valor_da_lupa,
 };
 use crate::instalacao::Instalacao;
 use crate::pagina_do_controle::codificacao_da_tela;
@@ -20,55 +19,9 @@ use crate::transporte::decodificar_resposta;
 use crate::transporte::sessao::CookieDaSessao;
 use crate::visao_do_controle::EnvioDoControle;
 
-const FILTRO_TIPOS: OperacaoDeFormulario = OperacaoDeFormulario {
-    acao: AcaoDoSei::ProcedimentoEscolherTipo,
-    formulario: "frmProcedimentoEscolherTipo",
-    envio: EnvioDoFormulario::SubmitPorScript,
-    campos_ocultos_exigidos: &["hdnFiltroTipoProcedimento"],
-    campos_ocultos_reescritos: &["hdnFiltroTipoProcedimento"],
-    campos_usuario: &[],
-    resultado: ResultadoDoEnvio::ConferidoPorLeituraPosterior,
-    unidade: ConferenciaDaUnidade::NaTelaDeOrigemDoLink,
-    efeito: EfeitoAvaliado::AlteraEstadoDaSessao {
-        o_que: EstadoDeSessao::PaginaOuFiltroLembrado,
-    },
-};
-
-const ESCOLHER_TIPO: OperacaoDeFormulario = OperacaoDeFormulario {
-    acao: AcaoDoSei::ProcedimentoEscolherTipo,
-    formulario: "frmProcedimentoEscolherTipo",
-    envio: EnvioDoFormulario::SubmitPorScript,
-    campos_ocultos_exigidos: &["hdnIdTipoProcedimento"],
-    campos_ocultos_reescritos: &["hdnIdTipoProcedimento"],
-    campos_usuario: &[],
-    resultado: ResultadoDoEnvio::ConferidoPorLeituraPosterior,
-    unidade: ConferenciaDaUnidade::NaTelaDeOrigemDoLink,
-    efeito: EfeitoAvaliado::ConsultaSemEfeitoObservado {
-        evidencia: "docs/como-o-sei-funciona/inicio-do-processo.md: escolher(id) abre o cadastro",
-    },
-};
-
-const CADASTRAR: OperacaoDeFormulario = OperacaoDeFormulario {
-    acao: AcaoDoSei::ProcedimentoGerar,
-    formulario: "frmProcedimentoCadastro",
-    envio: EnvioDoFormulario::SubmitPorScript,
-    campos_ocultos_exigidos: &[
-        "hdnIdTipoProcedimento",
-        "hdnFlagProcedimentoCadastro",
-        "hdnAssuntos",
-    ],
-    campos_ocultos_reescritos: &[
-        "hdnFlagProcedimentoCadastro",
-        "hdnAssuntos",
-        "hdnInteressadosProcedimento",
-    ],
-    campos_usuario: &["txtDescricao", "rdoNivelAcesso", "selHipoteseLegal"],
-    resultado: ResultadoDoEnvio::ConferidoPorLeituraPosterior,
-    unidade: ConferenciaDaUnidade::NaTelaDeOrigemDoLink,
-    efeito: EfeitoAvaliado::AlteraEstadoDoProcesso {
-        o_que: EstadoDoProcesso::ProcessoCriadoNaUnidade,
-    },
-};
+#[path = "operacoes.rs"]
+mod operacoes;
+use operacoes::{CADASTRAR, ESCOLHER_TIPO, FILTRO_TIPOS};
 
 #[path = "erro_fluxo.rs"]
 mod erro_fluxo;
@@ -93,6 +46,7 @@ pub(crate) struct PedidoCriar<'a> {
 
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub(crate) struct Criacao {
+    id_tipo: String,
     pub(crate) tipo: String,
     pub(crate) assunto: String,
     pub(crate) nivel: crate::dominio::NivelDeCriacao,
@@ -324,6 +278,7 @@ pub(crate) fn criar_com_contagem<V: EnvioDoControle>(
     )
     .map_err(ErroCriar::Interessado)?;
     let mut feito = Criacao {
+        id_tipo,
         tipo: escolhido.nome,
         assunto: observado.assunto.clone(),
         nivel: pedido.nivel,
