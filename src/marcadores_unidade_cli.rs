@@ -241,21 +241,49 @@ mod tests {
             let captura = conferir_cassette_ate(&card, &zip, 120_000_000).unwrap();
             let instalacao = gravacao::instalacao(&captura.json).unwrap();
             let mut controles = 0;
+            let mut catalogos = 0;
+            let mut anterior = None;
             for r in gravacao::respostas(&captura.json) {
-                if r.operacao != "procedimento_controlar" || r.metodo != "GET" || r.status != 200 {
+                // Só o Controle imediatamente anterior é candidato. Qualquer
+                // interação intermediária, inclusive troca, rompe a cadeia.
+                let candidato: Option<(String, String)> = anterior.take();
+                if r.metodo != "GET" || r.status != 200 {
                     continue;
                 }
-                let html = HtmlServido::de_teste(&html_da_resposta(r.interacao).unwrap());
-                let servida = gravacao::url_sem_consulta(&captura.json, r.interacao);
-                let resultado = link_do_menu(&html, &servida, &instalacao);
-                assert!(
-                    resultado.is_ok(),
-                    "{caminho}: passo {} sem link utilizável",
-                    r.passo
-                );
-                controles += 1;
+                if r.operacao == "procedimento_controlar" {
+                    let html = HtmlServido::de_teste(&html_da_resposta(r.interacao).unwrap());
+                    let servida = gravacao::url_sem_consulta(&captura.json, r.interacao);
+                    let link = link_do_menu(&html, &servida, &instalacao)
+                        .unwrap_or_else(|_| panic!("{caminho}: passo {} sem link utilizável", r.passo));
+                    if let Ok(Some(unidade)) = crate::controle_contexto::unidade_html(&arvore(&html))
+                    {
+                        anterior = Some((unidade, link));
+                    }
+                    controles += 1;
+                } else if r.operacao == "marcador_listar" {
+                    let html = HtmlServido::de_teste(&html_da_resposta(r.interacao).unwrap());
+                    let dom = arvore(&html);
+                    let encadeada = candidato.as_ref().and_then(|(unidade, link)| {
+                        (r.interacao["response"]["url"].as_str() == Some(link.as_str()))
+                            .then_some(unidade.as_str())
+                    });
+                    let classe = match crate::controle_contexto::unidade_html(&dom) {
+                        Ok(Some(unidade)) if encadeada.is_some_and(|u| u != unidade) => {
+                            "CONFLITO"
+                        }
+                        Ok(Some(_)) => "DIRETA",
+                        Ok(None) if dom.com_id("lnkInfraUnidade").next().is_some() => "INVALIDA",
+                        Ok(None) if encadeada.is_some() => "LINK_EXATO",
+                        Ok(None) => "SEM_VINCULO",
+                        Err(_) => "INVALIDA",
+                    };
+                    // Nunca publicar a unidade, URL, hash ou corpo original.
+                    println!("{caminho}: passo {} unidade={classe}", r.passo);
+                    catalogos += 1;
+                }
             }
             assert!(controles > 0, "{caminho}: nenhum Controle original");
+            assert!(catalogos > 0, "{caminho}: nenhum catálogo GET 200 original");
         }
     }
 
