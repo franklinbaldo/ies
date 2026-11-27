@@ -3,13 +3,8 @@
 #![cfg(unix)]
 
 use anti_ies::atender_http;
-use iesei::banco_cassettes::{self, ControleResumido, Linha};
-use iesei::instalacao::Instalacao;
-use iesei::observacao::{TabelaObservada, UnidadeExibida};
-use iesei::pdf_externo::{self, Processo, TipoExterno};
-use iesei::processos::{self, ProcessoSimulado};
+use iesei::pdf_externo;
 use native_tls::TlsAcceptor;
-use rusqlite::Connection;
 use serde_json::Value;
 #[path = "support/falha.rs"]
 mod falha_cli;
@@ -34,79 +29,7 @@ use fixture_tls::{Pasta, identidade};
 
 #[path = "aies_pdf_externo_cli/bancada.rs"]
 mod bancada;
-use bancada::pedido;
-
-fn aceitar(escuta: &TcpListener, parar: &AtomicBool) -> Option<TcpStream> {
-    loop {
-        match escuta.accept() {
-            Ok((conexao, peer)) => {
-                assert!(peer.ip().is_loopback(), "ensaio somente em loopback");
-                conexao
-                    .set_read_timeout(Some(Duration::from_secs(5)))
-                    .unwrap();
-                conexao
-                    .set_write_timeout(Some(Duration::from_secs(5)))
-                    .unwrap();
-                return Some(conexao);
-            }
-            Err(e) if e.kind() == std::io::ErrorKind::WouldBlock => {
-                if parar.load(Ordering::SeqCst) {
-                    return None;
-                }
-                thread::sleep(Duration::from_millis(10));
-            }
-            Err(e) => panic!("accept: {e}"),
-        }
-    }
-}
-
-fn preparar_banco() -> (Connection, Instalacao) {
-    let mut banco = Connection::open_in_memory().unwrap();
-    banco_cassettes::iniciar(&banco).unwrap();
-    let origem = Instalacao::interpretar(ORIGEM).unwrap();
-    banco_cassettes::guardar(
-        &mut banco,
-        CENARIO,
-        &ControleResumido {
-            instalacao: origem.clone(),
-            unidade: UnidadeExibida::nova("TESTE").unwrap(),
-            recebidos: TabelaObservada::<Linha>::nova(Some(0), None, vec![]).unwrap(),
-            gerados: TabelaObservada::<Linha>::nova(Some(0), None, vec![]).unwrap(),
-        },
-    )
-    .unwrap();
-    processos::guardar(
-        &mut banco,
-        &origem,
-        CENARIO,
-        &ProcessoSimulado {
-            id: "10".into(),
-            numero: NUP.into(),
-            unidade_origem: "TESTE".into(),
-            aberto_em: vec!["TESTE".into()],
-            anotacao_origem: None,
-            destinos: vec![],
-        },
-    )
-    .unwrap();
-    pdf_externo::semear(
-        &banco,
-        &origem,
-        CENARIO,
-        &Processo {
-            id: "10".into(),
-            nup: NUP.into(),
-            unidade: "TESTE".into(),
-        },
-        &TipoExterno {
-            id: "293".into(),
-            nome: "Anexo".into(),
-            limite_bytes: 10 * 1024 * 1024,
-        },
-    )
-    .unwrap();
-    (banco, origem)
-}
+use bancada::{aceitar, pedido, preparar_banco};
 
 type ResultadoBancada = (Vec<Output>, Vec<String>, usize, Vec<Option<Vec<u8>>>);
 
@@ -120,6 +43,7 @@ enum FalhaPrevia {
     LimiteMenor(usize),
     SemAnexos(usize),
     DocumentoFechado,
+    ZipMembroAlheio,
 }
 
 #[derive(Clone, Copy)]
@@ -280,6 +204,17 @@ fn executar_bancada(
                     .lock()
                     .unwrap()
                     .push("arvore mista projetada".into());
+            }
+            if matches!(falha_previa, Some(FalhaPrevia::ZipMembroAlheio))
+                && metodo == "GET"
+                && acao == "exibir_arquivo"
+                && status == "200"
+            {
+                bancada::trocar_membro_zip(&mut resposta);
+                registro
+                    .lock()
+                    .unwrap()
+                    .push("zip membro alheio projetado".into());
             }
             registro
                 .lock()
