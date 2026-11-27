@@ -271,6 +271,9 @@ fn executar_com_releitura(
 #[path = "aies_processo_criar_cli/envio.rs"]
 mod envio;
 
+#[path = "aies_processo_criar_cli/identidade.rs"]
+mod identidade;
+
 fn executar(args: &[&str]) -> (Output, Vec<String>, (i64, i64), usize) {
     let (saida, _, pedidos, contagens, tipos) = executar_com_releitura(args, false, false);
     (saida, pedidos, contagens, tipos)
