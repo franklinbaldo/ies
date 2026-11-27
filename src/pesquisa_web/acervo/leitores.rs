@@ -363,3 +363,81 @@ impl Drop for CookieSintetico {
         }
     }
 }
+
+/// Separa a derivação de um POST textual de prova da leitura da resposta
+/// original. A cassette não guarda o corpo do POST; não sabemos se o
+/// texto de prova coincide com a consulta efetivamente feita em Goiás.
+#[test]
+#[ignore = "precisa do ZIP GO conferido no cache; sem rede"]
+fn cassette_go_documento_buscar_texto_deriva_q_e_le_resposta() {
+    use crate::cassette::{ZipDoAcervo, conferir_cassette_ate};
+    use crate::pesquisa_web::documentos::{RespostaDeDocumentos, ler_resposta_de_documentos};
+    use crate::pesquisa_web::filtros::FiltrosDaPesquisa;
+    use crate::pesquisa_web::formulario_pesquisa::derivar_pesquisa_em_filtrada;
+    use crate::pesquisa_web::regras_formulario::PesquisarEm;
+    use std::path::Path;
+
+    let cache = std::env::var_os("IES_ACERVO_CACHE").map_or_else(
+        || PathBuf::from(std::env::var_os("HOME").expect("HOME")).join(".cache/ies"),
+        PathBuf::from,
+    );
+    let card = Path::new(env!("CARGO_MANIFEST_DIR"))
+        .join("cassettes/go/documento-buscar-texto-go--724f88e4c47b.md");
+    let zip = ZipDoAcervo::ler(&cache.join("todos-sei-cassettes-go.zip")).expect("ZIP GO");
+    let conferida = conferir_cassette_ate(&card, &zip, 120_000_000).expect("cassette GO");
+    assert_eq!(conferida.instalacao, "go");
+    let instalacao = gravacao::instalacao(&conferida.json).expect("instalação");
+    let passos = gravacao::respostas(&conferida.json);
+    let [controle, tela, resposta] = passos.as_slice() else {
+        panic!("esperadas três interações");
+    };
+    assert_eq!(
+        (controle.operacao, controle.metodo, controle.status),
+        ("procedimento_controlar", "GET", 200)
+    );
+    assert_eq!(
+        (tela.operacao, tela.metodo, tela.status),
+        ("protocolo_pesquisar", "GET", 200)
+    );
+    assert_eq!(
+        (resposta.operacao, resposta.metodo, resposta.status),
+        ("protocolo_pesquisar", "POST", 200)
+    );
+
+    let html = decodificar_resposta(web(controle)).expect("Controle");
+    let unidade = unidade_do_controle(&html).expect("unidade do Controle");
+    let envio = derivar(tela, &url(tela), |servida| {
+        derivar_pesquisa_em_filtrada(
+            PesquisarEm::Documentos,
+            &instalacao,
+            servida,
+            (&unidade, ""),
+            FiltrosDaPesquisa {
+                texto: Some("contrato"),
+                ..Default::default()
+            },
+        )
+        .map_err(|e| format!("{e:?}"))
+    })
+    .expect("derivação sobre GET original");
+    let corpo = std::str::from_utf8(envio.corpo()).expect("formulário URL-encoded");
+    let pares: Vec<_> = corpo.split('&').collect();
+    assert!(pares.contains(&"q=contrato"));
+    assert!(pares.contains(&"txtProtocoloPesquisa="));
+    assert!(pares.contains(&"rdoPesquisarEm=D"));
+
+    // Oráculo histórico de 04/11: dois resultados declarados no passo 2.
+    // Não alimentar o anti-IES com a própria saída do leitor.
+    let html = decodificar_resposta(web(resposta)).expect("resposta original");
+    assert!(opcao_marcada(&html) == Opcao::Documentos);
+    let RespostaDeDocumentos::Lista(lista) =
+        ler_resposta_de_documentos(&html, None).expect("lista original")
+    else {
+        panic!("esperada lista documental");
+    };
+    assert_eq!(lista.total_declarado, 2);
+    assert_eq!(
+        lista.documentos.len() as u64 + lista.linhas_ausentes_da_faixa,
+        2
+    );
+}
