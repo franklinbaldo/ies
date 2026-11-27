@@ -53,6 +53,6 @@ fn data_valida_exige_sessao_sem_saida_de_acervo() {
         .output()
         .expect("binário ies compilado no teste");
     assert_eq!(saida.status.code(), Some(1));
-    assert!(saida.stdout.is_empty());
+    assert_eq!(saida.stdout, [] as [u8; 0]);
     assert!(String::from_utf8_lossy(&saida.stderr).contains("UrlDoControleSemCaminho"));
 }

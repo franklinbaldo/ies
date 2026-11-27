@@ -295,7 +295,7 @@ mod replay {
             submissao: SubmissaoDerivada,
             cookie: &str,
         ) -> Result<crate::formulario_web::RespostaDoPost<Self::Corpo>, FalhaTransporte> {
-            assert!(cookie == "PHPSESSID=SINTETICO");
+            assert_eq!(cookie, "PHPSESSID=SINTETICO");
             // O corpo gravado não existe; conferir a intenção da CLI contra
             // um oráculo independente, sem inferir igualdade com o POST real.
             let corpo = std::str::from_utf8(submissao.corpo()).expect("corpo URL encoded");
@@ -331,7 +331,7 @@ mod replay {
             url: &str,
             cookie: &str,
         ) -> Result<RespostaWeb<Self::Corpo>, FalhaTransporte> {
-            assert!(cookie == "PHPSESSID=SINTETICO");
+            assert_eq!(cookie, "PHPSESSID=SINTETICO");
             Ok(self.proxima("GET", url).resposta)
         }
     }

@@ -41,11 +41,7 @@ pub(super) fn total_do_resultado(
             .filter(|c| c.nome() == "td")
             .map(texto)
             .collect();
-        if linha.elementos("a").next().is_none()
-            && celulas.len() == 2
-            && celulas[0] == "TOTAL:"
-            && celulas[1] == "0"
-        {
+        if linha.elementos("a").next().is_none() && celulas == ["TOTAL:", "0"] {
             return Ok((0, None));
         }
         return Err(ErroAcervo::ResultadoSemTotal);

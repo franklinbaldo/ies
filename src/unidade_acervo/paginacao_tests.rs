@@ -1,6 +1,7 @@
 //! Diagnóstico estrutural do paginador original, sem valores ou URLs.
 use super::web::{ErroEnvioPagina, enviar_pagina_via, formulario_da_pagina};
 use super::{HtmlServido, arvore};
+use crate::cassette::acervo::gravacao as fonte;
 use crate::formulario_web::TelaServida;
 use crate::instalacao::Instalacao;
 
@@ -49,7 +50,6 @@ pub(super) fn observar_formularios(
     println!("{instalacao}: campos candidatos de paginacao={candidatos}");
     // Cada POST usa o HTML e o charset da resposta imediatamente anterior.
     // O gravador não guarda o corpo do POST nem a query da requisição.
-    use crate::cassette::acervo::gravacao as fonte;
     let respostas: Vec<_> = fonte::respostas(gravacao)
         .into_iter()
         .filter(|r| r.operacao == "estatisticas_detalhar_unidade" && r.status == 200)
