@@ -75,9 +75,10 @@ fn encaminhar_requisicoes(
     destino: std::net::SocketAddr,
     identidade: Identity,
     esperadas: &[(&str, &str)],
+    falhar_verificacao: bool,
 ) {
     let tls = TlsAcceptor::new(identidade).unwrap();
-    for &(metodo, acao) in esperadas {
+    for (passo, &(metodo, acao)) in esperadas.iter().enumerate() {
         let mut tcp = aceitar(proxy);
         assert!(cabecalho(&mut tcp).starts_with(b"CONNECT sei.test:443 HTTP/1.1\r\n"));
         tcp.write_all(b"HTTP/1.1 200 Connection established\r\n\r\n")
@@ -111,7 +112,18 @@ fn encaminhar_requisicoes(
         upstream.shutdown(Shutdown::Write).unwrap();
         let mut resposta = Vec::new();
         upstream.read_to_end(&mut resposta).unwrap();
-        canal.write_all(&resposta).unwrap();
+        // Hipótese sintética: o POST persistiu, mas a resposta do primeiro
+        // GET de verificação se perde na fronteira HTTP. O anti-IES e o
+        // SQLite continuam disponíveis para outra invocação independente.
+        if falhar_verificacao && passo == 3 {
+            assert_eq!(metodo, "GET");
+            assert_eq!(acao, "procedimento_configurar_detalhe");
+            canal
+                .write_all(b"HTTP/1.1 503 Service Unavailable\r\nContent-Length: 0\r\nConnection: close\r\n\r\n")
+                .unwrap();
+        } else {
+            canal.write_all(&resposta).unwrap();
+        }
         canal.flush().unwrap();
     }
 }
@@ -194,7 +206,7 @@ fn duas_clis_colunas(todas: bool, confirmar: bool) -> (Output, Output) {
     let proxy = TcpListener::bind(("127.0.0.1", 0)).unwrap();
     let porta = proxy.local_addr().unwrap().port();
     let tunel = thread::spawn(move || {
-        encaminhar_requisicoes(&proxy, destino, identidade, PREVIA_E_LEITURA);
+        encaminhar_requisicoes(&proxy, destino, identidade, PREVIA_E_LEITURA, false);
     });
 
     let comando = if confirmar {
@@ -308,8 +320,7 @@ fn bdd_565_02_alvo_ja_satisfeito_confirma_sem_post_e_rele_estado() {
     );
 }
 
-#[test]
-fn bdd_565_03_confirmar_aplica_post_unico_e_rele_mesmo_sqlite() {
+fn confirmar_e_reler(falhar_verificacao: bool) -> (Output, Output, Vec<Opcao>) {
     let pasta = Pasta::nova();
     fs::set_permissions(&pasta.0, fs::Permissions::from_mode(0o700)).unwrap();
     let (cert, identidade) = certificado(&pasta.0);
@@ -330,7 +341,13 @@ fn bdd_565_03_confirmar_aplica_post_unico_e_rele_mesmo_sqlite() {
     let proxy = TcpListener::bind(("127.0.0.1", 0)).unwrap();
     let porta = proxy.local_addr().unwrap().port();
     let tunel = thread::spawn(move || {
-        encaminhar_requisicoes(&proxy, destino, identidade, CONFIRMACAO_E_LEITURA);
+        encaminhar_requisicoes(
+            &proxy,
+            destino,
+            identidade,
+            CONFIRMACAO_E_LEITURA,
+            falhar_verificacao,
+        );
     });
 
     let confirmacao = cli_colunas(
@@ -353,7 +370,12 @@ fn bdd_565_03_confirmar_aplica_post_unico_e_rele_mesmo_sqlite() {
     );
     tunel.join().unwrap();
     let opcoes = backend.join().unwrap();
+    (confirmacao, releitura, opcoes)
+}
 
+#[test]
+fn bdd_565_03_confirmar_aplica_post_unico_e_rele_mesmo_sqlite() {
+    let (confirmacao, releitura, opcoes) = confirmar_e_reler(false);
     assert_eq!(
         confirmacao.status.code(),
         Some(0),
@@ -390,4 +412,52 @@ fn bdd_565_03_confirmar_aplica_post_unico_e_rele_mesmo_sqlite() {
         3
     );
     assert_eq!(opcoes.iter().filter(|opcao| opcao.marcada).count(), 3);
+}
+
+#[test]
+fn verificacao_indisponivel_recusa_sucesso_sem_repetir_post() {
+    let (confirmacao, releitura, opcoes) = confirmar_e_reler(true);
+    // O contrato vigente exige falha mesmo quando o POST teve efeito.
+    assert_eq!(
+        confirmacao.status.code(),
+        Some(1),
+        "{}",
+        String::from_utf8_lossy(&confirmacao.stderr)
+    );
+    assert!(confirmacao.stdout.is_empty());
+    let erro = String::from_utf8_lossy(&confirmacao.stderr);
+    assert!(
+        erro.contains("NaoConfirmadoNaConfiguracaoDeColunas"),
+        "{erro}"
+    );
+    assert!(erro.contains("LeituraFalhou"), "{erro}");
+    assert!(erro.contains("503"), "{erro}");
+
+    // Oráculo independente: uma nova CLI lê o estado real e o banco
+    // contém exatamente as três marcas pedidas, apesar da falha anterior.
+    assert_eq!(
+        releitura.status.code(),
+        Some(0),
+        "{}",
+        String::from_utf8_lossy(&releitura.stderr)
+    );
+    let observadas = json(&releitura);
+    assert_eq!(observadas["unidade"], "TESTE");
+    let marcadas: Vec<_> = observadas["opcoes"]
+        .as_array()
+        .unwrap()
+        .iter()
+        .filter(|opcao| opcao["marcada"] == true)
+        .map(|opcao| opcao["coluna"].as_str().unwrap())
+        .collect();
+    assert_eq!(marcadas, ["atribuicao", "anotacao", "tipo"]);
+    let persistidas: Vec<_> = opcoes
+        .iter()
+        .filter(|opcao| opcao.marcada)
+        .map(|opcao| opcao.coluna)
+        .collect();
+    assert_eq!(
+        persistidas,
+        [Coluna::Atribuicao, Coluna::Anotacao, Coluna::TipoProcesso]
+    );
 }
