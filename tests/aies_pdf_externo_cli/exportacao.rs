@@ -377,4 +377,5 @@ fn exportacao_seletiva_recusa_no_fechado_antes_do_gerador() {
     }
 }
 
+#[path = "exportacao/completude.rs"]
 mod completude;
