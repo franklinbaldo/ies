@@ -262,7 +262,9 @@ fn previa_criar_marcador_recusa_confirmacao_e_cor_ausente() {
         "1 registro",
         "OUTRA",
         true,
-        &["--json", "marcador", "criar", "--nome", "Novo", "--cor", "Preto"],
+        &[
+            "--json", "marcador", "criar", "--nome", "Novo", "--cor", "Preto",
+        ],
     );
     falha(&saida, "UnidadeInesperada");
     assert_eq!(
