@@ -62,6 +62,23 @@ fn le_os_campos_da_forma_observada() {
 }
 
 #[test]
+fn observacoes_preservam_quebras_apos_a_primeira_do_html() {
+    for (servido, esperado) in [
+        ("\nObservação sintética", "Observação sintética"),
+        ("\n\nObservação sintética", "\nObservação sintética"),
+        ("\r\n\r\nObservação sintética", "\nObservação sintética"),
+        ("\n\n", "\n"),
+        ("\nLinha 1\r\nLinha 2\n", "Linha 1\nLinha 2\n"),
+    ] {
+        let html = trocar(
+            "\nObservação sintética</textarea>",
+            &format!("{servido}</textarea>"),
+        );
+        assert_eq!(ler(&html).unwrap().observacoes, esperado, "{servido:?}");
+    }
+}
+
+#[test]
 fn booleano_antes_dos_atributos_nao_muda_a_leitura() {
     let html = com_booleano_antes_dos_atributos(&padrao());
     assert_eq!(ler(&html), ler(&padrao()));
