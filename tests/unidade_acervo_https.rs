@@ -67,12 +67,20 @@ fn relatorio(vazio: bool) -> String {
 }
 
 fn pagina(inicio: usize, fim: usize, nups: &[&str]) -> String {
-    let mut linhas = String::new();
-    for nup in nups {
-        linhas.push_str("<tr><td>O</td><td>PPI</td><td>");
-        linhas.push_str(nup);
-        linhas.push_str("</td><td>T</td><td>2</td><td>2024</td></tr>");
-    }
+    let linhas: String = nups
+        .iter()
+        .map(|&nup| {
+            let (orgao, unidade, tipo, mes, ano) = match nup {
+                A => ("O1", "U1", "T1", "11", "2022"),
+                B => ("O2", "U2", "T2", "3", "2023"),
+                _ => panic!("NUP inesperado na fixture"),
+            };
+            format!(
+                "<tr><td>{orgao}</td><td>{unidade}</td><td>{nup}</td>\
+                 <td>{tipo}</td><td>{mes}</td><td>{ano}</td></tr>"
+            )
+        })
+        .collect();
     format!(
         "<form id='frmEstatisticasLista' method='post' action='{}'>\
          <input type='hidden' name='hdnInfraPaginaAtual' value='0'>\
@@ -182,7 +190,7 @@ fn servir(
     total
 }
 
-fn executar(caso: Caso) -> (Output, usize) {
+fn executar(caso: Caso, json: bool) -> (Output, usize) {
     let pasta = Pasta::nova();
     let (cert, identidade_tls) = identidade(&pasta.0, "sei.test");
     let origem = pasta.privado("origem", ORIGEM);
@@ -207,8 +215,12 @@ fn executar(caso: Caso) -> (Output, usize) {
             roteiro(caso),
         )
     });
-    let saida = Command::new(env!("CARGO_BIN_EXE_ies"))
-        .args(["--json", "unidade", "acervo", "--em", "2024-02-29"])
+    let mut comando = Command::new(env!("CARGO_BIN_EXE_ies"));
+    if json {
+        comando.arg("--json");
+    }
+    let saida = comando
+        .args(["unidade", "acervo", "--em", "2024-02-29"])
         .env("IES_URL_CONTROLE_FILE", controle)
         .env("IES_COOKIE_FILE", cookie)
         .env("IES_ORIGEM_FILE", origem)
@@ -230,7 +242,7 @@ fn executar(caso: Caso) -> (Output, usize) {
 
 #[test]
 fn acervo_historico_binario_preserva_linhas_e_conta_nups() {
-    let (saida, total) = executar(Caso::Completo);
+    let (saida, total) = executar(Caso::Completo, true);
     assert!(
         saida.status.success(),
         "{}",
@@ -243,16 +255,22 @@ fn acervo_historico_binario_preserva_linhas_e_conta_nups() {
     assert_eq!(json["total_declarado"], 3);
     assert_eq!(json["linhas_observadas"], 3);
     assert_eq!(json["nups_distintos"], 2);
-    let processos = json["processos"].as_array().unwrap();
-    assert_eq!(processos.len(), 3);
-    assert_eq!(processos[0]["processo"], A);
-    assert_eq!(processos[1]["processo"], A);
-    assert_eq!(processos[2]["processo"], B);
+    assert_eq!(json["origem"], "web");
+    assert_eq!(json["requisicoes"], 5);
+    let a = serde_json::json!({
+        "processo": A, "tipo": "T1", "orgao": "O1", "unidade": "U1",
+        "mes": "11", "ano": "2022"
+    });
+    let b = serde_json::json!({
+        "processo": B, "tipo": "T2", "orgao": "O2", "unidade": "U2",
+        "mes": "3", "ano": "2023"
+    });
+    assert_eq!(json["processos"], serde_json::json!([a.clone(), a, b]));
 }
 
 #[test]
 fn acervo_historico_binario_recusa_pagina_repetida_sem_parcial() {
-    let (saida, total) = executar(Caso::Repetido);
+    let (saida, total) = executar(Caso::Repetido, true);
     assert_eq!(total, 5);
     assert_eq!(saida.status.code(), Some(1));
     assert_eq!(saida.stdout, [] as [u8; 0]);
@@ -261,7 +279,7 @@ fn acervo_historico_binario_recusa_pagina_repetida_sem_parcial() {
 
 #[test]
 fn acervo_historico_binario_zero_explicito_sem_detalhe() {
-    let (saida, total) = executar(Caso::Vazio);
+    let (saida, total) = executar(Caso::Vazio, true);
     assert!(
         saida.status.success(),
         "{}",
@@ -274,4 +292,35 @@ fn acervo_historico_binario_zero_explicito_sem_detalhe() {
     assert_eq!(json["nups_distintos"], 0);
     let vazio: &[Value] = &[];
     assert_eq!(json["processos"].as_array().unwrap().as_slice(), vazio);
+}
+
+#[test]
+fn acervo_historico_binario_rotula_mes_e_ano_do_processo() {
+    let (saida, total) = executar(Caso::Completo, false);
+    assert!(
+        saida.status.success(),
+        "{}",
+        String::from_utf8_lossy(&saida.stderr)
+    );
+    assert_eq!(total, 5);
+    let texto = String::from_utf8(saida.stdout).unwrap();
+    let esperado = format!(
+        "Acervo da unidade PPI em 29/02/2024: 3 linhas, 2 NUPs distintos.\n\
+         Processo | Tipo | Órgão | Unidade | Mês do processo | Ano do processo\n\
+         {A} | T1 | O1 | U1 | 11 | 2022\n\
+         {A} | T1 | O1 | U1 | 11 | 2022\n\
+         {B} | T2 | O2 | U2 | 3 | 2023\n"
+    );
+    assert_eq!(texto, esperado);
+}
+
+#[test]
+fn acervo_historico_binario_zero_humano_so_resumo() {
+    let (saida, total) = executar(Caso::Vazio, false);
+    assert!(saida.status.success());
+    assert_eq!(total, 3);
+    assert_eq!(
+        String::from_utf8(saida.stdout).unwrap(),
+        "Acervo da unidade PPI em 29/02/2024: 0 linhas, 0 NUPs distintos.\n"
+    );
 }
