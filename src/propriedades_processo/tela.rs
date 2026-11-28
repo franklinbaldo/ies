@@ -319,10 +319,18 @@ pub(super) fn pares_de_especificacao(
         ("selAssuntos", "hdnAssuntos"),
         ("selInteressadosProcedimento", "hdnInteressadosProcedimento"),
     ] {
-        let itens = opcoes(campos.unico(select)?);
-        pares.push((oculto, valor_da_lupa(itens.iter().map(|(id, _, rotulo)| {
-            (id.as_str(), rotulo.as_str())
-        }))));
+        // A projeção de consulta normaliza espaços; a derivação candidata
+        // conserva o texto DOM. A semântica do JavaScript original ainda
+        // precisa ser confrontada antes de habilitar a escrita.
+        let itens: Vec<_> = campos
+            .unico(select)?
+            .elementos("option")
+            .map(|no| (no.atributo("value").unwrap_or_default(), no.texto()))
+            .collect();
+        pares.push((
+            oculto,
+            valor_da_lupa(itens.iter().map(|(id, rotulo)| (*id, rotulo.as_str()))),
+        ));
     }
     Ok(pares)
 }
@@ -344,6 +352,23 @@ mod testes_derivacao_r284 {
         let sub = derivar_submissao(&ALTERAR_ESPECIFICACAO, &instalacao(),
             &tela_iso(&url, &html), None, &refs).unwrap();
         String::from_utf8(sub.corpo().to_vec()).unwrap()
+    }
+
+    #[test]
+    fn derivacao_nao_usa_projecao_normalizada_da_lupa() {
+        let html = tela_das_propriedades("00001.000001/2026-01", "10");
+        for (rotulo, codificado) in [
+            ("Pessoa Sintetica A", "Pessoa+Sintetica+A"),
+            ("Pessoa&nbsp;Sintetica A", "Pessoa%A0Sintetica+A"),
+            ("Pessoa  Sintetica A", "Pessoa++Sintetica+A"),
+        ] {
+            let variante = html.replace("Pessoa Sintetica A", rotulo);
+            let corpo = corpo(&variante);
+            let esperado = format!(
+                "hdnInteressadosProcedimento=301%B1{codificado}%A5302%B1Entidade+Sintetica+B"
+            );
+            assert!(corpo.split('&').any(|par| par == esperado));
+        }
     }
 
     #[test]

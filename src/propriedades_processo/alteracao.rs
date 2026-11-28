@@ -1,5 +1,5 @@
 //! Prévia da alteração exclusiva de especificação (#877).
-//! Nesta fatia WIP, nenhuma submissão é enviada.
+//! Capacidade experimental: nenhuma submissão cadastral é enviada.
 use super::tela::{ALTERAR_ESPECIFICACAO, pares_de_especificacao};
 use super::{ErroPropriedades, FonteDasPropriedades, PropriedadesLidas, ler_propriedades};
 use crate::acao_do_sei::AcaoDoSei;
@@ -110,10 +110,10 @@ pub(crate) fn tentar_alterar(cli: &Cli) -> Option<anyhow::Result<()>> {
     else {
         return None;
     };
+    if *confirmar {
+        return Some(Err(ErroAlterar::EscritaAindaNaoValidada.into()));
+    }
     Some(crate::processo_concluir_cli::com_sessao(cli, |sessao, indice| {
-        if *confirmar {
-            crate::origem_de_treinamento::exigir_origem(sessao.origem)?;
-        }
         let previa = prever(
             sessao,
             numero,
@@ -123,9 +123,6 @@ pub(crate) fn tentar_alterar(cli: &Cli) -> Option<anyhow::Result<()>> {
             &mut EnvioHttps,
         )?;
         let necessaria = previa.anterior != *especificacao;
-        if *confirmar && necessaria {
-            return Err(ErroAlterar::EscritaAindaNaoValidada.into());
-        }
         if cli.json {
             let mut valor = json!({
                 "numero": numero.as_str(),
