@@ -264,6 +264,28 @@ fn conferir_aviso_pendencia(
     );
 }
 
+fn comando_anexacao(modo: Modo) -> &'static [&'static str] {
+    match modo {
+        Modo::Aceite
+        | Modo::PdfAposAnexacao
+        | Modo::RespostaIncerta
+        | Modo::FormularioDeOutroProcesso => &[
+            "--json",
+            "processo",
+            "anexar",
+            ANEXADO,
+            "--a",
+            PRINCIPAL,
+            "--confirmar",
+        ],
+        Modo::Previa
+        | Modo::PreviaPendencia
+        | Modo::PreviaAssinada
+        | Modo::PreviaSemObservacao
+        | Modo::JaAnexado => &["--json", "processo", "anexar", ANEXADO, "--a", PRINCIPAL],
+    }
+}
+
 fn executar(modo: Modo) {
     let pasta = Pasta::nova();
     let (cert, tls_id) = identidade(&pasta.0, "sei.test");
@@ -340,25 +362,7 @@ fn executar(modo: Modo) {
     if matches!(modo, Modo::PdfAposAnexacao) {
         pdf_apos_anexacao::recusar_nup_alheio(&pasta, arquivos, porta, "antes");
     }
-    let comando: &[&str] = match modo {
-        Modo::Aceite
-        | Modo::PdfAposAnexacao
-        | Modo::RespostaIncerta
-        | Modo::FormularioDeOutroProcesso => &[
-            "--json",
-            "processo",
-            "anexar",
-            ANEXADO,
-            "--a",
-            PRINCIPAL,
-            "--confirmar",
-        ],
-        Modo::Previa
-        | Modo::PreviaPendencia
-        | Modo::PreviaAssinada
-        | Modo::PreviaSemObservacao
-        | Modo::JaAnexado => &["--json", "processo", "anexar", ANEXADO, "--a", PRINCIPAL],
-    };
+    let comando = comando_anexacao(modo);
     let saida = cli(&pasta, arquivos, porta, comando);
     conferir_aviso_pendencia(modo, &pasta, arquivos, porta);
     let posterior = ler_processo(&pasta, arquivos, porta);
@@ -463,6 +467,10 @@ fn conferir_resultados(
             }
         }
     }
+    conferir_estado_posterior(modo, posterior, total, pedidos);
+}
+
+fn conferir_estado_posterior(modo: Modo, posterior: &Output, total: i64, pedidos: &[String]) {
     assert_eq!(
         posterior.status.code(),
         Some(0),
@@ -476,10 +484,11 @@ fn conferir_resultados(
         Modo::Aceite | Modo::PdfAposAnexacao | Modo::RespostaIncerta | Modo::JaAnexado
     );
     if tem_anexado {
+        assert_eq!(leitura["anexados"].as_array().unwrap().len(), 1);
         assert_eq!(leitura["anexados"][0]["numero"], ANEXADO);
         assert_eq!(leitura["anexados"][0]["id_procedimento"], "22");
     } else {
-        assert!(leitura["anexados"].as_array().is_none_or(Vec::is_empty));
+        assert_eq!(leitura["anexados"], serde_json::json!([]));
     }
     assert_eq!(total, i64::from(tem_anexado));
     if modo == Modo::PdfAposAnexacao {
