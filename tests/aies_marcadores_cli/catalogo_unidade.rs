@@ -235,7 +235,7 @@ fn previa_criar_marcador_recusa_confirmacao_e_cor_ausente() {
         ],
     );
     falha(&saida, "ConfirmacaoIndisponivel");
-    assert!(pedidos.is_empty());
+    assert_eq!(pedidos, [] as [std::string::String; 0]);
     let (saida, pedidos) = executar_catalogo(
         Some("TESTE"),
         "1 registro",

@@ -157,6 +157,8 @@ const FORA_DAS_ESCRITAS: &[&str] = &[
     "documento_alterar",
     // Lupa de unidades: só um passo de navegação até a lista.
     "grupo_unidade_cadastrar",
+    // Prévia de marcador: só lê o formulário por GET, sem escrita própria.
+    "marcador_cadastrar",
 ];
 
 fn classe_da_operacao(op: &str) -> Option<&'static str> {

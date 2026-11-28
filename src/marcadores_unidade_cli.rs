@@ -266,7 +266,7 @@ fn cor_do_formulario(
 }
 
 #[derive(Serialize)]
-struct Previa<'a> {
+struct ResultadoCriacao<'a> {
     unidade: &'a str,
     nome: &'a str,
     cor: &'a str,
@@ -328,7 +328,7 @@ pub(super) fn criar(
     if json_mode {
         println!(
             "{}",
-            serde_json::to_string(&Previa {
+            serde_json::to_string(&ResultadoCriacao {
                 unidade: &atual,
                 nome,
                 cor,
