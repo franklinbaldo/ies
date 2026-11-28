@@ -9,6 +9,7 @@ use std::fmt::Write as _;
 #[ignore = "lê os ZIPs do acervo em IES_ACERVO_CACHE; sem rede"]
 fn replay_diagnostico_dos_destinos_de_bloco() {
     let mut contagens = BTreeMap::new();
+    let mut relatorio = String::new();
     percorrer(&["bloco_assinatura_alterar"], |nome, instalacao, json| {
         if !matches!(
             nome,
@@ -18,7 +19,7 @@ fn replay_diagnostico_dos_destinos_de_bloco() {
         }
         let mut cadastros = 0;
         let mut consultas = 0;
-        let mut relatorio = String::new();
+        let _ = writeln!(relatorio, "{instalacao}:");
         for r in gravacao::respostas(json) {
             if r.operacao == "bloco_assinatura_alterar" && r.metodo == "GET" && r.status == 200 {
                 let html = HtmlServido::de_teste(
@@ -74,9 +75,9 @@ fn replay_diagnostico_dos_destinos_de_bloco() {
         }
         assert!(cadastros > 0, "nenhum cadastro original localizado");
         assert_eq!(consultas, 2, "censo original de autocomplete");
-        publicar(&format!("{instalacao}:\n{relatorio}"));
         assert!(contagens.insert(instalacao.to_owned(), consultas).is_none());
     });
     assert_eq!(contagens.get("pen3"), Some(&2));
     assert_eq!(contagens.get("unb"), Some(&2));
+    publicar(&relatorio);
 }
