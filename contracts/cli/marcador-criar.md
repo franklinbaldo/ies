@@ -36,4 +36,6 @@ com 31 códigos distintos (Cinza/Cinza Escuro = 2; Preto = 0).
 Os cards [UnB](../../cassettes/unb/marcador-ciclo-completo-unb--b24fe5a425ac.md)
 e [GO](../../cassettes/go/marcador-ciclo-completo-go--ee16e8e455ef.md)
 indexam as ações, não provam seus corpos. ZIP original/replay desta fatia
-ainda não executados. E2E loopback sintético escrito, pendente de CI.
+ainda não executados. Censo dos GETs originais escrito como teste ignorado
+`cassette_previa_criacao_marcador_unb_go`, abrangido pelo replay oficial
+`cassette_`. E2E loopback sintético escrito, pendente de CI.

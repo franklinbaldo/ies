@@ -144,7 +144,6 @@ fn texto_distingue_faixa_e_estado_mesmo_sem_itens_selecionados() {
     }
 }
 
-
 fn formulario_novo() -> String {
     format!(
         "<a id='lnkInfraUnidade'>TESTE</a>\
@@ -166,8 +165,15 @@ fn previa_criar_marcador_le_formulario_sem_post() {
             Some("TESTE"),
             "1 registro",
             &[
-                "--json", "marcador", "criar", "--nome", "Novo", "--cor", cor,
-                "--descricao", "Conferência",
+                "--json",
+                "marcador",
+                "criar",
+                "--nome",
+                "Novo",
+                "--cor",
+                cor,
+                "--descricao",
+                "Conferência",
             ],
         );
         assert_eq!(saida.status.code(), Some(0), "{:?}", saida.stderr);
@@ -197,7 +203,14 @@ fn previa_criar_marcador_recusa_confirmacao_e_cor_ausente() {
         Some("TESTE"),
         "1 registro",
         &[
-            "--json", "marcador", "criar", "--nome", "Novo", "--cor", "Preto", "--confirmar",
+            "--json",
+            "marcador",
+            "criar",
+            "--nome",
+            "Novo",
+            "--cor",
+            "Preto",
+            "--confirmar",
         ],
     );
     falha(&saida, "ConfirmacaoIndisponivel");
@@ -205,7 +218,15 @@ fn previa_criar_marcador_recusa_confirmacao_e_cor_ausente() {
     let (saida, pedidos) = executar_catalogo(
         Some("TESTE"),
         "1 registro",
-        &["--json", "marcador", "criar", "--nome", "Novo", "--cor", "Inexistente"],
+        &[
+            "--json",
+            "marcador",
+            "criar",
+            "--nome",
+            "Novo",
+            "--cor",
+            "Inexistente",
+        ],
     );
     falha(&saida, "CorNaoOferecidaOuAmbigua");
     assert_eq!(

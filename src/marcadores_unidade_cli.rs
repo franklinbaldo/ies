@@ -167,7 +167,6 @@ pub(super) fn listar(unidade: Option<&str>, json_mode: bool, inativos: bool) -> 
     Ok(())
 }
 
-
 #[derive(Debug, thiserror::Error)]
 #[error("{self:?}")]
 enum FalhaPrevia {
@@ -296,11 +295,8 @@ pub(super) fn criar(
         return Err(FalhaPrevia::DescricaoInvalida.into());
     }
     let arquivos = configuracao::arquivos_de_acesso()?;
-    let sessao = ReferenciasDaSessao::ler(
-        &arquivos.url_controle,
-        &arquivos.origem,
-        &arquivos.cookie,
-    )?;
+    let sessao =
+        ReferenciasDaSessao::ler(&arquivos.url_controle, &arquivos.origem, &arquivos.cookie)?;
     let controle = transporte::envio_post::ler_tela_do_controle(&sessao)?;
     let atual = controle_reconhecido::unidade_do_controle(&controle.html)?;
     if unidade.is_some_and(|esperada| esperada != atual) {
@@ -348,6 +344,9 @@ pub(super) fn criar(
     }
     Ok(())
 }
+
+#[cfg(test)]
+mod previa_replay;
 
 #[cfg(test)]
 mod tests {
