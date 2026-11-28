@@ -2,7 +2,7 @@
 type: CommandContract
 title: Buscar processo pela pesquisa Web do SEI
 operation: processo.buscar
-command: ies processo buscar [TERMO] [--pagina N] [--tipo TIPO] [--assunto TEXTO] [--de DD/MM/AAAA] [--ate DD/MM/AAAA] [--json]
+command: ies processo buscar [TERMO] [--pagina N] [--tipo TIPO] [--descricao TEXTO] [--observacao TEXTO] [--assunto TEXTO] [--de DD/MM/AAAA] [--ate DD/MM/AAAA] [--json]
 effect: read
 implementation: partial
 source_commit: fffbc5abd07d44ccef79b3c0e6872e0bdc39c18b
@@ -28,7 +28,7 @@ verbo continua `buscar`, com `TERMO` posicional e `--pagina N`. A opção `--ass
 `TERMO`, quando informado, é texto opaco (NUP inteiro ou parte do número), com as regras de
 `NumeroProcesso`: controles recusados antes de aparar espaços, vazio e
 `sei://` recusados, saída 2 (erro do clap) **antes** de ler a
-configuração. Sem `TERMO`, é obrigatório informar ao menos `--tipo` não branco, `--de` ou `--ate`; `--pagina` e `--assunto` isolados não são critérios efetivos. Uma consulta sem critério é recusada com saída 2 antes da configuração. O campo `txtProtocoloPesquisa` e a chave JSON `termo` ficam vazios. `--pagina N` é inteiro ≥ 1. Opções de leitura de
+configuração. Sem `TERMO`, é obrigatório informar ao menos `--tipo` não branco, `--de`, `--ate`, `--descricao` ou `--observacao`; `--pagina` e `--assunto` isolados não são critérios efetivos. Uma consulta sem critério é recusada com saída 2 antes da configuração. O campo `txtProtocoloPesquisa` e a chave JSON `termo` ficam vazios. `--pagina N` é inteiro ≥ 1. Opções de leitura de
 `ies processo NUP` (`--sem-documentos`, `--andamentos-completos`…) junto com
 `buscar` são `opcoes_incompativeis_com_busca` (saída 2). `--unidade` é
 pré-condição conferida na tela do Controle, não rótulo ecoado.
@@ -187,7 +187,7 @@ número do processo; o documento não sai.
 
 ## Filtros experimentais (#247)
 
-`ies processo buscar [TERMO] [--pagina N] [--tipo TIPO] [--assunto TEXTO]
+`ies processo buscar [TERMO] [--pagina N] [--tipo TIPO] [--descricao TEXTO] [--observacao TEXTO] [--assunto TEXTO]
 [--de DD/MM/AAAA] [--ate DD/MM/AAAA]` preserva o termo e o fluxo
 Web anterior. `--tipo` procura o texto **exato** de uma opção de
 `selTipoProcedimentoPesquisa`, usando o seu `value` servido no mesmo
@@ -217,3 +217,7 @@ filtros está **NOT_RUN**; não inferir suporte universal.
 Busca exclusivamente por tipo/período (#874): hipótese sintética enquanto não houver captura original pertinente. A paginação reutiliza os critérios pedidos no mesmo formulário, sem novo caminho de transporte. O teste de compatibilidade externa depende de replay e validação próprios.
 
 No anti-IES, hipótese de resultado negativo processual por tipo e/ou período: o catálogo de tipos da pesquisa é registrado separadamente do resultado e do cadastro. Somente uma chave explicitamente registrada (origem, cenário, unidade, ID do tipo e limites) devolve zero; combinação desconhecida permanece insuficiente, inclusive quando o tipo foi oferecido. Os testes TLS/CLI são sintéticos. Listas positivas e paginação usam faixas explícitas e identidades processuais do mesmo SQLite; uma página não registrada permanece desconhecida. O E2E sintético de página parcial e página ausente está escrito, mas ainda precisa ser executado; não comprova paridade externa.
+
+### Descrição e observação (fatia experimental #874)
+
+`--descricao` e `--observacao` são critérios textuais independentes do protocolo e de `q`. Recusam texto branco ou caracteres de controle antes da sessão, preservam espaços significativos e usam o `maxlength` UTF-16 publicado pelo formulário em cada POST. No anti-IES, nenhuma coorte por texto foi registrada ainda: um critério textual não vazio não herda resultado de período. A persistência de coortes segue pendente. A fixture TLS positiva do cliente usa o formulário do anti-IES e um POST conferido com resposta 302 sintética; não representa uma coorte persistida. O controle negativo usa o anti-IES sem interceptar o POST. Ambos aguardam execução no CI. Não há captura POST original nem demonstração de paridade externa.

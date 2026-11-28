@@ -40,6 +40,8 @@ pub(crate) const CAMPOS_USUARIO_DA_PESQUISA: &[&str] = &[
     "chkSinDocumentosRecebidos",
     "selOrgaoPesquisa[]",
     "txtProtocoloPesquisa",
+    "txtDescricaoPesquisa",
+    "txtObservacaoPesquisa",
     "q",
     "selTipoProcedimentoPesquisa",
     "selSeriePesquisa",
