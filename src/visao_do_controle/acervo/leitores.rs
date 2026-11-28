@@ -171,18 +171,27 @@ fn ler(cas: &Cassette<'_>, resp: &Resposta<'_>, anterior: &mut Option<String>, s
         }
     };
     saida.registros.push(u);
+    let leitura = ctx
+        .eh_resumida()
+        .then(|| crate::paginas::juntar(std::slice::from_ref(&html), None));
     if let Some(prev) = anterior.replace(unidade.clone()) {
-        saida
-            .registros
-            .push(solicitada(cas, resp, &html, &ctx, &prev, &unidade));
+        saida.registros.push(solicitada(
+            cas,
+            resp,
+            &html,
+            &ctx,
+            &prev,
+            &unidade,
+            leitura.as_ref().is_some_and(Result::is_ok),
+        ));
     }
     if visao == "ausente" {
         return;
     }
     // Filtro na URL servida: o comando lê a URL do Controle guardada.
     let fora = (!filtro.is_empty()).then_some("filtro_na_url_servida");
-    if ctx.eh_resumida() {
-        resumida(cas, resp, &html, &unidade, fora, saida);
+    if let Some(leitura) = leitura {
+        resumida(cas, resp, &html, &unidade, fora, saida, leitura);
     } else {
         paginacao::detalhada(cas, resp, &html, &unidade, fora, saida);
     }
@@ -206,6 +215,7 @@ fn solicitada(
     ctx: &ContextoPagina,
     prev: &str,
     unidade: &str,
+    leitura_ok: bool,
 ) -> Registro {
     let mut s = cas.registro(Leitor::UnidadeSolicitada, resp.passo, Resultado::Lido);
     s.formas.push(
@@ -220,9 +230,8 @@ fn solicitada(
         s.resultado = Resultado::Recusado(format!("{erro:?}"));
     }
     // A lista R aplica a mesma conferência (`unidade_inesperada`), quando lida.
-    let pagina = [html.to_owned()];
-    if ctx.eh_resumida() && crate::paginas::juntar(&pagina, None).is_ok() {
-        let juntar = crate::paginas::juntar(&pagina, Some(prev));
+    if leitura_ok {
+        let juntar = crate::paginas::juntar(std::slice::from_ref(html), Some(prev));
         if juntar.is_ok() != (s.resultado == Resultado::Lido) {
             s.formas.push("juntar_diverge_da_tela".into());
         }
@@ -237,6 +246,7 @@ fn resumida(
     unidade: &str,
     fora: Option<&'static str>,
     saida: &mut Replay,
+    leitura: Result<crate::paginas::Leitura, crate::erro_web::ErroCaixa>,
 ) {
     for leitor in [Leitor::Detalhada, Leitor::PaginaDetalhada] {
         let motivo = Resultado::NaoAplicavel("tela_na_visao_r_o_comando_troca_para_d".to_owned());
@@ -245,7 +255,7 @@ fn resumida(
             .push(cas.registro(leitor, resp.passo, motivo));
     }
     let mut j = cas.registro(Leitor::Resumida, resp.passo, Resultado::Lido);
-    let leitura = match crate::paginas::juntar(&[HtmlServido::de_teste(html)], None) {
+    let leitura = match leitura {
         Ok(leitura) => leitura,
         Err(erro) => {
             j.resultado = fora.map_or(Resultado::Recusado(format!("{erro:?}")), |motivo| {
