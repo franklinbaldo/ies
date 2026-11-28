@@ -139,6 +139,7 @@ em stderr; opção obrigatória ausente é erro do clap (2).
 ## Contratos iniciais de leitura
 
 - [processo.obter](cli/processo-obter.md): leitura do processo e projeções.
+- [processo.alterar](cli/processo-alterar.md): prévia experimental da especificação; confirmação indisponível.
 - [processo.buscar](cli/processo-buscar.md): pesquisa Web por protocolo com a
   sessão de `ies login` (processo único, lista com total e faixa ou "sem
   resultado").

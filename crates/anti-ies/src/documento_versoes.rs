@@ -3,6 +3,7 @@ use crate::{Estado, Resposta, despachar};
 use iesei::acesso_versao::{self, AcessoVersao};
 use iesei::cancelamento_documento::Situacao;
 use iesei::documento_versoes::{DocumentoSimulado, Revisao, ler};
+use iesei::editor_documento::{Secao, ler_secoes};
 use iesei::instalacao::Instalacao;
 use rusqlite::Connection;
 use std::fmt::Write;
@@ -63,12 +64,24 @@ fn historico(documento: &DocumentoSimulado) -> String {
     corpo
 }
 
-fn visualizar(documento: &DocumentoSimulado, revisao: &Revisao) -> String {
+fn visualizar(documento: &DocumentoSimulado, revisao: &Revisao, secoes: &[Secao]) -> String {
+    // A foto clássica concatena as seções na ordem do editor, sem
+    // invólucros adicionais. O estado legado conserva seu HTML anterior.
+    let (corpo, unselectable) = if secoes.is_empty() {
+        (
+            format!("<main id='corpoEditavel'>{}</main>", revisao.html_corpo),
+            "'on'",
+        )
+    } else {
+        (
+            secoes.iter().map(|s| s.html.as_str()).collect::<String>(),
+            "\"on\"",
+        )
+    };
     format!(
-        "<html><head><title>SEI/anti-IES - {} - {}</title></head>         <body><main id='corpoEditavel'>{}</main><div unselectable='on'>Criado por <a>{}</a>, versão {} por <a>{}</a> em {}.</div></body></html>",
+        "<html><head><title>SEI/anti-IES - {} - {}</title></head>         <body>{corpo}<div unselectable={unselectable}>Criado por <a>{}</a>, versão {} por <a>{}</a> em {}.</div></body></html>",
         escapar(&documento.numero),
         escapar(&documento.tipo),
-        revisao.html_corpo,
         escapar(&revisao.usuario),
         revisao.versao,
         escapar(&revisao.usuario),
@@ -169,7 +182,10 @@ pub fn responder(
         Ok(AcessoVersao::Acessivel) => {}
         Err(_) => return Resposta::nova(Estado::DadosInsuficientes),
     }
-    resposta_html(visualizar(&documento, revisao))
+    let Ok(secoes) = ler_secoes(banco, instalacao, cenario, id, revisao.versao) else {
+        return Resposta::nova(Estado::DadosInsuficientes);
+    };
+    resposta_html(visualizar(&documento, revisao, &secoes))
 }
 
 #[cfg(test)]

@@ -113,6 +113,10 @@ fn buscar_exige_criterio_e_pagina_positiva() {
     assert!(!aceita(&["buscar", "--assunto", "x"]));
     assert!(!aceita(&["buscar", "--pagina", "2"]));
     assert!(aceita(&["buscar", "--tipo", "Administrativo"]));
+    assert!(aceita(&["buscar", "--descricao", "Ação"]));
+    assert!(aceita(&["buscar", "--observacao", "Ação"]));
+    assert!(!aceita(&["buscar", "--descricao", "  "]));
+    assert!(!aceita(&["buscar", "--observacao", "a\nb"]));
     assert!(aceita(&["buscar", "--de", "01/01/2026"]));
     assert!(aceita(&["buscar", "--ate", "31/01/2026"]));
     assert!(!aceita(&["buscar", "1", "2"]));
@@ -122,5 +126,8 @@ fn buscar_exige_criterio_e_pagina_positiva() {
 fn pesquisa_por_filtros_sem_protocolo_publica_termo_vazio() {
     let valor = json_da_busca("", &busca(RespostaDaPesquisa::SemResultado, 3));
     assert_eq!(valor["termo"], "");
+    assert!(
+        humano("", &busca(RespostaDaPesquisa::SemResultado, 3)).contains("pesquisa por filtros")
+    );
     assert_eq!(valor["resultado"], "sem_resultado");
 }
