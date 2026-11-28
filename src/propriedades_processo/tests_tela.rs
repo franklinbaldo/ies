@@ -277,7 +277,7 @@ fn interessado_sem_texto_e_recusa_e_sem_opcoes_e_lista_vazia() {
         "<option value=\"301\">Pessoa Sintetica A</option>\n<option value=\"302\">Entidade Sintetica B</option>\n",
         "",
     );
-    assert!(ler(&sem).unwrap().interessados.is_empty());
+    assert_eq!(ler(&sem).unwrap().interessados, [] as [Interessado; 0]);
 }
 
 #[test]

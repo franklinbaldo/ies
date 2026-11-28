@@ -290,7 +290,7 @@ fn pares_select(
 }
 
 /// Reusar o leitor local de Campos, opcoes e observacoes, e o serializer
-/// valor_da_lupa existente. A ordem final cabe a derivar_submissao.
+/// `valor_da_lupa` existente. A ordem final cabe a `derivar_submissao`.
 pub(super) fn pares_de_especificacao(
     html: &crate::tela_html::HtmlServido,
     pedida: &str,
