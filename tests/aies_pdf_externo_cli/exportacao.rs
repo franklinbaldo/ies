@@ -372,3 +372,73 @@ fn exportacao_seletiva_recusa_no_fechado_antes_do_gerador() {
         }
     }
 }
+
+pub(super) fn semear_interno(banco: &rusqlite::Connection, origem: &iesei::instalacao::Instalacao) {
+    use iesei::documentos_simulados::{Tipo, criar, registrar_tipo};
+
+    registrar_tipo(
+        banco,
+        origem,
+        super::CENARIO,
+        "10",
+        &Tipo {
+            id: "291".into(),
+            nome: "Despacho".into(),
+        },
+    )
+    .unwrap();
+    criar(banco, origem, super::CENARIO, "10", "291", "").unwrap();
+}
+
+// RED da cobertura anti-IES: estado SQLite real da bancada, sem modificar
+// a resposta HTTP. O documento interno existe, mas não foi selecionado.
+#[test]
+fn exportacao_seletiva_do_externo_em_arvore_mista() {
+    use std::io::{Cursor, Read};
+
+    for mista in [false, true] {
+        let (saidas, eventos, externos, arquivos) = executar_com_falha_previa(
+            None,
+            mista.then_some(FalhaPrevia::ArvoreComInterno),
+            false,
+            Leitura::ZipSelecao(&["050000001"]),
+            &[],
+        );
+        assert_eq!(externos, 1);
+        assert_eq!(saidas.len(), 3);
+        for saida in &saidas[..2] {
+            assert!(saida.status.success(), "HTTP={eventos:?}");
+        }
+        let arvore = json(&saidas[1]);
+        let docs = arvore["documentos"].as_array().unwrap();
+        assert_eq!(docs.len(), 1 + usize::from(mista));
+        assert!(docs.iter().any(|doc| doc["numero_sei"] == "050000001"));
+        assert!(
+            saidas[2].status.success(),
+            "mista={mista} stderr={} HTTP={eventos:?}",
+            String::from_utf8_lossy(&saidas[2].stderr)
+        );
+        for prefixo in [
+            "GET procedimento_gerar_zip ",
+            "POST procedimento_gerar_zip ",
+            "GET exibir_arquivo ",
+        ] {
+            let chamadas: Vec<_> = eventos
+                .iter()
+                .filter(|e| e.starts_with(prefixo))
+                .map(String::as_str)
+                .collect();
+            let esperado = format!("{prefixo}200");
+            assert_eq!(chamadas, [esperado.as_str()]);
+        }
+        let bytes = arquivos.into_iter().next().flatten().unwrap();
+        let mut zip = zip::ZipArchive::new(Cursor::new(bytes)).unwrap();
+        assert_eq!(zip.len(), 1);
+        let mut conteudo = Vec::new();
+        zip.by_name("050000001.pdf")
+            .unwrap()
+            .read_to_end(&mut conteudo)
+            .unwrap();
+        assert_eq!(conteudo, b"%PDF-1.4\n1 0 obj\n%%EOF\n");
+    }
+}
