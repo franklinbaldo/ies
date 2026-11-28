@@ -290,9 +290,8 @@ fn cadastro_post_unico_e_releitura_independente() {
         };
         assert_eq!(envio.urls.len(), gets_esperados);
         if confirmado {
-            let valor = resultado.unwrap();
-            assert_eq!(valor["bloco"]["numero"], "2196");
-            assert_eq!(valor["confirmado"], true);
+            let bloco = resultado.unwrap().bloco.unwrap();
+            assert_eq!(bloco.numero, "2196");
         } else {
             assert!(matches!(resultado, Err(FalhaLeitura::NaoConfirmado)));
         }

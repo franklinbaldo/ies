@@ -105,10 +105,10 @@ pub(crate) enum ProcessoAcao {
     },
     /// Pesquisa processo na Web (GET, GET e POST); com --pagina N, mais um POST
     Buscar {
-        /// NUP inteiro ou parte do número; opcional com tipo ou período
+        /// NUP inteiro ou parte do número; opcional com outro critério
         #[arg(
             value_parser = crate::processo::NumeroProcesso::novo,
-            required_unless_present_any = ["tipo", "de", "ate"]
+            required_unless_present_any = ["tipo", "de", "ate", "descricao", "observacao"]
         )]
         termo: Option<crate::processo::NumeroProcesso>,
         /// Pede a página N do resultado (um POST que altera a página lembrada)
@@ -121,6 +121,12 @@ pub(crate) enum ProcessoAcao {
         /// Tipo exato da lista publicada na tela
         #[arg(long, value_name = "TIPO")]
         tipo: Option<String>,
+        /// Descrição do processo (campo textual da pesquisa)
+        #[arg(long, value_name = "TEXTO", value_parser = crate::pesquisa_web::filtros::texto_da_cli)]
+        descricao: Option<String>,
+        /// Observação do processo (campo textual da pesquisa)
+        #[arg(long, value_name = "TEXTO", value_parser = crate::pesquisa_web::filtros::texto_da_cli)]
+        observacao: Option<String>,
         /// Assunto publicado pela tela (autocompletar exige ID observado)
         #[arg(long, value_name = "TEXTO")]
         assunto: Option<String>,
