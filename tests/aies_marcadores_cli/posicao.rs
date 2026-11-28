@@ -41,8 +41,16 @@ fn conferir_apendice(ids: &[&str], retirados: &[&str]) {
     assert_eq!(apos_retirada.itens, sobreviventes);
     assert_eq!(apos_retirada.total_declarado, sobreviventes.len());
 
-    marcadores::atribuir(&banco, &origem, CENARIO, "10", "TESTE", "501", "Nova revisão")
-        .unwrap();
+    marcadores::atribuir(
+        &banco,
+        &origem,
+        CENARIO,
+        "10",
+        "TESTE",
+        "501",
+        "Nova revisão",
+    )
+    .unwrap();
     let finalizado = marcadores::ler(&banco, &origem, CENARIO, "10", "TESTE")
         .unwrap()
         .unwrap();
