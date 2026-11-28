@@ -56,11 +56,20 @@ fn link_do_menu(
     if links.next().is_some() {
         return Err(FalhaLeitura::LinkAmbiguo);
     }
+    url_publicada(href, servida, instalacao, AcaoDoSei::MarcadorListar)
+}
+
+fn url_publicada(
+    href: &str,
+    servida: &str,
+    instalacao: &Instalacao,
+    acao: AcaoDoSei,
+) -> Result<String, FalhaLeitura> {
     let consulta = href
         .strip_prefix("controlador.php?")
         .ok_or(FalhaLeitura::LinkInvalido)?;
     let consulta = ConsultaDoControlador::ler(consulta)?;
-    if consulta.acao() != Ok(AcaoDoSei::MarcadorListar.como_na_url())
+    if consulta.acao() != Ok(acao.como_na_url())
         || consulta.valores("acao_ajax").next().is_some()
         || !consulta.sem_chaves_repetidas()
         || !consulta
@@ -157,6 +166,189 @@ pub(super) fn listar(unidade: Option<&str>, json_mode: bool, inativos: bool) -> 
     }
     Ok(())
 }
+
+#[derive(Debug, thiserror::Error)]
+#[error("{self:?}")]
+enum FalhaPrevia {
+    ConfirmacaoIndisponivel,
+    NomeInvalido,
+    DescricaoInvalida,
+    NomeJaObservado,
+    FormularioNaoReconhecido,
+    CorNaoOferecidaOuAmbigua,
+}
+
+fn link_novo(
+    html: &HtmlServido,
+    servida: &str,
+    instalacao: &Instalacao,
+) -> Result<String, FalhaLeitura> {
+    let dom = arvore(html);
+    let mut links = dom.com_id("btnNovo").map(|botao| {
+        if botao.nome() != "button" || botao.atributo("type") != Some("button") {
+            return Err(FalhaLeitura::LinkInvalido);
+        }
+        botao
+            .atributo("onclick")
+            .and_then(crate::sessao_login::tela::url_do_onclick)
+            .ok_or(FalhaLeitura::LinkInvalido)
+    });
+    let href = links.next().ok_or(FalhaLeitura::LinkAusente)??;
+    // A lista real repete o mesmo botão no topo e no rodapé.
+    for link in links {
+        if link? != href {
+            return Err(FalhaLeitura::LinkAmbiguo);
+        }
+    }
+    url_publicada(href, servida, instalacao, AcaoDoSei::MarcadorCadastrar)
+}
+
+fn cor_do_formulario(
+    html: &HtmlServido,
+    servida: &str,
+    instalacao: &Instalacao,
+    pedida: &str,
+) -> anyhow::Result<String> {
+    let dom = arvore(html);
+    let mut formularios = dom.com_id("frmMarcadorCadastro");
+    let form = formularios
+        .next()
+        .ok_or(FalhaPrevia::FormularioNaoReconhecido)?;
+    if formularios.next().is_some()
+        || form.nome() != "form"
+        || form.atributo("method") != Some("post")
+    {
+        return Err(FalhaPrevia::FormularioNaoReconhecido.into());
+    }
+    url_publicada(
+        form.atributo("action")
+            .ok_or(FalhaPrevia::FormularioNaoReconhecido)?,
+        servida,
+        instalacao,
+        AcaoDoSei::MarcadorCadastrar,
+    )?;
+    for (tag, campo) in [
+        ("input", "txtNome"),
+        ("textarea", "txaDescricao"),
+        ("input", "hdnStaIcone"),
+        ("button", "sbmCadastrarMarcador"),
+    ] {
+        if form
+            .elementos(tag)
+            .filter(|e| e.atributo("name") == Some(campo))
+            .count()
+            != 1
+        {
+            return Err(FalhaPrevia::FormularioNaoReconhecido.into());
+        }
+    }
+    let mut seletores = form
+        .elementos("select")
+        .filter(|e| e.atributo("name") == Some("selStaIcone"));
+    let seletor = seletores
+        .next()
+        .ok_or(FalhaPrevia::FormularioNaoReconhecido)?;
+    if seletores.next().is_some() {
+        return Err(FalhaPrevia::FormularioNaoReconhecido.into());
+    }
+    let mut cores = seletor
+        .elementos("option")
+        .filter(|e| e.texto().trim() == pedida);
+    let opcao = cores.next().ok_or(FalhaPrevia::CorNaoOferecidaOuAmbigua)?;
+    if cores.next().is_some() {
+        return Err(FalhaPrevia::CorNaoOferecidaOuAmbigua.into());
+    }
+    let codigo = opcao
+        .atributo("value")
+        .filter(|v| !v.is_empty() && v.bytes().all(|b| b.is_ascii_digit()))
+        .ok_or(FalhaPrevia::CorNaoOferecidaOuAmbigua)?;
+    Ok(codigo.to_owned())
+}
+
+#[derive(Serialize)]
+struct ResultadoCriacao<'a> {
+    unidade: &'a str,
+    nome: &'a str,
+    cor: &'a str,
+    codigo_cor: String,
+    descricao: &'a str,
+    previa: bool,
+    criado: bool,
+    requisicoes: u8,
+}
+
+/// Prévia não abre sessão nova, não alterna filtro e não submete formulário.
+pub(super) fn criar(
+    unidade: Option<&str>,
+    json_mode: bool,
+    nome: &str,
+    cor: &str,
+    descricao: &str,
+    confirmar: bool,
+) -> anyhow::Result<()> {
+    if confirmar {
+        return Err(FalhaPrevia::ConfirmacaoIndisponivel.into());
+    }
+    let nome = nome.trim();
+    if nome.is_empty() || nome.encode_utf16().count() > 50 {
+        return Err(FalhaPrevia::NomeInvalido.into());
+    }
+    if descricao.encode_utf16().count() > 250 {
+        return Err(FalhaPrevia::DescricaoInvalida.into());
+    }
+    let arquivos = configuracao::arquivos_de_acesso()?;
+    let sessao =
+        ReferenciasDaSessao::ler(&arquivos.url_controle, &arquivos.origem, &arquivos.cookie)?;
+    let controle = transporte::envio_post::ler_tela_do_controle(&sessao)?;
+    let atual = controle_reconhecido::unidade_do_controle(&controle.html)?;
+    if unidade.is_some_and(|esperada| esperada != atual) {
+        return Err(FalhaLeitura::UnidadeInesperada.into());
+    }
+    let url = link_do_menu(&controle.html, &controle.url, &controle.instalacao)?;
+    let resposta = transporte::get_https(&url, sessao.cookie().valor()?)?;
+    let lista = transporte::decodificar_resposta(resposta)?;
+    conferir_unidade_da_lista(&lista, &atual)?;
+    let observada = marcadores_unidade::ler(&lista)?;
+    if observada
+        .itens
+        .iter()
+        .any(|m| m.estado == Estado::Ativo && m.nome.to_lowercase() == nome.to_lowercase())
+    {
+        return Err(FalhaPrevia::NomeJaObservado.into());
+    }
+    let novo = link_novo(&lista, &url, &controle.instalacao)?;
+    let resposta = transporte::get_https(&novo, sessao.cookie().valor()?)?;
+    let formulario = transporte::decodificar_resposta(resposta)?;
+    if crate::controle_contexto::unidade_html(&arvore(&formulario))?.as_deref()
+        != Some(atual.as_str())
+    {
+        return Err(FalhaLeitura::UnidadeInesperada.into());
+    }
+    let codigo = cor_do_formulario(&formulario, &novo, &controle.instalacao, cor)?;
+    if json_mode {
+        println!(
+            "{}",
+            serde_json::to_string(&ResultadoCriacao {
+                unidade: &atual,
+                nome,
+                cor,
+                codigo_cor: codigo,
+                descricao,
+                previa: true,
+                criado: false,
+                requisicoes: 3,
+            })?
+        );
+    } else {
+        println!("Prévia: criar marcador {nome} na unidade {atual}, cor {cor} (código {codigo}).");
+        println!("Descrição: {descricao}");
+        println!("Nenhum marcador criado; confirmação indisponível.");
+    }
+    Ok(())
+}
+
+#[cfg(test)]
+mod previa_replay;
 
 #[cfg(test)]
 mod tests {
