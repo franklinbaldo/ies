@@ -204,6 +204,9 @@ pub(crate) fn listar(
         println!(
             "Acervo da unidade {unidade} em {data}: {total} linhas, {distintos} NUPs distintos."
         );
+        if !processos.is_empty() {
+            println!("Processo | Tipo | Órgão | Unidade | Mês do processo | Ano do processo");
+        }
         for processo in processos {
             println!(
                 "{} | {} | {} | {} | {} | {}",
