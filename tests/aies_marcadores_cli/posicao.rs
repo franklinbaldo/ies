@@ -3,6 +3,7 @@ use super::{CENARIO, Marcador, Observacao, catalogo_marcadores, estado, marcador
 
 fn conferir_apendice(ids: &[&str], retirados: &[&str]) {
     let (mut banco, origem) = estado(true, true);
+    semear_vizinhos(&banco, origem.url_base());
     let itens: Vec<Marcador> = ids
         .iter()
         .map(|id| Marcador {
@@ -65,6 +66,27 @@ fn conferir_apendice(ids: &[&str], retirados: &[&str]) {
     });
     assert_eq!(finalizado.total_declarado, esperados.len());
     assert_eq!(finalizado.itens, esperados);
+    // O leitor ordena, mas não expõe a posição: conferir também o índice físico.
+    let posicao: i64 = banco
+        .query_row(
+            "SELECT posicao FROM processo_marcador_linha
+             WHERE origem=?1 AND cenario=?2 AND id_procedimento='10'
+               AND unidade='TESTE' AND id_marcador='501'",
+            rusqlite::params![origem.url_base(), CENARIO],
+            |r| r.get(0),
+        )
+        .unwrap();
+    assert_eq!(posicao, i64::try_from(ids.len()).unwrap());
+    let posicoes_vizinhas = banco
+        .prepare(
+            "SELECT posicao FROM processo_marcador_linha WHERE id_marcador='599' ORDER BY posicao",
+        )
+        .unwrap()
+        .query_map([], |r| r.get::<_, i64>(0))
+        .unwrap()
+        .collect::<rusqlite::Result<Vec<_>>>()
+        .unwrap();
+    assert_eq!(posicoes_vizinhas, vec![10, 11, 12, 13]);
     assert_eq!(
         catalogo_marcadores::ler(&banco, &origem, CENARIO, "TESTE").unwrap(),
         catalogo
@@ -79,4 +101,47 @@ fn retirada_intermediaria_nao_colide_com_a_posicao_do_sobrevivente() {
 #[test]
 fn atribuicao_apos_duas_retiradas_preserva_ordem_de_apendice() {
     conferir_apendice(&["502", "503", "504", "505"], &["503", "504"]);
+}
+
+// Uma testemunha para cada chave da coorte, com índice maior que o alvo.
+fn semear_vizinhos(banco: &rusqlite::Connection, origem: &str) {
+    for (outra_origem, cenario, id, unidade, posicao) in [
+        ("https://outra.test/sei", CENARIO, "10", "TESTE", 10),
+        (origem, "outro-cenario", "10", "TESTE", 11),
+        (origem, CENARIO, "11", "TESTE", 12),
+        (origem, CENARIO, "10", "OUTRA", 13),
+    ] {
+        if unidade != "OUTRA" {
+            banco
+                .execute(
+                    "INSERT INTO sim_processo
+                     (origem, cenario, id_procedimento, nup, unidade)
+                     VALUES (?1, ?2, ?3, '00001.000002/2026-01', ?4)",
+                    rusqlite::params![outra_origem, cenario, id, unidade],
+                )
+                .unwrap();
+        }
+        banco
+            .execute(
+                "INSERT INTO processo_marcadores_observados
+                 (origem, cenario, id_procedimento, unidade, total_declarado)
+                 VALUES (?1, ?2, ?3, ?4, 1)",
+                rusqlite::params![outra_origem, cenario, id, unidade],
+            )
+            .unwrap();
+        banco
+            .execute(
+                "INSERT INTO processo_marcador_linha
+                 (origem, cenario, id_procedimento, unidade, posicao,
+                  id_marcador, nome, cor, data_hora)
+                 VALUES (?1, ?2, ?3, ?4, ?5, '599', 'Vizinho', 'azul', '04/11/2026 09:00')",
+                rusqlite::params![outra_origem, cenario, id, unidade, posicao],
+            )
+            .unwrap();
+    }
+}
+
+#[test]
+fn atribuicao_em_observacao_vazia_comeca_em_zero() {
+    conferir_apendice(&[], &[]);
 }
