@@ -468,3 +468,6 @@ mod recusas;
 
 #[path = "aies_documento_criar_cli/copia_editavel.rs"]
 mod copia_editavel;
+
+#[path = "aies_documento_criar_cli/editor_multissecao.rs"]
+mod editor_multissecao;

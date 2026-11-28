@@ -32,6 +32,10 @@ impl Cenario {
 }
 
 pub(super) fn executar_fluxo(cenario: Cenario) -> (Output, Vec<String>) {
+    executar_fluxo_modo(cenario, true)
+}
+
+pub(super) fn executar_fluxo_modo(cenario: Cenario, json: bool) -> (Output, Vec<String>) {
     let interno = matches!(cenario, Cenario::Interno);
     let detalhe = matches!(cenario, Cenario::Detalhe);
     let previa = cenario.previa();
@@ -93,6 +97,9 @@ pub(super) fn executar_fluxo(cenario: Cenario) -> (Output, Vec<String>) {
     let tunel = iniciar_tunel(proxy, identidade, endereco, esperados);
 
     let mut argumentos = argumentos(interno, cenario.numero(), previa);
+    if !json {
+        argumentos.retain(|arg| *arg != "--json");
+    }
     if confirmar {
         argumentos.push("--confirmar");
     }

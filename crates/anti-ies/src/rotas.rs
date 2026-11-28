@@ -288,6 +288,9 @@ pub(crate) fn responder(
         Some("documento_download_anexo") if eh_controlador_sei(alvo) => {
             pdf_externo::baixar(metodo, alvo, banco, instalacao, cenario)
         }
+        None if parametro_unico(alvo, "acao_ajax") == Some("documento_verificar_assinatura") => {
+            editor_documento::consulta_assinatura(metodo, alvo, banco, instalacao, cenario)
+        }
         Some("documento_editar" | "editor_montar") if eh_controlador_sei(alvo) => {
             editor_documento::responder(metodo, alvo, corpo, banco, instalacao, cenario)
         }

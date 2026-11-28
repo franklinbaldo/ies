@@ -27,6 +27,7 @@ pub(super) fn responder(tcp: &mut TcpStream, descricao: &str, observacao: &str, 
     assert_eq!(valores("rdoPesquisarEm"), vec!["P"]);
     assert_eq!(valores("txtProtocoloPesquisa"), vec![""]);
     assert_eq!(valores("hdnInicio"), vec!["0"]);
+    assert!(matches!(valores("q").as_slice(), [] | [""]));
     for (campo, esperado) in [
         ("txtDescricaoPesquisa", descricao),
         ("txtObservacaoPesquisa", observacao),
@@ -49,12 +50,17 @@ pub(super) fn responder(tcp: &mut TcpStream, descricao: &str, observacao: &str, 
 #[test]
 fn cli_envia_criterios_textuais_independentes_sem_nup() {
     for (filtros, descricao, observacao, id) in [
-        (vec!["--descricao", "A + &"], "A+%2B+%26", "", "41"),
-        (vec!["--observacao", " outra "], "", "+outra+", "42"),
         (
-            vec!["--descricao", "A + &", "--observacao", " outra "],
-            "A+%2B+%26",
-            "+outra+",
+            vec!["--descricao", "Ação + &"],
+            "A%C3%A7%C3%A3o+%2B+%26",
+            "",
+            "41",
+        ),
+        (vec!["--observacao", " outra é "], "", "+outra+%C3%A9+", "42"),
+        (
+            vec!["--descricao", "Ação + &", "--observacao", " outra é "],
+            "A%C3%A7%C3%A3o+%2B+%26",
+            "+outra+%C3%A9+",
             "43",
         ),
     ] {
@@ -76,6 +82,7 @@ fn cli_envia_criterios_textuais_independentes_sem_nup() {
         assert_eq!(json["resultado"], "processo_unico");
         assert_eq!(json["termo"], "");
         assert_eq!(json["unidade"], "TESTE");
+        assert_eq!(json["requisicoes"], 3);
         assert_eq!(json["processo"], serde_json::json!({"id": id}));
     }
 }
@@ -95,7 +102,7 @@ fn cli_texto_desconhecido_nao_herda_zero_do_periodo() {
                 "--ate",
                 "31/01/2026",
                 filtro,
-                "A + &",
+                "Ação + &",
             ],
             EstadoDeBusca::PeriodoProcessual,
         );

@@ -1,4 +1,5 @@
 //! #876: hipótese sintética de prévia, não replay do POST original.
+use super::fluxo::executar_fluxo_modo;
 use super::{CENARIO, Cenario, Command, ORIGEM, executar_fluxo, json};
 use rusqlite::{Connection, params};
 
@@ -93,5 +94,35 @@ fn criar_bloco_confirmado_preserva_homonimo_e_persiste_novo_id() {
 fn criar_bloco_confirmar_recusa_lista_parcial_sem_post() {
     let (saida, pedidos) = executar_fluxo(Cenario::RecusarParcial);
     assert!(!saida.status.success());
+    assert!(pedidos.iter().all(|p| p.starts_with("GET ")));
+}
+
+#[test]
+fn criar_bloco_saida_humana_contem_numero_relido() {
+    let (saida, pedidos) = executar_fluxo_modo(Cenario::Confirmar, false);
+    assert!(saida.status.success());
+    assert_eq!(
+        std::str::from_utf8(&saida.stdout).unwrap(),
+        "IES: bloco de assinatura 2197 criado e conferido: Despachos de teste.\n"
+    );
+    assert_eq!(pedidos.iter().filter(|p| p.starts_with("POST ")).count(), 1);
+}
+
+#[test]
+fn criar_bloco_saida_humana_previa_nao_anuncia_numero() {
+    let (saida, pedidos) = executar_fluxo_modo(Cenario::Previa, false);
+    assert!(saida.status.success());
+    assert_eq!(
+        std::str::from_utf8(&saida.stdout).unwrap(),
+        "IES: prévia de novo bloco de assinatura: Despachos de teste. Nada gravado.\n"
+    );
+    assert!(pedidos.iter().all(|p| p.starts_with("GET ")));
+}
+
+#[test]
+fn criar_bloco_saida_humana_recusa_sem_anunciar_sucesso() {
+    let (saida, pedidos) = executar_fluxo_modo(Cenario::RecusarParcial, false);
+    assert!(!saida.status.success());
+    assert_eq!(saida.stdout, [] as [u8; 0]);
     assert!(pedidos.iter().all(|p| p.starts_with("GET ")));
 }
