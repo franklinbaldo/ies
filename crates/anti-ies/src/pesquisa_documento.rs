@@ -205,6 +205,7 @@ fn periodo_processual(
     if (tipo.is_empty() && de.is_empty() && ate.is_empty())
         || campo("txtProtocoloPesquisa").as_deref() != Some("")
         || campo("q").as_deref() != Some("")
+        || campo("txtContato").as_deref() != Some("")
         || campo("chkSinConsiderarDocumentos").as_deref() != Some("")
         || campo("selOrgaoPesquisa%5B%5D").as_deref() != Some("0")
         || [

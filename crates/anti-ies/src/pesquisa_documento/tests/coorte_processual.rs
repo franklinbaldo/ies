@@ -86,3 +86,49 @@ fn texto_processual_nao_herda_zero_do_periodo() {
         assert_eq!(resposta.estado, esperado, "{extra}");
     }
 }
+
+#[test]
+fn contato_incompleto_nao_herda_zero_do_periodo() {
+    use iesei::pesquisa_processo::{Criterios, registrar_sem_resultado};
+
+    let banco = Connection::open_in_memory().unwrap();
+    banco_cassettes::iniciar(&banco).unwrap();
+    let instalacao = Instalacao::interpretar("https://sei.test/sei").unwrap();
+    let unidade = UnidadeExibida::nova("TESTE").unwrap();
+    let criterios = Criterios {
+        tipo_id: "",
+        de: "01/01/2026",
+        ate: "",
+    };
+    registrar_sem_resultado(&banco, &instalacao, "c", &unidade, criterios).unwrap();
+    let base = "txtDataInicio=01%2F01%2F2026&hdnInicio=0&selOrgaoPesquisa%5B%5D=0";
+    for (extra, esperado) in [
+        ("", Estado::Ok),
+        (
+            "&txtContato=&hdnIdContato=&chkSinInteressado=S&chkSinRemetente=S&chkSinDestinatario=S",
+            Estado::Ok,
+        ),
+        (
+            "&txtContato=Pessoa&hdnIdContato=&chkSinInteressado=S",
+            Estado::RequisicaoInvalida,
+        ),
+        ("&txtContato=Pessoa", Estado::RequisicaoInvalida),
+        ("&txtContato=&txtContato=", Estado::RequisicaoInvalida),
+        ("&txtContato", Estado::RequisicaoInvalida),
+        ("&hdnIdContato=007", Estado::RequisicaoInvalida),
+    ] {
+        let resposta = periodo_processual(
+            &format!("{base}{extra}"),
+            &banco,
+            &instalacao,
+            "c",
+            &unidade,
+        );
+        assert_eq!(resposta.estado, esperado, "{extra}");
+        assert_eq!(
+            resposta.corpo.contains("pesquisaSemResultado"),
+            esperado == Estado::Ok,
+            "{extra}"
+        );
+    }
+}
