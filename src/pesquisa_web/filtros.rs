@@ -7,6 +7,8 @@ use crate::unidade_retornos::DataCivil;
 pub(crate) struct FiltrosDaPesquisa<'a> {
     pub(crate) texto: Option<&'a str>,
     pub(crate) tipo: Option<&'a str>,
+    pub(crate) descricao: Option<&'a str>,
+    pub(crate) observacao: Option<&'a str>,
     pub(crate) assunto: Option<&'a str>,
     pub(crate) de: Option<DataCivil>,
     pub(crate) ate: Option<DataCivil>,
@@ -16,6 +18,8 @@ impl FiltrosDaPesquisa<'_> {
     /// Só critérios já implementados; paginação e assunto sem ID não filtram.
     pub(crate) fn tem_criterio_efetivo(&self) -> bool {
         self.tipo.is_some_and(|tipo| !tipo.trim().is_empty())
+            || self.descricao.is_some()
+            || self.observacao.is_some()
             || self.de.is_some()
             || self.ate.is_some()
     }
@@ -49,6 +53,17 @@ pub(crate) enum ErroFiltro {
     CriterioNaoOferecidoPelaTela,
     TipoNaoOferecidoPelaTela,
     ControleDeFiltroAmbiguo,
+    TextoDeFiltroInvalido,
+    MaxlengthDeFiltroInvalido,
+    TextoDeFiltroAcimaDoMaxlength { maxlength: u32 },
+}
+
+/// Texto de uma linha, sem alterar espaços ou caracteres significativos.
+pub(crate) fn texto_da_cli(texto: &str) -> Result<String, ErroFiltro> {
+    if texto.trim().is_empty() || texto.chars().any(char::is_control) {
+        return Err(ErroFiltro::TextoDeFiltroInvalido);
+    }
+    Ok(texto.to_owned())
 }
 
 fn unico<'a>(
@@ -96,6 +111,30 @@ fn valor_do_tipo(
     }
 }
 
+fn texto_do_controle(
+    tags: &[crate::tela_html::Elemento<'_>],
+    nome: &str,
+    texto: &str,
+) -> Result<String, ErroFiltro> {
+    let campo = unico(tags, "input", nome)?;
+    if campo.atributo("type") != Some("text")
+        || campo.presente("disabled")
+        || campo.presente("readonly")
+    {
+        return Err(ErroFiltro::CriterioNaoOferecidoPelaTela);
+    }
+    let maxlength: u32 = campo
+        .atributo("maxlength")
+        .filter(|v| !v.is_empty() && v.bytes().all(|b| b.is_ascii_digit()))
+        .and_then(|v| v.parse().ok())
+        .ok_or(ErroFiltro::MaxlengthDeFiltroInvalido)?;
+    let texto = texto_da_cli(texto)?;
+    if usize::try_from(maxlength).is_ok_and(|maximo| texto.encode_utf16().count() > maximo) {
+        return Err(ErroFiltro::TextoDeFiltroAcimaDoMaxlength { maxlength });
+    }
+    Ok(texto)
+}
+
 /// Pares próprios da operação, conservados até o POST do formulário observado.
 /// O assunto exige ID de autocompletar: texto isolado não filtra no SEI.
 pub(crate) fn derivar_campos(
@@ -115,6 +154,14 @@ pub(crate) fn derivar_campos(
             "selTipoProcedimentoPesquisa"
         };
         campos.push((nome, valor_do_tipo(&tags, nome, tipo)?));
+    }
+    for (texto, nome) in [
+        (filtros.descricao, "txtDescricaoPesquisa"),
+        (filtros.observacao, "txtObservacaoPesquisa"),
+    ] {
+        if let Some(texto) = texto {
+            campos.push((nome, texto_do_controle(&tags, nome, texto)?));
+        }
     }
     if filtros.assunto.is_some() {
         // txtAssunto + hdnIdAssunto são autocompletar; requerem resolução

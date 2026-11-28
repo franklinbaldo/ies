@@ -62,6 +62,8 @@ mod indice_local;
 mod instalacao;
 mod legenda;
 mod marcadores_processo;
+mod marcadores_unidade;
+mod marcadores_unidade_cli;
 mod mime_web;
 mod nivel_de_detalhe;
 mod origem_de_treinamento;
@@ -183,6 +185,8 @@ enum Domain {
     Bloco(Bloco),
     /// Consulta grupos de envio da unidade ativa
     GrupoEnvio(grupo_envio_cli::GrupoEnvio),
+    /// Consulta o catálogo de marcadores da unidade
+    Marcador(MarcadorArgs),
     /// Diagnóstico da conexão (ainda não implementado)
     Status(StatusArgs),
     /// Configura a conexão (ainda não implementado)
@@ -278,6 +282,22 @@ enum BlocoAcao {
         /// Executa a inclusão (sem isso, só prévia)
         #[arg(long)]
         confirmar: bool,
+    },
+}
+
+#[derive(Debug, Args)]
+struct MarcadorArgs {
+    #[command(subcommand)]
+    acao: Option<MarcadorAcao>,
+}
+
+#[derive(Debug, Subcommand)]
+enum MarcadorAcao {
+    /// Lista marcadores da página de catálogo observada
+    Listar {
+        /// Seleciona inativos, sem alternar o filtro persistente do SEI
+        #[arg(long)]
+        inativos: bool,
     },
 }
 
@@ -419,6 +439,7 @@ struct SetupArgs {
 /// verificações nem acessar serviços fora do comando explicitamente solicitado.
 fn tentar_operacao_documento_ou_processo(cli: &Cli) -> Option<anyhow::Result<()>> {
     processo_criar_cli::tentar_criar(cli)
+        .or_else(|| propriedades_processo::tentar_alterar(cli))
         .or_else(|| processo_comentarios_cli::tentar_ler(cli))
         .or_else(|| processo_comentar_cli::tentar_comentar(cli))
         .or_else(|| processo_anotar_cli::tentar_anotar(cli))
@@ -459,6 +480,17 @@ fn run(cli: &Cli) -> anyhow::Result<()> {
     match &cli.command {
         Domain::Bloco(bloco) => return bloco_cli::executar(cli, bloco),
         Domain::GrupoEnvio(grupo) => return grupo_envio_cli::executar(cli, grupo),
+        Domain::Marcador(args) => {
+            return match &args.acao {
+                Some(MarcadorAcao::Listar { inativos }) => {
+                    marcadores_unidade_cli::listar(cli.unidade.as_deref(), cli.json, *inativos)
+                }
+                None => {
+                    esquema_cli::show_noun_help("marcador");
+                    Ok(())
+                }
+            };
+        }
         Domain::Credenciais(args) => return credenciais_cli::executar(args, cli.json),
         Domain::Wizard(args) => return wizard_cli::executar(args, cli.json),
         Domain::Esquema => {
@@ -508,6 +540,7 @@ fn run(cli: &Cli) -> anyhow::Result<()> {
         | Domain::Indice(_)
         | Domain::Bloco(_)
         | Domain::GrupoEnvio(_)
+        | Domain::Marcador(_)
         | Domain::Status(_)
         | Domain::Setup(_)
         | Domain::Login(_)

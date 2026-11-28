@@ -119,6 +119,8 @@ fn formulario_de_pesquisa(
         <input type="hidden" id="hdnIdUsuarioGerador2" name="hdnIdUsuarioGerador2" value=""/>
         <input type="hidden" id="hdnIdUsuarioGerador3" name="hdnIdUsuarioGerador3" value=""/>
         <input type="text" id="q" name="q" value=""/>
+        <input type="text" name="txtDescricaoPesquisa" id="txtDescricaoPesquisa" maxlength="250" value=""/>
+        <input type="text" name="txtObservacaoPesquisa" id="txtObservacaoPesquisa" maxlength="250" value=""/>
         <select id="selTipoProcedimentoPesquisa" name="selTipoProcedimentoPesquisa">{opcoes}</select>
         <input type="text" name="txtDataInicio" id="txtDataInicio" value="{de}"/>
         <input type="text" name="txtDataFim" id="txtDataFim" value="{ate}"/>
@@ -180,6 +182,16 @@ fn periodo_processual(
 ) -> Resposta {
     use iesei::pesquisa_processo::{Coorte, Criterios, coorte, tipos};
     let campo = |nome: &str| campo_opcional(corpo, nome, "");
+    let (Some(descricao), Some(observacao)) = (
+        campo("txtDescricaoPesquisa"),
+        campo("txtObservacaoPesquisa"),
+    ) else {
+        return Resposta::nova(Estado::RequisicaoInvalida);
+    };
+    // Ainda não há coorte observada para esses critérios.
+    if !descricao.is_empty() || !observacao.is_empty() {
+        return Resposta::nova(Estado::DadosInsuficientes);
+    }
     let (Some(de), Some(ate), Some(tipo)) = (
         campo("txtDataInicio"),
         campo("txtDataFim"),
@@ -274,10 +286,16 @@ fn pesquisa_documental(
     {
         return Resposta::nova(Estado::RequisicaoInvalida);
     }
-    // O estado documental ainda não distingue filtros por data ou série.
-    if ["txtDataInicio", "txtDataFim", "selSeriePesquisa"]
-        .iter()
-        .any(|nome| campo_opcional(corpo, nome, "").as_deref() != Some(""))
+    // A chave documental não distingue data, série, descrição ou observação.
+    if [
+        "txtDataInicio",
+        "txtDataFim",
+        "selSeriePesquisa",
+        "txtDescricaoPesquisa",
+        "txtObservacaoPesquisa",
+    ]
+    .iter()
+    .any(|nome| campo_opcional(corpo, nome, "").as_deref() != Some(""))
     {
         return Resposta::nova(Estado::DadosInsuficientes);
     }
