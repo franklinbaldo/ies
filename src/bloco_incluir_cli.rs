@@ -12,7 +12,7 @@ use crate::indice_local::{self, IndiceLocal};
 use crate::processo::NumeroProcesso;
 use crate::processo_concluir::escrita::{Contador, leitura};
 use crate::processo_obter::SessaoDoProcesso;
-use crate::processo_obter::obter_processo;
+use crate::processo_obter::abrir_para_escrever;
 use crate::transporte::sessao::ReferenciasDaSessao;
 use crate::visao_do_controle::EnvioHttps;
 use crate::{Cli, configuracao};
@@ -111,6 +111,8 @@ enum ErroInclusaoProcessual {
     TipoInadequado,
     PertencimentoNaoComprovado,
     IdentidadeDoProcessoDivergente,
+    #[error("A barra do processo não oferece inclusão em bloco")]
+    AcaoNaoOferecidaNaBarra,
     #[error("A inclusão de um processo ausente ainda não está disponível")]
     InclusaoDeProcessoIndisponivel,
 }
@@ -141,7 +143,7 @@ fn incluir_processo(
     }
     let desfecho = desfecho_sem_escrita(&detalhe, &nup, confirmar)?;
     let indice = IndiceLocal::da_configuracao(&arquivos);
-    let aberto = obter_processo(
+    let (aberto, acoes) = abrir_para_escrever(
         &sessao,
         &leitura(&nup, cli.unidade.as_deref(), false),
         &indice,
@@ -149,6 +151,11 @@ fn incluir_processo(
     )?;
     if aberto.arvore.processo.nup != nup.as_str() {
         return Err(ErroInclusaoProcessual::IdentidadeDoProcessoDivergente.into());
+    }
+    if !desfecho.presente_antes()
+        && !crate::arvore_processo::ler_oferta_de_bloco(&acoes.html_da_arvore)?
+    {
+        return Err(ErroInclusaoProcessual::AcaoNaoOferecidaNaBarra.into());
     }
     if cli.json {
         let mut valor = json!({

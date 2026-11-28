@@ -41,6 +41,10 @@ pub(crate) fn acoes_do_processo(
         write!(links, r#"<a href="controlador.php?acao=procedimento_anexar&amp;id_procedimento={id}&amp;infra_hash={assinatura}">Anexar Processo</a>"#)
             .expect("formatação String");
     }
+    // Hipótese sintética: a ação de bloco é oferecida na unidade aberta.
+    if processo.aberto_em.iter().any(|u| u == unidade_atual) {
+        links.push_str(r##"<a href="#" onclick="incluirEmBloco();">Incluir em Bloco</a>"##);
+    }
     if processo.pode_incluir_documento(unidade_atual) {
         write!(
             links,

@@ -183,6 +183,33 @@ pub(crate) enum ErroBarraDoProcesso {
     BarrasDoProcessoRepetidasNaArvore,
 }
 
+/// A oferta de inclusão em bloco interno/reunião na barra do nó raiz.
+#[derive(Clone, Debug, PartialEq, Eq, thiserror::Error)]
+#[error("{self:?}")]
+pub(crate) enum ErroOfertaDeBloco {
+    Barra(#[from] ErroBarraDoProcesso),
+    OfertasRepetidas,
+}
+
+/// Não confunde a função declarada na página do nó com uma ação oferecida.
+pub(crate) fn ler_oferta_de_bloco(html: &str) -> Result<bool, ErroOfertaDeBloco> {
+    let acoes = ancoras_da_barra(html)?;
+    let quantidade = acoes
+        .iter()
+        .filter(|a| {
+            matches!(
+                a.onclick.as_deref(),
+                Some("incluirEmBloco()" | "incluirEmBloco();")
+            )
+        })
+        .count();
+    match quantidade {
+        0 => Ok(false),
+        1 => Ok(true),
+        _ => Err(ErroOfertaDeBloco::OfertasRepetidas),
+    }
+}
+
 /// Os `href` (entidades decodificadas) das tags `<a>` da barra do nó
 /// `PROCESSO`, na ordem servida; sem barra, nenhum.
 fn hrefs_da_barra(html: &str) -> Result<Vec<String>, ErroBarraDoProcesso> {
