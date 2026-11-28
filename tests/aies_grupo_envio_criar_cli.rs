@@ -38,7 +38,8 @@ impl Pasta {
             .duration_since(UNIX_EPOCH)
             .unwrap()
             .as_nanos();
-        let pasta = std::env::temp_dir().join(format!("aies-grupo-criar-{}-{nanos}", std::process::id()));
+        let pasta =
+            std::env::temp_dir().join(format!("aies-grupo-criar-{}-{nanos}", std::process::id()));
         fs::create_dir(&pasta).unwrap();
         Self(pasta)
     }
@@ -90,7 +91,6 @@ impl BancadaCli<'_> {
     }
 }
 
-
 type Registro = (String, String, String);
 type MembroPersistido = (String, String, String);
 
@@ -112,7 +112,9 @@ fn estado_sql(banco: &Connection) -> EstadoSql {
         .collect::<rusqlite::Result<Vec<_>>>()
         .unwrap();
     let proximo = banco
-        .query_row("SELECT proximo_id FROM sim_grupo_envio_catalogo", [], |r| r.get(0))
+        .query_row("SELECT proximo_id FROM sim_grupo_envio_catalogo", [], |r| {
+            r.get(0)
+        })
         .unwrap();
     (grupos, membros, proximo)
 }
@@ -139,7 +141,9 @@ fn executar(confirmar: bool, falhar_releitura: bool) -> (Output, Vec<String>, Es
         let (banco, instalacao) = preparar_banco(None);
         // Temporário até a composição ordenada de 0042–0045.
         banco
-            .execute_batch(include_str!("../crates/iesei/migrations/0045_grupos_envio.sql"))
+            .execute_batch(include_str!(
+                "../crates/iesei/migrations/0045_grupos_envio.sql"
+            ))
             .unwrap();
         let escopo = Escopo {
             instalacao: &instalacao,
@@ -243,7 +247,6 @@ fn json(saida: &Output) -> Value {
     })
 }
 
-
 fn post_mutador(pedidos: &[String]) -> usize {
     pedidos
         .iter()
@@ -255,7 +258,11 @@ fn conferir_persistencia(estado: EstadoSql) {
     assert_eq!(
         estado,
         (
-            vec![("1".to_owned(), "Grupo teste".to_owned(), "Descrição".to_owned())],
+            vec![(
+                "1".to_owned(),
+                "Grupo teste".to_owned(),
+                "Descrição".to_owned()
+            )],
             vec![
                 ("1".to_owned(), "001".to_owned(), "X - Unidade".to_owned()),
                 ("1".to_owned(), "1".to_owned(), "Y - Outra".to_owned()),
