@@ -6,7 +6,7 @@ description: "Recorte consultivo de #876 para deliberação, sem alteração do 
 
 # Proposta focal — #876, R299
 
-**Status: proposta, não capacidade integrada.** A [ordem R299](https://github.com/franklinbaldo/ies/issues/876#issuecomment-7229887298) separa a prévia do POST mutador, da #905 e das migrations. Não modifica a CLI contratada.
+**Status: prévia experimental autorizada na R301, não capacidade integrada.** A [ordem R299](https://github.com/franklinbaldo/ies/issues/876#issuecomment-7229887298) separa a prévia do POST mutador, da #905 e das migrations. Não modifica a CLI contratada.
 
 ## Interface proposta
 
@@ -41,7 +41,7 @@ A ação de autocomplete é um POST nas duas instalações. O teste Todos `test_
 - `src/formulario_web/ajax.rs`: derivação de consulta já confere instalação, ação e hash; reutilizar sem aceitar URLs inventadas. Os campos exatos e a representação da resposta da nova ação ainda precisam ser confrontados com os originais, não copiados do fluxo de envio de processo.
 - `selUnidades` ausente não equivale a lista vazia. A fixture do Todos distingue select vazio, ausente e duplicado. O no-op usa identidade da unidade, não igualdade de rótulo. Prévia não deve serializar `hdnUnidades` nem enviar formulário de cadastro.
 
-Próximo replay: parear cada GET alterar com o número publicado e a identidade oculta do formulário; conferir os dois POSTs de autocomplete por instalação (método, campos e formato do retorno), comparar a seleção por ID com as opções existentes e incluir uma negativa sem POST mutador. Não imprimir URLs assinadas, corpos privados ou tokens. A execução Rust/E2E e o replay original seguem NOT_RUN; a aprovação da sintaxe segue pendente.
+Próximo replay: parear cada GET alterar com o número publicado e a identidade oculta do formulário; conferir os dois POSTs de autocomplete por instalação (método, campos e formato do retorno), comparar a seleção por ID com as opções existentes e incluir uma negativa sem POST mutador. Não imprimir URLs assinadas, corpos privados ou tokens. A execução Rust/E2E e o replay original seguem NOT_RUN. A sintaxe e o recorte foram aprovados na [R301](https://github.com/franklinbaldo/cafezinho/issues/21#issuecomment-7231450578).
 
 ## Aceite da implementação futura
 
@@ -49,6 +49,10 @@ Próximo replay: parear cada GET alterar com o número publicado e a identidade 
 2. Ler destinos atuais e resolver uma unidade pelo autocomplete publicado na tela, usando o método observado; ausência ou ambiguidade deve falhar sem escolher a primeira sugestão.
 3. Prévia deve aceitar caso positivo e no-op; recusar ação ausente, formulário de outro bloco, zero correspondências e correspondências ambíguas. Provar zero POST **mutador** em todos os casos, inclusive tentativa de confirmação. POST consultivo não comprova escrita nem deve ser proibido por contagem genérica.
 4. E2E CLI real em loopback: confrontar resultado com respostas originais, usar estado inicial independente quando aplicável, mostrar que destinos anteriores não mudaram, sem alteração SQLite/migration. Não confundir inspeção de metadados com replay.
-5. Depois de revisão do contrato, implementação mínima em branch própria e CI/replays no SHA final. Escrita futura exige outra fatia, releitura independente e revisão excepcional.
+5. Após a decisão R301, implementação mínima em branch própria e CI/replays no SHA final. Escrita futura exige outra fatia, releitura independente e revisão excepcional.
 
 Nesta proposta não há código produtivo nem execução do binário. O pedido temporário de inspeção é descartável após a coleta; não faz parte da capacidade.
+
+## Primeira fatia R301
+
+Testes de contrato da ajuda/recusa da CLI e sonda dos corpos originais foram escritos antes da implementação. A sonda não imprime IDs, valores de campos ou URLs; verifica identidade oculta, select e corpo/MIME dos POSTs consultivos. É diagnóstico de fonte, não replay de leitor produtivo nem E2E. RED esperado na ajuda; nenhum resultado de execução ainda.

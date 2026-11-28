@@ -416,3 +416,5 @@ fn grupo_padrao_do_cadastro_distingue_valor_vazio_e_ausencia() {
         assert_eq!(grupo_padrao_do_cadastro(form).as_deref(), esperado);
     }
 }
+
+mod destinos;
