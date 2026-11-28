@@ -1,9 +1,9 @@
 //! Regressão do estado SQLite do anti-IES (#589), com dados sintéticos.
 use super::{CENARIO, Marcador, Observacao, catalogo_marcadores, estado, marcadores};
 
-fn conferir_apendice(ids: &[&str], retirados: &[&str]) {
+fn conferir_apendice(ids: &[&str], retirados: &[&str], posicao_esperada: i64) {
     let (mut banco, origem) = estado(true, true);
-    semear_vizinhos(&banco, origem.url_base());
+    semear_vizinhos(&banco, &origem.url_base());
     let itens: Vec<Marcador> = ids
         .iter()
         .map(|id| Marcador {
@@ -76,7 +76,7 @@ fn conferir_apendice(ids: &[&str], retirados: &[&str]) {
             |r| r.get(0),
         )
         .unwrap();
-    assert_eq!(posicao, i64::try_from(ids.len()).unwrap());
+    assert_eq!(posicao, posicao_esperada);
     let posicoes_vizinhas = banco
         .prepare(
             "SELECT posicao FROM processo_marcador_linha WHERE id_marcador='599' ORDER BY posicao",
@@ -95,12 +95,12 @@ fn conferir_apendice(ids: &[&str], retirados: &[&str]) {
 
 #[test]
 fn retirada_intermediaria_nao_colide_com_a_posicao_do_sobrevivente() {
-    conferir_apendice(&["502", "503", "504"], &["503"]);
+    conferir_apendice(&["502", "503", "504"], &["503"], 3);
 }
 
 #[test]
 fn atribuicao_apos_duas_retiradas_preserva_ordem_de_apendice() {
-    conferir_apendice(&["502", "503", "504", "505"], &["503", "504"]);
+    conferir_apendice(&["502", "503", "504", "505"], &["503", "504"], 4);
 }
 
 // Uma testemunha para cada chave da coorte, com índice maior que o alvo.
@@ -143,5 +143,10 @@ fn semear_vizinhos(banco: &rusqlite::Connection, origem: &str) {
 
 #[test]
 fn atribuicao_em_observacao_vazia_comeca_em_zero() {
-    conferir_apendice(&[], &[]);
+    conferir_apendice(&[], &[], 0);
+}
+
+#[test]
+fn retirada_do_sufixo_reutiliza_a_posicao_livre() {
+    conferir_apendice(&["502", "503", "504"], &["504"], 2);
 }
