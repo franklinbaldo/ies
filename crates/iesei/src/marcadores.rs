@@ -263,8 +263,13 @@ pub fn atribuir(
         )
         .optional()?;
     let (nome, cor) = opcao.ok_or(ErroMarcadores::DadoInvalido)?;
-    let posicao =
-        i64::try_from(observacao.itens.len()).map_err(|_| ErroMarcadores::DadoInvalido)?;
+    let posicao: i64 = tx.query_row(
+        "SELECT COALESCE(MAX(posicao), -1) + 1
+         FROM processo_marcador_linha
+         WHERE origem=?1 AND cenario=?2 AND id_procedimento=?3 AND unidade=?4",
+        params![origem.url_base(), cenario, id, unidade],
+        |r| r.get(0),
+    )?;
     let atual =
         i64::try_from(observacao.total_declarado).map_err(|_| ErroMarcadores::DadoInvalido)?;
     tx.execute(
