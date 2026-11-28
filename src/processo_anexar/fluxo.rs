@@ -69,6 +69,7 @@ pub(crate) enum FalhaAnexar {
     ConsultaDeAssinaturasRedirecionada,
     Complementos(#[from] ErroComplementosDaAnexacao),
     NupDoAnexadoDiferenteDoSolicitado,
+    FormularioDeOutroProcesso,
     Recusada(#[from] ErroAnexacaoRecusada),
     ConsultaDerivacao(ErroSubmissaoFormulario),
     ConsultaTransporte(FalhaTransporte),

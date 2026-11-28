@@ -15,7 +15,7 @@ implementation: partial
 
 **Prévia e confirmação com prova sintética.** A CLI lê a árvore do principal e o link assinado `procedimento_anexar`, faz GET de `frmProcedimentoAnexar` e as consultas AJAX `protocolo_RI1023` e `procedimento_anexacao_verificar`. Sem `--confirmar`, não envia o POST de anexação. Com `--confirmar`, somente em origens de treinamento autorizadas, deriva os campos do formulário servido, efetua **um único POST** e exige aceite do redirecionamento, nova leitura da lista e árvore do principal que contenha o anexado. Quando o efeito não pode ser comprovado, informa **saída 1 e não repete a escrita**. Este caminho passou em laboratório com CLI Rust real ↔ anti-IES ↔ SQLite, mas ainda não demonstra fidelidade semântica às cassettes nem validação externa.
 
-O processo principal é conferido por NUP na abertura, e o anexado pelo NUP completo retornado pela consulta. O destino igual ao principal, duplicado na lista ou identificado ambiguamente é recusado. A lista pode vir ausente, como na tela de zero anexados observada. `N` na consulta de assinaturas significa que há documento não assinado; a prévia **avisa**, mas não executa.
+O processo principal é conferido por NUP na abertura e pelo ID único na action derivada antes do POST mutador, e o anexado pelo NUP completo retornado pela consulta. O destino igual ao principal, duplicado na lista ou identificado ambiguamente é recusado. A lista pode vir ausente, como na tela de zero anexados observada. `N` na consulta de assinaturas significa que há documento não assinado; a prévia **avisa**, mas não executa.
 
 ## Orçamento de requests
 
@@ -34,6 +34,7 @@ A abertura do principal reutiliza o índice/fluxo normal e pode precisar de vár
 | `ErroAnexarNaBarra::EnderecoDeOutroProcesso` | Link assinado aponta para outro processo. |
 | `ErroAnexarNaBarra::EnderecoDeAnexarNaoReconhecido` | Link assinado da ação inválido. |
 | `ErroAnexarNaBarra::LinksDeAnexarRepetidosNaBarra` | Mais de um link de anexar na barra. |
+| `FalhaAnexar::FormularioDeOutroProcesso` | Action derivada sem o ID único do principal aberto; nenhum POST mutador é enviado. |
 | `FalhaAnexar::TelaRedirecionada` | GET da tela retornou redirecionamento não seguido. |
 | `FalhaAnexar::AnexacaoAoProprioProcesso` | Processo anexado e principal possuem a mesma identidade. |
 | `FalhaAnexar::Recusada(ErroAnexacaoRecusada::ProcessoJaAnexado)` | Identificador já consta na lista observada. |

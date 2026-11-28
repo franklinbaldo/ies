@@ -76,6 +76,13 @@ pub(super) fn confirmar<V: EnvioDoProcesso>(
         ],
     )
     .map_err(FalhaAnexar::ConsultaDerivacao)?;
+    // A barra identifica o principal; a action do formulário deve conservar
+    // essa identidade antes do POST, não apenas no 302 posterior.
+    if crate::consulta_do_controlador::id_decimal(submissao.url(), "id_procedimento")
+        != Ok(id_principal)
+    {
+        return Err(FalhaAnexar::FormularioDeOutroProcesso);
+    }
     let mut enviou = false;
     let resposta = enviar_submissao_via(submissao, sessao.cookie, |post, c| {
         enviou = true;
