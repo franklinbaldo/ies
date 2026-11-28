@@ -95,6 +95,8 @@ legado do Todos faz parte do contrato público por pressuposição.
   com a senha do login, prévia e verificação pela caneta da árvore;
   [contrato](cli/documento-assinar.md))
 - `ies documento salvar NUMERO [--versao N]` (prévia local, sem escrita remota)
+- `ies documento referencias --arquivo HTML [--proprio DOC] [--nup NUP]`
+  (inventário local de candidatos, [contrato experimental](cli/documento-referencias.md); #856)
 - `ies indice caminho` (caminho do SQLite local, sem abrir banco ou consultar SEI)
 - `ies unidade listar`/`pesquisar` (lista da lupa/SQLite; [contratos](cli/unidade-listar.md))
 - `ies status` (opção `--verificar-arquivos` confere metadados locais sem rede)
