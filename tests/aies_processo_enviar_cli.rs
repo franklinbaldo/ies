@@ -293,6 +293,8 @@ fn executar_com_troca_de_unidade(
             }
             let mut resposta = if bloquear {
                 b"HTTP/1.1 503 Service Unavailable\r\nContent-Type: text/plain\r\nContent-Length: 7\r\nConnection: close\r\n\r\nIndispo".to_vec()
+            } else if let Some(resposta) = grupo::resposta(ensaio, &metodo, &acao) {
+                resposta
             } else {
                 let mut backend = TcpStream::connect(destino).unwrap();
                 backend.write_all(&bytes).unwrap();
@@ -301,6 +303,7 @@ fn executar_com_troca_de_unidade(
                 backend.read_to_end(&mut resposta).unwrap();
                 resposta
             };
+            resposta = grupo::ajustar_controle(resposta, ensaio, &metodo, &acao);
             resposta = ensaio::ajustar_resposta(resposta, ensaio, &metodo, &acao);
             if metodo == "POST" && acao == "procedimento_enviar" {
                 enviado = true;
@@ -445,3 +448,6 @@ mod anotacao_preexistente;
 
 #[path = "aies_processo_enviar_cli/limpeza_parcial.rs"]
 mod limpeza_parcial;
+
+#[path = "aies_processo_enviar_cli/grupo.rs"]
+mod grupo;
