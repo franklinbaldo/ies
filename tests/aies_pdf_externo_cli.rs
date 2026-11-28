@@ -120,6 +120,7 @@ enum FalhaPrevia {
     LimiteMenor(usize),
     SemAnexos(usize),
     DocumentoFechado,
+    ArvoreComInterno,
 }
 
 #[derive(Clone, Copy)]
@@ -211,8 +212,12 @@ fn executar_bancada(
     let destino = escuta.local_addr().unwrap();
     let parar = Arc::new(AtomicBool::new(false));
     let sinal = Arc::clone(&parar);
+    let arvore_mista = matches!(falha_previa, Some(FalhaPrevia::ArvoreComInterno));
     let servidor = thread::spawn(move || {
         let (banco, instalacao) = preparar_banco();
+        if arvore_mista {
+            exportacao::semear_interno(&banco, &instalacao);
+        }
         while let Some(mut cliente) = aceitar(&escuta, &sinal) {
             atender_http(&mut cliente, Some((&banco, &instalacao, CENARIO))).unwrap();
         }
