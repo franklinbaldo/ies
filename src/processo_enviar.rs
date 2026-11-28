@@ -41,6 +41,7 @@ mod tests_tela;
 pub(crate) use anotacoes::{
     ErroLeituraDaAnotacao, REGISTRAR_ANOTACAO, salvar_oferecido, texto_anotacao,
 };
+pub(crate) use destino::{ler_resposta_da_consulta, termo_alargado};
 pub(crate) use erro::ErroEnviar;
 pub(crate) use fluxo::enviar_processo;
 
