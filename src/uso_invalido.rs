@@ -7,6 +7,10 @@ use clap::CommandFactory;
 pub(crate) enum UsoInvalido {
     /// `--de` posterior a `--ate`.
     PeriodoInvertido,
+    /// Pesquisa sem protocolo nem filtro efetivo.
+    PesquisaSemCriterio,
+    /// Pesquisa documental sem protocolo, texto ou filtro efetivo.
+    BuscaDeDocumentoSemCriterio,
     /// Opções de leitura de `ies processo`/`ies documento` junto com `buscar`.
     OpcoesDeLeituraComBuscar,
     /// O mesmo número SEI pedido mais de uma vez.

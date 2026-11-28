@@ -8,7 +8,7 @@ pub(crate) enum DocumentoAcao {
         #[arg(long, required = true, value_name = "NUP", value_parser = crate::processo::NumeroProcesso::novo)]
         processo: crate::processo::NumeroProcesso,
         #[arg(long, required = true, value_name = "ARQUIVO.pdf")]
-        arquivo: std::path::PathBuf,
+        arquivo: Vec<std::path::PathBuf>,
         #[arg(long, required = true, value_name = "TIPO", value_parser = crate::documento_externo_incluir_cli::tipo_externo)]
         tipo: String,
         /// Consulta a lista e o cadastro externo no SEI (sem upload nem escrita).
@@ -35,6 +35,17 @@ pub(crate) enum DocumentoAcao {
         descricao: Option<String>,
         #[arg(long, value_enum)]
         nivel: Option<crate::dominio::NivelDeAcesso>,
+        /// Resolve o nome exato de um texto padrão; por enquanto, apenas prévia.
+        #[arg(long, conflicts_with = "confirmar", value_name = "NOME")]
+        texto_padrao: Option<String>,
+        /// Confere a oferta de modelo manual; não resolve o documento-base.
+        #[arg(
+            long,
+            conflicts_with_all = ["confirmar", "texto_padrao"],
+            value_name = "NUMERO",
+            value_parser = crate::documento::NumeroDocumento::novo
+        )]
+        modelo: Option<crate::documento::NumeroDocumento>,
         /// Cria uma vez no SEI e prepara os arquivos HTML no diretório atual.
         #[arg(long)]
         confirmar: bool,
@@ -55,7 +66,10 @@ pub(crate) enum DocumentoAcao {
     Buscar {
         /// Número SEI exato ou parcial, como digitado no campo Protocolo
         #[arg(value_parser = crate::documento_buscar_cli::termo_de_documento)]
-        termo: String,
+        termo: Option<String>,
+        /// Texto livre no conteúdo, distinto do campo Protocolo
+        #[arg(long, value_name = "TEXTO", value_parser = crate::documento_buscar_cli::termo_de_documento)]
+        texto: Option<String>,
         /// Pede a página N do resultado (um POST que altera a página lembrada)
         #[arg(
             long,

@@ -17,6 +17,37 @@ pub struct Tipo {
 }
 
 #[derive(Clone, Debug, Eq, PartialEq)]
+pub struct TextoPadrao {
+    pub id: String,
+    pub nome: String,
+}
+
+/// Catálogo sintético da unidade. Homônimos preservam identidades distintas.
+/// Não seleciona por nome nem modifica documentos.
+///
+/// # Errors
+/// Propaga a causa SQLite.
+pub fn textos_padrao(
+    banco: &Connection,
+    origem: &Instalacao,
+    cenario: &str,
+    unidade: &str,
+) -> rusqlite::Result<Vec<TextoPadrao>> {
+    let mut consulta = banco.prepare(
+        "SELECT id_texto, nome FROM sim_texto_padrao
+         WHERE origem=?1 AND cenario=?2 AND unidade=?3 ORDER BY id_texto",
+    )?;
+    consulta
+        .query_map(params![origem.url_base(), cenario, unidade], |linha| {
+            Ok(TextoPadrao {
+                id: linha.get(0)?,
+                nome: linha.get(1)?,
+            })
+        })?
+        .collect()
+}
+
+#[derive(Clone, Debug, Eq, PartialEq)]
 pub struct Documento {
     pub id: i64,
     pub numero_sei: String,
@@ -366,7 +397,7 @@ mod tests {
             banco
                 .pragma_query_value(None, "user_version", |r| r.get::<_, i64>(0))
                 .unwrap(),
-            38
+            42
         );
         let origem = Instalacao::interpretar("https://simulado.invalid/sei").unwrap();
         let tipo = Tipo {

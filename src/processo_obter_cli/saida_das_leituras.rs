@@ -17,7 +17,16 @@ pub(super) fn json_das_propriedades(lidas: &PropriedadesLidas) -> Value {
     let mut objeto = serde_json::Map::new();
     objeto.insert("tipo".to_owned(), json!(lidas.tipo));
     objeto.insert("especificacao".to_owned(), json!(lidas.especificacao));
-    objeto.insert("interessados".to_owned(), json!(lidas.interessados));
+    objeto.insert(
+        "interessados".to_owned(),
+        json!(
+            lidas
+                .interessados
+                .iter()
+                .map(|i| &i.nome)
+                .collect::<Vec<_>>()
+        ),
+    );
     objeto.insert("assuntos".to_owned(), Value::Array(assuntos));
     objeto.insert("observacoes".to_owned(), json!(lidas.observacoes));
     objeto.insert(
@@ -124,7 +133,7 @@ pub(super) fn humano_das_propriedades(propriedades: &Propriedades, texto: &mut S
         let _ = write!(texto, "\n- assunto {} - {}", a.codigo, a.descricao);
     }
     for interessado in &lidas.interessados {
-        let _ = write!(texto, "\n- interessado {interessado}");
+        let _ = write!(texto, "\n- interessado {}", interessado.nome);
     }
     if !lidas.observacoes.is_empty() {
         let _ = write!(texto, "\nObservações: {}", lidas.observacoes);

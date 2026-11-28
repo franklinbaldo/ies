@@ -211,7 +211,8 @@ fn incluir_documento_recusa_links_repetidos_e_outro_processo() {
 
 #[test]
 fn oferta_de_bloco_so_na_barra_raiz_e_sem_ambiguidade() {
-    use super::{ErroOfertaDeBloco, ler_oferta_de_bloco};
+    use super::barra_do_processo::ErroOfertaDeBloco;
+    use super::ler_oferta_de_bloco;
     let acao = r##"<a href="#" onclick="incluirEmBloco();">Incluir em Bloco</a>"##;
     assert_eq!(ler_oferta_de_bloco(&com_barra(&base(), 0, acao)), Ok(true));
     assert_eq!(

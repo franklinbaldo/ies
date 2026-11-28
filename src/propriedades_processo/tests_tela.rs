@@ -33,15 +33,27 @@ fn le_os_campos_da_forma_observada() {
     assert_eq!(
         lidas,
         PropriedadesLidas {
+            id_tipo: "100000002".into(),
             tipo: "Tipo Sintetico: Teste".into(),
             especificacao: "Especificação sintética & teste".into(),
-            interessados: vec!["Pessoa Sintetica A".into(), "Entidade Sintetica B".into()],
+            interessados: vec![
+                Interessado {
+                    id: "301".into(),
+                    nome: "Pessoa Sintetica A".into()
+                },
+                Interessado {
+                    id: "302".into(),
+                    nome: "Entidade Sintetica B".into()
+                },
+            ],
             assuntos: vec![Assunto {
+                id: "2001".into(),
                 codigo: "000.01".into(),
                 descricao: "Assunto sintético um".into(),
             }],
             observacoes: "Observação sintética".into(),
             nivel_de_acesso: NivelDeAcesso::Publico,
+            id_hipotese_legal: None,
             hipotese_legal: None,
             data_de_geracao: "01/02/2026".into(),
             fonte: FonteDasPropriedades::Alterar,
@@ -71,6 +83,7 @@ fn fonte_consultar_e_publicada() {
 fn restrito_publica_a_hipotese_marcada() {
     let lidas = ler(&tela_restrita(NUP, ID)).unwrap();
     assert_eq!(lidas.nivel_de_acesso, NivelDeAcesso::Restrito);
+    assert_eq!(lidas.id_hipotese_legal.as_deref(), Some("7"));
     assert_eq!(
         lidas.hipotese_legal.as_deref(),
         Some("Hipotese Sintetica (Art. 1)")
@@ -88,7 +101,48 @@ fn hipotese_marcada_com_valor_null_e_nao_observada() {
             "<option value=\"null\">&nbsp;</option>\n<option value=\"7\"",
             "<option value=\"null\" selected=\"selected\">&nbsp;</option>\n<option value=\"7\"",
         );
-    assert_eq!(ler(&html).unwrap().hipotese_legal, None);
+    let lidas = ler(&html).unwrap();
+    assert_eq!(lidas.hipotese_legal, None);
+    assert_eq!(lidas.id_hipotese_legal, None);
+}
+
+#[test]
+fn tipo_homonimo_preserva_identidade_distinta() {
+    let original = ler(&padrao()).unwrap();
+    let html = padrao().replace("100000002", "100000004");
+    let homonimo = ler(&html).unwrap();
+    assert_eq!(original.tipo, homonimo.tipo);
+    assert_eq!(homonimo.id_tipo, "100000004");
+    assert_ne!(original.id_tipo, homonimo.id_tipo);
+}
+
+#[test]
+fn listas_homonimas_preservam_identidades_distintas() {
+    let original = ler(&padrao()).unwrap();
+    let assunto = ler(&trocar("value=\"2001\"", "value=\"2002\"")).unwrap();
+    let interessado = ler(&trocar("value=\"301\"", "value=\"303\"")).unwrap();
+    assert_eq!(original.assuntos[0].codigo, assunto.assuntos[0].codigo);
+    assert_eq!(
+        original.assuntos[0].descricao,
+        assunto.assuntos[0].descricao
+    );
+    assert_ne!(original.assuntos, assunto.assuntos);
+    assert_eq!(
+        original.interessados[0].nome,
+        interessado.interessados[0].nome
+    );
+    assert_ne!(original.interessados, interessado.interessados);
+}
+
+#[test]
+fn hipotese_homonima_preserva_identidade_distinta() {
+    let html = tela_restrita(NUP, ID);
+    let original = ler(&html).unwrap();
+    let mutante = html.replace("value=\"7\" selected", "value=\"8\" selected");
+    let homonima = ler(&mutante).unwrap();
+    assert_eq!(original.hipotese_legal, homonima.hipotese_legal);
+    assert_eq!(homonima.id_hipotese_legal.as_deref(), Some("8"));
+    assert_ne!(original.id_hipotese_legal, homonima.id_hipotese_legal);
 }
 
 #[test]
@@ -223,7 +277,7 @@ fn interessado_sem_texto_e_recusa_e_sem_opcoes_e_lista_vazia() {
         "<option value=\"301\">Pessoa Sintetica A</option>\n<option value=\"302\">Entidade Sintetica B</option>\n",
         "",
     );
-    assert_eq!(ler(&sem).unwrap().interessados, Vec::<String>::new());
+    assert_eq!(ler(&sem).unwrap().interessados, [] as [Interessado; 0]);
 }
 
 #[test]

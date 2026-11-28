@@ -3,7 +3,10 @@
 //! nó do processo, lido por [`crate::arvore_processo::ler_link_das_propriedades`],
 //! e o formulário `form#frmProcedimentoCadastro`, lido sem nunca ser
 //! enviado. Estrutura em docs/como-o-sei-funciona/propriedades-do-processo.md.
+mod alteracao;
 mod tela;
+
+pub(crate) use alteracao::tentar_alterar;
 
 use crate::acao_do_sei::AcaoDoSei;
 
@@ -60,20 +63,30 @@ pub(crate) use crate::dominio::NivelDeAcesso;
 /// Uma `option` de `selAssuntos`: `<código> - <descrição>`.
 #[derive(Clone, Debug, PartialEq, Eq)]
 pub(crate) struct Assunto {
+    pub(crate) id: String,
     pub(crate) codigo: String,
     pub(crate) descricao: String,
+}
+
+/// Uma `option` de `selInteressadosProcedimento`; o valor é opaco.
+#[derive(Clone, Debug, PartialEq, Eq)]
+pub(crate) struct Interessado {
+    pub(crate) id: String,
+    pub(crate) nome: String,
 }
 
 /// O que o formulário publicou. `hipotese_legal` é `None` quando nenhuma
 /// hipótese está marcada, o único campo cuja ausência é o domínio.
 #[derive(Clone, Debug, PartialEq, Eq)]
 pub(crate) struct PropriedadesLidas {
+    pub(crate) id_tipo: String,
     pub(crate) tipo: String,
     pub(crate) especificacao: String,
-    pub(crate) interessados: Vec<String>,
+    pub(crate) interessados: Vec<Interessado>,
     pub(crate) assuntos: Vec<Assunto>,
     pub(crate) observacoes: String,
     pub(crate) nivel_de_acesso: NivelDeAcesso,
+    pub(crate) id_hipotese_legal: Option<String>,
     pub(crate) hipotese_legal: Option<String>,
     pub(crate) data_de_geracao: String,
     pub(crate) fonte: FonteDasPropriedades,
@@ -106,6 +119,8 @@ pub(crate) enum ErroPropriedades {
     InteressadoForaDaFormaObservada,
     NivelDeAcessoForaDaFormaObservada,
     OpcoesMarcadasRepetidas,
+    CadastroIndividualNaoSuportado,
+    CadastroSigilosoNaoSuportado,
 }
 
 impl ErroPropriedades {

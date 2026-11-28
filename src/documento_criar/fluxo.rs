@@ -81,6 +81,8 @@ pub(crate) struct PedidoCriacao<'a> {
     pub(crate) tipo: &'a str,
     pub(crate) descricao: Option<&'a str>,
     pub(crate) nivel: Option<crate::dominio::NivelDeAcesso>,
+    pub(crate) texto_padrao: Option<&'a str>,
+    pub(crate) modelo: Option<&'a crate::documento::NumeroDocumento>,
 }
 
 /// O resultado não permite representar uma confirmação sem número SEI.
@@ -97,10 +99,12 @@ pub(crate) struct ResultadoCriacao {
     pub(crate) descricao: Option<String>,
     pub(crate) nivel: Option<crate::dominio::NivelDeAcesso>,
     pub(crate) requisicoes: u8,
+    pub(crate) texto_padrao: Option<super::texto_padrao::TextoPadrao>,
+    pub(crate) modelo: Option<String>,
     pub(crate) estado: EstadoCriacao,
 }
 
-#[derive(Debug, PartialEq, Eq, thiserror::Error)]
+#[derive(Debug, thiserror::Error)]
 #[error("{self:?}")]
 pub(crate) enum ErroDocumentoCriar {
     Abertura(#[from] ErroProcessoObter),
@@ -120,6 +124,11 @@ pub(crate) enum ErroDocumentoCriar {
     SubmissaoNaoComprovada,
     ArvoreIncompleta,
     Confirmacao(#[from] ErroConfirmacaoDaCriacao),
+    TextoPadrao(#[from] super::texto_padrao::ErroTextoPadrao),
+    ConfirmacaoDeTextoPadraoAindaNaoDisponivel,
+    ConfirmacaoDeModeloAindaNaoDisponivel,
+    TextosIniciaisIncompativeis,
+    Modelo(#[from] super::modelo::ErroModelo),
 }
 
 /// A falha da tela é traduzida para uma causa específica desta operação.
@@ -171,8 +180,21 @@ pub(crate) fn executar_criacao<V: EnvioDoProcesso>(
     // A operação já sabe que não pode criar sem nível explícito ou sem
     // hipótese legal resolvida. Não abrir sequer o processo: GET pode ter
     // efeito de recebimento e não serve a uma escrita que será recusada.
+    if pedido.modelo.is_some() && pedido.texto_padrao.is_some() {
+        return Err(ErroDocumentoCriar::TextosIniciaisIncompativeis);
+    }
     if confirmar {
+        if pedido.modelo.is_some() {
+            return Err(ErroDocumentoCriar::ConfirmacaoDeModeloAindaNaoDisponivel);
+        }
+        if pedido.texto_padrao.is_some() {
+            return Err(ErroDocumentoCriar::ConfirmacaoDeTextoPadraoAindaNaoDisponivel);
+        }
         validar_nivel_de_confirmacao(pedido.nivel)?;
+    }
+    if pedido.texto_padrao.is_some() || pedido.modelo.is_some() {
+        crate::origem_de_treinamento::exigir_origem(sessao.origem)
+            .map_err(|_| ErroDocumentoCriar::OrigemNaoAutorizada)?;
     }
     let instalacao =
         Instalacao::interpretar(sessao.origem).ok_or(ErroDocumentoCriar::OrigemNaoAutorizada)?;
@@ -269,6 +291,28 @@ pub(crate) fn executar_criacao<V: EnvioDoProcesso>(
     let (html_cadastro, mime_cadastro) =
         obter_tela(&mut rede, &cookie, &url_do_cadastro).map_err(erro_da_tela)?;
     conferir_cadastro(&html_cadastro, pedido.tipo, pedido.descricao, pedido.nivel)?;
+    let texto_padrao = if let Some(nome) = pedido.texto_padrao {
+        let codificacao = codificacao_da_tela(&mime_cadastro)
+            .ok_or(ErroDocumentoCriar::SubmissaoNaoComprovada)?;
+        let tela = TelaServida {
+            url: &url_do_cadastro,
+            html: &html_cadastro,
+            codificacao,
+        };
+        Some(super::texto_padrao::resolver(
+            &mut rede,
+            &instalacao,
+            &tela,
+            &cookie,
+            nome,
+        )?)
+    } else {
+        None
+    };
+    let modelo = pedido
+        .modelo
+        .map(|numero| super::modelo::conferir(&html_cadastro, numero))
+        .transpose()?;
     let previa = ResultadoCriacao {
         nup: pedido.nup.as_str().to_owned(),
         tipo: pedido.tipo.to_owned(),
@@ -276,6 +320,8 @@ pub(crate) fn executar_criacao<V: EnvioDoProcesso>(
         descricao: pedido.descricao.map(str::to_owned),
         nivel: pedido.nivel,
         requisicoes: rede.feitas(),
+        texto_padrao,
+        modelo,
         estado: EstadoCriacao::Previa,
     };
     if !confirmar {

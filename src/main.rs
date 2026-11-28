@@ -54,6 +54,7 @@ mod erro_web;
 mod esquema_cli;
 mod formulario_web;
 mod foto_documento;
+mod grupo_envio_cli;
 mod historico;
 mod historico_processo;
 mod indice_caminho_cli;
@@ -61,6 +62,8 @@ mod indice_local;
 mod instalacao;
 mod legenda;
 mod marcadores_processo;
+mod marcadores_unidade;
+mod marcadores_unidade_cli;
 mod mime_web;
 mod nivel_de_detalhe;
 mod origem_de_treinamento;
@@ -103,6 +106,7 @@ mod processo_criar_lista;
 mod processo_criar_menu;
 mod processo_enviar;
 mod processo_enviar_cli;
+mod processo_exportar;
 mod processo_marcar;
 mod processo_marcar_cli;
 mod processo_obter;
@@ -129,6 +133,7 @@ mod status_web;
 mod tela_html;
 mod tela_login;
 mod transporte;
+mod unidade_acervo;
 mod unidade_atual_cli;
 mod unidade_categoria;
 mod unidade_colunas_cli;
@@ -178,6 +183,10 @@ enum Domain {
     Indice(Indice),
     /// Leitura de blocos de assinatura, internos e de reunião
     Bloco(Bloco),
+    /// Consulta grupos de envio da unidade ativa
+    GrupoEnvio(grupo_envio_cli::GrupoEnvio),
+    /// Consulta o catálogo de marcadores da unidade
+    Marcador(MarcadorArgs),
     /// Diagnóstico da conexão (ainda não implementado)
     Status(StatusArgs),
     /// Configura a conexão (ainda não implementado)
@@ -243,6 +252,13 @@ struct Bloco {
 }
 #[derive(Debug, Subcommand)]
 enum BlocoAcao {
+    /// Cria bloco de assinatura; sem --confirmar, só prévia
+    Criar {
+        #[arg(long, value_parser = clap::builder::NonEmptyStringValueParser::new())]
+        descricao: String,
+        #[arg(long)]
+        confirmar: bool,
+    },
     /// Lista blocos da unidade na página atualmente observada
     Listar {
         /// Tipo de bloco oferecido pelo menu Web
@@ -266,6 +282,22 @@ enum BlocoAcao {
         /// Executa a inclusão (sem isso, só prévia)
         #[arg(long)]
         confirmar: bool,
+    },
+}
+
+#[derive(Debug, Args)]
+struct MarcadorArgs {
+    #[command(subcommand)]
+    acao: Option<MarcadorAcao>,
+}
+
+#[derive(Debug, Subcommand)]
+enum MarcadorAcao {
+    /// Lista marcadores da página de catálogo observada
+    Listar {
+        /// Seleciona inativos, sem alternar o filtro persistente do SEI
+        #[arg(long)]
+        inativos: bool,
     },
 }
 
@@ -341,6 +373,12 @@ enum UnidadeAcao {
     Recebidos(ListaDaUnidade),
     /// Lista Gerados da unidade: a página observada, com total e faixa
     Gerados(ListaDaUnidade),
+    /// Consulta o acervo histórico da unidade ao final da data informada
+    Acervo {
+        /// Data civil AAAA-MM-DD
+        #[arg(long, value_name = "AAAA-MM-DD", value_parser = cli_unidade_aux::data_do_acervo)]
+        em: unidade_retornos::DataCivil,
+    },
     /// Lista os retornos programados da unidade na tela Web do SEI
     Retornos {
         /// Mes AAAA-MM (ausente: mes marcado como hoje pelo SEI)
@@ -401,6 +439,7 @@ struct SetupArgs {
 /// verificações nem acessar serviços fora do comando explicitamente solicitado.
 fn tentar_operacao_documento_ou_processo(cli: &Cli) -> Option<anyhow::Result<()>> {
     processo_criar_cli::tentar_criar(cli)
+        .or_else(|| propriedades_processo::tentar_alterar(cli))
         .or_else(|| processo_comentarios_cli::tentar_ler(cli))
         .or_else(|| processo_comentar_cli::tentar_comentar(cli))
         .or_else(|| processo_anotar_cli::tentar_anotar(cli))
@@ -420,6 +459,7 @@ fn tentar_operacao_documento_ou_processo(cli: &Cli) -> Option<anyhow::Result<()>
         .or_else(|| ciencia_cli::tentar_ciente(cli))
         .or_else(|| ciencia_documento_cli::tentar_ciente_documento(cli))
         .or_else(|| processo_anexar_cli::tentar_anexar(cli))
+        .or_else(|| processo_exportar::tentar_exportar(cli))
         .or_else(|| processo_sobrestar_cli::tentar_operar(cli))
         .or_else(|| documento_assinar_cli::tentar_assinar(cli))
         .or_else(|| documento_cancelar_cli::tentar_cancelar(cli))
@@ -439,6 +479,18 @@ fn run(cli: &Cli) -> anyhow::Result<()> {
     }
     match &cli.command {
         Domain::Bloco(bloco) => return bloco_cli::executar(cli, bloco),
+        Domain::GrupoEnvio(grupo) => return grupo_envio_cli::executar(cli, grupo),
+        Domain::Marcador(args) => {
+            return match &args.acao {
+                Some(MarcadorAcao::Listar { inativos }) => {
+                    marcadores_unidade_cli::listar(cli.unidade.as_deref(), cli.json, *inativos)
+                }
+                None => {
+                    esquema_cli::show_noun_help("marcador");
+                    Ok(())
+                }
+            };
+        }
         Domain::Credenciais(args) => return credenciais_cli::executar(args, cli.json),
         Domain::Wizard(args) => return wizard_cli::executar(args, cli.json),
         Domain::Esquema => {
@@ -487,6 +539,8 @@ fn run(cli: &Cli) -> anyhow::Result<()> {
         | Domain::Unidade(_)
         | Domain::Indice(_)
         | Domain::Bloco(_)
+        | Domain::GrupoEnvio(_)
+        | Domain::Marcador(_)
         | Domain::Status(_)
         | Domain::Setup(_)
         | Domain::Login(_)

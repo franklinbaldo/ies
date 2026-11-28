@@ -1,13 +1,16 @@
 //! Controle resumido R: HTML tipado e sem recuperação de conteúdo externo.
 use crate::escapar;
 use iesei::banco_cassettes::{ControleResumido, Linha};
+use iesei::instalacao::Instalacao;
 use iesei::observacao::TabelaObservada;
+use rusqlite::Connection;
 use std::fmt::Write as _;
 
 fn tabela_html(
     id: &str,
     tabela: &TabelaObservada<Linha>,
     observadas: &[Linha],
+    criada: &impl Fn(&Linha) -> Option<bool>,
     destino: &mut String,
 ) -> Option<()> {
     if !tabela.pagina_verificavel() {
@@ -29,11 +32,12 @@ fn tabela_html(
         };
         let id_linha = escapar(&linha.id);
         write!(destino, "<tr id='P{id_linha}'><td><a class='{classe}'").ok()?;
-        // O Controle originalmente observado permite projetar o link;
-        // uma linha criada apenas pelo SQLite ainda não o comprova.
+        // Só uma linha observada ou uma identidade efetivamente criada
+        // no SQLite autoriza o href sintético.
         if observadas
             .iter()
             .any(|observada| observada.id == linha.id && observada.numero == linha.numero)
+            || criada(linha)?
         {
             write!(
                 destino,
@@ -51,7 +55,15 @@ fn tabela_html(
 pub(crate) fn controle_html(
     controle: &ControleResumido,
     original: &ControleResumido,
+    banco: &Connection,
+    instalacao: &Instalacao,
+    cenario: &str,
 ) -> Option<String> {
+    let criada = |linha: &Linha| {
+        iesei::criacao_processo::ler_criado(banco, instalacao, cenario, &linha.id)
+            .ok()
+            .map(|registro| registro.is_some_and(|r| r.nup == linha.numero))
+    };
     // A pesquisa e o unico POST da leitura de documento, sem criar objeto.
     // Assinaturas aqui sao placeholders locais, nunca tokens de SEI.
     let formulario = format!(
@@ -71,12 +83,14 @@ pub(crate) fn controle_html(
         "tblProcessosRecebidos",
         &controle.recebidos,
         &original.recebidos.linhas,
+        &criada,
         &mut html,
     )?;
     tabela_html(
         "tblProcessosGerados",
         &controle.gerados,
         &original.gerados.linhas,
+        &criada,
         &mut html,
     )?;
     html.push_str("</body></html>");

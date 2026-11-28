@@ -85,7 +85,9 @@ pub(crate) fn responder(
     cenario: &str,
 ) -> Resposta {
     // A recusa de sessão sintética vale inclusive antes de um upload.
-    if eh_controlador_sei(alvo) {
+    if eh_controlador_sei(alvo)
+        || parametro_unico(alvo, "acao_ajax") == Some("texto_padrao_auto_completar")
+    {
         match acesso_sessao::consultar(banco, instalacao, cenario) {
             Ok(AcessoSessao::Recusado) => return Resposta::nova(crate::Estado::AcessoNegado),
             Ok(AcessoSessao::Permitido) => {}
@@ -115,6 +117,9 @@ pub(crate) fn responder(
         {
             processo_envio::autocompletar(metodo, alvo, corpo, banco, instalacao, cenario)
         }
+        None if parametro_unico(alvo, "acao_ajax") == Some("texto_padrao_auto_completar") => {
+            documentos::autocompletar(metodo, alvo, corpo, banco, instalacao, cenario)
+        }
         Some("procedimento_configurar_detalhe") if eh_controlador_sei(alvo) => {
             nivel_de_detalhe::responder(metodo, corpo, banco, instalacao, cenario)
         }
@@ -122,7 +127,10 @@ pub(crate) fn responder(
             processo_criacao::controle_com_menu(metodo, alvo, banco, instalacao, cenario)
         }
         Some("procedimento_escolher_tipo" | "procedimento_gerar") if eh_controlador_sei(alvo) => {
-            processo_criacao::responder(metodo, alvo, banco, instalacao, cenario)
+            processo_criacao::responder(metodo, alvo, corpo, banco, instalacao, cenario)
+        }
+        Some("procedimento_alterar" | "procedimento_consultar") if eh_controlador_sei(alvo) => {
+            processo_criacao::propriedades(metodo, alvo, banco, instalacao, cenario)
         }
         Some("procedimento_consultar_historico" | "procedimento_atualizar_andamento")
             if eh_controlador_sei(alvo) =>
@@ -183,6 +191,9 @@ pub(crate) fn responder(
             if eh_controlador_sei(alvo) =>
         {
             crate::blocos::responder(metodo, alvo, corpo, banco, instalacao, cenario)
+        }
+        Some("bloco_assinatura_cadastrar") if eh_controlador_sei(alvo) => {
+            crate::blocos::cadastro(metodo, corpo, banco, instalacao, cenario)
         }
         Some("bloco_escolher") if eh_controlador_sei(alvo) => {
             crate::bloco_escolher::responder(metodo, alvo, corpo, banco, instalacao, cenario)
@@ -269,8 +280,16 @@ pub(crate) fn responder(
         Some("documento_cancelar") if eh_controlador_sei(alvo) => {
             documento_cancelar::responder(metodo, alvo, corpo, banco, instalacao, cenario)
         }
+        Some("procedimento_gerar_zip" | "procedimento_gerar_pdf" | "exibir_arquivo")
+            if eh_controlador_sei(alvo) =>
+        {
+            crate::processo_exportacao::responder(metodo, alvo, corpo, banco, instalacao, cenario)
+        }
         Some("documento_download_anexo") if eh_controlador_sei(alvo) => {
             pdf_externo::baixar(metodo, alvo, banco, instalacao, cenario)
+        }
+        None if parametro_unico(alvo, "acao_ajax") == Some("documento_verificar_assinatura") => {
+            editor_documento::consulta_assinatura(metodo, alvo, banco, instalacao, cenario)
         }
         Some("documento_editar" | "editor_montar") if eh_controlador_sei(alvo) => {
             editor_documento::responder(metodo, alvo, corpo, banco, instalacao, cenario)

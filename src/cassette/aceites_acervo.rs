@@ -117,6 +117,10 @@ const SO_RELEITURA: &[(&str, &str)] = &[
     ),
     ("documento_gerar", "documento criar: releitura da árvore"),
     (
+        "bloco_assinatura_cadastrar",
+        "bloco criar: identidade e releitura",
+    ),
+    (
         "documento_receber",
         "documento incluir-externo: recibo e releitura",
     ),
@@ -142,6 +146,9 @@ const SO_RELEITURA: &[(&str, &str)] = &[
 /// Ações que o IES conhece, mas não envia como escrita própria.
 const FORA_DAS_ESCRITAS: &[&str] = &[
     "protocolo_pesquisa_rapida",
+    "procedimento_gerar_pdf",
+    "procedimento_gerar_zip",
+    "exibir_arquivo",
     "procedimento_escolher_tipo",
     "documento_escolher_tipo",
     "protocolo_pesquisar",

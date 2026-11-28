@@ -108,7 +108,6 @@ pub(crate) fn abrir_para_escrever<V: EnvioDoProcesso>(
     };
     let acoes = AcoesDeEstado {
         incluir: arvore_lida.incluir,
-        bloco: crate::arvore_processo::ler_oferta_de_bloco(&arvore_lida.html),
         marcadores: arvore_lida.marcadores,
         prazo: arvore_lida.prazo,
         concluir: arvore_lida.concluir,
@@ -121,6 +120,8 @@ pub(crate) fn abrir_para_escrever<V: EnvioDoProcesso>(
         ciencia: arvore_lida.ciencia,
         lista_ciencias: arvore_lida.lista_ciencias,
         anexar: arvore_lida.anexar,
+        exportacao: arvore_lida.exportacao,
+        html_da_arvore: arvore_lida.html,
         atribuir: arvore_lida.atribuir,
         andamento: arvore_lida.andamento,
         relacionar: arvore_lida.relacionar,

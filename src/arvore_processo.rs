@@ -22,6 +22,7 @@ mod conteudo;
 pub(crate) mod endereco;
 mod enviar;
 mod erro;
+mod exportar;
 mod literais;
 mod movidos;
 mod natureza;
@@ -87,11 +88,11 @@ pub(crate) use barra_do_documento::barra_do_no;
 pub(crate) use barra_do_documento::{
     BarraDoDocumento, EdicaoNaBarra, ErroBarraDoDocumento, ler_barra_do_documento,
 };
+pub(crate) use barra_do_processo::{ErroBarraDoProcesso, ler_oferta_de_bloco};
 pub(crate) use barra_do_processo::ler_link_dos_comentarios;
 pub(crate) use barra_do_processo::{
     EnderecoDoIncluirDocumento, ErroLinkIncluirDocumento, ler_link_de_incluir_documento,
 };
-pub(crate) use barra_do_processo::{ErroBarraDoProcesso, ErroOfertaDeBloco, ler_oferta_de_bloco};
 pub(crate) use barra_do_processo::{ErroLinkDasAnotacoes, ler_link_das_anotacoes};
 pub(crate) use barra_do_processo::{
     ErroLinkPrazo, ler_link_das_propriedades, ler_link_do_prazo, ler_link_dos_marcadores,
@@ -107,11 +108,13 @@ pub(crate) use concluir::{
     ler_concluir_da_barra, ler_funcao_de_concluir,
 };
 pub(crate) use conteudo::{
-    ConteudoNaArvore, EnderecoDoConteudo, ErroConteudoNaArvore, ler_conteudo_na_arvore,
+    ConteudoNaArvore, EnderecoDoConteudo, ErroConteudoNaArvore, documento_inacessivel,
+    ler_conteudo_na_arvore,
 };
 pub(crate) use endereco::conferir_endereco_relativo;
 pub(crate) use enviar::{ErroEnviarNaBarra, ler_enviar_da_barra};
 pub(crate) use erro::ErroArvore;
+pub(crate) use exportar::{LinksExportacao, ler_exportacao_da_barra};
 use literais::{Literal, ler_barra, ler_declaracao, ler_protocolos};
 pub(crate) use movidos::ler_destinos_dos_movidos;
 use movidos::{MovidoLido, conferir_movidos, ler_movido};

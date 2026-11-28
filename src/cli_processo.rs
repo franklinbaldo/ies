@@ -30,6 +30,27 @@ pub(crate) struct Processo {
 
 #[derive(Debug, Subcommand)]
 pub(crate) enum ProcessoAcao {
+    /// Prévia de alteração exclusiva da especificação; escrita em validação.
+    Alterar {
+        #[arg(value_parser = crate::processo::NumeroProcesso::novo)]
+        numero: crate::processo::NumeroProcesso,
+        #[arg(long)]
+        especificacao: String,
+        #[arg(long)]
+        confirmar: bool,
+    },
+    /// Exporta documentos pelo gerador nativo do SEI.
+    Exportar {
+        #[arg(value_parser = crate::processo::NumeroProcesso::novo)]
+        numero: crate::processo::NumeroProcesso,
+        #[arg(long, value_enum)]
+        formato: crate::processo_exportar::Formato,
+        #[arg(long)]
+        saida: std::path::PathBuf,
+        /// Nº SEI exato, repetível; seleção explícita apenas em ZIP.
+        #[arg(long, value_name = "DOCUMENTO")]
+        documentos: Vec<String>,
+    },
     /// Lista os comentários comprovadamente publicados do processo, sem escrita.
     Comentarios {
         #[arg(value_parser = crate::processo::NumeroProcesso::novo)]
@@ -84,9 +105,12 @@ pub(crate) enum ProcessoAcao {
     },
     /// Pesquisa processo na Web (GET, GET e POST); com --pagina N, mais um POST
     Buscar {
-        /// NUP inteiro ou parte do número, como digitado no campo Protocolo
-        #[arg(value_parser = crate::processo::NumeroProcesso::novo)]
-        termo: crate::processo::NumeroProcesso,
+        /// NUP inteiro ou parte do número; opcional com outro critério
+        #[arg(
+            value_parser = crate::processo::NumeroProcesso::novo,
+            required_unless_present_any = ["tipo", "de", "ate", "descricao", "observacao"]
+        )]
+        termo: Option<crate::processo::NumeroProcesso>,
         /// Pede a página N do resultado (um POST que altera a página lembrada)
         #[arg(
             long,
@@ -97,6 +121,12 @@ pub(crate) enum ProcessoAcao {
         /// Tipo exato da lista publicada na tela
         #[arg(long, value_name = "TIPO")]
         tipo: Option<String>,
+        /// Descrição do processo (campo textual da pesquisa)
+        #[arg(long, value_name = "TEXTO", value_parser = crate::pesquisa_web::filtros::texto_da_cli)]
+        descricao: Option<String>,
+        /// Observação do processo (campo textual da pesquisa)
+        #[arg(long, value_name = "TEXTO", value_parser = crate::pesquisa_web::filtros::texto_da_cli)]
+        observacao: Option<String>,
         /// Assunto publicado pela tela (autocompletar exige ID observado)
         #[arg(long, value_name = "TEXTO")]
         assunto: Option<String>,
@@ -115,14 +145,14 @@ pub(crate) enum ProcessoAcao {
         )]
         ate: Option<crate::unidade_retornos::DataCivil>,
     },
-    /// Envia o processo a uma unidade (prévia; com --confirmar, um POST e a
+    /// Envia o processo a unidades (prévia; com --confirmar, um POST e a
     /// verificação por leitura)
     Enviar {
         #[arg(value_parser = crate::processo::NumeroProcesso::novo)]
         numero: crate::processo::NumeroProcesso,
-        /// Sigla da unidade de destino, como o SEI a oferece
-        #[arg(long, value_parser = crate::processo_enviar_cli::sigla_de_destino)]
-        para: String,
+        /// Sigla de destino, como o SEI a oferece (repetível)
+        #[arg(long, required = true, value_parser = crate::processo_enviar_cli::sigla_de_destino)]
+        para: Vec<String>,
         /// Marca "Manter processo aberto na unidade atual"
         #[arg(long)]
         manter_aberto: bool,

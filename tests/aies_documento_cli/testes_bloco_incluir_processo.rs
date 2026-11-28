@@ -11,6 +11,10 @@ const BLOCO_INTERNO: &str = "3102";
 const NUP_INTERNO: &str = "00001.000001/2026-01";
 
 fn preparar(pasta: &Pasta) {
+    preparar_tipo(pasta, Tipo::Interno);
+}
+
+fn preparar_tipo(pasta: &Pasta, tipo: Tipo) {
     let caminho = pasta.0.join("anti-ies.sqlite3");
     let (mut banco, instalacao) = estado(&caminho, true, 0, false);
     processos::guardar(
@@ -32,7 +36,7 @@ fn preparar(pasta: &Pasta) {
         &instalacao,
         CENARIO,
         &Pagina {
-            tipo: Tipo::Interno,
+            tipo,
             total: 1,
             faixa: Some((1, 1)),
             linhas: vec![LinhaBloco {
@@ -43,14 +47,18 @@ fn preparar(pasta: &Pasta) {
         },
     )
     .unwrap();
-    // Uma outra lista efetivamente observada e completa demonstra que
-    // o número do bloco interno não colide com o de reunião.
+    // A lista do outro tipo é observada vazia, sem colisão de número.
+    let outro = if tipo == Tipo::Interno {
+        Tipo::Reuniao
+    } else {
+        Tipo::Interno
+    };
     blocos::guardar(
         &mut banco,
         &instalacao,
         CENARIO,
         &Pagina {
-            tipo: Tipo::Reuniao,
+            tipo: outro,
             total: 0,
             faixa: None,
             linhas: vec![],
@@ -63,7 +71,7 @@ fn preparar(pasta: &Pasta) {
         CENARIO,
         &Detalhe {
             numero: BLOCO_INTERNO.into(),
-            tipo: Tipo::Interno,
+            tipo,
             total: 1,
             faixa: Some((1, 1)),
             itens: vec![Item {
@@ -79,8 +87,17 @@ fn preparar(pasta: &Pasta) {
 
 #[test]
 fn bdd_381_04_previa_sem_inclusao_e_releitura_do_bloco_interno() {
+    previa_sem_inclusao_e_releitura(Tipo::Interno);
+}
+
+#[test]
+fn previa_sem_inclusao_e_releitura_do_bloco_de_reuniao() {
+    previa_sem_inclusao_e_releitura(Tipo::Reuniao);
+}
+
+fn previa_sem_inclusao_e_releitura(tipo: Tipo) {
     let pasta = Pasta::nova();
-    preparar(&pasta);
+    preparar_tipo(&pasta, tipo);
     let (previa, pedidos) = executar_ciencia_processo(
         &pasta,
         &[
@@ -101,7 +118,7 @@ fn bdd_381_04_previa_sem_inclusao_e_releitura_do_bloco_interno() {
     );
     let valor = json(&previa);
     assert_eq!(valor["bloco"], BLOCO_INTERNO);
-    assert_eq!(valor["tipo_bloco"], "interno");
+    assert_eq!(valor["tipo_bloco"], tipo.nome());
     assert_eq!(valor["alvo"]["processo"], NUP_INTERNO);
     assert_eq!(valor["presente_antes"], false);
     assert_eq!(valor["confirmado"], false);
@@ -128,7 +145,7 @@ fn bdd_381_04_previa_sem_inclusao_e_releitura_do_bloco_interno() {
         String::from_utf8_lossy(&leitura.stderr),
     );
     let detalhe = json(&leitura);
-    assert_eq!(detalhe["bloco"]["tipo"], "interno");
+    assert_eq!(detalhe["bloco"]["tipo"], tipo.nome());
     assert!(
         detalhe["bloco"]["itens"]
             .as_array()
@@ -138,7 +155,7 @@ fn bdd_381_04_previa_sem_inclusao_e_releitura_do_bloco_interno() {
     );
     assert!(depois.iter().all(|p| p.starts_with("GET ")));
     let (banco, instalacao) = estado(&pasta.0.join("anti-ies.sqlite3"), true, 0, false);
-    let persistido = bloco_detalhe::ler(&banco, &instalacao, CENARIO, Tipo::Interno, BLOCO_INTERNO)
+    let persistido = bloco_detalhe::ler(&banco, &instalacao, CENARIO, tipo, BLOCO_INTERNO)
         .unwrap()
         .expect("detalhe observado no mesmo SQLite");
     assert_eq!(persistido.total, 1);
@@ -149,6 +166,15 @@ fn bdd_381_04_previa_sem_inclusao_e_releitura_do_bloco_interno() {
 
 #[test]
 fn confirmar_processo_ja_no_bloco_retorna_sucesso_sem_mutacao() {
+    confirmar_processo_ja_no_bloco(true);
+}
+
+#[test]
+fn confirmar_processo_ja_no_bloco_sem_oferta_retorna_sucesso_sem_mutacao() {
+    confirmar_processo_ja_no_bloco(false);
+}
+
+fn confirmar_processo_ja_no_bloco(com_oferta: bool) {
     let pasta = Pasta::nova();
     preparar(&pasta);
     let (mut banco, instalacao) = estado(&pasta.0.join("anti-ies.sqlite3"), true, 0, false);
@@ -158,6 +184,13 @@ fn confirmar_processo_ja_no_bloco_retorna_sucesso_sem_mutacao() {
             .unwrap();
     detalhe.itens[0].processo = NUP_INTERNO.into();
     bloco_detalhe::guardar(&mut banco, &instalacao, CENARIO, &detalhe).unwrap();
+    if !com_oferta {
+        let mut processo = processos::ler(&banco, &instalacao, CENARIO, "7")
+            .unwrap()
+            .unwrap();
+        processo.aberto_em.clear();
+        processos::guardar(&mut banco, &instalacao, CENARIO, &processo).unwrap();
+    }
 
     let (saida, pedidos) = executar_ciencia_processo(
         &pasta,
@@ -311,16 +344,24 @@ fn lista_parcial_de_outro_tipo_nao_impede_a_previa() {
 
 #[test]
 fn previa_processo_sem_oferta_na_barra_recusa_sem_mutacao() {
+    previa_sem_oferta_recusa(Tipo::Interno);
+}
+
+#[test]
+fn previa_processo_sem_oferta_em_reuniao_recusa_sem_mutacao() {
+    previa_sem_oferta_recusa(Tipo::Reuniao);
+}
+
+fn previa_sem_oferta_recusa(tipo: Tipo) {
     let pasta = Pasta::nova();
-    preparar(&pasta);
+    preparar_tipo(&pasta, tipo);
     let (mut banco, instalacao) = estado(&pasta.0.join("anti-ies.sqlite3"), true, 0, false);
     let mut processo = processos::ler(&banco, &instalacao, CENARIO, "7")
         .unwrap()
         .unwrap();
     processo.aberto_em.clear();
     processos::guardar(&mut banco, &instalacao, CENARIO, &processo).unwrap();
-    let antes =
-        bloco_detalhe::ler(&banco, &instalacao, CENARIO, Tipo::Interno, BLOCO_INTERNO).unwrap();
+    let antes = bloco_detalhe::ler(&banco, &instalacao, CENARIO, tipo, BLOCO_INTERNO).unwrap();
     let (saida, pedidos) = executar_ciencia_processo(
         &pasta,
         &[
@@ -344,7 +385,7 @@ fn previa_processo_sem_oferta_na_barra_recusa_sem_mutacao() {
         "{pedidos:?}",
     );
     assert_eq!(
-        bloco_detalhe::ler(&banco, &instalacao, CENARIO, Tipo::Interno, BLOCO_INTERNO).unwrap(),
+        bloco_detalhe::ler(&banco, &instalacao, CENARIO, tipo, BLOCO_INTERNO).unwrap(),
         antes,
     );
 }

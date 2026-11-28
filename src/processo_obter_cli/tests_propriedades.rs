@@ -4,7 +4,7 @@ use super::tests::aberto;
 use super::*;
 use crate::processo_obter::Propriedades;
 use crate::propriedades_processo::{
-    Assunto, FonteDasPropriedades, NivelDeAcesso, PropriedadesLidas,
+    Assunto, FonteDasPropriedades, Interessado, NivelDeAcesso, PropriedadesLidas,
 };
 
 fn nup() -> NumeroProcesso {
@@ -13,26 +13,33 @@ fn nup() -> NumeroProcesso {
 
 fn com_propriedades() -> ProcessoAberto {
     let mut aberto = aberto(Some("UNIDADE TESTE"));
-    aberto.propriedades = Propriedades::Lidas(PropriedadesLidas {
+    aberto.propriedades = Propriedades::Lidas(Box::new(PropriedadesLidas {
+        id_tipo: "100000002".into(),
         tipo: "Tipo Sintetico: Teste".into(),
         especificacao: "Especificacao sintetica".into(),
-        interessados: vec!["Pessoa Sintetica A".into()],
+        interessados: vec![Interessado {
+            id: "301".into(),
+            nome: "Pessoa Sintetica A".into(),
+        }],
         assuntos: vec![
             Assunto {
+                id: "2001".into(),
                 codigo: "000.01".into(),
                 descricao: "Assunto sintetico".into(),
             },
             Assunto {
+                id: "2002".into(),
                 codigo: "000.02".into(),
                 descricao: "Outro assunto".into(),
             },
         ],
         observacoes: String::new(),
         nivel_de_acesso: NivelDeAcesso::Restrito,
+        id_hipotese_legal: Some("7".into()),
         hipotese_legal: Some("Hipotese Sintetica".into()),
         data_de_geracao: "01/02/2026".into(),
         fonte: FonteDasPropriedades::Consultar,
-    });
+    }));
     aberto
 }
 

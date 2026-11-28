@@ -152,7 +152,9 @@ fn incluir_processo(
     if aberto.arvore.processo.nup != nup.as_str() {
         return Err(ErroInclusaoProcessual::IdentidadeDoProcessoDivergente.into());
     }
-    if !desfecho.presente_antes() && !acoes.bloco? {
+    if !desfecho.presente_antes()
+        && !crate::arvore_processo::ler_oferta_de_bloco(&acoes.html_da_arvore)?
+    {
         return Err(ErroInclusaoProcessual::AcaoNaoOferecidaNaBarra.into());
     }
     if cli.json {

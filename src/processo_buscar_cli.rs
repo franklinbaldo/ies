@@ -26,9 +26,9 @@ fn opcoes_de_leitura_presentes(comando: &Processo) -> bool {
 }
 
 /// O JSON da resposta observada; nunca HTML, links, cookies ou `infra_hash`.
-pub(crate) fn json_da_busca(termo: &NumeroProcesso, busca: &BuscaRealizada) -> Value {
+pub(crate) fn json_da_busca(termo: &str, busca: &BuscaRealizada) -> Value {
     let mut valor = json!({
-        "termo": termo.as_str(),
+        "termo": termo,
         "unidade": busca.unidade,
         "origem": "web",
         "requisicoes": busca.requisicoes,
@@ -63,7 +63,7 @@ pub(crate) fn json_da_busca(termo: &NumeroProcesso, busca: &BuscaRealizada) -> V
     valor
 }
 
-fn humano(termo: &NumeroProcesso, busca: &BuscaRealizada) -> String {
+fn humano(termo: &str, busca: &BuscaRealizada) -> String {
     let detalhe = match &busca.resposta {
         RespostaDaPesquisa::ProcessoUnico { id } => {
             format!("um processo (id interno {})", id.as_str())
@@ -87,11 +87,14 @@ fn humano(termo: &NumeroProcesso, busca: &BuscaRealizada) -> String {
             "nenhum resultado para esta conta e unidade (não prova inexistência)".to_owned()
         }
     };
+    let consulta = if termo.is_empty() {
+        "por filtros".to_owned()
+    } else {
+        format!("de {termo:?}")
+    };
     format!(
-        "IES: pesquisa de {:?} na unidade {}: {detalhe} ({} requisições).",
-        termo.as_str(),
-        busca.unidade,
-        busca.requisicoes
+        "IES: pesquisa {consulta} na unidade {}: {detalhe} ({} requisições).",
+        busca.unidade, busca.requisicoes
     )
 }
 
@@ -100,7 +103,7 @@ fn humano(termo: &NumeroProcesso, busca: &BuscaRealizada) -> String {
 fn buscar(
     cli: &Cli,
     comando: &Processo,
-    termo: &NumeroProcesso,
+    termo: &str,
     pagina: Option<u32>,
     filtros: FiltrosDaPesquisa<'_>,
 ) -> anyhow::Result<()> {
@@ -112,9 +115,12 @@ fn buscar(
     if opcoes_de_leitura_presentes(comando) {
         crate::uso_invalido::recusar(crate::uso_invalido::UsoInvalido::OpcoesDeLeituraComBuscar);
     }
+    if termo.is_empty() && !filtros.tem_criterio_efetivo() {
+        crate::uso_invalido::recusar(crate::uso_invalido::UsoInvalido::PesquisaSemCriterio);
+    }
     let arquivos = configuracao::arquivos_de_acesso()?;
     let pedido = PedidoDeBusca {
-        termo: termo.as_str(),
+        termo,
         pagina,
         unidade: cli.unidade.as_deref(),
     };
@@ -171,6 +177,8 @@ pub(crate) fn tentar_buscar(cli: &Cli) -> Option<anyhow::Result<()>> {
         termo,
         pagina,
         tipo,
+        descricao,
+        observacao,
         assunto,
         de,
         ate,
@@ -181,13 +189,16 @@ pub(crate) fn tentar_buscar(cli: &Cli) -> Option<anyhow::Result<()>> {
     Some(buscar(
         cli,
         comando,
-        termo,
+        termo.as_ref().map_or("", NumeroProcesso::as_str),
         *pagina,
         FiltrosDaPesquisa {
             tipo: tipo.as_deref(),
+            descricao: descricao.as_deref(),
+            observacao: observacao.as_deref(),
             assunto: assunto.as_deref(),
             de: *de,
             ate: *ate,
+            ..Default::default()
         },
     ))
 }

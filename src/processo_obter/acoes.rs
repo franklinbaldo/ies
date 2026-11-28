@@ -12,8 +12,6 @@ use crate::processo_comentarios::{EnderecoDosComentarios, ErroLinkDosComentarios
 pub(crate) struct AcoesDeEstado {
     /// Link da inclusão de documentos internos; falha só pesa no comando #246.
     pub(crate) incluir: Result<Option<EnderecoDoIncluirDocumento>, ErroLinkIncluirDocumento>,
-    /// Oferta de inclusão do processo em bloco interno/reunião (#381).
-    pub(crate) bloco: Result<bool, crate::arvore_processo::ErroOfertaDeBloco>,
     /// contracts/cli/processo-prazo.md
     pub(crate) prazo: Result<Option<String>, crate::arvore_processo::ErroLinkPrazo>,
     /// contracts/cli/processo-concluir.md
@@ -38,6 +36,9 @@ pub(crate) struct AcoesDeEstado {
     pub(crate) lista_ciencias:
         Result<Option<EnderecoDeEscrita>, crate::arvore_processo::ErroCienciaNaArvore>,
     pub(crate) anexar: Result<Option<EnderecoDeEscrita>, ErroAnexarNaBarra>,
+    pub(crate) exportacao: crate::arvore_processo::LinksExportacao,
+    /// A última árvore conferida, para a elegibilidade da seleção ZIP.
+    pub(crate) html_da_arvore: crate::tela_html::HtmlServido,
     /// Atribuição do processo na unidade atual.
     pub(crate) atribuir: Result<Option<EnderecoDeEscrita>, ErroAtribuirNaBarra>,
     /// Ação de registrar andamento, lida da barra do processo.

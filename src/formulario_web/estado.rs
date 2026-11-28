@@ -46,6 +46,10 @@ pub(crate) enum EstadoDoProcesso {
     AcompanhamentoEspecial,
     /// Cadastro de novo processo na unidade ativa, com identidade conferida.
     ProcessoCriadoNaUnidade,
+    /// Especificação cadastral do processo, confirmada por releitura.
+    CadastroAlterado,
+    /// Cadastro de bloco de assinatura na unidade, confirmado na lista.
+    BlocoCriadoNaUnidade,
     /// Sobrestar ou remover o sobrestamento de um processo.
     Sobrestamento,
     /// Atribuição de um processo a usuário da unidade, ou sua remoção.

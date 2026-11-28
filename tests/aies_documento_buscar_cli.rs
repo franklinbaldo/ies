@@ -31,6 +31,11 @@ enum EstadoDeBusca {
     SemResultado,
     DocumentoExato,
     Paginas,
+    CoorteContraditoria { negativo_primeiro: bool },
+    PeriodoProcessual,
+    PaginasProcessuais,
+    CoorteProcessualContraditoria(bool),
+    TextoProcessual(&'static str, &'static str, &'static str),
 }
 
 struct Pasta(PathBuf);
@@ -169,6 +174,9 @@ fn preparar_estado(banco: &mut Connection, instalacao: &Instalacao, estado: Esta
         },
     )
     .unwrap();
+    if matches!(estado, EstadoDeBusca::TextoProcessual(..)) {
+        return;
+    }
     if matches!(estado, EstadoDeBusca::DocumentoExato) {
         // A identidade e as revisões já pertencem ao mesmo SQLite do anti-IES.
         documento_versoes::guardar(
@@ -201,8 +209,70 @@ fn preparar_estado(banco: &mut Connection, instalacao: &Instalacao, estado: Esta
             TERMO,
         )
         .unwrap();
+    } else if let EstadoDeBusca::CoorteContraditoria { negativo_primeiro } = estado {
+        let negativo = |banco: &Connection| {
+            pesquisa_documento::registrar_sem_resultado(
+                banco,
+                instalacao,
+                CENARIO,
+                &UnidadeExibida::nova("TESTE").unwrap(),
+                TERMO_PAGINADO,
+            )
+            .unwrap();
+        };
+        if negativo_primeiro {
+            negativo(banco);
+        }
+        preparar_paginas(banco, instalacao);
+        if !negativo_primeiro {
+            negativo(banco);
+        }
+    } else if matches!(estado, EstadoDeBusca::PeriodoProcessual) {
+        preparar_periodo_processual(banco, instalacao);
+    } else if matches!(estado, EstadoDeBusca::PaginasProcessuais) {
+        processos::preparar_paginas(banco, instalacao);
+    } else if let EstadoDeBusca::CoorteProcessualContraditoria(zero_primeiro) = estado {
+        processos::preparar_coorte_contraditoria(banco, instalacao, zero_primeiro);
     } else {
         preparar_paginas(banco, instalacao);
+    }
+}
+
+fn preparar_periodo_processual(banco: &mut Connection, instalacao: &Instalacao) {
+    // Hipótese sintética, não resposta original do SEI.
+    let unidade = UnidadeExibida::nova("TESTE").unwrap();
+    for (id, nome) in [("73", "Administrativo"), ("74", "Judicial")] {
+        iesei::pesquisa_processo::registrar_tipo(banco, instalacao, CENARIO, &unidade, id, nome)
+            .unwrap();
+    }
+    iesei::pesquisa_processo::registrar_sem_resultado(
+        banco,
+        instalacao,
+        CENARIO,
+        &UnidadeExibida::nova("TESTE").unwrap(),
+        iesei::pesquisa_processo::Criterios {
+            tipo_id: "",
+            de: "01/01/2026",
+            ate: "31/01/2026",
+        },
+    )
+    .unwrap();
+    for criterios in [
+        iesei::pesquisa_processo::Criterios {
+            tipo_id: "73",
+            de: "",
+            ate: "",
+        },
+        iesei::pesquisa_processo::Criterios {
+            tipo_id: "73",
+            de: "01/01/2026",
+            ate: "31/01/2026",
+        },
+    ] {
+        iesei::pesquisa_processo::registrar_sem_resultado(
+            banco, instalacao, CENARIO, &unidade, criterios,
+        )
+        .unwrap();
     }
 }
 
@@ -276,7 +346,11 @@ fn executar(pasta: &Pasta, args: &[&str]) -> Output {
 }
 
 fn executar_com_estado(pasta: &Pasta, args: &[&str], estado: EstadoDeBusca) -> Output {
-    let requisicoes = if matches!(estado, EstadoDeBusca::Paginas) && args.contains(&"--pagina") {
+    let requisicoes = if matches!(
+        estado,
+        EstadoDeBusca::Paginas | EstadoDeBusca::PaginasProcessuais
+    ) && args.contains(&"--pagina")
+    {
         4
     } else {
         3
@@ -298,9 +372,15 @@ fn executar_com_estado(pasta: &Pasta, args: &[&str], estado: EstadoDeBusca) -> O
         banco_cassettes::iniciar(&banco).unwrap();
         let instalacao = Instalacao::interpretar(ORIGEM).unwrap();
         preparar_estado(&mut banco, &instalacao, estado);
-        for _ in 0..requisicoes {
+        for indice in 0..requisicoes {
             let mut tcp = aceitar(&servidor);
-            atender_http(&mut tcp, Some((&banco, &instalacao, CENARIO))).unwrap();
+            if let EstadoDeBusca::TextoProcessual(descricao, observacao, id) = estado
+                && indice == 2
+            {
+                texto_processual::responder(&mut tcp, descricao, observacao, id);
+            } else {
+                atender_http(&mut tcp, Some((&banco, &instalacao, CENARIO))).unwrap();
+            }
         }
     });
     let proxy = TcpListener::bind(("127.0.0.1", 0)).unwrap();
@@ -438,3 +518,12 @@ fn bdd_61_01_cli_documento_unico_por_numero_exato_sem_seguir_302() {
 
 #[path = "aies_documento_buscar_cli/paginacao.rs"]
 mod paginacao;
+
+#[path = "aies_documento_buscar_cli/processos.rs"]
+mod processos;
+
+#[path = "aies_documento_buscar_cli/criterios.rs"]
+mod criterios;
+
+#[path = "aies_documento_buscar_cli/texto_processual.rs"]
+mod texto_processual;

@@ -117,10 +117,16 @@ fn conferir_candidato<V: EnvioDoControle>(
     Ok(ProcessoConferido {
         id: candidato.id.clone(),
         nup: candidato.nup.clone(),
+        id_tipo: propriedades.id_tipo,
         tipo: propriedades.tipo,
+        id_hipotese_legal: propriedades.id_hipotese_legal,
         especificacao: propriedades.especificacao,
         nivel: propriedades.nivel_de_acesso,
-        interessados: propriedades.interessados,
+        interessados: propriedades
+            .interessados
+            .into_iter()
+            .map(|i| i.nome)
+            .collect(),
     })
 }
 
@@ -173,14 +179,13 @@ pub(super) fn reconciliar<V: EnvioDoControle>(
                 candidato,
                 requisicoes,
             )?;
-            if conferido.tipo == feito.tipo
-                && conferido.especificacao == especificacao
-                && conferido.nivel == feito.nivel.como_acesso()
-                && reconciliacao::desfechos::interessados_conferem(
-                    &feito.interessados,
-                    &conferido.interessados,
-                )
-            {
+            if conferido.corresponde(
+                (&feito.id_tipo, &feito.tipo),
+                feito.hipotese_legal.as_deref(),
+                especificacao,
+                feito.nivel,
+                &feito.interessados,
+            ) {
                 correspondentes_parciais.push(conferido.nup.clone());
             }
             provas.push(conferido);
@@ -188,7 +193,8 @@ pub(super) fn reconciliar<V: EnvioDoControle>(
         let desfecho = classificar(
             &candidatos,
             &provas,
-            &feito.tipo,
+            (&feito.id_tipo, &feito.tipo),
+            feito.hipotese_legal.as_deref(),
             especificacao,
             feito.nivel,
             &feito.interessados,

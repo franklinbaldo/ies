@@ -2,7 +2,14 @@
 //! `procedimento_alterar` (ou `procedimento_consultar`), lido sem envio:
 //! nenhum campo é reescrito e `btnSalvar` nunca participa. Atributos pelo
 //! árvore `tela_html` (atributos e aninhamento como no navegador).
-use super::{Assunto, ErroPropriedades, FonteDasPropriedades, NivelDeAcesso, PropriedadesLidas};
+use super::{
+    Assunto, ErroPropriedades, FonteDasPropriedades, Interessado, NivelDeAcesso, PropriedadesLidas,
+};
+
+use crate::formulario_web::{
+    ConferenciaDaUnidade, EfeitoAvaliado, EnvioDoFormulario, EstadoDoProcesso,
+    OperacaoDeFormulario, ResultadoDoEnvio, valor_da_lupa,
+};
 
 const FORMULARIO: &str = "frmProcedimentoCadastro";
 
@@ -36,14 +43,24 @@ pub(crate) fn ler_propriedades(
             return Err(ErroPropriedades::ListaOcultaDasPropriedadesPreenchida);
         }
     }
+    let (id_tipo, tipo) = tipo(&campos)?;
+    let especificacao = valor(campos.unico("txtDescricao")?);
+    let interessados = interessados(&campos)?;
+    let assuntos = assuntos(&campos)?;
+    let observacoes = observacoes(&campos)?;
+    let nivel_de_acesso = nivel_de_acesso(&campos)?;
+    let (id_hipotese_legal, hipotese_legal) = marcada(campos.unico("selHipoteseLegal")?)?
+        .map_or((None, None), |(id, texto)| (Some(id), Some(texto)));
     Ok(PropriedadesLidas {
-        tipo: tipo(&campos)?,
-        especificacao: valor(campos.unico("txtDescricao")?),
-        interessados: interessados(&campos)?,
-        assuntos: assuntos(&campos)?,
-        observacoes: observacoes(&campos)?,
-        nivel_de_acesso: nivel_de_acesso(&campos)?,
-        hipotese_legal: marcada(campos.unico("selHipoteseLegal")?)?.map(|(_, t)| t),
+        id_tipo,
+        tipo,
+        especificacao,
+        interessados,
+        assuntos,
+        observacoes,
+        nivel_de_acesso,
+        id_hipotese_legal,
+        hipotese_legal,
         data_de_geracao: data_de_geracao(&campos)?,
         fonte,
     })
@@ -109,7 +126,7 @@ fn marcada(select: Tag<'_>) -> Result<Option<(String, String)>, ErroPropriedades
     }
 }
 
-fn tipo(campos: &Campos<'_>) -> Result<String, ErroPropriedades> {
+fn tipo(campos: &Campos<'_>) -> Result<(String, String), ErroPropriedades> {
     let Some((valor_marcado, texto)) = marcada(campos.unico("selTipoProcedimento")?)? else {
         return Err(ErroPropriedades::TipoDoProcessoNaoMarcado);
     };
@@ -118,7 +135,7 @@ fn tipo(campos: &Campos<'_>) -> Result<String, ErroPropriedades> {
     {
         return Err(ErroPropriedades::TipoDoProcessoInconsistente);
     }
-    Ok(texto)
+    Ok((valor_marcado, texto))
 }
 
 fn assuntos(campos: &Campos<'_>) -> Result<Vec<Assunto>, ErroPropriedades> {
@@ -137,6 +154,7 @@ fn assuntos(campos: &Campos<'_>) -> Result<Vec<Assunto>, ErroPropriedades> {
             return Err(ErroPropriedades::CodigoDoAssuntoNaoInterpretado);
         };
         lidos.push(Assunto {
+            id: valor,
             codigo: codigo.to_owned(),
             descricao: descricao.to_owned(),
         });
@@ -144,15 +162,15 @@ fn assuntos(campos: &Campos<'_>) -> Result<Vec<Assunto>, ErroPropriedades> {
     Ok(lidos)
 }
 
-fn interessados(campos: &Campos<'_>) -> Result<Vec<String>, ErroPropriedades> {
+fn interessados(campos: &Campos<'_>) -> Result<Vec<Interessado>, ErroPropriedades> {
     let select = campos.unico("selInteressadosProcedimento")?;
     opcoes(select)
         .into_iter()
-        .map(|(_, _, texto)| {
+        .map(|(id, _, texto)| {
             if texto.is_empty() {
                 Err(ErroPropriedades::InteressadoForaDaFormaObservada)
             } else {
-                Ok(texto)
+                Ok(Interessado { id, nome: texto })
             }
         })
         .collect()
@@ -210,3 +228,138 @@ fn data_de_geracao(campos: &Campos<'_>) -> Result<String, ErroPropriedades> {
     }
     Ok(data)
 }
+
+// Derivação da alteração de especificação: hipótese ainda sem replay original.
+pub(super) const ALTERAR_ESPECIFICACAO: OperacaoDeFormulario = OperacaoDeFormulario {
+    acao: crate::acao_do_sei::AcaoDoSei::ProcedimentoAlterar,
+    formulario: FORMULARIO,
+    envio: EnvioDoFormulario::SubmitPorScript,
+    campos_ocultos_exigidos: &[
+        "hdnFlagProcedimentoCadastro",
+        "hdnIdProcedimento",
+        "hdnProtocoloFormatado",
+        "hdnIdTipoProcedimento",
+        "hdnAssuntos",
+        "hdnInteressadosProcedimento",
+    ],
+    campos_ocultos_reescritos: &[
+        "hdnFlagProcedimentoCadastro",
+        "hdnAssuntos",
+        "hdnInteressadosProcedimento",
+    ],
+    campos_usuario: &[
+        "selTipoProcedimento",
+        "txtDescricao",
+        "txtAssunto",
+        "selAssuntos",
+        "txtInteressadoProcedimento",
+        "selInteressadosProcedimento",
+        "txtInteressadoUsuario",
+        "txaObservacoes",
+        "selGrauSigilo",
+        "rdoNivelAcesso",
+        "selHipoteseLegal",
+    ],
+    resultado: ResultadoDoEnvio::ConferidoPorLeituraPosterior,
+    unidade: ConferenciaDaUnidade::NaTelaDeOrigemDoLink,
+    efeito: EfeitoAvaliado::AlteraEstadoDoProcesso {
+        o_que: EstadoDoProcesso::CadastroAlterado,
+    },
+};
+
+/// A propriedade de domínio None não distingue select vazio de option null.
+/// Preservar a presença da opção servida em vez de sintetizar "null".
+fn pares_select(
+    campos: &Campos<'_>,
+    nome: &'static str,
+    pares: &mut Vec<(&'static str, String)>,
+) -> Result<(), ErroPropriedades> {
+    if let Some(select) = campos.opcional(nome)? {
+        if select.presente("disabled") {
+            return Ok(());
+        }
+        let opcoes = opcoes(select);
+        let mut marcadas = opcoes.iter().filter(|(_, marcada, _)| *marcada);
+        if select.presente("multiple") {
+            pares.extend(marcadas.map(|(id, _, _)| (nome, id.clone())));
+        } else if let Some((id, _, _)) = marcadas.next_back().or_else(|| opcoes.first()) {
+            pares.push((nome, id.clone()));
+        }
+    }
+    Ok(())
+}
+
+/// Reusar o leitor local de Campos, opcoes e observacoes, e o serializer
+/// `valor_da_lupa` existente. A ordem final cabe a `derivar_submissao`.
+pub(super) fn pares_de_especificacao(
+    html: &crate::tela_html::HtmlServido,
+    pedida: &str,
+) -> Result<Vec<(&'static str, String)>, ErroPropriedades> {
+    let dom = crate::tela_html::arvore(html);
+    let formulario = match dom.com_id(FORMULARIO).collect::<Vec<_>>().as_slice() {
+        [] => return Err(ErroPropriedades::FormularioDasPropriedadesAusente),
+        [unico] => *unico,
+        _ => return Err(ErroPropriedades::FormulariosDasPropriedadesRepetidos),
+    };
+    let campos = &Campos { formulario };
+    if valor(campos.unico("hdnSinIndividual")?) != "N" {
+        return Err(ErroPropriedades::CadastroIndividualNaoSuportado);
+    }
+    if nivel_de_acesso(campos)? == NivelDeAcesso::Sigiloso {
+        return Err(ErroPropriedades::CadastroSigilosoNaoSuportado);
+    }
+    let mut pares = vec![
+        ("txtDescricao", pedida.to_owned()),
+        ("txaObservacoes", observacoes(campos)?),
+        ("hdnFlagProcedimentoCadastro", "2".to_owned()),
+    ];
+    for nome in [
+        "txtAssunto",
+        "txtInteressadoProcedimento",
+        "txtInteressadoUsuario",
+    ] {
+        if let Some(tag) = campos.opcional(nome)?
+            && !tag.presente("disabled")
+        {
+            pares.push((nome, valor(tag)));
+        }
+    }
+    for nome in [
+        "selTipoProcedimento",
+        "selAssuntos",
+        "selInteressadosProcedimento",
+        "selGrauSigilo",
+        "selHipoteseLegal",
+    ] {
+        pares_select(campos, nome, &mut pares)?;
+    }
+    let nivel = match nivel_de_acesso(campos)? {
+        NivelDeAcesso::Publico => "0",
+        NivelDeAcesso::Restrito => "1",
+        NivelDeAcesso::Sigiloso => "2",
+    };
+    pares.push(("rdoNivelAcesso", nivel.to_owned()));
+    for (select, oculto) in [
+        ("selAssuntos", "hdnAssuntos"),
+        ("selInteressadosProcedimento", "hdnInteressadosProcedimento"),
+    ] {
+        // A projeção de consulta normaliza espaços; a derivação candidata
+        // conserva o texto DOM. A semântica do JavaScript original ainda
+        // precisa ser confrontada antes de habilitar a escrita.
+        let itens: Vec<_> = campos
+            .unico(select)?
+            .elementos("option")
+            .map(|no| (no.atributo("value").unwrap_or_default(), no.texto()))
+            .collect();
+        pares.push((
+            oculto,
+            valor_da_lupa(itens.iter().map(|(id, rotulo)| (*id, rotulo.as_str()))),
+        ));
+    }
+    Ok(pares)
+}
+
+// Testes sintéticos da derivação, sem acesso remoto.
+#[cfg(test)]
+#[path = "tests_derivacao.rs"]
+mod testes_derivacao;
