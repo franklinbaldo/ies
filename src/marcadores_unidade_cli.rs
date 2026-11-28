@@ -253,13 +253,15 @@ fn cor_do_formulario(
     }
     let mut cores = seletor
         .elementos("option")
-        .filter(|e| e.texto().trim() == pedida)
-        .filter_map(|e| e.atributo("value"))
-        .filter(|v| !v.is_empty() && v.bytes().all(|b| b.is_ascii_digit()));
-    let codigo = cores.next().ok_or(FalhaPrevia::CorNaoOferecidaOuAmbigua)?;
+        .filter(|e| e.texto().trim() == pedida);
+    let opcao = cores.next().ok_or(FalhaPrevia::CorNaoOferecidaOuAmbigua)?;
     if cores.next().is_some() {
         return Err(FalhaPrevia::CorNaoOferecidaOuAmbigua.into());
     }
+    let codigo = opcao
+        .atributo("value")
+        .filter(|v| !v.is_empty() && v.bytes().all(|b| b.is_ascii_digit()))
+        .ok_or(FalhaPrevia::CorNaoOferecidaOuAmbigua)?;
     Ok(codigo.to_owned())
 }
 

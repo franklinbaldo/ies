@@ -160,20 +160,23 @@ fn propriedades_html(criado: &Criado) -> Resposta {
     let descricao = escapar(&criado.especificacao);
     // Data fixa do relógio sintético (mesmo ano do NUP simulado).
     Resposta::html(format!(
-        "<html><body><form id='frmProcedimentoCadastro'>\
-         <input id='hdnProtocoloFormatado' value='{nup}'>\
-         <input id='hdnIdProcedimento' value='{p}'>\
-         <input id='hdnIdTipoProcedimento' value='{tipo_id}'>\
-         <input id='hdnDtaGeracao' value='01/01/2026'>\
-         <select id='selTipoProcedimento'><option value='{tipo_id}' selected>{tipo}</option></select>\
-         <input id='txtDescricao' value='{descricao}'>\
-         <input id='hdnAssuntos' value=''>\
-         <input id='hdnInteressadosProcedimento' value=''>\
-         <select id='selAssuntos' multiple><option value='{assunto_id}'>{assunto}</option></select>\
-         <select id='selInteressadosProcedimento'></select>\
-         <textarea id='txaObservacoes'></textarea>\
+        "<html><body><form id='frmProcedimentoCadastro' method='post' \
+         action='controlador.php?acao=procedimento_alterar&amp;id_procedimento={p}&amp;infra_hash={HASH}'>\
+         <input type='hidden' id='hdnProtocoloFormatado' name='hdnProtocoloFormatado' value='{nup}'>\
+         <input type='hidden' id='hdnIdProcedimento' name='hdnIdProcedimento' value='{p}'>\
+         <input type='hidden' id='hdnIdTipoProcedimento' name='hdnIdTipoProcedimento' value='{tipo_id}'>\
+         <input type='hidden' id='hdnDtaGeracao' name='hdnDtaGeracao' value='01/01/2026'>\
+         <input type='hidden' id='hdnFlagProcedimentoCadastro' name='hdnFlagProcedimentoCadastro' value='1'>\
+         <input type='hidden' id='hdnSinIndividual' name='hdnSinIndividual' value='N'>\
+         <select id='selTipoProcedimento' name='selTipoProcedimento'><option value='{tipo_id}' selected>{tipo}</option></select>\
+         <input type='text' id='txtDescricao' name='txtDescricao' value='{descricao}'>\
+         <input type='hidden' id='hdnAssuntos' name='hdnAssuntos' value=''>\
+         <input type='hidden' id='hdnInteressadosProcedimento' name='hdnInteressadosProcedimento' value=''>\
+         <select id='selAssuntos' name='selAssuntos' multiple><option value='{assunto_id}'>{assunto}</option></select>\
+         <select id='selInteressadosProcedimento' name='selInteressadosProcedimento' multiple></select>\
+         <textarea id='txaObservacoes' name='txaObservacoes'></textarea>\
          <input type='radio' name='rdoNivelAcesso' id='optPublico' value='0' checked>\
-         <select id='selHipoteseLegal'><option value='null' selected>Selecione</option></select>\
+         <select id='selHipoteseLegal' name='selHipoteseLegal'><option value='null' selected>Selecione</option></select>\
          </form></body></html>"
     ))
 }

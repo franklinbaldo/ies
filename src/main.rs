@@ -21,6 +21,7 @@ mod ciencia_cli;
 mod ciencia_documento_cli;
 mod classe_link_processo;
 mod cli_documento;
+mod cli_marcador;
 mod cli_processo;
 mod cli_unidade_aux;
 mod cofre;
@@ -156,6 +157,7 @@ use clap::{Args, Parser, Subcommand};
 use std::path::PathBuf;
 
 pub(crate) use cli_documento::DocumentoAcao;
+use cli_marcador::{MarcadorAcao, MarcadorArgs};
 pub(crate) use cli_processo::{Processo, ProcessoAcao};
 
 pub(crate) const MAX_HTML_BYTES: usize = 8_000_000;
@@ -282,33 +284,6 @@ enum BlocoAcao {
         /// Executa a inclusão (sem isso, só prévia)
         #[arg(long)]
         confirmar: bool,
-    },
-}
-
-#[derive(Debug, Args)]
-struct MarcadorArgs {
-    #[command(subcommand)]
-    acao: Option<MarcadorAcao>,
-}
-
-#[derive(Debug, Subcommand)]
-enum MarcadorAcao {
-    /// Prévia de criação do marcador da unidade, sem escrita
-    Criar {
-        #[arg(long)]
-        nome: String,
-        #[arg(long)]
-        cor: String,
-        #[arg(long, default_value = "")]
-        descricao: String,
-        #[arg(long)]
-        confirmar: bool,
-    },
-    /// Lista marcadores da página de catálogo observada
-    Listar {
-        /// Seleciona inativos, sem alternar o filtro persistente do SEI
-        #[arg(long)]
-        inativos: bool,
     },
 }
 
@@ -450,6 +425,7 @@ struct SetupArgs {
 /// verificações nem acessar serviços fora do comando explicitamente solicitado.
 fn tentar_operacao_documento_ou_processo(cli: &Cli) -> Option<anyhow::Result<()>> {
     processo_criar_cli::tentar_criar(cli)
+        .or_else(|| propriedades_processo::tentar_alterar(cli))
         .or_else(|| processo_comentarios_cli::tentar_ler(cli))
         .or_else(|| processo_comentar_cli::tentar_comentar(cli))
         .or_else(|| processo_anotar_cli::tentar_anotar(cli))

@@ -32,13 +32,14 @@ fn executar_catalogo(
     legenda: &'static str,
     argumentos: &[&str],
 ) -> (Output, Vec<String>) {
-    executar_com_formulario(unidade, legenda, "TESTE", true, argumentos)
+    executar_com_formulario(unidade, legenda, "TESTE", "", true, argumentos)
 }
 
 fn executar_com_formulario(
     unidade: Option<&'static str>,
     legenda: &'static str,
     unidade_formulario: &'static str,
+    opcoes_adicionais: &'static str,
     sessao_presente: bool,
     argumentos: &[&str],
 ) -> (Output, Vec<String>) {
@@ -67,7 +68,7 @@ fn executar_com_formulario(
             let html = match evento.as_str() {
                 "GET procedimento_controlar" => controle(),
                 "GET marcador_listar" => catalogo(unidade, legenda),
-                "GET marcador_cadastrar" => formulario_novo(unidade_formulario),
+                "GET marcador_cadastrar" => formulario_novo(unidade_formulario, opcoes_adicionais),
                 _ => panic!("pedido inesperado: {evento}"),
             };
             pedidos.push(evento);
@@ -160,7 +161,7 @@ fn texto_distingue_faixa_e_estado_mesmo_sem_itens_selecionados() {
     }
 }
 
-fn formulario_novo(unidade: &str) -> String {
+fn formulario_novo(unidade: &str, opcoes_adicionais: &str) -> String {
     format!(
         "<a id='lnkInfraUnidade'>{unidade}</a>\
          <form id='frmMarcadorCadastro' method='post' action='controlador.php?acao=marcador_cadastrar&amp;infra_hash={}'>\
@@ -168,7 +169,7 @@ fn formulario_novo(unidade: &str) -> String {
          <input type='hidden' name='hdnStaIcone'>\
          <select name='selStaIcone'><option value='null'> </option>\
          <option value='2'>Cinza</option><option value='2'>Cinza Escuro</option>\
-         <option value='0'>Preto</option></select>\
+         <option value='0'>Preto</option>{opcoes_adicionais}</select>\
          <button name='sbmCadastrarMarcador' type='submit'>Salvar</button></form>",
         "c".repeat(64)
     )
@@ -220,6 +221,7 @@ fn previa_criar_marcador_recusa_confirmacao_e_cor_ausente() {
         Some("TESTE"),
         "1 registro",
         "TESTE",
+        "",
         false,
         &[
             "--json",
@@ -261,6 +263,7 @@ fn previa_criar_marcador_recusa_confirmacao_e_cor_ausente() {
         Some("TESTE"),
         "1 registro",
         "OUTRA",
+        "",
         true,
         &[
             "--json", "marcador", "criar", "--nome", "Novo", "--cor", "Preto",
@@ -275,4 +278,58 @@ fn previa_criar_marcador_recusa_confirmacao_e_cor_ausente() {
             "GET marcador_cadastrar",
         ]
     );
+}
+
+#[test]
+fn previa_criar_marcador_recusa_rotulo_duplicado_mesmo_com_valor_invalido() {
+    for opcao in [
+        "<option>Preto</option>",
+        "<option value=''>Preto</option>",
+        "<option value='null'>Preto</option>",
+        "<option value='0'>Preto</option>",
+    ] {
+        let (saida, pedidos) = executar_com_formulario(
+            Some("TESTE"),
+            "1 registro",
+            "TESTE",
+            opcao,
+            true,
+            &["--json", "marcador", "criar", "--nome", "Novo", "--cor", "Preto"],
+        );
+        falha(&saida, "CorNaoOferecidaOuAmbigua");
+        assert_eq!(
+            pedidos,
+            [
+                "GET procedimento_controlar",
+                "GET marcador_listar",
+                "GET marcador_cadastrar",
+            ]
+        );
+    }
+}
+
+#[test]
+fn previa_criar_marcador_texto_nao_promete_escrita() {
+    let (saida, pedidos) = executar_catalogo(
+        Some("TESTE"),
+        "1 registro",
+        &[
+            "marcador", "criar", "--nome", "Novo", "--cor", "Preto",
+            "--descricao", "Conferência",
+        ],
+    );
+    assert_eq!(saida.status.code(), Some(0), "{:?}", saida.stderr);
+    assert_eq!(
+        pedidos,
+        [
+            "GET procedimento_controlar",
+            "GET marcador_listar",
+            "GET marcador_cadastrar",
+        ]
+    );
+    let texto = String::from_utf8(saida.stdout).unwrap();
+    assert!(texto.contains("Prévia: criar marcador Novo na unidade TESTE"));
+    assert!(texto.contains("cor Preto (código 0)"));
+    assert!(texto.contains("Descrição: Conferência"));
+    assert!(texto.contains("Nenhum marcador criado; confirmação indisponível."));
 }
