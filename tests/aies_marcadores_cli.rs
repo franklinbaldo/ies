@@ -531,3 +531,6 @@ fn bdd_255_01_confirmar_atribuicao_exige_post_unico_e_releitura_do_texto() {
 fn bdd_255_01_403_apos_efeito_aplicado_nao_prova_autoria() {
     executar(Caso::AtribuirNaoConfirmado);
 }
+
+#[path = "aies_marcadores_cli/catalogo_unidade.rs"]
+mod catalogo_unidade;

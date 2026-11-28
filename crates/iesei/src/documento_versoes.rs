@@ -33,16 +33,10 @@ pub enum ErroDocumentoVersoes {
     DadoInvalido,
 }
 
-/// Reconstrói as versões do documento de forma atômica e idempotente.
-///
-/// # Errors
-/// Recusa identidade, revisão repetida ou dados incompletos e preserva
-/// a causa SQLite original.
-pub fn guardar(
-    banco: &mut Connection,
+fn validar(
     cenario: &str,
     documento: &DocumentoSimulado,
-) -> Result<(), ErroDocumentoVersoes> {
+) -> Result<HashSet<i64>, ErroDocumentoVersoes> {
     let valido = |texto: &str| !texto.trim().is_empty();
     if !valido(cenario)
         || !valido(&documento.id_procedimento)
@@ -62,7 +56,7 @@ pub fn guardar(
     }
     let mut vistas = HashSet::new();
     for revisao in &documento.revisoes {
-        if !vistas.insert(revisao.versao)
+        if !vistas.insert(i64::from(revisao.versao.get()))
             || !valido(&revisao.usuario)
             || !valido(&revisao.unidade)
             || !valido(&revisao.modificacao)
@@ -72,6 +66,20 @@ pub fn guardar(
             return Err(ErroDocumentoVersoes::DadoInvalido);
         }
     }
+    Ok(vistas)
+}
+
+/// Reconstrói as versões de forma atômica, preservando as linhas idênticas.
+///
+/// # Errors
+/// Recusa identidade, revisão repetida ou dados incompletos e preserva
+/// a causa SQLite original.
+pub fn guardar(
+    banco: &mut Connection,
+    cenario: &str,
+    documento: &DocumentoSimulado,
+) -> Result<(), ErroDocumentoVersoes> {
+    let vistas = validar(cenario, documento)?;
     let origem = documento.instalacao.url_base();
     let tx = banco.transaction()?;
     tx.execute(
@@ -92,15 +100,48 @@ pub fn guardar(
             documento.tipo
         ],
     )?;
-    tx.execute(
-        "DELETE FROM documento_revisao WHERE origem=?1 AND cenario=?2 AND id_documento=?3",
-        params![origem, cenario, documento.id_documento],
-    )?;
+    // Preserve a identidade das revisões literalmente iguais: a futura
+    // estrutura de seções pertence à revisão, não ao ato de importar.
+    let existentes = {
+        let mut consulta = tx.prepare(
+            "SELECT versao FROM documento_revisao
+             WHERE origem=?1 AND cenario=?2 AND id_documento=?3",
+        )?;
+        let linhas = consulta.query_map(params![origem, cenario, documento.id_documento], |r| {
+            r.get::<_, i64>(0)
+        })?;
+        linhas.collect::<rusqlite::Result<Vec<_>>>()?
+    };
+    for versao in existentes {
+        if !vistas.contains(&versao) {
+            tx.execute(
+                "DELETE FROM documento_revisao
+                 WHERE origem=?1 AND cenario=?2 AND id_documento=?3 AND versao=?4",
+                params![origem, cenario, documento.id_documento, versao],
+            )?;
+        }
+    }
     for r in &documento.revisoes {
+        tx.execute(
+            "DELETE FROM documento_revisao
+             WHERE origem=?1 AND cenario=?2 AND id_documento=?3 AND versao=?4
+               AND (usuario<>?5 OR unidade<>?6 OR modificacao<>?7 OR html_corpo<>?8)",
+            params![
+                origem,
+                cenario,
+                documento.id_documento,
+                i64::from(r.versao.get()),
+                r.usuario,
+                r.unidade,
+                r.modificacao,
+                r.html_corpo
+            ],
+        )?;
         tx.execute(
             "INSERT INTO documento_revisao
              (origem, cenario, id_documento, versao, usuario, unidade, modificacao, html_corpo)
-             VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7, ?8)",
+             VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7, ?8)
+             ON CONFLICT(origem, cenario, id_documento, versao) DO NOTHING",
             params![
                 origem,
                 cenario,
@@ -273,6 +314,74 @@ mod testes_criacao {
     use super::*;
     use crate::banco_cassettes::iniciar;
     use crate::documentos_simulados::{self, Processo, Tipo};
+
+    #[test]
+    fn reimportacao_preserva_revisao_identica_sem_manter_revisoes_obsoletas() {
+        let mut banco = Connection::open_in_memory().unwrap();
+        iniciar(&banco).unwrap();
+        let origem = Instalacao::interpretar("https://simulado.invalid/sei").unwrap();
+        let revisao = |numero, corpo: &str| Revisao {
+            versao: NonZeroU32::new(numero).unwrap(),
+            usuario: "TESTE".into(),
+            unidade: "TESTE".into(),
+            modificacao: "26/11/2026".into(),
+            html_corpo: corpo.into(),
+        };
+        let mut documento = DocumentoSimulado {
+            instalacao: origem.clone(),
+            id_documento: "21".into(),
+            id_procedimento: "10".into(),
+            numero_processo: "00001.000001/2026-01".into(),
+            numero: "0000101".into(),
+            tipo: "Despacho".into(),
+            revisoes: vec![
+                revisao(1, "Antes"),
+                revisao(2, "Igual"),
+                revisao(3, "Retirar"),
+            ],
+        };
+        let antigo = documento.clone();
+        guardar(&mut banco, "ensaio", &documento).unwrap();
+        guardar(&mut banco, "outro", &documento).unwrap();
+        // Oráculo sintético de identidade: falha se a linha for removida,
+        // mesmo quando a implementação tenta reinseri-la com os mesmos bytes.
+        banco
+            .execute_batch(
+                "CREATE TRIGGER preservar_identica BEFORE DELETE ON documento_revisao
+                 WHEN OLD.cenario='ensaio' AND OLD.versao=2
+                 BEGIN SELECT RAISE(ABORT, 'revisao identica removida'); END;",
+            )
+            .unwrap();
+        documento.revisoes = vec![
+            revisao(1, "Depois"),
+            revisao(2, "Igual"),
+            revisao(4, "Nova"),
+        ];
+        guardar(&mut banco, "ensaio", &documento).unwrap();
+        guardar(&mut banco, "ensaio", &documento).unwrap();
+        assert_eq!(
+            ler(&banco, &origem, "ensaio", "21").unwrap(),
+            Some(documento.clone())
+        );
+        assert_eq!(ler(&banco, &origem, "outro", "21").unwrap(), Some(antigo));
+        banco
+            .execute_batch(
+                "CREATE TRIGGER falha_publicacao BEFORE INSERT ON documento_revisao
+                 WHEN NEW.versao=5
+                 BEGIN SELECT RAISE(ABORT, 'falha sintetica'); END;",
+            )
+            .unwrap();
+        let mut mutante = documento.clone();
+        mutante.revisoes = vec![revisao(2, "Igual"), revisao(5, "Falha")];
+        assert!(matches!(
+            guardar(&mut banco, "ensaio", &mutante),
+            Err(ErroDocumentoVersoes::Sqlite(_))
+        ));
+        assert_eq!(
+            ler(&banco, &origem, "ensaio", "21").unwrap(),
+            Some(documento)
+        );
+    }
 
     #[test]
     fn criado_nao_inventa_revisao_mas_passa_a_ser_versionado_apos_edicao() {

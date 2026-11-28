@@ -100,9 +100,12 @@ persistidas pelo SEI, efeito que deve ser incluído na revisão pré-merge
 e na validação de treinamento, sem atribuir tal comportamento a testes
 de escrita real ainda não realizados.
 
-Após aceite da versão esperada, uma nova leitura compara a versão criada
-e a seção principal com o **conteúdo efetivamente enviado** (HTML opaco
-com LF canônico). Aceite inconclusivo, falha pós-POST ou conteúdo divergente
+Após aceite da versão esperada, uma nova leitura confere a versão criada,
+a identidade da seção principal e, pelo nome de cada seção enviada,
+o **conteúdo efetivamente enviado** (HTML opaco com LF canônico).
+Uma seção vazia deve estar presente; ausência não equivale a vazio.
+A ordem das seções na releitura não altera essa comparação.
+Aceite inconclusivo, falha pós-POST ou conteúdo divergente
 resultam em `EdicaoNaoComprovada`, sem alegar qual versão foi persistida.
 Não repetir a operação antes de conferência independente. Nenhuma tentativa
 é repetida automaticamente.
