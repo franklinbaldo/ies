@@ -417,6 +417,30 @@ mod tests {
     }
 
     #[test]
+    fn radio_de_prazo_marcado_sem_valor_nao_e_sem_prazo() {
+        let html = tela("1", "30/10/2026").replace(
+            "name='rdoPrazo' value='1' checked",
+            "name='rdoPrazo' checked",
+        );
+        assert_eq!(
+            ler_tela(&crate::tela_html::HtmlServido::de_teste(&html), "10"),
+            Err(ErroPrazo::PrazoAtualIlegivel)
+        );
+    }
+
+    #[test]
+    fn dois_radios_de_prazo_marcados_nao_escolhem_o_ultimo() {
+        let html = tela("1", "30/10/2026").replace(
+            "name='rdoPrazo' value='3'",
+            "name='rdoPrazo' value='3' checked",
+        );
+        assert_eq!(
+            ler_tela(&crate::tela_html::HtmlServido::de_teste(&html), "10"),
+            Err(ErroPrazo::PrazoAtualIlegivel)
+        );
+    }
+
+    #[test]
     fn tela_le_prazo_em_dias_sem_inferir_data_de_calendario() {
         let por_dias =
             tela("2", "").replace("name='txtDias' value=''", "name='txtDias' value='15'");
