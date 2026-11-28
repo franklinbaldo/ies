@@ -319,8 +319,8 @@ fn previa_processo_sem_oferta_na_barra_recusa_sem_mutacao() {
         .unwrap();
     processo.aberto_em.clear();
     processos::guardar(&mut banco, &instalacao, CENARIO, &processo).unwrap();
-    let antes = bloco_detalhe::ler(&banco, &instalacao, CENARIO, Tipo::Interno, BLOCO_INTERNO)
-        .unwrap();
+    let antes =
+        bloco_detalhe::ler(&banco, &instalacao, CENARIO, Tipo::Interno, BLOCO_INTERNO).unwrap();
     let (saida, pedidos) = executar_ciencia_processo(
         &pasta,
         &[
