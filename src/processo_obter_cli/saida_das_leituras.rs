@@ -17,7 +17,16 @@ pub(super) fn json_das_propriedades(lidas: &PropriedadesLidas) -> Value {
     let mut objeto = serde_json::Map::new();
     objeto.insert("tipo".to_owned(), json!(lidas.tipo));
     objeto.insert("especificacao".to_owned(), json!(lidas.especificacao));
-    objeto.insert("interessados".to_owned(), json!(lidas.interessados.iter().map(|i| &i.nome).collect::<Vec<_>>()));
+    objeto.insert(
+        "interessados".to_owned(),
+        json!(
+            lidas
+                .interessados
+                .iter()
+                .map(|i| &i.nome)
+                .collect::<Vec<_>>()
+        ),
+    );
     objeto.insert("assuntos".to_owned(), Value::Array(assuntos));
     objeto.insert("observacoes".to_owned(), json!(lidas.observacoes));
     objeto.insert(

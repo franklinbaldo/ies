@@ -122,7 +122,11 @@ fn conferir_candidato<V: EnvioDoControle>(
         id_hipotese_legal: propriedades.id_hipotese_legal,
         especificacao: propriedades.especificacao,
         nivel: propriedades.nivel_de_acesso,
-        interessados: propriedades.interessados.into_iter().map(|i| i.nome).collect(),
+        interessados: propriedades
+            .interessados
+            .into_iter()
+            .map(|i| i.nome)
+            .collect(),
     })
 }
 

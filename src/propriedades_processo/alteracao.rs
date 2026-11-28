@@ -3,8 +3,8 @@
 use super::tela::{ALTERAR_ESPECIFICACAO, pares_de_especificacao};
 use super::{ErroPropriedades, FonteDasPropriedades, PropriedadesLidas, ler_propriedades};
 use crate::acao_do_sei::AcaoDoSei;
-use crate::arvore_processo::{conferir_endereco_relativo, ler_link_das_propriedades};
 use crate::arvore_processo::endereco::EnderecoRecusado;
+use crate::arvore_processo::{conferir_endereco_relativo, ler_link_das_propriedades};
 use crate::formulario_web::{ErroSubmissaoFormulario, TelaServida, derivar_submissao};
 use crate::indice_local::IndiceLocal;
 use crate::instalacao::Instalacao;
@@ -66,8 +66,8 @@ fn prever<V: EnvioDoProcesso>(
     indice: &IndiceLocal,
     envio: &mut V,
 ) -> Result<Previa, ErroAlterar> {
-    let instalacao = Instalacao::interpretar(sessao.origem)
-        .ok_or(ErroAlterar::OrigemNaoAutorizada)?;
+    let instalacao =
+        Instalacao::interpretar(sessao.origem).ok_or(ErroAlterar::OrigemNaoAutorizada)?;
     let mut rede = Contador::novo(envio);
     let (aberto, acoes) =
         abrir_para_escrever(sessao, &leitura(numero, unidade, true), indice, &mut rede)?;
@@ -100,11 +100,12 @@ fn prever<V: EnvioDoProcesso>(
 
 pub(crate) fn tentar_alterar(cli: &Cli) -> Option<anyhow::Result<()>> {
     let Domain::Processo(Processo {
-        acao: Some(ProcessoAcao::Alterar {
-            numero,
-            especificacao,
-            confirmar,
-        }),
+        acao:
+            Some(ProcessoAcao::Alterar {
+                numero,
+                especificacao,
+                confirmar,
+            }),
         ..
     }) = &cli.command
     else {
@@ -113,40 +114,48 @@ pub(crate) fn tentar_alterar(cli: &Cli) -> Option<anyhow::Result<()>> {
     if *confirmar {
         return Some(Err(ErroAlterar::EscritaAindaNaoValidada.into()));
     }
-    Some(crate::processo_concluir_cli::com_sessao(cli, |sessao, indice| {
-        let previa = prever(
-            sessao,
-            numero,
-            especificacao,
-            cli.unidade.as_deref(),
-            indice,
-            &mut EnvioHttps,
-        )?;
-        let necessaria = previa.anterior != *especificacao;
-        if cli.json {
-            let mut valor = json!({
-                "numero": numero.as_str(),
-                "id_procedimento": previa.id,
-                "especificacao_anterior": previa.anterior,
-                "especificacao_pedida": especificacao,
-                "alteracao_necessaria": necessaria,
-                "alterado": false,
-                "confirmado": false,
-                "origem": "web",
-                "requisicoes": previa.requisicoes,
-            });
-            crate::indice_local::anexar_avisos(&mut valor, indice);
-            println!("{valor}");
-        } else if necessaria {
-            println!(
-                "Prévia de alteração no processo {}: {:?} → {:?}. Nenhuma escrita.",
-                numero.as_str(), previa.anterior, especificacao
-            );
-        } else {
-            println!("Processo {}: especificação já igual. Nenhuma escrita.", numero.as_str());
-        }
-        Ok(())
-    }))
+    Some(crate::processo_concluir_cli::com_sessao(
+        cli,
+        |sessao, indice| {
+            let previa = prever(
+                sessao,
+                numero,
+                especificacao,
+                cli.unidade.as_deref(),
+                indice,
+                &mut EnvioHttps,
+            )?;
+            let necessaria = previa.anterior != *especificacao;
+            if cli.json {
+                let mut valor = json!({
+                    "numero": numero.as_str(),
+                    "id_procedimento": previa.id,
+                    "especificacao_anterior": previa.anterior,
+                    "especificacao_pedida": especificacao,
+                    "alteracao_necessaria": necessaria,
+                    "alterado": false,
+                    "confirmado": false,
+                    "origem": "web",
+                    "requisicoes": previa.requisicoes,
+                });
+                crate::indice_local::anexar_avisos(&mut valor, indice);
+                println!("{valor}");
+            } else if necessaria {
+                println!(
+                    "Prévia de alteração no processo {}: {:?} → {:?}. Nenhuma escrita.",
+                    numero.as_str(),
+                    previa.anterior,
+                    especificacao
+                );
+            } else {
+                println!(
+                    "Processo {}: especificação já igual. Nenhuma escrita.",
+                    numero.as_str()
+                );
+            }
+            Ok(())
+        },
+    ))
 }
 
 // A confirmação do alvo usa identidade do formulário e da action, não o texto.
@@ -154,9 +163,7 @@ pub(crate) fn tentar_alterar(cli: &Cli) -> Option<anyhow::Result<()>> {
 mod tests {
     use super::*;
     use crate::formulario_web::tests::{instalacao, tela_iso};
-    use crate::propriedades_processo::tests_apoio::{
-        link_das_propriedades, tela_das_propriedades,
-    };
+    use crate::propriedades_processo::tests_apoio::{link_das_propriedades, tela_das_propriedades};
     use crate::tela_html::HtmlServido;
 
     const NUP: &str = "00001.000001/2026-01";
@@ -167,7 +174,14 @@ mod tests {
             "https://sei.exemplo.gov.br/sei/{}",
             link_das_propriedades(AcaoDoSei::ProcedimentoAlterar, "10")
         );
-        preparar(&instalacao(), &tela_iso(&url, &html), NUP, "10", "Nova", None)
+        preparar(
+            &instalacao(),
+            &tela_iso(&url, &html),
+            NUP,
+            "10",
+            "Nova",
+            None,
+        )
     }
 
     #[test]
@@ -177,12 +191,16 @@ mod tests {
         let outra_action = html.replacen("id_procedimento=10&", "id_procedimento=11&", 1);
         assert!(matches!(
             preparar_html(&outra_action),
-            Err(ErroAlterar::ActionRecusada(EnderecoRecusado::DeOutroProcesso))
+            Err(ErroAlterar::ActionRecusada(
+                EnderecoRecusado::DeOutroProcesso
+            ))
         ));
         let outro = tela_das_propriedades(NUP, "11");
         assert!(matches!(
             preparar_html(&outro),
-            Err(ErroAlterar::Propriedades(ErroPropriedades::IdDasPropriedadesDiferenteDoAberto))
+            Err(ErroAlterar::Propriedades(
+                ErroPropriedades::IdDasPropriedadesDiferenteDoAberto
+            ))
         ));
     }
 
@@ -194,7 +212,9 @@ mod tests {
         );
         assert!(matches!(
             preparar_html(&html),
-            Err(ErroAlterar::Propriedades(ErroPropriedades::CadastroIndividualNaoSuportado))
+            Err(ErroAlterar::Propriedades(
+                ErroPropriedades::CadastroIndividualNaoSuportado
+            ))
         ));
     }
 }

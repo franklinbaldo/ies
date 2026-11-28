@@ -17,7 +17,10 @@ fn com_propriedades() -> ProcessoAberto {
         id_tipo: "100000002".into(),
         tipo: "Tipo Sintetico: Teste".into(),
         especificacao: "Especificacao sintetica".into(),
-        interessados: vec![Interessado { id: "301".into(), nome: "Pessoa Sintetica A".into() }],
+        interessados: vec![Interessado {
+            id: "301".into(),
+            nome: "Pessoa Sintetica A".into(),
+        }],
         assuntos: vec![
             Assunto {
                 id: "2001".into(),

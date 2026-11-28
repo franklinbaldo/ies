@@ -37,8 +37,14 @@ fn le_os_campos_da_forma_observada() {
             tipo: "Tipo Sintetico: Teste".into(),
             especificacao: "Especificação sintética & teste".into(),
             interessados: vec![
-                Interessado { id: "301".into(), nome: "Pessoa Sintetica A".into() },
-                Interessado { id: "302".into(), nome: "Entidade Sintetica B".into() },
+                Interessado {
+                    id: "301".into(),
+                    nome: "Pessoa Sintetica A".into()
+                },
+                Interessado {
+                    id: "302".into(),
+                    nome: "Entidade Sintetica B".into()
+                },
             ],
             assuntos: vec![Assunto {
                 id: "2001".into(),
@@ -116,9 +122,15 @@ fn listas_homonimas_preservam_identidades_distintas() {
     let assunto = ler(&trocar("value=\"2001\"", "value=\"2002\"")).unwrap();
     let interessado = ler(&trocar("value=\"301\"", "value=\"303\"")).unwrap();
     assert_eq!(original.assuntos[0].codigo, assunto.assuntos[0].codigo);
-    assert_eq!(original.assuntos[0].descricao, assunto.assuntos[0].descricao);
+    assert_eq!(
+        original.assuntos[0].descricao,
+        assunto.assuntos[0].descricao
+    );
     assert_ne!(original.assuntos, assunto.assuntos);
-    assert_eq!(original.interessados[0].nome, interessado.interessados[0].nome);
+    assert_eq!(
+        original.interessados[0].nome,
+        interessado.interessados[0].nome
+    );
     assert_ne!(original.interessados, interessado.interessados);
 }
 

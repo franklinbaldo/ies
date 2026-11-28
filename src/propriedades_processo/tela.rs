@@ -2,11 +2,13 @@
 //! `procedimento_alterar` (ou `procedimento_consultar`), lido sem envio:
 //! nenhum campo é reescrito e `btnSalvar` nunca participa. Atributos pelo
 //! árvore `tela_html` (atributos e aninhamento como no navegador).
-use super::{Assunto, ErroPropriedades, FonteDasPropriedades, Interessado, NivelDeAcesso, PropriedadesLidas};
+use super::{
+    Assunto, ErroPropriedades, FonteDasPropriedades, Interessado, NivelDeAcesso, PropriedadesLidas,
+};
 
 use crate::formulario_web::{
-    ConferenciaDaUnidade, EfeitoAvaliado, EnvioDoFormulario, OperacaoDeFormulario,
-    ResultadoDoEnvio, EstadoDoProcesso, valor_da_lupa,
+    ConferenciaDaUnidade, EfeitoAvaliado, EnvioDoFormulario, EstadoDoProcesso,
+    OperacaoDeFormulario, ResultadoDoEnvio, valor_da_lupa,
 };
 
 const FORMULARIO: &str = "frmProcedimentoCadastro";
@@ -233,17 +235,30 @@ pub(super) const ALTERAR_ESPECIFICACAO: OperacaoDeFormulario = OperacaoDeFormula
     formulario: FORMULARIO,
     envio: EnvioDoFormulario::SubmitPorScript,
     campos_ocultos_exigidos: &[
-        "hdnFlagProcedimentoCadastro", "hdnIdProcedimento", "hdnProtocoloFormatado",
-        "hdnIdTipoProcedimento", "hdnAssuntos", "hdnInteressadosProcedimento",
+        "hdnFlagProcedimentoCadastro",
+        "hdnIdProcedimento",
+        "hdnProtocoloFormatado",
+        "hdnIdTipoProcedimento",
+        "hdnAssuntos",
+        "hdnInteressadosProcedimento",
     ],
     campos_ocultos_reescritos: &[
-        "hdnFlagProcedimentoCadastro", "hdnAssuntos", "hdnInteressadosProcedimento",
+        "hdnFlagProcedimentoCadastro",
+        "hdnAssuntos",
+        "hdnInteressadosProcedimento",
     ],
     campos_usuario: &[
-        "selTipoProcedimento", "txtDescricao", "txtAssunto", "selAssuntos",
-        "txtInteressadoProcedimento", "selInteressadosProcedimento",
-        "txtInteressadoUsuario", "txaObservacoes", "selGrauSigilo",
-        "rdoNivelAcesso", "selHipoteseLegal",
+        "selTipoProcedimento",
+        "txtDescricao",
+        "txtAssunto",
+        "selAssuntos",
+        "txtInteressadoProcedimento",
+        "selInteressadosProcedimento",
+        "txtInteressadoUsuario",
+        "txaObservacoes",
+        "selGrauSigilo",
+        "rdoNivelAcesso",
+        "selHipoteseLegal",
     ],
     resultado: ResultadoDoEnvio::ConferidoPorLeituraPosterior,
     unidade: ConferenciaDaUnidade::NaTelaDeOrigemDoLink,
@@ -298,15 +313,24 @@ pub(super) fn pares_de_especificacao(
         ("txaObservacoes", observacoes(campos)?),
         ("hdnFlagProcedimentoCadastro", "2".to_owned()),
     ];
-    for nome in ["txtAssunto", "txtInteressadoProcedimento", "txtInteressadoUsuario"] {
+    for nome in [
+        "txtAssunto",
+        "txtInteressadoProcedimento",
+        "txtInteressadoUsuario",
+    ] {
         if let Some(tag) = campos.opcional(nome)? {
             if !tag.presente("disabled") {
                 pares.push((nome, valor(tag)));
             }
         }
     }
-    for nome in ["selTipoProcedimento", "selAssuntos", "selInteressadosProcedimento",
-                 "selGrauSigilo", "selHipoteseLegal"] {
+    for nome in [
+        "selTipoProcedimento",
+        "selAssuntos",
+        "selInteressadosProcedimento",
+        "selGrauSigilo",
+        "selHipoteseLegal",
+    ] {
         pares_select(campos, nome, &mut pares)?;
     }
     let nivel = match nivel_de_acesso(campos)? {
@@ -337,65 +361,5 @@ pub(super) fn pares_de_especificacao(
 
 // Testes sintéticos da derivação, sem acesso remoto.
 #[cfg(test)]
-mod testes_derivacao_r284 {
-    use super::*;
-    use crate::formulario_web::{derivar_submissao, tests::{instalacao, tela_iso}};
-    use crate::propriedades_processo::tests_apoio::{tela_das_propriedades, tela_restrita, link_das_propriedades};
-    use crate::tela_html::HtmlServido;
-
-    fn corpo(html: &str) -> String {
-        let html = HtmlServido::de_teste(html);
-        let pares = pares_de_especificacao(&html, "Nova descrição & café").unwrap();
-        let refs: Vec<_> = pares.iter().map(|(n, v)| (*n, v.as_str())).collect();
-        let url = format!("https://sei.exemplo.gov.br/sei/{}", link_das_propriedades(
-            crate::acao_do_sei::AcaoDoSei::ProcedimentoAlterar, "10"));
-        let sub = derivar_submissao(&ALTERAR_ESPECIFICACAO, &instalacao(),
-            &tela_iso(&url, &html), None, &refs).unwrap();
-        String::from_utf8(sub.corpo().to_vec()).unwrap()
-    }
-
-    #[test]
-    fn derivacao_nao_usa_projecao_normalizada_da_lupa() {
-        let html = tela_das_propriedades("00001.000001/2026-01", "10");
-        for (rotulo, codificado) in [
-            ("Pessoa Sintetica A", "Pessoa+Sintetica+A"),
-            ("Pessoa&nbsp;Sintetica A", "Pessoa%A0Sintetica+A"),
-            ("Pessoa  Sintetica A", "Pessoa++Sintetica+A"),
-        ] {
-            let variante = html.replace("Pessoa Sintetica A", rotulo);
-            let corpo = corpo(&variante);
-            let esperado = format!(
-                "hdnInteressadosProcedimento=301%B1{codificado}%A5302%B1Entidade+Sintetica+B"
-            );
-            assert!(corpo.split('&').any(|par| par == esperado));
-        }
-    }
-
-    #[test]
-    fn publica_e_restrita_preservam_controles() {
-        let nup = "00001.000001/2026-01";
-        let publica = corpo(&tela_das_propriedades(nup, "10"));
-        for par in [
-            "txtDescricao=Nova+descri%E7%E3o+%26+caf%E9",
-            "txaObservacoes=Observa%E7%E3o+sint%E9tica",
-            "selTipoProcedimento=100000002",
-            "hdnAssuntos=2001%B1000.01+-+Assunto+sint%E9tico+um",
-            "hdnInteressadosProcedimento=301%B1Pessoa+Sintetica+A%A5302%B1Entidade+Sintetica+B",
-            "hdnFlagProcedimentoCadastro=2", "rdoNivelAcesso=0", "selGrauSigilo=null",
-            "txtAssunto=", "txtInteressadoProcedimento=", "txtInteressadoUsuario=",
-        ] {
-            assert!(publica.split('&').any(|p| p == par), "par ausente: {par}");
-        }
-        for nome in ["selHipoteseLegal", "btnSalvar", "selAssuntos",
-                     "selInteressadosProcedimento", "hdnInfraPrefixoCookie"] {
-            assert!(!publica.split('&').any(|p| p.starts_with(&format!("{nome}="))));
-        }
-        let restrita = corpo(&tela_restrita(nup, "10"));
-        assert!(restrita.split('&').any(|p| p == "rdoNivelAcesso=1"));
-        assert!(restrita.split('&').any(|p| p == "selHipoteseLegal=7"));
-        let placeholder = tela_das_propriedades(nup, "10").replace(
-            "<select id=\"selHipoteseLegal\" name=\"selHipoteseLegal\" class=\"infraSelect\">\n</select>",
-            "<select id=\"selHipoteseLegal\" name=\"selHipoteseLegal\" class=\"infraSelect\"><option value=\"null\">&nbsp;</option></select>");
-        assert!(corpo(&placeholder).split('&').any(|p| p == "selHipoteseLegal=null"));
-    }
-}
+#[path = "tests_derivacao.rs"]
+mod testes_derivacao;

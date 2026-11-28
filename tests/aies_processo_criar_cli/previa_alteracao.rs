@@ -6,8 +6,8 @@ const ANTERIOR: &str = "Cadastro anterior";
 
 fn banco_com_processo() -> (Connection, Instalacao) {
     let (banco, instalacao) = banco();
-    let criado = criacao_processo::criar(&banco, &instalacao, CENARIO, "12", ANTERIOR, "TESTE")
-        .unwrap();
+    let criado =
+        criacao_processo::criar(&banco, &instalacao, CENARIO, "12", ANTERIOR, "TESTE").unwrap();
     assert_eq!(criado.nup, NUP);
     assert_eq!(criado.id_procedimento, "91");
     (banco, instalacao)
@@ -23,7 +23,14 @@ fn observar(banco: &Connection, instalacao: &Instalacao) -> criacao_processo::Cr
 fn previa_e_noop_preservam_cadastro_e_identidade() {
     for pedida in ["Nova descrição", ANTERIOR] {
         let (saida, _, pedidos, antes, depois) = executar_em_bancada(
-            &["--json", "processo", "alterar", NUP, "--especificacao", pedida],
+            &[
+                "--json",
+                "processo",
+                "alterar",
+                NUP,
+                "--especificacao",
+                pedida,
+            ],
             false,
             false,
             banco_com_processo,
@@ -54,7 +61,13 @@ fn confirmar_recusa_antes_de_abrir_sessao() {
     for pedida in ["Nova descrição", ANTERIOR] {
         let (saida, _, pedidos, antes, depois) = executar_em_bancada(
             &[
-                "--json", "processo", "alterar", NUP, "--especificacao", pedida, "--confirmar",
+                "--json",
+                "processo",
+                "alterar",
+                NUP,
+                "--especificacao",
+                pedida,
+                "--confirmar",
             ],
             false,
             false,
