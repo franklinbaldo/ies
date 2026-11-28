@@ -222,12 +222,16 @@ fn baixar_zip_http(
 }
 
 fn conferir_zip_http(resposta: (String, Vec<u8>), esperados: &[(&str, &[u8])]) {
-    use std::io::{Cursor, Read};
-
     let (cabecalho, corpo) = resposta;
     assert!(cabecalho.starts_with("HTTP/1.1 200 OK\r\n"), "{cabecalho}");
     assert!(cabecalho.contains("Content-Type: application/zip\r\n"));
     assert!(cabecalho.contains("Content-Disposition: attachment;"));
+    conferir_membros_zip(corpo, esperados);
+}
+
+fn conferir_membros_zip(corpo: Vec<u8>, esperados: &[(&str, &[u8])]) {
+    use std::io::{Cursor, Read};
+
     let mut zip = zip::ZipArchive::new(Cursor::new(corpo)).unwrap();
     assert_eq!(zip.len(), esperados.len());
     for &(nome, esperado) in esperados {
@@ -372,3 +376,6 @@ fn exportacao_seletiva_recusa_no_fechado_antes_do_gerador() {
         }
     }
 }
+
+#[path = "exportacao/completude.rs"]
+mod completude;
