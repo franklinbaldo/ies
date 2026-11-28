@@ -51,7 +51,9 @@ fn cassette_previa_criacao_marcador_unb_go() {
                         .is_ok_and(|codigo| codigo == "0")
                     {
                         reconhecidos += 1;
-                        if link.as_deref() == r.interacao["response"]["url"].as_str() {
+                        if link.as_deref().is_some_and(|alvo| {
+                            r.interacao["response"]["url"].as_str() == Some(alvo)
+                        }) {
                             encadeadas += 1;
                         }
                     }
