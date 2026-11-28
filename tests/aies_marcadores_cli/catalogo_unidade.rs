@@ -32,7 +32,23 @@ fn executar_catalogo(
     legenda: &'static str,
     argumentos: &[&str],
 ) -> (Output, Vec<String>) {
+    executar_com_formulario(unidade, legenda, "TESTE", true, argumentos)
+}
+
+fn executar_com_formulario(
+    unidade: Option<&'static str>,
+    legenda: &'static str,
+    unidade_formulario: &'static str,
+    sessao_presente: bool,
+    argumentos: &[&str],
+) -> (Output, Vec<String>) {
     let (pasta, cert, tls_id, origem, controle_arquivo, cookie) = preparar_sessao();
+    if !sessao_presente {
+        for arquivo in [&origem, &controle_arquivo, &cookie] {
+            std::fs::remove_file(arquivo).unwrap();
+            assert!(!arquivo.exists());
+        }
+    }
     let proxy = TcpListener::bind(("127.0.0.1", 0)).unwrap();
     proxy.set_nonblocking(true).unwrap();
     let porta = proxy.local_addr().unwrap().port();
@@ -51,7 +67,7 @@ fn executar_catalogo(
             let html = match evento.as_str() {
                 "GET procedimento_controlar" => controle(),
                 "GET marcador_listar" => catalogo(unidade, legenda),
-                "GET marcador_cadastrar" => formulario_novo(),
+                "GET marcador_cadastrar" => formulario_novo(unidade_formulario),
                 _ => panic!("pedido inesperado: {evento}"),
             };
             pedidos.push(evento);
@@ -144,9 +160,9 @@ fn texto_distingue_faixa_e_estado_mesmo_sem_itens_selecionados() {
     }
 }
 
-fn formulario_novo() -> String {
+fn formulario_novo(unidade: &str) -> String {
     format!(
-        "<a id='lnkInfraUnidade'>TESTE</a>\
+        "<a id='lnkInfraUnidade'>{unidade}</a>\
          <form id='frmMarcadorCadastro' method='post' action='controlador.php?acao=marcador_cadastrar&amp;infra_hash={}'>\
          <input name='txtNome'><textarea name='txaDescricao'></textarea>\
          <input type='hidden' name='hdnStaIcone'>\
@@ -199,9 +215,12 @@ fn previa_criar_marcador_le_formulario_sem_post() {
 
 #[test]
 fn previa_criar_marcador_recusa_confirmacao_e_cor_ausente() {
-    let (saida, pedidos) = executar_catalogo(
+    // A recusa deve anteceder até a leitura das referências inexistentes.
+    let (saida, pedidos) = executar_com_formulario(
         Some("TESTE"),
         "1 registro",
+        "TESTE",
+        false,
         &[
             "--json",
             "marcador",
@@ -229,6 +248,23 @@ fn previa_criar_marcador_recusa_confirmacao_e_cor_ausente() {
         ],
     );
     falha(&saida, "CorNaoOferecidaOuAmbigua");
+    assert_eq!(
+        pedidos,
+        [
+            "GET procedimento_controlar",
+            "GET marcador_listar",
+            "GET marcador_cadastrar",
+        ]
+    );
+
+    let (saida, pedidos) = executar_com_formulario(
+        Some("TESTE"),
+        "1 registro",
+        "OUTRA",
+        true,
+        &["--json", "marcador", "criar", "--nome", "Novo", "--cor", "Preto"],
+    );
+    falha(&saida, "UnidadeInesperada");
     assert_eq!(
         pedidos,
         [
