@@ -30,6 +30,15 @@ pub(crate) struct Processo {
 
 #[derive(Debug, Subcommand)]
 pub(crate) enum ProcessoAcao {
+    /// Prévia de alteração exclusiva da especificação; escrita em validação.
+    Alterar {
+        #[arg(value_parser = crate::processo::NumeroProcesso::novo)]
+        numero: crate::processo::NumeroProcesso,
+        #[arg(long)]
+        especificacao: String,
+        #[arg(long)]
+        confirmar: bool,
+    },
     /// Exporta documentos pelo gerador nativo do SEI.
     Exportar {
         #[arg(value_parser = crate::processo::NumeroProcesso::novo)]
