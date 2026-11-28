@@ -4,6 +4,10 @@ use crate::processo_enviar::{DesfechoDoEnvio, MetodoRemocao};
 
 /// Saída humana do sucesso.
 pub(crate) fn humano(feito: &ProcessoEnviado) -> String {
+    humano_com_grupo(feito, None)
+}
+
+pub(super) fn humano_com_grupo(feito: &ProcessoEnviado, grupo: Option<&str>) -> String {
     let refs = |v: &[String]| lista_humana(&v.iter().map(String::as_str).collect::<Vec<_>>());
     let mut linhas = vec![
         format!("Processo {} na unidade {}", feito.nup, feito.unidade),
@@ -28,6 +32,9 @@ pub(crate) fn humano(feito: &ProcessoEnviado) -> String {
             if feito.manter_aberto { "sim" } else { "não" }
         ),
     ];
+    if let Some(id) = grupo {
+        linhas.push(format!("Grupo de envio: {id}"));
+    }
     if let Some(remocao) = &feito.remocao {
         linhas.push(match remocao.metodo {
             MetodoRemocao::CheckboxNoEnvio => "Remover anotações no envio: sim".to_owned(),
@@ -47,7 +54,11 @@ pub(crate) fn humano(feito: &ProcessoEnviado) -> String {
                 "Depois de enviar: {}",
                 refs(&feito.depois_esperado())
             ));
-            linhas.push("Para enviar, repita com --confirmar".to_owned());
+            linhas.push(if grupo.is_some() {
+                "Confirmação por grupo ainda indisponível".to_owned()
+            } else {
+                "Para enviar, repita com --confirmar".to_owned()
+            });
         }
         DesfechoDoEnvio::Enviado {
             depois,

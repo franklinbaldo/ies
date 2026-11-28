@@ -9,6 +9,8 @@ pub(super) enum EnsaioRemocao {
     TelaSemCheckboxSemFormularioValido,
     TelaSemCheckboxEnvioRecusado,
     AutocompleteIdRepetido,
+    GrupoValido,
+    GrupoIdDivergente,
 }
 
 /// Projeta uma instalação sem checkbox na tela de envio, preservando

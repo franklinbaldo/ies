@@ -32,6 +32,18 @@ pub(crate) fn com_sessao(
     cli: &Cli,
     executar: impl FnOnce(&SessaoDoProcesso<'_>, &IndiceLocal) -> anyhow::Result<()>,
 ) -> anyhow::Result<()> {
+    com_sessao_referencias(cli, |sessao, indice, _| executar(sessao, indice))
+}
+
+/// A mesma sessão lida uma vez, para operações que compõem leitores existentes.
+pub(crate) fn com_sessao_referencias(
+    cli: &Cli,
+    executar: impl FnOnce(
+        &SessaoDoProcesso<'_>,
+        &IndiceLocal,
+        &transporte::sessao::ReferenciasDaSessao,
+    ) -> anyhow::Result<()>,
+) -> anyhow::Result<()> {
     let arquivos = configuracao::arquivos_de_acesso()?;
     let referencias = transporte::sessao::ReferenciasDaSessao::ler(
         &arquivos.url_controle,
@@ -44,7 +56,7 @@ pub(crate) fn com_sessao(
         cookie: referencias.cookie(),
     };
     let indice = IndiceLocal::da_configuracao(&arquivos);
-    executar(&sessao, &indice)?;
+    executar(&sessao, &indice, &referencias)?;
     // Na falha, `stderr` começa pelo erro (#695): os avisos só no sucesso.
     if !cli.json {
         indice_local::avisar_no_texto(&indice);

@@ -11,7 +11,9 @@ use crate::{Cli, Domain, Processo, ProcessoAcao};
 #[cfg(test)]
 use serde_json::Value;
 
+mod grupo;
 mod humano;
+pub(crate) use grupo::id_de_grupo;
 pub(crate) use humano::humano;
 
 /// `Some` só para `ies processo enviar`.
@@ -21,6 +23,7 @@ pub(crate) fn tentar_enviar(cli: &Cli) -> Option<anyhow::Result<()>> {
             Some(ProcessoAcao::Enviar {
                 numero,
                 para,
+                grupo,
                 manter_aberto,
                 remover_anotacoes,
                 confirmar,
@@ -31,6 +34,16 @@ pub(crate) fn tentar_enviar(cli: &Cli) -> Option<anyhow::Result<()>> {
         return None;
     };
     let nup = numero.clone();
+    if let Some(id) = grupo {
+        return Some(grupo::prever(
+            cli,
+            &nup,
+            id,
+            para,
+            *manter_aberto,
+            *remover_anotacoes,
+        ));
+    }
     Some(enviar(
         cli,
         &nup,
