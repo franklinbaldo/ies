@@ -79,13 +79,16 @@ pub(super) fn ajustar_controle(
 }
 
 fn sem_mutacao(pedidos: &[String], depois: &ProcessoSimulado) {
-    assert!(pedidos.iter().all(|p| {
-        !p.starts_with("POST ")
-            || matches!(
-                p.as_str(),
-                "POST protocolo_pesquisa_rapida" | "POST unidade_auto_completar_envio_processo"
-            )
-    }), "{pedidos:?}");
+    assert!(
+        pedidos.iter().all(|p| {
+            !p.starts_with("POST ")
+                || matches!(
+                    p.as_str(),
+                    "POST protocolo_pesquisa_rapida" | "POST unidade_auto_completar_envio_processo"
+                )
+        }),
+        "{pedidos:?}"
+    );
     assert_eq!(depois.aberto_em, ["ORIGEM"]);
     assert_eq!(depois.anotacao_origem.as_deref(), Some("Nota da origem"));
 }
@@ -126,7 +129,11 @@ fn grupo_preserva_saida_unitaria_e_uniao_deduplicada_sem_escrever() {
         serde_json::json!(["ORIGEM", "DESTINO", "ARQUIVO"])
     );
     assert!(pedidos.iter().any(|p| p == "GET grupo_unidade_consultar"));
-    assert!(pedidos.iter().any(|p| p == "POST unidade_auto_completar_envio_processo"));
+    assert!(
+        pedidos
+            .iter()
+            .any(|p| p == "POST unidade_auto_completar_envio_processo")
+    );
     sem_mutacao(&pedidos, &depois);
 }
 
@@ -143,6 +150,10 @@ fn grupo_recusa_id_lexical_divergente_e_grupo_ausente_sem_escrever() {
     );
     falha(&saidas[0], "IdentidadeDoMembroDivergente");
     falha(&saidas[1], "GrupoNaoEncontradoNaPagina");
-    assert!(pedidos.iter().any(|p| p == "POST unidade_auto_completar_envio_processo"));
+    assert!(
+        pedidos
+            .iter()
+            .any(|p| p == "POST unidade_auto_completar_envio_processo")
+    );
     sem_mutacao(&pedidos, &depois);
 }
