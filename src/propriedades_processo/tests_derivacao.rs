@@ -37,9 +37,8 @@ fn derivacao_nao_usa_projecao_normalizada_da_lupa() {
     ] {
         let variante = html.replace("Pessoa Sintetica A", rotulo);
         let corpo = corpo(&variante);
-        let esperado = format!(
-            "hdnInteressadosProcedimento=301%B1{codificado}%A5302%B1Entidade+Sintetica+B"
-        );
+        let esperado =
+            format!("hdnInteressadosProcedimento=301%B1{codificado}%A5302%B1Entidade+Sintetica+B");
         assert!(corpo.split('&').any(|par| par == esperado));
     }
 }
