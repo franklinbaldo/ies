@@ -358,7 +358,8 @@ fn editor_4_emula_formulario_observado_e_publica_versao_por_estado() {
             .corpo
             .contains("name='hdnIgnorarNovaVersao' value='N'")
     );
-    let rota = "/sei/editor/editor_processar.php?acao=editor_salvar&id_documento=42";
+    let rota =
+        "/sei/editor/editor_processar.php?acao=editor_salvar&id_documento=42&id_procedimento=7";
     let edicao = "hdnVersao=2&hdnIgnorarNovaVersao=N&txaEditor_1=%3Cp%3Edepois%3C%2Fp%3E";
     let publicada = responder("POST", rota, edicao, &banco, &origem(), "ensaio");
     assert_eq!(publicada.estado, Estado::Ok);
@@ -389,7 +390,8 @@ fn editor_4_emula_formulario_observado_e_publica_versao_por_estado() {
 #[test]
 fn editor_4_documento_assinado_exige_confirmacao_no_post() {
     let banco = preparar(2);
-    let rota = "/sei/editor/editor_processar.php?acao=editor_salvar&id_documento=42";
+    let rota =
+        "/sei/editor/editor_processar.php?acao=editor_salvar&id_documento=42&id_procedimento=7";
     let corpo = "hdnVersao=2&hdnIgnorarNovaVersao=N&txaEditor_1=%3Cp%3Edepois%3C%2Fp%3E";
     assert_eq!(
         responder("POST", rota, corpo, &banco, &origem(), "ensaio").estado,
@@ -417,3 +419,35 @@ fn editor_4_documento_assinado_exige_confirmacao_no_post() {
         2
     );
 }
+
+#[test]
+fn editor_4_recusa_procedimento_ausente_divergente_ou_repetido() {
+    let banco = preparar(2);
+    let corpo = "hdnVersao=2&hdnIgnorarNovaVersao=N&txaEditor_1=alterado&confirmar_assinaturas=1";
+    for sufixo in [
+        "",
+        "&id_procedimento=8",
+        "&id_procedimento=7&id_procedimento=7",
+        "&id_procedimento=7&id_procedimento=8",
+    ] {
+        let rota =
+            format!("/sei/editor/editor_processar.php?acao=editor_salvar&id_documento=42{sufixo}");
+        assert_eq!(
+            responder("POST", &rota, corpo, &banco, &origem(), "ensaio").estado,
+            Estado::RequisicaoInvalida
+        );
+        let doc = ler(&banco, &origem(), "ensaio", "42").unwrap().unwrap();
+        assert_eq!(doc.revisoes.len(), 1);
+        assert_eq!(doc.revisoes[0].html_corpo, "<p>antes</p>");
+        assert_eq!(
+            consultar_oferta(&banco, &origem(), "ensaio", "42")
+                .unwrap()
+                .unwrap()
+                .assinaturas,
+            2
+        );
+    }
+}
+
+#[path = "editor_documento/multissecao.rs"]
+mod multissecao;

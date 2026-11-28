@@ -34,7 +34,7 @@ fn banco_efemero_guarda_observado_sem_inventar_ausentes() {
         .pragma_query_value(None, "user_version", |r| r.get(0))
         .unwrap();
     // A migração 0038 adiciona as colunas do detalhe sem alterar o controle.
-    assert_eq!(version, 41);
+    assert_eq!(version, 42);
     assert!(ler(&banco, &origem(), "cartao").unwrap().is_none());
 
     let observado = controle();
