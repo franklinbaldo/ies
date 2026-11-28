@@ -75,9 +75,9 @@ fn confirmar_recusa_antes_de_abrir_sessao() {
             observar,
         );
         assert_eq!(saida.status.code(), Some(1));
-        assert!(saida.stdout.is_empty());
+        assert_eq!(saida.stdout, [] as [u8; 0]);
         assert!(String::from_utf8_lossy(&saida.stderr).contains("EscritaAindaNaoValidada"));
-        assert!(pedidos.is_empty());
+        assert_eq!(pedidos, [] as [std::string::String; 0]);
         assert_eq!(antes, depois);
     }
 }

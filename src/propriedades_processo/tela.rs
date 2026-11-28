@@ -279,10 +279,10 @@ fn pares_select(
             return Ok(());
         }
         let opcoes = opcoes(select);
-        let marcadas = opcoes.iter().filter(|(_, marcada, _)| *marcada);
+        let mut marcadas = opcoes.iter().filter(|(_, marcada, _)| *marcada);
         if select.presente("multiple") {
             pares.extend(marcadas.map(|(id, _, _)| (nome, id.clone())));
-        } else if let Some((id, _, _)) = marcadas.last().or_else(|| opcoes.first()) {
+        } else if let Some((id, _, _)) = marcadas.next_back().or_else(|| opcoes.first()) {
             pares.push((nome, id.clone()));
         }
     }
@@ -318,10 +318,10 @@ pub(super) fn pares_de_especificacao(
         "txtInteressadoProcedimento",
         "txtInteressadoUsuario",
     ] {
-        if let Some(tag) = campos.opcional(nome)? {
-            if !tag.presente("disabled") {
-                pares.push((nome, valor(tag)));
-            }
+        if let Some(tag) = campos.opcional(nome)?
+            && !tag.presente("disabled")
+        {
+            pares.push((nome, valor(tag)));
         }
     }
     for nome in [
