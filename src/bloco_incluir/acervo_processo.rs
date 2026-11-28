@@ -137,9 +137,12 @@ fn cassette_pen1_bloco_de_reuniao_vincula_oferta_e_pertencimento() {
     let [novo] = novos.as_slice() else {
         panic!("esperado exatamente um NUP novo no detalhe");
     };
-    assert!(antes.itens.iter().all(|a| {
-        depois.itens.iter().any(|d| d.processo == a.processo)
-    }));
+    assert!(
+        antes
+            .itens
+            .iter()
+            .all(|a| { depois.itens.iter().any(|d| d.processo == a.processo) })
+    );
     let nup = NumeroProcesso::novo(&novo.processo).unwrap();
     let arvore = respostas
         .iter()
@@ -158,6 +161,8 @@ fn cassette_pen1_bloco_de_reuniao_vincula_oferta_e_pertencimento() {
     ));
     assert!(matches!(
         desfecho_sem_escrita(&depois, &nup, true),
-        Ok(DesfechoDaInclusao::JaEstava { confirmacao_pedida: true }),
+        Ok(DesfechoDaInclusao::JaEstava {
+            confirmacao_pedida: true
+        }),
     ));
 }
