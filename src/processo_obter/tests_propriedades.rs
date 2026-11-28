@@ -153,6 +153,30 @@ fn sem_alterar_na_barra_le_pela_consulta() {
 }
 
 #[test]
+fn consulta_preserva_lf_inicial_das_observacoes_sem_post() {
+    let amb = ambiente();
+    let html = propriedades();
+    let original = "\nObservação sintética</textarea>";
+    assert!(html.contains(original));
+    let html = html.replacen(original, "\n\nObservação sintética</textarea>", 1);
+    let (r, pedidos) = rodar_props(
+        &amb,
+        PedidoDeAndamentos::Omitidos,
+        true,
+        frio(
+            arvore_com_propriedades(ID, NUP, AcaoDoSei::ProcedimentoConsultar),
+            vec![ok(html)],
+        ),
+    );
+    let r = r.unwrap();
+    assert_eq!(lidas(&r).observacoes, "\nObservação sintética");
+    assert_eq!(
+        pedidos,
+        pedidos_frio(&[url_propriedades(AcaoDoSei::ProcedimentoConsultar, ID)])
+    );
+}
+
+#[test]
 fn barra_sem_o_link_recusa_sem_requisicao() {
     let amb = ambiente();
     let (r, pedidos) = rodar_props(
