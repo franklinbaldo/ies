@@ -427,3 +427,6 @@ mod maxlength;
 
 #[path = "tests_formulario_texto.rs"]
 mod texto;
+
+#[path = "tests_formulario_descricao.rs"]
+mod descricao;

@@ -35,6 +35,7 @@ enum EstadoDeBusca {
     PeriodoProcessual,
     PaginasProcessuais,
     CoorteProcessualContraditoria(bool),
+    TextoProcessual(&'static str, &'static str, &'static str),
 }
 
 struct Pasta(PathBuf);
@@ -173,6 +174,9 @@ fn preparar_estado(banco: &mut Connection, instalacao: &Instalacao, estado: Esta
         },
     )
     .unwrap();
+    if matches!(estado, EstadoDeBusca::TextoProcessual(..)) {
+        return;
+    }
     if matches!(estado, EstadoDeBusca::DocumentoExato) {
         // A identidade e as revisões já pertencem ao mesmo SQLite do anti-IES.
         documento_versoes::guardar(
@@ -368,9 +372,15 @@ fn executar_com_estado(pasta: &Pasta, args: &[&str], estado: EstadoDeBusca) -> O
         banco_cassettes::iniciar(&banco).unwrap();
         let instalacao = Instalacao::interpretar(ORIGEM).unwrap();
         preparar_estado(&mut banco, &instalacao, estado);
-        for _ in 0..requisicoes {
+        for indice in 0..requisicoes {
             let mut tcp = aceitar(&servidor);
-            atender_http(&mut tcp, Some((&banco, &instalacao, CENARIO))).unwrap();
+            if let EstadoDeBusca::TextoProcessual(descricao, observacao, id) = estado
+                && indice == 2
+            {
+                texto_processual::responder(&mut tcp, descricao, observacao, id);
+            } else {
+                atender_http(&mut tcp, Some((&banco, &instalacao, CENARIO))).unwrap();
+            }
         }
     });
     let proxy = TcpListener::bind(("127.0.0.1", 0)).unwrap();
@@ -514,3 +524,6 @@ mod processos;
 
 #[path = "aies_documento_buscar_cli/criterios.rs"]
 mod criterios;
+
+#[path = "aies_documento_buscar_cli/texto_processual.rs"]
+mod texto_processual;
