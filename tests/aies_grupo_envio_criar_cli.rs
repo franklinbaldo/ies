@@ -5,6 +5,7 @@
 use anti_ies::atender_http;
 use iesei::banco_cassettes::{self, ControleResumido, Linha};
 use iesei::documentos_simulados::{self, Processo};
+use iesei::grupos_envio::{self, Escopo, Membro};
 use iesei::instalacao::Instalacao;
 use iesei::observacao::{TabelaObservada, UnidadeExibida};
 use iesei::processos::{self, Destino, ProcessoSimulado};
@@ -26,9 +27,6 @@ const ORIGEM: &str = "https://sei.test/sei";
 const CENARIO: &str = "grupo-criar-cli";
 const NUP: &str = "00001.000001/2026-01";
 
-
-use iesei::grupos_envio::{self, Escopo, Membro};
-
 #[path = "aies_processo_enviar_cli/infra.rs"]
 mod infra;
 use infra::{aceitar, cabecalho, identidade, pedido, preparar_banco};
@@ -40,7 +38,7 @@ impl Pasta {
             .duration_since(UNIX_EPOCH)
             .unwrap()
             .as_nanos();
-        let pasta = std::env::temp_dir().join(format!("aies-envio-{}-{nanos}", std::process::id()));
+        let pasta = std::env::temp_dir().join(format!("aies-grupo-criar-{}-{nanos}", std::process::id()));
         fs::create_dir(&pasta).unwrap();
         Self(pasta)
     }
@@ -96,7 +94,9 @@ impl BancadaCli<'_> {
 type Registro = (String, String, String);
 type MembroPersistido = (String, String, String);
 
-fn estado_sql(banco: &Connection) -> (Vec<Registro>, Vec<MembroPersistido>, i64) {
+type EstadoSql = (Vec<Registro>, Vec<MembroPersistido>, i64);
+
+fn estado_sql(banco: &Connection) -> EstadoSql {
     let grupos = banco
         .prepare("SELECT id_grupo,nome,descricao FROM sim_grupo_envio ORDER BY id_grupo")
         .unwrap()
@@ -116,8 +116,6 @@ fn estado_sql(banco: &Connection) -> (Vec<Registro>, Vec<MembroPersistido>, i64)
         .unwrap();
     (grupos, membros, proximo)
 }
-
-type EstadoSql = (Vec<Registro>, Vec<MembroPersistido>, i64);
 
 fn executar(confirmar: bool, falhar_releitura: bool) -> (Output, Vec<String>, EstadoSql) {
     let pasta = Pasta::nova();
@@ -152,8 +150,14 @@ fn executar(confirmar: bool, falhar_releitura: bool) -> (Output, Vec<String>, Es
             &banco,
             escopo,
             &[
-                Membro { id: "001".into(), nome: "X - Unidade".into() },
-                Membro { id: "1".into(), nome: "Y - Outra".into() },
+                Membro {
+                    id: "001".into(),
+                    nome: "X - Unidade".into(),
+                },
+                Membro {
+                    id: "1".into(),
+                    nome: "Y - Outra".into(),
+                },
             ],
         )
         .unwrap();
@@ -174,7 +178,8 @@ fn executar(confirmar: bool, falhar_releitura: bool) -> (Output, Vec<String>, Es
         let mut enviado = false;
         while let Some(mut tcp) = aceitar(&proxy, &parar_proxy) {
             assert!(cabecalho(&mut tcp).starts_with(b"CONNECT sei.test:443 HTTP/1.1\r\n"));
-            tcp.write_all(b"HTTP/1.1 200 Connection established\r\n\r\n").unwrap();
+            tcp.write_all(b"HTTP/1.1 200 Connection established\r\n\r\n")
+                .unwrap();
             let mut canal = tls.accept(tcp).unwrap();
             let (bytes, metodo, acao) = pedido(&mut canal);
             let resposta = if falhar_releitura && enviado && metodo == "GET" {
@@ -204,8 +209,17 @@ fn executar(confirmar: bool, falhar_releitura: bool) -> (Output, Vec<String>, Es
         porta,
     };
     let mut args = vec![
-        "--json", "grupo-envio", "criar", "--nome", "Grupo teste",
-        "--descricao", "Descrição", "--membro", "X", "--membro", "Y",
+        "--json",
+        "grupo-envio",
+        "criar",
+        "--nome",
+        "Grupo teste",
+        "--descricao",
+        "Descrição",
+        "--membro",
+        "X",
+        "--membro",
+        "Y",
     ];
     if confirmar {
         args.push("--confirmar");
@@ -231,17 +245,20 @@ fn json(saida: &Output) -> Value {
 
 
 fn post_mutador(pedidos: &[String]) -> usize {
-    pedidos.iter().filter(|p| *p == "POST grupo_unidade_cadastrar").count()
+    pedidos
+        .iter()
+        .filter(|p| *p == "POST grupo_unidade_cadastrar")
+        .count()
 }
 
 fn conferir_persistencia(estado: EstadoSql) {
     assert_eq!(
         estado,
         (
-            vec![("1".into(), "Grupo teste".into(), "Descrição".into())],
+            vec![("1".to_owned(), "Grupo teste".to_owned(), "Descrição".to_owned())],
             vec![
-                ("1".into(), "001".into(), "X - Unidade".into()),
-                ("1".into(), "1".into(), "Y - Outra".into()),
+                ("1".to_owned(), "001".to_owned(), "X - Unidade".to_owned()),
+                ("1".to_owned(), "1".to_owned(), "Y - Outra".to_owned()),
             ],
             2,
         )
@@ -270,8 +287,14 @@ fn confirmacao_unica_rele_identidade_e_membros() {
     assert_eq!(p["grupo"]["unidades"][0]["id"], "001");
     assert_eq!(p["grupo"]["unidades"][1]["id"], "1");
     assert_eq!(post_mutador(&pedidos), 1);
-    let post = pedidos.iter().position(|p| p == "POST grupo_unidade_cadastrar").unwrap();
-    let consulta = pedidos.iter().position(|p| p == "GET grupo_unidade_consultar").unwrap();
+    let post = pedidos
+        .iter()
+        .position(|p| p == "POST grupo_unidade_cadastrar")
+        .unwrap();
+    let consulta = pedidos
+        .iter()
+        .position(|p| p == "GET grupo_unidade_consultar")
+        .unwrap();
     assert!(consulta > post, "{pedidos:?}");
     conferir_persistencia(estado);
 }
