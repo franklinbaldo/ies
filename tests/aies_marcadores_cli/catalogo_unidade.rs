@@ -294,7 +294,9 @@ fn previa_criar_marcador_recusa_rotulo_duplicado_mesmo_com_valor_invalido() {
             "TESTE",
             opcao,
             true,
-            &["--json", "marcador", "criar", "--nome", "Novo", "--cor", "Preto"],
+            &[
+                "--json", "marcador", "criar", "--nome", "Novo", "--cor", "Preto",
+            ],
         );
         falha(&saida, "CorNaoOferecidaOuAmbigua");
         assert_eq!(
@@ -314,8 +316,14 @@ fn previa_criar_marcador_texto_nao_promete_escrita() {
         Some("TESTE"),
         "1 registro",
         &[
-            "marcador", "criar", "--nome", "Novo", "--cor", "Preto",
-            "--descricao", "Conferência",
+            "marcador",
+            "criar",
+            "--nome",
+            "Novo",
+            "--cor",
+            "Preto",
+            "--descricao",
+            "Conferência",
         ],
     );
     assert_eq!(saida.status.code(), Some(0), "{:?}", saida.stderr);
