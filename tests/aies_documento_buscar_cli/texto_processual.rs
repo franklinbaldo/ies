@@ -56,7 +56,12 @@ fn cli_envia_criterios_textuais_independentes_sem_nup() {
             "",
             "41",
         ),
-        (vec!["--observacao", " outra é "], "", "+outra+%C3%A9+", "42"),
+        (
+            vec!["--observacao", " outra é "],
+            "",
+            "+outra+%C3%A9+",
+            "42",
+        ),
         (
             vec!["--descricao", "Ação + &", "--observacao", " outra é "],
             "A%C3%A7%C3%A3o+%2B+%26",
