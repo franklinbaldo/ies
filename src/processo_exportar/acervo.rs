@@ -237,3 +237,54 @@ fn replay_elegibilidade_da_exportacao_no_acervo() {
         assert!(isolada && mista, "{instalacao}: seleção aceitou nó fechado");
     }
 }
+
+// Censo de extensões do download original, sem extrair conteúdo ou
+// publicar nomes. Não demonstra por si só a modalidade do POST.
+#[test]
+#[ignore = "ZIP público conferido no cache; sem rede"]
+fn replay_extensoes_do_zip_original_unb() {
+    use std::io::Cursor;
+
+    let card = Path::new(env!("CARGO_MANIFEST_DIR"))
+        .join("cassettes/unb/documento-lote-pelo-zip-unb--05402e0f931b.md");
+    let cache = std::env::var_os("IES_ACERVO_CACHE").map_or_else(
+        || PathBuf::from(std::env::var_os("HOME").expect("HOME")).join(".cache/ies"),
+        PathBuf::from,
+    );
+    let zip = ZipDoAcervo::ler(&cache.join(archive_filename(&card).unwrap())).unwrap();
+    let original = conferir_cassette_ate(&card, &zip, 120_000_000).unwrap();
+    assert_eq!(original.instalacao, "unb");
+    let mut downloads = 0;
+    let (mut pdf, mut html, mut outros, mut diretorios) = (0, 0, 0, 0);
+    for r in gravacao::respostas(&original.json) {
+        if r.operacao != "exibir_arquivo" || r.metodo != "GET" || r.status != 200 {
+            continue;
+        }
+        let corpo = gravacao::corpo(r.interacao);
+        let mut arquivo = zip::ZipArchive::new(Cursor::new(corpo))
+            .unwrap_or_else(|_| panic!("download original não contém ZIP legível"));
+        downloads += 1;
+        for i in 0..arquivo.len() {
+            let membro = arquivo
+                .by_index(i)
+                .unwrap_or_else(|_| panic!("membro original ilegível"));
+            let nome = membro
+                .name()
+                .unwrap_or_else(|_| panic!("nome original ilegível"));
+            let nome: &str = nome.as_ref();
+            let nome = nome.to_ascii_lowercase();
+            if nome.ends_with('/') {
+                diretorios += 1;
+            } else if nome.ends_with(".pdf") {
+                pdf += 1;
+            } else if nome.ends_with(".html") || nome.ends_with(".htm") {
+                html += 1;
+            } else {
+                outros += 1;
+            }
+        }
+    }
+    assert_eq!(downloads, 1, "download original esperado");
+    assert!(pdf + html + outros > 0, "nenhum arquivo observado");
+    println!("ZIP original UnB: pdf={pdf} html={html} outros={outros} diretorios={diretorios}");
+}
