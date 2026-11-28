@@ -13,11 +13,11 @@ enum Tipo {
 }
 
 #[derive(Debug, PartialEq, Eq, Serialize)]
-struct Candidato<'a> {
+struct Candidato {
     tipo: Tipo,
     texto: String,
     ocorrencias: usize,
-    estado: &'a str,
+    estado: &'static str,
 }
 
 fn separador(segmentos: &mut Vec<String>) {
@@ -69,12 +69,12 @@ fn segmentos(html: &HtmlServido) -> Vec<String> {
     segmentos
 }
 
-fn inventariar(html: &HtmlServido, proprio: &str, processo: &str) -> Vec<Candidato<'static>> {
+fn inventariar(html: &HtmlServido, proprio: &str, processo: &str) -> Vec<Candidato> {
     let numeros = Regex::new(
         r"[0-9]{4,5}\.[0-9]{6}/[0-9]{4}-[0-9]{2}|00[0-9]{8}|[0-9]{8}",
     )
     .expect("expressão literal");
-    let anterior = Regex::new(r"[\p{L}\p{N}\p{M}_./#&-]$").expect("expressão literal");
+    let anterior = Regex::new(r"^[\p{L}\p{N}\p{M}_./#&-]$").expect("expressão literal");
     let posterior =
         Regex::new(r"^(?:[\p{L}\p{N}\p{M}_/-]|\.\p{Nd})").expect("expressão literal");
     let contexto = Regex::new(
@@ -82,7 +82,7 @@ fn inventariar(html: &HtmlServido, proprio: &str, processo: &str) -> Vec<Candida
     )
     .expect("expressão literal");
     let mut indices = HashMap::new();
-    let mut candidatos: Vec<Candidato<'static>> = Vec::new();
+    let mut candidatos: Vec<Candidato> = Vec::new();
     for segmento in segmentos(html) {
         let mut contextos = contexto.find_iter(&segmento).peekable();
         for numero in numeros.find_iter(&segmento) {
@@ -92,7 +92,9 @@ fn inventariar(html: &HtmlServido, proprio: &str, processo: &str) -> Vec<Candida
             }
             if texto == proprio
                 || texto == processo
-                || anterior.is_match(&segmento[..numero.start()])
+                || segmento[..numero.start()].chars().next_back().is_some_and(|c| {
+                    anterior.is_match(c.encode_utf8(&mut [0; 4]))
+                })
                 || posterior.is_match(&segmento[numero.end()..])
                 || contextos.peek().is_some_and(|c| {
                     c.start() <= numero.start() && numero.end() <= c.end()
@@ -107,7 +109,7 @@ fn inventariar(html: &HtmlServido, proprio: &str, processo: &str) -> Vec<Candida
             };
             let chave = (tipo, texto.to_owned());
             if let Some(&i) = indices.get(&chave) {
-                let candidato: &mut Candidato<'_> = &mut candidatos[i];
+                let candidato: &mut Candidato = &mut candidatos[i];
                 candidato.ocorrencias += 1;
             } else {
                 indices.insert(chave, candidatos.len());
