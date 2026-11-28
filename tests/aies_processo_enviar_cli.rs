@@ -445,3 +445,54 @@ mod anotacao_preexistente;
 
 #[path = "aies_processo_enviar_cli/limpeza_parcial.rs"]
 mod limpeza_parcial;
+
+/// Hipótese sintética de prévia na forma tela, documentada no acervo GO.
+/// Reaproveita o mesmo transporte e SQLite da bancada de envio (#564).
+#[test]
+fn concluir_previa_preserva_estado_e_nao_pede_tela_de_escrita() {
+    let previa = ["--json", "processo", "concluir", NUP];
+    let consulta = [
+        "--json",
+        "processo",
+        NUP,
+        "--sem-andamentos",
+        "--sem-propriedades",
+        "--sem-marcadores",
+    ];
+    let (saidas, pedidos, estado) = executar(&[&previa, &consulta], false, None);
+    assert!(
+        saidas[1].status.success(),
+        "consulta independente: {:?}",
+        saidas[1]
+    );
+    let lido = json(&saidas[1]);
+    assert_eq!(lido["numero"], NUP);
+    assert_eq!(lido["id_procedimento"], "10");
+    let unidades = lido["aberto_em"].as_array().unwrap();
+    assert_eq!(unidades.len(), 1);
+    assert_eq!(unidades[0]["sigla"], "ORIGEM");
+    assert_eq!(estado.aberto_em, ["ORIGEM"]);
+    assert!(
+        pedidos
+            .iter()
+            .all(|p| p != "GET procedimento_concluir" && p != "POST procedimento_concluir"),
+        "a prévia não pede a tela nem executa a ação: {pedidos:?}"
+    );
+
+    assert!(
+        saidas[0].status.success(),
+        "prévia: {:?}; pedidos {pedidos:?}",
+        saidas[0]
+    );
+    let p = json(&saidas[0]);
+    assert_eq!(p["nup"], NUP);
+    assert_eq!(p["id_procedimento"], "10");
+    assert_eq!(p["unidade"], "ORIGEM");
+    assert_eq!(p["confirmado"], false);
+    assert_eq!(p["alterado"], false);
+    assert_eq!(p["forma"], "tela");
+    assert_eq!(p["aberto_em"], serde_json::json!(["ORIGEM"]));
+    assert_eq!(p["depois_esperado"], serde_json::json!([]));
+    assert!(p.get("depois").is_none());
+    assert_eq!(p["reconciliado_por_leitura"], false);
+}
