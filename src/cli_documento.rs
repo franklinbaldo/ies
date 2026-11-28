@@ -3,6 +3,17 @@ use clap::Subcommand;
 
 #[derive(Debug, Subcommand)]
 pub(crate) enum DocumentoAcao {
+    /// Inventaria candidatos no HTML editorial local, sem sessão, vínculos ou escrita.
+    Referencias {
+        #[arg(long, value_name = "HTML")]
+        arquivo: std::path::PathBuf,
+        /// Exclui a grafia literal do próprio documento.
+        #[arg(long)]
+        proprio: Option<String>,
+        /// Exclui a grafia literal do processo corrente.
+        #[arg(long)]
+        nup: Option<String>,
+    },
     /// Inclui PDF externo: inspeção local, prévia Web (--consultar-sei) ou gravação (--confirmar).
     IncluirExterno {
         #[arg(long, required = true, value_name = "NUP", value_parser = crate::processo::NumeroProcesso::novo)]

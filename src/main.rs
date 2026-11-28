@@ -44,6 +44,7 @@ mod documento_externo_incluir;
 mod documento_externo_incluir_cli;
 mod documento_html_privado_cli;
 mod documento_obter_cli;
+mod documento_referencias;
 mod documento_salvar_cli;
 mod documento_versao_cli;
 mod documento_versoes;
@@ -471,6 +472,9 @@ fn tentar_operacao_documento_ou_processo(cli: &Cli) -> Option<anyhow::Result<()>
 
 /// `ies unidade colunas`: leitura; com `--definir`, prévia ou escrita.
 fn run(cli: &Cli) -> anyhow::Result<()> {
+    if let Some(saida) = documento_referencias::tentar_inventariar(cli) {
+        return saida;
+    }
     if let Some(saida) = unidade_indice_cli::tentar_consulta_local(cli) {
         return saida;
     }
