@@ -119,7 +119,8 @@ fn estado_sql(banco: &Connection) -> EstadoSql {
     (grupos, membros, proximo)
 }
 
-fn executar(confirmar: bool, falhar_releitura: bool) -> (Output, Vec<String>, EstadoSql) {
+fn executar(confirmar: bool, falhar_releitura: Option<&str>) -> (Output, Vec<String>, EstadoSql) {
+    let falhar_releitura = falhar_releitura.map(str::to_owned);
     let pasta = Pasta::nova();
     let (cert, identidade) = identidade(&pasta.0);
     let origem = pasta.privado("origem", ORIGEM);
@@ -186,7 +187,10 @@ fn executar(confirmar: bool, falhar_releitura: bool) -> (Output, Vec<String>, Es
                 .unwrap();
             let mut canal = tls.accept(tcp).unwrap();
             let (bytes, metodo, acao) = pedido(&mut canal);
-            let resposta = if falhar_releitura && enviado && metodo == "GET" {
+            let resposta = if enviado
+                && metodo == "GET"
+                && falhar_releitura.as_deref() == Some(acao.as_str())
+            {
                 b"HTTP/1.1 503 Service Unavailable\r\nContent-Type: text/plain\r\nContent-Length: 7\r\nConnection: close\r\n\r\nIndispo".to_vec()
             } else {
                 let mut backend = TcpStream::connect(destino).unwrap();
@@ -274,7 +278,7 @@ fn conferir_persistencia(estado: EstadoSql) {
 
 #[test]
 fn previa_resolve_membros_sem_gravar() {
-    let (saida, pedidos, estado) = executar(false, false);
+    let (saida, pedidos, estado) = executar(false, None);
     assert!(saida.status.success(), "{:?} {pedidos:?}", saida);
     let p = json(&saida);
     assert_eq!(p["estado"], "previa");
@@ -286,7 +290,7 @@ fn previa_resolve_membros_sem_gravar() {
 
 #[test]
 fn confirmacao_unica_rele_identidade_e_membros() {
-    let (saida, pedidos, estado) = executar(true, false);
+    let (saida, pedidos, estado) = executar(true, None);
     assert!(saida.status.success(), "{:?} {pedidos:?}", saida);
     let p = json(&saida);
     assert_eq!(p["estado"], "criado");
@@ -298,20 +302,42 @@ fn confirmacao_unica_rele_identidade_e_membros() {
         .iter()
         .position(|p| p == "POST grupo_unidade_cadastrar")
         .unwrap();
-    let consulta = pedidos
-        .iter()
-        .position(|p| p == "GET grupo_unidade_consultar")
-        .unwrap();
-    assert!(consulta > post, "{pedidos:?}");
+    assert_eq!(
+        &pedidos[post + 1..],
+        [
+            "GET procedimento_controlar",
+            "GET grupo_unidade_listar",
+            "GET grupo_unidade_consultar",
+        ]
+    );
     conferir_persistencia(estado);
 }
 
 #[test]
 fn falha_de_releitura_nao_repete_post() {
-    let (saida, pedidos, estado) = executar(true, true);
-    assert_eq!(saida.status.code(), Some(1));
-    assert!(saida.stdout.is_empty());
-    assert!(String::from_utf8_lossy(&saida.stderr).contains("releitura"));
-    assert_eq!(post_mutador(&pedidos), 1);
-    conferir_persistencia(estado);
+    let releitura = [
+        "GET procedimento_controlar",
+        "GET grupo_unidade_listar",
+        "GET grupo_unidade_consultar",
+    ];
+    for (i, alvo) in [
+        "procedimento_controlar",
+        "grupo_unidade_listar",
+        "grupo_unidade_consultar",
+    ]
+    .into_iter()
+    .enumerate()
+    {
+        let (saida, pedidos, estado) = executar(true, Some(alvo));
+        assert_eq!(saida.status.code(), Some(1), "{alvo}: {pedidos:?}");
+        assert!(saida.stdout.is_empty());
+        assert!(String::from_utf8_lossy(&saida.stderr).contains("releitura"));
+        assert_eq!(post_mutador(&pedidos), 1);
+        let post = pedidos
+            .iter()
+            .position(|p| p == "POST grupo_unidade_cadastrar")
+            .unwrap();
+        assert_eq!(&pedidos[post + 1..], &releitura[..=i]);
+        conferir_persistencia(estado);
+    }
 }
