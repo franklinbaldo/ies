@@ -125,6 +125,9 @@ fn cassette_pen1_grupos_envio_preservam_ids() {
             .collect::<Vec<_>>(),
         ["110000002"]
     );
+    // O consumidor de #875 também precisa da sigla, não só do ID.
+    // Oráculo independente: Todos @caabe699, test_obter_pelo_id_ou_pelo_nome_traz_as_unidades.
+    assert_eq!(grupo.unidades[0].nome, "TESTE_1_1 - Unidade de Testes 1.1");
     let alterado = ler_grupo(&tela("grupo_unidade_consultar", 2), "6").unwrap();
     assert_eq!(
         alterado
@@ -133,6 +136,14 @@ fn cassette_pen1_grupos_envio_preservam_ids() {
             .map(|u| u.id.as_str())
             .collect::<Vec<_>>(),
         ["110000002", "110000003"]
+    );
+    assert_eq!(
+        alterado
+            .unidades
+            .iter()
+            .map(|u| u.nome.split_once(" - ").map(|(sigla, _)| sigla))
+            .collect::<Vec<_>>(),
+        [Some("TESTE_1_1"), Some("TESTE_1_2")]
     );
     let antes = ler_lista(&tela("grupo_unidade_listar", 0)).unwrap();
     assert_eq!(
