@@ -20,7 +20,10 @@ fn catalogo(unidade: Option<&str>, legenda: &str) -> String {
          <caption>Lista de Marcadores ({legenda}):</caption>\
          <tr><th>ID</th><th>Nome</th><th>Ícone</th><th>Ações</th></tr>\
          <tr><td>501</td><td>Revisão</td><td><img title='Branco'></td>\
-         <td><img title='Desativar Marcador'></td></tr></table></body></html>"
+         <td><img title='Desativar Marcador'></td></tr></table>\
+         <button type='button' id='btnNovo' onclick=\"location.href='controlador.php?acao=marcador_cadastrar&amp;infra_hash={hash}';\">Novo</button>\
+         <button type='button' id='btnNovo' onclick=\"location.href='controlador.php?acao=marcador_cadastrar&amp;infra_hash={hash}';\">Novo</button></body></html>",
+        hash = "b".repeat(64)
     )
 }
 
@@ -48,6 +51,7 @@ fn executar_catalogo(
             let html = match evento.as_str() {
                 "GET procedimento_controlar" => controle(),
                 "GET marcador_listar" => catalogo(unidade, legenda),
+                "GET marcador_cadastrar" => formulario_novo(),
                 _ => panic!("pedido inesperado: {evento}"),
             };
             pedidos.push(evento);
@@ -138,4 +142,78 @@ fn texto_distingue_faixa_e_estado_mesmo_sem_itens_selecionados() {
         assert!(texto.contains(&format!("Faixa observada: {faixa}")));
         assert_eq!(texto.contains("501#Revisão"), estado == "ativo");
     }
+}
+
+
+fn formulario_novo() -> String {
+    format!(
+        "<a id='lnkInfraUnidade'>TESTE</a>\
+         <form id='frmMarcadorCadastro' method='post' action='controlador.php?acao=marcador_cadastrar&amp;infra_hash={}'>\
+         <input name='txtNome'><textarea name='txaDescricao'></textarea>\
+         <input type='hidden' name='hdnStaIcone'>\
+         <select name='selStaIcone'><option value='null'> </option>\
+         <option value='2'>Cinza</option><option value='2'>Cinza Escuro</option>\
+         <option value='0'>Preto</option></select>\
+         <button name='sbmCadastrarMarcador' type='submit'>Salvar</button></form>",
+        "c".repeat(64)
+    )
+}
+
+#[test]
+fn previa_criar_marcador_le_formulario_sem_post() {
+    for (cor, codigo) in [("Cinza Escuro", "2"), ("Preto", "0")] {
+        let (saida, pedidos) = executar_catalogo(
+            Some("TESTE"),
+            "1 registro",
+            &[
+                "--json", "marcador", "criar", "--nome", "Novo", "--cor", cor,
+                "--descricao", "Conferência",
+            ],
+        );
+        assert_eq!(saida.status.code(), Some(0), "{:?}", saida.stderr);
+        assert_eq!(
+            pedidos,
+            [
+                "GET procedimento_controlar",
+                "GET marcador_listar",
+                "GET marcador_cadastrar",
+            ]
+        );
+        let json: serde_json::Value = serde_json::from_slice(&saida.stdout).unwrap();
+        assert_eq!(
+            json,
+            serde_json::json!({
+                "unidade": "TESTE", "nome": "Novo", "cor": cor,
+                "codigo_cor": codigo, "descricao": "Conferência",
+                "previa": true, "criado": false, "requisicoes": 3,
+            })
+        );
+    }
+}
+
+#[test]
+fn previa_criar_marcador_recusa_confirmacao_e_cor_ausente() {
+    let (saida, pedidos) = executar_catalogo(
+        Some("TESTE"),
+        "1 registro",
+        &[
+            "--json", "marcador", "criar", "--nome", "Novo", "--cor", "Preto", "--confirmar",
+        ],
+    );
+    falha(&saida, "ConfirmacaoIndisponivel");
+    assert!(pedidos.is_empty());
+    let (saida, pedidos) = executar_catalogo(
+        Some("TESTE"),
+        "1 registro",
+        &["--json", "marcador", "criar", "--nome", "Novo", "--cor", "Inexistente"],
+    );
+    falha(&saida, "CorNaoOferecidaOuAmbigua");
+    assert_eq!(
+        pedidos,
+        [
+            "GET procedimento_controlar",
+            "GET marcador_listar",
+            "GET marcador_cadastrar",
+        ]
+    );
 }

@@ -293,6 +293,17 @@ struct MarcadorArgs {
 
 #[derive(Debug, Subcommand)]
 enum MarcadorAcao {
+    /// Prévia de criação do marcador da unidade, sem escrita
+    Criar {
+        #[arg(long)]
+        nome: String,
+        #[arg(long)]
+        cor: String,
+        #[arg(long, default_value = "")]
+        descricao: String,
+        #[arg(long)]
+        confirmar: bool,
+    },
     /// Lista marcadores da página de catálogo observada
     Listar {
         /// Seleciona inativos, sem alternar o filtro persistente do SEI
@@ -481,6 +492,19 @@ fn run(cli: &Cli) -> anyhow::Result<()> {
         Domain::GrupoEnvio(grupo) => return grupo_envio_cli::executar(cli, grupo),
         Domain::Marcador(args) => {
             return match &args.acao {
+                Some(MarcadorAcao::Criar {
+                    nome,
+                    cor,
+                    descricao,
+                    confirmar,
+                }) => marcadores_unidade_cli::criar(
+                    cli.unidade.as_deref(),
+                    cli.json,
+                    nome,
+                    cor,
+                    descricao,
+                    *confirmar,
+                ),
                 Some(MarcadorAcao::Listar { inativos }) => {
                     marcadores_unidade_cli::listar(cli.unidade.as_deref(), cli.json, *inativos)
                 }

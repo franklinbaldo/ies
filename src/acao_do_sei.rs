@@ -83,6 +83,7 @@ acoes_do_sei! {
         GrupoUnidadeListar => "grupo_unidade_listar",
         InfraTrocarUnidade => "infra_trocar_unidade",
         Login => "login",
+        MarcadorCadastrar => "marcador_cadastrar",
         MarcadorListar => "marcador_listar",
         Principal => "principal",
         ProcedimentoAlterar => "procedimento_alterar",
