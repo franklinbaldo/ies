@@ -101,6 +101,11 @@ fn moldura(html: &str, secoes: &[Secao], principal: &str) -> Option<(usize, usiz
     let mut intervalo = None;
     let mut provas = Vec::new();
     for secao in secoes {
+        // Uma seção vizinha literalmente vazia não contribui elementos
+        // à foto. A principal ainda precisa de uma região identificável.
+        if secao.nome != principal && secao.html.is_empty() {
+            continue;
+        }
         let filhos = assinaturas(&secao.html)?;
         let seguinte = atual + filhos.len();
         let renderizados = elementos.get(atual..seguinte)?;
@@ -242,6 +247,55 @@ mod testes {
         assert!(matches!(
             corpo_editado(&base, &edicao.replace("Unidade", "Outra"), &secoes, "28"),
             Err(ErroSalvarNoSei::RegiaoNaoEditavelAlterada)
+        ));
+    }
+
+    #[test]
+    fn localiza_principal_renderizada_entre_secoes_vizinhas_vazias() {
+        let secoes = [
+            Secao {
+                nome: "cabecalho".into(),
+                html: "<h1>Fixo</h1>".into(),
+            },
+            Secao {
+                nome: "vazia_antes".into(),
+                html: String::new(),
+            },
+            Secao {
+                nome: "principal".into(),
+                html: "<p>@unidade@</p>".into(),
+            },
+            Secao {
+                nome: "vazia_depois".into(),
+                html: String::new(),
+            },
+            Secao {
+                nome: "rodape".into(),
+                html: "<hr>".into(),
+            },
+        ];
+        let antes = "<body><h1>Fixo</h1>";
+        let depois = "<hr><div unselectable=\"on\"></div></body>";
+        let base = format!("{antes}<p>Unidade</p>{depois}");
+        let corpo = "<p><strong>Novo\r\r\nsem fechamento";
+        let edicao = format!("{antes}{corpo}{depois}");
+        assert_eq!(
+            corpo_editado(&base, &edicao, &secoes, "principal").unwrap(),
+            corpo
+        );
+        assert!(matches!(
+            corpo_editado(
+                &base,
+                &edicao.replace("Fixo", "Alterado"),
+                &secoes,
+                "principal"
+            ),
+            Err(ErroSalvarNoSei::RegiaoNaoEditavelAlterada)
+        ));
+        // Sem uma região renderizada não há posição da principal vazia.
+        assert!(matches!(
+            corpo_editado(&base, &edicao, &secoes, "vazia_antes"),
+            Err(ErroSalvarNoSei::FotoLocalForaDaForma)
         ));
     }
 

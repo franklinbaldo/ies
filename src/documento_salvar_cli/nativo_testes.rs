@@ -163,6 +163,7 @@ struct Roteiro {
     editor: String,
     sinal: char,
     pedidos: Vec<String>,
+    posts: Vec<SubmissaoDerivada>,
 }
 
 impl EnvioDoControle for Roteiro {
@@ -170,10 +171,15 @@ impl EnvioDoControle for Roteiro {
 
     fn post(
         &mut self,
-        _: SubmissaoDerivada,
-        _: &str,
+        submissao: SubmissaoDerivada,
+        cookie: &str,
     ) -> Result<crate::formulario_web::RespostaDoPost<Self::Corpo>, FalhaTransporte> {
-        panic!("POST fora da abertura do editor")
+        assert_eq!(cookie, "PHPSESSID=SINTETICO");
+        self.posts.push(submissao);
+        Ok(crate::formulario_web::RespostaDoPost {
+            resposta: resposta(200, "text/html; charset=utf-8", b"OK 2".to_vec(), None),
+            localizacao: None,
+        })
     }
 
     fn get(&mut self, url: &str, _: &str) -> Result<RespostaWeb<Self::Corpo>, FalhaTransporte> {
@@ -221,6 +227,7 @@ fn abrir_editor_exige_barra_e_consulta_sem_assinatura() {
     for (sinal_barra, sinal_ajax, outro_documento, quantidade) in [
         (Some('N'), 'N', false, 3),
         (Some('N'), 'S', false, 2),
+        (Some('N'), 'X', false, 2),
         (Some('S'), 'N', false, 0),
         (Some('S'), 'S', false, 0),
         (None, 'N', false, 0),
@@ -268,10 +275,15 @@ fn abrir_editor_exige_barra_e_consulta_sem_assinatura() {
             ),
             sinal: sinal_ajax,
             pedidos: Vec::new(),
+            posts: Vec::new(),
         };
         let resultado = abrir_editor(&mut envio, &instalacao, &alvo);
         match (sinal_barra, sinal_ajax) {
             (Some('N'), 'N') => assert_eq!(resultado.unwrap().url, envio.editor),
+            (Some('N'), 'X') => assert!(matches!(
+                resultado,
+                Err(ErroEditorNativo::AssinaturaNaoVerificada)
+            )),
             (Some('N'), 'S') | (Some('S'), _) => {
                 assert!(matches!(
                     resultado,
@@ -289,5 +301,9 @@ fn abrir_editor_exige_barra_e_consulta_sem_assinatura() {
             esperados[..quantidade],
             "{sinal_barra:?}/{sinal_ajax}"
         );
+        assert!(envio.posts.is_empty());
     }
 }
+
+#[path = "nativo_post_testes.rs"]
+mod post;
