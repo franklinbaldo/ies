@@ -4,7 +4,7 @@ use super::tests::aberto;
 use super::*;
 use crate::processo_obter::Propriedades;
 use crate::propriedades_processo::{
-    Assunto, FonteDasPropriedades, NivelDeAcesso, PropriedadesLidas,
+    Assunto, FonteDasPropriedades, Interessado, NivelDeAcesso, PropriedadesLidas,
 };
 
 fn nup() -> NumeroProcesso {
@@ -17,13 +17,18 @@ fn com_propriedades() -> ProcessoAberto {
         id_tipo: "100000002".into(),
         tipo: "Tipo Sintetico: Teste".into(),
         especificacao: "Especificacao sintetica".into(),
-        interessados: vec!["Pessoa Sintetica A".into()],
+        interessados: vec![Interessado {
+            id: "301".into(),
+            nome: "Pessoa Sintetica A".into(),
+        }],
         assuntos: vec![
             Assunto {
+                id: "2001".into(),
                 codigo: "000.01".into(),
                 descricao: "Assunto sintetico".into(),
             },
             Assunto {
+                id: "2002".into(),
                 codigo: "000.02".into(),
                 descricao: "Outro assunto".into(),
             },
